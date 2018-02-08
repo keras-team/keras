@@ -3049,15 +3049,59 @@ def preprocess_weights_for_loading(layer, weights,
 
 def _convert_rnn_weights(layer, weights):
     """Converts weights for RNN layers between native and CuDNN format.
+
+    Input kernels for each gate are transposed and converted between Fortran
+    and C layout, recurrent kernels are transposed. For LSTM biases are summed/
+    split in half, for GRU biases are reshaped.
+
+    Weights can be converted in both directions between `LSTM` and`CuDNNSLTM`
+    and between `CuDNNGRU` and `GRU(reset_after=True)`. Default `GRU` is not
+    compatible with `CuDNNGRU`.
+
+    For missing biases in `LSTM`/`GRU` (`use_bias=False`) no conversion is made.
+
+    # Arguments
+        layer: Target layer instance.
+        weights: List of source weights values (input kernels, recurrent
+            kernels, [biases]) (Numpy arrays).
+
+    # Returns
+        A list of converted weights values (Numpy arrays).
+
+    # Raises
+        ValueError: for incompatible GRU layer/weights or incompatible biases
     """
 
     def transform_kernels(kernels, func, n_gates):
         """Transforms kernel for each gate separately using given function.
+
+        # Arguments
+            kernels: Stacked array of kernels for individual gates.
+            func: Function applied to kernel of each gate.
+            n_gates: Number of gates (4 for LSTM, 3 for GRU).
+        # Returns
+            Stacked array of transformed kernels.
         """
         return np.hstack([func(k) for k in np.hsplit(kernels, n_gates)])
 
     def transpose_input(from_cudnn):
-        """Transforms input kernels from/to CuDNN format.
+        """Makes a function that transforms input kernels from/to CuDNN format.
+
+        It keeps the shape, but changes between the layout (Fortran/C). Eg.:
+
+        ```
+        Keras                 CuDNN
+        [[0, 1, 2],  <--->  [[0, 2, 4],
+         [3, 4, 5]]          [1, 3, 5]]
+        ```
+
+        It can be passed to `transform_kernels()`.
+
+        # Arguments
+            from_cudnn: `True` if source weights are in CuDNN format, `False`
+                if they're in plain Keras format.
+        # Returns
+            Function that converts input kernel to the other format.
         """
         order = 'F' if from_cudnn else 'C'
 
