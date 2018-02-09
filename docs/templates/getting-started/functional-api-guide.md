@@ -168,15 +168,15 @@ One way to achieve this is to build a model that encodes two tweets into two vec
 
 Because the problem is symmetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
 
-Let's build this with the functional API. We will take as input for a tweet a binary matrix of shape `(140, 256)`, i.e. a sequence of 140 vectors of size 256, where each dimension in the 256-dimensional vector encodes the presence/absence of a character (out of an alphabet of 256 frequent characters).
+Let's build this with the functional API. We will take as input for a tweet a binary matrix of shape `(280, 256)`, i.e. a sequence of 280 vectors of size 256, where each dimension in the 256-dimensional vector encodes the presence/absence of a character (out of an alphabet of 256 frequent characters).
 
 ```python
 import keras
 from keras.layers import Input, LSTM, Dense
 from keras.models import Model
 
-tweet_a = Input(shape=(140, 256))
-tweet_b = Input(shape=(140, 256))
+tweet_a = Input(shape=(280, 256))
+tweet_b = Input(shape=(280, 256))
 ```
 
 To share a layer across different inputs, simply instantiate the layer once, then call it on as many inputs as you want:
@@ -222,7 +222,7 @@ In previous versions of Keras, you could obtain the output tensor of a layer ins
 As long as a layer is only connected to one input, there is no confusion, and `.output` will return the one output of the layer:
 
 ```python
-a = Input(shape=(140, 256))
+a = Input(shape=(280, 256))
 
 lstm = LSTM(32)
 encoded_a = lstm(a)
@@ -232,8 +232,8 @@ assert lstm.output == encoded_a
 
 Not so if the layer has multiple inputs:
 ```python
-a = Input(shape=(140, 256))
-b = Input(shape=(140, 256))
+a = Input(shape=(280, 256))
+b = Input(shape=(280, 256))
 
 lstm = LSTM(32)
 encoded_a = lstm(a)
