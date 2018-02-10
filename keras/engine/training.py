@@ -27,10 +27,10 @@ from ..legacy import interfaces
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix=''):
-    """Normalizes inputs and targets provided by users.
+    """Standardizes inputs and targets provided by users.
 
     Users may pass data as a list of arrays, dictionary of arrays,
-    or as a single array. We normalize this to an ordered list of
+    or as a single array. We standardize this to an ordered list of
     arrays (same order as `names`), while checking that the provided
     arrays have shapes that match the network's expectations.
 
@@ -452,7 +452,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
                          sample_weight_mode=None):
     """Performs sample weight validation and standardization.
 
-    Everything gets normalized to a single sample-wise (or timestep-wise)
+    Everything gets standardize to a single sample-wise (or timestep-wise)
     weight array.
 
     # Arguments
