@@ -13,7 +13,6 @@ In my test, highest validation accuracy is 83.79% after 50 epcohs.
 This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
 """
 
-
 from __future__ import print_function
 from keras import backend as K
 from keras.engine.topology import Layer
@@ -42,8 +41,8 @@ def softmax(x, axis=-1):
 # define the margin loss like hinge loss
 def margin_loss(y_true, y_pred):
     lamb, margin = 0.5, 0.1
-    return y_true * K.square(K.relu(1 - margin - y_pred)) +\
-           lamb * (1 - y_true) * K.square(K.relu(y_pred - margin))
+    return y_true * K.square(K.relu(1 - margin - y_pred)) + lamb * (
+        1 - y_true) * K.square(K.relu(y_pred - margin))
 
 
 class Capsule(Layer):
@@ -51,7 +50,7 @@ class Capsule(Layer):
     A Capsule Implement with Pure Keras
     There are two vesions of Capsule.
     One is like dense layer (for the fixed-shape input),
-    and the other one is like Time distributed dense (for various length input).
+    and the other is like timedistributed dense (for various length input).
     The input shape of Capsule must be (batch_size,
                                         input_num_capsule,
                                         input_dim_capsule
@@ -67,7 +66,7 @@ class Capsule(Layer):
     def __init__(self,
                  num_capsule,
                  dim_capsule,
-                 routings=3, 
+                 routings=3,
                  share_weights=True,
                  activation='default',
                  **kwargs):
@@ -85,30 +84,29 @@ class Capsule(Layer):
         super(Capsule, self).build(input_shape)
         input_dim_capsule = input_shape[-1]
         if self.share_weights:
-            self.W = self.add_weight(name='capsule_kernel',
-                                     shape=(1, input_dim_capsule,
-                                            self.num_capsule *
-                                            self.dim_capsule),
-                                     initializer='glorot_uniform',
-                                     trainable=True)
+            self.W = self.add_weight(
+                name='capsule_kernel',
+                shape=(1, input_dim_capsule,
+                       self.num_capsule * self.dim_capsule),
+                initializer='glorot_uniform',
+                trainable=True)
         else:
             input_num_capsule = input_shape[-2]
-            self.W = self.add_weight(name='capsule_kernel',
-                                     shape=(input_num_capsule,
-                                            input_dim_capsule,
-                                            self.num_capsule *
-                                            self.dim_capsule),
-                                     initializer='glorot_uniform',
-                                     trainable=True)
+            self.W = self.add_weight(
+                name='capsule_kernel',
+                shape=(input_num_capsule, input_dim_capsule,
+                       self.num_capsule * self.dim_capsule),
+                initializer='glorot_uniform',
+                trainable=True)
 
     def call(self, u_vecs):
         """
         Following the routing algorithm from Hinton's paper,
-        but replace b = b + <u,v> with b = <u,v>. 
+        but replace b = b + <u,v> with b = <u,v>.
         This change can improve the feature representation of Capsule.
         However, you can replace
         b = K.batch_dot(outputs, u_hat_vecs, [2, 3])
-        with 
+        with
         b += K.batch_dot(outputs, u_hat_vecs, [2, 3])
         to realize a standard routing.
         """
@@ -119,10 +117,9 @@ class Capsule(Layer):
 
         batch_size = K.shape(u_vecs)[0]
         input_num_capsule = K.shape(u_vecs)[1]
-        u_hat_vecs = K.reshape(u_hat_vecs, (batch_size,
-                                            input_num_capsule,
-                                            self.num_capsule,
-                                            self.dim_capsule))
+        u_hat_vecs = K.reshape(u_hat_vecs,
+                               (batch_size, input_num_capsule,
+                                self.num_capsule, self.dim_capsule))
         u_hat_vecs = K.permute_dimensions(u_hat_vecs, (0, 2, 1, 3))
 
         b = K.zeros_like(u_hat_vecs[:, :, :, 0])
@@ -161,7 +158,6 @@ cnn = Conv2D(64, (3, 3), activation='relu')(cnn)
 cnn = AveragePooling2D((2, 2))(cnn)
 cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
 cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
-
 """
 now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
 then connect a Capsule layer.
@@ -176,9 +172,7 @@ output = Lambda(lambda x: K.sqrt(K.sum(K.square(x), 2)))(capsule)
 model = Model(inputs=input_image, outputs=output)
 
 # we use a margin loss
-model.compile(loss=margin_loss,
-              optimizer='adam',
-              metrics=['accuracy'])
+model.compile(loss=margin_loss, optimizer='adam', metrics=['accuracy'])
 model.summary()
 
 # we can compare the performance with or without data augmentation
@@ -186,11 +180,13 @@ data_augmentation = True
 
 if not data_augmentation:
     print('Not using data augmentation.')
-    model.fit(x_train, y_train,
-              batch_size=batch_size,
-              epochs=epochs,
-              validation_data=(x_test, y_test),
-              shuffle=True)
+    model.fit(
+        x_train,
+        y_train,
+        batch_size=batch_size,
+        epochs=epochs,
+        validation_data=(x_test, y_test),
+        shuffle=True)
 else:
     print('Using real-time data augmentation.')
     # This will do preprocessing and realtime data augmentation:
@@ -211,8 +207,8 @@ else:
     datagen.fit(x_train)
 
     # Fit the model on the batches generated by datagen.flow().
-    model.fit_generator(datagen.flow(x_train, y_train,
-                                     batch_size=batch_size),
-                        epochs=epochs,
-                        validation_data=(x_test, y_test),
-                        workers=4)
+    model.fit_generator(
+        datagen.flow(x_train, y_train, batch_size=batch_size),
+        epochs=epochs,
+        validation_data=(x_test, y_test),
+        workers=4)
