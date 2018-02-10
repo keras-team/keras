@@ -110,7 +110,7 @@ class Wrapper(Layer):
 
 
 class TimeDistributed(Wrapper):
-    """This wrapper applies a layer to every temporal slice of an input.
+    """This wrapper applies the given layer to every temporal slice of an input.
 
     The input should be at least 3D, and the dimension of index one
     will be considered to be the temporal dimension.
@@ -126,6 +126,7 @@ class TimeDistributed(Wrapper):
     ```python
         # as the first layer in a model
         model = Sequential()
+        # Same dense layer is applied to every temporal slice.
         model.add(TimeDistributed(Dense(8), input_shape=(10, 16)))
         # now model.output_shape == (None, 10, 8)
     ```
