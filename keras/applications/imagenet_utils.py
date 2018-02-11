@@ -39,12 +39,12 @@ def _preprocess_numpy_input(x, data_format, mode):
         Preprocessed Numpy array.
     """
     if mode == 'tf':
-        x /= 127.5
+        x = np.true_divide(x, 127.5)
         x -= 1.
         return x
 
     if mode == 'torch':
-        x /= 255.
+        x = np.true_divide(x, 255.)
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
     else:
@@ -112,12 +112,12 @@ def _preprocess_symbolic_input(x, data_format, mode):
     global _IMAGENET_MEAN
 
     if mode == 'tf':
-        x /= 127.5
+        x = np.true_divide(x, 127.5)
         x -= 1.
         return x
 
     if mode == 'torch':
-        x /= 255.
+        x = np.true_divide(x, 255.)
         mean = [0.485, 0.456, 0.406]
         std = [0.229, 0.224, 0.225]
     else:
@@ -142,7 +142,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
     else:
         x = K.bias_add(x, _IMAGENET_MEAN, data_format)
     if std is not None:
-        x /= std
+        x = np.true_divide(x, std)
     return x
 
 
