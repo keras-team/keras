@@ -1180,6 +1180,14 @@ class _SeparableConv(_Conv):
         if input_shape[channel_axis] is None:
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
+
+        if K.backend() == 'theano':
+            if self.depth_multiplier not in (1, 1.):
+                raise ValueError('Theano backend only supports separable convolution '
+                                 'with number of depthwise channels equals to input channels')
+
+            self.depth_multiplier = int(self.depth_multiplier)
+
         input_dim = int(input_shape[channel_axis])
         depthwise_kernel_shape = self.kernel_size + (input_dim, self.depth_multiplier)
         pointwise_kernel_shape = (1,) * self.rank + (self.depth_multiplier * input_dim, self.filters)
