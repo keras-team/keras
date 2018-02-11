@@ -482,9 +482,7 @@ class RNN(Layer):
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
-        initial_state = K.zeros_like(inputs)  # (samples, timesteps, input_dim)
-        initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
-        initial_state = K.expand_dims(initial_state)  # (samples, 1)
+        initial_state = K.zeros_like(inputs[:, 0, :1])  # (samples, 1)
         if hasattr(self.cell.state_size, '__len__'):
             return [K.tile(initial_state, [1, dim])
                     for dim in self.cell.state_size]
