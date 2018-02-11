@@ -1,5 +1,4 @@
-"""
-Train a simple CNN-Capsule Network on the CIFAR10 small images dataset.
+"""Train a simple CNN-Capsule Network on the CIFAR10 small images dataset.
 
 Without Data Augmentation:
 It gets to 75% validation accuracy in 10 epochs,
@@ -16,7 +15,7 @@ This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
 from __future__ import print_function
 from keras import backend as K
 from keras.engine.topology import Layer
-from keras.layers import Activation
+from keras import activations
 from keras import utils
 from keras.datasets import cifar10
 from keras.models import Model
@@ -46,11 +45,11 @@ def margin_loss(y_true, y_pred):
 
 
 class Capsule(Layer):
-    """
-    A Capsule Implement with Pure Keras
+    """A Capsule Implement with Pure Keras
     There are two vesions of Capsule.
     One is like dense layer (for the fixed-shape input),
     and the other is like timedistributed dense (for various length input).
+
     The input shape of Capsule must be (batch_size,
                                         input_num_capsule,
                                         input_dim_capsule
@@ -63,28 +62,28 @@ class Capsule(Layer):
     Capsule Implement is from https://github.com/bojone/Capsule/
     Capsule Paper: https://arxiv.org/abs/1710.09829
     """
+
     def __init__(self,
                  num_capsule,
                  dim_capsule,
                  routings=3,
                  share_weights=True,
-                 activation='default',
+                 activation='squash',
                  **kwargs):
         super(Capsule, self).__init__(**kwargs)
         self.num_capsule = num_capsule
         self.dim_capsule = dim_capsule
         self.routings = routings
         self.share_weights = share_weights
-        if activation == 'default':
+        if activation == 'squash':
             self.activation = squash
         else:
-            self.activation = Activation(activation)
+            self.activation = activations.get(activation)
 
     def build(self, input_shape):
-        super(Capsule, self).build(input_shape)
         input_dim_capsule = input_shape[-1]
         if self.share_weights:
-            self.W = self.add_weight(
+            self.kernel = self.add_weight(
                 name='capsule_kernel',
                 shape=(1, input_dim_capsule,
                        self.num_capsule * self.dim_capsule),
@@ -92,44 +91,46 @@ class Capsule(Layer):
                 trainable=True)
         else:
             input_num_capsule = input_shape[-2]
-            self.W = self.add_weight(
+            self.kernel = self.add_weight(
                 name='capsule_kernel',
                 shape=(input_num_capsule, input_dim_capsule,
                        self.num_capsule * self.dim_capsule),
                 initializer='glorot_uniform',
                 trainable=True)
 
-    def call(self, u_vecs):
-        """
-        Following the routing algorithm from Hinton's paper,
+    def call(self, inputs):
+        """Following the routing algorithm from Hinton's paper,
         but replace b = b + <u,v> with b = <u,v>.
+
         This change can improve the feature representation of Capsule.
+
         However, you can replace
-        b = K.batch_dot(outputs, u_hat_vecs, [2, 3])
+            b = K.batch_dot(outputs, hat_inputs, [2, 3])
         with
-        b += K.batch_dot(outputs, u_hat_vecs, [2, 3])
+            b += K.batch_dot(outputs, hat_inputs, [2, 3])
         to realize a standard routing.
         """
-        if self.share_weights:
-            u_hat_vecs = K.conv1d(u_vecs, self.W)
-        else:
-            u_hat_vecs = K.local_conv1d(u_vecs, self.W, [1], [1])
 
-        batch_size = K.shape(u_vecs)[0]
-        input_num_capsule = K.shape(u_vecs)[1]
-        u_hat_vecs = K.reshape(u_hat_vecs,
+        if self.share_weights:
+            hat_inputs = K.conv1d(inputs, self.kernel)
+        else:
+            hat_inputs = K.local_conv1d(inputs, self.kernel, [1], [1])
+
+        batch_size = K.shape(inputs)[0]
+        input_num_capsule = K.shape(inputs)[1]
+        hat_inputs = K.reshape(hat_inputs,
                                (batch_size, input_num_capsule,
                                 self.num_capsule, self.dim_capsule))
-        u_hat_vecs = K.permute_dimensions(u_hat_vecs, (0, 2, 1, 3))
+        hat_inputs = K.permute_dimensions(hat_inputs, (0, 2, 1, 3))
 
-        b = K.zeros_like(u_hat_vecs[:, :, :, 0])
+        b = K.zeros_like(hat_inputs[:, :, :, 0])
         for i in range(self.routings):
             c = softmax(b, 1)
             if K.backend() == 'theano':
                 o = K.sum(o, axis=1)
-            o = self.activation(K.batch_dot(c, u_hat_vecs, [2, 2]))
+            o = self.activation(K.batch_dot(c, hat_inputs, [2, 2]))
             if i < self.routings - 1:
-                b = K.batch_dot(o, u_hat_vecs, [2, 3])
+                b = K.batch_dot(o, hat_inputs, [2, 3])
                 if K.backend() == 'theano':
                     o = K.sum(o, axis=1)
 
@@ -153,22 +154,25 @@ y_test = utils.to_categorical(y_test, num_classes)
 
 # A common Conv2D model
 input_image = Input(shape=(None, None, 3))
-cnn = Conv2D(64, (3, 3), activation='relu')(input_image)
-cnn = Conv2D(64, (3, 3), activation='relu')(cnn)
-cnn = AveragePooling2D((2, 2))(cnn)
-cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
-cnn = Conv2D(128, (3, 3), activation='relu')(cnn)
-"""
-now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
+x = Conv2D(64, (3, 3), activation='relu')(input_image)
+x = Conv2D(64, (3, 3), activation='relu')(x)
+x = AveragePooling2D((2, 2))(x)
+x = Conv2D(128, (3, 3), activation='relu')(x)
+x = Conv2D(128, (3, 3), activation='relu')(x)
+
+
+"""now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
 then connect a Capsule layer.
-the output of final model is the lengths of 10 Capsule, whose dim=16
+
+the output of final model is the lengths of 10 Capsule, whose dim=16.
+
 the length of Capsule is the proba,
 so the probelm becomes a 10 two-classification problems
 """
 
-cnn = Reshape((-1, 128))(cnn)
-capsule = Capsule(10, 16, 3, True)(cnn)
-output = Lambda(lambda x: K.sqrt(K.sum(K.square(x), 2)))(capsule)
+x = Reshape((-1, 128))(x)
+capsule = Capsule(10, 16, 3, True)(x)
+output = Lambda(lambda z: K.sqrt(K.sum(K.square(z), 2)))(capsule)
 model = Model(inputs=input_image, outputs=output)
 
 # we use a margin loss
