@@ -887,8 +887,8 @@ class ActivityRegularization(Layer):
     """Layer that applies an update to the cost function based input activity.
 
     # Arguments
-        l1: L1 regularization factor (positive float).
-        l2: L2 regularization factor (positive float).
+        l1: L1 regularization factor (non-negative float).
+        l2: L2 regularization factor (non-negative float).
 
     # Input shape
         Arbitrary. Use the keyword argument `input_shape`
