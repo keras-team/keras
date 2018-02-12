@@ -466,8 +466,6 @@ def test_averagepooling_2d():
                input_shape=(3, 4, 5, 6))
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason='MXNet backend does not support conv3d yet.')
 @keras_test
 def test_convolution_3d():
     num_samples = 2
@@ -488,9 +486,8 @@ def test_convolution_3d():
                                'kernel_size': 3,
                                'padding': padding,
                                'strides': strides},
-                       input_shape=(num_samples,
-                                    input_len_dim1, input_len_dim2, input_len_dim3,
-                                    stack_size))
+                       input_shape=(num_samples, stack_size,
+                                    input_len_dim1, input_len_dim2, input_len_dim3))
 
     layer_test(convolutional.Convolution3D,
                kwargs={'filters': filters,
@@ -506,7 +503,6 @@ def test_convolution_3d():
                input_shape=(num_samples,
                             input_len_dim1, input_len_dim2, input_len_dim3,
                             stack_size))
-
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
                     reason='MXNet backend does not support conv3d_transpose yet.')

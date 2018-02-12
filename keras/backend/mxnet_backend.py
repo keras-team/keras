@@ -3037,7 +3037,15 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError('MXNet Backend: conv3d operator is not supported yet.')
+    if data_format is None:
+        data_format = image_data_format()
+    _validate_data_format(data_format)
+
+    if padding not in {'same', 'valid'}:
+        raise ValueError('`padding` should be either `same` or `valid`.')
+
+    return _convnd(x, kernel, name='conv3d', strides=strides, filter_dilation=dilation_rate,
+                   padding_mode=padding, data_format=data_format)
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
@@ -3923,9 +3931,16 @@ def _postprocess_convnd_output(x, data_format):
 
 @keras_mxnet_symbol
 def _preprocess_convnd_kernel(kernel, data_format):
-    # Kernel is always provided in TF kernel shape: (rows, cols, input_depth, depth)
-    # Convert it to MXNet kernel shape: (depth, input_depth, rows, cols)
-    if len(kernel.shape) > 3:
+    # Kernel is always provided in TF kernel shape:
+    #   2-D: (rows, cols, input_depth, depth)
+    #   3-D: (kernel_depth, kernel_rows, kernel_cols, input_depth, depth)
+    # Convert it to MXNet kernel shape:
+    #   2-D: (depth, input_depth, rows, cols)
+    #   3-D: (depth, input_depth, kernel_depth, kernel_rows, kernel_cols)
+    #
+    if len(kernel.shape) > 4:
+        kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(4, 3, 0, 1, 2)))
+    elif len(kernel.shape) > 3:
         kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
 
     return kernel
