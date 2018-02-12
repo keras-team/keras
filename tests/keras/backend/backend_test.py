@@ -848,8 +848,6 @@ class TestBackend(object):
         # TH kernel shape: (depth, input_depth, x, y, z)
         # TF kernel shape: (x, y, z, input_depth, depth)
 
-        # MXNet backend does not support conv2d yet.
-
         # test in data_format = channels_first
         for input_shape in [(2, 3, 4, 5, 4), (2, 3, 5, 4, 6)]:
             for kernel_shape in [(2, 2, 2, 3, 4), (3, 2, 4, 3, 4)]:
@@ -861,13 +859,13 @@ class TestBackend(object):
         input_shape = (1, 2, 2, 2, 1)
         kernel_shape = (2, 2, 2, 1, 1)
         check_two_tensor_operation('conv3d', input_shape, kernel_shape,
-                                   BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
+                                   BACKENDS, cntk_dynamicity=True,
                                    data_format='channels_last')
 
         xval = np.random.random(input_shape)
         kernel_val = np.random.random(kernel_shape) - 0.5
         # Test invalid use cases
-        for k in BACKENDS_WITHOUT_MXNET:
+        for k in BACKENDS:
             with pytest.raises(ValueError):
                 k.conv3d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
