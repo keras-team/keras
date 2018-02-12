@@ -221,7 +221,7 @@ def apply_transform(x,
         x_channel,
         final_affine_matrix,
         final_offset,
-        order=0,
+        order=1,
         mode=fill_mode,
         cval=cval) for x_channel in x]
     x = np.stack(channel_images, axis=0)
