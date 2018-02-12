@@ -7,6 +7,7 @@ from __future__ import print_function
 import os
 import csv
 import six
+import sys
 
 import numpy as np
 import time
@@ -16,6 +17,7 @@ import warnings
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
+from cStringIO import StringIO
 from .utils.generic_utils import Progbar
 from . import backend as K
 from .engine.topology import Layer
@@ -39,6 +41,9 @@ class CallbackList(object):
         callbacks = callbacks or []
         self.callbacks = [c for c in callbacks]
         self.queue_length = queue_length
+        self._delayed_out = []
+        self._delayed_progbar = ''
+        self._delayed_progbar_len = 0
 
     def append(self, callback):
         self.callbacks.append(callback)
@@ -74,7 +79,20 @@ class CallbackList(object):
         """
         logs = logs or {}
         for callback in self.callbacks:
+            backup = sys.stdout
+            sys.stdout = StringIO()  # capture output
             callback.on_epoch_end(epoch, logs)
+            if isinstance(callback, ProgbarLogger):
+                self._delayed_progbar = sys.stdout.getvalue()
+            else:
+                self._delayed_out.append(sys.stdout.getvalue())
+            sys.stdout.close()
+            sys.stdout = backup
+
+        self._write_cursor_back()
+        self._write_delayed_out(False)
+        self._write_delayed_progbar()
+        sys.stdout.flush()
 
     def on_batch_begin(self, batch, logs=None):
         """Called right before processing a batch.
@@ -110,7 +128,23 @@ class CallbackList(object):
         self._delta_t_batch = time.time() - self._t_enter_batch
         t_before_callbacks = time.time()
         for callback in self.callbacks:
+            backup = sys.stdout
+            sys.stdout = StringIO()     # capture output
             callback.on_batch_end(batch, logs)
+            if isinstance(callback, ProgbarLogger):
+                self._delayed_progbar = sys.stdout.getvalue()
+                if self._delayed_progbar_len == 0:
+                    self._delayed_progbar_len = len(self._delayed_progbar)
+            else:
+                self._delayed_out.append(sys.stdout.getvalue())
+            sys.stdout.close()
+            sys.stdout = backup
+
+        self._write_cursor_back()
+        self._write_delayed_out()
+        self._write_delayed_progbar()
+        sys.stdout.flush()
+
         self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
         delta_t_median = np.median(self._delta_ts_batch_end)
         if (self._delta_t_batch > 0. and
@@ -138,6 +172,26 @@ class CallbackList(object):
         logs = logs or {}
         for callback in self.callbacks:
             callback.on_train_end(logs)
+
+    def _write_cursor_back(self):
+        if self._delayed_progbar_len > 0:
+            sys.stdout.write('\b' * self._delayed_progbar_len + '\r')
+
+    def _write_delayed_out(self, newline=True):
+        if len(self._delayed_out) > 0:
+            _delayed_out_len = 0
+            for o in self._delayed_out:
+                sys.stdout.write(o.rstrip('\n'))
+                _delayed_out_len += len(o)
+            if _delayed_out_len > 0 and newline:
+                blanks = self._delayed_progbar_len - _delayed_out_len
+                sys.stdout.write(' ' * blanks + '\n')
+            self._delayed_out = []
+
+    def _write_delayed_progbar(self):
+        if len(self._delayed_progbar) > 0:
+            sys.stdout.write(self._delayed_progbar)
+            self._delayed_progbar = ''
 
     def __iter__(self):
         return iter(self.callbacks)
