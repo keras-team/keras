@@ -38,13 +38,12 @@ VALIDATION_SPLIT = 0.2
 print('Indexing word vectors.')
 
 embeddings_index = {}
-f = open(os.path.join(GLOVE_DIR, 'glove.6B.100d.txt'))
-for line in f:
-    values = line.split()
-    word = values[0]
-    coefs = np.asarray(values[1:], dtype='float32')
-    embeddings_index[word] = coefs
-f.close()
+with open(os.path.join(GLOVE_DIR, 'glove.6B.100d.txt')) as f:
+    for line in f:
+        values = line.split()
+        word = values[0]
+        coefs = np.asarray(values[1:], dtype='float32')
+        embeddings_index[word] = coefs
 
 print('Found %s word vectors.' % len(embeddings_index))
 
@@ -62,16 +61,13 @@ for name in sorted(os.listdir(TEXT_DATA_DIR)):
         for fname in sorted(os.listdir(path)):
             if fname.isdigit():
                 fpath = os.path.join(path, fname)
-                if sys.version_info < (3,):
-                    f = open(fpath)
-                else:
-                    f = open(fpath, encoding='latin-1')
-                t = f.read()
-                i = t.find('\n\n')  # skip header
-                if 0 < i:
-                    t = t[i:]
-                texts.append(t)
-                f.close()
+                args = {} if sys.version_info < (3,) else {'encoding': 'latin-1'}
+                with open(fpath, **args) as f:
+                    t = f.read()
+                    i = t.find('\n\n')  # skip header
+                    if 0 < i:
+                        t = t[i:]
+                    texts.append(t)
                 labels.append(label_id)
 
 print('Found %s texts.' % len(texts))
