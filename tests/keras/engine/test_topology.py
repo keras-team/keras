@@ -658,24 +658,25 @@ def test_recursion_with_bn_and_loss():
 
 @keras_test
 def test_activity_regularization_with_model_composition():
-    # Ensures that the shape of the input to the activity
-    # regularizer is the same under model composition.
-    # Tests for regressions of issue #9267
-    wrong_size = 10
-    correct_size = 2
-    def reg(x):
-        assert x.shape[-1] == correct_size
-        return 0
 
-    net_a_input = Input([2])
+    def reg(x):
+        return K.sum(x)
+
+    net_a_input = Input((2,))
     net_a = net_a_input
-    net_a = Dense(wrong_size)(net_a)
-    net_a = Dense(correct_size, activity_regularizer=reg)(net_a)
+    net_a = Dense(2, kernel_initializer='ones',
+                  use_bias=False,
+                  activity_regularizer=reg)(net_a)
     model_a = Model([net_a_input], [net_a])
 
-    net_b_input = Input([2])
-    net_b = Dense(10)(model_a(net_b_input))
+    net_b_input = Input((2,))
+    net_b = model_a(net_b_input)
     model_b = Model([net_b_input], [net_b])
+
+    model_b.compile(optimizer='sgd', loss=None)
+    x = np.ones((1, 2))
+    loss = model_b.evaluate(x)
+    assert loss == 4
 
 
 @keras_test
