@@ -29,7 +29,8 @@ input_texts = []
 target_texts = []
 input_characters = set()
 target_characters = set()
-lines = open(data_path, 'r', encoding='utf-8').read().split('\n')
+with open(data_path, 'r', encoding='utf-8') as f:
+    lines = f.read().split('\n')
 for line in lines[: min(num_samples, len(lines) - 1)]:
     input_text, target_text = line.split('\t')
     # We use "tab" as the "start sequence" character
