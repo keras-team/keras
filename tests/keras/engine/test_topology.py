@@ -657,6 +657,28 @@ def test_recursion_with_bn_and_loss():
 
 
 @keras_test
+def test_activity_regularization_with_model_composition():
+    # Ensures that the shape of the input to the activity
+    # regularizer is the same under model composition.
+    # Tests for regressions of issue #9267
+    wrong_size = 10
+    correct_size = 2
+    def reg(x):
+        assert x.shape[-1] == correct_size
+        return 0
+
+    net_a_input = Input([2])
+    net_a = net_a_input
+    net_a = Dense(wrong_size)(net_a)
+    net_a = Dense(correct_size, activity_regularizer=reg)(net_a)
+    model_a = Model([net_a_input], [net_a])
+
+    net_b_input = Input([2])
+    net_b = Dense(10)(model_a(net_b_input))
+    model_b = Model([net_b_input], [net_b])
+
+
+@keras_test
 def test_shared_layer_depth_is_correct():
     # Basic outline here: we have a shared embedding layer, and two inputs that go through
     # different depths of computation in the graph before the final output.  We need the computed
