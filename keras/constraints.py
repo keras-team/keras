@@ -144,6 +144,7 @@ class MinMaxNorm(Constraint):
                 'rate': self.rate,
                 'axis': self.axis}
 
+
 class ZeroMean(Constraint):
     """ ZeroMean weight constraint.
 
@@ -172,7 +173,7 @@ class ZeroMean(Constraint):
         return w
 
     def get_config(self):
-        return  {'axis' : self.axis}
+        return {'axis': self.axis}
 
 
 # Aliases.
