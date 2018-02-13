@@ -2246,7 +2246,7 @@ class Container(Layer):
 
                         # Apply activity regularizer if any:
                         if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
-                            regularization_losses = [layer.activity_regularizer(x) for x in computed_tensors]
+                            regularization_losses = [layer.activity_regularizer(x) for x in output_tensors]
                             layer.add_loss(regularization_losses, computed_tensors)
 
                     # Update model updates and losses:
