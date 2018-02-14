@@ -907,7 +907,7 @@ def resize_images(x, height_factor, width_factor, data_format, interpolation='ne
         ratio = height_factor / width_factor
         th_padding = _preprocess_padding('same')
         output = theano.tensor.nnet.abstract_conv.bilinear_upsampling(
-            x, ratio=ratio, border_mode=th_padding)
+            x, ratio=ratio)
         if hasattr(x, '_keras_shape'):
             output._keras_shape = list(x._keras_shape)
             repeat_dim_1 = x._keras_shape[axis_1]
