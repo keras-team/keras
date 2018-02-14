@@ -22,6 +22,7 @@ from .. import backend as K
 from ..utils.data_utils import Sequence
 
 try:
+    from PIL import ImageEnhance
     from PIL import Image as pil_image
 except ImportError:
     pil_image = None
@@ -373,6 +374,17 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
             if re.match(r'([\w]+\.(?:' + ext + '))', f)]
 
 
+def random_brightness(x, brightness=0):
+    x = array_to_img(x) # Convert the image to an array
+    x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
+    
+    x = imgenhancer_Brightness.enhance(brightness)
+    x = img_to_array(x)
+    
+    return x
+
+
+
 class ImageDataGenerator(object):
     """Generate minibatches of image data with real-time data augmentation.
 
@@ -382,6 +394,7 @@ class ImageDataGenerator(object):
         featurewise_std_normalization: divide inputs by std of the dataset.
         samplewise_std_normalization: divide each input by its std.
         zca_whitening: apply ZCA whitening.
+        brightness: apply brightness
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
@@ -401,6 +414,7 @@ class ImageDataGenerator(object):
                 'wrap':  abcdabcd|abcd|abcdabcd
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
+        brightness_range: The range for the brightness, higher number for better variance
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         rescale: rescaling factor. If None or 0, no rescaling is applied,
@@ -425,6 +439,7 @@ class ImageDataGenerator(object):
                  featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
                  zca_whitening=False,
+                 brightness=False,
                  zca_epsilon=1e-6,
                  rotation_range=0.,
                  width_shift_range=0.,
@@ -434,6 +449,7 @@ class ImageDataGenerator(object):
                  channel_shift_range=0.,
                  fill_mode='nearest',
                  cval=0.,
+                 brightness_range=0,
                  horizontal_flip=False,
                  vertical_flip=False,
                  rescale=None,
@@ -455,8 +471,10 @@ class ImageDataGenerator(object):
         self.channel_shift_range = channel_shift_range
         self.fill_mode = fill_mode
         self.cval = cval
+        self.brightness_range = brightness_range
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
+        self.brightness = brightness
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
 
@@ -683,6 +701,9 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
+                
+        if self.brightness:
+            x = random_brightness(x, np.random.uniform(0.1, self.brightness_range))
 
         return x
 
