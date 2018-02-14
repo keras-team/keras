@@ -2631,8 +2631,8 @@ class Container(Layer):
                 where there is a mismatch in the number of weights,
                 or a mismatch in the shape of the weight
                 (only valid when `by_name`=True).
-        reshape: Reshape weights to fit the layer when the correct number
-            of values are present but the shape does not match.
+            reshape: Reshape weights to fit the layer when the correct number
+                of weight arrays is present but their shape does not match.
 
 
         # Raises
