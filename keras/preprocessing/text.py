@@ -182,7 +182,6 @@ class Tokenizer(object):
                 a generator of strings (for memory-efficiency),
                 or a list of list of strings.
         """
-        self.document_count = 0
         for text in texts:
             self.document_count += 1
             if self.char_level or isinstance(text, list):
