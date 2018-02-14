@@ -377,7 +377,6 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
 def random_brightness(x, brightness=0):
     x = array_to_img(x)
     x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
-
     x = imgenhancer_Brightness.enhance(brightness)
     x = img_to_array(x)
 
