@@ -54,8 +54,8 @@ def test_sequential_fit():
              'The dog sat on the log.',
              'Dogs and cats living together.']
     word_sequences = [
-        ['The', 'cat', 'is', 'dumb'],
-        ['The', 'dog', 'is', 'nice']
+        ['The', 'cat', 'is', 'sitting'],
+        ['The', 'dog', 'is', 'standing']
     ]
 
     tokenizer = Tokenizer()
