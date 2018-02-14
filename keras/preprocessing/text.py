@@ -172,20 +172,26 @@ class Tokenizer(object):
 
     def fit_on_texts(self, texts):
         """Updates internal vocabulary based on a list of texts.
+        In the case where texts contains lists, we assume each entry of the lists
+        to be a token.
 
         Required before using `texts_to_sequences` or `texts_to_matrix`.
 
         # Arguments
             texts: can be a list of strings,
-                or a generator of strings (for memory-efficiency)
+                a generator of strings (for memory-efficiency),
+                or a list of list of strings.
         """
         self.document_count = 0
         for text in texts:
             self.document_count += 1
-            seq = text if self.char_level else text_to_word_sequence(text,
-                                                                     self.filters,
-                                                                     self.lower,
-                                                                     self.split)
+            if self.char_level or isinstance(text, list):
+                seq = text
+            else:
+                seq = text_to_word_sequence(text,
+                                            self.filters,
+                                            self.lower,
+                                            self.split)
             for w in seq:
                 if w in self.word_counts:
                     self.word_counts[w] += 1
@@ -251,22 +257,27 @@ class Tokenizer(object):
 
     def texts_to_sequences_generator(self, texts):
         """Transforms each text in texts in a sequence of integers.
+        Each item in texts can also be a list, in which we assume each item of that list
+        to be a token.
 
         Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
         # Arguments
-            texts: A list of texts (strings).
+            texts: A list of texts (strings), or a list of lists containing strings.
 
         # Yields
             Yields individual sequences.
         """
         num_words = self.num_words
         for text in texts:
-            seq = text if self.char_level else text_to_word_sequence(text,
-                                                                     self.filters,
-                                                                     self.lower,
-                                                                     self.split)
+            if self.char_level or isinstance(text, list):
+                seq = text
+            else:
+                seq = text_to_word_sequence(text,
+                                            self.filters,
+                                            self.lower,
+                                            self.split)
             vect = []
             for w in seq:
                 i = self.word_index.get(w)
