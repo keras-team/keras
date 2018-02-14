@@ -169,6 +169,7 @@ class Tokenizer(object):
         self.document_count = 0
         self.char_level = char_level
         self.oov_token = oov_token
+        self.index_docs = {}
 
     def fit_on_texts(self, texts):
         """Updates internal vocabulary based on a list of texts.
@@ -213,7 +214,6 @@ class Tokenizer(object):
             if i is None:
                 self.word_index[self.oov_token] = len(self.word_index) + 1
 
-        self.index_docs = {}
         for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
 
@@ -227,8 +227,7 @@ class Tokenizer(object):
             sequences: A list of sequence.
                 A "sequence" is a list of integer word indices.
         """
-        self.document_count = len(sequences)
-        self.index_docs = {}
+        self.document_count += len(sequences)
         for seq in sequences:
             seq = set(seq)
             for i in seq:
