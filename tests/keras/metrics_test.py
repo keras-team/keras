@@ -160,7 +160,10 @@ def test_stateful_metrics():
     model = keras.Model(inputs, outputs)
     model.compile(optimizer='sgd',
                   loss='binary_crossentropy',
-                  metrics=['acc', metrics.Recall(), metrics.Precision(), metric_fn])
+                  metrics=['acc',
+                           metrics.Recall(),
+                           metrics.Precision(),
+                           metric_fn])
 
     # Test fit, evaluate
     samples = 1000
