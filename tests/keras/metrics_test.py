@@ -195,8 +195,8 @@ def test_stateful_metrics():
     model.compile(optimizer='sgd',
                   loss='categorical_crossentropy',
                   metrics=['acc',
-                           metrics.Recall(label_encoding="one_hot"),
-                           metrics.Precision(label_encoding="one_hot")])
+                           metrics.Recall(),
+                           metrics.Precision()])
 
     y = keras.utils.to_categorical(y, 2)
     model.fit(x, y, epochs=1, batch_size=10)
