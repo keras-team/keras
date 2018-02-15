@@ -154,13 +154,13 @@ def test_stateful_metrics():
     metric_fn = metrics.deserialize(
         config, custom_objects={'BinaryTruePositives': BinaryTruePositives})
 
-    # Test on simple model
+    # Test 1: Simple model - binary encoded
     inputs = keras.Input(shape=(2,))
     outputs = keras.layers.Dense(1, activation='sigmoid')(inputs)
     model = keras.Model(inputs, outputs)
     model.compile(optimizer='sgd',
                   loss='binary_crossentropy',
-                  metrics=['acc', metric_fn])
+                  metrics=['acc', metrics.Recall(), metrics.Precision(), metric_fn])
 
     # Test fit, evaluate
     samples = 1000
@@ -173,9 +173,36 @@ def test_stateful_metrics():
     def ref_true_pos(y_true, y_pred):
         return np.sum(np.logical_and(y_pred > 0.5, y_true == 1))
 
-    # Test correctness (e.g. updates should have been run)
-    np.testing.assert_allclose(outs[2], ref_true_pos(y, preds), atol=1e-5)
+    def ref_recall(y_true, y_pred):
+        return ref_true_pos(y_true, y_pred) / float(np.sum(y_true == 1))
 
+    def ref_precision(y_true, y_pred):
+        return ref_true_pos(y_true, y_pred) / float(np.sum(y_pred > .5))
+
+    # Test correctness (e.g. updates should have been run)
+    np.testing.assert_allclose(outs[2], ref_recall(y, preds), atol=1e-5)
+    np.testing.assert_allclose(outs[3], ref_precision(y, preds), atol=1e-5)
+    np.testing.assert_allclose(outs[4], ref_true_pos(y, preds), atol=1e-5)
+
+    # Test 2: Simple model - one hot encoded
+    inputs = keras.Input(shape=(2,))
+    outputs = keras.layers.Dense(2, activation='softmax')(inputs)
+    model = keras.Model(inputs, outputs)
+
+    model.compile(optimizer='sgd',
+                  loss='categorical_crossentropy',
+                  metrics=['acc',
+                           metrics.Recall(label_encoding="one_hot"),
+                           metrics.Precision(label_encoding="one_hot")])
+
+    y = keras.utils.to_categorical(y, 2)
+    model.fit(x, y, epochs=1, batch_size=10)
+    outs = model.evaluate(x, y, batch_size=10)
+    preds = model.predict(x)
+
+    # Test correctness (e.g. updates should have been run)
+    np.testing.assert_allclose(outs[2], ref_recall(y[:, 1], preds[:, 1]), atol=1e-5)
+    np.testing.assert_allclose(outs[3], ref_precision(y[:, 1], preds[:, 1]), atol=1e-5)
 
 if __name__ == '__main__':
     pytest.main([__file__])

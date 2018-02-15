@@ -83,7 +83,7 @@ class Recall(Layer):
         '''
         # Batch
         if self.label_encoding == 'one_hot':
-           y_true, y_pred = _one_hot_to_binary(y_true, y_pred)
+            y_true, y_pred = _one_hot_to_binary(y_true, y_pred)
 
         true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
         total_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
@@ -135,7 +135,7 @@ class Precision(Layer):
         '''
         # Batch
         if self.label_encoding == 'one_hot':
-           y_true, y_pred = _one_hot_to_binary(y_true, y_pred)
+            y_true, y_pred = _one_hot_to_binary(y_true, y_pred)
 
         true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
         pred_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
@@ -165,7 +165,7 @@ def _one_hot_to_binary(y_true, y_pred):
         y_true: Tensor, batch_wise labels (binary encoded).
         y_pred: Tensor,  batch_wise predictions (binary encoded).
     '''
-    return y_true[...,1], y_pred[...,1]
+    return y_true[..., 1], y_pred[..., 1]
 
 
 # Aliases
