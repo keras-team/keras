@@ -55,17 +55,14 @@ class Recall(Layer):
 
     # Arguments
         name: String, name for the metric.
-        label_encoding: String, 'binary' or 'one_hot', label encoding format.
+        class_ind: Integer, class index.
     '''
 
-    def __init__(self, name='recall', label_encoding='binary'):
+    def __init__(self, name='recall', class_ind=1):
         super(Recall, self).__init__(name=name)
         self.true_positives = K.variable(value=0, dtype='float32')
         self.total_positives = K.variable(value=0, dtype='float32')
-
-        if label_encoding not in ['binary', 'one_hot']:
-            raise ValueError('Label encoding must be "binary" or "one_hot"')
-        self.label_encoding = label_encoding
+        self.class_ind = class_ind
 
     def reset_states(self):
         K.set_value(self.true_positives, 0.0)
@@ -82,9 +79,7 @@ class Recall(Layer):
             Overall recall for the epoch at the completion of the batch.
         '''
         # Batch
-        if self.label_encoding == 'one_hot':
-            y_true, y_pred = _one_hot_to_binary(y_true, y_pred)
-
+        y_true, y_pred = _slice_by_class(y_true, y_pred, self.class_ind)
         true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
         total_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
 
@@ -107,17 +102,14 @@ class Precision(Layer):
 
     # Arguments
         name: String, name for the metric.
-        label_encoding: String, 'binary' or 'one_hot', label encoding format.
+        class_ind: Integer, class index.
     '''
 
-    def __init__(self, name='precision', label_encoding='binary'):
+    def __init__(self, name='precision', class_ind=1):
         super(Precision, self).__init__(name=name)
         self.true_positives = K.variable(value=0, dtype='float32')
         self.pred_positives = K.variable(value=0, dtype='float32')
-
-        if label_encoding not in ['binary', 'one_hot']:
-            raise ValueError('Label encoding must be "binary" or "one_hot"')
-        self.label_encoding = label_encoding
+        self.class_ind = class_ind
 
     def reset_states(self):
         K.set_value(self.true_positives, 0.0)
@@ -134,9 +126,7 @@ class Precision(Layer):
             Overall precision for the epoch at the completion of the batch.
         '''
         # Batch
-        if self.label_encoding == 'one_hot':
-            y_true, y_pred = _one_hot_to_binary(y_true, y_pred)
-
+        y_true, y_pred = _slice_by_class(y_true, y_pred, self.class_ind)
         true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
         pred_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
 
@@ -154,19 +144,26 @@ class Precision(Layer):
                (current_pred_positives + pred_positives + K.epsilon())
 
 
-def _one_hot_to_binary(y_true, y_pred):
-    '''Convert one hot encoded labels and predictions to binary encoding.
+def _slice_by_class(y_true, y_pred, class_ind):
+    ''' Slice the batch predictions and labels with respect to a given class
+    that is encoded by a categorical or binary label.
 
     #  Arguments:
-        y_true: Tensor, batch_wise labels (one hot encoded).
-        y_pred: Tensor, batch_wise predictions (one hot encoded).
+        y_true: Tensor, batch_wise labels.
+        y_pred: Tensor, batch_wise predictions.
+        class_ind: Integer, class index.
 
     # Returns:
-        y_true: Tensor, batch_wise labels (binary encoded).
-        y_pred: Tensor,  batch_wise predictions (binary encoded).
+        y_slice_true: Tensor, batch_wise label slice.
+        y_slice_pred: Tensor,  batch_wise predictions, slice.
     '''
-    return y_true[..., 1], y_pred[..., 1]
-
+    # Binary encoded
+    if y_pred.shape[-1] == 1:
+        y_slice_true, y_slice_pred = y_true, y_pred
+    # Categorical encoded
+    else:
+        y_slice_true, y_slice_pred = y_true[..., class_ind], y_pred[..., class_ind]
+    return y_slice_true, y_slice_pred
 
 # Aliases
 
