@@ -171,7 +171,7 @@ then connect a Capsule layer.
 the output of final model is the lengths of 10 Capsule, whose dim=16.
 
 the length of Capsule is the proba,
-so the probelm becomes a 10 two-classification problems
+so the problem becomes a 10 two-classification problem.
 """
 
 x = Reshape((-1, 128))(x)
