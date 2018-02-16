@@ -180,6 +180,14 @@ class BatchNormalization(Layer):
             inputs, self.gamma, self.beta, reduction_axes,
             epsilon=self.epsilon)
 
+        if K.backend() != 'cntk':
+            sample_size = K.prod([K.shape(inputs)[axis]
+                                  for axis in reduction_axes])
+            sample_size = K.cast(sample_size, dtype=K.dtype(inputs))
+
+            # sample variance - unbiased estimator of population variance
+            variance *= sample_size / (sample_size - (1.0 + self.epsilon))
+
         self.add_update([K.moving_average_update(self.moving_mean,
                                                  mean,
                                                  self.momentum),

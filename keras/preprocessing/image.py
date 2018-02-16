@@ -221,7 +221,7 @@ def apply_transform(x,
         x_channel,
         final_affine_matrix,
         final_offset,
-        order=0,
+        order=1,
         mode=fill_mode,
         cval=cval) for x_channel in x]
     x = np.stack(channel_images, axis=0)
@@ -748,11 +748,10 @@ class ImageDataGenerator(object):
 
         if self.zca_whitening:
             flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
-            num_examples = flat_x.shape[0]
-            _, s, vt = linalg.svd(flat_x / np.sqrt(num_examples))
-            s_expand = np.hstack((s, np.zeros(vt.shape[0] - num_examples,
-                                              dtype=flat_x.dtype)))
-            self.principal_components = (vt.T / np.sqrt(s_expand ** 2 + self.zca_epsilon)).dot(vt)
+            sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
+            u, s, _ = linalg.svd(sigma)
+            s_inv = 1. / np.sqrt(s[np.newaxis] + self.zca_epsilon)
+            self.principal_components = (u * s_inv).dot(u.T)
 
 
 class Iterator(Sequence):
@@ -873,9 +872,9 @@ class NumpyArrayIterator(Iterator):
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png'):
         if y is not None and len(x) != len(y):
-            raise ValueError('X (images tensor) and y (labels) '
+            raise ValueError('x (images tensor) and y (labels) '
                              'should have the same length. '
-                             'Found: X.shape = %s, y.shape = %s' %
+                             'Found: x.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
 
         if data_format is None:
@@ -956,13 +955,16 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
         the directory.
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
     samples = 0
     for _, _, files in _recursive_list(directory):
         for fname in files:
             is_valid = False
             for extension in white_list_formats:
+                if fname.lower().endswith('.tiff'):
+                    warnings.warn('Using \'.tiff\' files with multiple bands will cause distortion. '
+                                  'Please verify your output.')
                 if fname.lower().endswith('.' + extension):
                     is_valid = True
                     break
@@ -990,7 +992,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda tpl: tpl[0])
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
     classes = []
     filenames = []
@@ -1094,7 +1096,7 @@ class DirectoryIterator(Iterator):
         self.save_format = save_format
         self.interpolation = interpolation
 
-        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm'}
+        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff'}
 
         # first, count the number of samples and classes
         self.samples = 0

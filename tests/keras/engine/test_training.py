@@ -569,6 +569,17 @@ def test_trainable_argument():
 
 
 @keras_test
+def test_with_list_as_targets():
+    model = Sequential()
+    model.add(Dense(1, input_dim=3, trainable=False))
+    model.compile('rmsprop', 'mse')
+
+    x = np.random.random((2, 3))
+    y = [0, 1]
+    model.train_on_batch(x, y)
+
+
+@keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
     _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])

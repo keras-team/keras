@@ -66,10 +66,9 @@ if sys.version_info[0] == 2:
                 else:
                     break
 
-        response = urlopen(url, data)
-        with open(filename, 'wb') as fd:
-            for chunk in chunk_read(response, reporthook=reporthook):
-                fd.write(chunk)
+        with closing(urlopen(url, data)) as response, open(filename, 'wb') as fd:
+                for chunk in chunk_read(response, reporthook=reporthook):
+                    fd.write(chunk)
 else:
     from six.moves.urllib.request import urlretrieve
 

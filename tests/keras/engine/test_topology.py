@@ -657,6 +657,29 @@ def test_recursion_with_bn_and_loss():
 
 
 @keras_test
+def test_activity_regularization_with_model_composition():
+
+    def reg(x):
+        return K.sum(x)
+
+    net_a_input = Input((2,))
+    net_a = net_a_input
+    net_a = Dense(2, kernel_initializer='ones',
+                  use_bias=False,
+                  activity_regularizer=reg)(net_a)
+    model_a = Model([net_a_input], [net_a])
+
+    net_b_input = Input((2,))
+    net_b = model_a(net_b_input)
+    model_b = Model([net_b_input], [net_b])
+
+    model_b.compile(optimizer='sgd', loss=None)
+    x = np.ones((1, 2))
+    loss = model_b.evaluate(x)
+    assert loss == 4
+
+
+@keras_test
 def test_shared_layer_depth_is_correct():
     # Basic outline here: we have a shared embedding layer, and two inputs that go through
     # different depths of computation in the graph before the final output.  We need the computed

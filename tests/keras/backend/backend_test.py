@@ -844,6 +844,28 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 k.conv3d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
+    @pytest.mark.parametrize('k', [KTF], ids=['TensorFlow'])
+    def test_depthwise_conv_2d(self, k):
+        for data_format in ['channels_first', 'channels_last']:
+            x_shape = (4, 4)
+            if data_format == 'channels_first':
+                input_shape = (2, 3) + x_shape
+            elif data_format == 'channels_last':
+                input_shape = (2,) + x_shape + (3,)
+            kernel_shape = (3, 3, 3, 2)
+
+            x_val = np.ones(input_shape)
+            kernel_val = np.arange(np.prod(kernel_shape)).reshape(kernel_shape)
+            z = k.eval(k.depthwise_conv2d(k.variable(x_val), k.variable(kernel_val),
+                                          data_format=data_format))
+
+            for z_i in np.split(z, 6, axis=1 if data_format == 'channels_first' else -1):
+                assert_allclose(z_i, z_i[0] * np.ones_like(z_i))
+
+        # Test invalid use cases
+        with pytest.raises(ValueError):
+            k.depthwise_conv2d(k.variable(x_val), k.variable(kernel_val), data_format='channels_middle')
+
     def test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3),
                                       BACKENDS, cntk_dynamicity=True,
@@ -885,8 +907,8 @@ class TestBackend(object):
         mean = 0.
         std = 1.
         for k in BACKENDS:
-            rand = k.eval(k.random_normal((300, 100), mean=mean, stddev=std))
-            assert rand.shape == (300, 100)
+            rand = k.eval(k.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
+            assert rand.shape == (300, 200)
             assert np.abs(np.mean(rand) - mean) < 0.015
             assert np.abs(np.std(rand) - std) < 0.015
 
