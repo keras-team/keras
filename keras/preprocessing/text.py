@@ -254,15 +254,15 @@ class Tokenizer(object):
         return res
 
     def texts_to_sequences_generator(self, texts):
-        """Transforms each text in texts in a sequence of integers.
-        Each item in texts can also be a list, in which we assume each item of that list
+        """Transforms each text in `texts` in a sequence of integers.
+        Each item in texts can also be a list, in which case we assume each item of that list
         to be a token.
 
         Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
 
         # Arguments
-            texts: A list of texts (strings), or a list of lists containing strings.
+            texts: A list of texts (strings).
 
         # Yields
             Yields individual sequences.
