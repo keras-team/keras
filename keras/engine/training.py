@@ -545,6 +545,12 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
 class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
+    @property
+    def stateful_metric_names(self):
+        if hasattr(self, '_stateful_metric_names'):
+            return self._stateful_metric_names
+        else:
+            return []
 
     def compile(self, optimizer, loss=None, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
@@ -852,7 +858,7 @@ class Model(Container):
         nested_metrics = _collect_metrics(metrics, self.output_names)
         nested_weighted_metrics = _collect_metrics(weighted_metrics, self.output_names)
         self.metrics_updates = []
-        self.stateful_metric_names = []
+        self._stateful_metric_names = []
         with K.name_scope('metrics'):
             for i in range(len(self.outputs)):
                 if i in skip_target_indices:
@@ -913,7 +919,7 @@ class Model(Container):
                                                                mask=masks[i])
 
                         # Append to self.metrics_names, self.metric_tensors,
-                        # self.stateful_metric_names
+                        # self._stateful_metric_names
                         if len(self.output_names) > 1:
                             metric_name = self.output_names[i] + '_' + metric_name
                         # Dedupe name
@@ -928,7 +934,7 @@ class Model(Container):
                         # Keep track of state updates created by
                         # stateful metrics (i.e. metrics layers).
                         if isinstance(metric_fn, Layer):
-                            self.stateful_metric_names.append(metric_name)
+                            self._stateful_metric_names.append(metric_name)
                             self.metrics_updates += metric_fn.updates
 
                 handle_metrics(output_metrics)
