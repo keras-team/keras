@@ -1906,7 +1906,7 @@ class LSTMCell(Layer):
 
 
 class LSTM(RNN):
-    """Long-Short Term Memory layer - Hochreiter 1997.
+    """Long Short-Term Memory layer - Hochreiter 1997.
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
