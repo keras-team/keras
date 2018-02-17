@@ -826,7 +826,7 @@ class TestBackend(object):
         pointwise_shape, pointwise_val = parse_shape_or_val(shape_or_val=(1, 1, 16, 8))
 
         z_list = []
-        for k in BACKENDS:
+        for k in [KTF, KTH]:
             fun = getattr(k, 'separable_conv2d')
 
             x = k.variable(x_val)
