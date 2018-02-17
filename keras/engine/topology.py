@@ -2870,6 +2870,7 @@ def _collect_input_shape(input_tensors):
 
 def _save_attributes_to_hdf5_group(group, name, data):
     """Saves attributes (data) of the specified name into the HDF5 group.
+
     This method deals with an inherent problem of HDF5 file which is not
     able to store data larger than HDF5_OBJECT_HEADER_LIMIT bytes.
 
@@ -2885,8 +2886,8 @@ def _save_attributes_to_hdf5_group(group, name, data):
 
     # Expecting this to never be true.
     if len(bad_attributes) > 0:
-        raise RuntimeError('the following attributes cannot be saved to HDF5 file '
-                           'because they are larger than %d bytes: %s'
+        raise RuntimeError('The following attributes cannot be saved to HDF5 '
+                           'file because they are larger than %d bytes: %s'
                            % (HDF5_OBJECT_HEADER_LIMIT,
                               ', '.join([x for x in bad_attributes])))
 
@@ -2908,8 +2909,10 @@ def _save_attributes_to_hdf5_group(group, name, data):
 
 
 def _load_attributes_from_hdf5_group(group, name):
-    """Loads attributes of the specified name from the HDF5 group. This method
-    deals with an inherent problem of HDF5 file which is not able to store
+    """Loads attributes of the specified name from the HDF5 group.
+
+    This method deals with an inherent problem
+    of HDF5 file which is not able to store
     data larger than HDF5_OBJECT_HEADER_LIMIT bytes.
 
     # Arguments
@@ -2925,7 +2928,8 @@ def _load_attributes_from_hdf5_group(group, name):
         data = []
         chunk_id = 0
         while ('%s%d' % (name, chunk_id)) in group.attrs:
-            data.extend([n.decode('utf8') for n in group.attrs['%s%d' % (name, chunk_id)]])
+            data.extend([n.decode('utf8')
+                        for n in group.attrs['%s%d' % (name, chunk_id)]])
             chunk_id += 1
     return data
 
@@ -2933,7 +2937,8 @@ def _load_attributes_from_hdf5_group(group, name):
 def save_weights_to_hdf5_group(f, layers):
     from .. import __version__ as keras_version
 
-    _save_attributes_to_hdf5_group(f, 'layer_names', [layer.name.encode('utf8') for layer in layers])
+    _save_attributes_to_hdf5_group(
+        f, 'layer_names', [layer.name.encode('utf8') for layer in layers])
     f.attrs['backend'] = K.backend().encode('utf8')
     f.attrs['keras_version'] = str(keras_version).encode('utf8')
 
