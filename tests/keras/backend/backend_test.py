@@ -817,6 +817,29 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 k.conv2d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
+    def test_separable_conv2d(self):
+        # TF kernel shape: (rows, cols, input_depth, depth)
+        # channels_first input shape: (n, input_depth, rows, cols)
+
+        x_shape, x_val = parse_shape_or_val(shape_or_val=(1, 32, 32, 16))
+        depthwise_shape, depthwise_val = parse_shape_or_val(shape_or_val=(3, 3, 16, 1))
+        pointwise_shape, pointwise_val = parse_shape_or_val(shape_or_val=(1, 1, 16, 8))
+
+        z_list = []
+        for k in BACKENDS:
+            fun = getattr(k, 'separable_conv2d')
+
+            x = k.variable(x_val)
+            deptwise_kernel = k.variable(depthwise_val)
+            pointwise_kernel = k.variable(pointwise_val)
+
+            z = k.eval(fun(x, depthwise_kernel=deptwise_kernel,
+                           pointwise_kernel=pointwise_kernel, data_format='channels_last'))
+            z_list += [z]
+
+        assert_list_pairwise(z_list)
+        assert_list_keras_shape(z_list)
+
     def test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)

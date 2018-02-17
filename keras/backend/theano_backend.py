@@ -2124,7 +2124,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                                        input_shape=image_shape,
                                        depthwise_filter_shape=depthwise_kernel_shape,
                                        pointwise_filter_shape=pointwise_kernel_shape,
-                                       filter_dilation=dilation_rate)
+                                       filter_dilation=dilation_rate,
+                                       filter_flip=False)
     conv_out = _postprocess_conv2d_output(conv_out, x, padding,
                                           result_kernel_shape, strides, data_format)
 
