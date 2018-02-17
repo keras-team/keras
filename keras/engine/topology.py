@@ -2885,22 +2885,22 @@ def _save_attributes_to_hdf5_group(group, name, data):
 
     # Expecting this to never be true.
     if len(bad_attributes) > 0:
-        raise RuntimeError("the following attributes cannot be saved to HDF5 file "
-                           "because they are larger than %d bytes: '%s'"
+        raise RuntimeError('the following attributes cannot be saved to HDF5 file '
+                           'because they are larger than %d bytes: %s'
                            % (HDF5_OBJECT_HEADER_LIMIT,
-                              "', '".join([x for x in bad_attributes])))
+                              ', '.join([x for x in bad_attributes])))
 
     data_npy = np.asarray(data)
 
-    n_chunks = 1
-    chunked_data = np.array_split(data_npy, n_chunks)
+    num_chunks = 1
+    chunked_data = np.array_split(data_npy, num_chunks)
 
     # This will never loop forever thanks to the test above.
     while any(map(lambda x: x.nbytes > HDF5_OBJECT_HEADER_LIMIT, chunked_data)):
-        n_chunks += 1
-        chunked_data = np.array_split(data_npy, n_chunks)
+        num_chunks += 1
+        chunked_data = np.array_split(data_npy, num_chunks)
 
-    if n_chunks > 1:
+    if num_chunks > 1:
         for chunk_id, chunk_data in enumerate(chunked_data):
             group.attrs['%s%d' % (name, chunk_id)] = chunk_data
     else:
