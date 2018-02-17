@@ -2,6 +2,7 @@ import pytest
 import json
 import numpy as np
 from numpy.testing import assert_allclose
+import os
 
 from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
@@ -331,6 +332,23 @@ def test_multi_input_layer():
     input_b_np = np.random.random((10, 32))
     fn_outputs = fn([input_a_np, input_b_np])
     assert [x.shape for x in fn_outputs] == [(10, 64), (10, 5)]
+
+
+@keras_test
+def test_predict_with_json():
+    weight_path = 'weight_test_predict.h5'
+    inp = Input([10])
+    k = Dense(10)(inp)
+
+    mod = Model(inp, k)
+    mod.compile('sgd', 'mse', metrics=['acc'])
+    mod.fit(np.ones([10, 10]), np.ones([10, 10]), batch_size=10)
+
+    mod.save_weights(weight_path, overwrite=True)
+    mod = model_from_json(mod.to_json())
+    mod.load_weights(weight_path)
+    mod.predict(np.ones([10, 10]), verbose=1)
+    os.remove(weight_path)
 
 
 @keras_test
