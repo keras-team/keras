@@ -601,9 +601,10 @@ def convert_weights(layer, weights):
     layers.ConvLSTM2D(5, (3, 3),
                       input_shape=[6, 6, 6, 6],
                       data_format='channels_first'),
-])
+], ids=['GRU', 'LSTM', 'ConvLSTM2D'])
 def test_preprocess_weights_for_loading(layer):
-    model = Sequential([layer])
+    # A model is needed to initialize weights.
+    _ = Sequential([layer])
     weights1 = layer.get_weights()
     weights2 = topology.preprocess_weights_for_loading(
         layer, convert_weights(layer, weights1),
@@ -618,7 +619,7 @@ def test_preprocess_weights_for_loading(layer):
     layers.Conv2DTranspose(2, (5, 5),
                            input_shape=[7, 7, 3],
                            data_format='channels_first'),
-])
+], ids=['Conv2D', 'Conv2DTranspose'])
 def test_preprocess_weights_for_loading_for_model(layer):
     model = Sequential([layer])
     weights1 = model.get_weights()
@@ -627,6 +628,36 @@ def test_preprocess_weights_for_loading_for_model(layer):
         original_keras_version='1')
     assert all([np.allclose(x, y, 1e-5)
                 for (x, y) in zip(weights1, weights2)])
+
+
+@keras_test
+@pytest.mark.parametrize('layer_class,layer_args', [
+    (layers.GRU, {'units': 2, 'input_shape': [3, 5]}),
+    (layers.GRU, {'units': 2, 'input_shape': [3, 5], 'reset_after': True}),
+    (layers.LSTM, {'units': 2, 'input_shape': [3, 5]}),
+])
+def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args):
+    """
+    Loading weights from a RNN class to itself should not convert the weights.
+    """
+    # layer can be instantiated only for supported backends
+    layer = layer_class(**layer_args)
+    # A model is needed to initialize weights.
+    _ = Sequential([layer])
+    weights1 = layer.get_weights()
+    weights2 = topology.preprocess_weights_for_loading(layer, weights1)
+    assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
+
+
+@keras_test
+@pytest.mark.parametrize('layer_class,layer_args', [
+    (layers.CuDNNGRU, {'units': 2, 'input_shape': [3, 5]}),
+    (layers.CuDNNLSTM, {'units': 2, 'input_shape': [3, 5]}),
+])
+@pytest.mark.skipif((K.backend() != 'tensorflow'), reason='Requires TensorFlow backend')
+@pytest.mark.skipif(not K.tensorflow_backend._get_available_gpus(), reason='Requires GPU')
+def test_preprocess_weights_for_loading_cudnn_rnn_should_be_idempotent(layer_class, layer_args):
+    test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args)
 
 
 @keras_test
