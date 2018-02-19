@@ -99,7 +99,7 @@ class TestImage(object):
                 img_list.append(image.img_to_array(im)[None, ...])
 
             images = np.vstack(img_list)
-            generator = image.ImageDataGenerator(validation_split=50)
+            generator = image.ImageDataGenerator(validation_split=0.5)
             seq = generator.flow(images, np.arange(images.shape[0]),
                                  shuffle=False, batch_size=3,
                                  subset='validation')
@@ -117,9 +117,8 @@ class TestImage(object):
                                subset='foo')
 
     def test_image_data_generator_with_split_value_error(self):
-        generator = image.ImageDataGenerator(validation_split=50.3)
         with pytest.raises(ValueError):
-            generator.flow([], subset='training')
+            generator = image.ImageDataGenerator(validation_split=5)
 
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(
@@ -259,12 +258,13 @@ class TestImage(object):
         output_img[0][0][0] += 1
         assert(input_img[0][0][0] != output_img[0][0][0])
 
-    @pytest.mark.parametrize('validation_split,num_train_files', [
-        (0, 16),
-        (50, 12),
-        (100, 0),
+    @pytest.mark.parametrize('validation_split,num_training', [
+        (0.00, 16),
+        (0.25, 12),
+        (0.50, 8),
+        (1.00, 0),
     ])
-    def test_directory_iterator_with_validation_split(self, validation_split, num_train_files):
+    def test_directory_iterator_with_validation_split(self, validation_split, num_training):
         num_classes = 2
         tmp_folder = tempfile.mkdtemp(prefix='test_images')
 
@@ -302,17 +302,16 @@ class TestImage(object):
         with pytest.raises(ValueError):
             generator.flow_from_directory(tmp_folder, subset='foo')
 
-        train_iterator = generator.flow_from_directory(tmp_folder,
-                                                       subset='training')
-        assert train_iterator.samples == num_train_files
-        valid_iterator = generator.flow_from_directory(tmp_folder,
-                                                       subset='validation')
-        assert valid_iterator.samples == count - num_train_files
+        train_iterator = generator.flow_from_directory(tmp_folder, subset='training')
+        assert train_iterator.samples == num_training
+
+        valid_iterator = generator.flow_from_directory(tmp_folder, subset='validation')
+        assert valid_iterator.samples == count - num_training
 
         # check number of classes and images
         assert len(train_iterator.class_indices) == num_classes
-        assert len(train_iterator.classes) == num_train_files
-        assert len(set(train_iterator.filenames) & set(filenames)) == num_train_files
+        assert len(train_iterator.classes) == num_training
+        assert len(set(train_iterator.filenames) & set(filenames)) == num_training
 
         shutil.rmtree(tmp_folder)
 

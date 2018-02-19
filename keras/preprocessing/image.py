@@ -8,7 +8,6 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import six
 import re
 from scipy import linalg
 import scipy.ndimage as ndi
@@ -16,11 +15,9 @@ from six.moves import range
 import os
 import threading
 import warnings
-import hashlib
 import multiprocessing.pool
 from functools import partial
 
-from keras.utils.generic_utils import as_bytes
 from .. import backend as K
 from ..utils.data_utils import Sequence
 
@@ -480,6 +477,9 @@ class ImageDataGenerator(object):
             self.channel_axis = 3
             self.row_axis = 1
             self.col_axis = 2
+        if validation_split is not None and not 0 <= validation_split <= 1:
+            raise ValueError('`validation_split` must be between 0 and 1. '
+                             ' Received arg: ', validation_split)
         self._validation_split = validation_split
 
         self.mean = None
@@ -897,13 +897,13 @@ class NumpyArrayIterator(Iterator):
                 raise ValueError('Creating a subset with validation_split '
                                  'set as None in NumpyArrayIterator',
                                  validation_split)
-            if not isinstance(validation_split, six.integer_types):
-                raise ValueError('validation_split must be an integer for '
-                                 'NumpyArrayIterator', validation_split)
+            if not 0 <= validation_split <= 1:
+                raise ValueError('validation_split must be between 0 and 1.'
+                                 ' Found: ', validation_split)
             if subset not in {'training', 'validation'}:
                 raise ValueError('Invalid subset name:', subset,
                                  '; expected "training" or "validation".')
-            split_idx = int(len(x) * validation_split / 100)
+            split_idx = int(len(x) * validation_split)
             if subset == 'validation':
                 x = x[:split_idx]
                 if y is not None:
@@ -974,7 +974,7 @@ class NumpyArrayIterator(Iterator):
         return self._get_batches_of_transformed_samples(index_array)
 
 
-def _count_valid_files_in_directory(directory, white_list_formats, follow_links, do_validation_split):
+def _iter_valid_files(directory, white_list_formats, follow_links):
     """Count files with extension in `white_list_formats` contained in directory.
 
     # Arguments
@@ -983,39 +983,54 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links,
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         follow_links: boolean.
-        do_validation_split: boolean.
+
+    # Yields
+        tuple of (root, filename) with extension in `white_list_formats`.
+    """
+    def _recursive_list(subpath):
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
+
+    for root, _, files in _recursive_list(directory):
+        for fname in files:
+            for extension in white_list_formats:
+                if fname.lower().endswith('.' + extension):
+                    yield root, fname
+
+
+def _count_valid_files_in_directory(directory, white_list_formats, split, follow_links):
+    """Count files with extension in `white_list_formats` contained in directory.
+
+    # Arguments
+        directory: absolute path to the directory
+            containing files to be counted
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+        split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
+            account a certain percentage of files in each directory.
+            E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
+            of images in each directory.
+        follow_links: boolean.
 
     # Returns
         the count of files with extension in `white_list_formats` contained in
         the directory.
     """
-    def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
-
+    num_files = len(list(_iter_valid_files(directory, white_list_formats, follow_links)))
     samples = 0
-    for _, _, files in _recursive_list(directory):
-        for fname in files:
-            is_valid = False
-            for extension in white_list_formats:
-                if fname.lower().endswith('.tiff'):
-                    warnings.warn('Using \'.tiff\' files with multiple bands will cause distortion. '
-                                  'Please verify your output.')
-                if fname.lower().endswith('.' + extension):
-                    is_valid = True
-                    break
-            if is_valid:
-                samples += 1
-
-    if do_validation_split and samples > MAX_NUM_IMAGES_PER_CLASS:
-        warnings.warn('Folder {} has more than {} images. Some images '
-                      'will never be selected.'
-                      .format(directory, MAX_NUM_IMAGES_PER_CLASS))
+    for i, (_, fname) in enumerate(_iter_valid_files(directory, white_list_formats, follow_links)):
+        if split and not (split[0] <= i / num_files < split[1]):
+            # skip files not in split segment
+            continue
+        if fname.lower().endswith('.tiff'):
+            warnings.warn('Using \'.tiff\' files with multiple bands will cause distortion. '
+                          'Please verify your output.')
+        samples += 1
 
     return samples
 
 
-def _list_valid_filenames_in_directory(directory, white_list_formats, validation_split,
-                                       class_indices, subset, follow_links):
+def _list_valid_filenames_in_directory(directory, white_list_formats, split,
+                                       class_indices, follow_links):
     """List paths of files in `subdir` with extensions in `white_list_formats`.
 
     # Arguments
@@ -1023,9 +1038,11 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, validation
             The directory name is used as class label and must be a key of `class_indices`.
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
-        validation_split: percentage of image reserved for validation.
+        split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
+            account a certain percentage of files in each directory.
+            E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
+            of images in each directory.
         class_indices: dictionary mapping a class name to its index.
-        subset: subset of data (`"training"` or `"validation"`)
         follow_links: boolean.
 
     # Returns
@@ -1034,38 +1051,19 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, validation
             `directory`'s parent (e.g., if `directory` is "dataset/class1",
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
-    def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
-
-    def _calculate_hash_percent(filename):
-        hash_name = hashlib.sha1(as_bytes(filename)).hexdigest()
-        return ((int(hash_name, 16) % (MAX_NUM_IMAGES_PER_CLASS + 1)) *
-                (100.0 / MAX_NUM_IMAGES_PER_CLASS))
-
-    is_training = subset is not None and subset == 'training'
+    num_files = len(list(_iter_valid_files(directory, white_list_formats, follow_links)))
     dirname = os.path.basename(directory)
 
     classes = []
     filenames = []
-    for root, _, files in _recursive_list(directory):
-        for fname in files:
-            is_valid = False
-            for extension in white_list_formats:
-                if fname.lower().endswith('.' + extension):
-                    is_valid = True
-                    break
-            if is_valid:
-                if validation_split is not None:
-                    # perform variant assignment
-                    hash_percent = _calculate_hash_percent(fname)
-                    valid_validation = hash_percent < validation_split and not is_training
-                    valid_training = hash_percent >= validation_split and is_training
-                    if all([not valid_validation, not valid_training]):
-                        continue
-                classes.append(class_indices[dirname])
-                absolute_path = os.path.join(root, fname)
-                relative_path = os.path.join(dirname, os.path.relpath(absolute_path, directory))
-                filenames.append(relative_path)
+    for i, (root, fname) in enumerate(_iter_valid_files(directory, white_list_formats, follow_links)):
+        if split and not (split[0] <= i / num_files < split[1]):
+            # skip files not in split segment
+            continue
+        classes.append(class_indices[dirname])
+        absolute_path = os.path.join(root, fname)
+        relative_path = os.path.join(dirname, os.path.relpath(absolute_path, directory))
+        filenames.append(relative_path)
 
     return classes, filenames
 
@@ -1107,6 +1105,10 @@ class DirectoryIterator(Iterator):
             (if `save_to_dir` is set).
         subset: Subset of data (`"training"` or `"validation"`) if
             validation_split is set in ImageDataGenerator.
+        split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
+            account a certain percentage of files in each directory.
+            E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
+            of images in each directory.
         interpolation: Interpolation method used to resample the image if the
             target size is different from that of the loaded image.
             Supported methods are "nearest", "bilinear", and "bicubic".
@@ -1123,6 +1125,7 @@ class DirectoryIterator(Iterator):
                  save_to_dir=None, save_prefix='', save_format='png',
                  follow_links=False,
                  subset=None,
+                 split=None,
                  interpolation='nearest'):
         if data_format is None:
             data_format = K.image_data_format()
@@ -1157,19 +1160,18 @@ class DirectoryIterator(Iterator):
         self.save_format = save_format
         self.interpolation = interpolation
 
-        validation_split = self.image_data_generator._validation_split
+        if split is not None:
+            if any([split[0] > split[1], split[1] > 1, split[0] < 0]):
+                raise ValueError('Split must be a tuple between 0 and 1')
+        self._split = split
         if subset is not None:
-            # check if self.image_data_generator.validation_split is None
-            if validation_split is None:
+            if self.image_data_generator._validation_split is None:
                 raise ValueError('Creating a subset with validation_split '
-                                 'set as None in ImageDataGenerator',
-                                 validation_split)
-
-            if subset not in {'training', 'validation'}:
-                raise ValueError('Invalid subset name:', subset,
-                                 '; expected "training" or "validation".')
+                                 'set as None in ImageDataGenerator')
+            if subset not in {'validation', 'training'}:
+                raise ValueError('Invalid subset name: ', subset,
+                                 '; expected "training" or "validation"')
         self.subset = subset
-        do_validation_split = validation_split is not None
 
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff'}
 
@@ -1188,7 +1190,7 @@ class DirectoryIterator(Iterator):
         function_partial = partial(_count_valid_files_in_directory,
                                    white_list_formats=white_list_formats,
                                    follow_links=follow_links,
-                                   do_validation_split=do_validation_split)
+                                   split=self.split)
         self.samples = sum(pool.map(function_partial,
                                     (os.path.join(directory, subdir)
                                      for subdir in classes)))
@@ -1203,24 +1205,26 @@ class DirectoryIterator(Iterator):
         i = 0
         for dirpath in (os.path.join(directory, subdir) for subdir in classes):
             results.append(pool.apply_async(_list_valid_filenames_in_directory,
-                                            (dirpath, white_list_formats, validation_split,
-                                             self.class_indices, subset, follow_links)))
+                                            (dirpath, white_list_formats, self.split,
+                                             self.class_indices, follow_links)))
         for res in results:
             classes, filenames = res.get()
             self.classes[i:i + len(classes)] = classes
             self.filenames += filenames
             i += len(classes)
 
-        if do_validation_split:
-            # update samples and classes since some were skipped from variant assignment
-            num_files = len(self.filenames)
-            self.samples = num_files
-            self.classes = self.classes[:num_files]
-            print('Using %d files for subset %s.' % (num_files, subset))
-
         pool.close()
         pool.join()
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
+
+    @property
+    def split(self):
+        split = self._split
+        subset = self.subset
+        if split is None and subset is not None:
+            validation = self.image_data_generator._validation_split
+            split = (0, validation) if subset == 'validation' else (validation, 1)
+        return split
 
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
