@@ -416,7 +416,7 @@ class ImageDataGenerator(object):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        validation_split: percentage of images reserved for validation.
+        validation_split: fraction of images reserved for validation (between 0 and 1).
     """
 
     def __init__(self,
@@ -1006,7 +1006,7 @@ def _count_valid_files_in_directory(directory, white_list_formats, split, follow
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
-            account a certain percentage of files in each directory.
+            account a certain fraction of files in each directory.
             E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
             of images in each directory.
         follow_links: boolean.
@@ -1033,7 +1033,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, split,
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
         split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
-            account a certain percentage of files in each directory.
+            account a certain fraction of files in each directory.
             E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
             of images in each directory.
         class_indices: dictionary mapping a class name to its index.
