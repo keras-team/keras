@@ -26,9 +26,6 @@ try:
 except ImportError:
     pil_image = None
 
-# used for train validation split of DirectoryIterator
-MAX_NUM_IMAGES_PER_CLASS = 2 ** 27 - 1  # ~134M
-
 if pil_image is not None:
     _PIL_INTERPOLATION_METHODS = {
         'nearest': pil_image.NEAREST,
