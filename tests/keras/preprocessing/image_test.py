@@ -261,6 +261,7 @@ class TestImage(object):
     @pytest.mark.parametrize('validation_split,num_training', [
         (0.00, 16),
         (0.25, 12),
+        (0.40, 10),
         (0.50, 8),
         (1.00, 0),
     ])
