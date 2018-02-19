@@ -14,12 +14,15 @@ from keras import regularizers
 
 @keras_test
 def test_progbar():
-    n = 2
-    input_arr = np.random.random((n, n, n))
-    bar = Progbar(n)
+    values_s = [None,
+                [['key1', 1], ['key2', 1e-4]],
+                [['key3', 1], ['key2', 1e-4]]]
 
-    for i, arr in enumerate(input_arr):
-        bar.update(i, list(arr))
+    for target in (len(values_s) - 1, None):
+        for verbose in (0, 1, 2):
+            bar = Progbar(target, width=30, verbose=verbose, interval=0.05)
+            for current, values in enumerate(values_s):
+                bar.update(current, values=values)
 
 
 def test_custom_objects_scope():
@@ -117,7 +120,7 @@ def test_func_dump_and_load_closure():
 
 
 @pytest.mark.parametrize(
-    'test_func', [activations.softmax, np.argmax, lambda x: x**2])
+    'test_func', [activations.softmax, np.argmax, lambda x: x**2, lambda x: x])
 def test_func_dump_and_load_backwards_compat(test_func):
     # this test ensures that models serialized prior to version 2.1.2 can still be
     # deserialized

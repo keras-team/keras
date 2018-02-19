@@ -154,6 +154,9 @@ class TestImage(object):
         # Test RBG
         x = np.random.random((32, 10, 10, 3))
         generator.fit(x)
+        # Test more samples than dims
+        x = np.random.random((32, 4, 4, 1))
+        generator.fit(x)
         generator = image.ImageDataGenerator(
             featurewise_center=True,
             samplewise_center=True,
@@ -166,6 +169,9 @@ class TestImage(object):
         generator.fit(x)
         # Test RBG
         x = np.random.random((32, 3, 10, 10))
+        generator.fit(x)
+        # Test more samples than dims
+        x = np.random.random((32, 1, 4, 4))
         generator.fit(x)
 
     def test_directory_iterator(self, tmpdir):

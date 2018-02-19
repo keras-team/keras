@@ -8,6 +8,7 @@ from keras.layers import Dense
 from keras.utils.io_utils import HDF5Matrix
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 import numpy as np
+import six
 import warnings
 import h5py
 try:
@@ -30,14 +31,13 @@ def in_tmpdir(tmpdir):
 def create_dataset(h5_path='test.h5'):
     X = np.random.randn(200, 10).astype('float32')
     y = np.random.randint(0, 2, size=(200, 1))
-    f = h5py.File(h5_path, 'w')
-    # Creating dataset to store features
-    X_dset = f.create_dataset('my_data', (200, 10), dtype='f')
-    X_dset[:] = X
-    # Creating dataset to store labels
-    y_dset = f.create_dataset('my_labels', (200, 1), dtype='i')
-    y_dset[:] = y
-    f.close()
+    with h5py.File(h5_path, 'w') as f:
+        # Creating dataset to store features
+        X_dset = f.create_dataset('my_data', (200, 10), dtype='f')
+        X_dset[:] = X
+        # Creating dataset to store labels
+        y_dset = f.create_dataset('my_labels', (200, 1), dtype='i')
+        y_dset[:] = y
 
 
 def test_io_utils(in_tmpdir):
@@ -106,20 +106,12 @@ def test_io_utils(in_tmpdir):
 
 
 def test_ask_to_proceed_with_overwrite():
-    if sys.version_info[:2] <= (2, 7):
-        with patch('__builtin__.raw_input') as mock:
-            mock.return_value = 'y'
-            assert ask_to_proceed_with_overwrite('/tmp/not_exists')
+    with patch('six.moves.input') as mock:
+        mock.return_value = 'y'
+        assert ask_to_proceed_with_overwrite('/tmp/not_exists')
 
-            mock.return_value = 'n'
-            assert not ask_to_proceed_with_overwrite('/tmp/not_exists')
-    else:
-        with patch('builtins.input') as mock:
-            mock.return_value = 'y'
-            assert ask_to_proceed_with_overwrite('/tmp/not_exists')
-
-            mock.return_value = 'n'
-            assert not ask_to_proceed_with_overwrite('/tmp/not_exists')
+        mock.return_value = 'n'
+        assert not ask_to_proceed_with_overwrite('/tmp/not_exists')
 
 
 if __name__ == '__main__':

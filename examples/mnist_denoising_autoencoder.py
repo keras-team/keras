@@ -1,4 +1,4 @@
-'''Trains a denoising autoenconder on MNIST dataset.
+'''Trains a denoising autoencoder on MNIST dataset.
 
 Denoising is one of the classic applications of autoencoders.
 The denoising process removes unwanted noise that corrupted the
@@ -28,6 +28,9 @@ from keras import backend as K
 from keras.datasets import mnist
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
+
+np.random.seed(1337)
 
 # MNIST dataset
 (x_train, _), (x_test, _) = mnist.load_data()
@@ -115,26 +118,32 @@ decoder.summary()
 autoencoder = Model(inputs, decoder(encoder(inputs)), name='autoencoder')
 autoencoder.summary()
 
-# Mean Square Error (MSE) loss function, Adam optimizer
 autoencoder.compile(loss='mse', optimizer='adam')
 
 # Train the autoencoder
 autoencoder.fit(x_train_noisy,
                 x_train,
                 validation_data=(x_test_noisy, x_test),
-                epochs=10,
+                epochs=30,
                 batch_size=batch_size)
 
 # Predict the Autoencoder output from corrupted test images
 x_decoded = autoencoder.predict(x_test_noisy)
 
 # Display the 1st 8 corrupted and denoised images
-imgs = np.concatenate([x_test_noisy[:8], x_decoded[:8]])
-imgs = imgs.reshape((4, 4, image_size, image_size))
+rows, cols = 10, 30
+num = rows * cols
+imgs = np.concatenate([x_test[:num], x_test_noisy[:num], x_decoded[:num]])
+imgs = imgs.reshape((rows * 3, cols, image_size, image_size))
+imgs = np.vstack(np.split(imgs, rows, axis=1))
+imgs = imgs.reshape((rows * 3, -1, image_size, image_size))
 imgs = np.vstack([np.hstack(i) for i in imgs])
+imgs = (imgs * 255).astype(np.uint8)
 plt.figure()
 plt.axis('off')
-plt.title('Corrupted Input: top 2 rows, Output is Denoised Input: last 2 rows')
+plt.title('Original images: top rows, '
+          'Corrupted Input: middle rows, '
+          'Denoised Input:  third rows')
 plt.imshow(imgs, interpolation='none', cmap='gray')
-plt.savefig('corrupted_and_denoised.png')
+Image.fromarray(imgs).save('corrupted_and_denoised.png')
 plt.show()

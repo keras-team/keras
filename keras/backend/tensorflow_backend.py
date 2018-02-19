@@ -272,7 +272,7 @@ def _get_available_gpus():
 def _has_nchw_support():
     """Check whether the current scope supports NCHW ops.
 
-    Tensorflow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
+    TensorFlow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
     CPU, and have GPUs available. In this case there will be soft-placing on the GPU device.
 
     # Returns
@@ -1939,7 +1939,7 @@ def resize_images(x, height_factor, width_factor, data_format):
                      original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return x
     else:
-        raise ValueError('Invalid data_format:', data_format)
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
 
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
@@ -1969,7 +1969,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise ValueError('Invalid data_format:', data_format)
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
 
 def repeat_elements(x, rep, axis):
@@ -2046,7 +2046,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
     The function arguments use the same convention as
     Theano's arange: if only one argument is provided,
-    it is in fact the "stop" argument.
+    it is in fact the "stop" argument and "start" is 0.
 
     The default type of the returned tensor is `'int32'` to
     match TensorFlow's default.
@@ -2061,7 +2061,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
         An integer tensor.
 
     """
-    # Match the behavior of numpy and Theano by returning an empty seqence.
+    # Match the behavior of numpy and Theano by returning an empty sequence.
     if stop is None:
         try:
             if start < 0:
@@ -2183,7 +2183,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     if data_format == 'channels_first':
         pattern = [[0, 0],
@@ -2227,7 +2227,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     if data_format == 'channels_first':
         pattern = [
@@ -3247,7 +3247,7 @@ def _preprocess_padding(padding):
     elif padding == 'valid':
         padding = 'VALID'
     else:
-        raise ValueError('Invalid padding:', padding)
+        raise ValueError('Invalid padding: ' + str(padding))
     return padding
 
 
@@ -3272,7 +3272,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
@@ -3318,7 +3318,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
 
@@ -3359,7 +3359,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
@@ -3410,16 +3410,16 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv1d_input(x, data_format)
     padding = _preprocess_padding(padding)
     if tf_data_format == 'NHWC':
         spatial_start_dim = 1
-        strides = (1, 1) + strides + (1,)
+        strides = (1,) + strides * 2 + (1,)
     else:
         spatial_start_dim = 2
-        strides = (1, 1, 1) + strides
+        strides = (1, 1) + strides * 2
     x = tf.expand_dims(x, spatial_start_dim)
     depthwise_kernel = tf.expand_dims(depthwise_kernel, 0)
     pointwise_kernel = tf.expand_dims(pointwise_kernel, 0)
@@ -3462,7 +3462,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3503,7 +3503,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3545,7 +3545,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3584,7 +3584,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
@@ -3637,7 +3637,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3657,7 +3657,7 @@ def pool2d(x, pool_size, strides=(1, 1),
                            padding=padding,
                            data_format=tf_data_format)
     else:
-        raise ValueError('Invalid pooling mode:', pool_mode)
+        raise ValueError('Invalid pool_mode: ' + str(pool_mode))
 
     if data_format == 'channels_first' and tf_data_format == 'NHWC':
         x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
@@ -3686,7 +3686,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3706,7 +3706,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
                              padding=padding,
                              data_format=tf_data_format)
     else:
-        raise ValueError('Invalid pooling mode:', pool_mode)
+        raise ValueError('Invalid pool_mode: ' + str(pool_mode))
 
     if data_format == 'channels_first' and tf_data_format == 'NDHWC':
         x = tf.transpose(x, (0, 4, 1, 2, 3))
@@ -3734,7 +3734,7 @@ def bias_add(x, bias, data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
     bias_shape = int_shape(bias)
     if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
         raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
@@ -4065,7 +4065,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     stride = strides[0]
     kernel_shape = int_shape(kernel)
@@ -4117,7 +4117,7 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('Unknown data_format: ' + str(data_format))
 
     stride_row, stride_col = strides
     output_row, output_col = output_shape

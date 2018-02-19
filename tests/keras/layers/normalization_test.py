@@ -184,5 +184,44 @@ def test_shared_batchnorm():
     new_model.train_on_batch(x, x)
 
 
+@keras_test
+def test_that_trainable_disables_updates():
+    val_a = np.random.random((10, 4))
+    val_out = np.random.random((10, 4))
+
+    a = Input(shape=(4,))
+    layer = normalization.BatchNormalization(input_shape=(4,))
+    b = layer(a)
+    model = Model(a, b)
+
+    model.trainable = False
+    assert not model.updates
+
+    model.compile('sgd', 'mse')
+    assert not model.updates
+
+    x1 = model.predict(val_a)
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert_allclose(x1, x2, atol=1e-7)
+
+    model.trainable = True
+    model.compile('sgd', 'mse')
+    assert model.updates
+
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert np.abs(np.sum(x1 - x2)) > 1e-5
+
+    layer.trainable = False
+    model.compile('sgd', 'mse')
+    assert not model.updates
+
+    x1 = model.predict(val_a)
+    model.train_on_batch(val_a, val_out)
+    x2 = model.predict(val_a)
+    assert_allclose(x1, x2, atol=1e-7)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
