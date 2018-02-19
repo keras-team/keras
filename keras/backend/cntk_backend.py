@@ -447,7 +447,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
                              'Please provide fixed dimension '
                              'instead of `None`.')
     # how to apply mean and stddev
-    return random_normal_variable(shape=shape, mean=mean, scale=1.0)
+    return random_normal_variable(shape=shape, mean=mean, scale=1.0, seed=seed)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -565,7 +565,7 @@ def transpose(x):
 def gather(reference, indices):
     # There is a bug in cntk gather op which may cause crash.
     # We have made a fix but not catched in CNTK 2.1 release.
-    # Will udpate with gather op in next release
+    # Will update with gather op in next release
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
@@ -2039,8 +2039,8 @@ def batch_get_value(xs):
 def set_value(x, value):
     if (isinstance(x, C.variables.Parameter) or
        isinstance(x, C.variables.Constant)):
-        if isinstance(value, float):
-            value = np.full(x.shape, value)
+        if isinstance(value, (float, int)):
+            value = np.full(x.shape, value, dtype=floatx())
         x.value = value
     else:
         raise NotImplementedError
@@ -2079,8 +2079,8 @@ def switch(condition, then_expression, else_expression):
         raise ValueError('Rank of condition should be less'
                          ' than or equal to rank of then and'
                          ' else expressions. ndim(condition)=' +
-                         str(cond_ndim) + ', ndim(then_expression)'
-                         '=' + str(expr_ndim))
+                         str(ndim_cond) + ', ndim(then_expression)'
+                         '=' + str(ndim_expr))
     elif ndim_cond < ndim_expr:
         shape_expr = int_shape(then_expression)
         ndim_diff = ndim_expr - ndim_cond

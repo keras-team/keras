@@ -66,10 +66,9 @@ if sys.version_info[0] == 2:
                 else:
                     break
 
-        response = urlopen(url, data)
-        with open(filename, 'wb') as fd:
-            for chunk in chunk_read(response, reporthook=reporthook):
-                fd.write(chunk)
+        with closing(urlopen(url, data)) as response, open(filename, 'wb') as fd:
+                for chunk in chunk_read(response, reporthook=reporthook):
+                    fd.write(chunk)
 else:
     from six.moves.urllib.request import urlretrieve
 
@@ -171,7 +170,7 @@ def get_file(fname,
         Path to the downloaded file
     """
     if cache_dir is None:
-        cache_dir = os.path.expanduser(os.path.join('~', '.keras'))
+        cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
@@ -318,7 +317,6 @@ class Sequence(object):
         from skimage.io import imread
         from skimage.transform import resize
         import numpy as np
-        import math
 
         # Here, `x_set` is list of path to the images
         # and `y_set` are the associated classes.
@@ -330,7 +328,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return math.ceil(len(self.x) / self.batch_size)
+                return np.ceil(len(self.x) / float(self.batch_size))
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -468,16 +466,27 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  use_multiprocessing=False,
                  shuffle=False):
         self.sequence = sequence
+        self.use_multiprocessing = use_multiprocessing
 
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
-            _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            try:
+                _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            except OSError:
+                # In this case the OS does not allow us to use
+                # multiprocessing. We resort to an int
+                # for enqueuer indexing.
+                _SEQUENCE_COUNTER = 0
 
-        # Doing Multiprocessing.Value += x is not process-safe.
-        with _SEQUENCE_COUNTER.get_lock():
-            self.uid = _SEQUENCE_COUNTER.value
-            _SEQUENCE_COUNTER.value += 1
-        self.use_multiprocessing = use_multiprocessing
+        if isinstance(_SEQUENCE_COUNTER, int):
+            self.uid = _SEQUENCE_COUNTER
+            _SEQUENCE_COUNTER += 1
+        else:
+            # Doing Multiprocessing.Value += x is not process-safe.
+            with _SEQUENCE_COUNTER.get_lock():
+                self.uid = _SEQUENCE_COUNTER.value
+                _SEQUENCE_COUNTER.value += 1
+
         self.shuffle = shuffle
         self.workers = 0
         self.executor_fn = None

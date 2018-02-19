@@ -18,6 +18,7 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
+from .engine.topology import Layer
 
 try:
     import requests
@@ -202,7 +203,19 @@ class BaseLogger(Callback):
     """Callback that accumulates epoch averages of metrics.
 
     This callback is automatically applied to every Keras model.
+
+    # Arguments
+        stateful_metrics: Iterable of string names of metrics that
+            should *not* be averaged over an epoch.
+            Metrics in this list will be logged as-is in `on_epoch_end`.
+            All others will be averaged in `on_epoch_end`.
     """
+
+    def __init__(self, stateful_metrics=None):
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
 
     def on_epoch_begin(self, epoch, logs=None):
         self.seen = 0
@@ -214,17 +227,23 @@ class BaseLogger(Callback):
         self.seen += batch_size
 
         for k, v in logs.items():
-            if k in self.totals:
-                self.totals[k] += v * batch_size
+            if k in self.stateful_metrics:
+                self.totals[k] = v
             else:
-                self.totals[k] = v * batch_size
+                if k in self.totals:
+                    self.totals[k] += v * batch_size
+                else:
+                    self.totals[k] = v * batch_size
 
     def on_epoch_end(self, epoch, logs=None):
         if logs is not None:
             for k in self.params['metrics']:
                 if k in self.totals:
                     # Make value available to next callbacks.
-                    logs[k] = self.totals[k] / self.seen
+                    if k in self.stateful_metrics:
+                        logs[k] = self.totals[k]
+                    else:
+                        logs[k] = self.totals[k] / self.seen
 
 
 class TerminateOnNaN(Callback):
@@ -250,12 +269,17 @@ class ProgbarLogger(Callback):
         count_mode: One of "steps" or "samples".
             Whether the progress bar should
             count samples seen or steps (batches) seen.
+        stateful_metrics: Iterable of string names of metrics that
+            should *not* be averaged over an epoch.
+            Metrics in this list will be logged as-is.
+            All others will be averaged over time (e.g. loss, etc).
 
     # Raises
         ValueError: In case of invalid `count_mode`.
     """
 
-    def __init__(self, count_mode='samples'):
+    def __init__(self, count_mode='samples',
+                 stateful_metrics=None):
         super(ProgbarLogger, self).__init__()
         if count_mode == 'samples':
             self.use_steps = False
@@ -263,6 +287,10 @@ class ProgbarLogger(Callback):
             self.use_steps = True
         else:
             raise ValueError('Unknown `count_mode`: ' + str(count_mode))
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
 
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
@@ -277,7 +305,8 @@ class ProgbarLogger(Callback):
                 target = self.params['samples']
             self.target = target
             self.progbar = Progbar(target=self.target,
-                                   verbose=self.verbose)
+                                   verbose=self.verbose,
+                                   stateful_metrics=self.stateful_metrics)
         self.seen = 0
 
     def on_batch_begin(self, batch, logs=None):
@@ -307,7 +336,7 @@ class ProgbarLogger(Callback):
             if k in logs:
                 self.log_values.append((k, logs[k]))
         if self.verbose:
-            self.progbar.update(self.seen, self.log_values, force=True)
+            self.progbar.update(self.seen, self.log_values)
 
 
 class History(Callback):
@@ -546,7 +575,10 @@ class RemoteMonitor(Callback):
         send = {}
         send['epoch'] = epoch
         for k, v in logs.items():
-            send[k] = v
+            if isinstance(v, (np.ndarray, np.generic)):
+                send[k] = v.item()
+            else:
+                send[k] = v
         try:
             requests.post(self.root + self.path,
                           {self.field: json.dumps(send)},
@@ -561,8 +593,8 @@ class LearningRateScheduler(Callback):
 
     # Arguments
         schedule: a function that takes an epoch index as input
-            (integer, indexed from 0) and returns a new
-            learning rate as output (float).
+            (integer, indexed from 0) and current learning rate
+            and returns a new learning rate as output (float).
         verbose: int. 0: quiet, 1: update messages.
     """
 
@@ -574,7 +606,11 @@ class LearningRateScheduler(Callback):
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, 'lr'):
             raise ValueError('Optimizer must have a "lr" attribute.')
-        lr = self.schedule(epoch)
+        lr = float(K.get_value(self.model.optimizer.lr))
+        try:  # new API
+            lr = self.schedule(epoch, lr=lr)
+        except TypeError:  # old API for backward compatibility
+            lr = self.schedule(epoch)
         if not isinstance(lr, (float, np.float32, np.float64)):
             raise ValueError('The output of the "schedule" function '
                              'should be float.')
@@ -585,7 +621,7 @@ class LearningRateScheduler(Callback):
 
 
 class TensorBoard(Callback):
-    """Tensorboard basic visualizations.
+    """TensorBoard basic visualizations.
 
     [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
     is a visualization tool provided with TensorFlow.
@@ -600,6 +636,10 @@ class TensorBoard(Callback):
     ```sh
     tensorboard --logdir=/full_path_to_your_logs
     ```
+
+    When using a backend other than TensorFlow, TensorBoard will still work
+    (if you have TensorFlow installed), but the only feature available will
+    be the display of the losses and metrics plots.
 
     # Arguments
         log_dir: the path of the directory where to save the log
@@ -638,12 +678,31 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None):
         super(TensorBoard, self).__init__()
-        if K.backend() != 'tensorflow':
-            raise RuntimeError('TensorBoard callback only works '
-                               'with the TensorFlow backend.')
         global tf, projector
-        import tensorflow as tf
-        from tensorflow.contrib.tensorboard.plugins import projector
+        try:
+            import tensorflow as tf
+            from tensorflow.contrib.tensorboard.plugins import projector
+        except ImportError:
+            raise ImportError('You need the TensorFlow module installed to use TensorBoard.')
+
+        if K.backend() != 'tensorflow':
+            if histogram_freq != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'histogram_freq was set to 0')
+                histogram_freq = 0
+            if write_graph:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'write_graph was set to False')
+                write_graph = False
+            if write_images:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'write_images was set to False')
+                write_images = False
+            if embeddings_freq != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'embeddings_freq was set to 0')
+                embeddings_freq = 0
+
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
         self.merged = None
@@ -657,7 +716,8 @@ class TensorBoard(Callback):
 
     def set_model(self, model):
         self.model = model
-        self.sess = K.get_session()
+        if K.backend() == 'tensorflow':
+            self.sess = K.get_session()
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
 

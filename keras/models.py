@@ -152,7 +152,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     for i, (w, val) in enumerate(zip(symbolic_weights,
                                                      weight_values)):
                         # Default values of symbolic_weights is /variable
-                        # for theano and cntk
+                        # for Theano and CNTK
                         if K.backend() == 'theano' or K.backend() == 'cntk':
                             if hasattr(w, 'name'):
                                 if w.name.split('/')[-1] == 'variable':
@@ -392,7 +392,6 @@ class Sequential(Model):
         self.inputs = []  # List of input tensors
         self.outputs = []  # List of length 1: the output tensor (unique).
         self._trainable = True
-        self._updatable = True
         self._initial_weights = None
 
         # Model attributes.
@@ -557,7 +556,6 @@ class Sequential(Model):
         self.model = Model(self.inputs, self.outputs[0],
                            name=self.name + '_model')
         self.model.trainable = self.trainable
-        self.model.updatable = self.updatable
 
         # mirror model attributes
         self.supports_masking = self.model.supports_masking
@@ -630,16 +628,6 @@ class Sequential(Model):
         if self.built:
             self.model.trainable = value
         self._trainable = value
-
-    @property
-    def updatable(self):
-        return self._updatable
-
-    @updatable.setter
-    def updatable(self, value):
-        if self.built:
-            self.model.updatable = value
-        self._updatable = value
 
     @property
     def trainable_weights(self):
@@ -730,25 +718,24 @@ class Sequential(Model):
             self.build()
         self.model.set_weights(weights)
 
-    def load_weights(self, filepath, by_name=False, skip_mismatch=False):
+    def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
-        f = h5py.File(filepath, mode='r')
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
+        with h5py.File(filepath, mode='r') as f:
+            if 'layer_names' not in f.attrs and 'model_weights' in f:
+                f = f['model_weights']
 
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-        else:
-            layers = self.layers
-        if by_name:
-            topology.load_weights_from_hdf5_group_by_name(f, layers,
-                                                          skip_mismatch=skip_mismatch)
-        else:
-            topology.load_weights_from_hdf5_group(f, layers)
-        if hasattr(f, 'close'):
-            f.close()
+            # Legacy support
+            if legacy_models.needs_legacy_support(self):
+                layers = legacy_models.legacy_sequential_layers(self)
+            else:
+                layers = self.layers
+            if by_name:
+                topology.load_weights_from_hdf5_group_by_name(f, layers,
+                                                              skip_mismatch=skip_mismatch,
+                                                              reshape=reshape)
+            else:
+                topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
 
     def save_weights(self, filepath, overwrite=True):
         if h5py is None:
@@ -764,10 +751,9 @@ class Sequential(Model):
         else:
             layers = self.layers
 
-        f = h5py.File(filepath, 'w')
-        topology.save_weights_to_hdf5_group(f, layers)
-        f.flush()
-        f.close()
+        with h5py.File(filepath, 'w') as f:
+            topology.save_weights_to_hdf5_group(f, layers)
+            f.flush()
 
     def compile(self, optimizer, loss,
                 metrics=None,
@@ -815,6 +801,7 @@ class Sequential(Model):
 
         # Raises
             ValueError: In case of invalid arguments for
+                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
 
         # Example
             ```python
@@ -1237,13 +1224,12 @@ class Sequential(Model):
         ```python
             def generate_arrays_from_file(path):
                 while 1:
-                    f = open(path)
-                    for line in f:
-                        # create Numpy arrays of input data
-                        # and labels, from each line in the file
-                        x, y = process_line(line)
-                        yield (x, y)
-                    f.close()
+                    with open(path) as f:
+                        for line in f:
+                            # create Numpy arrays of input data
+                            # and labels, from each line in the file
+                            x, y = process_line(line)
+                            yield (x, y)
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 steps_per_epoch=1000, epochs=10)

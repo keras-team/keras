@@ -18,7 +18,7 @@ The below table describes the performance on ImageNet 2012:
 |   NASNet-A (6 @ 4032)  |   82.7 %  |   96.2 %  |      23.8 B    |    88.9    |
 --------------------------------------------------------------------------------
 
-Weights obtained from the official Tensorflow repository found at
+Weights obtained from the official TensorFlow repository found at
 https://github.com/tensorflow/models/tree/master/research/slim/nets/nasnet
 
 # References
@@ -60,10 +60,10 @@ from ..applications.inception_v3 import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
-NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-mobile.h5'
-NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-mobile-no-top.h5'
-NASNET_LARGE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-large.h5'
-NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-large-no-top.h5'
+NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-mobile.h5'
+NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-mobile-no-top.h5'
+NASNET_LARGE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-large.h5'
+NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-large-no-top.h5'
 
 
 def NASNet(input_shape=None,
@@ -145,7 +145,7 @@ def NASNet(input_shape=None,
             backend that does not support separable convolutions.
     '''
     if K.backend() != 'tensorflow':
-        raise RuntimeError('Only Tensorflow backend is currently supported, '
+        raise RuntimeError('Only TensorFlow backend is currently supported, '
                            'as other backends do not support '
                            'separable convolution.')
 

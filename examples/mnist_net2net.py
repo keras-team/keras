@@ -208,7 +208,7 @@ def deeper2net_conv2d(teacher_w):
     kh, kw, num_channel, filters = teacher_w.shape
     student_w = np.zeros_like(teacher_w)
     for i in range(filters):
-        student_w[(kh - 1) / 2, (kw - 1) / 2, i, i] = 1.
+        student_w[(kh - 1) // 2, (kw - 1) // 2, i, i] = 1.
     student_b = np.zeros(filters)
     return student_w, student_b
 

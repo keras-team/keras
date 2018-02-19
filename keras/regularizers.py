@@ -84,5 +84,5 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError('Could not interpret regularizer identifier:',
-                         identifier)
+        raise ValueError('Could not interpret regularizer identifier: ' +
+                         str(identifier))
