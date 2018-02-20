@@ -512,9 +512,11 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """
         if self.use_multiprocessing:
             self.executor_fn = lambda seqs: multiprocessing.Pool(workers,
-                                                                 initializer=init_pool, initargs=(seqs,))
+                                                                 initializer=init_pool,
+                                                                 initargs=(seqs,))
         else:
-            self.executor_fn = lambda _: ThreadPool(workers)  # We do not need the init since it's threads.
+            # We do not need the init since it's threads.
+            self.executor_fn = lambda _: ThreadPool(workers)
         self.workers = workers
         self.queue = queue.Queue(max_queue_size)
         self.stop_signal = threading.Event()

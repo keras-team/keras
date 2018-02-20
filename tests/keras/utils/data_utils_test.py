@@ -28,9 +28,9 @@ if sys.version_info < (3,):
 def use_spawn(func):
     """Decorator to test both Unix (fork) and Windows (spawn)"""
     @six.wraps(func)
-    def wrapper(*args,**kwargs):
-        out = func(*args,**kwargs)
-        if sys.version_info > (3,4):
+    def wrapper(*args, **kwargs):
+        out = func(*args, **kwargs)
+        if sys.version_info > (3, 4):
             mp.set_start_method('spawn', force=True)
             func(*args, **kwargs)
             mp.set_start_method('fork', force=True)
@@ -252,6 +252,7 @@ def test_ordered_enqueuer_fail_threads():
     with pytest.raises(StopIteration):
         next(gen_output)
 
+
 @use_spawn
 def test_on_epoch_end_processes():
     enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
@@ -262,6 +263,7 @@ def test_on_epoch_end_processes():
         acc.append(next(gen_output)[0, 0, 0, 0])
     assert acc[100:] == list([k * 5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
     enqueuer.stop()
+
 
 @use_spawn
 def test_context_switch():
@@ -306,6 +308,7 @@ def test_on_epoch_end_threads():
         acc.append(next(gen_output)[0, 0, 0, 0])
     assert acc == list([k * 5 for k in range(100)]), "Order was not keep in GeneratorEnqueuer with processes"
     enqueuer.stop()
+
 
 @use_spawn
 def test_ordered_enqueuer_fail_processes():
