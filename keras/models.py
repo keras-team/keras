@@ -1181,7 +1181,7 @@ class Sequential(Model):
                 Note that in conjunction with initial_epoch, the parameter
                 epochs is to be understood as "final epoch". The model is
                 not trained for n steps given by epochs, but until the
-                epoch epochs is reached.
+                epoch of index `epochs` is reached.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
             validation_data: This can be either
