@@ -377,6 +377,7 @@ def init_pool(seqs):
     global _SHARED_SEQUENCES
     _SHARED_SEQUENCES = seqs
 
+
 def get_index(uid, i):
     """Get the value from the Sequence `uid` at index `i`.
 
