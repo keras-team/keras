@@ -2034,7 +2034,7 @@ class Model(Container):
                 If unspecified, `workers` will default to 1. If 0, will
                 execute the generator on the main thread.
             use_multiprocessing: Boolean. If True, use process based threading.
-                If unspecified, `workers` will default to False.
+                If unspecified, `use_multiprocessing` will default to False.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
