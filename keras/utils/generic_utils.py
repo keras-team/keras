@@ -337,7 +337,7 @@ class Progbar(object):
                     self._values[k][0] += v * (current - self._seen_so_far)
                     self._values[k][1] += (current - self._seen_so_far)
             else:
-                self._values[k] = v
+                self._values[k] = [v, 1]
         self._seen_so_far = current
 
         now = time.time()
