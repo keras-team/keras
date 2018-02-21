@@ -123,6 +123,7 @@ def test_stateful_metrics():
 
         def __init__(self, name='true_positives', **kwargs):
             super(BinaryTruePositives, self).__init__(name=name, **kwargs)
+            self.stateful = True
             self.true_positives = K.variable(value=0, dtype='int32')
 
         def reset_states(self):

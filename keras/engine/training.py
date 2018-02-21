@@ -927,7 +927,7 @@ class Model(Container):
 
                         # Keep track of state updates created by
                         # stateful metrics (i.e. metrics layers).
-                        if isinstance(metric_fn, Layer):
+                        if isinstance(metric_fn, Layer) and metric_fn.stateful:
                             self.stateful_metric_names.append(metric_name)
                             self.metrics_updates += metric_fn.updates
 
@@ -1175,7 +1175,7 @@ class Model(Container):
         for epoch in range(initial_epoch, epochs):
             # Reset stateful metrics
             for m in self.metrics:
-                if isinstance(m, Layer):
+                if isinstance(m, Layer) and m.stateful:
                     m.reset_states()
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
@@ -1364,7 +1364,7 @@ class Model(Container):
 
         if hasattr(self, 'metrics'):
             for m in self.metrics:
-                if isinstance(m, Layer):
+                if isinstance(m, Layer) and m.stateful:
                     m.reset_states()
             stateful_metric_indices = [
                 i for i, name in enumerate(self.metrics_names)
