@@ -1398,7 +1398,7 @@ class Model(Container):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
                         if i in stateful_metric_indices:
-                            outs[i] = batch_out
+                            outs[i] = float(batch_out)
                         else:
                             outs[i] += batch_out
                 else:
