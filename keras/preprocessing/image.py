@@ -185,12 +185,12 @@ def random_channel_shift(x, intensity, channel_axis=0):
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
-    
+
 def random_brightness(x, brightness_range):
     if len(brightness_range) != 2:
         raise ValueError('`brightness_range should be tuple or list of two floats. '
                          'Received arg: ', brightness_range)
-    
+
     x = array_to_img(x)
     x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
     u = np.random.uniform(brightness_range[0], brightness_range[1])
@@ -385,7 +385,6 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
     return [os.path.join(root, f)
             for root, _, files in os.walk(directory) for f in files
             if re.match(r'([\w]+\.(?:' + ext + '))', f)]
-
 
 
 class ImageDataGenerator(object):
@@ -702,7 +701,7 @@ class ImageDataGenerator(object):
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
                 
-        if self.brightness_range != 0.:
+        if self.brightness_range != 0:
             x = random_brightness(x, self.brightness_range)
 
         return x
