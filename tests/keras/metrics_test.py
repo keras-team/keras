@@ -116,8 +116,6 @@ def test_stateful_metrics():
         Assumes predictions and targets of shape `(samples, 1)`.
 
         # Arguments
-            threshold: Float, lower limit on prediction value that counts as a
-                positive class prediction.
             name: String, name for the metric.
         """
 
