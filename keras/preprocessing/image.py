@@ -887,17 +887,11 @@ class NumpyArrayIterator(Iterator):
                              'should have the same length. '
                              'Found: x.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
-        validation_split = image_data_generator._validation_split
         if subset is not None:
-            # check if self.image_data_generator.validation_split is None
-            if validation_split is None:
-                raise ValueError('Creating a subset with validation_split '
-                                 'set as None in NumpyArrayIterator',
-                                 validation_split)
             if subset not in {'training', 'validation'}:
                 raise ValueError('Invalid subset name:', subset,
                                  '; expected "training" or "validation".')
-            split_idx = int(len(x) * validation_split)
+            split_idx = int(len(x) * image_data_generator._validation_split)
             if subset == 'validation':
                 x = x[:split_idx]
                 if y is not None:
@@ -1150,9 +1144,6 @@ class DirectoryIterator(Iterator):
 
         if subset is not None:
             validation_split = self.image_data_generator._validation_split
-            if validation_split is None:
-                raise ValueError('Creating a subset with validation_split '
-                                 'set as None in ImageDataGenerator')
             if subset == 'validation':
                 split = (0, validation_split)
             elif subset == 'training':
