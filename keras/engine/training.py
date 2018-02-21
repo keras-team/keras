@@ -2198,6 +2198,9 @@ class Model(Container):
             # Construct epoch logs.
             epoch_logs = {}
             while epoch < epochs:
+                for m in self.metrics:
+                    if isinstance(m, Layer) and m.stateful:
+                        m.reset_states()
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
                 batch_index = 0
@@ -2331,6 +2334,15 @@ class Model(Container):
         """
         self._make_test_function()
 
+        stateful_metric_indices = []
+        if hasattr(self, 'metrics'):
+            for i, m in enumerate(self.metrics):
+                if isinstance(m, Layer) and m.stateful:
+                    m.reset_states()
+                    stateful_metric_indices.append(i)
+        else:
+            stateful_metric_indices = []
+
         steps_done = 0
         wait_time = 0.01
         all_outs = []
@@ -2404,13 +2416,18 @@ class Model(Container):
                 enqueuer.stop()
 
         if not isinstance(outs, list):
+            assert not stateful_metric_indices
             return np.average(np.asarray(all_outs),
                               weights=batch_sizes)
         else:
             averages = []
             for i in range(len(outs)):
-                averages.append(np.average([out[i] for out in all_outs],
-                                           weights=batch_sizes))
+                # [0] is the loss, the rest are metrics
+                if i == 0 or (i - 1) not in stateful_metric_indices:
+                    averages.append(np.average([out[i] for out in all_outs],
+                                               weights=batch_sizes))
+                else:
+                    averages.append(all_outs[-1][i])
             return averages
 
     @interfaces.legacy_generator_methods_support
