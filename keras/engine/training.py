@@ -2149,14 +2149,16 @@ class Model(Container):
                 if val_gen:
                     if workers > 0:
                         if isinstance(validation_data, Sequence):
-                            val_enqueuer = OrderedEnqueuer(validation_data,
-                                                           use_multiprocessing=use_multiprocessing)
+                            val_enqueuer = OrderedEnqueuer(
+                                validation_data,
+                                use_multiprocessing=use_multiprocessing)
                             if validation_steps is None:
                                 validation_steps = len(validation_data)
                         else:
-                            val_enqueuer = GeneratorEnqueuer(validation_data,
-                                                             use_multiprocessing=use_multiprocessing,
-                                                             wait_time=wait_time)
+                            val_enqueuer = GeneratorEnqueuer(
+                                validation_data,
+                                use_multiprocessing=use_multiprocessing,
+                                wait_time=wait_time)
                         val_enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                         validation_generator = val_enqueuer.get()
                     else:

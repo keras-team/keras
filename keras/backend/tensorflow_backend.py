@@ -252,7 +252,7 @@ def _is_current_explicit_device(device_type):
     """
     device_type = device_type.upper()
     if device_type not in ['CPU', 'GPU']:
-        raise ValueError('device_type should be either "CPU" or "GPU".')
+        raise ValueError('`device_type` should be either "CPU" or "GPU".')
     device = _get_current_tf_device()
     return (device is not None and device.device_type == device_type.upper())
 
