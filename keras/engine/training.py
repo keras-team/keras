@@ -1275,21 +1275,14 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-
-        if hasattr(self, 'metrics'):
-            for m in self.metrics:
-                if isinstance(m, Layer):
-                    m.reset_states()
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
         if verbose == 1:
             if steps is not None:
-                progbar = Progbar(target=steps,
-                                  stateful_metrics=self.stateful_metric_names)
+                progbar = Progbar(target=steps)
             else:
-                progbar = Progbar(target=num_samples,
-                                  stateful_metrics=self.stateful_metric_names)
+                progbar = Progbar(target=num_samples)
 
         indices_for_conversion_to_dense = []
         for i in range(len(self._feed_inputs)):
@@ -2041,7 +2034,7 @@ class Model(Container):
                 If unspecified, `workers` will default to 1. If 0, will
                 execute the generator on the main thread.
             use_multiprocessing: Boolean. If True, use process based threading.
-                If unspecified, `workers` will default to False.
+                If unspecified, `use_multiprocessing` will default to False.
                 Note that because
                 this implementation relies on multiprocessing,
                 you should not pass
