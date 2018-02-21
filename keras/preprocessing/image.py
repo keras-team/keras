@@ -879,7 +879,11 @@ class NumpyArrayIterator(Iterator):
 
         if data_format is None:
             data_format = K.image_data_format()
-        self.x = np.asarray(x, dtype=K.floatx())
+
+        dtype = getattr(x, 'dtype', None)
+        if dtype != K.floatx():
+            x = np.asarray(x, dtype=K.floatx())
+        self.x = x
 
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
