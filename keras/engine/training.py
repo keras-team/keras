@@ -2427,7 +2427,7 @@ class Model(Container):
                     averages.append(np.average([out[i] for out in all_outs],
                                                weights=batch_sizes))
                 else:
-                    averages.append(all_outs[-1][i])
+                    averages.append(float(all_outs[-1][i]))
             return averages
 
     @interfaces.legacy_generator_methods_support
