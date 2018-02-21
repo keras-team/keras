@@ -259,11 +259,9 @@ class TestImage(object):
         assert(input_img[0][0][0] != output_img[0][0][0])
 
     @pytest.mark.parametrize('validation_split,num_training', [
-        (0.00, 16),
         (0.25, 12),
         (0.40, 10),
         (0.50, 8),
-        (1.00, 0),
     ])
     def test_directory_iterator_with_validation_split(self, validation_split, num_training):
         num_classes = 2

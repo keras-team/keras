@@ -416,7 +416,7 @@ class ImageDataGenerator(object):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        validation_split: fraction of images reserved for validation (between 0 and 1).
+        validation_split: fraction of images reserved for validation (strictly between 0 and 1).
     """
 
     def __init__(self,
@@ -439,7 +439,7 @@ class ImageDataGenerator(object):
                  rescale=None,
                  preprocessing_function=None,
                  data_format=None,
-                 validation_split=None):
+                 validation_split=0.0):
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -474,8 +474,8 @@ class ImageDataGenerator(object):
             self.channel_axis = 3
             self.row_axis = 1
             self.col_axis = 2
-        if validation_split is not None and not 0 <= validation_split <= 1:
-            raise ValueError('`validation_split` must be between 0 and 1. '
+        if validation_split and not 0 < validation_split < 1:
+            raise ValueError('`validation_split` must be strictly between 0 and 1. '
                              ' Received arg: ', validation_split)
         self._validation_split = validation_split
 
@@ -894,9 +894,6 @@ class NumpyArrayIterator(Iterator):
                 raise ValueError('Creating a subset with validation_split '
                                  'set as None in NumpyArrayIterator',
                                  validation_split)
-            if not 0 <= validation_split <= 1:
-                raise ValueError('validation_split must be between 0 and 1.'
-                                 ' Found: ', validation_split)
             if subset not in {'training', 'validation'}:
                 raise ValueError('Invalid subset name:', subset,
                                  '; expected "training" or "validation".')
