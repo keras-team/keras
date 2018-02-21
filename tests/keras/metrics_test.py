@@ -163,11 +163,16 @@ def test_stateful_metrics():
                   loss='binary_crossentropy',
                   metrics=['acc', metric_fn])
 
-    # Test fit, evaluate
     samples = 1000
     x = np.random.random((samples, 2))
     y = np.random.randint(2, size=(samples, 1))
-    model.fit(x, y, epochs=1, batch_size=10)
+
+    val_samples = 10
+    val_x = np.random.random((val_samples, 2))
+    val_y = np.random.randint(2, size=(val_samples, 1))
+
+    # Test fit and evaluate
+    history = model.fit(x, y, validation_data=(val_x, val_y), epochs=1, batch_size=10)
     outs = model.evaluate(x, y, batch_size=10)
     preds = model.predict(x)
 
@@ -176,6 +181,12 @@ def test_stateful_metrics():
 
     # Test correctness (e.g. updates should have been run)
     np.testing.assert_allclose(outs[2], ref_true_pos(y, preds), atol=1e-5)
+
+    # Test correctness of the validation metric computation
+    val_preds = model.predict(val_x)
+    val_outs = model.evaluate(val_x, val_y, batch_size=10)
+    np.testing.assert_allclose(val_outs[2], ref_true_pos(val_y, val_preds), atol=1e-5)
+    np.testing.assert_allclose(val_outs[2], history.history['val_true_positives'][-1], atol=1e-5)
 
 
 if __name__ == '__main__':
