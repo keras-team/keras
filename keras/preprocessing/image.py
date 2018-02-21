@@ -444,7 +444,7 @@ class ImageDataGenerator(object):
                  rotation_range=0.,
                  width_shift_range=0.,
                  height_shift_range=0.,
-                 brightness_range=0.,
+                 brightness_range=None,
                  shear_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
