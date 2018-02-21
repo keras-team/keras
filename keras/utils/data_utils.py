@@ -373,6 +373,11 @@ _SHARED_SEQUENCES = {}
 _SEQUENCE_COUNTER = None
 
 
+def init_pool(seqs):
+    global _SHARED_SEQUENCES
+    _SHARED_SEQUENCES = seqs
+
+
 def get_index(uid, i):
     """Get the value from the Sequence `uid` at index `i`.
 
@@ -506,9 +511,12 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            self.executor_fn = lambda: multiprocessing.Pool(workers)
+            self.executor_fn = lambda seqs: multiprocessing.Pool(workers,
+                                                                 initializer=init_pool,
+                                                                 initargs=(seqs,))
         else:
-            self.executor_fn = lambda: ThreadPool(workers)
+            # We do not need the init since it's threads.
+            self.executor_fn = lambda _: ThreadPool(workers)
         self.workers = workers
         self.queue = queue.Queue(max_queue_size)
         self.stop_signal = threading.Event()
@@ -531,7 +539,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
             if self.shuffle:
                 random.shuffle(sequence)
 
-            with closing(self.executor_fn()) as executor:
+            with closing(self.executor_fn(_SHARED_SEQUENCES)) as executor:
                 for i in sequence:
                     if self.stop_signal.is_set():
                         return
