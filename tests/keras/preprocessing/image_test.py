@@ -203,7 +203,7 @@ class TestImage(object):
         x1, y1 = dir_seq[5]
         with pytest.raises(ValueError):
             x1, y1 = dir_seq[9]
-        
+
         # Test Preprocessing before resize
         def preprocess_test(img):
             return img.resize((1, 1))
