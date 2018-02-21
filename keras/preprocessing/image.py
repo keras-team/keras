@@ -701,7 +701,7 @@ class ImageDataGenerator(object):
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
 
-        if self.brightness_range != 0:
+        if self.brightness_range != None:
             x = random_brightness(x, self.brightness_range)
 
         return x
