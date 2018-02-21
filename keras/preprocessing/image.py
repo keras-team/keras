@@ -22,6 +22,7 @@ from .. import backend as K
 from ..utils.data_utils import Sequence
 
 try:
+    from PIL import ImageEnhance
     from PIL import Image as pil_image
 except ImportError:
     pil_image = None
@@ -181,6 +182,19 @@ def random_channel_shift(x, intensity, channel_axis=0):
                       for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
+    return x
+
+
+def random_brightness(x, brightness_range):
+    if len(brightness_range) != 2:
+        raise ValueError('`brightness_range should be tuple or list of two floats. '
+                         'Received arg: ', brightness_range)
+
+    x = array_to_img(x)
+    x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
+    u = np.random.uniform(brightness_range[0], brightness_range[1])
+    x = imgenhancer_Brightness.enhance(u)
+    x = img_to_array(x)
     return x
 
 
@@ -385,6 +399,7 @@ class ImageDataGenerator(object):
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
         height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
+        brightness_range: the range of brightness to apply
         shear_range: shear intensity (shear angle in degrees).
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
@@ -429,6 +444,7 @@ class ImageDataGenerator(object):
                  rotation_range=0.,
                  width_shift_range=0.,
                  height_shift_range=0.,
+                 brightness_range=None,
                  shear_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
@@ -451,6 +467,7 @@ class ImageDataGenerator(object):
         self.rotation_range = rotation_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
+        self.brightness_range = brightness_range
         self.shear_range = shear_range
         self.zoom_range = zoom_range
         self.channel_shift_range = channel_shift_range
@@ -691,6 +708,9 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
+
+        if self.brightness_range is not None:
+            x = random_brightness(x, self.brightness_range)
 
         return x
 
