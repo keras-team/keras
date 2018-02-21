@@ -327,6 +327,7 @@ class Layer(object):
     @staticmethod
     def _node_key(layer, node_index):
         """Converts a layer and its index to a unique (immutable type) name.
+
         This function is used internally with `self._container_nodes`.
 
         # Arguments
@@ -1093,7 +1094,7 @@ class Layer(object):
                                  'instead.')
 
     def add_loss(self, losses, inputs=None):
-        """Add losses to the layer.
+        """Adds losses to the layer.
 
         The loss may potentially be conditional on some inputs tensors,
         for instance activity losses are conditional on the layer's inputs.
@@ -1127,7 +1128,7 @@ class Layer(object):
         self._per_input_losses[inputs_hash] += losses
 
     def add_update(self, updates, inputs=None):
-        """Add updates to the layer.
+        """Adds updates to the layer.
 
         The updates may potentially be conditional on some inputs tensors,
         for instance batch norm updates are conditional on the layer's inputs.
@@ -1270,7 +1271,7 @@ class Layer(object):
         return cls(**config)
 
     def count_params(self):
-        """Count the total number of scalars composing the weights.
+        """Counts the total number of scalars composing the weights.
 
         # Returns
             An integer count.
@@ -1889,7 +1890,7 @@ class Container(Layer):
 
     @property
     def updates(self):
-        """Retrieve the model's updates.
+        """Retrieves the model's updates.
 
         Will only include updates that are either
         inconditional, or conditional on inputs to this model
@@ -1918,7 +1919,7 @@ class Container(Layer):
 
     @property
     def losses(self):
-        """Retrieve the model's losses.
+        """Retrieves the model's losses.
 
         Will only include losses that are either
         inconditional, or conditional on inputs to this model
@@ -2052,7 +2053,7 @@ class Container(Layer):
         return specs
 
     def call(self, inputs, mask=None):
-        """Call the model on new inputs.
+        """Calls the model on new inputs.
 
         In this case `call` just reapplies
         all ops in the graph to the new inputs
@@ -2480,7 +2481,7 @@ class Container(Layer):
                     layer(input_tensors, **kwargs)
 
         def process_layer(layer_data):
-            """Deserialize a layer, then call it on appropriate inputs.
+            """Deserializes a layer, then call it on appropriate inputs.
 
             # Arguments
                 layer_data: layer config dict.
@@ -2538,7 +2539,7 @@ class Container(Layer):
         return cls(inputs=input_tensors, outputs=output_tensors, name=name)
 
     def save(self, filepath, overwrite=True, include_optimizer=True):
-        """Save the model to a single HDF5 file.
+        """Saves the model to a single HDF5 file.
 
         The savefile includes:
             - The model architecture, allowing to re-instantiate the model.
@@ -3286,7 +3287,7 @@ def _convert_rnn_weights(layer, weights):
 
 
 def _need_convert_kernel(original_backend):
-    """Check if conversion on kernel matrices is required during weight loading.
+    """Checks if conversion on kernel matrices is required during weight loading.
 
     The convolution operation is implemented differently in different backends.
     While TH implements convolution, TF and CNTK implement the correlation operation.
