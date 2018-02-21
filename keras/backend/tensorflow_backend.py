@@ -163,8 +163,11 @@ def get_session():
         A TensorFlow session.
     """
     global _SESSION
-    if tf.get_default_session() is not None:
-        session = tf.get_default_session()
+
+    default_session = tf.get_default_session()
+
+    if default_session is not None:
+        session = default_session
     else:
         if _SESSION is None:
             if not os.environ.get('OMP_NUM_THREADS'):
