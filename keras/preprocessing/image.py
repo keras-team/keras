@@ -185,6 +185,19 @@ def random_channel_shift(x, intensity, channel_axis=0):
     x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
+    
+def random_brightness(x, brightness_range):
+    if len(brightness_range) != 2:
+        raise ValueError('`brightness_range should be tuple or list of two floats. '
+                         'Received arg: ', brightness_range)
+    
+    x = array_to_img(x)
+    x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
+    u = np.random.uniform(brightness_range[0], brightness_range[1])
+    x = imgenhancer_Brightness.enhance(u)
+    x = img_to_array(x)
+    return x
+
 
 def transform_matrix_offset_center(matrix, x, y):
     o_x = float(x) / 2 + 0.5
@@ -374,13 +387,6 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
             if re.match(r'([\w]+\.(?:' + ext + '))', f)]
 
 
-def random_brightness(x, brightness=0):
-    x = array_to_img(x)
-    imgenhancer_Brightness = ImageEnhance.Brightness(x)
-    x = imgenhancer_Brightness.enhance(brightness)
-    x = img_to_array(x)
-    return x
-
 
 class ImageDataGenerator(object):
     """Generate minibatches of image data with real-time data augmentation.
@@ -391,11 +397,11 @@ class ImageDataGenerator(object):
         featurewise_std_normalization: divide inputs by std of the dataset.
         samplewise_std_normalization: divide each input by its std.
         zca_whitening: apply ZCA whitening.
-        brightness: apply brightness
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         rotation_range: degrees (0 to 180).
         width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
         height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
+        brightness_range: the range of brightness to apply
         shear_range: shear intensity (shear angle in degrees).
         zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
             in the range [1-z, 1+z]. A sequence of two can be passed instead
@@ -411,7 +417,6 @@ class ImageDataGenerator(object):
                 'wrap':  abcdabcd|abcd|abcdabcd
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
-        brightness_range: The range for the brightness, higher number for better variance
         horizontal_flip: whether to randomly flip images horizontally.
         vertical_flip: whether to randomly flip images vertically.
         rescale: rescaling factor. If None or 0, no rescaling is applied,
@@ -436,17 +441,16 @@ class ImageDataGenerator(object):
                  featurewise_std_normalization=False,
                  samplewise_std_normalization=False,
                  zca_whitening=False,
-                 brightness=False,
                  zca_epsilon=1e-6,
                  rotation_range=0.,
                  width_shift_range=0.,
                  height_shift_range=0.,
+                 brightness_range=0.,
                  shear_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
                  fill_mode='nearest',
                  cval=0.,
-                 brightness_range=0,
                  horizontal_flip=False,
                  vertical_flip=False,
                  rescale=None,
@@ -463,15 +467,14 @@ class ImageDataGenerator(object):
         self.rotation_range = rotation_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
+        self.brightness_range = brightness_range
         self.shear_range = shear_range
         self.zoom_range = zoom_range
         self.channel_shift_range = channel_shift_range
         self.fill_mode = fill_mode
         self.cval = cval
-        self.brightness_range = brightness_range
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
-        self.brightness = brightness
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
 
@@ -628,38 +631,33 @@ class ImageDataGenerator(object):
         # use composition of homographies
         # to generate final transform that needs to be applied
         if self.rotation_range:
-            theta = np.deg2rad(
-                np.random.uniform(-self.rotation_range, self.rotation_range))
+            theta = np.deg2rad(np.random.uniform(-self.rotation_range, self.rotation_range))
         else:
             theta = 0
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range,
-                                   self.height_shift_range)
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
             if self.height_shift_range < 1:
                 tx *= x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range,
-                                   self.width_shift_range)
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
             if self.width_shift_range < 1:
                 ty *= x.shape[img_col_axis]
         else:
             ty = 0
 
         if self.shear_range:
-            shear = np.deg2rad(
-                np.random.uniform(-self.shear_range, self.shear_range))
+            shear = np.deg2rad(np.random.uniform(-self.shear_range, self.shear_range))
         else:
             shear = 0
 
         if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
             zx, zy = 1, 1
         else:
-            zx, zy = np.random.uniform(
-                self.zoom_range[0], self.zoom_range[1], 2)
+            zx, zy = np.random.uniform(self.zoom_range[0], self.zoom_range[1], 2)
 
         transform_matrix = None
         if theta != 0:
@@ -672,27 +670,23 @@ class ImageDataGenerator(object):
             shift_matrix = np.array([[1, 0, tx],
                                      [0, 1, ty],
                                      [0, 0, 1]])
-            transform_matrix = shift_matrix if transform_matrix is None else np.dot(
-                transform_matrix, shift_matrix)
+            transform_matrix = shift_matrix if transform_matrix is None else np.dot(transform_matrix, shift_matrix)
 
         if shear != 0:
             shear_matrix = np.array([[1, -np.sin(shear), 0],
-                                     [0, np.cos(shear), 0],
-                                     [0, 0, 1]])
-            transform_matrix = shear_matrix if transform_matrix is None else np.dot(
-                transform_matrix, shear_matrix)
+                                    [0, np.cos(shear), 0],
+                                    [0, 0, 1]])
+            transform_matrix = shear_matrix if transform_matrix is None else np.dot(transform_matrix, shear_matrix)
 
         if zx != 1 or zy != 1:
             zoom_matrix = np.array([[zx, 0, 0],
                                     [0, zy, 0],
                                     [0, 0, 1]])
-            transform_matrix = zoom_matrix if transform_matrix is None else np.dot(
-                transform_matrix, zoom_matrix)
+            transform_matrix = zoom_matrix if transform_matrix is None else np.dot(transform_matrix, zoom_matrix)
 
         if transform_matrix is not None:
             h, w = x.shape[img_row_axis], x.shape[img_col_axis]
-            transform_matrix = transform_matrix_offset_center(
-                transform_matrix, h, w)
+            transform_matrix = transform_matrix_offset_center(transform_matrix, h, w)
             x = apply_transform(x, transform_matrix, img_channel_axis,
                                 fill_mode=self.fill_mode, cval=self.cval)
 
@@ -707,11 +701,9 @@ class ImageDataGenerator(object):
         if self.vertical_flip:
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
-
-        if self.brightness:
-            x = random_brightness(
-                x, np.random.uniform(
-                    0.1, self.brightness_range))
+                
+        if self.brightness_range != 0.:
+            x = random_brightness(x, self.brightness_range)
 
         return x
 
@@ -746,8 +738,7 @@ class ImageDataGenerator(object):
                 'Expected input to be images (as Numpy array) '
                 'following the data format convention "' + self.data_format + '" '
                 '(channels on axis ' + str(self.channel_axis) + '), i.e. expected '
-                'either 1, 3 or 4 channels on axis ' +
-                str(self.channel_axis) + '. '
+                'either 1, 3 or 4 channels on axis ' + str(self.channel_axis) + '. '
                 'However, it was passed an array with shape ' + str(x.shape) +
                 ' (' + str(x.shape[self.channel_axis]) + ' channels).')
 
@@ -756,8 +747,7 @@ class ImageDataGenerator(object):
 
         x = np.copy(x)
         if augment:
-            ax = np.zeros(tuple([rounds * x.shape[0]] +
-                                list(x.shape)[1:]), dtype=K.floatx())
+            ax = np.zeros(tuple([rounds * x.shape[0]] + list(x.shape)[1:]), dtype=K.floatx())
             for r in range(rounds):
                 for i in range(x.shape[0]):
                     ax[i + r * x.shape[0]] = self.random_transform(x[i])
@@ -778,8 +768,7 @@ class ImageDataGenerator(object):
             x /= (self.std + K.epsilon())
 
         if self.zca_whitening:
-            flat_x = np.reshape(
-                x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
+            flat_x = np.reshape(x, (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3]))
             sigma = np.dot(flat_x.T, flat_x) / flat_x.shape[0]
             u, s, _ = linalg.svd(sigma)
             s_inv = 1. / np.sqrt(s[np.newaxis] + self.zca_epsilon)
@@ -842,7 +831,7 @@ class Iterator(Sequence):
     def _flow_index(self):
         # Ensure self.batch_index is 0.
         self.reset()
-        while True:
+        while 1:
             if self.seed is not None:
                 np.random.seed(self.seed + self.total_batches_seen)
             if self.batch_index == 0:
@@ -921,10 +910,8 @@ class NumpyArrayIterator(Iterator):
         if self.x.shape[channels_axis] not in {1, 3, 4}:
             warnings.warn('NumpyArrayIterator is set to use the '
                           'data format convention "' + data_format + '" '
-                          '(channels on axis ' +
-                          str(channels_axis) + '), i.e. expected '
-                          'either 1, 3 or 4 channels on axis ' +
-                          str(channels_axis) + '. '
+                          '(channels on axis ' + str(channels_axis) + '), i.e. expected '
+                          'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
                           'However, it was passed an array with shape ' + str(self.x.shape) +
                           ' (' + str(self.x.shape[channels_axis]) + ' channels).')
         if y is not None:
@@ -936,21 +923,14 @@ class NumpyArrayIterator(Iterator):
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
-        super(
-            NumpyArrayIterator,
-            self).__init__(
-            x.shape[0],
-            batch_size,
-            shuffle,
-            seed)
+        super(NumpyArrayIterator, self).__init__(x.shape[0], batch_size, shuffle, seed)
 
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = np.zeros(tuple([len(index_array)] + list(self.x.shape)[1:]),
                            dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
-            x = self.image_data_generator.random_transform(
-                x.astype(K.floatx()))
+            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         if self.save_to_dir:
@@ -958,8 +938,7 @@ class NumpyArrayIterator(Iterator):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=j,
-                                                                  hash=np.random.randint(
-                                                                      1e4),
+                                                                  hash=np.random.randint(1e4),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         if self.y is None:
@@ -982,8 +961,7 @@ class NumpyArrayIterator(Iterator):
         return self._get_batches_of_transformed_samples(index_array)
 
 
-def _count_valid_files_in_directory(
-        directory, white_list_formats, follow_links):
+def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
     """Count files with extension in `white_list_formats` contained in directory.
 
     # Arguments
@@ -998,8 +976,7 @@ def _count_valid_files_in_directory(
         the directory.
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links),
-                      key=lambda x: x[0])
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
     samples = 0
     for _, _, files in _recursive_list(directory):
@@ -1036,8 +1013,7 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
     def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links),
-                      key=lambda x: x[0])
+        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
     classes = []
     filenames = []
@@ -1141,14 +1117,7 @@ class DirectoryIterator(Iterator):
         self.save_format = save_format
         self.interpolation = interpolation
 
-        white_list_formats = {
-            'png',
-            'jpg',
-            'jpeg',
-            'bmp',
-            'ppm',
-            'tif',
-            'tiff'}
+        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff'}
 
         # first, count the number of samples and classes
         self.samples = 0
@@ -1169,12 +1138,9 @@ class DirectoryIterator(Iterator):
                                     (os.path.join(directory, subdir)
                                      for subdir in classes)))
 
-        print(
-            'Found %d images belonging to %d classes.' %
-            (self.samples, self.num_classes))
+        print('Found %d images belonging to %d classes.' % (self.samples, self.num_classes))
 
-        # second, build an index of the images in the different class
-        # subfolders
+        # second, build an index of the images in the different class subfolders
         results = []
 
         self.filenames = []
@@ -1191,19 +1157,10 @@ class DirectoryIterator(Iterator):
             i += len(classes)
         pool.close()
         pool.join()
-        super(
-            DirectoryIterator,
-            self).__init__(
-            self.samples,
-            batch_size,
-            shuffle,
-            seed)
+        super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def _get_batches_of_transformed_samples(self, index_array):
-        batch_x = np.zeros(
-            (len(index_array),
-             ) + self.image_shape,
-            dtype=K.floatx())
+        batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
         grayscale = self.color_mode == 'grayscale'
         # build batch of image data
         for i, j in enumerate(index_array):
@@ -1222,8 +1179,7 @@ class DirectoryIterator(Iterator):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
                                                                   index=j,
-                                                                  hash=np.random.randint(
-                                                                      1e7),
+                                                                  hash=np.random.randint(1e7),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
@@ -1234,8 +1190,7 @@ class DirectoryIterator(Iterator):
         elif self.class_mode == 'binary':
             batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros(
-                (len(batch_x), self.num_classes), dtype=K.floatx())
+            batch_y = np.zeros((len(batch_x), self.num_classes), dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         else:
