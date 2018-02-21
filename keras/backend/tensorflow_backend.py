@@ -165,7 +165,7 @@ def get_session():
     global _SESSION
 
     default_session = tf.get_default_session()
-    
+
     if default_session is not None:
         session = default_session
     else:
