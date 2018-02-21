@@ -46,12 +46,11 @@ class TestImage(object):
                 shear_range=0.5,
                 zoom_range=0.2,
                 channel_shift_range=0.,
-                brightness_range=4,
+                brightness_range=(1, 5),
                 fill_mode='nearest',
                 cval=0.5,
                 horizontal_flip=True,
-                vertical_flip=True,
-                brightness=True)
+                vertical_flip=True)
             generator.fit(images, augment=True)
 
             for x, y in generator.flow(images, np.arange(images.shape[0]),
@@ -304,12 +303,11 @@ class TestImage(object):
                 shear_range=0.5,
                 zoom_range=0.2,
                 channel_shift_range=0.,
-                brightness_range=4,
+                brightness_range=(1, 5),
                 fill_mode='nearest',
                 cval=0.5,
                 horizontal_flip=True,
-                vertical_flip=True,
-                brightness=True)
+                vertical_flip=True)
             generator.fit(images, augment=True)
 
             transformed = np.copy(images)
