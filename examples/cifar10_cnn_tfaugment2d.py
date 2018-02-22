@@ -112,7 +112,7 @@ num_predictions = 20
 save_dir = '/tmp/saved_models'
 model_name = 'keras_cifar10_trained_model.h5'
 
-# The data, shuffled and split between train and test sets:
+# The data, split between train and test sets:
 (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 print('x_train shape:', x_train.shape)
 print(x_train.shape[0], 'train samples')
