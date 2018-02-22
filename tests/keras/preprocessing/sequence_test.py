@@ -7,6 +7,7 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.sequence import make_sampling_table
 from keras.preprocessing.sequence import skipgrams
 from keras.preprocessing.sequence import _remove_long_seq
+from keras.preprocessing.sequence import TimeseriesGenerator
 
 
 def test_pad_sequences():
@@ -93,6 +94,50 @@ def test_remove_long_seq():
     new_seq, new_label = _remove_long_seq(maxlen, seq, label)
     assert new_seq == [[1, 2, 3]]
     assert new_label == ['a']
+
+
+def test_TimeseriesGenerator():
+    data = np.array([[i] for i in range(50)])
+    targets = np.array([i for i in range(50)])
+    
+    data_gen = TimeseriesGenerator(data, targets,
+            lookback=10, delay=2,
+            sampling_rate=2,
+            batch_size=2)
+    assert len(data_gen) == 19
+    assert (np.array_equal(data_gen[0][0],
+        np.array([[[0], [2], [4], [6], [8]],
+                  [[1], [3], [5], [7], [9]]])))
+    assert (np.array_equal(data_gen[0][1],
+        np.array([[12], [13]])))
+    assert (np.array_equal(data_gen[1][0],
+        np.array([[[2], [4], [6], [8], [10]],
+                  [[3], [5], [7], [9], [11]]])))
+    assert (np.array_equal(data_gen[1][1],
+        np.array([[14], [15]])))
+    
+    data_gen = TimeseriesGenerator(data, targets,
+            lookback=10, delay=2,
+            sampling_rate=2, stride=2,
+            batch_size=2)
+    assert len(data_gen) == 10
+    assert (np.array_equal(data_gen[1][0],
+        np.array([[[4], [6], [8], [10], [12]],
+                  [[6], [8], [10], [12], [14]]])))
+    assert (np.array_equal(data_gen[1][1],
+        np.array([[16], [18]])))
+    
+    data_gen = TimeseriesGenerator(data, targets,
+            lookback=10, delay=2,
+            sampling_rate=2,
+            start_index=10, end_index=30,
+            batch_size=2)
+    assert len(data_gen) == 5
+    assert (np.array_equal(data_gen[0][0],
+        np.array([[[10], [12], [14], [16], [18]],
+            [[11], [13], [15], [17], [19]]])))
+    assert (np.array_equal(data_gen[0][1],
+        np.array([[22], [23]])))
 
 
 if __name__ == '__main__':

@@ -220,7 +220,7 @@ def _remove_long_seq(maxlen, seq, label):
     return new_seq, new_label
 
 
-class TimeSeriesSequence(Sequence):
+class TimeseriesGenerator(Sequence):
     """Utility class for generating batches of temporal data.
 
     This class takes in a sequence of data-points gathered at 
@@ -228,28 +228,30 @@ class TimeSeriesSequence(Sequence):
     stride, delay etc., to produce batches for training/validation.
 
     # Arguments
-        data: indexable generator (such as list) containing
-            consecutive data points.
+        data: indexable generator (such as list or Numpy array)
+            containing consecutive data points.
         targets: targets corresponding to instances in `data`.
-            Should have same length as data.
+            Should have same length as `data`.
         lookback: length of history to consider for prediction.
-            data[i-lookback : i+1] is used as input.
+            `data[i-lookback : i+1]` is used to prepare the input.
         delay: how further in the future we are looking to predict.
-            targets[i + delay] becomes the target for
-            data[i-lookback : i+1]
+            `targets[i + delay]` becomes the target for
+            `data[i-lookback : i+1]`
         sampling_rate: period between successive individual data
             points. For rate `r`, points
-            data[i], data[i-r], ... data[i - lookback] are used as input.
+            `data[i]`, `data[i-r]`, ... `data[i - lookback]` 
+            are used as input.
         stride: period between successive sub-sequences used for
-            training. For stride s, consecutive training samples would
-            be centered around data[i], data[i+s], data[i+2*s], ...
-        start_index, end_index: delimiters for sub-sets of data & targets
+            training. For stride `s`, consecutive training samples would
+            be centered around `data[i]`, `data[i+s]`, `data[i+2*s]`, ...
+        start_index, end_index: delimiters for sub-sets of `data` & `targets`
             to be used for batch generation. Useful to reserve part of
             data for validation.
         shuffle: whether to shuffle training samples, or draw them in
             chronological order.
-        reverse: if true, input points are provided in reverse order.
-        batch_size: size of successful batches (except maybe last one)
+        reverse: if `true`, input points are provided in reverse order.
+        batch_size: number of timeseries samples in each batch 
+            (except maybe last one)
     
     # Returns
         A `Sequence` instance.
@@ -266,7 +268,7 @@ class TimeSeriesSequence(Sequence):
                  batch_size=128):
         self.data = data
         self.targets = targets
-        if not hasattr(self.targets[0], "__len__"):
+        if not hasattr(self.targets[0], '__len__'):
             self.output_dim = 1
         else:
             self.output_dim = len(self.targets[0])
@@ -296,10 +298,10 @@ class TimeSeriesSequence(Sequence):
             rows = np.arange(i, min(i + self.batch_size * self.stride, self.end_index), 
                     self.stride)
 
-        samples = np.zeros((len(rows),
+        samples = np.empty((len(rows),
                            self.lookback // self.sampling_rate,
                            self.data.shape[-1]))
-        targets = np.zeros((len(rows), self.output_dim,))
+        targets = np.empty((len(rows), self.output_dim,))
         for j, row in enumerate(rows):
             indices = range(rows[j] - self.lookback, rows[j], self.sampling_rate)
             samples[j] = self.data[indices]
