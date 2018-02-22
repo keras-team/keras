@@ -279,7 +279,7 @@ def test_separable_conv_1d():
                                                           batch_input_shape=(None, 5, None))])
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@pytest.mark.skipif(K.backend() == 'theano', reason='Theano does not support it yet')
 @keras_test
 def test_separable_conv_2d():
     num_samples = 2
@@ -295,6 +295,8 @@ def test_separable_conv_2d():
                     if padding == 'same' and strides != (1, 1):
                         continue
                     if dilation_rate != (1, 1) and strides != (1, 1):
+                        continue
+                    if dilation_rate != (1, 1) and K.backend() == 'cntk':
                         continue
 
                     layer_test(convolutional.SeparableConv2D,
