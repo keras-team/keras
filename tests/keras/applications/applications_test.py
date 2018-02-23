@@ -137,8 +137,6 @@ def test_inceptionresnetv2():
     _test_app_pooling(app, last_dim)
 
 
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='MobileNets are supported only on TensorFlow')
 def test_mobilenet():
     app = applications.MobileNet
     last_dim = 1024
