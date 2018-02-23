@@ -223,23 +223,21 @@ def _remove_long_seq(maxlen, seq, label):
 class TimeseriesGenerator(Sequence):
     """Utility class for generating batches of temporal data.
 
-    This class takes in a sequence of data-points gathered at 
-    equal intervals, along with time series parameters such as 
-    stride, delay etc., to produce batches for training/validation.
+    This class takes in a sequence of data-points gathered at
+    equal intervals, along with time series parameters such as
+    stride, length of history etc., to produce batches for
+    training/validation.
 
     # Arguments
         data: indexable generator (such as list or Numpy array)
             containing consecutive data points.
         targets: targets corresponding to instances in `data`.
             Should have same length as `data`.
-        lookback: length of history to consider for prediction.
-            `data[i-lookback : i+1]` is used to prepare the input.
-        delay: how further in the future we are looking to predict.
-            `targets[i + delay]` becomes the target for
-            `data[i-lookback : i+1]`
+        length: length of history to consider for prediction.
+            `data[i-length : i+1]` is used to prepare the input.
         sampling_rate: period between successive individual data
             points. For rate `r`, points
-            `data[i]`, `data[i-r]`, ... `data[i - lookback]` 
+            `data[i]`, `data[i-r]`, ... `data[i - length]`
             are used as input.
         stride: period between successive sub-sequences used for
             training. For stride `s`, consecutive training samples would
@@ -250,15 +248,15 @@ class TimeseriesGenerator(Sequence):
         shuffle: whether to shuffle training samples, or draw them in
             chronological order.
         reverse: if `true`, input points are provided in reverse order.
-        batch_size: number of timeseries samples in each batch 
+        batch_size: number of timeseries samples in each batch
             (except maybe last one)
-    
+
     # Returns
         A `Sequence` instance.
     """
+
     def __init__(self, data, targets,
-                 lookback,
-                 delay,
+                 length,
                  sampling_rate=1,
                  stride=1,
                  start_index=0,
@@ -272,13 +270,12 @@ class TimeseriesGenerator(Sequence):
             self.output_dim = 1
         else:
             self.output_dim = len(self.targets[0])
-        self.lookback = lookback
-        self.delay = delay
+        self.length = length
         self.sampling_rate = sampling_rate
         self.stride = stride
-        self.start_index = start_index + lookback
-        if end_index == None or end_index + delay > len(data) - 1:
-            end_index = len(data) - delay - 1
+        self.start_index = start_index + length
+        if end_index is None:
+            end_index = len(data) - 1
         self.end_index = end_index
         self.shuffle = shuffle
         self.reverse = reverse
@@ -286,8 +283,8 @@ class TimeseriesGenerator(Sequence):
 
     def __len__(self):
         return np.ceil(
-                (self.end_index - self.start_index) / 
-                (self.batch_size * self.stride))
+            (self.end_index - self.start_index) /
+            (self.batch_size * self.stride))
 
     def __getitem__(self, index):
         if self.shuffle:
@@ -295,18 +292,17 @@ class TimeseriesGenerator(Sequence):
                 self.start_index, self.end_index, size=self.batch_size)
         else:
             i = self.start_index + self.batch_size * self.stride * index
-            rows = np.arange(i, min(i + self.batch_size * self.stride, self.end_index), 
-                    self.stride)
+            rows = np.arange(i, min(i + self.batch_size *
+                                    self.stride, self.end_index), self.stride)
 
         samples = np.empty((len(rows),
-                           self.lookback // self.sampling_rate,
-                           self.data.shape[-1]))
+                            self.length // self.sampling_rate,
+                            self.data.shape[-1]))
         targets = np.empty((len(rows), self.output_dim,))
         for j, row in enumerate(rows):
-            indices = range(rows[j] - self.lookback, rows[j], self.sampling_rate)
+            indices = range(rows[j] - self.length, rows[j], self.sampling_rate)
             samples[j] = self.data[indices]
-            targets[j] = self.targets[rows[j] + self.delay]
+            targets[j] = self.targets[rows[j]]
         if self.reverse:
             return samples[:, ::-1, :], targets
         return samples, targets
-
