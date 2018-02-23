@@ -580,8 +580,6 @@ class ImageDataGenerator(object):
         # Returns
             The inputs, normalized.
         """
-        if self.preprocessing_function:
-            x = self.preprocessing_function(x)
         if self.rescale:
             x *= self.rescale
         if self.samplewise_center:
@@ -951,6 +949,8 @@ class NumpyArrayIterator(Iterator):
                            dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
+            if self.image_data_generator.preprocessing_function:
+                x = self.image_data_generator.preprocessing_function(x)
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
@@ -1227,8 +1227,21 @@ class DirectoryIterator(Iterator):
             fname = self.filenames[j]
             img = load_img(os.path.join(self.directory, fname),
                            grayscale=grayscale,
-                           target_size=self.target_size,
+                           target_size=None,
                            interpolation=self.interpolation)
+            if self.image_data_generator.preprocessing_function:
+                img = self.image_data_generator.preprocessing_function(img)
+            if self.target_size is not None:
+                width_height_tuple = (self.target_size[1], self.target_size[0])
+                if img.size != width_height_tuple:
+                    if self.interpolation not in _PIL_INTERPOLATION_METHODS:
+                        raise ValueError(
+                            'Invalid interpolation method {} specified. Supported '
+                            'methods are {}'.format(
+                                self.interpolation,
+                                ", ".join(_PIL_INTERPOLATION_METHODS.keys())))
+                    resample = _PIL_INTERPOLATION_METHODS[self.interpolation]
+                    img = img.resize(width_height_tuple, resample)
             x = img_to_array(img, data_format=self.data_format)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
