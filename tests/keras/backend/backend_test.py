@@ -823,6 +823,25 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 k.conv2d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
+    def test_depthwise_conv_2d(self):
+        # TF kernel shape: (rows, cols, input_depth, depth_multiplier)
+        # channels_first input shape: (n, input_depth, rows, cols)
+        for (input_shape, kernel_shape, data_format) in [
+                ((2, 3, 4, 5), (2, 2, 3, 4), 'channels_first'),
+                ((2, 3, 5, 6), (4, 3, 3, 4), 'channels_first'),
+                ((1, 6, 5, 3), (3, 3, 3, 2), 'channels_last')]:
+            check_two_tensor_operation('depthwise_conv2d',
+                                       input_shape, kernel_shape,
+                                       BACKENDS, cntk_dynamicity=True,
+                                       data_format=data_format)
+
+        # Test invalid use cases
+        for k in BACKENDS:
+            with pytest.raises(ValueError):
+                k.depthwise_conv2d(k.variable(np.ones(input_shape)),
+                                   k.variable(np.ones(kernel_shape)),
+                                   data_format='channels_middle')
+
     def test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
@@ -896,10 +915,6 @@ class TestBackend(object):
 
             for z_i in np.split(z, 6, axis=1 if data_format == 'channels_first' else -1):
                 assert_allclose(z_i, z_i[0] * np.ones_like(z_i))
-
-        # Test invalid use cases
-        with pytest.raises(ValueError):
-            k.depthwise_conv2d(k.variable(x_val), k.variable(kernel_val), data_format='channels_middle')
 
     def test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3),

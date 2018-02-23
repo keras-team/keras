@@ -1550,7 +1550,33 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
-    raise NotImplementedError
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv2d_input(x, data_format)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = C.reshape(C.transpose(depthwise_kernel, (1, 0, 2, 3)),
+                                 (-1, 1) + depthwise_kernel.shape[2:])
+    padding = _preprocess_border_mode(padding)
+    if dilation_rate == (1, 1):
+        strides = (1,) + strides
+        x = C.convolution(depthwise_kernel, x,
+                          strides=strides,
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+    else:
+        if dilation_rate[0] != dilation_rate[1]:
+            raise ValueError('CNTK Backend: non-square dilation_rate is '
+                             'not supported.')
+        if strides != (1, 1):
+            raise ValueError('Invalid strides for dilated convolution')
+        x = C.convolution(depthwise_kernel, x,
+                          strides=dilation_rate[0],
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
