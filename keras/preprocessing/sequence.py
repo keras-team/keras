@@ -282,9 +282,9 @@ class TimeseriesGenerator(Sequence):
         self.batch_size = batch_size
 
     def __len__(self):
-        return np.ceil(
+        return int(np.ceil(
             (self.end_index - self.start_index) /
-            (self.batch_size * self.stride))
+            (self.batch_size * self.stride)))
 
     def __getitem__(self, index):
         if self.shuffle:
