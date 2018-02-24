@@ -253,6 +253,22 @@ class TimeseriesGenerator(Sequence):
 
     # Returns
         A `Sequence` instance.
+
+    # Examples
+
+    ```data = np.array([[i] for i in range(50)])
+       targets = np.array([i for i in range(50)])
+       
+       data_gen = TimeseriesGenerator(data, targets,
+                                      length=10, sampling_rate=2,
+                                      batch_size=2)
+       assert len(data_gen) == 20
+       assert (np.array_equal(data_gen[0][0],
+                              np.array([[[0], [2], [4], [6], [8]],
+                                        [[1], [3], [5], [7], [9]]])))
+       assert (np.array_equal(data_gen[0][1],
+                              np.array([[10], [11]])))
+    ```
     """
 
     def __init__(self, data, targets,
