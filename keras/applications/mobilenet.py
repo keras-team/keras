@@ -64,6 +64,7 @@ from ..layers import Reshape
 from ..layers import BatchNormalization
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
+from ..layers import ZeroPadding2D
 from ..layers import Conv2D
 from ..layers import DepthwiseConv2D
 from .. import initializers
@@ -381,11 +382,12 @@ def _conv_block(inputs, filters, alpha, kernel=(3, 3), strides=(1, 1)):
     """
     channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
     filters = int(filters * alpha)
+    x = ZeroPadding2D(padding=(1, 1), name='conv1_pad')(inputs)
     x = Conv2D(filters, kernel,
-               padding='same',
+               padding='valid',
                use_bias=False,
                strides=strides,
-               name='conv1')(inputs)
+               name='conv1')(x)
     x = BatchNormalization(axis=channel_axis, name='conv1_bn')(x)
     return Activation(relu6, name='conv1_relu')(x)
 
@@ -442,12 +444,13 @@ def _depthwise_conv_block(inputs, pointwise_conv_filters, alpha,
     channel_axis = 1 if K.image_data_format() == 'channels_first' else -1
     pointwise_conv_filters = int(pointwise_conv_filters * alpha)
 
+    x = ZeroPadding2D(padding=(1, 1), name='conv_pad_%d' % block_id)(inputs)
     x = DepthwiseConv2D((3, 3),
-                        padding='same',
+                        padding='valid',
                         depth_multiplier=depth_multiplier,
                         strides=strides,
                         use_bias=False,
-                        name='conv_dw_%d' % block_id)(inputs)
+                        name='conv_dw_%d' % block_id)(x)
     x = BatchNormalization(axis=channel_axis, name='conv_dw_%d_bn' % block_id)(x)
     x = Activation(relu6, name='conv_dw_%d_relu' % block_id)(x)
 
