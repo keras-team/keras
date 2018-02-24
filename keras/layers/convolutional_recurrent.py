@@ -247,6 +247,22 @@ class ConvRNN2D(RNN):
         initial_state = self.cell.input_conv(initial_state,
                                              K.zeros(tuple(shape)),
                                              padding=self.cell.padding)
+        # Fix for Theano because it needs
+        # K.int_shape to work in call() with initial_state.
+        keras_shape = list(K.int_shape(inputs))
+        keras_shape.pop(1)
+        if K.image_data_format() == 'channels_first':
+            indices = 2, 3
+        else:
+            indices = 1, 2
+        for i, j in enumerate(indices):
+            keras_shape[j] = conv_utils.conv_output_length(
+                keras_shape[j],
+                shape[i],
+                padding=self.cell.padding,
+                stride=self.cell.strides[i],
+                dilation=self.cell.dilation_rate[i])
+        initial_state._keras_shape = keras_shape
 
         if hasattr(self.cell.state_size, '__len__'):
             return [initial_state for _ in self.cell.state_size]
