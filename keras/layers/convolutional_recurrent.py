@@ -467,12 +467,6 @@ class ConvRNN2D(RNN):
                 # TODO: consider batch calls to `set_value`.
                 K.set_value(state, value)
 
-    @property
-    def losses(self):
-        layer_losses = super(RNN, self).losses
-        cell_losses = super(ConvRNN2D, self).losses
-        return layer_losses + cell_losses
-
 
 class ConvLSTM2DCell(Layer):
     """Cell class for the ConvLSTM2D layer.
