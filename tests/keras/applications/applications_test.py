@@ -124,11 +124,8 @@ def test_inceptionv3():
     last_dim = 2048
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
+    _test_application_variable_input_channels(app, last_dim)
     _test_app_pooling(app, last_dim)
-
-    if K.backend() != 'cntk':
-        # CNTK does not support dynamic padding.
-        _test_application_variable_input_channels(app, last_dim)
 
 
 def test_inceptionresnetv2():
@@ -140,8 +137,6 @@ def test_inceptionresnetv2():
     _test_app_pooling(app, last_dim)
 
 
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='MobileNets are supported only on TensorFlow')
 def test_mobilenet():
     app = applications.MobileNet
     last_dim = 1024

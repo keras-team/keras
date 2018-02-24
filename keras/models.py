@@ -721,23 +721,21 @@ class Sequential(Model):
     def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
-        f = h5py.File(filepath, mode='r')
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
+        with h5py.File(filepath, mode='r') as f:
+            if 'layer_names' not in f.attrs and 'model_weights' in f:
+                f = f['model_weights']
 
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-        else:
-            layers = self.layers
-        if by_name:
-            topology.load_weights_from_hdf5_group_by_name(f, layers,
-                                                          skip_mismatch=skip_mismatch,
-                                                          reshape=reshape)
-        else:
-            topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
-        if hasattr(f, 'close'):
-            f.close()
+            # Legacy support
+            if legacy_models.needs_legacy_support(self):
+                layers = legacy_models.legacy_sequential_layers(self)
+            else:
+                layers = self.layers
+            if by_name:
+                topology.load_weights_from_hdf5_group_by_name(f, layers,
+                                                              skip_mismatch=skip_mismatch,
+                                                              reshape=reshape)
+            else:
+                topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
 
     def save_weights(self, filepath, overwrite=True):
         if h5py is None:
@@ -753,10 +751,9 @@ class Sequential(Model):
         else:
             layers = self.layers
 
-        f = h5py.File(filepath, 'w')
-        topology.save_weights_to_hdf5_group(f, layers)
-        f.flush()
-        f.close()
+        with h5py.File(filepath, 'w') as f:
+            topology.save_weights_to_hdf5_group(f, layers)
+            f.flush()
 
     def compile(self, optimizer, loss,
                 metrics=None,
@@ -1184,7 +1181,7 @@ class Sequential(Model):
                 Note that in conjunction with initial_epoch, the parameter
                 epochs is to be understood as "final epoch". The model is
                 not trained for n steps given by epochs, but until the
-                epoch epochs is reached.
+                epoch of index `epochs` is reached.
             verbose: Verbosity mode, 0, 1, or 2.
             callbacks: List of callbacks to be called during training.
             validation_data: This can be either
@@ -1227,13 +1224,12 @@ class Sequential(Model):
         ```python
             def generate_arrays_from_file(path):
                 while 1:
-                    f = open(path)
-                    for line in f:
-                        # create Numpy arrays of input data
-                        # and labels, from each line in the file
-                        x, y = process_line(line)
-                        yield (x, y)
-                    f.close()
+                    with open(path) as f:
+                        for line in f:
+                            # create Numpy arrays of input data
+                            # and labels, from each line in the file
+                            x, y = process_line(line)
+                            yield (x, y)
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 steps_per_epoch=1000, epochs=10)
