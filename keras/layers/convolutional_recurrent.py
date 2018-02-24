@@ -13,6 +13,7 @@ from .. import constraints
 from .recurrent import _generate_dropout_mask
 
 import numpy as np
+import warnings
 from ..engine import InputSpec, Layer
 from ..utils import conv_utils
 from ..legacy import interfaces
@@ -570,6 +571,14 @@ class ConvLSTM2DCell(Layer):
         self.recurrent_constraint = constraints.get(recurrent_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
 
+        if K.backend() == 'theano' and (dropout or recurrent_dropout):
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.state_size = (self.filters, self.filters)
