@@ -767,9 +767,10 @@ class RNN(Layer):
 
     @property
     def losses(self):
+        layer_losses = super(RNN, self).losses
         if isinstance(self.cell, Layer):
-            return self.cell.losses
-        return []
+            return self.cell.losses + layer_losses
+        return layer_losses
 
     def get_losses_for(self, inputs=None):
         if isinstance(self.cell, Layer):
