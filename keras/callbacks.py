@@ -728,14 +728,20 @@ class TensorBoard(Callback):
             for layer in self.model.layers:
                 if layer.name in embeddings_layer_names:
 
+                    self.batch_id = batch_id = tf.placeholder(tf.int32)
+                    self.step = step = tf.placeholder(tf.int32)
+
                     embedding_input = self.model.get_layer(layer.name).output
                     embedding_size = reduce(mul, embedding_input.shape[1:])
+                    embedding_input = tf.reshape(embedding_input,
+                                                 (step, int(embedding_size)))
                     shape = (self.embeddings_data.shape[0], int(embedding_size))
-                    embedding_input = tf.reshape(embedding_input, shape)
                     embedding = tf.Variable(tf.zeros(shape),
                                             name=layer.name + '_embedding')
                     embeddings_vars[layer.name] = embedding
-                    self.embeddings.append(tf.assign(embedding, embedding_input))
+                    assignment = tf.assign(embedding[batch_id:batch_id + step],
+                                           embedding_input)
+                    self.embeddings.append(assignment)
 
             self.saver = tf.train.Saver(list(embeddings_vars.values()))
 
@@ -804,20 +810,20 @@ class TensorBoard(Callback):
 
                 i = 0
                 while i < n_samples:
-                    if type(self.model.input) == list:
-                        feed_dict = {model_input: self.embeddings_data
-                                     for model_input in list(self.model.input)}
-                    else:
-                        feed_dict = {self.model.input: self.embeddings_data}
 
                     step = min(self.batch_size, n_samples - i)
+                    batch_val = embeddings_data[i:i + step]
+
+                    if type(self.model.input) == list:
+                        feed_dict = {model_input: batch_val
+                                     for model_input in self.model.input}
+                    else:
+                        feed_dict = {self.model.input: batch_val}
+
+                    feed_dict.update({self.batch_id: i, self.step: step})
+
                     if self.model.uses_learning_phase:
                         feed_dict[K.learning_phase()] = False
-                        # do not slice the learning phase
-                        batch_val = [x[i:i + step] for x in embeddings_data[:-1]]
-                        batch_val.append(embeddings_data[-1])
-                    else:
-                        batch_val = [x[i:i + step] for x in embeddings_data]
 
                     self.sess.run(self.embeddings, feed_dict=feed_dict)
                     self.saver.save(self.sess,
