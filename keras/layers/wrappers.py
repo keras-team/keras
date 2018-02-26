@@ -490,11 +490,20 @@ class Bidirectional(Wrapper):
     def compute_mask(self, inputs, mask):
         if self.return_sequences:
             if not self.merge_mode:
-                return [mask, mask]
+                output_mask = [mask, mask]
             else:
-                return mask
+                output_mask = mask
         else:
-            return None
+            output_mask = [None, None] if not self.merge_mode else None
+
+        if self.return_state:
+            states = self.forward_layer.states
+            state_mask = [None for _ in states]
+            if isinstance(output_mask, list):
+                return output_mask + state_mask * 2
+            return [output_mask] + state_mask * 2
+
+        return output_mask
 
     @property
     def trainable_weights(self):
