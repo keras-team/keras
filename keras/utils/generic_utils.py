@@ -1,6 +1,9 @@
 """Python utilities required by Keras."""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+import binascii
 import numpy as np
 
 import time
@@ -9,6 +12,8 @@ import six
 import marshal
 import types as python_types
 import inspect
+import codecs
+import collections
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
@@ -24,7 +29,7 @@ class CustomObjectScope(object):
 
     # Example
 
-    Consider a custom object `MyObject`
+    Consider a custom object `MyObject` (e.g. a class):
 
     ```python
         with CustomObjectScope({'MyObject':MyObject}):
@@ -172,7 +177,8 @@ def func_dump(func):
     # Returns
         A tuple `(code, defaults, closure)`.
     """
-    code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
+    raw_code = marshal.dumps(func.__code__)
+    code = codecs.encode(raw_code, 'base64').decode('ascii')
     defaults = func.__defaults__
     if func.__closure__:
         closure = tuple(c.cell_contents for c in func.__closure__)
@@ -197,7 +203,35 @@ def func_load(code, defaults=None, closure=None, globs=None):
         code, defaults, closure = code
         if isinstance(defaults, list):
             defaults = tuple(defaults)
-    code = marshal.loads(code.encode('raw_unicode_escape'))
+
+    def ensure_value_to_cell(value):
+        """Ensures that a value is converted to a python cell object.
+
+        # Arguments
+            value: Any value that needs to be casted to the cell type
+
+        # Returns
+            A value wrapped as a cell object (see function "func_load")
+
+        """
+        def dummy_fn():
+            value  # just access it so it gets captured in .__closure__
+
+        cell_value = dummy_fn.__closure__[0]
+        if not isinstance(value, type(cell_value)):
+            return cell_value
+        else:
+            return value
+
+    if closure is not None:
+        closure = tuple(ensure_value_to_cell(_) for _ in closure)
+    try:
+        raw_code = codecs.decode(code.encode('ascii'), 'base64')
+        code = marshal.loads(raw_code)
+    except (UnicodeEncodeError, binascii.Error, ValueError):
+        # backwards compatibility for models serialized prior to 2.1.2
+        raw_code = code.encode('raw_unicode_escape')
+        code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
@@ -253,56 +287,77 @@ class Progbar(object):
 
     # Arguments
         target: Total number of steps expected, None if unknown.
+        width: Progress bar width on screen.
+        verbose: Verbosity mode, 0 (silent), 1 (verbose), 2 (semi-verbose)
+        stateful_metrics: Iterable of string names of metrics that
+            should *not* be averaged over time. Metrics in this list
+            will be displayed as-is. All others will be averaged
+            by the progbar before display.
         interval: Minimum visual progress update interval (in seconds).
     """
 
-    def __init__(self, target, width=30, verbose=1, interval=0.05):
-        self.width = width
-        if target is None:
-            target = -1
+    def __init__(self, target, width=30, verbose=1, interval=0.05,
+                 stateful_metrics=None):
         self.target = target
-        self.sum_values = {}
-        self.unique_values = []
-        self.start = time.time()
-        self.last_update = 0
-        self.interval = interval
-        self.total_width = 0
-        self.seen_so_far = 0
+        self.width = width
         self.verbose = verbose
+        self.interval = interval
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
 
-    def update(self, current, values=None, force=False):
+        self._dynamic_display = ((hasattr(sys.stdout, 'isatty') and
+                                  sys.stdout.isatty()) or
+                                 'ipykernel' in sys.modules)
+        self._total_width = 0
+        self._seen_so_far = 0
+        self._values = collections.OrderedDict()
+        self._start = time.time()
+        self._last_update = 0
+
+    def update(self, current, values=None):
         """Updates the progress bar.
 
         # Arguments
             current: Index of current step.
-            values: List of tuples (name, value_for_last_step).
-                The progress bar will display averages for these values.
-            force: Whether to force visual progress update.
+            values: List of tuples:
+                `(name, value_for_last_step)`.
+                If `name` is in `stateful_metrics`,
+                `value_for_last_step` will be displayed as-is.
+                Else, an average of the metric over time will be displayed.
         """
         values = values or []
         for k, v in values:
-            if k not in self.sum_values:
-                self.sum_values[k] = [v * (current - self.seen_so_far),
-                                      current - self.seen_so_far]
-                self.unique_values.append(k)
+            if k not in self.stateful_metrics:
+                if k not in self._values:
+                    self._values[k] = [v * (current - self._seen_so_far),
+                                       current - self._seen_so_far]
+                else:
+                    self._values[k][0] += v * (current - self._seen_so_far)
+                    self._values[k][1] += (current - self._seen_so_far)
             else:
-                self.sum_values[k][0] += v * (current - self.seen_so_far)
-                self.sum_values[k][1] += (current - self.seen_so_far)
-        self.seen_so_far = current
+                self._values[k] = v
+        self._seen_so_far = current
 
         now = time.time()
+        info = ' - %.0fs' % (now - self._start)
         if self.verbose == 1:
-            if not force and (now - self.last_update) < self.interval:
+            if (now - self._last_update < self.interval and
+                    self.target is not None and current < self.target):
                 return
 
-            prev_total_width = self.total_width
-            sys.stdout.write('\b' * prev_total_width)
-            sys.stdout.write('\r')
+            prev_total_width = self._total_width
+            if self._dynamic_display:
+                sys.stdout.write('\b' * prev_total_width)
+                sys.stdout.write('\r')
+            else:
+                sys.stdout.write('\n')
 
-            if self.target is not -1:
+            if self.target is not None:
                 numdigits = int(np.floor(np.log10(self.target))) + 1
-                barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-                bar = barstr % (current, self.target)
+                barstr = '%%%dd/%d [' % (numdigits, self.target)
+                bar = barstr % current
                 prog = float(current) / self.target
                 prog_width = int(self.width * prog)
                 if prog_width > 0:
@@ -313,53 +368,72 @@ class Progbar(object):
                         bar += '='
                 bar += ('.' * (self.width - prog_width))
                 bar += ']'
-                sys.stdout.write(bar)
-                self.total_width = len(bar)
+            else:
+                bar = '%7d/Unknown' % current
+
+            self._total_width = len(bar)
+            sys.stdout.write(bar)
 
             if current:
-                time_per_unit = (now - self.start) / current
+                time_per_unit = (now - self._start) / current
             else:
                 time_per_unit = 0
-            eta = time_per_unit * (self.target - current)
-            info = ''
-            if current < self.target and self.target is not -1:
-                info += ' - ETA: %ds' % eta
+            if self.target is not None and current < self.target:
+                eta = time_per_unit * (self.target - current)
+                if eta > 3600:
+                    eta_format = '%d:%02d:%02d' % (eta // 3600, (eta % 3600) // 60, eta % 60)
+                elif eta > 60:
+                    eta_format = '%d:%02d' % (eta // 60, eta % 60)
+                else:
+                    eta_format = '%ds' % eta
+
+                info = ' - ETA: %s' % eta_format
             else:
-                info += ' - %ds' % (now - self.start)
-            for k in self.unique_values:
+                if time_per_unit >= 1:
+                    info += ' %.0fs/step' % time_per_unit
+                elif time_per_unit >= 1e-3:
+                    info += ' %.0fms/step' % (time_per_unit * 1e3)
+                else:
+                    info += ' %.0fus/step' % (time_per_unit * 1e6)
+
+            for k in self._values:
                 info += ' - %s:' % k
-                if isinstance(self.sum_values[k], list):
-                    avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                if isinstance(self._values[k], list):
+                    avg = np.mean(
+                        self._values[k][0] / max(1, self._values[k][1]))
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
                     else:
                         info += ' %.4e' % avg
                 else:
-                    info += ' %s' % self.sum_values[k]
+                    info += ' %s' % self._values[k]
 
-            self.total_width += len(info)
-            if prev_total_width > self.total_width:
-                info += ((prev_total_width - self.total_width) * ' ')
+            self._total_width += len(info)
+            if prev_total_width > self._total_width:
+                info += (' ' * (prev_total_width - self._total_width))
+
+            if self.target is not None and current >= self.target:
+                info += '\n'
 
             sys.stdout.write(info)
             sys.stdout.flush()
 
-            if current >= self.target:
-                sys.stdout.write('\n')
-
-        if self.verbose == 2:
-            if current >= self.target:
-                info = '%ds' % (now - self.start)
-                for k in self.unique_values:
+        elif self.verbose == 2:
+            if self.target is None or current >= self.target:
+                for k in self._values:
                     info += ' - %s:' % k
-                    avg = np.mean(self.sum_values[k][0] / max(1, self.sum_values[k][1]))
+                    avg = np.mean(
+                        self._values[k][0] / max(1, self._values[k][1]))
                     if avg > 1e-3:
                         info += ' %.4f' % avg
                     else:
                         info += ' %.4e' % avg
-                sys.stdout.write(info + "\n")
+                info += '\n'
 
-        self.last_update = now
+                sys.stdout.write(info)
+                sys.stdout.flush()
+
+        self._last_update = now
 
     def add(self, n, values=None):
-        self.update(self.seen_so_far + n, values)
+        self.update(self._seen_so_far + n, values)

@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """Utilities for text input preprocessing.
-
-May benefit from a fast Cython rewrite.
 """
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import string
 import sys
@@ -56,7 +55,17 @@ def one_hot(text, n,
     """One-hot encodes a text into a list of word indexes of size n.
 
     This is a wrapper to the `hashing_trick` function using `hash` as the
-    hashing function, unicity of word to index mapping non-guaranteed.
+    hashing function; unicity of word to index mapping non-guaranteed.
+
+    # Arguments
+        text: Input text (string).
+        n: Dimension of the hashing space.
+        filters: Sequence of characters to filter out.
+        lower: Whether to convert the input to lowercase.
+        split: Sentence split marker (string).
+
+    # Returns
+        A list of integer word indices (unicity non-guaranteed).
     """
     return hashing_trick(text, n,
                          hash_function=hash,
@@ -125,6 +134,8 @@ class Tokenizer(object):
         lower: boolean. Whether to convert the texts to lowercase.
         split: character or string to use for token splitting.
         char_level: if True, every character will be treated as a token.
+        oov_token: if given, it will be added to word_index and used to
+            replace out-of-vocabulary words during text_to_sequence calls
 
     By default, all punctuation is removed, turning the texts into
     space-separated sequences of words
@@ -139,6 +150,7 @@ class Tokenizer(object):
                  lower=True,
                  split=' ',
                  char_level=False,
+                 oov_token=None,
                  **kwargs):
         # Legacy support
         if 'nb_words' in kwargs:
@@ -156,23 +168,30 @@ class Tokenizer(object):
         self.num_words = num_words
         self.document_count = 0
         self.char_level = char_level
+        self.oov_token = oov_token
+        self.index_docs = {}
 
     def fit_on_texts(self, texts):
         """Updates internal vocabulary based on a list of texts.
+        In the case where texts contains lists, we assume each entry of the lists
+        to be a token.
 
         Required before using `texts_to_sequences` or `texts_to_matrix`.
 
         # Arguments
             texts: can be a list of strings,
-                or a generator of strings (for memory-efficiency)
+                a generator of strings (for memory-efficiency),
+                or a list of list of strings.
         """
-        self.document_count = 0
         for text in texts:
             self.document_count += 1
-            seq = text if self.char_level else text_to_word_sequence(text,
-                                                                     self.filters,
-                                                                     self.lower,
-                                                                     self.split)
+            if self.char_level or isinstance(text, list):
+                seq = text
+            else:
+                seq = text_to_word_sequence(text,
+                                            self.filters,
+                                            self.lower,
+                                            self.split)
             for w in seq:
                 if w in self.word_counts:
                     self.word_counts[w] += 1
@@ -190,7 +209,11 @@ class Tokenizer(object):
         # note that index 0 is reserved, never assigned to an existing word
         self.word_index = dict(list(zip(sorted_voc, list(range(1, len(sorted_voc) + 1)))))
 
-        self.index_docs = {}
+        if self.oov_token is not None:
+            i = self.word_index.get(self.oov_token)
+            if i is None:
+                self.word_index[self.oov_token] = len(self.word_index) + 1
+
         for w, c in list(self.word_docs.items()):
             self.index_docs[self.word_index[w]] = c
 
@@ -204,8 +227,7 @@ class Tokenizer(object):
             sequences: A list of sequence.
                 A "sequence" is a list of integer word indices.
         """
-        self.document_count = len(sequences)
-        self.index_docs = {}
+        self.document_count += len(sequences)
         for seq in sequences:
             seq = set(seq)
             for i in seq:
@@ -232,7 +254,9 @@ class Tokenizer(object):
         return res
 
     def texts_to_sequences_generator(self, texts):
-        """Transforms each text in texts in a sequence of integers.
+        """Transforms each text in `texts` in a sequence of integers.
+        Each item in texts can also be a list, in which case we assume each item of that list
+        to be a token.
 
         Only top "num_words" most frequent words will be taken into account.
         Only words known by the tokenizer will be taken into account.
@@ -245,10 +269,13 @@ class Tokenizer(object):
         """
         num_words = self.num_words
         for text in texts:
-            seq = text if self.char_level else text_to_word_sequence(text,
-                                                                     self.filters,
-                                                                     self.lower,
-                                                                     self.split)
+            if self.char_level or isinstance(text, list):
+                seq = text
+            else:
+                seq = text_to_word_sequence(text,
+                                            self.filters,
+                                            self.lower,
+                                            self.split)
             vect = []
             for w in seq:
                 i = self.word_index.get(w)
@@ -256,6 +283,10 @@ class Tokenizer(object):
                     if num_words and i >= num_words:
                         continue
                     else:
+                        vect.append(i)
+                elif self.oov_token is not None:
+                    i = self.word_index.get(self.oov_token)
+                    if i is not None:
                         vect.append(i)
             yield vect
 

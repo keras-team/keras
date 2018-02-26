@@ -1,10 +1,8 @@
-'''Transfer learning toy example:
+'''Transfer learning toy example.
 
-1- Train a simple convnet on the MNIST dataset the first 5 digits [0..4].
-2- Freeze convolutional layers and fine-tune dense layers
+1 - Train a simple convnet on the MNIST dataset the first 5 digits [0..4].
+2 - Freeze convolutional layers and fine-tune dense layers
    for the classification of digits [5..9].
-
-Run on GPU: THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32 python mnist_transfer_cnn.py
 
 Get to 99.8% test accuracy after 5 epochs
 for the first five digits classifier
@@ -73,7 +71,7 @@ def train_model(model, train, test, num_classes):
     print('Test accuracy:', score[1])
 
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 # create two datasets one with digits below 5 and one with 5 and above

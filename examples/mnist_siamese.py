@@ -1,10 +1,12 @@
-'''Train a Siamese MLP on pairs of digits from the MNIST dataset.
+'''Trains a Siamese MLP on pairs of digits from the MNIST dataset.
 
 It follows Hadsell-et-al.'06 [1] by computing the Euclidean distance on the
 output of the shared network and by optimizing the contrastive loss (see paper
 for mode details).
 
-[1] "Dimensionality Reduction by Learning an Invariant Mapping"
+# References
+
+- Dimensionality Reduction by Learning an Invariant Mapping
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
 
 Gets to 97.2% test accuracy after 20 epochs.
@@ -16,12 +18,13 @@ import numpy as np
 
 import random
 from keras.datasets import mnist
-from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input, Lambda
+from keras.models import Model
+from keras.layers import Input, Flatten, Dense, Dropout, Lambda
 from keras.optimizers import RMSprop
 from keras import backend as K
 
 num_classes = 10
+epochs = 20
 
 
 def euclidean_distance(vects):
@@ -62,16 +65,17 @@ def create_pairs(x, digit_indices):
     return np.array(pairs), np.array(labels)
 
 
-def create_base_network(input_dim):
+def create_base_network(input_shape):
     '''Base network to be shared (eq. to feature extraction).
     '''
-    seq = Sequential()
-    seq.add(Dense(128, input_shape=(input_dim,), activation='relu'))
-    seq.add(Dropout(0.1))
-    seq.add(Dense(128, activation='relu'))
-    seq.add(Dropout(0.1))
-    seq.add(Dense(128, activation='relu'))
-    return seq
+    input = Input(shape=input_shape)
+    x = Flatten()(input)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.1)(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.1)(x)
+    x = Dense(128, activation='relu')(x)
+    return Model(input, x)
 
 
 def compute_accuracy(y_true, y_pred):
@@ -87,16 +91,13 @@ def accuracy(y_true, y_pred):
     return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
-x_train = x_train.reshape(60000, 784)
-x_test = x_test.reshape(10000, 784)
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
 x_train /= 255
 x_test /= 255
-input_dim = 784
-epochs = 20
+input_shape = x_train.shape[1:]
 
 # create training+test positive and negative pairs
 digit_indices = [np.where(y_train == i)[0] for i in range(num_classes)]
@@ -106,10 +107,10 @@ digit_indices = [np.where(y_test == i)[0] for i in range(num_classes)]
 te_pairs, te_y = create_pairs(x_test, digit_indices)
 
 # network definition
-base_network = create_base_network(input_dim)
+base_network = create_base_network(input_shape)
 
-input_a = Input(shape=(input_dim,))
-input_b = Input(shape=(input_dim,))
+input_a = Input(shape=input_shape)
+input_b = Input(shape=input_shape)
 
 # because we re-use the same instance `base_network`,
 # the weights of the network

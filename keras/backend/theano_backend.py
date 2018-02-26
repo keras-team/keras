@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from collections import defaultdict
 from contextlib import contextmanager
 import theano
@@ -5,6 +9,7 @@ from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.printing import Print
+from theano.ifelse import ifelse
 try:
     import theano.sparse as th_sparse_module
 except ImportError:
@@ -321,16 +326,17 @@ def zeros_like(x, dtype=None, name=None):
     return T.zeros_like(x, dtype=dtype)
 
 
-def identity(x):
+def identity(x, name=None):
     """Returns a tensor with the same content as the input tensor.
 
     # Arguments
         x: The input tensor.
+        name: String, name for the variable to create.
 
     # Returns
         A tensor of the same shape, type and content.
     """
-    return x.copy()
+    return x.copy(name=name)
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None):
@@ -840,8 +846,7 @@ def concatenate(tensors, axis=-1):
 def reshape(x, shape):
     y = T.reshape(x, shape)
     if _is_explicit_shape(shape):
-        if -1 in shape:
-            shape = tuple(x if x != -1 else None for x in shape)
+        shape = tuple(x if x != -1 else None for x in shape)
         y._keras_shape = shape
         if hasattr(x, '_uses_learning_phase'):
             y._uses_learning_phase = x._uses_learning_phase
@@ -1499,7 +1504,7 @@ def in_train_phase(x, alt, training=None):
         alt = alt()
 
     # else: assume learning phase is a placeholder tensor.
-    x = theano.ifelse.ifelse(training, x, alt)
+    x = ifelse(training, x, alt)
     if uses_learning_phase:
         x._uses_learning_phase = True
     return x
@@ -1970,6 +1975,11 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return conv_out
 
 
+def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
+                     padding='valid', data_format=None, dilation_rate=1):
+    raise NotImplementedError
+
+
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     raise NotImplementedError
@@ -1977,7 +1987,60 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
-    raise NotImplementedError
+    """2D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        strides: strides tuple (length 2).
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ', data_format)
+
+    if hasattr(x, '_keras_shape'):
+        image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
+    else:
+        image_shape = None
+    if hasattr(depthwise_kernel, '_keras_shape'):
+        depthwise_kernel_shape = depthwise_kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        depthwise_kernel_shape = depthwise_kernel.eval().shape
+    depthwise_kernel_shape = _preprocess_conv2d_filter_shape(depthwise_kernel_shape, data_format)
+
+    x = _preprocess_conv2d_input(x, data_format)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    th_padding = _preprocess_padding(padding)
+
+    input_depth = depthwise_kernel_shape[1]
+    output_depth = depthwise_kernel_shape[0]
+    depthwise_kernel_shape = (input_depth * output_depth, 1) + depthwise_kernel_shape[2:]
+    depthwise_kernel = depthwise_kernel.dimshuffle((1, 0, 2, 3))
+    depthwise_kernel = reshape(depthwise_kernel, depthwise_kernel_shape)
+    depthwise_kernel = depthwise_kernel[:, :, ::-1, ::-1]
+
+    conv_out = T.nnet.conv2d(x, depthwise_kernel,
+                             border_mode=th_padding,
+                             subsample=strides,
+                             input_shape=image_shape,
+                             filter_shape=depthwise_kernel_shape,
+                             filter_dilation=dilation_rate,
+                             num_groups=input_depth)
+    conv_out = _postprocess_conv2d_output(conv_out, x, padding,
+                                          depthwise_kernel_shape, strides, data_format)
+    return conv_out
 
 
 def conv3d(x, kernel, strides=(1, 1, 1),
@@ -2108,14 +2171,10 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
                                 pad=pad,
                                 mode='max')
     elif pool_mode == 'avg':
-        if padding == 'same':
-            th_avg_pool_mode = 'average_inc_pad'
-        elif padding == 'valid':
-            th_avg_pool_mode = 'average_exc_pad'
         pool_out = pool.pool_2d(x, ws=pool_size, stride=strides,
                                 ignore_border=True,
                                 pad=pad,
-                                mode=th_avg_pool_mode)
+                                mode='average_exc_pad')
     else:
         raise ValueError('Invalid pooling mode:', pool_mode)
     if padding == 'same':

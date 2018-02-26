@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+"""Core Keras layers.
+"""
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 
@@ -61,12 +64,15 @@ class Masking(Layer):
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
                              axis=-1, keepdims=True)
-        return inputs * K.cast(boolean_mask, inputs.dtype)
+        return inputs * K.cast(boolean_mask, K.dtype(inputs))
 
     def get_config(self):
         config = {'mask_value': self.mask_value}
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class Dropout(Layer):
@@ -123,6 +129,9 @@ class Dropout(Layer):
                   'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class SpatialDropout1D(Dropout):
@@ -298,6 +307,9 @@ class Activation(Layer):
         base_config = super(Activation, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class Reshape(Layer):
     """Reshapes an output to a certain shape.
@@ -458,8 +470,8 @@ class Flatten(Layer):
     ```python
         model = Sequential()
         model.add(Conv2D(64, 3, 3,
-                                border_mode='same',
-                                input_shape=(3, 32, 32)))
+                         border_mode='same',
+                         input_shape=(3, 32, 32)))
         # now: model.output_shape == (None, 64, 32, 32)
 
         model.add(Flatten())
@@ -899,3 +911,6 @@ class ActivityRegularization(Layer):
                   'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

@@ -38,7 +38,11 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __shear_range__: Float. Shear Intensity (Shear angle in counter-clockwise direction as radians)
     - __zoom_range__: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
     - __channel_shift_range__: Float. Range for random channel shifts.
-    - __fill_mode__: One of {"constant", "nearest", "reflect" or "wrap"}.  Points outside the boundaries of the input are filled according to the given mode.
+    - __fill_mode__: One of {"constant", "nearest", "reflect" or "wrap"}.  Points outside the boundaries of the input are filled according to the given mode:
+        * "constant": `kkkkkkkk|abcd|kkkkkkkk` (`cval=k`)
+        * "nearest":  `aaaaaaaa|abcd|dddddddd`
+        * "reflect":  `abcddcba|abcd|dcbaabcd`
+        * "wrap":     `abcdabcd|abcd|abcdabcd`
     - __cval__: Float or Int. Value used for points outside the boundaries when `fill_mode = "constant"`.
     - __horizontal_flip__: Boolean. Randomly flip inputs horizontally.
     - __vertical_flip__: Boolean. Randomly flip inputs vertically.
@@ -50,7 +54,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             The function should take one argument:
             one image (Numpy tensor with rank 3),
             and should output a Numpy tensor with the same shape.
-    - _data_format_: One of {"channels_first", "channels_last"}.
+    - __data_format__: One of {"channels_first", "channels_last"}.
         "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
         "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
         It defaults to the `image_data_format` value found in your
@@ -78,7 +82,7 @@ Generate batches of tensor image data with real-time data augmentation. The data
             - __batch_size__: int (default: 32).
             - __shuffle__: boolean (default: True).
             - __seed__: int (default: None).
-            - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
+            - __save_to_dir__: None or str (default: None). This allows you to optionally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str (default: `''`). Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
         - __yields__: Tuples of `(x, y)` where `x` is a numpy array of image data and `y` is a numpy array of corresponding labels.
@@ -86,17 +90,17 @@ Generate batches of tensor image data with real-time data augmentation. The data
     - __flow_from_directory(directory)__: Takes the path to a directory, and generates batches of augmented/normalized data. Yields batches indefinitely, in an infinite loop.
         - __Arguments__:
             - __directory__: path to the target directory. It should contain one subdirectory per class.
-                Any PNG, JPG, BMP or PPM images inside each of the subdirectories directory tree will be included in the generator.
+                Any PNG, JPG, BMP, PPM or TIF images inside each of the subdirectories directory tree will be included in the generator.
                 See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
             - __target_size__: tuple of integers `(height, width)`, default: `(256, 256)`. 
                 The dimensions to which all images found will be resized.
             - __color_mode__: one of "grayscale", "rbg". Default: "rgb". Whether the images will be converted to have 1 or 3 color channels.
             - __classes__: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None. If not provided, the list of classes will be automatically inferred from the subdirectory names/structure under `directory`, where each subdirectory will be treated as a different class (and the order of the classes, which will map to the label indices, will be alphanumeric). The dictionary containing the mapping from class names to class indices can be obtained via the attribute `class_indices`.
-            - __class_mode__: one of "categorical", "binary", "sparse" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels. If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.). Please note that in case of class_mode None, the data still needs to reside in a subdirectory of `directory` for it to work correctly.
+            - __class_mode__: one of "categorical", "binary", "sparse", "input" or None. Default: "categorical". Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels, "sparse" will be 1D integer labels, "input" will be images identical to input images (mainly used to work with autoencoders). If None, no labels are returned (the generator will only yield batches of image data, which is useful to use `model.predict_generator()`, `model.evaluate_generator()`, etc.). Please note that in case of class_mode None, the data still needs to reside in a subdirectory of `directory` for it to work correctly.
             - __batch_size__: size of the batches of data (default: 32).
             - __shuffle__: whether to shuffle the data (default: True)
             - __seed__: optional random seed for shuffling and transformations.
-            - __save_to_dir__: None or str (default: None). This allows you to optimally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
+            - __save_to_dir__: None or str (default: None). This allows you to optionally specify a directory to which to save the augmented pictures being generated (useful for visualizing what you are doing).
             - __save_prefix__: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
             - __save_format__: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
             - __follow_links__: whether to follow symlinks inside class subdirectories (default: False).

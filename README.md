@@ -1,9 +1,9 @@
-﻿# Keras: Deep Learning for Python
+﻿# Keras: Deep Learning for humans
 
-![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-medium.png)
+![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
-[![Build Status](https://travis-ci.org/fchollet/keras.svg?branch=master)](https://travis-ci.org/fchollet/keras)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
+[![Build Status](https://travis-ci.org/keras-team/keras.svg?branch=master)](https://travis-ci.org/keras-team/keras)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/keras-team/keras/blob/master/LICENSE)
 
 ## You have just found Keras.
 
@@ -52,12 +52,10 @@ model = Sequential()
 Stacking layers is as easy as `.add()`:
 
 ```python
-from keras.layers import Dense, Activation
+from keras.layers import Dense
 
-model.add(Dense(units=64, input_dim=100))
-model.add(Activation('relu'))
-model.add(Dense(units=10))
-model.add(Activation('softmax'))
+model.add(Dense(units=64, activation='relu', input_dim=100))
+model.add(Dense(units=10, activation='softmax'))
 ```
 
 Once your model looks good, configure its learning process with `.compile()`:
@@ -106,7 +104,7 @@ For a more in-depth tutorial about Keras, you can check out:
 - [Getting started with the Sequential model](https://keras.io/getting-started/sequential-model-guide)
 - [Getting started with the functional API](https://keras.io/getting-started/functional-api-guide)
 
-In the [examples folder](https://github.com/fchollet/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
+In the [examples folder](https://github.com/keras-team/keras/tree/master/examples) of the repository, you will find more advanced models: question-answering with memory networks, text generation with stacked LSTMs, etc.
 
 
 ------------------
@@ -140,12 +138,12 @@ If you are using a virtualenv, you may want to avoid using sudo:
 pip install keras
 ```
 
-- **Alternatively: install Keras from the Github source:**
+- **Alternatively: install Keras from the GitHub source:**
 
 First, clone Keras using `git`:
 
 ```sh
-git clone https://github.com/fchollet/keras.git
+git clone https://github.com/keras-team/keras.git
 ```
 
  Then, `cd` to the Keras folder and run the install command:
@@ -157,7 +155,7 @@ sudo python setup.py install
 ------------------
 
 
-## Switching from TensorFlow to CNTK or Theano
+## Using a different backend than TensorFlow
 
 By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](https://keras.io/backend/) to configure the Keras backend.
 
@@ -171,7 +169,7 @@ You can ask questions and join the development discussion:
 - On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
 - On the [Keras Slack channel](https://kerasteam.slack.com). Use [this link](https://keras-slack-autojoin.herokuapp.com/) to request an invitation to the channel.
 
-You can also post **bug reports and feature requests** (only) in [Github issues](https://github.com/fchollet/keras/issues). Make sure to read [our guidelines](https://github.com/fchollet/keras/blob/master/CONTRIBUTING.md) first.
+You can also post **bug reports and feature requests** (only) in [GitHub issues](https://github.com/keras-team/keras/issues). Make sure to read [our guidelines](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md) first.
 
 
 ------------------

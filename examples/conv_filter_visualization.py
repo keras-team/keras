@@ -1,6 +1,6 @@
 '''Visualization of the filters of VGG16, via gradient ascent in input space.
 
-This script can run on CPU in a few minutes (with the TensorFlow backend).
+This script can run on CPU in a few minutes.
 
 Results example: http://i.imgur.com/4nj4KjN.jpg
 '''
@@ -26,7 +26,7 @@ layer_name = 'block5_conv1'
 def deprocess_image(x):
     # normalize tensor: center on 0., ensure std is 0.1
     x -= x.mean()
-    x /= (x.std() + 1e-5)
+    x /= (x.std() + K.epsilon())
     x *= 0.1
 
     # clip to [0, 1]
@@ -55,11 +55,11 @@ layer_dict = dict([(layer.name, layer) for layer in model.layers[1:]])
 
 def normalize(x):
     # utility function to normalize a tensor by its L2 norm
-    return x / (K.sqrt(K.mean(K.square(x))) + 1e-5)
+    return x / (K.sqrt(K.mean(K.square(x))) + K.epsilon())
 
 
 kept_filters = []
-for filter_index in range(0, 200):
+for filter_index in range(200):
     # we only scan through the first 200 filters,
     # but there are actually 512 of them
     print('Processing filter %d' % filter_index)

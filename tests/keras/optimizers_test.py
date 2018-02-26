@@ -4,12 +4,14 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
-from keras import optimizers
-from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras import optimizers, Input
+from keras.models import Sequential, Model
+from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
+
+num_classes = 2
 
 
 def get_test_data():
@@ -18,7 +20,7 @@ def get_test_data():
                                                      num_test=200,
                                                      input_shape=(10,),
                                                      classification=True,
-                                                     num_classes=2)
+                                                     num_classes=num_classes)
     y_train = to_categorical(y_train)
     return x_train, y_train
 
@@ -63,9 +65,21 @@ def _test_optimizer(optimizer, target=0.75):
 
 
 @keras_test
+def _test_no_grad(optimizer):
+    inp = Input([3])
+    x = Dense(10)(inp)
+    x = Lambda(lambda l: 1.0 * K.reshape(K.cast(K.argmax(l), 'float32'), [-1, 1]))(x)
+    mod = Model(inp, x)
+    mod.compile(optimizer, 'mse')
+    with pytest.raises(ValueError):
+        mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32), batch_size=10, epochs=10)
+
+
+@keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
+    _test_no_grad(sgd)
 
 
 @keras_test
@@ -104,6 +118,12 @@ def test_nadam():
 
 
 @keras_test
+def test_adam_amsgrad():
+    _test_optimizer(optimizers.Adam(amsgrad=True))
+    _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
+
+
+@keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
@@ -123,9 +143,9 @@ def test_tfoptimizer():
     from tensorflow import train
     optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
     model = Sequential()
-    model.add(Dense(2, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
+    model.add(Dense(num_classes, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
-    model.fit(np.random.random((5, 3)), np.random.random((5, 2)),
+    model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
               epochs=1, batch_size=5, verbose=0)
     # not supported
     with pytest.raises(NotImplementedError):

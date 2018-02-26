@@ -1,8 +1,12 @@
 # -*- coding: utf-8 -*-
+"""Reuters topic classification dataset.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..utils.data_utils import get_file
 from ..preprocessing.sequence import _remove_long_seq
-from six.moves import zip
 import numpy as np
 import json
 import warnings
@@ -53,9 +57,10 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         xs, labels = f['x'], f['y']
 
     np.random.seed(seed)
-    np.random.shuffle(xs)
-    np.random.seed(seed)
-    np.random.shuffle(labels)
+    indices = np.arange(len(xs))
+    np.random.shuffle(indices)
+    xs = xs[indices]
+    labels = labels[indices]
 
     if start_char is not None:
         xs = [[start_char] + [w + index_from for w in x] for x in xs]
@@ -72,9 +77,9 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
+        xs = [[w if skip_top <= w < num_words else oov_char for w in x] for x in xs]
     else:
-        xs = [[w for w in x if (skip_top <= w < num_words)] for x in xs]
+        xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = int(len(xs) * (1 - test_split))
     x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])

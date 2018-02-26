@@ -231,6 +231,56 @@ def test_conv2d_transpose():
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
+def test_separable_conv_1d():
+    num_samples = 2
+    filters = 6
+    stack_size = 3
+    num_step = 9
+
+    for padding in _convolution_paddings:
+        for strides in [1, 2]:
+            for multiplier in [1, 2]:
+                for dilation_rate in [1, 2]:
+                    if padding == 'same' and strides != 1:
+                        continue
+                    if dilation_rate != 1 and strides != 1:
+                        continue
+
+                    layer_test(convolutional.SeparableConv1D,
+                               kwargs={'filters': filters,
+                                       'kernel_size': 3,
+                                       'padding': padding,
+                                       'strides': strides,
+                                       'depth_multiplier': multiplier,
+                                       'dilation_rate': dilation_rate},
+                               input_shape=(num_samples, num_step, stack_size))
+
+    layer_test(convolutional.SeparableConv1D,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
+                       'depthwise_regularizer': 'l2',
+                       'pointwise_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'pointwise_constraint': 'unit_norm',
+                       'depthwise_constraint': 'unit_norm',
+                       'strides': 1,
+                       'depth_multiplier': multiplier},
+               input_shape=(num_samples, stack_size, num_step))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.SeparableConv1D(filters=filters,
+                                                          kernel_size=3,
+                                                          padding=padding,
+                                                          batch_input_shape=(None, 5, None))])
+
+
+@pytest.mark.skipif(K.backend() == 'theano', reason='Theano does not support it yet')
+@keras_test
 def test_separable_conv_2d():
     num_samples = 2
     filters = 6
@@ -241,16 +291,22 @@ def test_separable_conv_2d():
     for padding in _convolution_paddings:
         for strides in [(1, 1), (2, 2)]:
             for multiplier in [1, 2]:
-                if padding == 'same' and strides != (1, 1):
-                    continue
+                for dilation_rate in [(1, 1), (2, 2), (2, 1), (1, 2)]:
+                    if padding == 'same' and strides != (1, 1):
+                        continue
+                    if dilation_rate != (1, 1) and strides != (1, 1):
+                        continue
+                    if dilation_rate != (1, 1) and K.backend() == 'cntk':
+                        continue
 
-                layer_test(convolutional.SeparableConv2D,
-                           kwargs={'filters': filters,
-                                   'kernel_size': (3, 3),
-                                   'padding': padding,
-                                   'strides': strides,
-                                   'depth_multiplier': multiplier},
-                           input_shape=(num_samples, num_row, num_col, stack_size))
+                    layer_test(convolutional.SeparableConv2D,
+                               kwargs={'filters': filters,
+                                       'kernel_size': (3, 3),
+                                       'padding': padding,
+                                       'strides': strides,
+                                       'depth_multiplier': multiplier,
+                                       'dilation_rate': dilation_rate},
+                               input_shape=(num_samples, num_row, num_col, stack_size))
 
     layer_test(convolutional.SeparableConv2D,
                kwargs={'filters': filters,
@@ -274,6 +330,50 @@ def test_separable_conv_2d():
                                                           kernel_size=3,
                                                           padding=padding,
                                                           batch_input_shape=(None, None, 5, None))])
+
+
+@keras_test
+def test_depthwise_conv_2d():
+    num_samples = 2
+    stack_size = 3
+    num_row = 7
+    num_col = 6
+
+    for padding in _convolution_paddings:
+        for strides in [(1, 1), (2, 2)]:
+            for multiplier in [1, 2]:
+                if padding == 'same' and strides != (1, 1):
+                    continue
+
+                layer_test(convolutional.DepthwiseConv2D,
+                           kwargs={'kernel_size': (3, 3),
+                                   'padding': padding,
+                                   'strides': strides,
+                                   'depth_multiplier': multiplier},
+                           input_shape=(num_samples,
+                                        num_row,
+                                        num_col,
+                                        stack_size))
+
+    layer_test(convolutional.DepthwiseConv2D,
+               kwargs={'kernel_size': 3,
+                       'padding': padding,
+                       'data_format': 'channels_first',
+                       'activation': None,
+                       'depthwise_regularizer': 'l2',
+                       'bias_regularizer': 'l2',
+                       'activity_regularizer': 'l2',
+                       'depthwise_constraint': 'unit_norm',
+                       'strides': strides,
+                       'depth_multiplier': multiplier},
+               input_shape=(num_samples, stack_size, num_row, num_col))
+
+    # Test invalid use case
+    with pytest.raises(ValueError):
+        Sequential([convolutional.DepthwiseConv2D(
+            kernel_size=3,
+            padding=padding,
+            batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test

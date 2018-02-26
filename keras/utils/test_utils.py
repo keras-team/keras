@@ -1,4 +1,8 @@
 """Utilities related to Keras unit tests."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 from numpy.testing import assert_allclose
 import six
@@ -17,7 +21,7 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
 
     classification=True overrides output_shape
     (i.e. output_shape is set to (1,)) and the output
-    consists in integers in [0, num_class-1].
+    consists in integers in [0, num_classes-1].
 
     Otherwise: float output with shape output_shape.
     """

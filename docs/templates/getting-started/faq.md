@@ -2,6 +2,7 @@
 
 - [How should I cite Keras?](#how-should-i-cite-keras)
 - [How can I run Keras on GPU?](#how-can-i-run-keras-on-gpu)
+- [How can I run a Keras model on multiple GPUs?](#how-can-i-run-a-keras-model-on-multiple-gpus)
 - [What does "sample", "batch", "epoch" mean?](#what-does-sample-batch-epoch-mean)
 - [How can I save a Keras model?](#how-can-i-save-a-keras-model)
 - [Why is the training loss much higher than the testing loss?](#why-is-the-training-loss-much-higher-than-the-testing-loss)
@@ -31,7 +32,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
   author={Chollet, Fran\c{c}ois and others},
   year={2015},
   publisher={GitHub},
-  howpublished={\url{https://github.com/fchollet/keras}},
+  howpublished={\url{https://github.com/keras-team/keras}},
 }
 ```
 
@@ -39,24 +40,79 @@ Please cite Keras in your publications if it helps your research. Here is an exa
 
 ### How can I run Keras on GPU?
 
-If you are running on the TensorFlow or CNTK backends, your code will automatically run on GPU if any available GPU is detected.
+If you are running on the **TensorFlow** or **CNTK** backends, your code will automatically run on GPU if any available GPU is detected.
 
-If you are running on the Theano backend, you can use one of the following methods:
+If you are running on the **Theano** backend, you can use one of the following methods:
 
-Method 1: use Theano flags.
+**Method 1**: use Theano flags.
 ```bash
 THEANO_FLAGS=device=gpu,floatX=float32 python my_keras_script.py
 ```
 
 The name 'gpu' might have to be changed depending on your device's identifier (e.g. `gpu0`, `gpu1`, etc).
 
-Method 2: set up your `.theanorc`: [Instructions](http://deeplearning.net/software/theano/library/config.html)
+**Method 2**: set up your `.theanorc`: [Instructions](http://deeplearning.net/software/theano/library/config.html)
 
-Method 3: manually set `theano.config.device`, `theano.config.floatX` at the beginning of your code:
+**Method 3**: manually set `theano.config.device`, `theano.config.floatX` at the beginning of your code:
 ```python
 import theano
 theano.config.device = 'gpu'
 theano.config.floatX = 'float32'
+```
+
+---
+
+### How can I run a Keras model on multiple GPUs?
+
+We recommend doing so using the **TensorFlow** backend. There are two ways to run a single model on multiple GPUs: **data parallelism** and **device parallelism**.
+
+In most cases, what you need is most likely data parallelism.
+
+#### Data parallelism
+
+Data parallelism consists in replicating the target model once on each device, and using each replica to process a different fraction of the input data.
+Keras has a built-in utility, `keras.utils.multi_gpu_model`, which can produce a data-parallel version of any model, and achieves quasi-linear speedup on up to 8 GPUs.
+
+For more information, see the documentation for [multi_gpu_model](/utils/#multi_gpu_model). Here is a quick example:
+
+```python
+from keras.utils import multi_gpu_model
+
+# Replicates `model` on 8 GPUs.
+# This assumes that your machine has 8 available GPUs.
+parallel_model = multi_gpu_model(model, gpus=8)
+parallel_model.compile(loss='categorical_crossentropy',
+                       optimizer='rmsprop')
+
+# This `fit` call will be distributed on 8 GPUs.
+# Since the batch size is 256, each GPU will process 32 samples.
+parallel_model.fit(x, y, epochs=20, batch_size=256)
+```
+
+#### Device parallelism
+
+Device parallelism consists in running different parts of a same model on different devices. It works best for models that have a parallel architecture, e.g. a model with two branches.
+
+This can be achieved by using TensorFlow device scopes. Here is a quick example:
+
+```python
+# Model where a shared LSTM is used to encode two different sequences in parallel
+input_a = keras.Input(shape=(140, 256))
+input_b = keras.Input(shape=(140, 256))
+
+shared_lstm = keras.layers.LSTM(64)
+
+# Process the first sequence on one GPU
+with tf.device_scope('/gpu:0'):
+    encoded_a = shared_lstm(tweet_a)
+# Process the next sequence on another GPU
+with tf.device_scope('/gpu:1'):
+    encoded_b = shared_lstm(tweet_b)
+
+# Concatenate results on CPU
+with tf.device_scope('/cpu:0'):
+    merged_vector = keras.layers.concatenate([encoded_a, encoded_b],
+                                             axis=-1)
 ```
 
 ---
@@ -69,7 +125,7 @@ Below are some common definitions that are necessary to know and understand to c
   - *Example:* one image is a **sample** in a convolutional network
   - *Example:* one audio file is a **sample** for a speech recognition model
 - **Batch**: a set of *N* samples. The samples in a **batch** are processed independently, in parallel. If training, a batch results in only one update to the model.
-  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to processes and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to process and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
 - **Epoch**: an arbitrary cutoff, generally defined as "one pass over the entire dataset", used to separate training into distinct phases, which is useful for logging and periodic evaluation.
   - When using `evaluation_data` or `evaluation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
   - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model checkpointing (saving).
@@ -262,7 +318,7 @@ You can do batch training using `model.train_on_batch(x, y)` and `model.test_on_
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
-You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
+You can see batch training in action in our [CIFAR10 example](https://github.com/keras-team/keras/blob/master/examples/cifar10_cnn.py).
 
 ---
 
@@ -441,9 +497,9 @@ For a detailed example of how to use such a pre-trained model for feature extrac
 
 The VGG16 model is also the basis for several Keras example scripts:
 
-- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
-- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
-- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+- [Style transfer](https://github.com/keras-team/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/keras-team/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/keras-team/keras/blob/master/examples/deep_dream.py)
 
 ---
 
@@ -508,7 +564,7 @@ import random as rn
 # have reproducible behavior for certain hash-based operations.
 # See these references for further details:
 # https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
-# https://github.com/fchollet/keras/issues/2280#issuecomment-306959926
+# https://github.com/keras-team/keras/issues/2280#issuecomment-306959926
 
 import os
 os.environ['PYTHONHASHSEED'] = '0'

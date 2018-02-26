@@ -7,7 +7,7 @@ character-by-character. Note that it is fairly unusual to
 do character-level machine translation, as word-level
 models are more common in this domain.
 
-# Summary of the algorithm:
+# Summary of the algorithm
 
 - We start with input sequences from a domain (e.g. English sentences)
     and correspding target sequences from another domain
@@ -32,7 +32,7 @@ models are more common in this domain.
     - Repeat until we generate the end-of-sequence character or we
         hit the character limit.
 
-# Data download:
+# Data download
 
 English to French sentence pairs.
 http://www.manythings.org/anki/fra-eng.zip
@@ -40,7 +40,7 @@ http://www.manythings.org/anki/fra-eng.zip
 Lots of neat sentence pairs datasets can be found at:
 http://www.manythings.org/anki/
 
-# References:
+# References
 
 - Sequence to Sequence Learning with Neural Networks
     https://arxiv.org/abs/1409.3215
@@ -59,14 +59,15 @@ epochs = 100  # Number of epochs to train for.
 latent_dim = 256  # Latent dimensionality of the encoding space.
 num_samples = 10000  # Number of samples to train on.
 # Path to the data txt file on disk.
-data_path = '/Users/fchollet/Downloads/fra-eng/fra.txt'
+data_path = 'fra-eng/fra.txt'
 
 # Vectorize the data.
 input_texts = []
 target_texts = []
 input_characters = set()
 target_characters = set()
-lines = open(data_path).read().split('\n')
+with open(data_path, 'r', encoding='utf-8') as f:
+    lines = f.read().split('\n')
 for line in lines[: min(num_samples, len(lines) - 1)]:
     input_text, target_text = line.split('\t')
     # We use "tab" as the "start sequence" character
@@ -113,7 +114,7 @@ for i, (input_text, target_text) in enumerate(zip(input_texts, target_texts)):
     for t, char in enumerate(input_text):
         encoder_input_data[i, t, input_token_index[char]] = 1.
     for t, char in enumerate(target_text):
-        # decoder_target_data is ahead of decoder_target_data by one timestep
+        # decoder_target_data is ahead of decoder_input_data by one timestep
         decoder_input_data[i, t, target_token_index[char]] = 1.
         if t > 0:
             # decoder_target_data will be ahead by one timestep
@@ -220,7 +221,7 @@ def decode_sequence(input_seq):
 
 
 for seq_index in range(100):
-    # Take one sequence (part of the training test)
+    # Take one sequence (part of the training set)
     # for trying out decoding.
     input_seq = encoder_input_data[seq_index: seq_index + 1]
     decoded_sentence = decode_sequence(input_seq)

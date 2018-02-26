@@ -1,8 +1,8 @@
 site_name: Keras Documentation
 theme: readthedocs
-#theme_dir: theme
+# theme_dir: theme
 docs_dir: sources
-repo_url: http://github.com/fchollet/keras
+repo_url: http://github.com/keras-team/keras
 site_url: http://keras.io/
 site_description: 'Documentation for Keras, the Python Deep Learning library.'
 
@@ -11,6 +11,7 @@ google_analytics: ['UA-61785484-1', 'keras.io']
 
 pages:
 - Home: index.md
+- Why use Keras: why-use-keras.md
 - Getting started:
   - Guide to the Sequential model: getting-started/sequential-model-guide.md
   - Guide to the Functional API: getting-started/functional-api-guide.md

@@ -3,19 +3,21 @@
 
 Model naming and structure follows TF-slim implementation (which has some additional
 layers and different number of filters from the original arXiv paper):
-https://github.com/tensorflow/models/blob/master/slim/nets/inception_resnet_v2.py
+https://github.com/tensorflow/models/blob/master/research/slim/nets/inception_resnet_v2.py
 
 Pre-trained ImageNet weights are also converted from TF-slim, which can be found in:
-https://github.com/tensorflow/models/tree/master/slim#pre-trained-models
+https://github.com/tensorflow/models/tree/master/research/slim#pre-trained-models
 
 # Reference
 - [Inception-v4, Inception-ResNet and the Impact of
    Residual Connections on Learning](https://arxiv.org/abs/1602.07261)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+import os
 import warnings
 
 from ..models import Model
@@ -67,9 +69,10 @@ def conv2d_bn(x,
         x: input tensor.
         filters: filters in `Conv2D`.
         kernel_size: kernel size as in `Conv2D`.
+        strides: strides in `Conv2D`.
         padding: padding mode in `Conv2D`.
         activation: activation in `Conv2D`.
-        strides: strides in `Conv2D`.
+        use_bias: whether to use a bias in `Conv2D`.
         name: name of the ops; will become `name + '_ac'` for the activation
             and `name + '_bn'` for the batch norm layer.
 
@@ -196,8 +199,9 @@ def InceptionResNetV2(include_top=True,
     # Arguments
         include_top: whether to include the fully-connected
             layer at the top of the network.
-        weights: one of `None` (random initialization)
-            or `'imagenet'` (pre-training on ImageNet).
+        weights: one of `None` (random initialization),
+              'imagenet' (pre-training on ImageNet),
+              or the path to the weights file to be loaded.
         input_tensor: optional Keras tensor (i.e. output of `layers.Input()`)
             to use as image input for the model.
         input_shape: optional shape tuple, only to be specified
@@ -227,10 +231,11 @@ def InceptionResNetV2(include_top=True,
         ValueError: in case of invalid argument for `weights`,
             or invalid input shape.
     """
-    if weights not in {'imagenet', None}:
+    if not (weights in {'imagenet', None} or os.path.exists(weights)):
         raise ValueError('The `weights` argument should be either '
-                         '`None` (random initialization) or `imagenet` '
-                         '(pre-training on ImageNet).')
+                         '`None` (random initialization), `imagenet` '
+                         '(pre-training on ImageNet), '
+                         'or the path to the weights file to be loaded.')
 
     if weights == 'imagenet' and include_top and classes != 1000:
         raise ValueError('If using `weights` as imagenet with `include_top`'
@@ -358,17 +363,19 @@ def InceptionResNetV2(include_top=True,
                               'your Keras config '
                               'at ~/.keras/keras.json.')
         if include_top:
-            weights_filename = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels.h5'
-            weights_path = get_file(weights_filename,
-                                    BASE_WEIGHT_URL + weights_filename,
+            fname = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels.h5'
+            weights_path = get_file(fname,
+                                    BASE_WEIGHT_URL + fname,
                                     cache_subdir='models',
                                     file_hash='e693bd0210a403b3192acc6073ad2e96')
         else:
-            weights_filename = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels_notop.h5'
-            weights_path = get_file(weights_filename,
-                                    BASE_WEIGHT_URL + weights_filename,
+            fname = 'inception_resnet_v2_weights_tf_dim_ordering_tf_kernels_notop.h5'
+            weights_path = get_file(fname,
+                                    BASE_WEIGHT_URL + fname,
                                     cache_subdir='models',
                                     file_hash='d19885ff4a710c122648d3b5c3b684e4')
         model.load_weights(weights_path)
+    elif weights is not None:
+        model.load_weights(weights)
 
     return model
