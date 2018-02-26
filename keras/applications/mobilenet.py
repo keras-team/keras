@@ -302,7 +302,7 @@ def MobileNet(input_shape=None,
     # load weights
     if weights == 'imagenet':
         if K.image_data_format() == 'channels_first':
-            raise ValueError('Weights for "channels_last" format '
+            raise ValueError('Weights for "channels_first" format '
                              'are not available.')
         if alpha == 1.0:
             alpha_text = '1_0'
