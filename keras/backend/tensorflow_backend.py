@@ -1538,7 +1538,7 @@ def pow(x, a):
 
     # Arguments
         x: Tensor or variable.
-        a: Python integer.
+        a: Python integer or float.
 
     # Returns
         A tensor.
