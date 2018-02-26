@@ -887,6 +887,11 @@ class TestBackend(object):
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 3), strides=(1, 1), padding='valid')
 
+        check_single_tensor_operation('pool2d', (2, 7, 7, 5),
+                                      BACKENDS, cntk_dynamicity=True,
+                                      pool_size=(3, 3), strides=(1, 1),
+                                      padding='same', pool_mode='avg')
+
     def test_pool3d(self):
         check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3),
                                       BACKENDS, cntk_dynamicity=True,
