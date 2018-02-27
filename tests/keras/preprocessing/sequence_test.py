@@ -116,6 +116,29 @@ def test_TimeseriesGenerator():
                            np.array([[12], [13]])))
 
     data_gen = TimeseriesGenerator(data, targets,
+                                   length=10, sampling_rate=2, reverse=True,
+                                   batch_size=2)
+    assert len(data_gen) == 20
+    assert (np.array_equal(data_gen[0][0],
+                           np.array([[[8], [6], [4], [2], [0]],
+                                     [[9], [7], [5], [3], [1]]])))
+    assert (np.array_equal(data_gen[0][1],
+                           np.array([[10], [11]])))
+
+    data_gen = TimeseriesGenerator(data, targets,
+                                   length=10, sampling_rate=2, shuffle=True,
+                                   batch_size=1)
+    batch = data_gen[0]
+    r = batch[1][0][0]
+    assert (np.array_equal(batch[0],
+                           np.array([[[r - 10],
+                                      [r - 8],
+                                      [r - 6],
+                                      [r - 4],
+                                      [r - 2]]])))
+    assert (np.array_equal(batch[1], np.array([[r], ])))
+
+    data_gen = TimeseriesGenerator(data, targets,
                                    length=10, sampling_rate=2, stride=2,
                                    batch_size=2)
     assert len(data_gen) == 10
