@@ -6,10 +6,19 @@ import numpy as np
 from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.utils.test_utils import keras_test
+from keras.utils import Sequence
 
 STEPS_PER_EPOCH = 100
 STEPS = 100
 WORKERS = 4
+
+
+class DummySequence(Sequence):
+    def __getitem__(self, idx):
+        return np.zeros([10, 2]), np.ones([10])
+
+    def __len__(self):
+        return 10
 
 
 @pytest.fixture
@@ -168,6 +177,22 @@ def test_multiprocessing_training():
                         workers=0,
                         use_multiprocessing=True)
     model.fit_generator(custom_generator(True),
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        validation_data=custom_generator(True),
+                        validation_steps=1,
+                        max_queue_size=10,
+                        workers=0,
+                        use_multiprocessing=False)
+
+    # - For Sequence
+    model.fit_generator(DummySequence(),
+                        steps_per_epoch=STEPS_PER_EPOCH,
+                        validation_data=custom_generator(True),
+                        validation_steps=1,
+                        max_queue_size=10,
+                        workers=0,
+                        use_multiprocessing=True)
+    model.fit_generator(DummySequence(),
                         steps_per_epoch=STEPS_PER_EPOCH,
                         validation_data=custom_generator(True),
                         validation_steps=1,
