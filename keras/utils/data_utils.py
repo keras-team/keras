@@ -369,7 +369,8 @@ class Sequence(object):
     def __iter__(self):
         """Create an infinite generator that iterate over the Sequence."""
         while True:
-            yield from (self[i] for i in range(len(self)))
+            for item in (self[i] for i in range(len(self))):
+                yield item
 
 
 # Global variables to be shared across processes
