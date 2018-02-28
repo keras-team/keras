@@ -227,21 +227,21 @@ class TestBackend(object):
                                       mean=0., scale=1.,
                                       shape_or_val=False, assert_value_equality=False)
 
-    @pytest.mark.parametrize('k', [KTF], ids=['TensorFlow'])
-    def test_batch_dot_shape(self, k):
-        x_batch = k.ones(shape=(32, 20))
-        y_batch = k.ones(shape=(32, 20))
-        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=1)
-        assert_allclose(k.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
-        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=0)
-        assert_allclose(k.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Not supported.')
+    def test_batch_dot_shape(self):
+        x_batch = K.ones(shape=(32, 20))
+        y_batch = K.ones(shape=(32, 20))
+        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=1)
+        assert_allclose(K.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
+        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=0)
+        assert_allclose(K.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
         # making sure swapping axes when ndim == 2 works
-        x_batch = k.ones(shape=(32, 20))
-        y_batch = k.ones(shape=(20, 32))
-        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=(0, 1))
-        assert_allclose(k.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
-        xy_batch_dot = k.batch_dot(x_batch, y_batch, axes=(1, 0))
-        assert_allclose(k.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
+        x_batch = K.ones(shape=(32, 20))
+        y_batch = K.ones(shape=(20, 32))
+        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(0, 1))
+        assert_allclose(K.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
+        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(1, 0))
+        assert_allclose(K.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
 
     def test_shape_operations(self):
         check_two_tensor_operation('concatenate', (4, 3), (4, 2), BACKENDS,
@@ -1125,11 +1125,12 @@ class TestBackend(object):
     # numerical stability.  The Theano code subtracts out the max
     # before the final log, so the results are different but scale
     # identically and still train properly
-    @pytest.mark.parametrize('k,ref', [
-        (KTF, [3.34211, 5.42262]),
-        (KTH, [1.73308, 3.81351]),
-    ], ids=['TensorFlow', 'Theano'])
-    def test_ctc(self, k, ref):
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    def test_ctc(self):
+        if K.backend() == 'theano':
+            ref = [1.73308, 3.81351]
+        else:
+            ref = [3.34211, 5.42262]
         # simplified version of TensorFlow's test
 
         label_lens = np.expand_dims(np.asarray([5, 4]), 1)
@@ -1150,12 +1151,12 @@ class TestBackend(object):
               [0.423286, 0.315517, 0.0338439, 0.0393744, 0.0339315, 0.154046]]],
             dtype=np.float32)
 
-        k_labels = k.variable(labels, dtype="int32")
-        k_inputs = k.variable(inputs, dtype="float32")
-        k_input_lens = k.variable(input_lens, dtype="int32")
-        k_label_lens = k.variable(label_lens, dtype="int32")
-        res = k.eval(k.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
-        assert_allclose(res[:, 0] if k == KTF else res[0, :], ref, atol=1e-05)
+        k_labels = K.variable(labels, dtype="int32")
+        k_inputs = K.variable(inputs, dtype="float32")
+        k_input_lens = K.variable(input_lens, dtype="int32")
+        k_label_lens = K.variable(label_lens, dtype="int32")
+        res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
+        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
 
     '''only tensorflow tested, need special handle'''
 
@@ -1337,17 +1338,17 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
-    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
-    def test_map(self, k):
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
-        vx = k.variable(x)
-        kx = k.eval(k.map_fn(k.sum, vx))
+        vx = K.variable(x)
+        kx = K.eval(K.map_fn(K.sum, vx))
         # make sure we can also walk the indexes in tensorflow which we
         # can't without specifying dtype
-        kx2 = k.eval(k.map_fn(
-            lambda i: k.sum(vx[i]),
-            k.arange(10),
-            dtype=k.floatx()
+        kx2 = K.eval(K.map_fn(
+            lambda i: K.sum(vx[i]),
+            K.arange(10),
+            dtype=K.floatx()
         ))
 
         assert (10,) == kx.shape
@@ -1355,24 +1356,24 @@ class TestBackend(object):
         assert_allclose(x.sum(axis=1), kx, atol=1e-05)
         assert_allclose(kx, kx2, atol=1e-05)
 
-    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
-    def test_foldl(self, k):
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
-        kx = k.eval(k.foldl(lambda a, b: a + b, k.variable(x)))
+        kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
 
         assert (3,) == kx.shape
         assert_allclose(x.sum(axis=0), kx, atol=1e-05)
 
-    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
-    def test_foldr(self, k):
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    def test_foldr(self):
         # This test aims to make sure that we walk the array from right to left
         # and checks it in the following way: multiplying left to right 1e-40
         # cannot be held into a float32 so it causes an underflow while from
         # right to left we have no such problem and the result is larger
         x = np.array([1e-20, 1e-20, 10, 10, 10], dtype=np.float32)
-        vx = k.variable(x)
-        p1 = k.eval(k.foldl(lambda a, b: a * b, vx))
-        p2 = k.eval(k.foldr(lambda a, b: a * b, vx))
+        vx = K.variable(x)
+        p1 = K.eval(K.foldl(lambda a, b: a * b, vx))
+        p2 = K.eval(K.foldr(lambda a, b: a * b, vx))
 
         assert p1 < p2
         assert 9e-38 < p2 <= 1e-37
