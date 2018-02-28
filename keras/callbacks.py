@@ -782,13 +782,24 @@ class TensorBoard(Callback):
         if self.embeddings_freq:
             embeddings_layer_names = self.embeddings_layer_names
 
-            if not embeddings_layer_names:
-                embeddings_layer_names = [layer.name for layer in self.model.layers
-                                          if type(layer).__name__ == 'Embedding']
+            embedding_layers = set()
+            layers = model.layers[:]
+            while len(layers) > 0:
+                layer = layers.pop(0)
+                if isinstance(layer, __import__(__name__).layers.Embedding):
+                    embedding_layers.add(layer)
+                elif isinstance(layer, __import__(__name__).layers.Wrapper):
+                    layers.append(layer.layer)
+                elif isinstance(layer, __import__(__name__).models.Model):
+                        layers.extend(layer.layers)
 
-            embeddings = {layer.name: layer.weights[0]
-                          for layer in self.model.layers
-                          if layer.name in embeddings_layer_names}
+            if not embeddings_layer_names:
+                embeddings = {layer.name: layer.weights[0]
+                              for layer in embedding_layers}
+            else:
+                embeddings = {layer.name: layer.weights[0]
+                              for layer in embedding_layers
+                              if layer.name in embeddings_layer_names}
 
             self.saver = tf.train.Saver(list(embeddings.values()))
 
