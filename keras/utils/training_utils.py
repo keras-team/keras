@@ -4,9 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..layers.merge import concatenate
 from .. import backend as K
-from ..layers.core import Lambda
+from ..engine.topology import Layer
 from ..engine.training import Model
 
 
@@ -17,6 +16,35 @@ def _get_available_devices():
 def _normalize_device_name(name):
     name = '/' + ':'.join(name.lower().replace('/', '').split(':')[-2:])
     return name
+
+
+class DeviceSlice(Layer):
+    def __init__(self, index, total_devices, **kwargs):
+        self.index = index
+        self.total_devices = total_devices
+        super(DeviceSlice, self).__init__(**kwargs)
+
+    def call(self, inputs):
+        shape = K.tf.shape(inputs)
+        batch_size = shape[:1]
+        input_shape = shape[1:]
+        step = batch_size // self.total_devices
+        if self.index == self.total_devices - 1:
+            size = batch_size - step * self.index
+        else:
+            size = step
+        size = K.tf.concat([size, input_shape], axis=0)
+        stride = K.tf.concat([step, input_shape * 0], axis=0)
+        start = stride * self.index
+        return K.tf.slice(inputs, start, size)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+    def get_config(self):
+        config = {'index': self.index, 'total_devices': self.total_devices}
+        base_config = super(DeviceSlice, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 def multi_gpu_model(model, gpus=None):
@@ -137,20 +165,6 @@ def multi_gpu_model(model, gpus=None):
                                           target_devices,
                                           available_devices))
 
-    def get_slice(data, i, parts):
-        shape = tf.shape(data)
-        batch_size = shape[:1]
-        input_shape = shape[1:]
-        step = batch_size // parts
-        if i == num_gpus - 1:
-            size = batch_size - step * i
-        else:
-            size = step
-        size = tf.concat([size, input_shape], axis=0)
-        stride = tf.concat([step, input_shape * 0], axis=0)
-        start = stride * i
-        return tf.slice(data, start, size)
-
     all_outputs = []
     for i in range(len(model.outputs)):
         all_outputs.append([])
@@ -164,10 +178,7 @@ def multi_gpu_model(model, gpus=None):
                 # Retrieve a slice of the input.
                 for x in model.inputs:
                     input_shape = tuple(x.get_shape().as_list())[1:]
-                    slice_i = Lambda(get_slice,
-                                     output_shape=input_shape,
-                                     arguments={'i': i,
-                                                'parts': num_gpus})(x)
+                    slice_i = DeviceSlice(i, num_gpus)(x)
                     inputs.append(slice_i)
 
                 # Apply model on slice
@@ -179,6 +190,8 @@ def multi_gpu_model(model, gpus=None):
                 # Save the outputs for merging back together later.
                 for o in range(len(outputs)):
                     all_outputs[o].append(outputs[o])
+
+    from ..layers.merge import concatenate
 
     # Merge outputs on CPU.
     with tf.device('/cpu:0'):
