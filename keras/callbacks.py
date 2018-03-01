@@ -784,11 +784,11 @@ class TensorBoard(Callback):
 
             embedding_layers = set()
             layers = model.layers[:]
-            while len(layers) > 0:
+            while layers:
                 layer = layers.pop(0)
                 if isinstance(layer, __import__(__name__).layers.Embedding):
                     embedding_layers.add(layer)
-                elif isinstance(layer, __import__(__name__).layers.Wrapper):
+                elif isinstance(layer, __import__(__name__).layers.TimeDistributed):
                     layers.append(layer.layer)
                 elif isinstance(layer, __import__(__name__).models.Model):
                         layers.extend(layer.layers)
