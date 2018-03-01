@@ -1854,7 +1854,7 @@ class Container(Layer):
 
     def get_layer(self, name=None, index=None):
         """Retrieves a layer based on either its name (unique) or index.
-        
+
         If `name` and `index` are both provided, `index` will take precedence.
 
         Indices are based on order of horizontal graph traversal (bottom-up).
