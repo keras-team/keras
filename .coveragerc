@@ -1,6 +1,8 @@
 [report]
 # Regexes for lines to exclude from consideration
 exclude_lines =
+    os.remove
+    except ImportError
     # Don't complain if tests don't hit defensive assertion code:
     raise ImportError
     raise NotImplementedError

@@ -1275,21 +1275,14 @@ class Model(Container):
             or list of arrays of predictions
             (if the model has multiple outputs).
         """
-
-        if hasattr(self, 'metrics'):
-            for m in self.metrics:
-                if isinstance(m, Layer):
-                    m.reset_states()
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
         if verbose == 1:
             if steps is not None:
-                progbar = Progbar(target=steps,
-                                  stateful_metrics=self.stateful_metric_names)
+                progbar = Progbar(target=steps)
             else:
-                progbar = Progbar(target=num_samples,
-                                  stateful_metrics=self.stateful_metric_names)
+                progbar = Progbar(target=num_samples)
 
         indices_for_conversion_to_dense = []
         for i in range(len(self._feed_inputs)):
@@ -2155,18 +2148,23 @@ class Model(Container):
                 if val_gen:
                     if workers > 0:
                         if isinstance(validation_data, Sequence):
-                            val_enqueuer = OrderedEnqueuer(validation_data,
-                                                           use_multiprocessing=use_multiprocessing)
+                            val_enqueuer = OrderedEnqueuer(
+                                validation_data,
+                                use_multiprocessing=use_multiprocessing)
                             if validation_steps is None:
                                 validation_steps = len(validation_data)
                         else:
-                            val_enqueuer = GeneratorEnqueuer(validation_data,
-                                                             use_multiprocessing=use_multiprocessing,
-                                                             wait_time=wait_time)
+                            val_enqueuer = GeneratorEnqueuer(
+                                validation_data,
+                                use_multiprocessing=use_multiprocessing,
+                                wait_time=wait_time)
                         val_enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                         validation_generator = val_enqueuer.get()
                     else:
-                        validation_generator = validation_data
+                        if isinstance(validation_data, Sequence):
+                            validation_generator = iter(validation_data)
+                        else:
+                            validation_generator = validation_data
                 else:
                     if len(validation_data) == 2:
                         val_x, val_y = validation_data
@@ -2198,7 +2196,10 @@ class Model(Container):
                 enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                 output_generator = enqueuer.get()
             else:
-                output_generator = generator
+                if is_sequence:
+                    output_generator = iter(generator)
+                else:
+                    output_generator = generator
 
             callback_model.stop_training = False
             # Construct epoch logs.
@@ -2370,7 +2371,10 @@ class Model(Container):
                 enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                 output_generator = enqueuer.get()
             else:
-                output_generator = generator
+                if is_sequence:
+                    output_generator = iter(generator)
+                else:
+                    output_generator = generator
 
             while steps_done < steps:
                 generator_output = next(output_generator)
@@ -2494,7 +2498,10 @@ class Model(Container):
                 enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                 output_generator = enqueuer.get()
             else:
-                output_generator = generator
+                if is_sequence:
+                    output_generator = iter(generator)
+                else:
+                    output_generator = generator
 
             if verbose == 1:
                 progbar = Progbar(target=steps)
