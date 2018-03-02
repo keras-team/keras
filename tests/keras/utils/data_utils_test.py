@@ -6,9 +6,10 @@ import tarfile
 import threading
 import zipfile
 from itertools import cycle
-
+import multiprocessing as mp
 import numpy as np
 import pytest
+import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
 
@@ -22,6 +23,19 @@ from keras.utils.data_utils import validate_file
 if sys.version_info < (3,):
     def next(x):
         return x.next()
+
+
+def use_spawn(func):
+    """Decorator to test both Unix (fork) and Windows (spawn)"""
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        out = func(*args, **kwargs)
+        if sys.version_info > (3, 4):
+            mp.set_start_method('spawn', force=True)
+            func(*args, **kwargs)
+            mp.set_start_method('fork', force=True)
+        return out
+    return wrapper
 
 
 @pytest.fixture
@@ -219,6 +233,7 @@ def test_ordered_enqueuer_threads_not_ordered():
     enqueuer.stop()
 
 
+@use_spawn
 def test_ordered_enqueuer_processes():
     enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
     enqueuer.start(3, 10)
@@ -238,6 +253,7 @@ def test_ordered_enqueuer_fail_threads():
         next(gen_output)
 
 
+@use_spawn
 def test_on_epoch_end_processes():
     enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
     enqueuer.start(3, 10)
@@ -249,6 +265,7 @@ def test_on_epoch_end_processes():
     enqueuer.stop()
 
 
+@use_spawn
 def test_context_switch():
     enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]), use_multiprocessing=True)
     enqueuer2 = OrderedEnqueuer(DummySequence([3, 200, 200, 3], value=15), use_multiprocessing=True)
@@ -293,6 +310,7 @@ def test_on_epoch_end_threads():
     enqueuer.stop()
 
 
+@use_spawn
 def test_ordered_enqueuer_fail_processes():
     enqueuer = OrderedEnqueuer(FaultSequence(), use_multiprocessing=True)
     enqueuer.start(3, 10)
