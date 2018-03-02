@@ -2240,7 +2240,9 @@ class Model(Container):
                             val_outs = self.evaluate_generator(
                                 validation_data,
                                 validation_steps,
-                                workers=0)
+                                workers=workers,
+                                use_multiprocessing=use_multiprocessing,
+                                max_queue_size=max_queue_size)
                         else:
                             # No need for try/except because
                             # data has already been validated.
