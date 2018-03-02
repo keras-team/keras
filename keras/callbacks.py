@@ -800,29 +800,31 @@ class TensorBoard(Callback):
                 embeddings = {layer.name: layer.weights[0]
                               for layer in embedding_layers
                               if layer.name in embeddings_layer_names}
+            if embeddings:
+                self.saver = tf.train.Saver(list(embeddings.values()))
 
-            self.saver = tf.train.Saver(list(embeddings.values()))
+                embeddings_metadata = {}
 
-            embeddings_metadata = {}
+                if not isinstance(self.embeddings_metadata, str):
+                    embeddings_metadata = self.embeddings_metadata
+                else:
+                    embeddings_metadata = {layer_name: self.embeddings_metadata
+                                           for layer_name in embeddings.keys()}
 
-            if not isinstance(self.embeddings_metadata, str):
-                embeddings_metadata = self.embeddings_metadata
+                config = projector.ProjectorConfig()
+                self.embeddings_ckpt_path = os.path.join(self.log_dir,
+                                                         'keras_embedding.ckpt')
+
+                for layer_name, tensor in embeddings.items():
+                    embedding = config.embeddings.add()
+                    embedding.tensor_name = tensor.name
+
+                    if layer_name in embeddings_metadata:
+                        embedding.metadata_path = embeddings_metadata[layer_name]
+
+                projector.visualize_embeddings(self.writer, config)
             else:
-                embeddings_metadata = {layer_name: self.embeddings_metadata
-                                       for layer_name in embeddings.keys()}
-
-            config = projector.ProjectorConfig()
-            self.embeddings_ckpt_path = os.path.join(self.log_dir,
-                                                     'keras_embedding.ckpt')
-
-            for layer_name, tensor in embeddings.items():
-                embedding = config.embeddings.add()
-                embedding.tensor_name = tensor.name
-
-                if layer_name in embeddings_metadata:
-                    embedding.metadata_path = embeddings_metadata[layer_name]
-
-            projector.visualize_embeddings(self.writer, config)
+                self.embeddings_ckpt_path = None
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
