@@ -791,7 +791,7 @@ class TensorBoard(Callback):
                 elif isinstance(layer, __import__(__name__).layers.TimeDistributed):
                     layers.append(layer.layer)
                 elif isinstance(layer, __import__(__name__).models.Model):
-                        layers.extend(layer.layers)
+                    layers.extend(layer.layers)
 
             if not embeddings_layer_names:
                 embeddings = {layer.name: layer.weights[0]
