@@ -1962,7 +1962,7 @@ class Model(Container):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Trains the model on data generated batch-by-batch by a Python generator.
+        """Trains the model on data generated batch-by-batch by a Python generator or an instance of `Sequence`.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
