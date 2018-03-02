@@ -22,4 +22,4 @@ from .layer_utils import print_summary
 from .vis_utils import plot_model
 from .np_utils import to_categorical
 from .np_utils import normalize
-from .training_utils import multi_gpu_model
+from .multi_gpu_utils import multi_gpu_model
