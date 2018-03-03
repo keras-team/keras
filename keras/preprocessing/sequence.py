@@ -257,7 +257,7 @@ class TimeseriesGenerator(Sequence):
     # Examples
 
     ```data = np.array([[i] for i in range(50)])
-       targets = np.array([i for i in range(50)])
+       targets = np.array([[i] for i in range(50)])
 
        data_gen = TimeseriesGenerator(data, targets,
                                       length=10, sampling_rate=2,
