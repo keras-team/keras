@@ -1703,6 +1703,15 @@ def _preprocess_conv2d_kernel(kernel, data_format):
     return kernel
 
 
+def _preprocess_depthwise_conv2d_kernel(kernel, data_format):
+    # As of Keras 2.0.0, all kernels are normalized
+    # on the format `(rows, cols, input_depth, depth)`,
+    # independently of `data_format`.
+    # Theano expects `(input_depth, 1, rows, cols)`.
+    kernel = kernel.dimshuffle((2, 3, 0, 1))
+    return kernel
+
+
 def _preprocess_conv3d_kernel(kernel, data_format):
     # As of Keras 2.0.0, all kernels are normalized
     # on the format `(space, input_depth, depth)`,
@@ -1765,6 +1774,21 @@ def _preprocess_conv2d_filter_shape(filter_shape, data_format):
             return None
     if filter_shape:
         filter_shape = (filter_shape[3], filter_shape[2],
+                        filter_shape[0], filter_shape[1])
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+    return filter_shape
+
+
+def _preprocess_depthwise_conv2d_filter_shape(filter_shape, data_format):
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+    if filter_shape:
+        filter_shape = (filter_shape[2], filter_shape[3],
                         filter_shape[0], filter_shape[1])
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
@@ -1977,12 +2001,135 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
 def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
                      padding='valid', data_format=None, dilation_rate=1):
-    raise NotImplementedError
+    """1D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        pointwise_kernel: kernel for the 1x1 convolution.
+        strides: stride integer.
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: integer dilation rate.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `x` is not a keras tensor.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ', data_format)
+
+    if data_format == 'channels_last':
+        # original shape: (batch, length, input_dim)
+        # add dim to x to have (batch, length, 1, input_dim)
+        expanded_dim = 2
+    else:
+        # original shape: (batch, input_dim, length)
+        # add dim to x to have (batch, input_dim, length, 1)
+        expanded_dim = 3
+
+    # add dim to input x and its _keras_shape
+    x = expand_dims(x, expanded_dim)
+
+    # add dim to kernels and their _keras_shape
+    depthwise_kernel = expand_dims(depthwise_kernel, 1)
+    pointwise_kernel = expand_dims(pointwise_kernel, 1)
+
+    # update dilation rate, strides
+    # note that strides and dilation_rate may come as tuples from _SeparableConv layer
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate, 1)
+    else:
+        dilation_rate = dilation_rate + (1, )
+
+    if isinstance(strides, int):
+        strides = (strides, 1)
+    else:
+        strides = strides + (1, )
+
+    x = separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+                         strides=strides,
+                         padding=padding,
+                         data_format=data_format,
+                         dilation_rate=dilation_rate)
+
+    # remove added dim
+    x = squeeze(x, expanded_dim)
+
+    return x
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
-    raise NotImplementedError
+    """2D convolution with separable filters.
+
+    # Arguments
+        x: input tensor
+        depthwise_kernel: convolution kernel for the depthwise convolution.
+        pointwise_kernel: kernel for the 1x1 convolution.
+        strides: strides tuple (length 2).
+        padding: string, `"same"` or `"valid"`.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        dilation_rate: tuple of integers,
+            dilation rates for the separable convolution.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: if `x` is not a keras tensor.
+    """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ', data_format)
+
+    if hasattr(x, '_keras_shape'):
+        image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
+        num_input_channels = image_shape[1]
+    else:
+        raise ValueError('Input must have _keras_shape')
+
+    if hasattr(depthwise_kernel, '_keras_shape'):
+        depthwise_kernel_shape = depthwise_kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        depthwise_kernel_shape = depthwise_kernel.eval().shape
+
+    if hasattr(pointwise_kernel, '_keras_shape'):
+        pointwise_kernel_shape = pointwise_kernel._keras_shape
+    else:
+        # Will only work if `kernel` is a shared variable.
+        pointwise_kernel_shape = pointwise_kernel.eval().shape
+
+    depthwise_kernel_shape = _preprocess_depthwise_conv2d_filter_shape(depthwise_kernel_shape, data_format)
+    pointwise_kernel_shape = _preprocess_conv2d_filter_shape(pointwise_kernel_shape, data_format)
+    result_kernel_shape = (pointwise_kernel[0], pointwise_kernel[1], depthwise_kernel[2], depthwise_kernel[3])
+
+    x = _preprocess_conv2d_input(x, data_format)
+    depthwise_kernel = _preprocess_depthwise_conv2d_kernel(depthwise_kernel, data_format)
+    pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
+    th_padding = _preprocess_padding(padding)
+
+    conv_out = T.nnet.separable_conv2d(x, depthwise_kernel, pointwise_kernel,
+                                       num_channels=num_input_channels,
+                                       border_mode=th_padding,
+                                       subsample=strides,
+                                       input_shape=image_shape,
+                                       depthwise_filter_shape=depthwise_kernel_shape,
+                                       pointwise_filter_shape=pointwise_kernel_shape,
+                                       filter_dilation=dilation_rate,
+                                       filter_flip=False)
+    conv_out = _postprocess_conv2d_output(conv_out, x, padding,
+                                          result_kernel_shape, strides, data_format)
+
+    return conv_out
 
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
