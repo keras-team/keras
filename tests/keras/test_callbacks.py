@@ -667,6 +667,7 @@ def test_TensorBoard_convnet(tmpdir):
 @keras_test
 def test_TensorBoard_embedding(tmpdir):
     filepath = str(tmpdir / 'logs')
+    np.random.seed(1337)
 
     words_per_sentence = 10
     chars_per_word = 5
@@ -675,7 +676,6 @@ def test_TensorBoard_embedding(tmpdir):
     rnn_size = 8
 
     def data_gen(n_samples):
-        np.random.seed(1337)
         eye = np.eye(num_classes)
         while True:
             data_X = np.random.randint(1, char_vocab_size + 1,
@@ -686,7 +686,7 @@ def test_TensorBoard_embedding(tmpdir):
     # Embedding in a (nested) Model in a TimeDistributed
     x = Input(shape=(words_per_sentence, chars_per_word,))
     nested_model = Sequential()
-    nested_model.add(Embedding(input_dim=char_vocab_size, output_dim=embed_size,
+    nested_model.add(Embedding(input_dim=char_vocab_size + 1, output_dim=embed_size,
                                input_length=chars_per_word, name='embedding_layer'))
     nested_model.add(GRU(rnn_size))
     y = TimeDistributed(nested_model)(x)
