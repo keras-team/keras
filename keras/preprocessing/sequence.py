@@ -282,10 +282,6 @@ class TimeseriesGenerator(Sequence):
                  batch_size=128):
         self.data = data
         self.targets = targets
-        if not hasattr(self.targets[0], '__len__'):
-            self.output_dim = 1
-        else:
-            self.output_dim = len(self.targets[0])
         self.length = length
         self.sampling_rate = sampling_rate
         self.stride = stride
@@ -313,8 +309,8 @@ class TimeseriesGenerator(Sequence):
 
         samples = np.empty((len(rows),
                             self.length // self.sampling_rate,
-                            self.data.shape[-1]))
-        targets = np.empty((len(rows), self.output_dim,))
+                            *self.data.shape[1:]))
+        targets = np.empty((len(rows), *self.targets.shape[1:]))
         for j, row in enumerate(rows):
             indices = range(rows[j] - self.length, rows[j], self.sampling_rate)
             samples[j] = self.data[indices]
