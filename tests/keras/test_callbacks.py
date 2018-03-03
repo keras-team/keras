@@ -10,7 +10,7 @@ from keras import optimizers
 from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout, add
+from keras.layers import Input, Dense, Dropout, Embedding, GRU, TimeDistributed, add
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
@@ -659,6 +659,75 @@ def test_TensorBoard_convnet(tmpdir):
                         validation_data=(x_test, y_test),
                         callbacks=cbks,
                         verbose=0)
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
+
+@keras_test
+def test_TensorBoard_embedding(tmpdir):
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
+
+    words_per_sentence = 10
+    chars_per_word = 5
+    char_vocab_size = 5
+    embed_size = 8
+    rnn_size = 8
+
+    def data_gen(n_samples):
+        while True:
+            data_X = np.random.randint(1, char_vocab_size+1,
+                size=(n_samples, words_per_sentence, chars_per_word))
+            data_Y = np.eye(num_classes)[np.random.choice(num_classes, n_samples)]
+            yield data_X, data_Y
+
+    # Embedding in a (nested) Model in a TimeDistributed
+    x = Input(shape=(words_per_sentence, chars_per_word,))
+    nested_model = Sequential()
+    nested_model.add(Embedding(input_dim=char_vocab_size, output_dim=embed_size,
+                               input_length=chars_per_word, name='embedding_layer'))
+    nested_model.add(GRU(rnn_size))
+    y = TimeDistributed(nested_model)(x)
+    y = GRU(rnn_size)(y)
+    y = Dense(num_classes, activation='softmax')(y)
+    model = Model(x, y)
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    # we must generate new callbacks for each test, as they aren't stateless
+    def callbacks_factory():
+        return [callbacks.TensorBoard(log_dir=filepath, embeddings_freq=1,
+                                      embeddings_layer_names=['embedding_layer'])]
+
+    train_X, train_Y = next(data_gen(train_samples))
+    test_X, test_Y = next(data_gen(test_samples))
+
+    # fit without validation data
+    model.fit(train_X, train_Y,
+              batch_size=batch_size,
+              callbacks=callbacks_factory(),
+              epochs=2)
+
+    # fit with validation data and accuracy
+    model.fit(train_X, train_Y,
+              batch_size=batch_size,
+              validation_data=(test_X, test_Y),
+              callbacks=callbacks_factory(),
+              epochs=2)
+
+    # fit generator without validation data
+    model.fit_generator(data_gen(batch_size),
+                        steps_per_epoch=10,
+                        callbacks=callbacks_factory(),
+                        epochs=2)
+
+    # fit generator with validation data and accuracy
+    model.fit_generator(data_gen(batch_size),
+                        steps_per_epoch=10,
+                        callbacks=callbacks_factory(),
+                        validation_data=data_gen(batch_size),
+                        validation_steps=10,
+                        epochs=2)
+
     assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
     assert not tmpdir.listdir()
