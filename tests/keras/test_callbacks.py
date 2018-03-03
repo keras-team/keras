@@ -663,6 +663,7 @@ def test_TensorBoard_convnet(tmpdir):
     shutil.rmtree(filepath)
     assert not tmpdir.listdir()
 
+
 @keras_test
 def test_TensorBoard_embedding(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
@@ -676,8 +677,8 @@ def test_TensorBoard_embedding(tmpdir):
 
     def data_gen(n_samples):
         while True:
-            data_X = np.random.randint(1, char_vocab_size+1,
-                size=(n_samples, words_per_sentence, chars_per_word))
+            data_X = np.random.randint(1, char_vocab_size + 1,
+                                       size=(n_samples, words_per_sentence, chars_per_word))
             data_Y = np.eye(num_classes)[np.random.choice(num_classes, n_samples)]
             yield data_X, data_Y
 
