@@ -298,10 +298,10 @@ class TimeseriesGenerator(Sequence):
             (self.end_index - self.start_index) /
             (self.batch_size * self.stride)))
 
-    def _empty_batch(self, n_rows):
-        samples_shape = [n_rows, self.length // self.sampling_rate]
+    def _empty_batch(self, num_rows):
+        samples_shape = [num_rows, self.length // self.sampling_rate]
         samples_shape.extend(self.data.shape[1:])
-        targets_shape = [n_rows]
+        targets_shape = [num_rows]
         targets_shape.extend(self.targets.shape[1:])
         return np.empty(samples_shape), np.empty(targets_shape)
 
