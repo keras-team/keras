@@ -1,6 +1,7 @@
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
+import scipy.signal as signal
 import scipy.sparse as sparse
 import warnings
 from keras.utils.test_utils import keras_test
@@ -99,6 +100,7 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     assert_value_equality = kwargs.pop('assert_value_equality', True)
     assert_value_with_ref = kwargs.pop('assert_value_with_ref', None)
     cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
+    return_results = kwargs.pop('return_results', False)
 
     if shape_or_val:
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
@@ -115,6 +117,12 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
             z = k.eval(getattr(k, function_name)(x_shape_or_val, **kwargs))
         z_list += [z]
 
+    if return_results:
+        if len(z_list) > 1:
+            return z_list
+        else:
+            return z_list[0]
+
     if assert_value_with_ref is not None:
         assert_list_with_ref(z_list, assert_value_with_ref)
     else:
@@ -129,6 +137,7 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
     concat_args = kwargs.pop('concat_args', False)
     cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
     cntk_two_dynamicity = kwargs.pop('cntk_two_dynamicity', False)
+    return_results = kwargs.pop('return_results', False)
 
     if shape_or_val:
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
@@ -157,6 +166,12 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
                 x_shape_or_val, y_shape_or_val, **kwargs))
         z_list += [z]
 
+    if return_results:
+        if len(z_list) > 1:
+            return z_list
+        else:
+            return z_list[0]
+
     assert_list_pairwise(z_list)
     assert_list_keras_shape(z_list)
 
@@ -175,6 +190,44 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
         z_list += [z]
 
     assert_list_pairwise(z_list)
+
+
+def ref_conv(x, w, padding, data_format):
+    if x.ndim == 3:
+        w = np.flipud(w)
+        w = np.transpose(w, (1, 2, 0))
+        if data_format == 'channels_last':
+            x = np.transpose(x, (0, 2, 1))
+    elif x.ndim == 4:
+        w = np.fliplr(np.flipud(w))
+        w = np.transpose(w, (2, 3, 0, 1))
+        if data_format == 'channels_last':
+            x = np.transpose(x, (0, 3, 1, 2))
+    else:
+        w = np.flip(np.fliplr(np.flipud(w)), axis=2)
+        w = np.transpose(w, (3, 4, 0, 1, 2))
+        if data_format == 'channels_last':
+            x = np.transpose(x, (0, 4, 1, 2, 3))
+
+    y = []
+    for i in range(x.shape[0]):
+        _y = []
+        for j in range(w.shape[1]):
+            __y = []
+            for k in range(w.shape[0]):
+                __y.append(signal.convolve(x[i, k], w[k, j], mode=padding))
+            _y.append(np.sum(np.stack(__y, axis=-1), axis=-1))
+        y.append(_y)
+    y = np.array(y)
+
+    if data_format == 'channels_last':
+        if y.ndim == 3:
+            y = np.transpose(y, (0, 2, 1))
+        elif y.ndim == 4:
+            y = np.transpose(y, (0, 2, 3, 1))
+        else:
+            y = np.transpose(y, (0, 2, 3, 4, 1))
+    return y
 
 
 class TestBackend(object):
@@ -784,7 +837,30 @@ class TestBackend(object):
                       for b in [KTH, KTF]]
             assert_list_pairwise(z_list)
 
-    def test_conv1d(self):
+    @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [
+        ('conv1d', (2, 8, 2), (3, 2, 3), 'same', 'channels_last'),
+        ('conv1d', (1, 8, 2), (3, 2, 3), 'valid', 'channels_last'),
+        ('conv2d', (2, 3, 4, 5), (3, 3, 3, 2), 'same', 'channels_first'),
+        ('conv2d', (2, 3, 5, 6), (4, 3, 3, 4), 'valid', 'channels_first'),
+        ('conv2d', (1, 6, 5, 3), (3, 4, 3, 2), 'valid', 'channels_last'),
+        ('conv2d', (1, 7, 6, 3), (3, 3, 3, 4), 'same', 'channels_last'),
+        ('conv3d', (2, 3, 4, 5, 4), (3, 3, 3, 3, 4), 'same', 'channels_first'),
+        ('conv3d', (2, 3, 5, 4, 6), (3, 2, 4, 3, 4), 'valid', 'channels_first'),
+        ('conv3d', (1, 2, 2, 2, 1), (2, 2, 2, 1, 1), 'valid', 'channels_last'),
+        ('conv3d', (1, 3, 5, 4, 2), (3, 3, 3, 2, 3), 'same', 'channels_last'),
+    ])
+    def test_conv(self, op, input_shape, kernel_shape, padding, data_format):
+        k = K.backend()
+        _, x = parse_shape_or_val(input_shape)
+        _, w = parse_shape_or_val(kernel_shape)
+        y1 = ref_conv(x, w, padding, data_format)
+        y2 = check_two_tensor_operation(
+            op, x, w, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
+            padding=padding, data_format=data_format,
+            cntk_dynamicity=True, return_results=True)
+        assert_allclose(y1, y2, atol=1e-05)
+
+    def legacy_test_conv1d(self):
         # channels_last input shape: (n, length, input_depth)
         input_shape = (4, 8, 2)
         kernel_shape = (3, 2, 3)
@@ -794,7 +870,7 @@ class TestBackend(object):
                                        strides=strides,
                                        data_format='channels_last')
 
-    def test_conv2d(self):
+    def legacy_test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -817,7 +893,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def test_conv3d(self):
+    def legacy_test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
         # TH kernel shape: (depth, input_depth, x, y, z)
