@@ -665,6 +665,8 @@ def test_TensorBoard_convnet(tmpdir):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_embedding(tmpdir):
     filepath = str(tmpdir / 'logs')
     np.random.seed(1337)
