@@ -159,6 +159,19 @@ def test_TimeseriesGenerator():
     assert (np.allclose(data_gen[0][1],
                         np.array([[20], [21]])))
 
+    data = np.array([np.random.random_sample((1, 2, 3, 4)) for i in range(50)])
+    targets = np.array([np.random.random_sample((3, 2, 1)) for i in range(50)])
+    data_gen = TimeseriesGenerator(data, targets,
+                                   length=10, sampling_rate=2,
+                                   start_index=10, end_index=30,
+                                   batch_size=2)
+
+    assert len(data_gen) == 5
+    assert np.allclose(data_gen[0][0], np.array(
+        [np.array(data[10:19:2]), np.array(data[11:20:2])]))
+    assert (np.allclose(data_gen[0][1],
+                        np.array([targets[20], targets[21]])))
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
