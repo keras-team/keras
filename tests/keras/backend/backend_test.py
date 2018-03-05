@@ -230,6 +230,44 @@ def ref_conv(x, w, padding, data_format):
     return y
 
 
+def ref_rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
+    w_i, w_h, w_o = w
+    h = []
+    o = []
+
+    if go_backwards:
+        t_list = range(x.shape[1]-1, -1, -1)
+    else:
+        t_list = range(x.shape[1])
+
+    if mask is not None:
+        np_mask = K.eval(mask)
+    else:
+        np_mask = None
+
+    for (i, t) in enumerate(t_list):
+        h_t = np.dot(x[:, t], w_i)
+
+        if w_h is not None:
+            prev = h[i-1] if i > 0 else init
+            h_t1 = np.dot(prev, w_h)
+            if np_mask is not None:
+                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
+        else:
+            h_t1 = 0
+
+        o_t = h_t + h_t1
+        if w_o is not None:
+            o_t = np.dot(o_t, w_o)
+        o.append(o_t)
+
+        if np_mask is not None:
+            h_t = h_t * np_mask[:, t].reshape(-1, 1)
+        h.append(h_t + h_t1)
+
+    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
+
+
 class TestBackend(object):
 
     def test_is_keras_tensor(self):
@@ -574,6 +612,104 @@ class TestBackend(object):
         output_dim = 3
         timesteps = 6
 
+        _, x = parse_shape_or_val((num_samples, timesteps, input_dim))
+        _, h0 = parse_shape_or_val((num_samples, output_dim))
+        _, wi = parse_shape_or_val((input_dim, output_dim))
+        _, wh = parse_shape_or_val((output_dim, output_dim))
+        mask = np.random.randint(2, size=(num_samples, timesteps))
+
+        x_k = K.variable(x)
+        h0_k = [K.variable(h0)]
+        wi_k = K.variable(wi)
+        wh_k = K.variable(wh)
+        mask_k = K.variable(mask)
+
+        def rnn_fn(x_k, h_k):
+            assert len(h_k) == 1
+            y_k = K.dot(x_k, wi_k) + K.dot(h_k[0], wh_k)
+            return y_k, [y_k]
+
+        # test default setup
+        last_output_list = []
+        outputs_list = []
+        state_list = []
+
+        kwargs_list = [
+            {'go_backwards': False, 'mask': None},
+            {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
+            {'go_backwards': True, 'mask': None},
+            {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
+            {'go_backwards': False, 'mask': mask_k},
+            {'go_backwards': False, 'mask': mask_k, 'unroll': True, 'input_length': timesteps},
+        ]
+
+        for (i, kwargs) in enumerate(kwargs_list):
+            last_y1, y1, h1 = ref_rnn(x, [wi, wh, None], h0, **kwargs)
+            last_y2, y2, h2 = K.rnn(rnn_fn, x_k, h0_k, **kwargs)
+
+            assert len(h2) == 1
+            last_y2 = K.eval(last_y2)
+            y2 = K.eval(y2)
+            h1 = h1[:, -1]
+            h2 = K.eval(h2[0])
+
+            if kwargs['mask'] is not None:
+                last_y1 = last_y1 * np.expand_dims(mask[:, -1], -1)
+                last_y2 = last_y2 * np.expand_dims(mask[:, -1], -1)
+                y1 = y1 * np.expand_dims(mask, -1)
+                y2 = y2 * np.expand_dims(mask, -1)
+                h1 = h1 * np.expand_dims(mask[:, -1], -1)
+                h2 = h2 * np.expand_dims(mask[:, -1], -1)
+
+            last_output_list.append(last_y2)
+            outputs_list.append(y2)
+            state_list.append(h2)
+
+            if i % 2 == 0:
+                assert_allclose(last_y1, last_y2, atol=1e-05)
+                assert_allclose(y1, y2, atol=1e-05)
+                assert_allclose(h1, h2, atol=1e-05)
+            else:
+                assert_allclose(last_output_list[i-1], last_output_list[i], atol=1e-05)
+                assert_allclose(outputs_list[i-1], outputs_list[i], atol=1e-05)
+                assert_allclose(state_list[i-1], state_list[i], atol=1e-05)
+
+    def test_rnn_no_states(self):
+        # implement a simple RNN without states
+        input_dim = 8
+        output_dim = 4
+        timesteps = 5
+
+        _, x = parse_shape_or_val((32, timesteps, input_dim))
+        _, wi = parse_shape_or_val((input_dim, output_dim))
+
+        x_k = K.variable(x)
+        wi_k = K.variable(wi)
+
+        def rnn_fn(x_k, h_k):
+            assert len(h_k) == 0
+            y_k = K.dot(x_k, wi_k)
+            return y_k, []
+
+        last_y1, y1, h1 = ref_rnn(x, [wi, None, None], None,
+                                  go_backwards=False, mask=None)
+        last_y2, y2, h2 = K.rnn(rnn_fn, x_k, [],
+                                go_backwards=False, mask=None)
+
+        assert len(h2) == 0
+        last_y2 = K.eval(last_y2)
+        y2 = K.eval(y2)
+
+        assert_allclose(last_y1, last_y2, atol=1e-05)
+        assert_allclose(y1, y2, atol=1e-05)
+
+    def legacy_test_rnn(self):
+        # implement a simple RNN
+        num_samples = 4
+        input_dim = 5
+        output_dim = 3
+        timesteps = 6
+
         input_val = np.random.random((num_samples, timesteps, input_dim)).astype(np.float32)
         init_state_val = np.random.random((num_samples, output_dim)).astype(np.float32)
         W_i_val = np.random.random((input_dim, output_dim)).astype(np.float32)
@@ -662,7 +798,7 @@ class TestBackend(object):
         for m_s, u_m_s, k in zip(state_list[4], state_list[5], BACKENDS):
             assert_allclose(m_s, u_m_s, atol=1e-04)
 
-    def test_rnn_no_states(self):
+    def legacy_test_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
         output_dim = 4
