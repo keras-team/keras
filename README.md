@@ -120,9 +120,9 @@ Before installing Keras, please install one of its backend engines: TensorFlow, 
 
 You may also consider installing the following **optional dependencies**:
 
-- cuDNN (recommended if you plan on running Keras on GPU).
-- HDF5 and h5py (required if you plan on saving Keras models to disk).
-- graphviz and pydot (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
+- [cuDNN](http://docs.nvidia.com/deeplearning/sdk/cudnn-install/index.html) (recommended if you plan on running Keras on GPU).
+- HDF5 and [h5py](http://docs.h5py.org/en/latest/build.html) (required if you plan on saving Keras models to disk).
+- [graphviz](https://www.graphviz.org/download/) and [pydot](https://github.com/erocarrera/pydot) (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
 
 Then, you can install Keras itself. There are two ways to install Keras:
 
