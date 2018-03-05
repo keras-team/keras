@@ -236,7 +236,7 @@ def ref_rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_lengt
     o = []
 
     if go_backwards:
-        t_list = range(x.shape[1]-1, -1, -1)
+        t_list = range(x.shape[1] - 1, -1, -1)
     else:
         t_list = range(x.shape[1])
 
@@ -249,7 +249,7 @@ def ref_rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_lengt
         h_t = np.dot(x[:, t], w_i)
 
         if w_h is not None:
-            prev = h[i-1] if i > 0 else init
+            prev = h[i - 1] if i > 0 else init
             h_t1 = np.dot(prev, w_h)
             if np_mask is not None:
                 h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
@@ -670,9 +670,9 @@ class TestBackend(object):
                 assert_allclose(y1, y2, atol=1e-05)
                 assert_allclose(h1, h2, atol=1e-05)
             else:
-                assert_allclose(last_output_list[i-1], last_output_list[i], atol=1e-05)
-                assert_allclose(outputs_list[i-1], outputs_list[i], atol=1e-05)
-                assert_allclose(state_list[i-1], state_list[i], atol=1e-05)
+                assert_allclose(last_output_list[i - 1], last_output_list[i], atol=1e-05)
+                assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
+                assert_allclose(state_list[i - 1], state_list[i], atol=1e-05)
 
     def test_rnn_no_states(self):
         # implement a simple RNN without states
