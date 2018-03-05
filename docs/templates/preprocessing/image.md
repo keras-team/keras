@@ -1,5 +1,5 @@
 
-## ImageDataGenerator
+### ImageDataGenerator
 
 ```python
 keras.preprocessing.image.ImageDataGenerator(featurewise_center=False,

@@ -1,5 +1,5 @@
 
-## text_to_word_sequence
+### text_to_word_sequence
 
 ```python
 keras.preprocessing.text.text_to_word_sequence(text,
@@ -20,7 +20,7 @@ Split a sentence into a list of words.
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
 
-## one_hot
+### one_hot
 
 ```python
 keras.preprocessing.text.one_hot(text,
@@ -45,7 +45,7 @@ This is a wrapper to the `hashing_trick` function using `hash` as the hashing fu
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
     
-## hashing_trick
+### hashing_trick
 
 ```python
 keras.preprocessing.text.hashing_trick(text, 
@@ -74,7 +74,7 @@ Converts a text to a sequence of indices in a fixed-size hashing space
     - __lower__: boolean. Whether to set the text to lowercase.
     - __split__: str. Separator for word splitting.
 
-## Tokenizer
+### Tokenizer
 
 ```python
 keras.preprocessing.text.Tokenizer(num_words=None,
