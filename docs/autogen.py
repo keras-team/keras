@@ -80,6 +80,7 @@ from keras import losses
 from keras import metrics
 from keras import backend
 from keras import activations
+from keras import preprocessing
 
 import sys
 if sys.version[0] == '2':
@@ -246,6 +247,17 @@ PAGES = [
             layers.maximum,
             layers.concatenate,
             layers.dot,
+        ]
+    },
+    {
+        'page': 'preprocessing/sequence.md',
+        'functions': [
+            preprocessing.sequence.pad_sequences,
+            preprocessing.sequence.skipgrams,
+            preprocessing.sequence.make_sampling_table,
+        ],
+        'classes': [
+            preprocessing.sequence.TimeseriesGenerator,
         ]
     },
     {

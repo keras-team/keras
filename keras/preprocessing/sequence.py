@@ -14,14 +14,23 @@ from ..utils.data_utils import Sequence
 
 def pad_sequences(sequences, maxlen=None, dtype='int32',
                   padding='pre', truncating='pre', value=0.):
-    """Pads each sequence to the same length (length of the longest sequence).
+    """Pads sequences to the same length.
 
-    If maxlen is provided, any sequence longer
-    than maxlen is truncated to maxlen.
-    Truncation happens off either the beginning (default) or
-    the end of the sequence.
+    This function transforms a list of
+    `num_samples` sequences (lists of integers)
+    into a 2D Numpy array of shape `(num_samples, num_timesteps)`.
+    `num_timesteps` is either the `maxlen` argument if provided,
+    or the length of the longest sequence otherwise.
 
-    Supports post-padding and pre-padding (default).
+    Sequences that are shorter than `num_timesteps`
+    are padded with `value` at the end.
+
+    Sequences longer than `num_timesteps` are truncated
+    so that they fit the desired length.
+    The position where padding or truncation happens is determined by
+    the arguments `padding` and `truncating`, respectively.
+
+    Pre-padding is the default.
 
     # Arguments
         sequences: List of lists, where each element is a sequence.
@@ -93,17 +102,21 @@ def pad_sequences(sequences, maxlen=None, dtype='int32',
 def make_sampling_table(size, sampling_factor=1e-5):
     """Generates a word rank-based probabilistic sampling table.
 
-    This generates an array where the ith element
-    is the probability that a word of rank i would be sampled,
-    according to the sampling distribution used in word2vec.
+    Used for generating the `sampling_table` argument for `skipgrams`.
+    `sampling_table[i]` is the probability of sampling
+    the word i-th most common word in a dataset
+    (more common words should be sampled less frequently, for balance).
 
-    The word2vec formula is:
-        `p(word) = min(1, sqrt(word.frequency/sampling_factor) / (word.frequency/sampling_factor))`
+    The sampling probabilities are generated according
+    to the sampling distribution used in word2vec:
+
+    `p(word) = min(1, sqrt(word_frequency / sampling_factor) / (word_frequency / sampling_factor))`
 
     We assume that the word frequencies follow Zipf's law (s=1) to derive
     a numerical approximation of frequency(rank):
-       `frequency(rank) ~ 1/(rank * (log(rank) + gamma) + 1/2 - 1/(12*rank))`
-        where `gamma` is the Euler-Mascheroni constant.
+
+    `frequency(rank) ~ 1/(rank * (log(rank) + gamma) + 1/2 - 1/(12*rank))`
+    where `gamma` is the Euler-Mascheroni constant.
 
     # Arguments
         size: Int, number of possible words to sample.
@@ -127,11 +140,15 @@ def skipgrams(sequence, vocabulary_size,
               categorical=False, sampling_table=None, seed=None):
     """Generates skipgram word pairs.
 
-    Takes a sequence (list of indexes of words),
-    returns couples of samples `[word_index, other_word index]`
-    and labels (1s or 0s),
-    where `label == 1` if 'other_word' belongs to the context of 'word',
-    and `label == 0` if 'other_word' is randomly sampled.
+    This function transforms a sequence of word indexes (list of integers)
+    into tuples of words of the form:
+
+    - (word, word in the same window), with label 1 (positive samples).
+    - (word, random word from the vocabulary), with label 0 (negative samples).
+
+    Read more about Skipgram in this gnomic paper by Mikolov et al.:
+    [Efficient Estimation of Word Representations in
+    Vector Space](http://arxiv.org/pdf/1301.3781v3.pdf)
 
     # Arguments
         sequence: A word sequence (sentence), encoded as a list
@@ -262,7 +279,7 @@ class TimeseriesGenerator(Sequence):
             (except maybe the last one).
 
     # Returns
-        A `Sequence` instance.
+        A [Sequence](/utils/#sequence) instance.
 
     # Examples
 
