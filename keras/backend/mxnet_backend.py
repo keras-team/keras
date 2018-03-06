@@ -16,11 +16,6 @@ _MODEL = None
 _REENTRY = False
 NAME_SCOPE_STACK = []
 
-# MXNet requires 'channels_first' format for efficient performance
-if image_data_format() == 'channels_last':
-    warnings.warn('MXNet Backend performs best with `channels_first` format. Using `channels_last` will '
-                  'significantly reduce performance due to the Transpose operations.', stacklevel=2)
-
 
 class name_scope(object):
     def __init__(self, name):
@@ -2915,7 +2910,54 @@ def conv1d(x, kernel, strides=1, padding='valid',
     # Returns
         A tensor, result of 1D convolution.
     """
-    raise NotImplementedError('MXNet Backend: conv1d is not supported yet.')
+    if data_format is None:
+        data_format = image_data_format()
+    _validate_data_format(data_format)
+
+    # Causal requires temporal padding.
+    # MXNet backend does not support temporal padding on 3D tensor.
+    if padding is 'causal':
+        raise ValueError('MXNet Backend: conv1d does not support "causal" padding mode')
+
+    if padding not in {'same', 'valid'}:
+        raise ValueError('`padding` should be either `same` or `valid`.')
+
+    if hasattr(x, '_keras_shape'):
+        shape = x._keras_shape
+    else:
+        shape = None
+
+    if data_format == 'channels_last':
+        # X original shape (batch, length, input_dim)
+        # Add a dimension to X to Make it (batch, length, 1, input_dim)
+        x = expand_dims(x, axis=2)
+        # update x._keras_shape
+        if shape is not None:
+            x._keras_shape = (shape[0], shape[1], 1, shape[2])
+    elif data_format == 'channels_first':
+        # X original shape (batch, input_dim, length)
+        # Add a dimension to X to make it (batch, input_dim, length, 1)
+        x = expand_dims(x, axis=3)
+        if shape is not None:
+            x._keras_shape = (shape[0], shape[1], shape[2], 1)
+
+    # update dilation rate, strides
+    dilation_rate = (dilation_rate, 1)
+    strides = (strides, 1)
+    # add dim to kernel (always same format independently of data_format)
+    # i.e. (rows, 1, input_depth, depth)
+    kernel = expand_dims(kernel, axis=1)
+
+    output = _convnd(x, kernel, name='conv1d', strides=strides, filter_dilation=dilation_rate,
+                   padding_mode=padding, data_format=data_format)
+
+    # Remove added extra dimension
+    # remove added dim
+    if data_format == 'channels_last':
+        output = squeeze(output, axis=2)
+    else:
+        output = squeeze(output, axis=3)
+    return output
 
 
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
@@ -3915,7 +3957,6 @@ def _preprocess_convnd_input(data_var, data_format):
         axes = list(range(ndim(data_var)))
         axes.insert(1, axes.pop(-1))  # make it channels_first format
         data_var = KerasSymbol(mx.sym.transpose(data=data_var.symbol, axes=axes))
-
     return data_var
 
 
@@ -3930,7 +3971,7 @@ def _postprocess_convnd_output(x, data_format):
 
 
 @keras_mxnet_symbol
-def _preprocess_convnd_kernel(kernel, data_format):
+def _preprocess_convnd_kernel(kernel):
     # Kernel is always provided in TF kernel shape:
     #   2-D: (rows, cols, input_depth, depth)
     #   3-D: (kernel_depth, kernel_rows, kernel_cols, input_depth, depth)
@@ -3942,7 +3983,6 @@ def _preprocess_convnd_kernel(kernel, data_format):
         kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(4, 3, 0, 1, 2)))
     elif len(kernel.shape) > 3:
         kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
-
     return kernel
 
 
@@ -4001,7 +4041,7 @@ def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid'
 
     # Handle Data Format
     x = _preprocess_convnd_input(x, data_format)
-    kernel = _preprocess_convnd_kernel(kernel, data_format)
+    kernel = _preprocess_convnd_kernel(kernel)
 
     # We have already converted kernel to match MXNet required shape:
     # (depth, input_depth, rows, cols)
