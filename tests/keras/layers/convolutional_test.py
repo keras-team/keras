@@ -20,7 +20,7 @@ else:
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
-                    reason='cntk/mxnet do not support dilated conv')
+                    reason='cntk/mxnet do not support Causal padding in conv1d')
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -65,8 +65,6 @@ def test_causal_dilated_conv():
                )
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason='MXNet backend does not support conv1d yet.')
 @keras_test
 def test_conv_1d():
     batch_size = 2

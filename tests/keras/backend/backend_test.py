@@ -807,14 +807,14 @@ class TestBackend(object):
         # MXNet backend does not support conv1d yet.
         for strides in [1, 2]:
             check_two_tensor_operation('conv1d', input_shape, kernel_shape,
-                                       BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
+                                       BACKENDS, cntk_dynamicity=True,
                                        strides=strides,
                                        data_format='channels_last')
 
         xval = np.random.random(input_shape)
         kernel_val = np.random.random(kernel_shape) - 0.5
         # Test invalid use cases
-        for k in BACKENDS_WITHOUT_MXNET:
+        for k in BACKENDS:
             with pytest.raises(ValueError):
                 k.conv1d(k.variable(xval), k.variable(kernel_val), data_format='channels_middle')
 
