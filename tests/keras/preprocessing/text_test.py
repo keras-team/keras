@@ -73,9 +73,19 @@ def test_text_to_word_sequence():
     assert text_to_word_sequence(text) == ['hello', 'world']
 
 
+def test_text_to_word_sequence_multichar_split():
+    text = 'hello!stop?world!'
+    assert text_to_word_sequence(text, split='stop') == ['hello', 'world']
+
+
 def test_text_to_word_sequence_unicode():
     text = u'ali! veli? kırk dokuz elli'
     assert text_to_word_sequence(text) == [u'ali', u'veli', u'kırk', u'dokuz', u'elli']
+
+
+def test_text_to_word_sequence_unicode_multichar_split():
+    text = u'ali!stopveli?stopkırkstopdokuzstopelli'
+    assert text_to_word_sequence(text, split='stop') == [u'ali', u'veli', u'kırk', u'dokuz', u'elli']
 
 
 def test_tokenizer_unicode():
