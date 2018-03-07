@@ -1,6 +1,7 @@
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
+import scipy.signal as signal
 import scipy.sparse as sparse
 import warnings
 from keras.utils.test_utils import keras_test
@@ -99,6 +100,7 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     assert_value_equality = kwargs.pop('assert_value_equality', True)
     assert_value_with_ref = kwargs.pop('assert_value_with_ref', None)
     cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
+    return_results = kwargs.pop('return_results', False)
 
     if shape_or_val:
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
@@ -115,6 +117,12 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
             z = k.eval(getattr(k, function_name)(x_shape_or_val, **kwargs))
         z_list += [z]
 
+    if return_results:
+        if len(z_list) > 1:
+            return z_list
+        else:
+            return z_list[0]
+
     if assert_value_with_ref is not None:
         assert_list_with_ref(z_list, assert_value_with_ref)
     else:
@@ -129,6 +137,7 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
     concat_args = kwargs.pop('concat_args', False)
     cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
     cntk_two_dynamicity = kwargs.pop('cntk_two_dynamicity', False)
+    return_results = kwargs.pop('return_results', False)
 
     if shape_or_val:
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
@@ -157,6 +166,12 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
                 x_shape_or_val, y_shape_or_val, **kwargs))
         z_list += [z]
 
+    if return_results:
+        if len(z_list) > 1:
+            return z_list
+        else:
+            return z_list[0]
+
     assert_list_pairwise(z_list)
     assert_list_keras_shape(z_list)
 
@@ -175,6 +190,114 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
         z_list += [z]
 
     assert_list_pairwise(z_list)
+
+
+def normalize_ref_conv(func):
+    def wrapper(*args):
+        x = args[0]
+        w = args[1]
+        if x.ndim == 3:
+            w = np.flipud(w)
+            w = np.transpose(w, (1, 2, 0))
+            if args[3] == 'channels_last':
+                x = np.transpose(x, (0, 2, 1))
+        elif x.ndim == 4:
+            w = np.fliplr(np.flipud(w))
+            w = np.transpose(w, (2, 3, 0, 1))
+            if args[3] == 'channels_last':
+                x = np.transpose(x, (0, 3, 1, 2))
+        else:
+            w = np.flip(np.fliplr(np.flipud(w)), axis=2)
+            w = np.transpose(w, (3, 4, 0, 1, 2))
+            if args[3] == 'channels_last':
+                x = np.transpose(x, (0, 4, 1, 2, 3))
+
+        y = func(x, w, args[2], args[3])
+
+        if args[3] == 'channels_last':
+            if y.ndim == 3:
+                y = np.transpose(y, (0, 2, 1))
+            elif y.ndim == 4:
+                y = np.transpose(y, (0, 2, 3, 1))
+            else:
+                y = np.transpose(y, (0, 2, 3, 4, 1))
+
+        return y
+
+    return wrapper
+
+
+@normalize_ref_conv
+def ref_conv(x, w, padding, data_format):
+    y = []
+    for i in range(x.shape[0]):
+        _y = []
+        for j in range(w.shape[1]):
+            __y = []
+            for k in range(w.shape[0]):
+                __y.append(signal.convolve(x[i, k], w[k, j], mode=padding))
+            _y.append(np.sum(np.stack(__y, axis=-1), axis=-1))
+        y.append(_y)
+    y = np.array(y)
+    return y
+
+
+@normalize_ref_conv
+def ref_depthwise_conv(x, w, padding, data_format):
+    y = []
+    for i in range(x.shape[0]):
+        _y = []
+        for j in range(w.shape[0]):
+            __y = []
+            for k in range(w.shape[1]):
+                __y.append(signal.convolve(x[i, j], w[j, k], mode=padding))
+            _y.append(np.stack(__y, axis=0))
+        y.append(np.concatenate(_y, axis=0))
+    y = np.array(y)
+    return y
+
+
+def ref_separable_conv(x, w1, w2, padding, data_format):
+    x2 = ref_depthwise_conv(x, w1, padding, data_format)
+    return ref_conv(x2, w2, padding, data_format)
+
+
+def ref_rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
+    w_i, w_h, w_o = w
+    h = []
+    o = []
+
+    if go_backwards:
+        t_list = range(x.shape[1] - 1, -1, -1)
+    else:
+        t_list = range(x.shape[1])
+
+    if mask is not None:
+        np_mask = K.eval(mask)
+    else:
+        np_mask = None
+
+    for (i, t) in enumerate(t_list):
+        h_t = np.dot(x[:, t], w_i)
+
+        if w_h is not None:
+            prev = h[i - 1] if i > 0 else init
+            h_t1 = np.dot(prev, w_h)
+            if np_mask is not None:
+                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
+        else:
+            h_t1 = 0
+
+        o_t = h_t + h_t1
+        if w_o is not None:
+            o_t = np.dot(o_t, w_o)
+        o.append(o_t)
+
+        if np_mask is not None:
+            h_t = h_t * np_mask[:, t].reshape(-1, 1)
+        h.append(h_t + h_t1)
+
+    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
 
 
 class TestBackend(object):
@@ -521,6 +644,104 @@ class TestBackend(object):
         output_dim = 3
         timesteps = 6
 
+        _, x = parse_shape_or_val((num_samples, timesteps, input_dim))
+        _, h0 = parse_shape_or_val((num_samples, output_dim))
+        _, wi = parse_shape_or_val((input_dim, output_dim))
+        _, wh = parse_shape_or_val((output_dim, output_dim))
+        mask = np.random.randint(2, size=(num_samples, timesteps))
+
+        x_k = K.variable(x)
+        h0_k = [K.variable(h0)]
+        wi_k = K.variable(wi)
+        wh_k = K.variable(wh)
+        mask_k = K.variable(mask)
+
+        def rnn_fn(x_k, h_k):
+            assert len(h_k) == 1
+            y_k = K.dot(x_k, wi_k) + K.dot(h_k[0], wh_k)
+            return y_k, [y_k]
+
+        # test default setup
+        last_output_list = []
+        outputs_list = []
+        state_list = []
+
+        kwargs_list = [
+            {'go_backwards': False, 'mask': None},
+            {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
+            {'go_backwards': True, 'mask': None},
+            {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
+            {'go_backwards': False, 'mask': mask_k},
+            {'go_backwards': False, 'mask': mask_k, 'unroll': True, 'input_length': timesteps},
+        ]
+
+        for (i, kwargs) in enumerate(kwargs_list):
+            last_y1, y1, h1 = ref_rnn(x, [wi, wh, None], h0, **kwargs)
+            last_y2, y2, h2 = K.rnn(rnn_fn, x_k, h0_k, **kwargs)
+
+            assert len(h2) == 1
+            last_y2 = K.eval(last_y2)
+            y2 = K.eval(y2)
+            h1 = h1[:, -1]
+            h2 = K.eval(h2[0])
+
+            if kwargs['mask'] is not None:
+                last_y1 = last_y1 * np.expand_dims(mask[:, -1], -1)
+                last_y2 = last_y2 * np.expand_dims(mask[:, -1], -1)
+                y1 = y1 * np.expand_dims(mask, -1)
+                y2 = y2 * np.expand_dims(mask, -1)
+                h1 = h1 * np.expand_dims(mask[:, -1], -1)
+                h2 = h2 * np.expand_dims(mask[:, -1], -1)
+
+            last_output_list.append(last_y2)
+            outputs_list.append(y2)
+            state_list.append(h2)
+
+            if i % 2 == 0:
+                assert_allclose(last_y1, last_y2, atol=1e-05)
+                assert_allclose(y1, y2, atol=1e-05)
+                assert_allclose(h1, h2, atol=1e-05)
+            else:
+                assert_allclose(last_output_list[i - 1], last_output_list[i], atol=1e-05)
+                assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
+                assert_allclose(state_list[i - 1], state_list[i], atol=1e-05)
+
+    def test_rnn_no_states(self):
+        # implement a simple RNN without states
+        input_dim = 8
+        output_dim = 4
+        timesteps = 5
+
+        _, x = parse_shape_or_val((32, timesteps, input_dim))
+        _, wi = parse_shape_or_val((input_dim, output_dim))
+
+        x_k = K.variable(x)
+        wi_k = K.variable(wi)
+
+        def rnn_fn(x_k, h_k):
+            assert len(h_k) == 0
+            y_k = K.dot(x_k, wi_k)
+            return y_k, []
+
+        last_y1, y1, h1 = ref_rnn(x, [wi, None, None], None,
+                                  go_backwards=False, mask=None)
+        last_y2, y2, h2 = K.rnn(rnn_fn, x_k, [],
+                                go_backwards=False, mask=None)
+
+        assert len(h2) == 0
+        last_y2 = K.eval(last_y2)
+        y2 = K.eval(y2)
+
+        assert_allclose(last_y1, last_y2, atol=1e-05)
+        assert_allclose(y1, y2, atol=1e-05)
+
+    def legacy_test_rnn(self):
+        # implement a simple RNN
+        num_samples = 4
+        input_dim = 5
+        output_dim = 3
+        timesteps = 6
+
         input_val = np.random.random((num_samples, timesteps, input_dim)).astype(np.float32)
         init_state_val = np.random.random((num_samples, output_dim)).astype(np.float32)
         W_i_val = np.random.random((input_dim, output_dim)).astype(np.float32)
@@ -609,7 +830,7 @@ class TestBackend(object):
         for m_s, u_m_s, k in zip(state_list[4], state_list[5], BACKENDS):
             assert_allclose(m_s, u_m_s, atol=1e-04)
 
-    def test_rnn_no_states(self):
+    def legacy_test_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
         output_dim = 4
@@ -784,7 +1005,47 @@ class TestBackend(object):
                       for b in [KTH, KTF]]
             assert_list_pairwise(z_list)
 
-    def test_conv1d(self):
+    @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [
+        ('conv1d', (2, 8, 2), (3, 2, 3), 'same', 'channels_last'),
+        ('conv1d', (1, 8, 2), (3, 2, 3), 'valid', 'channels_last'),
+        ('conv2d', (2, 3, 4, 5), (3, 3, 3, 2), 'same', 'channels_first'),
+        ('conv2d', (2, 3, 5, 6), (4, 3, 3, 4), 'valid', 'channels_first'),
+        ('conv2d', (1, 6, 5, 3), (3, 4, 3, 2), 'valid', 'channels_last'),
+        ('conv2d', (1, 7, 6, 3), (3, 3, 3, 4), 'same', 'channels_last'),
+        ('conv3d', (2, 3, 4, 5, 4), (3, 3, 3, 3, 4), 'same', 'channels_first'),
+        ('conv3d', (2, 3, 5, 4, 6), (3, 2, 4, 3, 4), 'valid', 'channels_first'),
+        ('conv3d', (1, 2, 2, 2, 1), (2, 2, 2, 1, 1), 'valid', 'channels_last'),
+        ('conv3d', (1, 3, 5, 4, 2), (3, 3, 3, 2, 3), 'same', 'channels_last'),
+    ])
+    def test_conv(self, op, input_shape, kernel_shape, padding, data_format):
+        k = K.backend()
+        _, x = parse_shape_or_val(input_shape)
+        _, w = parse_shape_or_val(kernel_shape)
+        y1 = ref_conv(x, w, padding, data_format)
+        y2 = check_two_tensor_operation(
+            op, x, w, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
+            padding=padding, data_format=data_format,
+            cntk_dynamicity=True, return_results=True)
+        assert_allclose(y1, y2, atol=1e-05)
+
+    @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [
+        ('depthwise_conv2d', (2, 3, 4, 5), (3, 3, 3, 2), 'same', 'channels_first'),
+        ('depthwise_conv2d', (2, 3, 5, 6), (4, 3, 3, 4), 'valid', 'channels_first'),
+        ('depthwise_conv2d', (1, 6, 5, 3), (3, 4, 3, 2), 'valid', 'channels_last'),
+        ('depthwise_conv2d', (1, 7, 6, 3), (3, 3, 3, 4), 'same', 'channels_last'),
+    ])
+    def test_depthwise_conv(self, op, input_shape, kernel_shape, padding, data_format):
+        k = K.backend()
+        _, x = parse_shape_or_val(input_shape)
+        _, w = parse_shape_or_val(kernel_shape)
+        y1 = ref_depthwise_conv(x, w, padding, data_format)
+        y2 = check_two_tensor_operation(
+            op, x, w, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
+            padding=padding, data_format=data_format,
+            cntk_dynamicity=True, return_results=True)
+        assert_allclose(y1, y2, atol=1e-05)
+
+    def legacy_test_conv1d(self):
         # channels_last input shape: (n, length, input_depth)
         input_shape = (4, 8, 2)
         kernel_shape = (3, 2, 3)
@@ -794,7 +1055,7 @@ class TestBackend(object):
                                        strides=strides,
                                        data_format='channels_last')
 
-    def test_conv2d(self):
+    def legacy_test_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -805,7 +1066,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def test_depthwise_conv_2d(self):
+    def legacy_test_depthwise_conv_2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth_multiplier)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -817,7 +1078,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def test_conv3d(self):
+    def legacy_test_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
         # TH kernel shape: (depth, input_depth, x, y, z)
@@ -830,45 +1091,30 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def test_separable_conv2d(self):
-        for (input_shape, data_format) in [
-                ((2, 3, 4, 5), 'channels_first'),
-                ((2, 3, 5, 6), 'channels_first'),
-                ((1, 6, 5, 3), 'channels_last')]:
-            input_depth = input_shape[1] if data_format == 'channels_first' else input_shape[-1]
-            _, x_val = parse_shape_or_val(input_shape)
-            x_tf = KTF.variable(x_val)
-            for kernel_shape in [(2, 2), (4, 3)]:
-                for depth_multiplier in [1, 2]:
-                    _, depthwise_val = parse_shape_or_val(kernel_shape + (input_depth, depth_multiplier))
-                    _, pointwise_val = parse_shape_or_val((1, 1) + (input_depth * depth_multiplier, 7))
-
-                    z_tf = KTF.eval(KTF.separable_conv2d(x_tf, KTF.variable(depthwise_val),
-                                                         KTF.variable(pointwise_val),
-                                                         data_format=data_format))
-                    z_c = cntk_func_three_tensor('separable_conv2d', input_shape,
-                                                 depthwise_val,
-                                                 pointwise_val,
-                                                 data_format=data_format)([x_val])[0]
-                    assert_allclose(z_tf, z_c, 1e-3)
-
-    @pytest.mark.parametrize('k', [KTF], ids=['TensorFlow'])
-    def test_depthwise_conv_2d(self, k):
-        for data_format in ['channels_first', 'channels_last']:
-            x_shape = (4, 4)
-            if data_format == 'channels_first':
-                input_shape = (2, 3) + x_shape
-            elif data_format == 'channels_last':
-                input_shape = (2,) + x_shape + (3,)
-            kernel_shape = (3, 3, 3, 2)
-
-            x_val = np.ones(input_shape)
-            kernel_val = np.arange(np.prod(kernel_shape)).reshape(kernel_shape)
-            z = k.eval(k.depthwise_conv2d(k.variable(x_val), k.variable(kernel_val),
-                                          data_format=data_format))
-
-            for z_i in np.split(z, 6, axis=1 if data_format == 'channels_first' else -1):
-                assert_allclose(z_i, z_i[0] * np.ones_like(z_i))
+    @pytest.mark.skipif(K.backend() == 'theano', reason='Not supported.')
+    @pytest.mark.parametrize('op,input_shape,kernel_shape,depth_multiplier,padding,data_format', [
+        ('separable_conv2d', (2, 3, 4, 5), (3, 3), 1, 'same', 'channels_first'),
+        ('separable_conv2d', (2, 3, 5, 6), (4, 3), 2, 'valid', 'channels_first'),
+        ('separable_conv2d', (1, 6, 5, 3), (3, 4), 1, 'valid', 'channels_last'),
+        ('separable_conv2d', (1, 7, 6, 3), (3, 3), 2, 'same', 'channels_last'),
+    ])
+    def test_separable_conv2d(self, op, input_shape, kernel_shape, depth_multiplier, padding, data_format):
+        input_depth = input_shape[1] if data_format == 'channels_first' else input_shape[-1]
+        _, x = parse_shape_or_val(input_shape)
+        _, depthwise = parse_shape_or_val(kernel_shape + (input_depth, depth_multiplier))
+        _, pointwise = parse_shape_or_val((1, 1) + (input_depth * depth_multiplier, 7))
+        y1 = ref_separable_conv(x, depthwise, pointwise, padding, data_format)
+        if K.backend() == 'cntk':
+            y2 = cntk_func_three_tensor(
+                op, input_shape,
+                depthwise, pointwise,
+                padding=padding, data_format=data_format)([x])[0]
+        else:
+            y2 = K.eval(getattr(K, op)(
+                K.variable(x),
+                K.variable(depthwise), K.variable(pointwise),
+                padding=padding, data_format=data_format))
+        assert_allclose(y1, y2, atol=1e-05)
 
     def test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3),

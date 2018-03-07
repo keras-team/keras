@@ -1962,7 +1962,7 @@ class Model(Container):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Trains the model on data yielded batch-by-batch by a Python generator.
+        """Trains the model on data generated batch-by-batch by a Python generator or an instance of `Sequence`.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1981,10 +1981,10 @@ class Model(Container):
                 - a tuple `(inputs, targets, sample_weights)`.
                 This tuple (a single output of the generator) makes a single
                 batch. Therefore, all arrays in this tuple must have the same
-                length (equal to the size of this batch). Different batches
-                may have different sizes. For example, the last batch of the
-                epoch is commonly smaller than the others, if the size of the
-                dataset is not divisible by the batch size.
+                length (equal to the size of this batch). Different batches may
+                have different sizes. For example, the last batch of the epoch
+                is commonly smaller than the others, if the size of the dataset
+                is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
@@ -2018,32 +2018,32 @@ class Model(Container):
                 The model will not be trained on this data.
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
-                to yield from `validation_data` generator before stopping.
+                to yield from `validation_data` generator before stopping
+                at the end of every epoch. It should typically
+                be equal to the number of samples of your
+                validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
             class_weight: Optional dictionary mapping class indices (integers)
                 to a weight (float) value, used for weighting the loss function
-                (during training only).
-                This can be useful to tell the model to
-                "pay more attention" to samples from
-                an under-represented class.
+                (during training only). This can be useful to tell the model to
+                "pay more attention" to samples from an under-represented class.
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
-                when using process based threading.
+                when using process-based threading.
                 If unspecified, `workers` will default to 1. If 0, will
                 execute the generator on the main thread.
-            use_multiprocessing: Boolean. If True, use process based threading.
-                If unspecified, `use_multiprocessing` will default to False.
-                Note that because
-                this implementation relies on multiprocessing,
-                you should not pass
-                non picklable arguments to the generator
-                as they can't be passed
-                easily to children processes.
-            shuffle: Boolean. Whether to shuffle the training data
-                in batch-sized chunks before each epoch.
-                Only used with instances of `Sequence` (`keras.utils.Sequence`).
+            use_multiprocessing: Boolean.
+                If `True`, use process-based threading.
+                If unspecified, `use_multiprocessing` will default to `False`.
+                Note that because this implementation relies on multiprocessing,
+                you should not pass non-picklable arguments to the generator
+                as they can't be passed easily to children processes.
+            shuffle: Boolean. Whether to shuffle the order of the batches at
+                the beginning of each epoch. Only used with instances
+                of `Sequence` (`keras.utils.Sequence`).
+                Has no effect when `steps_per_epoch` is not `None`.
             initial_epoch: Integer.
                 Epoch at which to start training
                 (useful for resuming a previous training run).
@@ -2054,11 +2054,14 @@ class Model(Container):
             at successive epochs, as well as validation loss values
             and validation metrics values (if applicable).
 
+        # Raises
+            ValueError: In case the generator yields data in an invalid format.
+
         # Example
 
         ```python
             def generate_arrays_from_file(path):
-                while 1:
+                while True:
                     with open(path) as f:
                         for line in f:
                             # create numpy arrays of input data
@@ -2069,10 +2072,6 @@ class Model(Container):
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 steps_per_epoch=10000, epochs=10)
         ```
-
-        # Raises
-            ValueError: In case the generator yields
-                data in an invalid format.
         """
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
@@ -2145,45 +2144,25 @@ class Model(Container):
         val_enqueuer = None
 
         try:
-            if do_validation:
-                if val_gen:
-                    if workers > 0:
-                        if isinstance(validation_data, Sequence):
-                            val_enqueuer = OrderedEnqueuer(
-                                validation_data,
-                                use_multiprocessing=use_multiprocessing)
-                            if validation_steps is None:
-                                validation_steps = len(validation_data)
-                        else:
-                            val_enqueuer = GeneratorEnqueuer(
-                                validation_data,
-                                use_multiprocessing=use_multiprocessing,
-                                wait_time=wait_time)
-                        val_enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-                        validation_generator = val_enqueuer.get()
-                    else:
-                        if isinstance(validation_data, Sequence):
-                            validation_generator = iter(validation_data)
-                        else:
-                            validation_generator = validation_data
+            if do_validation and not val_gen:
+                # Prepare data for validation
+                if len(validation_data) == 2:
+                    val_x, val_y = validation_data
+                    val_sample_weight = None
+                elif len(validation_data) == 3:
+                    val_x, val_y, val_sample_weight = validation_data
                 else:
-                    if len(validation_data) == 2:
-                        val_x, val_y = validation_data
-                        val_sample_weight = None
-                    elif len(validation_data) == 3:
-                        val_x, val_y, val_sample_weight = validation_data
-                    else:
-                        raise ValueError('`validation_data` should be a tuple '
-                                         '`(val_x, val_y, val_sample_weight)` '
-                                         'or `(val_x, val_y)`. Found: ' +
-                                         str(validation_data))
-                    val_x, val_y, val_sample_weights = self._standardize_user_data(
-                        val_x, val_y, val_sample_weight)
-                    val_data = val_x + val_y + val_sample_weights
-                    if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                        val_data += [0.]
-                    for cbk in callbacks:
-                        cbk.validation_data = val_data
+                    raise ValueError('`validation_data` should be a tuple '
+                                     '`(val_x, val_y, val_sample_weight)` '
+                                     'or `(val_x, val_y)`. Found: ' +
+                                     str(validation_data))
+                val_x, val_y, val_sample_weights = self._standardize_user_data(
+                    val_x, val_y, val_sample_weight)
+                val_data = val_x + val_y + val_sample_weights
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    val_data += [0.]
+                for cbk in callbacks:
+                    cbk.validation_data = val_data
 
             if workers > 0:
                 if is_sequence:
@@ -2258,9 +2237,11 @@ class Model(Container):
                     if steps_done >= steps_per_epoch and do_validation:
                         if val_gen:
                             val_outs = self.evaluate_generator(
-                                validation_generator,
+                                validation_data,
                                 validation_steps,
-                                workers=0)
+                                workers=workers,
+                                use_multiprocessing=use_multiprocessing,
+                                max_queue_size=max_queue_size)
                         else:
                             # No need for try/except because
                             # data has already been validated.
