@@ -152,6 +152,13 @@ cd keras
 sudo python setup.py install
 ```
 
+- **Alternatively: Layman overlay (Gentoo users):**
+
+```sh
+layman -fa glicOne
+emerge -av dev-python/keras
+```
+
 ------------------
 
 
