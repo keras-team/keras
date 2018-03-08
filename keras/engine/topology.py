@@ -2235,13 +2235,6 @@ class Container(Layer):
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
                             output_masks = _to_list(layer.compute_mask(computed_tensor,
                                                                        computed_mask))
-                            if len(output_masks) == 1 and output_masks[0] is None and len(output_tensors) > 1:
-                                output_masks *= len(output_tensors)
-                            if len(output_masks) != len(output_tensors):
-                                raise Exception('Layers should have equal number of output tensors '
-                                                'and output masks. Layer ' + str(layer.name) + ' has'
-                                                ' ' + str(len(output_tensors)) + ' output tensors and'
-                                                ' ' + str(len(output_masks)) + ' output masks.')
                             computed_tensors = [computed_tensor]
                             computed_masks = [computed_mask]
                         else:
@@ -2251,13 +2244,21 @@ class Container(Layer):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
-                            if len(output_masks) == 1 and len(output_masks) < len(output_tensors):
-                                output_masks *= len(output_tensors)
+                            output_masks = _to_list(layer.compute_mask(computed_tensors,
+                                                                       computed_masks))
                         # Apply activity regularizer if any:
                         if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
                             regularization_losses = [layer.activity_regularizer(x) for x in output_tensors]
                             layer.add_loss(regularization_losses, computed_tensors)
 
+                        if len(output_masks) == 1 and output_masks[0] is None and len(output_tensors) > 1:
+                            output_masks *= len(output_tensors)
+
+                        if len(output_masks) != len(output_tensors):
+                            raise Exception('Layers should have equal number of output tensors '
+                                            'and output masks. Layer ' + str(layer.name) + ' has'
+                                            ' ' + str(len(output_tensors)) + ' output tensors and'
+                                            ' ' + str(len(output_masks)) + ' output masks.')
                     # Update model updates and losses:
                     # Keep track of updates that depend on the inputs
                     # (e.g. BN updates).
