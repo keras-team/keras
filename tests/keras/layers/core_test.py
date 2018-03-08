@@ -169,7 +169,7 @@ def test_lambda():
 
     test_multiple_outputs()
 
-    # test layer with multiple outputs and no 
+    # test layer with multiple outputs and no
     # explicit mask
     def test_multiple_outputs_no_mask():
         def func(x):
