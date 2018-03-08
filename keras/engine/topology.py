@@ -2233,8 +2233,12 @@ class Container(Layer):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
-                            output_masks = _to_list(layer.compute_mask(computed_tensor,
-                                                                       computed_mask))
+                            output_masks = layer.compute_mask(computed_tensor,
+                                                                       computed_mask)
+                            if output_masks is None:
+                                output_masks = [None for _ in output_tensors]
+                            else:
+                                output_masks = _to_list(output_masks)
                             computed_tensors = [computed_tensor]
                             computed_masks = [computed_mask]
                         else:
@@ -2244,15 +2248,16 @@ class Container(Layer):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
-                            output_masks = _to_list(layer.compute_mask(computed_tensors,
-                                                                       computed_masks))
+                            output_masks = layer.compute_mask(computed_tensors,
+                                                                       computed_masks)
+                            if output_masks is None:
+                                output_masks = [None for _ in output_tensors]
+                            else:
+                                output_masks = _to_list(output_masks)
                         # Apply activity regularizer if any:
                         if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
                             regularization_losses = [layer.activity_regularizer(x) for x in output_tensors]
                             layer.add_loss(regularization_losses, computed_tensors)
-
-                        if len(output_masks) == 1 and output_masks[0] is None and len(output_tensors) > 1:
-                            output_masks *= len(output_tensors)
 
                         if len(output_masks) != len(output_tensors):
                             raise Exception('Layers should have equal number of output tensors '
