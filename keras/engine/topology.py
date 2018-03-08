@@ -2234,7 +2234,7 @@ class Container(Layer):
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
                             output_masks = layer.compute_mask(computed_tensor,
-                                                                       computed_mask)
+                                                              computed_mask)
                             if output_masks is None:
                                 output_masks = [None for _ in output_tensors]
                             else:
@@ -2249,7 +2249,7 @@ class Container(Layer):
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
                             output_masks = layer.compute_mask(computed_tensors,
-                                                                       computed_masks)
+                                                              computed_masks)
                             if output_masks is None:
                                 output_masks = [None for _ in output_tensors]
                             else:
