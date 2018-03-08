@@ -169,6 +169,36 @@ def test_lambda():
 
     test_multiple_outputs()
 
+    # test layer with multiple outputs and no 
+    # explicit mask
+    def test_multiple_outputs_no_mask():
+        def func(x):
+            return [x * 0.2, x * 0.3]
+
+        def output_shape(input_shape):
+            return [input_shape, input_shape]
+
+        i = layers.Input(shape=(64, 64, 3))
+        o = layers.Lambda(function=func,
+                          output_shape=output_shape)(i)
+
+        assert o[0]._keras_shape == (None, 64, 64, 3)
+        assert o[1]._keras_shape == (None, 64, 64, 3)
+
+        o = layers.add(o)
+        model = Model(i, o)
+
+        i2 = layers.Input(shape=(64, 64, 3))
+        o2 = model(i2)
+        model2 = Model(i2, o2)
+
+        x = np.random.random((4, 64, 64, 3))
+        out = model2.predict(x)
+        assert out.shape == (4, 64, 64, 3)
+        assert_allclose(out, x * 0.2 + x * 0.3, atol=1e-4)
+
+    test_multiple_outputs_no_mask()
+
     # test serialization with function
     def f(x):
         return x + 1
