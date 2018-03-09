@@ -1006,8 +1006,7 @@ class TestBackend(object):
         check_single_tensor_operation('tanh', (4, 2), BACKENDS)
 
         check_single_tensor_operation('softmax', (4, 10), BACKENDS)
-        #check_single_tensor_operation('softmax', (4, 5, 10), BACKENDS, axis=1)
-        benchmark(check_single_tensor_operation, 'softmax', (4, 5, 10), BACKENDS, axis=1)
+        check_single_tensor_operation('softmax', (4, 5, 3, 10), BACKENDS, axis=2)
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
