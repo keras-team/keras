@@ -156,7 +156,7 @@ def test_lambda():
 
         o1, o2 = o
         assert o1._keras_shape == (None, 3, 2, 1)
-        assert o2._keras_shape == (None, 3, 3, 1)
+        assert o2._keras_shape == (None, 3, 2, 1)
 
         model = Model(i, o)
 
