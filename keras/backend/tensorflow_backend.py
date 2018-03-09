@@ -2945,16 +2945,18 @@ def elu(x, alpha=1.):
         return tf.where(x > 0, res, alpha * res)
 
 
-def softmax(x):
+def softmax(x, axis=-1):
     """Softmax of a tensor.
 
     # Arguments
         x: A tensor or variable.
+        axis: The dimension softmax would be performed on.
+            The default is -1 which indicates the last dimension.
 
     # Returns
         A tensor.
     """
-    return tf.nn.softmax(x)
+    return tf.nn.softmax(x, axis=axis)
 
 
 def softplus(x):
