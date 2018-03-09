@@ -1552,10 +1552,12 @@ def relu(x, alpha=0., max_value=None):
 
 
 def softmax(x, axis=-1):
-    if axis != -1:
-        return T.exp(x) / T.exp(x).sum(axis=axis, keepdims=True)
-    return T.nnet.softmax(x)
-
+    if axis == -1 or axis == x.ndim - 1:
+        return T.nnet.softmax(x)
+    swapped_x = x.swapaxes(axis, -1)
+    matrix_x = swapped_x.reshape((swapped_x.shape[:-1].prod(), swapped_x.shape[-1]))
+    softmax_swapped_x = T.nnet.softmax(matrix_x).reshape(swapped_x.shape)
+    return softmax_swapped_x.swapaxes(axis, -1)
 
 def softplus(x):
     return T.nnet.softplus(x)
