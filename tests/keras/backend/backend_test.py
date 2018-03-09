@@ -998,13 +998,15 @@ class TestBackend(object):
 
     def test_nn_operations(self):
         check_single_tensor_operation('relu', (4, 2), BACKENDS, alpha=0.1, max_value=0.5)
-        check_single_tensor_operation('softmax', (4, 10), BACKENDS)
         check_single_tensor_operation('softplus', (4, 10), BACKENDS)
         check_single_tensor_operation('elu', (4, 10), BACKENDS, alpha=0.5)
 
         check_single_tensor_operation('sigmoid', (4, 2), BACKENDS)
         check_single_tensor_operation('hard_sigmoid', (4, 2), BACKENDS)
         check_single_tensor_operation('tanh', (4, 2), BACKENDS)
+
+        check_single_tensor_operation('softmax', (4, 10), BACKENDS)
+        check_single_tensor_operation('softmax', (4, 5, 3, 10), BACKENDS, axis=2)
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,

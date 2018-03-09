@@ -1727,8 +1727,8 @@ def batch_flatten(x):
     return x
 
 
-def softmax(x):
-    return C.softmax(x)
+def softmax(x, axis=-1):
+    return C.softmax(x, axis=axis)
 
 
 def softplus(x):
