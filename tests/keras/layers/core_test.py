@@ -149,21 +149,21 @@ def test_lambda():
         def mask(inputs, mask=None):
             return [None, None]
 
-        i = layers.Input(shape=(64, 64, 3))
+        i = layers.Input(shape=(3, 2, 1))
         o = layers.Lambda(function=func,
                           output_shape=output_shape,
                           mask=mask)(i)
 
         o1, o2 = o
-        assert o1._keras_shape == (None, 64, 64, 3)
-        assert o2._keras_shape == (None, 64, 64, 3)
+        assert o1._keras_shape == (None, 3, 2, 1)
+        assert o2._keras_shape == (None, 3, 2, 1)
 
         model = Model(i, o)
 
-        x = np.random.random((4, 64, 64, 3))
+        x = np.random.random((4, 3, 2, 1))
         out1, out2 = model.predict(x)
-        assert out1.shape == (4, 64, 64, 3)
-        assert out2.shape == (4, 64, 64, 3)
+        assert out1.shape == (4, 3, 2, 1)
+        assert out2.shape == (4, 3, 2, 1)
         assert_allclose(out1, x * 0.2, atol=1e-4)
         assert_allclose(out2, x * 0.3, atol=1e-4)
 
@@ -178,23 +178,23 @@ def test_lambda():
         def output_shape(input_shape):
             return [input_shape, input_shape]
 
-        i = layers.Input(shape=(64, 64, 3))
+        i = layers.Input(shape=(3, 2, 1))
         o = layers.Lambda(function=func,
                           output_shape=output_shape)(i)
 
-        assert o[0]._keras_shape == (None, 64, 64, 3)
-        assert o[1]._keras_shape == (None, 64, 64, 3)
+        assert o[0]._keras_shape == (None, 3, 2, 1)
+        assert o[1]._keras_shape == (None, 3, 2, 1)
 
         o = layers.add(o)
         model = Model(i, o)
 
-        i2 = layers.Input(shape=(64, 64, 3))
+        i2 = layers.Input(shape=(3, 2, 1))
         o2 = model(i2)
         model2 = Model(i2, o2)
 
-        x = np.random.random((4, 64, 64, 3))
+        x = np.random.random((4, 3, 2, 1))
         out = model2.predict(x)
-        assert out.shape == (4, 64, 64, 3)
+        assert out.shape == (4, 3, 2, 1)
         assert_allclose(out, x * 0.2 + x * 0.3, atol=1e-4)
 
     test_multiple_outputs_no_mask()
