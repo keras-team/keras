@@ -996,7 +996,7 @@ class TestBackend(object):
             with pytest.raises(ValueError):
                 z = k.dropout(k.variable(val), level=-0.5)
 
-    def test_nn_operations(self, benchmark):
+    def test_nn_operations(self):
         check_single_tensor_operation('relu', (4, 2), BACKENDS, alpha=0.1, max_value=0.5)
         check_single_tensor_operation('softplus', (4, 10), BACKENDS)
         check_single_tensor_operation('elu', (4, 10), BACKENDS, alpha=0.5)
