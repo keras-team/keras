@@ -557,6 +557,7 @@ class ImageDataGenerator(object):
                             save_format='png',
                             follow_links=False,
                             subset=None,
+                            cache_samples=0,
                             interpolation='nearest'):
         return DirectoryIterator(
             directory, self,
@@ -569,6 +570,7 @@ class ImageDataGenerator(object):
             save_format=save_format,
             follow_links=follow_links,
             subset=subset,
+            cache_samples=cache_samples,
             interpolation=interpolation)
 
     def standardize(self, x):
@@ -1112,6 +1114,11 @@ class DirectoryIterator(Iterator):
             (if `save_to_dir` is set).
         subset: Subset of data (`"training"` or `"validation"`) if
             validation_split is set in ImageDataGenerator.
+        cache_samples: The capacity of a memcache to store samples in memory,
+            This is to make use of host memory to cache partial or
+            complete input samples loaded from disk which will reduce the
+            overhead of disk access especially for virtual disk provided by
+            cloud machines.
         interpolation: Interpolation method used to resample the image if the
             target size is different from that of the loaded image.
             Supported methods are "nearest", "bilinear", and "bicubic".
@@ -1128,6 +1135,7 @@ class DirectoryIterator(Iterator):
                  save_to_dir=None, save_prefix='', save_format='png',
                  follow_links=False,
                  subset=None,
+                 cache_samples=0,
                  interpolation='nearest'):
         if data_format is None:
             data_format = K.image_data_format()
@@ -1161,6 +1169,8 @@ class DirectoryIterator(Iterator):
         self.save_prefix = save_prefix
         self.save_format = save_format
         self.interpolation = interpolation
+        self.cache_samples = cache_samples
+        self.cache_memdict = dict()
 
         if subset is not None:
             validation_split = self.image_data_generator._validation_split
@@ -1225,10 +1235,25 @@ class DirectoryIterator(Iterator):
         # build batch of image data
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
-            img = load_img(os.path.join(self.directory, fname),
-                           grayscale=grayscale,
-                           target_size=None,
-                           interpolation=self.interpolation)
+            if self.cache_samples > 0:
+                with self.lock:
+                    if fname in self.cache_memdict:
+                        # Hit a preloaded in-memory sample
+                        img = self.cache_memdict[fname]
+                    else:
+                        img = None
+            else:
+                img = None
+            if not img:
+                img = load_img(os.path.join(self.directory, fname),
+                               grayscale=grayscale,
+                               target_size=None,
+                               interpolation=self.interpolation)
+                if self.cache_samples > 0:
+                    with self.lock:
+                        # Store a sample into memcache if capable
+                        if len(self.cache_memdict) < self.cache_samples:
+                            self.cache_memdict[fname] = img
             if self.image_data_generator.preprocessing_function:
                 img = self.image_data_generator.preprocessing_function(img)
             if self.target_size is not None:
