@@ -203,7 +203,6 @@ PAGES = [
             layers.SimpleRNNCell,
             layers.GRUCell,
             layers.LSTMCell,
-            layers.StackedRNNCells,
             layers.CuDNNGRU,
             layers.CuDNNLSTM,
         ],
