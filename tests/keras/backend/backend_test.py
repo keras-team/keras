@@ -262,6 +262,54 @@ def ref_separable_conv(x, w1, w2, padding, data_format):
     return ref_conv(x2, w2, padding, data_format)
 
 
+def ref_pool(x, pool_size, strides, padding, data_format, pool_mode):
+    if data_format == 'channels_last':
+        if x.ndim == 3:
+            x = np.transpose(x, (0, 2, 1))
+        elif x.ndim == 4:
+            x = np.transpose(x, (0, 3, 1, 2))
+        else:
+            x = np.transpose(x, (0, 4, 1, 2, 3))
+
+    if padding == 'same':
+        pad = [(0, 0), (0, 0)] + [(s // 2, s // 2) for s in pool_size]
+        x = np.pad(x, pad, 'constant', constant_values=-np.inf)
+
+    # indexing trick
+    x = np.pad(x, [(0, 0), (0, 0)] + [(0, 1) for _ in pool_size],
+               'constant', constant_values=0)
+
+    if x.ndim == 3:
+        y = [x[:, :, k:k1:strides[0]]
+             for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0))]
+    elif x.ndim == 4:
+        y = []
+        for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0)):
+            for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
+                y.append(x[:, :, k:k1:strides[0], l:l1:strides[1]])
+    else:
+        y = []
+        for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0)):
+            for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
+                for (m, m1) in zip(range(pool_size[2]), range(-pool_size[2], 0)):
+                    y.append(x[:, :, k:k1:strides[0], l:l1:strides[1], m:m1:strides[2]])
+    y = np.stack(y, axis=-1)
+    if pool_mode == 'avg':
+        y = np.mean(np.ma.masked_invalid(y), axis=-1).data
+    elif pool_mode == 'max':
+        y = np.max(y, axis=-1)
+
+    if data_format == 'channels_last':
+        if y.ndim == 3:
+            y = np.transpose(y, (0, 2, 1))
+        elif y.ndim == 4:
+            y = np.transpose(y, (0, 2, 3, 1))
+        else:
+            y = np.transpose(y, (0, 2, 3, 4, 1))
+
+    return y
+
+
 def ref_rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
     w_i, w_h, w_o = w
     h = []
@@ -950,13 +998,15 @@ class TestBackend(object):
 
     def test_nn_operations(self):
         check_single_tensor_operation('relu', (4, 2), BACKENDS, alpha=0.1, max_value=0.5)
-        check_single_tensor_operation('softmax', (4, 10), BACKENDS)
         check_single_tensor_operation('softplus', (4, 10), BACKENDS)
         check_single_tensor_operation('elu', (4, 10), BACKENDS, alpha=0.5)
 
         check_single_tensor_operation('sigmoid', (4, 2), BACKENDS)
         check_single_tensor_operation('hard_sigmoid', (4, 2), BACKENDS)
         check_single_tensor_operation('tanh', (4, 2), BACKENDS)
+
+        check_single_tensor_operation('softmax', (4, 10), BACKENDS)
+        check_single_tensor_operation('softmax', (4, 5, 3, 10), BACKENDS, axis=2)
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         # cross_entropy call require the label is a valid probability distribution,
@@ -1045,6 +1095,27 @@ class TestBackend(object):
             cntk_dynamicity=True, return_results=True)
         assert_allclose(y1, y2, atol=1e-05)
 
+    @pytest.mark.parametrize('op,input_shape,pool_size,strides,padding,data_format,pool_mode', [
+        ('pool2d', (2, 3, 7, 7), (3, 3), (1, 1), 'same', 'channels_first', 'avg'),
+        ('pool2d', (3, 3, 8, 5), (2, 3), (1, 1), 'valid', 'channels_first', 'max'),
+        ('pool2d', (2, 9, 5, 3), (3, 2), (1, 1), 'valid', 'channels_last', 'avg'),
+        ('pool2d', (3, 6, 7, 3), (3, 3), (1, 1), 'same', 'channels_last', 'max'),
+        ('pool3d', (2, 3, 7, 7, 7), (3, 3, 3), (1, 1, 1), 'same', 'channels_first', 'avg'),
+        ('pool3d', (3, 3, 8, 5, 9), (2, 3, 2), (1, 1, 1), 'valid', 'channels_first', 'max'),
+        ('pool3d', (2, 8, 9, 5, 3), (3, 2, 3), (1, 1, 1), 'valid', 'channels_last', 'avg'),
+        ('pool3d', (3, 5, 6, 7, 3), (3, 3, 3), (1, 1, 1), 'same', 'channels_last', 'max'),
+    ])
+    def test_pool(self, op, input_shape, pool_size, strides, padding, data_format, pool_mode):
+        k = K.backend()
+        _, x = parse_shape_or_val(input_shape)
+        y1 = ref_pool(x, pool_size, strides, padding, data_format, pool_mode)
+        y2 = check_single_tensor_operation(
+            op, x, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
+            pool_size=pool_size, strides=strides,
+            padding=padding, data_format=data_format, pool_mode=pool_mode,
+            cntk_dynamicity=True, return_results=True)
+        assert_allclose(y1, y2, atol=1e-05)
+
     def legacy_test_conv1d(self):
         # channels_last input shape: (n, length, input_depth)
         input_shape = (4, 8, 2)
@@ -1116,7 +1187,7 @@ class TestBackend(object):
                 padding=padding, data_format=data_format))
         assert_allclose(y1, y2, atol=1e-05)
 
-    def test_pool2d(self):
+    def legacy_test_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3),
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 2), strides=(1, 1), padding='valid')
@@ -1138,7 +1209,7 @@ class TestBackend(object):
                                       pool_size=(3, 3), strides=(1, 1),
                                       padding='same', pool_mode='avg')
 
-    def test_pool3d(self):
+    def legacy_test_pool3d(self):
         check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3),
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
