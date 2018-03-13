@@ -221,6 +221,11 @@ class TestImage(object):
             generator.flow_from_directory(str(tmpdir), class_mode='output')
 
         def preprocessing_function(x):
+            """This will fail if not provided by a Numpy array"""
+
+            assert x.shape == (26, 26, 3)
+            assert type(x) is np.ndarray
+
             return np.zeros_like(x)
 
         # Test usage as Sequence
