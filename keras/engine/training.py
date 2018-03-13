@@ -2339,13 +2339,15 @@ class Model(Container):
             for i, m in enumerate(self.metrics):
                 if isinstance(m, Layer) and m.stateful:
                     m.reset_states()
-                    stateful_metric_indices.append(i)
+            stateful_metric_indices = [
+                i for i, name in enumerate(self.metrics_names)
+                if str(name) in self.stateful_metric_names]
         else:
             stateful_metric_indices = []
 
         steps_done = 0
         wait_time = 0.01
-        all_outs = []
+        outs_per_batch = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing and workers > 1:
@@ -2396,6 +2398,9 @@ class Model(Container):
                                      'or (x, y). Found: ' +
                                      str(generator_output))
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
+                if not isinstance(outs, list):
+                    outs = [outs]
+                outs_per_batch.append(outs)
 
                 if isinstance(x, list):
                     batch_size = x[0].shape[0]
@@ -2406,7 +2411,6 @@ class Model(Container):
                 if batch_size == 0:
                     raise ValueError('Received an empty batch. '
                                      'Batches should at least contain one item.')
-                all_outs.append(outs)
 
                 steps_done += 1
                 batch_sizes.append(batch_size)
@@ -2415,20 +2419,16 @@ class Model(Container):
             if enqueuer is not None:
                 enqueuer.stop()
 
-        if not isinstance(outs, list):
-            assert not stateful_metric_indices
-            return np.average(np.asarray(all_outs),
-                              weights=batch_sizes)
-        else:
-            averages = []
-            for i in range(len(outs)):
-                # [0] is the loss, the rest are metrics
-                if i == 0 or (i - 1) not in stateful_metric_indices:
-                    averages.append(np.average([out[i] for out in all_outs],
-                                               weights=batch_sizes))
-                else:
-                    averages.append(float(all_outs[-1][i]))
-            return averages
+        averages = []
+        for i in range(len(outs)):
+            if i not in stateful_metric_indices:
+                averages.append(np.average([out[i] for out in outs_per_batch],
+                                           weights=batch_sizes))
+            else:
+                averages.append(float(outs_per_batch[-1][i]))
+        if len(averages) == 1:
+            return averages[0]
+        return averages
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps=None,
