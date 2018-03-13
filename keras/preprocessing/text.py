@@ -58,6 +58,7 @@ def text_to_word_sequence(text,
 
 
 def one_hot(text, n,
+            hash_function=None,
             filters='!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n',
             lower=True,
             split=' '):
@@ -69,6 +70,9 @@ def one_hot(text, n,
     # Arguments
         text: Input text (string).
         n: Dimension of the hashing space.
+        hash_function:  if `None` uses python `hash` function, can be 'md5' or
+            any function that takes in input a string and returns a int. See
+            hashing_trick for more informtion.
         filters: Sequence of characters to filter out.
         lower: Whether to convert the input to lowercase.
         split: Sentence split marker (string).
@@ -77,7 +81,7 @@ def one_hot(text, n,
         A list of integer word indices (unicity non-guaranteed).
     """
     return hashing_trick(text, n,
-                         hash_function=hash,
+                         hash_function=hash_function,
                          filters=filters,
                          lower=lower,
                          split=split)
