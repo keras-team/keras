@@ -410,7 +410,7 @@ class Layer(object):
         initializer = initializers.get(initializer)
         if dtype is None:
             dtype = K.floatx()
-        weight = K.variable(initializer(shape),
+        weight = K.variable(initializer(shape, dtype=dtype),
                             dtype=dtype,
                             name=name,
                             constraint=constraint)

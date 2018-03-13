@@ -99,9 +99,14 @@ class BatchNormalization(Layer):
                                     axes={self.axis: dim})
         shape = (dim,)
 
+        weight_dtype = (
+            'float32'
+            if K.backend() == 'tensorflow' and K.floatx() == 'float16'
+            else None)
         if self.scale:
             self.gamma = self.add_weight(shape=shape,
                                          name='gamma',
+                                         dtype=weight_dtype,
                                          initializer=self.gamma_initializer,
                                          regularizer=self.gamma_regularizer,
                                          constraint=self.gamma_constraint)
@@ -110,6 +115,7 @@ class BatchNormalization(Layer):
         if self.center:
             self.beta = self.add_weight(shape=shape,
                                         name='beta',
+                                        dtype=weight_dtype,
                                         initializer=self.beta_initializer,
                                         regularizer=self.beta_regularizer,
                                         constraint=self.beta_constraint)
@@ -118,11 +124,13 @@ class BatchNormalization(Layer):
         self.moving_mean = self.add_weight(
             shape=shape,
             name='moving_mean',
+            dtype=weight_dtype,
             initializer=self.moving_mean_initializer,
             trainable=False)
         self.moving_variance = self.add_weight(
             shape=shape,
             name='moving_variance',
+            dtype=weight_dtype,
             initializer=self.moving_variance_initializer,
             trainable=False)
         self.built = True
@@ -183,7 +191,7 @@ class BatchNormalization(Layer):
         if K.backend() != 'cntk':
             sample_size = K.prod([K.shape(inputs)[axis]
                                   for axis in reduction_axes])
-            sample_size = K.cast(sample_size, dtype=K.dtype(inputs))
+            sample_size = K.cast_like(sample_size, variance)
 
             # sample variance - unbiased estimator of population variance
             variance *= sample_size / (sample_size - (1.0 + self.epsilon))
