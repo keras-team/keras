@@ -19,7 +19,7 @@ model.compile(loss='mean_squared_error',
 
 A metric function is similar to a [loss function](/losses), except that the results from evaluating a metric are not used when training the model.
 
-You can either pass the name of an existing metric, or pass a function or layer (see [Custom metrics](#custom-metrics)).
+You can either pass the name of an existing metric, or pass a Theano/TensorFlow symbolic function (see [Custom metrics](#custom-metrics)).
 
 #### Arguments
   - __y_true__: True labels. Theano/TensorFlow tensor.
@@ -40,21 +40,9 @@ You can either pass the name of an existing metric, or pass a function or layer 
 
 ## Custom metrics
 
-Custom metrics can be passed at the compilation step.
-They can be either a Theano/TensorFlow symbolic function that is computed
-for each batch independently and is averaged across batches,
-or a Layer providing a stateful function that is computed incrementally
-across batches and is not averaged in Keras itself.
-
-Stateful layers are useful for metrics that are not independent across
-batches - for example precision, recall or AUC.
-
-### Symbolic functions
-
-The
-Theano/TensorFlow symbolic function
-would need to take `(y_true, y_pred)` as arguments and return
-a single tensor value representing the metrics value for that batch.
+Custom metrics can be passed at the compilation step. The
+function would need to take `(y_true, y_pred)` as arguments and return
+a single tensor value.
 
 ```python
 import keras.backend as K
@@ -65,59 +53,4 @@ def mean_pred(y_true, y_pred):
 model.compile(optimizer='rmsprop',
               loss='binary_crossentropy',
               metrics=['accuracy', mean_pred])
-```
-
-### Stateful metrics
-
-The stateful Layer would need to take `(y_true, y_pred)` as arguments
-(when used as a callable)
-and return a single tensor value representing the metrics value up to
-this batch.  The layer state is reset (using the `reset_states`
-method) at the beginning of each epoch or evaluation run (e.g. for
-validation after each epoch).
-
-The layer needs to have the `stateful` attribute set, and should
-register an update using its `add_update` method when called.
-
-Please see the "Writing your own Keras layers" section for details
-on stateful layers.
-
-```python
-class BinaryTruePositives(keras.layers.Layer):
-    """Stateful Metric to count the total true positives over all batches.
-
-    Assumes predictions and targets of shape `(samples, 1)`.
-
-    # Arguments
-        name: String, name for the metric.
-    """
-
-    def __init__(self, name='true_positives', **kwargs):
-        super(BinaryTruePositives, self).__init__(name=name, **kwargs)
-        self.stateful = True
-        self.true_positives = K.variable(value=0, dtype='int32')
-
-    def reset_states(self):
-        K.set_value(self.true_positives, 0)
-
-    def __call__(self, y_true, y_pred):
-        """Computes the number of true positives in a batch.
-
-        # Arguments
-            y_true: Tensor, batch_wise labels
-            y_pred: Tensor, batch_wise predictions
-
-        # Returns
-            The total number of true positives seen this epoch at the
-                completion of the batch.
-        """
-        y_true = K.cast(y_true, 'int32')
-        y_pred = K.cast(K.round(y_pred), 'int32')
-        correct_preds = K.cast(K.equal(y_pred, y_true), 'int32')
-        true_pos = K.cast(K.sum(correct_preds * y_true), 'int32')
-        current_true_pos = self.true_positives * 1
-        self.add_update(K.update_add(self.true_positives,
-                                     true_pos),
-                        inputs=[y_true, y_pred])
-        return current_true_pos + true_pos
 ```
