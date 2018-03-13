@@ -221,7 +221,9 @@ class TestImage(object):
             generator.flow_from_directory(str(tmpdir), class_mode='output')
 
         def preprocessing_function(x):
-            """This will fail if not provided by a Numpy array"""
+            """This will fail if not provided by a Numpy array.
+            Note: This is made to enforce backward compatibility.
+            """
 
             assert x.shape == (26, 26, 3)
             assert type(x) is np.ndarray
