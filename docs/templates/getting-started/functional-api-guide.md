@@ -143,7 +143,7 @@ model.fit([headline_data, additional_data], [labels, labels],
 ```
 
 Since our inputs and outputs are named (we passed them a "name" argument),
-We could also have compiled the model via:
+we could also have compiled the model via:
 
 ```python
 model.compile(optimizer='rmsprop',
