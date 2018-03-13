@@ -479,6 +479,7 @@ class RNN(Layer):
                                for dim in state_size]
         if self.stateful:
             self.reset_states()
+        self.built = True
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
