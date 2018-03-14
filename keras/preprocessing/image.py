@@ -457,7 +457,7 @@ class ImageDataGenerator(object):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
         validation_split: fraction of images reserved for validation (strictly between 0 and 1).
-        
+
     # Examples
     Example of using `.flow(x, y)`:
 
@@ -473,15 +473,15 @@ class ImageDataGenerator(object):
         width_shift_range=0.2,
         height_shift_range=0.2,
         horizontal_flip=True)
-    
+
     # compute quantities required for featurewise normalization
     # (std, mean, and principal components if ZCA whitening is applied)
     datagen.fit(x_train)
-    
+
     # fits the model on batches with real-time data augmentation:
     model.fit_generator(datagen.flow(x_train, y_train, batch_size=32),
                         steps_per_epoch=len(x_train) / 32, epochs=epochs)
-    
+
     # here's a more "manual" example
     for e in range(epochs):
         print('Epoch', e)
@@ -504,19 +504,19 @@ class ImageDataGenerator(object):
             horizontal_flip=True)
     
     test_datagen = ImageDataGenerator(rescale=1./255)
-    
+
     train_generator = train_datagen.flow_from_directory(
             'data/train',
             target_size=(150, 150),
             batch_size=32,
             class_mode='binary')
-    
+
     validation_generator = test_datagen.flow_from_directory(
             'data/validation',
             target_size=(150, 150),
             batch_size=32,
             class_mode='binary')
-    
+
     model.fit_generator(
             train_generator,
             steps_per_epoch=2000,
@@ -524,9 +524,9 @@ class ImageDataGenerator(object):
             validation_data=validation_generator,
             validation_steps=800)
     ```
-    
+
     Example of transforming images and masks together.
-    
+
     ```python
     # we create two instances with the same arguments
     data_gen_args = dict(featurewise_center=True,
@@ -537,25 +537,25 @@ class ImageDataGenerator(object):
                          zoom_range=0.2)
     image_datagen = ImageDataGenerator(**data_gen_args)
     mask_datagen = ImageDataGenerator(**data_gen_args)
-    
+
     # Provide the same seed and keyword arguments to the fit and flow methods
     seed = 1
     image_datagen.fit(images, augment=True, seed=seed)
     mask_datagen.fit(masks, augment=True, seed=seed)
-    
+
     image_generator = image_datagen.flow_from_directory(
         'data/images',
         class_mode=None,
         seed=seed)
-    
+
     mask_generator = mask_datagen.flow_from_directory(
         'data/masks',
         class_mode=None,
         seed=seed)
-    
+
     # combine generators into one which yields image and masks
     train_generator = zip(image_generator, mask_generator)
-    
+
     model.fit_generator(
         train_generator,
         steps_per_epoch=2000,
