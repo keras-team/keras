@@ -31,8 +31,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
   title={Keras},
   author={Chollet, Fran\c{c}ois and others},
   year={2015},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/keras-team/keras}},
+  howpublished={\url{https://keras.io}},
 }
 ```
 
