@@ -220,8 +220,18 @@ class TestImage(object):
         with pytest.raises(ValueError):
             generator.flow_from_directory(str(tmpdir), class_mode='output')
 
+        def preprocessing_function(x):
+            """This will fail if not provided by a Numpy array.
+            Note: This is made to enforce backward compatibility.
+            """
+
+            assert x.shape == (26, 26, 3)
+            assert type(x) is np.ndarray
+
+            return np.zeros_like(x)
+
         # Test usage as Sequence
-        generator = image.ImageDataGenerator()
+        generator = image.ImageDataGenerator(preprocessing_function=preprocessing_function)
         dir_seq = generator.flow_from_directory(str(tmpdir),
                                                 target_size=(26, 26),
                                                 color_mode='rgb',
@@ -232,6 +242,8 @@ class TestImage(object):
         assert x1.shape == (3, 26, 26, 3)
         assert y1.shape == (3, num_classes)
         x1, y1 = dir_seq[5]
+        assert (x1 == 0).all()
+
         with pytest.raises(ValueError):
             x1, y1 = dir_seq[9]
 

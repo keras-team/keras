@@ -581,7 +581,7 @@ class ImageDataGenerator(object):
             The inputs, normalized.
         """
         if self.preprocessing_function:
-            x = self.image_data_generator.preprocessing_function(x)
+            x = self.preprocessing_function(x)
         if self.rescale:
             x *= self.rescale
         if self.samplewise_center:
