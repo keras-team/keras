@@ -221,12 +221,12 @@ def MobileNet(input_shape=None,
         if rows != cols or rows not in [128, 160, 192, 224]:
             if rows is None:
                 rows = 224
-                warnings.warn('The MobileNet shape is undefined.'
-                              ' Weights with input shape (224, 224) will be loaded.')
+                warnings.warn('MobileNet shape is undefined.'
+                              ' Weights for input shape (224, 224) will be loaded.')
             else:
                 raise ValueError('If imagenet weights are being loaded, '
                                  'input must have a static square shape (one of '
-                                 '(128,128), (160,160), (192,192), or (224, 224)).'
+                                 '(128, 128), (160, 160), (192, 192), or (224, 224)).'
                                  ' Input shape provided = %s' % (input_shape,))
 
     if K.image_data_format() != 'channels_last':
