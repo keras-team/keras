@@ -460,7 +460,7 @@ class ImageDataGenerator(object):
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
     y_train = np_utils.to_categorical(y_train, num_classes)
     y_test = np_utils.to_categorical(y_test, num_classes)
-    
+
     datagen = ImageDataGenerator(
         featurewise_center=True,
         featurewise_std_normalization=True,
@@ -497,7 +497,7 @@ class ImageDataGenerator(object):
             shear_range=0.2,
             zoom_range=0.2,
             horizontal_flip=True)
-    
+
     test_datagen = ImageDataGenerator(rescale=1./255)
 
     train_generator = train_datagen.flow_from_directory(
@@ -714,7 +714,7 @@ class ImageDataGenerator(object):
                  It should contain one subdirectory per class.
                  Any PNG, JPG, BMP, PPM or TIF images inside each of the subdirectories directory tree will be included in the generator.
                 See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
-                target_size: tuple of integers `(height, width)`, default: `(256, 256)`. 
+                target_size: tuple of integers `(height, width)`, default: `(256, 256)`.
                  The dimensions to which all images found will be resized.
                 color_mode: one of "grayscale", "rbg". Default: "rgb".
                  Whether the images will be converted to have 1 or 3 color channels.
