@@ -413,7 +413,7 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
 
 class ImageDataGenerator(object):
     """Generate batches of tensor image data with real-time data augmentation.
-     The data will be looped over (in batches) indefinitely.
+     The data will be looped over (in batches).
 
     # Arguments
         featurewise_center: Boolean. Set input mean to 0 over the dataset, feature-wise.
@@ -662,7 +662,7 @@ class ImageDataGenerator(object):
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='png', subset=None):
         """Takes numpy data & label arrays, and generates batches of
-            augmented/normalized data. Yields batches indefinitely, in an infinite loop.
+            augmented/normalized data.
 
         # Arguments
                x: data. Should have rank 4.
@@ -682,9 +682,8 @@ class ImageDataGenerator(object):
                 save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
 
         # Returns
-            Tuples of `(x, y)` where `x` is a numpy array of image data and
-             `y` is a numpy array of corresponding labels.
-             The generator loops indefinitely."""
+            An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
+             `y` is a numpy array of corresponding labels."""
         return NumpyArrayIterator(
             x, y, self,
             batch_size=batch_size,
@@ -707,7 +706,6 @@ class ImageDataGenerator(object):
                             subset=None,
                             interpolation='nearest'):
         """Takes the path to a directory, and generates batches of augmented/normalized data.
-           Yields batches indefinitely, in an infinite loop.
 
         # Arguments
                 directory: path to the target directory.
@@ -743,7 +741,8 @@ class ImageDataGenerator(object):
                 follow_links: whether to follow symlinks inside class subdirectories (default: False).
 
         # Returns
-            A DirectoryIterator
+            A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
+             `y` is a numpy array of corresponding labels.
         """
         return DirectoryIterator(
             directory, self,
