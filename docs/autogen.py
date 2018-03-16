@@ -260,6 +260,20 @@ PAGES = [
         ]
     },
     {
+        'page': 'preprocessing/image.md',
+        'functions': [
+            preprocessing.image.random_rotation,
+            preprocessing.image.random_shift,
+            preprocessing.image.random_shear,
+            preprocessing.image.random_zoom,
+            preprocessing.image.random_channel_shift,
+            preprocessing.image.random_brightness,
+        ],
+        'classes': [
+            preprocessing.image.ImageDataGenerator,
+        ]
+    },
+    {
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
