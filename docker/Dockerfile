@@ -33,7 +33,7 @@ RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER && \
     mkdir -p /src && \
     chown $NB_USER /src
 
-USER keras
+USER $NB_USER
 
 ARG python_version=3.6
 
