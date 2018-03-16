@@ -13,6 +13,7 @@ from ..engine import Layer
 from ..engine import InputSpec
 from .. import backend as K
 from ..legacy import interfaces
+import numpy as np
 
 
 class LeakyReLU(Layer):
@@ -253,6 +254,54 @@ class Softmax(Layer):
     def get_config(self):
         config = {'axis': self.axis}
         base_config = super(Softmax, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class ReLUs(Layer):
+    """Sigmoid version of the Rectified Linear Unit
+
+    It allows an oscilation in the gradients when the weights are negative.
+    The oscilation can be controlled with a parameter, which makes it be close
+    or equal to zero. So, not all neurons are deactivated and it allows differentiability
+    in more parts of the function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        epsilon: float. Hyper-parameter used to control oscilations when weights are negative.
+                 The default value, 0.0055, work better for Deep Neural Networks. When using CNNs,
+                 try something around 0.0025.
+
+    # References:
+        - ReLUs: An Alternative to the ReLU Activation Function. This function was
+        first introduced at the Codemotion Amsterdam 2018 and then at the DevDay, in Vilnius, Lithuania.
+        It has been extensively tested with Deep Nets, CNNs, LSTMs, Residual Nets and GANs, based
+        on the MNIST, Kaggle Toxicity and IMDB datasets.
+    """
+
+    def __init__(self, epsilon=0.0055, **kwargs):
+        super(ReLUs, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.epsilon = K.cast_to_floatx(epsilon)
+
+    def call(self, Z):
+        pi = K.variable((np.pi))
+        m = self.epsilon * (K.sigmoid(K.sin(Z)) - K.sigmoid(K.cos(Z)) * K.exp(K.sqrt(pi)))
+        A = K.maximum(m, Z)
+        return A
+
+    def get_config(self):
+        config = {'epsilon': float(self.epsilon)}
+        base_config = super(ReLUs, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
     def compute_output_shape(self, input_shape):
