@@ -360,7 +360,17 @@ def count_params(x):
 
 
 def cast(x, dtype):
-    return T.cast(x, dtype)
+    return (
+        None
+        if x is None
+        else (
+            x
+            if x.dtype == dtype
+            else T.cast(x, dtype)))
+
+
+def cast_like(x, y):
+    return None if x is None else cast(x, dtype(y))
 
 
 # UPDATES OPS

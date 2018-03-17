@@ -510,6 +510,10 @@ def cast(x, dtype):
     return x
 
 
+def cast_like(x, y):
+    return None if x is None else cast(x, dtype(y))
+
+
 def dot(x, y):
     if len(x.shape) > 2 or len(y.shape) > 2:
         y_shape = int_shape(y)

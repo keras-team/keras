@@ -31,7 +31,15 @@ def _test_optimizer(optimizer, target=0.75):
     model = Sequential()
     model.add(Dense(10, input_shape=(x_train.shape[1],)))
     model.add(Activation('relu'))
+    # We cast to float16 to test the situation where weights have a different
+    # dtype than floatx(), such as a BatchNormalization layer with float32
+    # weights when floatx() is float16.
+    prev_floatx = K.floatx()
+    K.set_floatx('float16')
+    model.add(Lambda(lambda x: K.cast(x, K.floatx())))
     model.add(Dense(y_train.shape[1]))
+    K.set_floatx(prev_floatx)
+    model.add(Lambda(lambda x: K.cast(x, K.floatx())))
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer=optimizer,

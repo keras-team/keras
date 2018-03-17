@@ -777,7 +777,12 @@ def zeros_like(x, dtype=None, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    return tf.zeros_like(x, dtype=dtype, name=name)
+    dtype = dtype or x.dtype.base_dtype.name
+    tf_dtype = tf.as_dtype(dtype)
+    v = tf.zeros_like(x, dtype=dtype, name=name)
+    if py_all(v.get_shape().as_list()):
+        return variable(v, dtype=dtype, name=name)
+    return v
 
 
 def ones_like(x, dtype=None, name=None):
@@ -944,7 +949,28 @@ def cast(x, dtype):
         <tf.Tensor 'Cast_2:0' shape=(2, 3) dtype=float16>
     ```
     """
-    return tf.cast(x, dtype)
+    return (
+        None
+        if x is None
+        else (
+            x
+            if x.dtype.base_dtype.name == dtype
+            else tf.cast(x, dtype)))
+
+
+def cast_like(x, y):
+    """Casts a tensor to the type of another tensor and returns it
+
+    You can cast a Keras variable but it still returns a Keras tensor.
+
+    # Arguments
+        x: Keras tensor (or variable) to be cast
+        y: Keras tensor with the target dtype
+
+    # Returns
+        x cast to the dtype of y. None if x is None
+    """
+    return None if x is None else cast(x, dtype(y))
 
 
 # UPDATES OPS
