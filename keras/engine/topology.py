@@ -3476,4 +3476,7 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
                 weight_value_tuples.append((symbolic_weights[i],
                                             weight_values[i]))
 
-    K.batch_set_value(weight_value_tuples)
+    if weight_value_tuples:
+        K.batch_set_value(weight_value_tuples)
+    else:
+        warnings.warn('Can\'t load any weights for layer due to wrong name mapping')
