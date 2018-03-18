@@ -1622,6 +1622,81 @@ class Model(Container):
             raise ValueError('If fitting from data tensors, '
                              'you should specify the `steps_per_epoch` '
                              'argument.')
+
+        _upgrade = True
+        # Using `fit_generator` to train `fit`,
+        # Legacy version of `fit` are expected to be deprecated, the following
+        #   constraints should be supported by fit_generator
+        if x is None or isinstance(x, dict) or y is None or isinstance(y, dict):
+            # fit_generator doesn't support framework-native tensor data
+            _upgrade = False
+        if sample_weight is not None and isinstance(sample_weight[0], dict):
+            # fit_generator doesn't support dict-like sample_weight
+            _upgrade = False
+        if isinstance(x, list) and 'csr_matrix' in x[0].__class__.__name__:
+            # fit_generator doesn't support sparse tensor data
+            _upgrade = False
+
+        if _upgrade:
+            if not isinstance(x, list):
+                x = [x]
+            if not isinstance(y, list):
+                y = [y]
+            if sample_weight is not None and not isinstance(sample_weight, list):
+                sample_weight = [sample_weight]
+            if len(x) == 0:
+                len_x = 0
+            else:
+                len_x = int(x[0].shape[0]) if hasattr(x[0], 'shape') else len(x[0])
+
+            if validation_data is None and validation_split and 0. < validation_split < 1.:
+                split_at = int(len_x * (1. - validation_split))
+                len_x = split_at
+                x, val_x = ([d[:split_at] for d in x], [d[split_at:] for d in x])
+                y, val_y = ([d[:split_at] for d in y], [d[split_at:] for d in y])
+                if sample_weight is not None:
+                    sample_weight, val_sample_weight = ([d[:split_at] for d in sample_weight],
+                                                        [d[split_at:] for d in sample_weight])
+                    validation_data = (val_x, val_y, val_sample_weight)
+                else:
+                    validation_data = (val_x, val_y)
+
+            if steps_per_epoch is None:
+                steps_per_epoch = (len_x + batch_size - 1) / batch_size
+
+            def _array_generator(x, y, sample_weight, batch_size, len_x, shuffle):
+                # Fully array shuffle by generator is much more efficient
+                index, index_array = (0, np.arange(len_x))
+                while True:
+                    if shuffle and index == 0:
+                        index_array = np.random.permutation(len_x)
+                    sub_array = index_array[index:(index + batch_size)]
+                    index += batch_size
+                    if index >= len_x:
+                        index = 0
+                    if sample_weight is None:
+                        yield ([d[sub_array] for d in x],
+                               [d[sub_array] for d in y])
+                    else:
+                        yield ([d[sub_array] for d in x],
+                               [d[sub_array] for d in y],
+                               [d[sub_array] for d in sample_weight])
+
+            return self.fit_generator(_array_generator(x, y, len_x=len_x,
+                                                       batch_size=batch_size,
+                                                       sample_weight=sample_weight,
+                                                       shuffle=shuffle),
+                                      epochs=epochs,
+                                      verbose=verbose,
+                                      callbacks=callbacks,
+                                      validation_data=validation_data,
+                                      shuffle=False,
+                                      class_weight=class_weight,
+                                      initial_epoch=initial_epoch,
+                                      steps_per_epoch=steps_per_epoch,
+                                      validation_steps=validation_steps)
+
+        # Fallback to legacy `fit` training.
         # Validate user data.
         x, y, sample_weights = self._standardize_user_data(
             x, y,
