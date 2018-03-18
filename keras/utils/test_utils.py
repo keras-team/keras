@@ -116,6 +116,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # test as first layer in Sequential API
     layer_config = layer.get_config()
+    layer_config.update(kwargs)
     layer_config['batch_input_shape'] = input_shape
     layer = layer.__class__.from_config(layer_config)
 
@@ -127,6 +128,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                                         actual_output_shape):
         if expected_dim is not None:
             assert expected_dim == actual_dim
+
     if expected_output is not None:
         assert_allclose(actual_output, expected_output, rtol=1e-3)
 

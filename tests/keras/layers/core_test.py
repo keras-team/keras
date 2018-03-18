@@ -97,24 +97,22 @@ def test_permute():
 
 @keras_test
 def test_flatten():
-    np_inp_channels_last = np.arange(12, dtype='float32').reshape(
-                                    (1, 2, 3, 2))
+    np_inp_channels_last = np.arange(24, dtype='float32').reshape(
+                                    (1, 4, 3, 2))
 
     np_output_cl = layer_test(layers.Flatten,
                               kwargs={'data_format':
-                                          'channels_last'},
+                                      'channels_last'},
                               input_data=np_inp_channels_last)
 
     np_inp_channels_first = np.transpose(np_inp_channels_last,
                                          [0, 3, 1, 2])
+
     np_output_cf = layer_test(layers.Flatten,
                               kwargs={'data_format':
-                                          'channels_first'},
-                              input_data=np_inp_channels_first)
-
-    assert_allclose(np_output_cf.shape, [1, 12])
-    assert_allclose(np_output_cl, np_output_cf, atol=1e-4)
-
+                                      'channels_first'},
+                              input_data=np_inp_channels_first,
+                              expected_output=np_output_cl)
 
 
 @keras_test

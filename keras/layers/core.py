@@ -467,11 +467,11 @@ class Flatten(Layer):
     """Flattens the input. Does not affect the batch size.
 
     Arguments:
-    data_format: A string, one of `channels_last` (default) or `channels_first`.
-      The ordering of the dimensions in the inputs.
-      `channels_last` corresponds to inputs with shape
-      `(batch, ..., channels)` while `channels_first` corresponds to
-      inputs with shape `(batch, channels, ...)`.
+        data_format: A string, one of `channels_last` (default) or `channels_first`.
+          The ordering of the dimensions in the inputs.
+          `channels_last` corresponds to inputs with shape
+          `(batch, ..., channels)` while `channels_first` corresponds to
+          inputs with shape `(batch, channels, ...)`.
 
     # Example
 
@@ -504,7 +504,13 @@ class Flatten(Layer):
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
-            inputs = K.permute_dimensions(inputs, (0, 2, 3, 1))
+            # Ensure works for any dim, plus 2 due to [N, C, ...]
+            permutation = [0]
+            permutation.extend([i+2 for i in
+                                range(len(inputs.get_shape().as_list()[2:]))])
+            permutation.append(1)
+            inputs = K.permute_dimensions(inputs, permutation)
+
         return K.batch_flatten(inputs)
 
 
