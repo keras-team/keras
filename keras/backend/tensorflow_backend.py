@@ -2120,7 +2120,7 @@ def batch_flatten(x):
     # Returns
         A tensor.
     """
-    x = tf.reshape(x, [-1, prod(shape(x)[1:])])
+    x = tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
     return x
 
 
