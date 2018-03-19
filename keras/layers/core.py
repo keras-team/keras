@@ -504,10 +504,10 @@ class Flatten(Layer):
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
-            # Ensure works for any dim, plus 2 due to [N, C, ...]
+            # Ensure works for any dim
             permutation = [0]
-            permutation.extend([i+2 for i in
-                                range(len(inputs.get_shape().as_list()[2:]))])
+            permutation.extend([i for i in
+                                range(2, len(inputs.shape))])
             permutation.append(1)
             inputs = K.permute_dimensions(inputs, permutation)
 
