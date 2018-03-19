@@ -2955,7 +2955,16 @@ def softmax(x, axis=-1):
 
     # Returns
         A tensor.
+
+    # Raises
+        AttributeError: if using unsupported axia attribution.
     """
+    if tf.VERSION < '1.5.0':
+        if axis != -1:
+            raise AttributeError('axis is not supported by current'
+                                 'tensorflow, please upgrade tensorflow'
+                                 'backend to >= 1.5.0')
+        return tf.nn.softmax(x)
     return tf.nn.softmax(x, axis=axis)
 
 
