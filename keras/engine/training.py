@@ -1179,79 +1179,64 @@ class Model(Container):
                     m.reset_states()
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
-            if steps_per_epoch is not None:
-                for step_index in range(steps_per_epoch):
-                    batch_logs = {}
-                    batch_logs['batch'] = step_index
-                    batch_logs['size'] = 1
-                    callbacks.on_batch_begin(step_index, batch_logs)
-                    outs = f(ins)
 
-                    if not isinstance(outs, list):
-                        outs = [outs]
-                    for l, o in zip(out_labels, outs):
-                        batch_logs[l] = o
-
-                    callbacks.on_batch_end(step_index, batch_logs)
-                    if callback_model.stop_training:
-                        break
-
-                if do_validation:
-                    val_outs = self._test_loop(val_f, val_ins,
-                                               batch_size=batch_size,
-                                               steps=validation_steps,
-                                               verbose=0)
-                    if not isinstance(val_outs, list):
-                        val_outs = [val_outs]
-                    # Same labels assumed.
-                    for l, o in zip(out_labels, val_outs):
-                        epoch_logs['val_' + l] = o
-            else:
+            if steps_per_epoch is None:
                 if shuffle == 'batch':
                     index_array = _batch_shuffle(index_array, batch_size)
                 elif shuffle:
                     np.random.shuffle(index_array)
-
                 batches = _make_batches(num_train_samples, batch_size)
-                for batch_index, (batch_start, batch_end) in enumerate(batches):
+                running_steps = len(batches)
+            else:
+                running_steps = steps_per_epoch
+
+            for step_index in range(running_steps):
+                if steps_per_epoch is None:
+                    batch_start, batch_end = batches[step_index]
                     batch_ids = index_array[batch_start:batch_end]
+                    step_size = len(batch_ids)
                     try:
                         if isinstance(ins[-1], float):
                             # Do not slice the training phase flag.
                             ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                         else:
                             ins_batch = _slice_arrays(ins, batch_ids)
+                        for i in indices_for_conversion_to_dense:
+                            ins_batch[i] = ins_batch[i].toarray()
                     except TypeError:
                         raise TypeError('TypeError while preparing batch. '
                                         'If using HDF5 input data, '
                                         'pass shuffle="batch".')
-                    batch_logs = {}
-                    batch_logs['batch'] = batch_index
-                    batch_logs['size'] = len(batch_ids)
-                    callbacks.on_batch_begin(batch_index, batch_logs)
-                    for i in indices_for_conversion_to_dense:
-                        ins_batch[i] = ins_batch[i].toarray()
+                else:
+                    step_size = 1
+                    ins_batch = ins
 
-                    outs = f(ins_batch)
-                    if not isinstance(outs, list):
-                        outs = [outs]
-                    for l, o in zip(out_labels, outs):
-                        batch_logs[l] = o
+                batch_logs = {}
+                batch_logs['batch'] = step_index
+                batch_logs['size'] = step_size
+                callbacks.on_batch_begin(step_index, batch_logs)
 
-                    callbacks.on_batch_end(batch_index, batch_logs)
-                    if callback_model.stop_training:
-                        break
+                outs = f(ins_batch)
+                if not isinstance(outs, list):
+                    outs = [outs]
+                for l, o in zip(out_labels, outs):
+                    batch_logs[l] = o
 
-                    if batch_index == len(batches) - 1:  # Last batch.
-                        if do_validation:
-                            val_outs = self._test_loop(val_f, val_ins,
-                                                       batch_size=batch_size,
-                                                       verbose=0)
-                            if not isinstance(val_outs, list):
-                                val_outs = [val_outs]
-                            # Same labels assumed.
-                            for l, o in zip(out_labels, val_outs):
-                                epoch_logs['val_' + l] = o
+                callbacks.on_batch_end(step_index, batch_logs)
+                if callback_model.stop_training:
+                    break
+
+            if do_validation:
+                val_outs = self._test_loop(val_f, val_ins,
+                                           batch_size=batch_size,
+                                           steps=validation_steps,
+                                           verbose=0)
+                if not isinstance(val_outs, list):
+                    val_outs = [val_outs]
+                # Same labels assumed.
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
+
             callbacks.on_epoch_end(epoch, epoch_logs)
             if callback_model.stop_training:
                 break
