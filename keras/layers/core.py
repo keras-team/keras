@@ -507,7 +507,7 @@ class Flatten(Layer):
             # Ensure works for any dim
             permutation = [0]
             permutation.extend([i for i in
-                                range(2, len(inputs.shape))])
+                                range(2, K.ndim(inputs))])
             permutation.append(1)
             inputs = K.permute_dimensions(inputs, permutation)
 
