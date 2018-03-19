@@ -328,7 +328,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return np.ceil(len(self.x) / float(self.batch_size))
+                return int(np.ceil(len(self.x) / float(self.batch_size)))
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
