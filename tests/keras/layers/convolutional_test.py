@@ -197,8 +197,6 @@ def test_convolution_2d():
                                                  batch_input_shape=(None, None, 5, None))])
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason='MXNet backend does not support conv2d_transpose yet.')
 @keras_test
 def test_conv2d_transpose():
     num_samples = 2

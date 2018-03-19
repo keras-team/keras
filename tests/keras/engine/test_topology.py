@@ -618,8 +618,6 @@ def test_preprocess_weights_for_loading(layer):
                 for (x, y) in zip(weights1, weights2)])
 
 
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Conv2D Transpose')
 @keras_test
 @pytest.mark.parametrize("layer", [
     layers.Conv2D(2, (3, 3), input_shape=[5, 5, 3]),
