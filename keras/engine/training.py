@@ -1070,6 +1070,8 @@ class Model(Container):
                              ' should be specified.')
         return num_samples
 
+    # The following function has been successfully deplicated
+    #   without the need to update and invoke
     def _fit_loop(self, f, ins, out_labels=None, batch_size=None,
                   epochs=100, verbose=1, callbacks=None,
                   val_f=None, val_ins=None, shuffle=True,
@@ -1628,6 +1630,102 @@ class Model(Container):
             sample_weight=sample_weight,
             class_weight=class_weight,
             batch_size=batch_size)
+
+        # Do validation_split for standard validation data
+        if validation_data is None and validation_split and 0. < validation_split < 1.:
+            n_samples = int(x[0].shape[0]) if hasattr(x[0], 'shape') else len(x[0])
+            _split_at = int(n_samples * (1. - validation_split))
+            # Construct new (x, y, sample_weights) after validation_split
+            x, val_x = (_slice_arrays(x, 0, _split_at), _slice_arrays(x, _split_at))
+            y, val_y = (_slice_arrays(y, 0, _split_at), _slice_arrays(y, _split_at))
+            sample_weights, val_sample_weight = (
+                _slice_arrays(sample_weights, 0, _split_at),
+                _slice_arrays(sample_weights, _split_at))
+            # Construct standard validation_data
+            validation_data = (val_x, val_y, val_sample_weight)
+
+        # When users want to train with input tensors
+        if steps_per_epoch is not None:
+            # Construct the generator for generating input tensors
+            def _data_tensors_generator(x, y, sample_weights):
+                while True:
+                    yield (x, y, sample_weights)
+
+            generator = _data_tensors_generator(x, y, sample_weights)
+        else:
+            # Users want to train with standard input array list
+            data = x + y + sample_weights
+            # Get the number of samples provided
+            n_samples = int(data[0].shape[0]) if hasattr(data[0], 'shape') else len(data[0])
+
+            # Handling sparse data conversion if given sparse inputs while backend needs dense inputs
+            # To prevent a slowdown, we find beforehand the arrays that need conversion.
+            x_sparse, y_sparse, w_sparse = ([], [], [])
+            for i in range(len(self._feed_inputs)):
+                if issparse(x[i]) and not K.is_sparse(self._feed_inputs[i]):
+                    x_sparse.append(i)
+            for i in range(len(self._feed_targets)):
+                if issparse(y[i]) and not K.is_sparse(self._feed_targets[i]):
+                    y_sparse.append(i)
+            for i in range(len(self._feed_sample_weights)):
+                if issparse(sample_weights[i]) and not K.is_sparse(self._feed_sample_weights[i]):
+                    w_sparse.append(i)
+
+            # Construct the generator for generating standard input batches
+            def _array_list_generator(x, y, sample_weights, batch_size, shuffle, n_samples):
+                # Fully array shuffle by generator is much more efficient
+                index, index_array = (0, np.arange(n_samples))
+                while True:
+                    if index == 0:
+                        # Shuffle the array order in a new turn
+                        # (Note that fully array shuffling by generator is much efficient)
+                        if shuffle == 'batch':
+                            # Shuffle input array from HDF5
+                            index_array = _batch_shuffle(index_array, batch_size)
+                        elif shuffle:
+                            # Shuffle standard numpy input array
+                            np.random.shuffle(index_array)
+                    batch_ids = index_array[index:(index + batch_size)]
+                    index += batch_size
+                    if index >= n_samples:
+                        index = 0
+                    try:
+                        x_batch = _slice_arrays(x, batch_ids)
+                        y_batch = _slice_arrays(y, batch_ids)
+                        w_batch = _slice_arrays(sample_weights, batch_ids)
+
+                        # Convert the current subset of sparse data in order to save memory
+                        for i in x_sparse:
+                            x_batch[i] = x_batch[i].toarray()
+                        for i in y_sparse:
+                            y_batch[i] = y_batch[i].toarray()
+                        for i in w_sparse:
+                            w_batch[i] = w_batch[i].toarray()
+                    except TypeError:
+                        raise TypeError('TypeError while preparing batch. '
+                                        'If using HDF5 input data, '
+                                        'pass shuffle="batch".')
+                    yield (x_batch, y_batch, w_batch)
+
+            generator = _array_list_generator(x, y, sample_weights, batch_size, shuffle, n_samples)
+
+            # Calculate the steps_per_epoch a generator will generate within one epoch
+            steps_per_epoch = (n_samples + batch_size - 1) // batch_size
+
+            # Due to already shuffling from generator, the 2rd-time shuffling is not needed
+            shuffle = False
+
+        # Delegate logic to `fit_generator`.
+        return self.fit_generator(generator, epochs=epochs,
+                                  verbose=verbose, callbacks=callbacks,
+                                  validation_data=validation_data, shuffle=shuffle,
+                                  initial_epoch=initial_epoch,
+                                  steps_per_epoch=steps_per_epoch,
+                                  validation_steps=validation_steps)
+
+        # The following procedure has been successfully deplicated
+        #   without the need to update and invoke
+
         # Prepare validation data.
         do_validation = False
         if validation_data:
@@ -2209,7 +2307,10 @@ class Model(Container):
                                          str(generator_output))
                     # build batch logs
                     batch_logs = {}
-                    if isinstance(x, list):
+                    # Handle data tensors support when no input given
+                    if len(x) == 0:
+                        batch_size = 1
+                    elif isinstance(x, list):
                         batch_size = x[0].shape[0]
                     elif isinstance(x, dict):
                         batch_size = list(x.values())[0].shape[0]
