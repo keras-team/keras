@@ -513,6 +513,11 @@ class Flatten(Layer):
 
         return K.batch_flatten(inputs)
 
+    def get_config(self):
+        config = {'data_format': self.data_format}
+        base_config = super(Flatten, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class RepeatVector(Layer):
     """Repeats the input n times.

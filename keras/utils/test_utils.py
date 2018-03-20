@@ -116,9 +116,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # test as first layer in Sequential API
     layer_config = layer.get_config()
-    # deals with data_format in flatten
-    if 'data_format' in kwargs:
-        layer_config['data_format'] = kwargs['data_format']
     layer_config['batch_input_shape'] = input_shape
     layer = layer.__class__.from_config(layer_config)
 
