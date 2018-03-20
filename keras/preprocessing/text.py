@@ -28,9 +28,11 @@ def text_to_word_sequence(text,
 
     # Arguments
         text: Input text (string).
-        filters: Sequence of characters to filter out.
-        lower: Whether to convert the input to lowercase.
-        split: Sentence split marker (string).
+        filters: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
+        lower: boolean. Whether to convert the input to lowercase.
+        split: str. Separator for word splitting.
 
     # Returns
         A list of words (or tokens).
@@ -68,13 +70,15 @@ def one_hot(text, n,
 
     # Arguments
         text: Input text (string).
-        n: Dimension of the hashing space.
-        filters: Sequence of characters to filter out.
-        lower: Whether to convert the input to lowercase.
-        split: Sentence split marker (string).
+        n: int. Size of vocabulary.
+        filters: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
+        lower: boolean. Whether to set the text to lowercase.
+        split: str. Separator for word splitting.
 
     # Returns
-        A list of integer word indices (unicity non-guaranteed).
+        List of integers in [1, n]. Each integer encodes a word (unicity non-guaranteed).
     """
     return hashing_trick(text, n,
                          hash_function=hash,
@@ -93,14 +97,16 @@ def hashing_trick(text, n,
     # Arguments
         text: Input text (string).
         n: Dimension of the hashing space.
-        hash_function: if `None` uses python `hash` function, can be 'md5' or
+        hash_function: defaults to python `hash` function, can be 'md5' or
             any function that takes in input a string and returns a int.
-            Note that `hash` is not a stable hashing function, so
+            Note that 'hash' is not a stable hashing function, so
             it is not consistent across different runs, while 'md5'
             is a stable hashing function.
-        filters: Sequence of characters to filter out.
-        lower: Whether to convert the input to lowercase.
-        split: Sentence split marker (string).
+        filters: list (or concatenation) of characters to filter out, such as
+         punctuation. Default: '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n' , includes
+         basic punctuation, tabs, and newlines.
+        lower: boolean. Whether to set the text to lowercase.
+        split: str. Separator for word splitting.
 
     # Returns
         A list of integer word indices (unicity non-guaranteed).
@@ -141,7 +147,7 @@ class Tokenizer(object):
             filtered from the texts. The default is all punctuation, plus
             tabs and line breaks, minus the `'` character.
         lower: boolean. Whether to convert the texts to lowercase.
-        split: character or string to use for token splitting.
+        split: str. Separator for word splitting.
         char_level: if True, every character will be treated as a token.
         oov_token: if given, it will be added to word_index and used to
             replace out-of-vocabulary words during text_to_sequence calls

@@ -274,6 +274,17 @@ PAGES = [
         ]
     },
     {
+        'page': 'preprocessing/text.md',
+        'functions': [
+            preprocessing.text.hashing_trick,
+            preprocessing.text.one_hot,
+            preprocessing.text.text_to_word_sequence,
+        ],
+        'classes': [
+            preprocessing.text.Tokenizer,
+        ]
+    },
+    {
         'page': 'layers/wrappers.md',
         'all_module_classes': [wrappers],
     },
