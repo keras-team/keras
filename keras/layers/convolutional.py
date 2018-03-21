@@ -1084,7 +1084,7 @@ class _SeparableConv(_Conv):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `filterss_in * depth_multiplier`.
+            channels will be equal to `filters_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -1293,7 +1293,7 @@ class SeparableConv1D(_SeparableConv):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `filterss_in * depth_multiplier`.
+            channels will be equal to `filters_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -1422,7 +1422,7 @@ class SeparableConv2D(_SeparableConv):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `filterss_in * depth_multiplier`.
+            channels will be equal to `filters_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
