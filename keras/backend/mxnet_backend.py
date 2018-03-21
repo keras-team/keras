@@ -3035,7 +3035,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
 
     # Handle Data Format
     x = _preprocess_convnd_input(x, data_format)
-    kernel = _preprocess_convnd_kernel(kernel)
+    kernel = _preprocess_convnd_kernel(kernel, data_format)
 
     # We have already converted kernel to match MXNet required shape:
     # (depth, input_depth, rows, cols)
@@ -4018,18 +4018,20 @@ def _postprocess_convnd_output(x, data_format):
 
 
 @keras_mxnet_symbol
-def _preprocess_convnd_kernel(kernel):
-    # Kernel is always provided in TF kernel shape:
+def _preprocess_convnd_kernel(kernel, data_format):
+    # If data_format is channels_last, Kernel is TF kernel shape:
     #   2-D: (rows, cols, input_depth, depth)
     #   3-D: (kernel_depth, kernel_rows, kernel_cols, input_depth, depth)
     # Convert it to MXNet kernel shape:
     #   2-D: (depth, input_depth, rows, cols)
     #   3-D: (depth, input_depth, kernel_depth, kernel_rows, kernel_cols)
     #
-    if len(kernel.shape) > 4:
-        kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(4, 3, 0, 1, 2)))
-    elif len(kernel.shape) > 3:
-        kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
+    if data_format == 'channels_last':
+        if len(kernel.shape) > 4:
+            kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(4, 3, 0, 1, 2)))
+        elif len(kernel.shape) > 3:
+            kernel = KerasSymbol(mx.sym.transpose(data=kernel.symbol, axes=(3, 2, 0, 1)))
+
     return kernel
 
 
@@ -4040,6 +4042,7 @@ def _preprocess_convnd_transpose_output(output_shape, data_format):
     elif data_format == 'channels_first':
         output_shape = output_shape[2:]
     return output_shape
+
 
 def _validate_conv_input_shape(input_shape):
     # MXNet convolution operator cannot automatically infer shape.
@@ -4096,7 +4099,7 @@ def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid'
 
     # Handle Data Format
     x = _preprocess_convnd_input(x, data_format)
-    kernel = _preprocess_convnd_kernel(kernel)
+    kernel = _preprocess_convnd_kernel(kernel, data_format)
 
     # We have already converted kernel to match MXNet required shape:
     # (depth, input_depth, rows, cols)
