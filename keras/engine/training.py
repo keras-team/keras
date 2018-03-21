@@ -1458,7 +1458,10 @@ class Model(Container):
         output_shapes = []
         for output_shape, loss_fn in zip(self._feed_output_shapes, self._feed_loss_fns):
             if loss_fn is losses.sparse_categorical_crossentropy:
-                output_shapes.append(output_shape[:-1] + (1,))
+                if K.image_data_format() == 'channels_last':
+                    output_shapes.append(output_shape[:-1] + (1,))
+                else:
+                    output_shapes.append((output_shape[0], 1) + output_shape[2:])
             elif (not hasattr(loss_fn, '__name__') or
                   getattr(losses, loss_fn.__name__, None) is None):
                 # If `loss_fn` is not a function (e.g. callable class)
