@@ -130,7 +130,7 @@ class _Conv(Layer):
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
 
-        if self.data_format == 'channels_first':
+        if self.data_format == 'channels_first' and K.backend() == 'mxnet':
             kernel_shape = (self.filters, input_dim) + self.kernel_size
         else:
             kernel_shape = self.kernel_size + (input_dim, self.filters)
@@ -731,7 +731,7 @@ class Conv2DTranspose(Conv2D):
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
 
-        if self.data_format == 'channels_first':
+        if self.data_format == 'channels_first' and K.backend() == 'mxnet':
             kernel_shape = (input_dim, self.filters) + self.kernel_size
         else:
             kernel_shape = self.kernel_size + (self.filters, input_dim)
