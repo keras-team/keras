@@ -906,13 +906,18 @@ class ReduceLROnPlateau(Callback):
     """
 
     def __init__(self, monitor='val_loss', factor=0.1, patience=10,
-                 verbose=0, mode='auto', min_delta=1e-4, cooldown=0, min_lr=0):
+                 verbose=0, mode='auto', min_delta=1e-4, cooldown=0, min_lr=0,
+                 epsilon=None):
         super(ReduceLROnPlateau, self).__init__()
 
         self.monitor = monitor
         if factor >= 1.0:
             raise ValueError('ReduceLROnPlateau '
                              'does not support a factor >= 1.0.')
+        if epsilon:
+            min_delta = epsilon
+            warnings.warn('`epsilon` argument is deprecated and '
+                          'will be removed, use `min_delta` insted.')
         self.factor = factor
         self.min_lr = min_lr
         self.min_delta = min_delta
