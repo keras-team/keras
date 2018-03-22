@@ -98,9 +98,14 @@ def multi_gpu_model(model, gpus=None):
     with the template model (the argument you passed to `multi_gpu_model`),
     rather than the model returned by `multi_gpu_model`.
     """
-    if K.backend() != 'tensorflow':
+
+    if K.backend() != 'tensorflow' and K.backend() != 'mxnet':
         raise ValueError('`multi_gpu_model` is only available '
-                         'with the TensorFlow backend.')
+                         'with the TensorFlow and MXNet backend.')
+
+    if K.backend() == 'mxnet':
+        model.set_mxnet_context(gpus)
+        return model
 
     available_devices = _get_available_devices()
     available_devices = [_normalize_device_name(name) for name in available_devices]
