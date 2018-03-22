@@ -347,6 +347,31 @@ def test_ReduceLROnPlateau():
 
 
 @keras_test
+def test_ReduceLROnPlateau_patience():
+    class DummyOptimizer(object):
+        def __init__(self):
+            self.lr = K.variable(1.0)
+
+    class DummyModel(object):
+        def __init__(self):
+            self.optimizer = DummyOptimizer()
+
+    reduce_on_plateau = callbacks.ReduceLROnPlateau(monitor='val_loss',
+                                                    patience=2)
+    reduce_on_plateau.model = DummyModel()
+
+    losses = [0.0860, 0.1096, 0.1040]
+    lrs = []
+
+    for epoch in range(len(losses)):
+        reduce_on_plateau.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+        lrs.append(K.get_value(reduce_on_plateau.model.optimizer.lr))
+
+    # The learning rates should be 1.0 except the last one
+    assert all([lr == 1.0 for lr in lrs[:-1]]) and  lrs[-1] < 1.0
+
+
+@keras_test
 def test_CSVLogger(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'log.tsv')
