@@ -368,7 +368,7 @@ def test_ReduceLROnPlateau_patience():
         lrs.append(K.get_value(reduce_on_plateau.model.optimizer.lr))
 
     # The learning rates should be 1.0 except the last one
-    assert all([lr == 1.0 for lr in lrs[:-1]]) and  lrs[-1] < 1.0
+    assert all([lr == 1.0 for lr in lrs[:-1]]) and lrs[-1] < 1.0
 
 
 @keras_test
