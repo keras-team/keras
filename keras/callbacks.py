@@ -967,6 +967,7 @@ class ReduceLROnPlateau(Callback):
                 self.best = current
                 self.wait = 0
             elif not self.in_cooldown():
+                self.wait += 1
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
                     if old_lr > self.min_lr:
@@ -978,7 +979,6 @@ class ReduceLROnPlateau(Callback):
                                   'rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
-                self.wait += 1
 
     def in_cooldown(self):
         return self.cooldown_counter > 0
