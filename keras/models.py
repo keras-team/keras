@@ -1152,7 +1152,7 @@ class Sequential(Model):
                       validation_steps=None,
                       class_weight=None,
                       max_queue_size=10,
-                      workers=1,
+                      workers=0,
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
