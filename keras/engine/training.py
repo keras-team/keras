@@ -2182,10 +2182,13 @@ class Model(Container):
                     output_generator = generator
 
             callback_model.stop_training = False
-            # Construct epoch logs.
-            epoch_logs = {}
             while epoch < epochs:
+                # Reset stateful metrics
+                for m in self.metrics:
+                    if isinstance(m, Layer):
+                        m.reset_states()
                 callbacks.on_epoch_begin(epoch)
+                epoch_logs = {}
                 steps_done = 0
                 batch_index = 0
                 while steps_done < steps_per_epoch:
