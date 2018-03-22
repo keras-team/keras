@@ -285,7 +285,7 @@ def train_valid_split(original_dir, validation_split=0.1):
         valid_files = files[:valid_idx]
         _copy_symlinks(train_files, root, train_sub_dir_path)
         _copy_symlinks(valid_files, root, valid_sub_dir_path)
-    return train_dir, valid_dir
+    return tmp_dir, train_dir, valid_dir
 
 
 def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
