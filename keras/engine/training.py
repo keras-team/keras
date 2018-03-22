@@ -927,7 +927,7 @@ class Model(Container):
 
                         # Keep track of state updates created by
                         # stateful metrics (i.e. metrics layers).
-                        if isinstance(metric_fn, Layer):
+                        if isinstance(metric_fn, Layer) and metric_fn.stateful:
                             self.stateful_metric_names.append(metric_name)
                             self.metrics_updates += metric_fn.updates
 
@@ -1175,7 +1175,7 @@ class Model(Container):
         for epoch in range(initial_epoch, epochs):
             # Reset stateful metrics
             for m in self.metrics:
-                if isinstance(m, Layer):
+                if isinstance(m, Layer) and m.stateful:
                     m.reset_states()
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
@@ -1364,7 +1364,7 @@ class Model(Container):
 
         if hasattr(self, 'metrics'):
             for m in self.metrics:
-                if isinstance(m, Layer):
+                if isinstance(m, Layer) and m.stateful:
                     m.reset_states()
             stateful_metric_indices = [
                 i for i, name in enumerate(self.metrics_names)
@@ -1398,7 +1398,7 @@ class Model(Container):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
                         if i in stateful_metric_indices:
-                            outs[i] = batch_out
+                            outs[i] = float(batch_out)
                         else:
                             outs[i] += batch_out
                 else:
@@ -2185,6 +2185,9 @@ class Model(Container):
             # Construct epoch logs.
             epoch_logs = {}
             while epoch < epochs:
+                for m in self.metrics:
+                    if isinstance(m, Layer) and m.stateful:
+                        m.reset_states()
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
                 batch_index = 0
@@ -2320,9 +2323,20 @@ class Model(Container):
         """
         self._make_test_function()
 
+        stateful_metric_indices = []
+        if hasattr(self, 'metrics'):
+            for i, m in enumerate(self.metrics):
+                if isinstance(m, Layer) and m.stateful:
+                    m.reset_states()
+            stateful_metric_indices = [
+                i for i, name in enumerate(self.metrics_names)
+                if str(name) in self.stateful_metric_names]
+        else:
+            stateful_metric_indices = []
+
         steps_done = 0
         wait_time = 0.01
-        all_outs = []
+        outs_per_batch = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing and workers > 1:
@@ -2376,6 +2390,9 @@ class Model(Container):
                                      'or (x, y). Found: ' +
                                      str(generator_output))
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
+                if not isinstance(outs, list):
+                    outs = [outs]
+                outs_per_batch.append(outs)
 
                 if isinstance(x, list):
                     batch_size = x[0].shape[0]
@@ -2386,7 +2403,6 @@ class Model(Container):
                 if batch_size == 0:
                     raise ValueError('Received an empty batch. '
                                      'Batches should at least contain one item.')
-                all_outs.append(outs)
 
                 steps_done += 1
                 batch_sizes.append(batch_size)
@@ -2395,15 +2411,16 @@ class Model(Container):
             if enqueuer is not None:
                 enqueuer.stop()
 
-        if not isinstance(outs, list):
-            return np.average(np.asarray(all_outs),
-                              weights=batch_sizes)
-        else:
-            averages = []
-            for i in range(len(outs)):
-                averages.append(np.average([out[i] for out in all_outs],
+        averages = []
+        for i in range(len(outs)):
+            if i not in stateful_metric_indices:
+                averages.append(np.average([out[i] for out in outs_per_batch],
                                            weights=batch_sizes))
-            return averages
+            else:
+                averages.append(float(outs_per_batch[-1][i]))
+        if len(averages) == 1:
+            return averages[0]
+        return averages
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps=None,
