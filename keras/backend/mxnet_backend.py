@@ -4142,11 +4142,12 @@ def get_model():
         """The `Model` class adds training & evaluation routines to a `Container`. This class extends
         keras.engine.Model to add MXNet Module to perform training and inference with MXNet backend.
         """
+
         def __init__(self, inputs, outputs, name=None, context=None, kvstore='device', **kwargs):
             super(Model, self).__init__(inputs, outputs, name)
             self._num_data = len(self.inputs)
             self._num_label = len(self.outputs) + len(self.output_names)
-            self._context = self._get_mxnet_context(context)
+            self._context = self.get_mxnet_context(context)
             self._kvstore = kvstore
 
             self._data_names = None
@@ -4179,7 +4180,7 @@ def get_model():
 
             # If context is passed in kwargs
             if 'context' in kwargs:
-                self._context = self._get_mxnet_context(kwargs['context'])
+                self._context = self.get_mxnet_context(kwargs['context'])
 
             # set the data and label
             self._data_names = [x.name for x in self.inputs if x]
@@ -4413,15 +4414,36 @@ def get_model():
                 context=self._context,
                 fixed_param_names=self._fixed_weights)
 
-        def _get_mxnet_context(self, context):
+        def get_mxnet_context(self, context):
             mxnet_context = []
+
             if context is None:
-                mxnet_context.append(mx.current_context())
+                # If user does not provide any context, if GPUs are detected, by default it runs on first available
+                # GPU device. If not GPUs are detected, then it falls back to CPU.
+                gpus = mx.test_utils.list_gpus()
+                if gpus and len(gpus) > 0:
+                    mxnet_context.append(mx.gpu(gpus[0]))
+                else:
+                    mxnet_context.append(mx.current_context())
+            elif isinstance(context, Number):
+                # If user provides number of GPUs to use, set context accordingly.
+                if context == 0:
+                    mxnet_context.append(mx.current_context())
+                else:
+                    for gpu_id in range(0, context):
+                        mxnet_context.append(mx.gpu(gpu_id))
             elif isinstance(context, str):
+                # If user provides GPU context in the format - "gpu(0)" i.e., string.
                 mxnet_context.append(context)
             else:
+                # If user has provided a list.
+                # List can be:
+                #   1. List of GPU IDs - [0, 1, 2, 3]
+                #   2. List of GPU context strings - ["gpu(0)", "gpu(1)"]
                 for context_name in context:
-                    if context_name.startswith('cpu'):
+                    if isinstance(context_name, Number):
+                        mxnet_context.append(mx.gpu(context_name))
+                    elif context_name.startswith('cpu'):
                         mxnet_context.append(mx.cpu())
                     elif context_name.startswith('gpu('):
                         index = int(context_name[4:-1])
@@ -4431,6 +4453,26 @@ def get_model():
                         mxnet_context.append(mx.gpu(index))
 
             return mxnet_context
+
+        def set_mxnet_context(self, gpus):
+            """Sets the mxnet context for the current Model.
+
+            # Arguments
+                gpus: Integer >= 2 or list of integers, number of GPUs or
+                      list of GPU IDs on which to create model replicas.
+            """
+            if isinstance(gpus, (list, tuple)):
+                if len(gpus) <= 1:
+                    raise ValueError('For multi-gpu usage to be effective, '
+                                     'call `multi_gpu_model` with `len(gpus) >= 2`. '
+                                     'Received: `gpus=%s`' % gpus)
+            else:
+                if gpus <= 1:
+                    raise ValueError('For multi-gpu usage to be effective, '
+                                     'call `multi_gpu_model` with `gpus >= 2`. '
+                                     'Received: `gpus=%d`' % gpus)
+
+            self._context = self.get_mxnet_context(gpus)
 
     return Model
 
