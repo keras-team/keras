@@ -73,7 +73,8 @@ def get_uid(prefix=''):
 
 
 def reset_uids():
-    """Reset graph identifiers."""
+    """Resets graph identifiers.
+    """
     global _GRAPH_UID_DICTS
     _GRAPH_UID_DICTS = {}
 
