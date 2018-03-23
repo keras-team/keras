@@ -1142,7 +1142,8 @@ class Sequential(Model):
             return (proba > 0.5).astype('int32')
 
     @interfaces.legacy_generator_methods_support
-    def fit_generator(self, generator,
+    def fit_generator(self,
+                      generator,
                       steps_per_epoch=None,
                       epochs=1,
                       verbose=1,
@@ -1161,12 +1162,23 @@ class Sequential(Model):
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
 
+        The use of `keras.utils.Sequence` guarantees the ordering
+        and guarantees the single use of every input per epoch when
+        using `use_multiprocessing=True`.
+
         # Arguments
-            generator: A generator.
+            generator: A generator or an instance of `Sequence`
+                (`keras.utils.Sequence`) object in order to avoid duplicate data
+                    when using multiprocessing.
                 The output of the generator must be either
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
-                All arrays should contain the same number of samples.
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
+                This tuple (a single output of the generator) makes a single
+                batch. Therefore, all arrays in this tuple must have the same
+                length (equal to the size of this batch). Different batches may
+                have different sizes. For example, the last batch of the epoch
+                is commonly smaller than the others, if the size of the dataset
+                is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
@@ -1181,36 +1193,46 @@ class Sequential(Model):
                 Note that in conjunction with initial_epoch, the parameter
                 epochs is to be understood as "final epoch". The model is
                 not trained for n steps given by epochs, but until the
-                epoch of index `epochs` is reached.
-            verbose: Verbosity mode, 0, 1, or 2.
-            callbacks: List of callbacks to be called during training.
+                epoch epochs is reached.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             validation_data: This can be either
-                - A generator for the validation data
-                - A tuple (inputs, targets)
-                - A tuple (inputs, targets, sample_weights).
+                - a generator for the validation data
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
             validation_steps: Only relevant if `validation_data`
-                is a generator.
-                Number of steps to yield from validation generator
+                is a generator. Total number of steps (batches of samples)
+                to yield from `validation_data` generator before stopping
                 at the end of every epoch. It should typically
                 be equal to the number of samples of your
                 validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
-            class_weight: Dictionary mapping class indices to a weight
-                for the class.
-            max_queue_size: Maximum size for the generator queue
-            workers: Maximum number of processes to spin up
-            use_multiprocessing: if True, use process based threading.
-                Note that because
-                this implementation relies on multiprocessing,
-                you should not pass
-                non picklable arguments to the generator
-                as they can't be passed
-                easily to children processes.
-            shuffle: Whether to shuffle the order of the batches at
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) value, used for weighting the loss function
+                (during training only). This can be useful to tell the model to
+                "pay more attention" to samples from an under-represented class.
+            max_queue_size: Integer. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Maximum number of processes to spin up
+                when using process-based threading.
+                If unspecified, `workers` will default to 1. If 0, will
+                execute the generator on the main thread.
+            use_multiprocessing: Boolean.
+                If `True`, use process-based threading.
+                If unspecified, `use_multiprocessing` will default to `False`.
+                Note that because this implementation relies on multiprocessing,
+                you should not pass non-picklable arguments to the generator
+                as they can't be passed easily to children processes.
+            shuffle: Boolean (whether to shuffle the order of the batches at
                 the beginning of each epoch. Only used with instances
-                of `Sequence` (keras.utils.Sequence).
-            initial_epoch: Epoch at which to start training
+                of `Sequence` (`keras.utils.Sequence`).
+                Has no effect when `steps_per_epoch` is not `None`.
+            initial_epoch: Integer.
+                Epoch at which to start training
                 (useful for resuming a previous training run).
 
         # Returns
@@ -1218,12 +1240,13 @@ class Sequential(Model):
 
         # Raises
             RuntimeError: if the model was never compiled.
+            ValueError: In case the generator yields data in an invalid format.
 
         # Example
 
         ```python
             def generate_arrays_from_file(path):
-                while 1:
+                while True:
                     with open(path) as f:
                         for line in f:
                             # create Numpy arrays of input data

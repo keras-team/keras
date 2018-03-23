@@ -428,7 +428,8 @@ def test_model_methods():
 
     # Need range check here as filling of the queue depends on sleep in the enqueuers
     assert 6 <= gen_counters[0] <= 8
-    assert 3 <= gen_counters[1] <= 5
+    # 12 = (epoch * workers * validation steps * max_queue_size)
+    assert 3 <= gen_counters[1] <= 12
 
     gen_counters = [0]
     out = model.fit_generator(generator=RandomSequence(3), epochs=3,
@@ -436,8 +437,10 @@ def test_model_methods():
                               validation_steps=1,
                               max_queue_size=2,
                               workers=2)
+
+    # 12 = (epoch * workers * validation steps * max_queue_size)
     # Need range check here as filling of the queue depends on sleep in the enqueuers
-    assert 3 <= gen_counters[0] <= 5
+    assert 3 <= gen_counters[0] <= 12
 
     # predict_generator output shape behavior should be consistent
     def expected_shape(batch_size, n_batches):

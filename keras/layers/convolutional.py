@@ -1084,7 +1084,7 @@ class _SeparableConv(_Conv):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `filterss_in * depth_multiplier`.
+            channels will be equal to `filters_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -1293,7 +1293,7 @@ class SeparableConv1D(_SeparableConv):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `filterss_in * depth_multiplier`.
+            channels will be equal to `filters_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -1422,7 +1422,7 @@ class SeparableConv2D(_SeparableConv):
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
-            channels will be equal to `filterss_in * depth_multiplier`.
+            channels will be equal to `filters_in * depth_multiplier`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -2042,14 +2042,14 @@ class ZeroPadding3D(Layer):
     """Zero-padding layer for 3D data (spatial or spatio-temporal).
 
     # Arguments
-        padding: int, or tuple of 2 ints, or tuple of 2 tuples of 2 ints.
+        padding: int, or tuple of 3 ints, or tuple of 3 tuples of 2 ints.
             - If int: the same symmetric padding
                 is applied to width and height.
-            - If tuple of 2 ints:
+            - If tuple of 3 ints:
                 interpreted as two different
                 symmetric padding values for height and width:
                 `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
-            - If tuple of 2 tuples of 2 ints:
+            - If tuple of 3 tuples of 2 ints:
                 interpreted as
                 `((left_dim1_pad, right_dim1_pad), (left_dim2_pad, right_dim2_pad), (left_dim3_pad, right_dim3_pad))`
         data_format: A string,

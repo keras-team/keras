@@ -229,7 +229,7 @@ class RNN(Layer):
             It is also possible for `cell` to be a list of RNN cell instances,
             in which cases the cells get stacked on after the other in the RNN,
             implementing an efficient stacked RNN.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -479,6 +479,7 @@ class RNN(Layer):
                                for dim in state_size]
         if self.stateful:
             self.reset_states()
+        self.built = True
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -983,7 +984,7 @@ class SimpleRNN(RNN):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -1528,7 +1529,7 @@ class GRU(RNN):
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
             for different applications.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -2054,7 +2055,7 @@ class LSTM(RNN):
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
             for different applications.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.

@@ -80,6 +80,7 @@ from keras import losses
 from keras import metrics
 from keras import backend
 from keras import activations
+from keras import preprocessing
 
 import sys
 if sys.version[0] == '2':
@@ -202,7 +203,6 @@ PAGES = [
             layers.SimpleRNNCell,
             layers.GRUCell,
             layers.LSTMCell,
-            layers.StackedRNNCells,
             layers.CuDNNGRU,
             layers.CuDNNLSTM,
         ],
@@ -246,6 +246,42 @@ PAGES = [
             layers.maximum,
             layers.concatenate,
             layers.dot,
+        ]
+    },
+    {
+        'page': 'preprocessing/sequence.md',
+        'functions': [
+            preprocessing.sequence.pad_sequences,
+            preprocessing.sequence.skipgrams,
+            preprocessing.sequence.make_sampling_table,
+        ],
+        'classes': [
+            preprocessing.sequence.TimeseriesGenerator,
+        ]
+    },
+    {
+        'page': 'preprocessing/image.md',
+        'functions': [
+            preprocessing.image.random_rotation,
+            preprocessing.image.random_shift,
+            preprocessing.image.random_shear,
+            preprocessing.image.random_zoom,
+            preprocessing.image.random_channel_shift,
+            preprocessing.image.random_brightness,
+        ],
+        'classes': [
+            preprocessing.image.ImageDataGenerator,
+        ]
+    },
+    {
+        'page': 'preprocessing/text.md',
+        'functions': [
+            preprocessing.text.hashing_trick,
+            preprocessing.text.one_hot,
+            preprocessing.text.text_to_word_sequence,
+        ],
+        'classes': [
+            preprocessing.text.Tokenizer,
         ]
     },
     {
