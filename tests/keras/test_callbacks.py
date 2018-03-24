@@ -376,8 +376,9 @@ def test_ReduceLROnPlateau_backwards_compatibility():
     import warnings
     with warnings.catch_warnings(record=True) as ws:
         reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
-        message = str(ws[0].message)
-        assert "`epsilon` argument is deprecated" in message
+        # Check if warnings are disabled
+        if os.environ.get("PYTHONWARNINGS") != "ignore":
+            assert "`epsilon` argument is deprecated" in str(ws[0].message)
     assert not hasattr(reduce_on_plateau, 'epsilon')
     assert hasattr(reduce_on_plateau, 'min_delta')
     assert reduce_on_plateau.min_delta == 1e-13
