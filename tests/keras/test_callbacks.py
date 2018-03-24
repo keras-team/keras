@@ -1,6 +1,5 @@
 import os
 import multiprocessing
-import warnings
 
 import numpy as np
 import pytest
@@ -374,6 +373,7 @@ def test_ReduceLROnPlateau_patience():
 
 @keras_test
 def test_ReduceLROnPlateau_backwards_compatibility():
+    import warnings
     with warnings.catch_warnings(record=True) as ws:
         reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
         message = str(ws[0].message)
