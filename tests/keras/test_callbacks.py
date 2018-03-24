@@ -334,16 +334,54 @@ def test_ReduceLROnPlateau():
     model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+
+
+@keras_test
+def test_ReduceLROnPlateau_patience():
+    class DummyOptimizer(object):
+        def __init__(self):
+            self.lr = K.variable(1.0)
+
+    class DummyModel(object):
+        def __init__(self):
+            self.optimizer = DummyOptimizer()
+
+    reduce_on_plateau = callbacks.ReduceLROnPlateau(monitor='val_loss',
+                                                    patience=2)
+    reduce_on_plateau.model = DummyModel()
+
+    losses = [0.0860, 0.1096, 0.1040]
+    lrs = []
+
+    for epoch in range(len(losses)):
+        reduce_on_plateau.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+        lrs.append(K.get_value(reduce_on_plateau.model.optimizer.lr))
+
+    # The learning rates should be 1.0 except the last one
+    assert all([lr == 1.0 for lr in lrs[:-1]]) and lrs[-1] < 1.0
+
+
+@keras_test
+def test_ReduceLROnPlateau_backwards_compatibility():
+    import warnings
+    with warnings.catch_warnings(record=True) as ws:
+        reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
+        # Check if warnings are disabled
+        if os.environ.get("PYTHONWARNINGS") != "ignore":
+            assert "`epsilon` argument is deprecated" in str(ws[0].message)
+    assert not hasattr(reduce_on_plateau, 'epsilon')
+    assert hasattr(reduce_on_plateau, 'min_delta')
+    assert reduce_on_plateau.min_delta == 1e-13
 
 
 @keras_test
