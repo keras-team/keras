@@ -1,5 +1,6 @@
 import os
 import multiprocessing
+import warnings
 
 import numpy as np
 import pytest
@@ -372,8 +373,11 @@ def test_ReduceLROnPlateau_patience():
 
 
 @keras_test
-def test_ReduceLROnPlateau_backward_compatibility():
-    reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
+def test_ReduceLROnPlateau_backwards_compatibility():
+    with warnings.catch_warnings(record=True) as ws:
+        reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
+        message = str(ws[0].message)
+        assert "`epsilon` argument is deprecated" in message
     assert not hasattr(reduce_on_plateau, 'epsilon')
     assert hasattr(reduce_on_plateau, 'min_delta')
     assert reduce_on_plateau.min_delta == 1e-13
