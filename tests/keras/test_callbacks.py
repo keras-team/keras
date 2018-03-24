@@ -372,6 +372,14 @@ def test_ReduceLROnPlateau_patience():
 
 
 @keras_test
+def test_ReduceLROnPlateau_backward_compatibility():
+    reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
+    assert not hasattr(reduce_on_plateau, 'epsilon')
+    assert hasattr(reduce_on_plateau, 'min_delta')
+    assert reduce_on_plateau.min_delta == 1e-13
+
+
+@keras_test
 def test_CSVLogger(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'log.tsv')
