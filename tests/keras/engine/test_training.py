@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 
 import keras
 from keras import losses
-from keras.layers import Dense, Dropout
+from keras.layers import Dense, Dropout, Conv2D
 from keras.engine.topology import Input
 from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
@@ -1171,6 +1171,36 @@ def test_pandas_dataframe():
                           output_a_df)
     model_2.test_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
                           [output_a_df, output_b_df])
+
+
+@keras_test
+def test_model_with_sparse_loss_channels_first():
+    """
+    Tests correctness of _standardize_user_data when using sparse_categorical_crossentropy loss with 'channels_first'
+    image_data_format.
+
+    Verifies that error no longer occurs after PR #9715.
+    """
+    K.set_image_data_format('channels_last')
+
+    data = np.zeros((1, 3, 3, 1))
+    labels = np.array([[[[0, 1, 0], [2, 1, 0], [2, 2, 1]]]])
+    labels = np.moveaxis(labels, 1, -1)
+    inputs = Input(shape=(3, 3, 1))
+    predictions = Conv2D(3, 1, activation='softmax')(inputs)
+    model = Model(inputs=inputs, outputs=predictions)
+    model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
+    model.fit(data, labels)
+
+    K.set_image_data_format('channels_first')
+
+    data = np.zeros((1, 1, 3, 3))
+    labels = np.array([[[[0, 1, 0], [2, 1, 0], [2, 2, 1]]]])
+    inputs = Input(shape=(1, 3, 3))
+    predictions = Conv2D(3, 1, activation='softmax')(inputs)
+    model = Model(inputs=inputs, outputs=predictions)
+    model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
+    model.fit(data, labels)
 
 
 if __name__ == '__main__':
