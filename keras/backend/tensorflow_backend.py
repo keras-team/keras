@@ -1857,6 +1857,42 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
 
+def group_normalization(x, groups, gamma, beta, data_format, epsilon=1e-5):
+    """Apply group normalization on channel groups of x given gamma and beta.
+
+    # Arguments:
+        x: Input tensor or variable.
+        groups: Number of channel groups.
+        beta: Tensor with which to center the output.
+        gamma: Tensor by which to scale the output.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tensor.
+    """
+    if data_format == 'channels_first':
+        _, C, H, W = x.shape
+        x = tf.reshape(x, [-1, groups, C // groups, H, W])
+
+        mean, var = tf.nn.moments(x, [2, 3, 4], keep_dims=True)
+        x = (x - mean) / tf.sqrt(var + epsilon)
+
+        x = tf.reshape(x, [-1, C, H, W])
+        return x * gamma + beta
+    elif data_format == 'channels_last':
+        _, H, W, C = x.shape
+        x = tf.reshape(x, [-1, H, W, C // groups, groups])
+
+        mean, var = tf.nn.moments(x, [1, 2, 3], keep_dims=True)
+        x = (x - mean) / tf.sqrt(var + epsilon)
+
+        x = tf.reshape(x, [-1, H, W, C])
+        return x * gamma + beta
+    else:
+        raise ValueError('Unknown data_format: ' + str(data_format))
+
+
 # SHAPE OPERATIONS
 
 def concatenate(tensors, axis=-1):
