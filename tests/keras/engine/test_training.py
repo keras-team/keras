@@ -1181,6 +1181,8 @@ def test_model_with_sparse_loss_channels_first():
 
     Verifies that error no longer occurs after PR #9715.
     """
+    old_data_format = K.image_data_format()
+
     K.set_image_data_format('channels_last')
 
     data = np.zeros((1, 3, 3, 1))
@@ -1201,6 +1203,8 @@ def test_model_with_sparse_loss_channels_first():
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
     model.fit(data, labels)
+
+    K.set_image_data_format(old_data_format)
 
 
 if __name__ == '__main__':
