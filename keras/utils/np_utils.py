@@ -5,8 +5,6 @@ from __future__ import print_function
 
 import numpy as np
 
-from keras import backend as K
-
 
 def to_categorical(y, num_classes=None):
     """Converts a class vector (integers) to binary class matrix.
@@ -19,28 +17,20 @@ def to_categorical(y, num_classes=None):
         num_classes: total number of classes.
 
     # Returns
-        A binary matrix representation of the input.
+        A binary matrix representation of the input. The classes axis
+        is placed last.
     """
     y = np.array(y, dtype='int')
     input_shape = y.shape
-    channels_axis = 0 if K.image_data_format() == 'channels_first' else -1
-    if input_shape and input_shape[channels_axis] == 1 and len(input_shape) > 1:
-        if K.image_data_format() == 'channels_first':
-            input_shape = tuple(input_shape[1:])
-        else:
-            input_shape = tuple(input_shape[:-1])
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+        input_shape = tuple(input_shape[:-1])
     y = y.ravel()
     if not num_classes:
         num_classes = np.max(y) + 1
     n = y.shape[0]
-    if K.image_data_format() == 'channels_first':
-        categorical = np.zeros((num_classes, n))
-        categorical[y, np.arange(n)] = 1
-        output_shape = (num_classes,) + input_shape
-    else:
-        categorical = np.zeros((n, num_classes))
-        categorical[np.arange(n), y] = 1
-        output_shape = input_shape + (num_classes,)
+    categorical = np.zeros((n, num_classes))
+    categorical[np.arange(n), y] = 1
+    output_shape = input_shape + (num_classes,)
     categorical = np.reshape(categorical, output_shape)
     return categorical
 
