@@ -269,7 +269,7 @@ PAGES = [
             preprocessing.image.random_channel_shift,
             preprocessing.image.random_brightness,
         ],
-        'classes': [
+        'classes_with_methods': [
             preprocessing.image.ImageDataGenerator,
         ]
     },
@@ -524,6 +524,8 @@ for subdir, dirs, fnames in os.walk('templates'):
             fpath = os.path.join(subdir, fname)
             new_fpath = fpath.replace('templates', 'sources')
             shutil.copy(fpath, new_fpath)
+        shutil.copyfile("extra.js", "sources/extra.js")
+        shutil.copyfile("extra.css", "sources/extra.css")
 
 
 # Take care of index page.
@@ -531,6 +533,40 @@ def read_file(path):
     with open(path) as f:
         return f.read()
 
+
+def render_classes(classes, blocks, with_methods=False):
+    for cls in classes:
+        subblocks = []
+        signature = get_class_signature(cls)
+        subblocks.append('<span style="float:right;">' +
+                         class_to_source_link(cls) + '</span>')
+        subblocks.append('<span class="classes"></span>')
+        subblocks.append('## ' + cls.__name__ + '\n')
+        subblocks.append(code_snippet(signature))
+        docstring = cls.__doc__
+        if docstring:
+            subblocks.append(process_docstring(docstring))
+        if with_methods:
+            for _, method in inspect.getmembers(cls, predicate=inspect.isroutine):
+                if method.__name__[0] == '_' or method.__name__ in EXCLUDE:
+                    continue
+                render_function(method, subblocks, method=True)
+        blocks.append('\n'.join(subblocks))
+
+
+def render_function(function, blocks, method=True):
+    subblocks = []
+    signature = get_function_signature(function, method=method)
+    signature = signature.replace(function.__module__ + '.', '')
+    if method:
+        subblocks.append('<h3><em>method</em> ' + function.__name__ + '</h3>\n')
+    else:
+        subblocks.append('### ' + function.__name__ + '\n')
+    subblocks.append(code_snippet(signature))
+    docstring = function.__doc__
+    if docstring:
+        subblocks.append(process_docstring(docstring))
+    blocks.append('\n\n'.join(subblocks))
 
 readme = read_file('../README.md')
 index = read_file('templates/index.md')
@@ -542,6 +578,7 @@ print('Starting autogeneration.')
 for page_data in PAGES:
     blocks = []
     classes = page_data.get('classes', [])
+    classes_with_methods = page_data.get('classes_with_methods', [])
     for module in page_data.get('all_module_classes', []):
         module_classes = []
         for name in dir(module):
@@ -556,17 +593,8 @@ for page_data in PAGES:
         module_classes.sort(key=lambda x: id(x))
         classes += module_classes
 
-    for cls in classes:
-        subblocks = []
-        signature = get_class_signature(cls)
-        subblocks.append('<span style="float:right;">' +
-                         class_to_source_link(cls) + '</span>')
-        subblocks.append('### ' + cls.__name__ + '\n')
-        subblocks.append(code_snippet(signature))
-        docstring = cls.__doc__
-        if docstring:
-            subblocks.append(process_docstring(docstring))
-        blocks.append('\n'.join(subblocks))
+    render_classes(classes, blocks)
+    render_classes(classes_with_methods, blocks, with_methods=True)
 
     functions = page_data.get('functions', [])
     for module in page_data.get('all_module_functions', []):
@@ -584,21 +612,14 @@ for page_data in PAGES:
         functions += module_functions
 
     for function in functions:
-        subblocks = []
-        signature = get_function_signature(function, method=False)
-        signature = signature.replace(function.__module__ + '.', '')
-        subblocks.append('### ' + function.__name__ + '\n')
-        subblocks.append(code_snippet(signature))
-        docstring = function.__doc__
-        if docstring:
-            subblocks.append(process_docstring(docstring))
-        blocks.append('\n\n'.join(subblocks))
+        render_function(function, blocks, method=False)
 
     if not blocks:
         raise RuntimeError('Found no content for page ' +
                            page_data['page'])
 
     mkdown = '\n----\n\n'.join(blocks)
+
     # save module page.
     # Either insert content into existing page,
     # or create page otherwise

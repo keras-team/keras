@@ -9,6 +9,9 @@ site_description: 'Documentation for Keras, the Python Deep Learning library.'
 dev_addr: '0.0.0.0:8000'
 google_analytics: ['UA-61785484-1', 'keras.io']
 
+extra_javascript: [extra.js]
+extra_css: [extra.css]
+
 pages:
 - Home: index.md
 - Why use Keras: why-use-keras.md
