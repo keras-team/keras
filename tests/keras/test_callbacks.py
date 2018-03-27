@@ -806,5 +806,27 @@ def tests_RemoteMonitor():
                   validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
 
+@keras_test
+def tests_RemoteMonitorWithJsonPayload():
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_classes)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+    cbks = [callbacks.RemoteMonitor(send_as_json=True)]
+
+    with patch('requests.post'):
+        model.fit(X_train, y_train, batch_size=batch_size,
+                  validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

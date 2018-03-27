@@ -555,14 +555,15 @@ class RemoteMonitor(Callback):
         path: String; path relative to `root` to which the events will be sent.
         field: String; JSON field under which the data will be stored.
         headers: Dictionary; optional custom HTTP headers.
-        send_as_json: whether the request should be send as application/json
+        send_as_json: Boolean; whether the request should be send as application/json
     """
 
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
                  field='data',
-                 headers=None, send_as_json=False):
+                 headers=None,
+                 send_as_json=False):
         super(RemoteMonitor, self).__init__()
 
         self.root = root
