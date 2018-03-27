@@ -553,9 +553,10 @@ class RemoteMonitor(Callback):
     # Arguments
         root: String; root url of the target server.
         path: String; path relative to `root` to which the events will be sent.
-        field: String; JSON field under which the data will be stored.
+        field: String; JSON field under which the data will be stored. The field is used only if the payload is sent
+        within a form (i.e. send_as_json is set to False). 
         headers: Dictionary; optional custom HTTP headers.
-        send_as_json: Boolean; whether the request should be send as application/json
+        send_as_json: Boolean; whether the request should be send as application/json.
     """
 
     def __init__(self,
@@ -586,8 +587,7 @@ class RemoteMonitor(Callback):
                 send[k] = v
         try:
             if self.send_as_json:
-                payload = {self.field: send} if self.field else send
-                requests.post(self.root + self.path, json=payload, headers=self.headers)
+                requests.post(self.root + self.path, json=send, headers=self.headers)
             else:
                 requests.post(self.root + self.path,
                               {self.field: json.dumps(send)},
