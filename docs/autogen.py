@@ -102,6 +102,12 @@ EXCLUDE = {
     'get_variable_shape',
 }
 
+
+# For each class to document, it is possible to:
+# 1) Document only the class: [classA, classB, ...]
+# 2) Document all its methods: [classA, (classB, "*")]
+# 3) Choose which methods to document:
+# [classA, (classB, ["method1", "method2", ...]), ...]
 PAGES = [
     {
         'page': 'models/sequential.md',
@@ -269,8 +275,8 @@ PAGES = [
             preprocessing.image.random_channel_shift,
             preprocessing.image.random_brightness,
         ],
-        'classes_with_methods': [
-            preprocessing.image.ImageDataGenerator,
+        'classes': [
+            (preprocessing.image.ImageDataGenerator, "*")
         ]
     },
     {
@@ -524,8 +530,6 @@ for subdir, dirs, fnames in os.walk('templates'):
             fpath = os.path.join(subdir, fname)
             new_fpath = fpath.replace('templates', 'sources')
             shutil.copy(fpath, new_fpath)
-        shutil.copyfile("extra.js", "sources/extra.js")
-        shutil.copyfile("extra.css", "sources/extra.css")
 
 
 # Take care of index page.
@@ -534,24 +538,15 @@ def read_file(path):
         return f.read()
 
 
-def render_classes(classes, blocks, with_methods=False):
-    for cls in classes:
-        subblocks = []
-        signature = get_class_signature(cls)
-        subblocks.append('<span style="float:right;">' +
-                         class_to_source_link(cls) + '</span>')
-        subblocks.append('<span class="classes"></span>')
-        subblocks.append('## ' + cls.__name__ + '\n')
-        subblocks.append(code_snippet(signature))
-        docstring = cls.__doc__
-        if docstring:
-            subblocks.append(process_docstring(docstring))
-        if with_methods:
-            for _, method in inspect.getmembers(cls, predicate=inspect.isroutine):
-                if method.__name__[0] == '_' or method.__name__ in EXCLUDE:
-                    continue
-                render_function(method, subblocks, method=True)
-        blocks.append('\n'.join(subblocks))
+def collect_class_methods(cls, methods):
+    if isinstance(methods, (list, tuple)):
+        return [getattr(cls, method) for method in methods]
+    methods = []
+    for _, method in inspect.getmembers(cls, predicate=inspect.isroutine):
+        if method.__name__[0] == '_' or method.__name__ in EXCLUDE:
+            continue
+        methods.append(method)
+    return methods
 
 
 def render_function(function, blocks, method=True):
@@ -559,7 +554,7 @@ def render_function(function, blocks, method=True):
     signature = get_function_signature(function, method=method)
     signature = signature.replace(function.__module__ + '.', '')
     if method:
-        subblocks.append('<h3><em>method</em> ' + function.__name__ + '</h3>\n')
+        subblocks.append('#### *method* ' + function.__name__ + '\n')
     else:
         subblocks.append('### ' + function.__name__ + '\n')
     subblocks.append(code_snippet(signature))
@@ -567,6 +562,7 @@ def render_function(function, blocks, method=True):
     if docstring:
         subblocks.append(process_docstring(docstring))
     blocks.append('\n\n'.join(subblocks))
+
 
 readme = read_file('../README.md')
 index = read_file('templates/index.md')
@@ -578,7 +574,6 @@ print('Starting autogeneration.')
 for page_data in PAGES:
     blocks = []
     classes = page_data.get('classes', [])
-    classes_with_methods = page_data.get('classes_with_methods', [])
     for module in page_data.get('all_module_classes', []):
         module_classes = []
         for name in dir(module):
@@ -593,8 +588,26 @@ for page_data in PAGES:
         module_classes.sort(key=lambda x: id(x))
         classes += module_classes
 
-    render_classes(classes, blocks)
-    render_classes(classes_with_methods, blocks, with_methods=True)
+    for element in classes:
+        if not isinstance(element, (list, tuple)):
+            element = (element, [])
+        cls = element[0]
+        subblocks = []
+        signature = get_class_signature(cls)
+        subblocks.append('<span style="float:right;">' +
+                         class_to_source_link(cls) + '</span>')
+        if inspect.isclass(cls):
+            subblocks.append('### *class* ' + cls.__name__ + '\n')
+        else:
+            subblocks.append('### ' + cls.__name__ + '\n')
+        subblocks.append(code_snippet(signature))
+        docstring = cls.__doc__
+        if docstring:
+            subblocks.append(process_docstring(docstring))
+        methods = collect_class_methods(cls, element[1])
+        for method in methods:
+            render_function(method, subblocks, method=True)
+        blocks.append('\n'.join(subblocks))
 
     functions = page_data.get('functions', [])
     for module in page_data.get('all_module_functions', []):
@@ -619,7 +632,6 @@ for page_data in PAGES:
                            page_data['page'])
 
     mkdown = '\n----\n\n'.join(blocks)
-
     # save module page.
     # Either insert content into existing page,
     # or create page otherwise
