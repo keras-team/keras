@@ -105,6 +105,29 @@ def test_functional_model_saving():
 
 
 @keras_test
+def test_model_saving_to_stream():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, 'r') as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5py)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
 def test_saving_multiple_metrics_outputs():
     inputs = Input(shape=(5,))
     x = Dense(5)(inputs)
