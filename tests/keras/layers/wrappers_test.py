@@ -222,18 +222,34 @@ def test_Bidirectional():
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
-        # test with functional API with unknown length
-        inputs = Input((None, dim))
-        outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
-                                             recurrent_dropout=dropout_rate),
+        # Bidirectional and stateful
+        inputs = Input(batch_shape=(1, timesteps, dim))
+        outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True),
                                          merge_mode=mode)(inputs)
         model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
-        # Bidirectional and stateful
-        inputs = Input(batch_shape=(1, timesteps, dim))
-        outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True),
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Unknown timestamps not supported in CNTK.')
+def test_Bidirectional_unkown_timespamps():
+    # test with functional API with unknown length
+    rnn = layers.SimpleRNN
+    samples = 2
+    dim = 2
+    timesteps = 2
+    output_dim = 2
+    dropout_rate = 0.2
+    for mode in ['sum', 'concat']:
+        x = np.random.random((samples, timesteps, dim))
+        target_dim = 2 * output_dim if mode == 'concat' else output_dim
+        y = np.random.random((samples, target_dim))
+
+        inputs = Input((None, dim))
+        outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                             recurrent_dropout=dropout_rate),
                                          merge_mode=mode)(inputs)
         model = Model(inputs, outputs)
         model.compile(loss='mse', optimizer='sgd')
@@ -399,7 +415,7 @@ def test_Bidirectional_with_constants():
             return dict(list(base_config.items()) + list(config.items()))
 
     # Test basic case.
-    x = Input((None, 5))
+    x = Input((5, 5))
     c = Input((3,))
     cell = RNNCellWithConstants(32)
     custom_objects = {'RNNCellWithConstants': RNNCellWithConstants}
@@ -480,7 +496,7 @@ def test_Bidirectional_with_constants_layer_passing_initial_state():
             return dict(list(base_config.items()) + list(config.items()))
 
     # Test basic case.
-    x = Input((None, 5))
+    x = Input((5, 5))
     c = Input((3,))
     s_for = Input((32,))
     s_bac = Input((32,))
