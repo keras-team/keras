@@ -195,7 +195,6 @@ def to_dense(tensor):
     """
     raise NotImplementedError('MXNet Backend: Sparse operations are not supported yet.')
 
-
 def variable(value, dtype=None, name=None, constraint=None):
     """Instantiates a variable and returns it.
 
@@ -223,6 +222,10 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
+    if constraint:
+        warnings.warn('MXNet backend does not support constraints. Keyword '
+                      'arguments such as `kernel_constraint` and '
+                      '`bias_constraint`', stacklevel=2)
     if dtype is None:
         dtype = floatx()
 
@@ -255,6 +258,7 @@ def variable(value, dtype=None, name=None, constraint=None):
     return ret
 
 
+@keras_mxnet_symbol
 def constant(value, dtype=None, shape=None, name=None):
     """Creates a constant tensor.
 
@@ -274,7 +278,17 @@ def constant(value, dtype=None, shape=None, name=None):
         np_ndarray = np.ndarray(shape, dtype=dtype)
         np_ndarray.fill(value)
         mx_ndarray = mx.nd.array(np_ndarray)
-    return mx_ndarray
+
+    # MXNet does not support Scalars. Shape of a Scalar Tensor with MXNet is
+    # (1, ) instead of (). Return is as MXNet NDArray instance as this is
+    # useful in K.eval() function to return as is (1, )
+    if shape == (1,):
+        return mx_ndarray
+    else:
+        name = _prepare_name(name, 'constant')
+        const_var = _keras_variable(name=name, dtype=dtype, shape=mx_ndarray.shape)
+        const_var.bind(mx_ndarray)
+        return const_var
 
 
 def is_keras_tensor(x):
@@ -644,6 +658,7 @@ def eye(size, dtype=None, name=None):
     return kvar
 
 
+@keras_mxnet_symbol
 def zeros_like(x, dtype=None, name=None):
     """Instantiates an all-zeros variable of the same shape as another tensor.
 
@@ -666,16 +681,7 @@ def zeros_like(x, dtype=None, name=None):
                [ 0.,  0.,  0.]], dtype=float32)
     ```
     """
-    if dtype is None:
-        dtype = x.dtype
-    else:
-        dtype = _convert_string_dtype(dtype)
-    name = _prepare_name(name, 'zeroslikeinit')
-    mx_shape = tuple([0 if x is None else x for x in x.shape])
-    mx_value = mx.nd.zeros(mx_shape, dtype=dtype)
-    k_var = _keras_variable(name=name, dtype=dtype, shape=mx_shape)
-    k_var.bind(mx_value)
-    return k_var
+    return KerasSymbol(mx.sym.zeros_like(data=x.symbol, name=name))
 
 
 def ones_like(x, dtype=None, name=None):
@@ -2505,6 +2511,7 @@ def stop_gradient(variables):
 
 
 # CONTROL FLOW
+@keras_mxnet_symbol
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
         unroll=False, input_length=None):
@@ -2536,7 +2543,7 @@ def rnn(step_function, inputs, initial_states,
         constants: a list of constant values passed at each step.
         unroll: whether to unroll the RNN or to use a symbolic loop
         (`while_loop` or `scan` depending on backend).
-        input_length: not relevant in the TensorFlow implementation.
+        input_length: not relevant in the MXNet implementation.
             Must be specified if using unrolling with Theano.
 
     # Returns
@@ -2555,7 +2562,98 @@ def rnn(step_function, inputs, initial_states,
         ValueError: if `mask` is provided (not `None`) but states is not provided
             (`len(states)` == 0).
     """
-    raise NotImplementedError('MXNet Backend: RNNs are not supported yet.')
+    dtype = inputs.dtype
+    dshape = inputs.shape
+
+    if len(dshape) < 3:
+        raise ValueError('Input tensor should be at least 3-D')
+    if not dshape[1]:
+        raise ValueError('Unrolling requires a fixed number of time-steps.')
+
+    if not unroll and dshape[1] is None:
+        raise NotImplementedError('MXNet Backend: unroll=False '
+                                  'is not supported yet in RNN.\n'
+                                  'MXNet Backend: Does not support Variable '
+                                  'Length input(Samples of different length). '
+                                  'Please pad your input to a constant length, '
+                                  'provide `input_shape` and set `unroll=True`'
+                                  'Ex: new_x_train = keras.preprocessing.sequence.pad_sequences(old_x_train, '
+                                  'maxlen=MAX_LEN_OF_INPUT_SAMPLE_TYPE_INT). '
+                                  'More Details - https://github.com/deep-learning-tools/keras/wiki/Limitations-and-workaround-of-RNN-layer-using-MXNet-backend')
+    if not unroll and dshape[1] is not None:
+        raise NotImplementedError('Please set `unroll=True` while calling '
+                                  'SiumpleRNN/LSTM/GRU layer as you have '
+                                  'provided `input_shape`. MXNet backend does '
+                                  'not support `unroll=False` or a Variable '
+                                  'Length Input')
+
+    # Split the inputs across time dimension and generate the list of inputs
+    # with shape `(samples, ...)` (no time dimension)
+    inputs = list(mx.sym.split(inputs.symbol, axis=1,
+                               squeeze_axis=1, num_outputs=dshape[1]))
+
+    # Reverse the input sequence
+    if go_backwards:
+        inputs.reverse()
+
+    # Assume learning phase is a placeholder tensor.(F = test, T = train)
+    # Some Keras layers (e.g. Dropout, BatchNormalization) behave differently at
+    #  training time and testing time. You can tell whether a layer uses the
+    # "learning phase" (train/test) by printing layer.uses_learning_phase, a
+    # boolean: True if the layer has a different behavior in training mode and
+    # test mode, False otherwise.
+    global uses_learning_phase
+    uses_learning_phase = False
+
+    states = initial_states
+    outputs = []
+    prev_output = None
+
+    if mask is not None:
+        if not states:
+            raise ValueError('Initial states is not provided when masking is '
+                             'enabled.')
+        if mask.dtype != dtype:
+            mask = cast(mask, dtype)
+        # Split the mask across time dimension and generate the list of masks
+        # with shape `(samples, 1)` (no time dimension)
+        masks = list(mx.sym.split(mask.symbol, axis=1,
+                                  squeeze_axis=1, num_outputs=dshape[1]))
+        # Reverse the mask sequence
+        if go_backwards:
+            masks.reverse()
+    else:
+        masks = [None for _ in inputs]
+
+    if constants is None:
+        constants = []
+
+    # Iterate over a time step
+    for inp, msk in zip(inputs, masks):
+        last_output, new_states = step_function(KerasSymbol(inp),
+                                                states + constants)
+        if getattr(last_output, '_uses_learning_phase', False):
+            uses_learning_phase = True
+        if msk is not None:
+            new_states = [KerasSymbol(mx.sym.where(msk,
+                                                   ns.symbol,
+                                                   s.symbol))
+                          for s, ns in zip(states, new_states)]
+            # Initialize the output for first time step
+            if prev_output is None:
+                prev_output = zeros_like(last_output)
+            last_output = KerasSymbol(mx.sym.where(msk,
+                                                   last_output.symbol,
+                                                   prev_output.symbol))
+            prev_output = last_output
+        states = new_states
+        # Expand the output dimension from `(samples, output_dim)` to
+        # `(samples, 1, output_dim)` with middle axis as time dimension
+        outputs.append(mx.sym.expand_dims(last_output.symbol, axis=1))
+    # Concatenate the output across time dimension
+    outputs = mx.sym.Concat(*outputs, dim=1)
+    last_output._uses_learning_phase = uses_learning_phase
+    return last_output, KerasSymbol(outputs), states
 
 
 @keras_mxnet_symbol
@@ -2741,11 +2839,20 @@ def categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
-    assert not from_logits
     axis = ndim(output) - 1
     mx_output = output.symbol
-    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1 - epsilon())
-    mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis, keepdims=True)
+    # scale predictions so that the class probas of each sample sum to 1
+    if from_logits:
+        mx_output = mx.sym.softmax(mx_output, axis=axis)
+    else:
+        mx_output = mx.sym.broadcast_div(mx_output, mx.sym.sum(mx_output,
+                                                               axis=axis,
+                                                               keepdims=True))
+
+    # clip to prevent NaN's and Inf's
+    mx_output = mx.sym.clip(mx_output, a_min=epsilon(), a_max=1.0 - epsilon())
+    # calc
+    mx_output = - mx.sym.sum(target.symbol * mx.sym.log(mx_output), axis=axis)
     return KerasSymbol(mx_output)
 
 
@@ -3643,6 +3750,10 @@ class KerasSymbol(object):
     def __getitem__(self, in_slice):
         begin = []
         end = []
+        # in_slice should be a tuple or list of slice() constructor
+        # Convert it to a tuple iterator for single dimensional bias Tensors
+        if not isinstance(in_slice, (list, tuple)):
+            in_slice = (in_slice,)
         for i in in_slice:
             if isinstance(i, int):
                 begin.append(i)

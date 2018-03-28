@@ -198,6 +198,10 @@ def test_convolution_2d():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='Issue with symbolic binding due to modification in'
+                           'constant() operator'
+                           'More Details: https://github.com/deep-learning-tools/keras/issues/53')
 def test_conv2d_transpose():
     num_samples = 2
     filters = 2
@@ -452,8 +456,11 @@ def test_convolution_3d():
                             input_len_dim1, input_len_dim2, input_len_dim3,
                             stack_size))
 
+
 @pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason='MXNet backend does not support conv3d_transpose yet.')
+                    reason='Issue with symbolic binding due to modification in'
+                           'constant() operator'
+                           'More Details: https://github.com/deep-learning-tools/keras/issues/53')
 @keras_test
 def test_conv3d_transpose():
     filters = 2
