@@ -830,7 +830,8 @@ class TestBackend(object):
         outputs_list = [[], [], [], [], [], []]
         state_list = [[], [], [], [], [], []]
 
-        # MXNet backend does not support RNN yet
+        # MXNet backend does not support unroll=False in RNN yet. However, the
+        # keyword argument with `unroll=True` passes successfully.
         for k in BACKENDS_WITHOUT_MXNET:
             rnn_fn = rnn_step_fn(k)
             inputs = k.variable(input_val)
@@ -1031,15 +1032,15 @@ class TestBackend(object):
         # otherwise it is garbage in garbage out...
         # due to the algo difference, we can't guarantee CNTK has the same result on the garbage input.
         # so create a separate test case for valid label input
-        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), [KTH, KTF], from_logits=True)
+        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=True)
         xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
                            [0.20225059, -0.38956559], [-0.13805378, 0.08506755]], dtype=np.float32)
         yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
                            [0.64916514, 0.35083486], [0.47028078, 0.52971922]], dtype=np.float32)
         check_two_tensor_operation('categorical_crossentropy', yval, xval,
-                                   BACKENDS_WITHOUT_MXNET, cntk_two_dynamicity=True, from_logits=True)
+                                   BACKENDS, cntk_two_dynamicity=True, from_logits=True)
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
-        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), BACKENDS_WITHOUT_MXNET, from_logits=False)
+        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2), BACKENDS, from_logits=False)
 
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), BACKENDS, axis=1)

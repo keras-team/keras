@@ -248,7 +248,8 @@ def test_merge_mask_3d():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support LSTM yet.')
+                    reason='MXNet backend does not support unroll=False in RNN '
+                           'and Embedding layer yet.')
 @keras_test
 def test_sequential_regression():
     # start with a basic example of using a Sequential model

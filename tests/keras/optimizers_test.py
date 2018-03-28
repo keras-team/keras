@@ -65,7 +65,9 @@ def _test_optimizer(optimizer, target=0.75):
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def _test_no_grad(optimizer):
     inp = Input([3])
@@ -78,7 +80,9 @@ def _test_no_grad(optimizer):
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
@@ -87,7 +91,9 @@ def test_sgd():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_rmsprop():
     _test_optimizer(optimizers.RMSprop())
@@ -95,7 +101,9 @@ def test_rmsprop():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adagrad():
     _test_optimizer(optimizers.Adagrad())
@@ -103,7 +111,9 @@ def test_adagrad():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adadelta():
     _test_optimizer(optimizers.Adadelta(), target=0.6)
@@ -111,7 +121,9 @@ def test_adadelta():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adam():
     _test_optimizer(optimizers.Adam())
@@ -145,7 +157,9 @@ def test_adam_amsgrad():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
@@ -153,7 +167,9 @@ def test_clipnorm():
 
 
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Categorical Cross Entropy yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_clipvalue():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipvalue=0.5)
