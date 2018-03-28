@@ -3181,26 +3181,9 @@ def pool2d(x, pool_size, strides=(1, 1),
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    _validate_data_format(data_format)
-    _validate_pool_mode(pool_mode)
-    _validate_padding_mode(padding)
 
-    if padding == 'same':
-        raise NotImplementedError('MXNet Backend: pooling does not support `same` mode yet. Supported modes - '
-                                  '`full, valid`')
-
-    x = _preprocess_convnd_input(x, data_format)
-
-    mx_out = mx.sym.Pooling(data=x.symbol,
-                            kernel=pool_size,
-                            pool_type=pool_mode,
-                            pooling_convention=padding,
-                            stride=strides)
-
-    # Handle original Data Format
-    return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
+    return _poolnd(x=x, name='pool2d', pool_size=pool_size, strides=strides, padding_mode=padding,
+                   data_format=data_format, pool_mode=pool_mode)
 
 
 @keras_mxnet_symbol
@@ -3223,23 +3206,8 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    _validate_data_format(data_format)
-    _validate_pool_mode(pool_mode)
-    _validate_padding_mode(padding)
-
-    if padding == 'same':
-        raise NotImplementedError('MXNet Backend: pooling does not support `same` mode yet. Supported modes - '
-                                  '`full, valid`')
-
-    x = _preprocess_convnd_input(x, data_format)
-    mx_out = mx.sym.Pooling(data=x.symbol,
-                            kernel=pool_size,
-                            pool_type=pool_mode,
-                            pooling_convention=padding,
-                            stride=strides)
-    return _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
+    return _poolnd(x=x, name='pool3d', pool_size=pool_size, strides=strides, padding_mode=padding,
+                   data_format=data_format, pool_mode=pool_mode)
 
 
 @keras_mxnet_symbol
@@ -4125,6 +4093,95 @@ def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid'
 
     # Handle original Data Format
     result = _postprocess_convnd_output(KerasSymbol(conv), data_format)
+    return result
+
+
+# Pooling helpers
+def _calculate_pool_output_size(input_length, filter_size, padding, stride,
+                                dilation=1):
+    if input_length is None:
+        return None
+    assert padding in {'same', 'valid', 'full', 'causal'}
+    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    if padding == 'same':
+        output_length = input_length
+    elif padding == 'valid':
+        output_length = input_length - dilated_filter_size + 1
+    elif padding == 'causal':
+        output_length = input_length
+    elif padding == 'full':
+        output_length = input_length + dilated_filter_size - 1
+    return (output_length + stride - 1) // stride
+
+
+def _validate_pool_input_shape(input_shape):
+    # MXNet pooling operator cannot automatically infer shape.
+    nd = len(input_shape) - 2
+    for dim in range(nd):
+        if not input_shape[2 + dim]:
+            raise ValueError('MXNet Backend: Cannot automatically infer shape for pooling operator.'
+                             'Please provide input shape. Given input shape - ', input_shape)
+
+
+def _calculate_pool_padding_requirement(input_shape, kernel, strides, border_mode, dilation=1):
+    out_size = _calculate_pool_output_size(input_shape, kernel, border_mode, strides)
+    pad_along = dilation * kernel - input_shape - strides - dilation + out_size * strides + 1
+    result = int(np.ceil(pad_along / 2.0)), kernel % 2 == 0, out_size
+    return result
+
+
+def _preprocess_pooling_padding_mode(padding_mode, input_shape, kernel, strides):
+    nd = len(input_shape) - 2
+    is_slice = (False,) * nd
+    out_size = (0,) * nd
+    _validate_pool_input_shape(input_shape)
+    if padding_mode == 'same':
+        padding, is_slice, out_size = zip(
+            *[_calculate_pool_padding_requirement(input_shape[2 + i], kernel[i],
+                                             strides[i], padding_mode)
+              for i in range(nd)])
+    elif padding_mode == 'valid':
+        padding = (0,) * nd
+    else:
+        raise ValueError('MXNet Backend: Invalid padding mode:', padding_mode)
+
+    return padding, np.any(is_slice), out_size
+
+
+@keras_mxnet_symbol
+def _poolnd(x, name, pool_size, strides, padding_mode='valid',
+            data_format=None, pool_mode='max'):
+    if data_format is None or data_format == 'default':
+        data_format = image_data_format()
+
+    _validate_data_format(data_format)
+    _validate_pool_mode(pool_mode)
+    _validate_padding_mode(padding_mode)
+
+    # Handle Data Format
+    x = _preprocess_convnd_input(x, data_format)
+
+    # Calculate padding requirement.
+    padding, is_slice, out_size = _preprocess_pooling_padding_mode(padding_mode, x.shape, pool_size, strides)
+
+    if padding_mode == 'same':
+        padding_mode = 'valid'
+    # Perform Pooling
+    mx_out = mx.sym.Pooling(data=x.symbol,
+                            name=_prepare_name(name, 'poolnd'),
+                            kernel=pool_size,
+                            pool_type=pool_mode,
+                            pooling_convention=padding_mode,
+                            stride=strides, pad=padding)
+
+    if is_slice:
+        begin = (0, 0) + (0,) * len(out_size)
+        end = (None, None) + tuple(out_size)
+        for idx in range(2, len(out_size)):
+            mx_out = mx.sym.slice_axis(mx_out, axis=idx, begin=begin[idx], end=end[idx])
+
+    # Handle original Data Format
+    result = _postprocess_convnd_output(KerasSymbol(mx_out), data_format)
     return result
 
 

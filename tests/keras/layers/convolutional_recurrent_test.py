@@ -10,7 +10,7 @@ from keras import regularizers
 
 
 pytestmark = pytest.mark.skipif(K.backend() == 'mxnet',
-                                reason='MXNet backend does not support Pooling2d with SAME mode yet.')
+                                reason='MXNet backend does not support ConvLSTM2D Layer yet.')
 
 
 def test_convolutional_recurrent():
