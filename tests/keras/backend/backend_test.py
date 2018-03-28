@@ -928,6 +928,10 @@ class TestBackend(object):
         check_single_tensor_operation('pool3d', (2, 6, 6, 6, 3), [KTH, KTF], pool_size=(3, 3, 3),
                                       strides=(1, 1, 1), padding='same', pool_mode='avg')
 
+        # MXNet pooling in 'valid' mode, do not match output from other backend due to assymetric padding and slicing.
+        check_single_tensor_operation('pool3d', (2, 6, 6, 6, 3), [KMX], pool_size=(3, 3, 3),
+                                      strides=(1, 1, 1), padding='same', pool_mode='avg')
+
     def test_random_normal(self):
         mean = 0.
         std = 1.

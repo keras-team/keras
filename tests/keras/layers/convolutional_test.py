@@ -394,8 +394,6 @@ def test_maxpooling_2d():
                    input_shape=(3, 5, 6, 4))
 
 
-@pytest.mark.skipif((K.backend() == 'mxnet'),
-                    reason='MXNet backend does not support pooling with SAME mode yet.')
 @keras_test
 def test_averagepooling_2d():
     layer_test(convolutional.AveragePooling2D,
