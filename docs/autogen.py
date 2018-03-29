@@ -106,8 +106,10 @@ EXCLUDE = {
 # For each class to document, it is possible to:
 # 1) Document only the class: [classA, classB, ...]
 # 2) Document all its methods: [classA, (classB, "*")]
-# 3) Choose which methods to document:
+# 3) Choose which methods to document (methods listed as strings):
 # [classA, (classB, ["method1", "method2", ...]), ...]
+# 4) Choose which methods to document (methods listed as qualified names):
+# [classA, (classB, [module.classB.method1, module.classB.method2, ...]), ...]
 PAGES = [
     {
         'page': 'models/sequential.md',
@@ -540,7 +542,7 @@ def read_file(path):
 
 def collect_class_methods(cls, methods):
     if isinstance(methods, (list, tuple)):
-        return [getattr(cls, method) for method in methods]
+        return [getattr(cls, m) if isinstance(m, str) else m for m in methods]
     methods = []
     for _, method in inspect.getmembers(cls, predicate=inspect.isroutine):
         if method.__name__[0] == '_' or method.__name__ in EXCLUDE:
