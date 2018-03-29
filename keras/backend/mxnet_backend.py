@@ -57,7 +57,7 @@ def learning_phase():
 def set_learning_phase(value):
     global _LEARNING_PHASE
     if value not in {0, 1}:
-        raise ValueError('Expected learning phase to be '
+        raise ValueError('MXNet Backend: Expected learning phase to be '
                          '0 or 1.')
     _LEARNING_PHASE = value
 
@@ -2566,9 +2566,9 @@ def rnn(step_function, inputs, initial_states,
     dshape = inputs.shape
 
     if len(dshape) < 3:
-        raise ValueError('Input tensor should be at least 3-D')
+        raise ValueError('MXNet Backend: Input tensor should be at least 3-D')
     if not dshape[1]:
-        raise ValueError('Unrolling requires a fixed number of time-steps.')
+        raise ValueError('MXNet Backend: Unrolling requires a fixed number of time-steps.')
 
     if not unroll and dshape[1] is None:
         raise NotImplementedError('MXNet Backend: unroll=False '
@@ -2611,7 +2611,7 @@ def rnn(step_function, inputs, initial_states,
 
     if mask is not None:
         if not states:
-            raise ValueError('Initial states is not provided when masking is '
+            raise ValueError('MXNet Backend: Initial states is not provided when masking is '
                              'enabled.')
         if mask.dtype != dtype:
             mask = cast(mask, dtype)
@@ -3027,7 +3027,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         raise ValueError('MXNet Backend: conv1d does not support "causal" padding mode')
 
     if padding not in {'same', 'valid'}:
-        raise ValueError('`padding` should be either `same` or `valid`.')
+        raise ValueError('MXNet Backend: `padding` should be either `same` or `valid`.')
 
     if hasattr(x, '_keras_shape'):
         shape = x._keras_shape
@@ -3092,7 +3092,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     _validate_data_format(data_format)
 
     if padding not in {'same', 'valid'}:
-        raise ValueError('`padding` should be either `same` or `valid`.')
+        raise ValueError('MXNet Backend: `padding` should be either `same` or `valid`.')
 
     return _convnd(x, kernel, name='conv2d', strides=strides, filter_dilation=dilation_rate,
                    padding_mode=padding, data_format=data_format)
@@ -3138,34 +3138,9 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     _validate_data_format(data_format)
 
     if padding not in {'same', 'valid'}:
-        raise ValueError('`padding` should be either `same` or `valid`.')
+        raise ValueError('MXNet Backend: `padding` should be either `same` or `valid`.')
 
-    # Handle Data Format
-    x = _preprocess_convnd_input(x, data_format)
-    kernel = _preprocess_convnd_kernel(kernel, data_format)
-
-    # We have already converted kernel to match MXNet required shape:
-    # (depth, input_depth, rows, cols)
-    kernel_shape = kernel.shape
-    layout_kernel = tuple(kernel_shape[2:])
-    nb_filter = kernel_shape[1]
-
-    # Handle output shape to suit mxnet input format
-    if data_format == 'channels_first':
-        output_shape = output_shape[2:]
-    else:
-        output_shape = output_shape[1:-1]
-
-    # Performance transpose convolution
-    deconv = mx.sym.Deconvolution(data=x.symbol, name=kernel.name,
-                                kernel=layout_kernel, stride=strides,
-                                num_filter=nb_filter, weight=kernel.symbol,
-                                no_bias=True, target_shape=output_shape)
-
-    # Handle original Data Format
-    result = _postprocess_convnd_output(KerasSymbol(deconv, is_var=True),
-                                        data_format)
-    return result
+    return _convnd_transpose(x, kernel, output_shape, name='conv2d_transpose', strides=strides, data_format=data_format)
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
@@ -3238,7 +3213,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     _validate_data_format(data_format)
 
     if padding not in {'same', 'valid'}:
-        raise ValueError('`padding` should be either `same` or `valid`.')
+        raise ValueError('MXNet Backend: `padding` should be either `same` or `valid`.')
 
     return _convnd(x, kernel, name='conv3d', strides=strides, filter_dilation=dilation_rate,
                    padding_mode=padding, data_format=data_format)
@@ -3264,7 +3239,22 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     # Raises
         ValueError: if `data_format` is neither `channels_last` or `channels_first`.
     """
-    raise NotImplementedError('MXNet Backend: conv3d_transpose operator is not supported yet.')
+    # MXNet only support Conv3D with GPU and CUDNN
+    gpus = mx.test_utils.list_gpus()
+    if gpus and len(gpus) > 0 :
+        if data_format is None:
+            data_format = image_data_format()
+        _validate_data_format(data_format)
+
+        if padding not in {'same', 'valid'}:
+            raise ValueError('MXNet Backend: `padding` should be either `same` or `valid`.')
+
+        return _convnd_transpose(x, kernel, output_shape, name='conv3d_transpose', strides=strides,
+                                 data_format=data_format)
+    else:
+        raise NotImplementedError('MXNet Backend: Conv3D Transpose is only supported on GPU with CUDNN')
+
+
 
 
 @keras_mxnet_symbol
@@ -3339,12 +3329,12 @@ def bias_add(x, bias, data_format='channels_last'):
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+        raise ValueError('MXNet Backend: Unknown data_format ' + str(data_format))
     bias_shape = int_shape(bias)
     x_shape = int_shape(x)
     x_dim = ndim(x)
     if len(bias_shape) != 1 and len(bias_shape) != x_dim - 1:
-        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
+        raise ValueError('MXNet Backend: Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
                          % (len(bias_shape), x_dim))
     if x_dim == 5:
         if data_format == 'channels_first':
@@ -4206,6 +4196,33 @@ def _convnd(x, kernel, strides, filter_dilation, name=None, padding_mode='valid'
     result = _postprocess_convnd_output(KerasSymbol(conv), data_format)
     return result
 
+@keras_mxnet_symbol
+def _convnd_transpose(x, kernel, output_shape, strides, data_format, name=None):
+    # Handle Data Format
+    x = _preprocess_convnd_input(x, data_format)
+    kernel = _preprocess_convnd_kernel(kernel, data_format)
+
+    # We have already converted kernel to match MXNet required shape:
+    # (depth, input_depth, rows, cols)
+    kernel_shape = kernel.shape
+    layout_kernel = tuple(kernel_shape[2:])
+    nb_filter = kernel_shape[1]
+
+    # Handle output shape to suit mxnet input format
+    if data_format == 'channels_first':
+        output_shape = output_shape[2:]
+    else:
+        output_shape = output_shape[1:-1]
+
+    # Perform transpose convolution
+    deconv = mx.sym.Deconvolution(data=x.symbol, name=_prepare_name(name, "convnd_transpose"),
+                                  kernel=layout_kernel, stride=strides,
+                                  num_filter=nb_filter, weight=kernel.symbol,
+                                  no_bias=True, target_shape=output_shape)
+
+    # Handle original Data Format
+    result = _postprocess_convnd_output(KerasSymbol(deconv), data_format)
+    return result
 
 # Pooling helpers
 def _calculate_pool_output_size(input_length, filter_size, padding, stride,
@@ -4631,12 +4648,12 @@ def get_model():
             """
             if isinstance(gpus, (list, tuple)):
                 if len(gpus) <= 1:
-                    raise ValueError('For multi-gpu usage to be effective, '
+                    raise ValueError('MXNet Backend: For multi-gpu usage to be effective, '
                                      'call `multi_gpu_model` with `len(gpus) >= 2`. '
                                      'Received: `gpus=%s`' % gpus)
             else:
                 if gpus <= 1:
-                    raise ValueError('For multi-gpu usage to be effective, '
+                    raise ValueError('MXNet Backend: For multi-gpu usage to be effective, '
                                      'call `multi_gpu_model` with `gpus >= 2`. '
                                      'Received: `gpus=%d`' % gpus)
 
