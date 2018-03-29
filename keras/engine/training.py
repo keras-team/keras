@@ -2089,13 +2089,16 @@ class Model(Container):
                             ' Please consider using the`keras.utils.Sequence'
                             ' class.'))
         if steps_per_epoch is None:
-            if is_sequence:
+            try:
                 steps_per_epoch = len(generator)
-            else:
+            except:
                 raise ValueError('`steps_per_epoch=None` is only valid for a'
-                                 ' generator based on the `keras.utils.Sequence`'
-                                 ' class. Please specify `steps_per_epoch` or use'
-                                 ' the `keras.utils.Sequence` class.')
+                                 ' generator which contains the __len__(self)'
+                                 ' method. Please specify `steps_per_epoch`'
+                                 ' or use the `keras.utils.Sequence` class'
+                                 ' as base class for your generator or define'
+                                 ' the len method in your generator.')
+
 
         # python 2 has 'next', 3 has '__next__'
         # avoid any explicit version checks
