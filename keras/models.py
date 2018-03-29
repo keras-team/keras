@@ -99,8 +99,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
     from . import __version__ as keras_version
 
-    opened_new_file = not isinstance(filepath, h5py.File)
-    if opened_new_file:
+    if not isinstance(filepath, h5py.File):
         # If file exists and should not be overwritten.
         if not overwrite and os.path.isfile(filepath):
             proceed = ask_to_proceed_with_overwrite(filepath)
@@ -108,8 +107,10 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                 return
 
         f = h5py.File(filepath, mode='w')
+        opened_new_file = True
     else:
         f = filepath
+        opened_new_file = False
 
     try:
         f.attrs['keras_version'] = str(keras_version).encode('utf8')
