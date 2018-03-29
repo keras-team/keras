@@ -4718,6 +4718,39 @@ def get_optimizers():
             base_config = super(Adam, self).get_config()
             return dict(list(base_config.items()) + list(config.items()))
 
+    class Adamax(MXOptimizer, mx.optimizer.Adamax):
+        def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999, decay=0., clipnorm=None,
+                     epsilon=1e-8, **kwargs):
+            mx.optimizer.Adamax.__init__(self, learning_rate=lr, beta1=beta_1, beta2=beta_2,
+                                         clip_gradient=clipnorm, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+            self.epsilon = epsilon
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.learning_rate)),
+                      'beta_1': float(get_value(self.beta1)),
+                      'beta_2': float(get_value(self.beta2)),
+                      'decay': float(get_value(self.decay)),
+                      'epsilon': self.epsilon}
+            base_config = super(Adamax, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    class Nadam(MXOptimizer, mx.optimizer.Nadam):
+        def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999, epsilon=1e-8, decay=0., clipnorm=None,
+                     schedule_decay=0.004, **kwargs):
+            mx.optimizer.Nadam.__init__(self, learning_rate=lr, beta1=beta_1, beta2=beta_2, epsilon=epsilon,
+                                        schedule_decay=schedule_decay, **kwargs)
+            MXOptimizer.__init__(self, lr, decay)
+
+        def get_config(self):
+            config = {'lr': float(get_value(self.learning_rate)),
+                      'beta_1': float(get_value(self.beta1)),
+                      'beta_2': float(get_value(self.beta2)),
+                      'epsilon': self.epsilon,
+                      'schedule_decay': self.schedule_decay}
+            base_config = super(Nadam, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
     class RMSprop(MXOptimizer, mx.optimizer.RMSProp):
         def __init__(self, lr=0.001, rho=0.9, epsilon=1e-8, decay=0., clipnorm=None, **kwargs):
             mx.optimizer.RMSProp.__init__(self, learning_rate=lr, gamma1=rho, epsilon=epsilon,
@@ -4732,4 +4765,4 @@ def get_optimizers():
             base_config = super(RMSprop, self).get_config()
             return dict(list(base_config.items()) + list(config.items()))
 
-    return SGD, Adagrad, Adadelta, Adam, RMSprop
+    return SGD, Adagrad, Adadelta, Adam, Adamax, RMSprop, Nadam

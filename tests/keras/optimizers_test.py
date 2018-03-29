@@ -130,18 +130,20 @@ def test_adam():
     _test_optimizer(optimizers.Adam(decay=1e-3))
 
 
-# https://github.com/deep-learning-tools/keras/issues/27
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support Adamax optimizer yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adamax():
     _test_optimizer(optimizers.Adamax())
     _test_optimizer(optimizers.Adamax(decay=1e-3))
 
 
-# https://github.com/deep-learning-tools/keras/issues/27
 @pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support NAdam optimizer yet.')
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
