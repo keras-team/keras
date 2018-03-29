@@ -425,7 +425,7 @@ class ImageDataGenerator(object):
         rotation_range: Int. Degree range for random rotations.
         width_shift_range: Float (fraction of total width). Range for random horizontal shifts.
         height_shift_range: Float (fraction of total height). Range for random vertical shifts.
-        shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction as radians)
+        shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction in degrees)
         zoom_range: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
         channel_shift_range: Float. Range for random channel shifts.
         fill_mode: One of {"constant", "nearest", "reflect" or "wrap"}.  Default is 'nearest'.
