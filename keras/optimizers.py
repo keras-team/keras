@@ -689,7 +689,7 @@ class TFOptimizer(Optimizer):
 
 
 if K.backend() == 'mxnet':
-    SGD, Adagrad, Adadelta, Adam, RMSprop = K.get_optimizers()
+    SGD, Adagrad, Adadelta, Adam, Adamax, RMSprop, Nadam = K.get_optimizers()
 
 
 # Aliases.
