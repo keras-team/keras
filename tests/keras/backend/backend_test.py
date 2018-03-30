@@ -1473,6 +1473,33 @@ class TestBackend(object):
         k_input_lens = K.variable(input_lens, dtype="int32")
         k_label_lens = K.variable(label_lens, dtype="int32")
         res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
+        print(labels.shape, inputs.shape, label_lens.shape, input_lens.shape)
+        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
+
+        # test when batch_size = 1, that is, one sample only
+        # get only first sample from above test case
+        if K.backend() == 'theano':
+            ref = [1.73308]
+        else:
+            ref = [3.34211]
+
+        input_lens = np.expand_dims(np.asarray([5]), 1)
+        label_lens = np.expand_dims(np.asarray([5]), 1)
+
+        labels = np.asarray([[0, 1, 2, 1, 0]])
+        inputs = np.asarray(
+            [[[0.633766, 0.221185, 0.0917319, 0.0129757, 0.0142857, 0.0260553],
+              [0.111121, 0.588392, 0.278779, 0.0055756, 0.00569609, 0.010436],
+              [0.0357786, 0.633813, 0.321418, 0.00249248, 0.00272882, 0.0037688],
+              [0.0663296, 0.643849, 0.280111, 0.00283995, 0.0035545, 0.00331533],
+              [0.458235, 0.396634, 0.123377, 0.00648837, 0.00903441, 0.00623107]]],
+            dtype=np.float32)
+
+        k_labels = K.variable(labels, dtype="int32")
+        k_inputs = K.variable(inputs, dtype="float32")
+        k_input_lens = K.variable(input_lens, dtype="int32")
+        k_label_lens = K.variable(label_lens, dtype="int32")
+        res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
         assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
 
     '''only tensorflow tested, need special handle'''
