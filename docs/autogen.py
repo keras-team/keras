@@ -272,7 +272,7 @@ PAGES = [
             image.random_brightness,
         ],
         'classes': [
-           image.ImageDataGenerator,
+            image.ImageDataGenerator,
         ]
     },
     {
