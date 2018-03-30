@@ -1473,7 +1473,6 @@ class TestBackend(object):
         k_input_lens = K.variable(input_lens, dtype="int32")
         k_label_lens = K.variable(label_lens, dtype="int32")
         res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
-        print(labels.shape, inputs.shape, label_lens.shape, input_lens.shape)
         assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
 
         # test when batch_size = 1, that is, one sample only
