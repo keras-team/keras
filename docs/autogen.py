@@ -80,7 +80,9 @@ from keras import losses
 from keras import metrics
 from keras import backend
 from keras import activations
-from keras import preprocessing
+from keras.preprocessing import sequence
+from keras.preprocessing import image
+from keras.preprocessing import text
 
 import sys
 if sys.version[0] == '2':
@@ -251,37 +253,37 @@ PAGES = [
     {
         'page': 'preprocessing/sequence.md',
         'functions': [
-            preprocessing.sequence.pad_sequences,
-            preprocessing.sequence.skipgrams,
-            preprocessing.sequence.make_sampling_table,
+            sequence.pad_sequences,
+            sequence.skipgrams,
+            sequence.make_sampling_table,
         ],
         'classes': [
-            preprocessing.sequence.TimeseriesGenerator,
+            sequence.TimeseriesGenerator,
         ]
     },
     {
         'page': 'preprocessing/image.md',
         'functions': [
-            preprocessing.image.random_rotation,
-            preprocessing.image.random_shift,
-            preprocessing.image.random_shear,
-            preprocessing.image.random_zoom,
-            preprocessing.image.random_channel_shift,
-            preprocessing.image.random_brightness,
+            image.random_rotation,
+            image.random_shift,
+            image.random_shear,
+            image.random_zoom,
+            image.random_channel_shift,
+            image.random_brightness,
         ],
         'classes': [
-            preprocessing.image.ImageDataGenerator,
+            image.ImageDataGenerator,
         ]
     },
     {
         'page': 'preprocessing/text.md',
         'functions': [
-            preprocessing.text.hashing_trick,
-            preprocessing.text.one_hot,
-            preprocessing.text.text_to_word_sequence,
+            text.hashing_trick,
+            text.one_hot,
+            text.text_to_word_sequence,
         ],
         'classes': [
-            preprocessing.text.Tokenizer,
+            text.Tokenizer,
         ]
     },
     {
