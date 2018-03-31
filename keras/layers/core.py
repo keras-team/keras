@@ -466,7 +466,7 @@ class Permute(Layer):
 class Flatten(Layer):
     """Flattens the input. Does not affect the batch size.
 
-    Arguments:
+    # Arguments
         data_format: A string, one of `channels_last` (default) or `channels_first`.
           The ordering of the dimensions in the inputs.
           `channels_last` corresponds to inputs with shape
