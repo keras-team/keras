@@ -555,10 +555,8 @@ def render_function(function, blocks, method=True):
     subblocks = []
     signature = get_function_signature(function, method=method)
     signature = signature.replace(function.__module__ + '.', '')
-    if method:
-        subblocks.append('#### *method* ' + function.__name__ + '\n')
-    else:
-        subblocks.append('### ' + function.__name__ + '\n')
+    level = 4 if method else 3
+    subblocks.append('#' * level + function.__name__ + '\n')
     subblocks.append(code_snippet(signature))
     docstring = function.__doc__
     if docstring:
@@ -598,8 +596,8 @@ for page_data in PAGES:
         signature = get_class_signature(cls)
         subblocks.append('<span style="float:right;">' +
                          class_to_source_link(cls) + '</span>')
-        if inspect.isclass(cls):
-            subblocks.append('### *class* ' + cls.__name__ + '\n')
+        if element[1]:
+            subblocks.append('## ' + cls.__name__ + ' class\n')
         else:
             subblocks.append('### ' + cls.__name__ + '\n')
         subblocks.append(code_snippet(signature))
@@ -607,8 +605,10 @@ for page_data in PAGES:
         if docstring:
             subblocks.append(process_docstring(docstring))
         methods = collect_class_methods(cls, element[1])
-        for method in methods:
-            render_function(method, subblocks, method=True)
+        if methods:
+            subblocks.append('### ' + cls.__name__ + ' methods\n')
+            for method in methods:
+                render_function(method, subblocks, method=True)
         blocks.append('\n'.join(subblocks))
 
     functions = page_data.get('functions', [])

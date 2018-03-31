@@ -1,7 +1,5 @@
 site_name: Keras Documentation
-theme: 
-    name: readthedocs
-    custom_dir: custom_theme
+theme: readthedocs
 docs_dir: sources
 repo_url: http://github.com/keras-team/keras
 site_url: http://keras.io/
