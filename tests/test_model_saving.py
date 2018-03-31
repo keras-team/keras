@@ -105,6 +105,79 @@ def test_functional_model_saving():
 
 
 @keras_test
+def test_model_saving_to_pre_created_h5py_file():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, mode='r+') as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    # test non-default options in h5
+    with h5py.File('does not matter', driver='core',
+                   backing_store=False) as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_model_saving_to_binary_stream():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, mode='r+') as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    # Save the model to an in-memory-only h5 file.
+    with h5py.File('does not matter', driver='core',
+                   backing_store=False) as h5file:
+        save_model(model, h5file)
+        h5file.flush()  # Very important! Otherwise you get all zeroes below.
+        binary_data = h5file.fid.get_file_image()
+
+        # Make sure the binary data is correct by saving it to a file manually
+        # and then loading it the usual way.
+        with open(fname, 'wb') as raw_file:
+            raw_file.write(binary_data)
+
+    # Load the manually-saved binary data, and make sure the model is intact.
+    with h5py.File(fname, mode='r') as h5file:
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
 def test_saving_multiple_metrics_outputs():
     inputs = Input(shape=(5,))
     x = Dense(5)(inputs)
