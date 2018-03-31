@@ -288,6 +288,9 @@ def test_model_methods():
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
+    # enable verbose for evaluate_generator
+    out = model.evaluate_generator(gen_data(4), steps=3, verbose=1)
+
     # empty batch
     with pytest.raises(ValueError):
         def gen_data():
