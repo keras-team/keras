@@ -2282,7 +2282,8 @@ class Model(Container):
     def evaluate_generator(self, generator, steps=None,
                            max_queue_size=10,
                            workers=1,
-                           use_multiprocessing=False):
+                           use_multiprocessing=False,
+                           verbose=0):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -2310,6 +2311,7 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
+            verbose: verbosity mode, 0 or 1.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -2372,6 +2374,9 @@ class Model(Container):
                 else:
                     output_generator = generator
 
+            if verbose == 1:
+                progbar = Progbar(target=steps)
+
             while steps_done < steps:
                 generator_output = next(output_generator)
                 if not hasattr(generator_output, '__len__'):
@@ -2406,6 +2411,8 @@ class Model(Container):
 
                 steps_done += 1
                 batch_sizes.append(batch_size)
+                if verbose == 1:
+                    progbar.update(steps_done)
 
         finally:
             if enqueuer is not None:
