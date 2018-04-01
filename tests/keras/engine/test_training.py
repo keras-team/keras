@@ -867,6 +867,20 @@ def test_model_with_external_loss():
             out = model.fit(None, None, epochs=1, batch_size=10)
         out = model.fit(None, None, epochs=1, steps_per_epoch=1)
 
+        # define a generator to produce x=None and y=None
+        def data_tensors_generator():
+            while True:
+                yield (None, None)
+
+        generator = data_tensors_generator()
+
+        # test fit_generator for framework-native data tensors
+        out = model.fit_generator(generator, epochs=1,
+                                  steps_per_epoch=3)
+
+        # test evaluate_generator for framework-native data tensors
+        out = model.evaluate_generator(generator, steps=3)
+
         # test fit with validation data
         with pytest.raises(ValueError):
             out = model.fit(None, None,
