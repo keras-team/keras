@@ -173,42 +173,13 @@ train_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
                     target_tensors=[y_train_batch])
 train_model.summary()
 
-x_test_batch, y_test_batch = tf.train.batch(
-    tensors=[data.test.images, data.test.labels.astype(np.int32)],
-    batch_size=batch_size,
-    capacity=capacity,
-    enqueue_many=enqueue_many,
-    num_threads=8)
-
-# Create a separate test model
-# to perform validation during training
-x_test_batch = tf.cast(x_test_batch, tf.float32)
-x_test_batch = tf.reshape(x_test_batch, shape=batch_shape)
-
-y_test_batch = tf.cast(y_test_batch, tf.int32)
-y_test_batch = tf.one_hot(y_test_batch, num_classes)
-
-x_test_batch_shape = x_test_batch.get_shape().as_list()
-y_test_batch_shape = y_test_batch.get_shape().as_list()
-
-test_model_input = layers.Input(tensor=x_test_batch)
-test_model_output = cnn_layers(test_model_input)
-test_model = keras.models.Model(inputs=test_model_input, outputs=test_model_output)
-
-# Pass the target tensor `y_test_batch` to `compile`
-# via the `target_tensors` keyword argument:
-test_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
-                   loss='categorical_crossentropy',
-                   metrics=['accuracy'],
-                   target_tensors=[y_test_batch])
-
 # Fit the model using data from the TFRecord data tensors.
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
 
 train_model.fit(epochs=epochs,
                 steps_per_epoch=int(np.ceil(data.train.num_examples / float(batch_size))),
-                callbacks=[EvaluateInputTensor(test_model, steps=100)])
+                callbacks=[EvaluateInputTensor(train_model, steps=100)])
 
 # Save the model weights.
 train_model.save_weights('saved_wt.h5')
