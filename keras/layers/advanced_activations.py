@@ -72,6 +72,9 @@ class PReLU(Layer):
 
     # Arguments
         alpha_initializer: initializer function for the weights.
+            Default value is 0, although the original paper used 0.25 as an initial value.
+            You can change it by passing desired serialized value,
+            e.g. `{'class_name': 'Constant', 'config': {'value': .25}}`
         alpha_regularizer: regularizer for the weights.
         alpha_constraint: constraint for the weights.
         shared_axes: the axes along which to share learnable
