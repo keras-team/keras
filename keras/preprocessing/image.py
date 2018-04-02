@@ -681,7 +681,7 @@ class ImageDataGenerator(object):
                 (only relevant if `save_to_dir` is set).
                 save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
                subset: Subset of data (`"training"` or `"validation"`) if
-                validation_split is set in ImageDataGenerator.
+                `validation_split` is set in `ImageDataGenerator`.
 
         # Returns
             An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
@@ -742,13 +742,13 @@ class ImageDataGenerator(object):
                 save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
                 follow_links: whether to follow symlinks inside class subdirectories (default: False).
                 subset: Subset of data (`"training"` or `"validation"`) if
-                 validation_split is set in ImageDataGenerator.
+                 `validation_split` is set in `ImageDataGenerator`.
                 interpolation: Interpolation method used to resample the image if the
                  target size is different from that of the loaded image.
-                 Supported methods are "nearest", "bilinear", and "bicubic".
-                 If PIL version 1.1.3 or newer is installed, "lanczos" is also
-                 supported. If PIL version 3.4.0 or newer is installed, "box" and
-                 "hamming" are also supported. By default, "nearest" is used.
+                 Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
+                 If PIL version 1.1.3 or newer is installed, `"lanczos"` is also
+                 supported. If PIL version 3.4.0 or newer is installed, `"box"` and
+                 `"hamming"` are also supported. By default, `"nearest"` is used.
 
         # Returns
             A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
