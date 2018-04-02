@@ -369,6 +369,8 @@ class ModelCheckpoint(Callback):
     then the model checkpoints will be saved with the epoch number and
     the validation loss in the filename.
 
+    Note: This function requires you to `pip install h5py` manually.
+
     # Arguments
         filepath: string, path to save the model file.
         monitor: quantity to monitor.

@@ -35,6 +35,8 @@ except ImportError:
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
+    Note: This function requires you to `pip install h5py` manually.
+
     The saved model contains:
         - the model's configuration (topology)
         - the model's weights
@@ -762,6 +764,12 @@ class Sequential(Model):
                 topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
 
     def save_weights(self, filepath, overwrite=True):
+        """Saves the weights of a model.
+
+        Note: This function requires you to `pip install h5py` manually.
+        
+        """
+
         if h5py is None:
             raise ImportError('`save_weights` requires h5py.')
         # If file exists and should not be overwritten:

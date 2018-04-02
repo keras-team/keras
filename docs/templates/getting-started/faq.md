@@ -137,6 +137,8 @@ Below are some common definitions that are necessary to know and understand to c
 
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
+Note: To use this you have to `pip install h5py` manually.
+
 You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
 
 - the architecture of the model, allowing to re-create the model
@@ -188,6 +190,8 @@ model = model_from_yaml(yaml_string)
 ```
 
 #### Saving/loading only a model's weights
+
+Note: To use this you have to `pip install h5py` manually.
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
