@@ -71,7 +71,7 @@ class PReLU(Layer):
         Same shape as the input.
 
     # Arguments
-        alpha_initializer: initializer function for the weights.
+        alpha_initializer: initializer function for the weights (default value is .25 as recommended in the paper).
         alpha_regularizer: regularizer for the weights.
         alpha_constraint: constraint for the weights.
         shared_axes: the axes along which to share learnable
@@ -88,7 +88,8 @@ class PReLU(Layer):
     """
 
     @interfaces.legacy_prelu_support
-    def __init__(self, alpha_initializer='zeros',
+    def __init__(self,
+                 alpha_initializer={'class_name': 'Constant', 'config': {'value': .25}},
                  alpha_regularizer=None,
                  alpha_constraint=None,
                  shared_axes=None,
