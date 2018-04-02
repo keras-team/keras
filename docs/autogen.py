@@ -269,16 +269,8 @@ PAGES = [
     },
     {
         'page': 'preprocessing/image.md',
-        'functions': [
-            preprocessing.image.random_rotation,
-            preprocessing.image.random_shift,
-            preprocessing.image.random_shear,
-            preprocessing.image.random_zoom,
-            preprocessing.image.random_channel_shift,
-            preprocessing.image.random_brightness,
-        ],
         'classes': [
-            (preprocessing.image.ImageDataGenerator, "*")
+            (preprocessing.image.ImageDataGenerator, '*')
         ]
     },
     {
@@ -551,17 +543,17 @@ def collect_class_methods(cls, methods):
     return methods
 
 
-def render_function(function, blocks, method=True):
+def render_function(function, method=True):
     subblocks = []
     signature = get_function_signature(function, method=method)
     signature = signature.replace(function.__module__ + '.', '')
-    level = 4 if method else 3
-    subblocks.append('#' * level + function.__name__ + '\n')
+    level = 3
+    subblocks.append('#' * level + ' ' + function.__name__ + '\n')
     subblocks.append(code_snippet(signature))
     docstring = function.__doc__
     if docstring:
         subblocks.append(process_docstring(docstring))
-    blocks.append('\n\n'.join(subblocks))
+    return '\n\n'.join(subblocks)
 
 
 readme = read_file('../README.md')
@@ -606,9 +598,10 @@ for page_data in PAGES:
             subblocks.append(process_docstring(docstring))
         methods = collect_class_methods(cls, element[1])
         if methods:
-            subblocks.append('### ' + cls.__name__ + ' methods\n')
-            for method in methods:
-                render_function(method, subblocks, method=True)
+            subblocks.append('\n---')
+            subblocks.append('## ' + cls.__name__ + ' methods\n')
+            subblocks.append('\n---\n'.join(
+                [render_function(method, method=True) for method in methods]))
         blocks.append('\n'.join(subblocks))
 
     functions = page_data.get('functions', [])
@@ -627,7 +620,7 @@ for page_data in PAGES:
         functions += module_functions
 
     for function in functions:
-        render_function(function, blocks, method=False)
+        blocks.append(render_function(function, method=False))
 
     if not blocks:
         raise RuntimeError('Found no content for page ' +
