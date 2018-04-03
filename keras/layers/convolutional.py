@@ -373,6 +373,9 @@ class Conv2D(_Conv):
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
         padding: one of `"valid"` or `"same"` (case-insensitive).
+            Note that `"same"` is slightly inconsistent across backends with
+            `strides` != 1, as described
+            [here](https://github.com/keras-team/keras/pull/9473#issuecomment-372166860)
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
