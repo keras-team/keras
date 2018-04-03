@@ -1492,7 +1492,7 @@ class SeparableConv2D(_SeparableConv):
                  strides=(1, 1),
                  padding='valid',
                  data_format=None,
-                 dilation_rate=(1,1),
+                 dilation_rate=(1, 1),
                  depth_multiplier=1,
                  activation=None,
                  use_bias=True,
