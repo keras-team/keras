@@ -2212,7 +2212,11 @@ class Model(Container):
                                          str(generator_output))
                     # build batch logs
                     batch_logs = {}
-                    if isinstance(x, list):
+                    if x is None or len(x) == 0:
+                        # Handle data tensors support when no input given
+                        # step-size = 1 for data tensors
+                        batch_size = 1
+                    elif isinstance(x, list):
                         batch_size = x[0].shape[0]
                     elif isinstance(x, dict):
                         batch_size = list(x.values())[0].shape[0]
@@ -2399,7 +2403,11 @@ class Model(Container):
                     outs = [outs]
                 outs_per_batch.append(outs)
 
-                if isinstance(x, list):
+                if x is None or len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
                     batch_size = x[0].shape[0]
                 elif isinstance(x, dict):
                     batch_size = list(x.values())[0].shape[0]
