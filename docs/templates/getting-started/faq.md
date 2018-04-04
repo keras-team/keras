@@ -192,8 +192,6 @@ model = model_from_yaml(yaml_string)
 
 #### Saving/loading only a model's weights
 
-Note: To use this you have to `pip install h5py` manually.
-
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
 ```python
