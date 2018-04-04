@@ -369,7 +369,7 @@ class ModelCheckpoint(Callback):
     then the model checkpoints will be saved with the epoch number and
     the validation loss in the filename.
 
-    Note: This function requires you to `pip install h5py` manually.
+    Note: Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) in the FAQ for instructions on how to install `h5py`.
 
     # Arguments
         filepath: string, path to save the model file.

@@ -35,7 +35,7 @@ except ImportError:
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
-    Note: This function requires you to `pip install h5py` manually.
+    Note: Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) in the FAQ for instructions on how to install `h5py`.
 
     The saved model contains:
         - the model's configuration (topology)
@@ -766,7 +766,7 @@ class Sequential(Model):
     def save_weights(self, filepath, overwrite=True):
         """Saves the weights of a model.
 
-        Note: This function requires you to `pip install h5py` manually.
+        Note: Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) in the FAQ for instructions on how to install `h5py`.
         
         """
 

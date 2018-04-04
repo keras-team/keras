@@ -19,6 +19,7 @@
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
 - [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
+- [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
 
 ---
 
@@ -137,8 +138,6 @@ Below are some common definitions that are necessary to know and understand to c
 
 *It is not recommended to use pickle or cPickle to save a Keras model.*
 
-Note: To use this you have to `pip install h5py` manually.
-
 You can use `model.save(filepath)` to save a Keras model into a single HDF5 file which will contain:
 
 - the architecture of the model, allowing to re-create the model
@@ -149,6 +148,8 @@ You can use `model.save(filepath)` to save a Keras model into a single HDF5 file
 You can then use `keras.models.load_model(filepath)` to reinstantiate your model.
 `load_model` will also take care of compiling the model using the saved training configuration
 (unless the model was never compiled in the first place).
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
 
 Example:
 
@@ -195,8 +196,6 @@ Note: To use this you have to `pip install h5py` manually.
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
-Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
-
 ```python
 model.save_weights('my_model_weights.h5')
 ```
@@ -212,6 +211,8 @@ If you need to load weights into a *different* architecture (with some layers in
 ```python
 model.load_weights('my_model_weights.h5', by_name=True)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
 
 For example:
 
@@ -519,6 +520,8 @@ with h5py.File('input/file.hdf5', 'r') as f:
     model.predict(x_data)
 ```
 
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+
 ---
 
 ### Where is the Keras configuration file stored?
@@ -602,3 +605,20 @@ K.set_session(sess)
 
 # Rest of code follows ...
 ```
+
+### How can I install HDF5 or h5py to save my models in Keras?
+
+In order to save your Keras models as hdf5 files, e.g. via `keras.callbacks.ModelCheckpoint`, you need to install the h5py Python package. The exact steps may varry depending on your operating system. For many systems a simple
+
+```
+pip install h5py
+```
+
+is sufficient. For Debian based unix distributions you will need to do
+
+```
+sudo apt-get install libhdf5-serial-dev
+pip install h5py
+```
+
+When in doubt, you can always check the official h5py installation instructions here: http://docs.h5py.org/en/latest/build.html
