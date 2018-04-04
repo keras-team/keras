@@ -1141,7 +1141,9 @@ def batch_dot(x, y, axes=None):
     else:
         diff = 0
     if ndim(x) == 2 and ndim(y) == 2:
-        if axes[0] == axes[1]:
+        if axes is None:
+            out = tf.reduce_sum(tf.multiply(x, y), 1)
+        elif axes[0] == axes[1]:
             out = tf.reduce_sum(tf.multiply(x, y), axes[0])
         else:
             out = tf.reduce_sum(tf.multiply(tf.transpose(x, [1, 0]), y), axes[1])
