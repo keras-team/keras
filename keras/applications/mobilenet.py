@@ -83,10 +83,6 @@ from .. import backend as K
 BASE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.6/'
 
 
-def relu6(x):
-    return K.relu(x, max_value=6)
-
-
 def preprocess_input(x):
     """Preprocesses a numpy array encoding a batch of images.
 
@@ -110,11 +106,9 @@ def MobileNet(input_shape=None,
               classes=1000):
     """Instantiates the MobileNet architecture.
 
-    To load a MobileNet model via `load_model`, import the custom
-    objects `relu6` and pass them to the `custom_objects` parameter.
+    To load a MobileNet model via `load_model`
     E.g.
-    model = load_model('mobilenet.h5', custom_objects={
-                       'relu6': mobilenet.relu6})
+    model = load_model('mobilenet.h5')
 
     # Arguments
         input_shape: optional shape tuple, only to be specified
