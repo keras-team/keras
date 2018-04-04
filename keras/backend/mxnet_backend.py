@@ -2580,12 +2580,12 @@ def rnn(step_function, inputs, initial_states,
                                   'Ex: new_x_train = keras.preprocessing.sequence.pad_sequences(old_x_train, '
                                   'maxlen=MAX_LEN_OF_INPUT_SAMPLE_TYPE_INT). '
                                   'More Details - https://github.com/deep-learning-tools/keras/wiki/Limitations-and-workaround-of-RNN-layer-using-MXNet-backend')
+
     if not unroll and dshape[1] is not None:
-        raise NotImplementedError('Please set `unroll=True` while calling '
-                                  'SiumpleRNN/LSTM/GRU layer as you have '
-                                  'provided `input_shape`. MXNet backend does '
-                                  'not support `unroll=False` or a Variable '
-                                  'Length Input')
+        warnings.warn('MXNet Backend: `unroll=False` is not supported yet in RNN. Since the input_shape is known, '
+                      'setting `unroll=True` and continuing the execution.'
+                      'More Details - https://github.com/deep-learning-tools/keras/wiki/Limitations-and-workaround-of-RNN-layer-using-MXNet-backend',
+                      stacklevel=2)
 
     # Split the inputs across time dimension and generate the list of inputs
     # with shape `(samples, ...)` (no time dimension)

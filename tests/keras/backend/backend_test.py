@@ -1188,7 +1188,7 @@ class TestBackend(object):
                 ((2, 3, 5, 4, 6), (3, 2, 4, 3, 4), 'channels_first'),
                 ((1, 2, 2, 2, 1), (2, 2, 2, 1, 1), 'channels_last')]:
             check_two_tensor_operation('conv3d', input_shape, kernel_shape,
-                                       BACKENDS, cntk_dynamicity=True,
+                                       BACKENDS_WITHOUT_MXNET, cntk_dynamicity=True,
                                        data_format=data_format)
 
         # test in data_format = channels_first
@@ -1325,17 +1325,17 @@ class TestBackend(object):
                          k.variable(np.ones((2, 2, 2, 3, 4))),
                          data_format='channels_middle')
 
-            if k != KTH:
+            if k != KTH and k != KMX:
                 with pytest.raises(ValueError):
                     k.separable_conv2d(k.variable(np.ones((2, 3, 4, 5))),
                                        k.variable(np.ones((2, 2, 3, 4))),
                                        k.variable(np.ones((1, 1, 12, 7))),
                                        data_format='channels_middle')
-
-            with pytest.raises(ValueError):
-                k.depthwise_conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                                   k.variable(np.ones((2, 2, 3, 4))),
-                                   data_format='channels_middle')
+            if k != KMX:
+                with pytest.raises(ValueError):
+                    k.depthwise_conv2d(k.variable(np.ones((2, 3, 4, 5))),
+                                       k.variable(np.ones((2, 2, 3, 4))),
+                                       data_format='channels_middle')
 
     def test_pooling_invalid_use(self):
         for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
@@ -1502,7 +1502,7 @@ class TestBackend(object):
     # numerical stability.  The Theano code subtracts out the max
     # before the final log, so the results are different but scale
     # identically and still train properly
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    @pytest.mark.skipif(K.backend() == 'cntk' or K.backend() == 'mxnet', reason='Not supported.')
     def test_ctc(self):
         if K.backend() == 'theano':
             ref = [1.73308, 3.81351]
@@ -1741,7 +1741,7 @@ class TestBackend(object):
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    @pytest.mark.skipif(K.backend() == 'cntk' or K.backend() == 'mxnet', reason='Not supported.')
     def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
         vx = K.variable(x)
@@ -1759,18 +1759,18 @@ class TestBackend(object):
         assert_allclose(x.sum(axis=1), kx, atol=1e-05)
         assert_allclose(kx, kx2, atol=1e-05)
 
-    # MXNet does not support foldl yet
-    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
-    def test_foldl(self, k):
+    @pytest.mark.skipif(K.backend() == 'cntk' or K.backend() == 'mxnet',
+                        reason='Not supported.')
+    def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
         kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
 
         assert (3,) == kx.shape
         assert_allclose(x.sum(axis=0), kx, atol=1e-05)
 
-    # MXNet does not support foldr yet
-    @pytest.mark.parametrize('k', [KTH, KTF], ids=['Theano', 'TensorFlow'])
-    def test_foldr(self, k):
+    @pytest.mark.skipif(K.backend() == 'cntk' or K.backend() == 'mxnet',
+                        reason='Not supported.')
+    def test_foldr(self):
         # This test aims to make sure that we walk the array from right to left
         # and checks it in the following way: multiplying left to right 1e-40
         # cannot be held into a float32 so it causes an underflow while from

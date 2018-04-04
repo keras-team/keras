@@ -127,6 +127,8 @@ def test_sparse_top_k_categorical_accuracy():
     assert failure_result == 0
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `update` operations yet.')
 @keras_test
 def test_stateful_metrics():
     np.random.seed(1334)

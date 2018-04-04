@@ -149,6 +149,8 @@ def test_inceptionresnetv2():
     _test_app_pooling(app, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support depthwise_conv2d yet.')
 def test_mobilenet():
     app = applications.MobileNet
     last_dim = 1024

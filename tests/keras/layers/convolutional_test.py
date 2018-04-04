@@ -290,7 +290,8 @@ def test_separable_conv_1d():
                                                           batch_input_shape=(None, 5, None))])
 
 
-@pytest.mark.skipif(K.backend() == 'theano', reason='Theano does not support it yet')
+@pytest.mark.skipif(K.backend() == 'theano' or K.backend() == 'mxnet',
+                    reason='Theano/MXNet does not support it yet')
 @keras_test
 def test_separable_conv_2d():
     num_samples = 2
@@ -343,6 +344,8 @@ def test_separable_conv_2d():
                                                           batch_input_shape=(None, None, 5, None))])
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet does not support depthwise_conv_2d yet')
 @keras_test
 def test_depthwise_conv_2d():
     num_samples = 2
@@ -496,6 +499,7 @@ def test_convolution_3d():
                input_shape=(num_samples,
                             input_len_dim1, input_len_dim2, input_len_dim3,
                             stack_size))
+
 
 @pytest.mark.skipif((K.backend() == 'mxnet'),
                     reason='MXNet backend does not support Conv3D Transpose on CPU yet.')

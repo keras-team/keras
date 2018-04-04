@@ -3,6 +3,8 @@ from keras.preprocessing import image
 from PIL import Image
 import numpy as np
 import os
+import tempfile
+import shutil
 from keras import backend as K
 
 
@@ -223,8 +225,10 @@ class TestImage(object):
             """This will fail if not provided by a Numpy array.
             Note: This is made to enforce backward compatibility.
             """
-
-            assert x.shape == (26, 26, 3)
+            if K.image_data_format() == 'channels_first':
+                assert x.shape == (3, 26, 26)
+            else:
+                assert x.shape == (26, 26, 3)
             assert type(x) is np.ndarray
 
             return np.zeros_like(x)

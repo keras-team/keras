@@ -668,6 +668,8 @@ def test_preprocess_weights_for_loading_cudnn_rnn_should_be_idempotent(layer_cla
     test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend uses native MXNet Batchnorm. To be fixed.')
 @keras_test
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
@@ -720,6 +722,8 @@ def test_activity_regularization_with_model_composition():
     assert loss == 4
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not fully support Embedding layer yet.')
 @keras_test
 def test_shared_layer_depth_is_correct():
     # Basic outline here: we have a shared embedding layer, and two inputs that go through
