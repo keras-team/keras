@@ -2,7 +2,10 @@
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
-[![Build Status](https://travis-ci.org/keras-team/keras.svg?branch=master)](https://travis-ci.org/keras-team/keras)
+| ubuntu/python-2.7 | ubuntu/python-3.5 |
+|---------|---------|
+| ![Python3 Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoidHBzRFVlMG5SMGFQRTVzMUhxejNIK2dZRU1kb3p2c0JIbTVObDZtdDgxYThYdjRCZlg0RGF1eCsrSUtGQmgwYkFkZzJaT1BrdHpqcVJqcWE2aSt6QmRnPSIsIml2UGFyYW1ldGVyU3BlYyI6IklPMmRORld4TDYrdWNrWDciLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) | ![Python2 Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoibHFOTlladW1VK050SFBST1N0UUtNOGdOV24vM25hVUJDQVVKNitvSFpXTFZ4RzlvUXppdHU4RytRR3hLdk1nSDd2VHlTSlZ5ZTlCUC9GdWdscHZRRFBNPSIsIml2UGFyYW1ldGVyU3BlYyI6IjZrQksycy9aWWV5QXh1MkoiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) |
+
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/keras-team/keras/blob/master/LICENSE)
 
 ## You have just found Keras.
