@@ -1087,7 +1087,7 @@ class NumpyArrayIterator(Iterator):
             validation_split is set in ImageDataGenerator.
     """
 
-    def __init__(self, x, y, image_data_generator,
+    def __init__(self, x, y, image_data_generator=None,
                  batch_size=32, shuffle=False, seed=None,
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
@@ -1113,18 +1113,20 @@ class NumpyArrayIterator(Iterator):
         if data_format is None:
             data_format = K.image_data_format()
         self.x = np.asarray(x, dtype=K.floatx())
-        if self.x.ndim != 4:
-            raise ValueError('Input data in `NumpyArrayIterator` '
-                             'should have rank 4. You passed an array '
-                             'with shape', self.x.shape)
-        channels_axis = 3 if data_format == 'channels_last' else 1
-        if self.x.shape[channels_axis] not in {1, 3, 4}:
-            warnings.warn('NumpyArrayIterator is set to use the '
-                          'data format convention "' + data_format + '" '
-                          '(channels on axis ' + str(channels_axis) + '), i.e. expected '
-                          'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
-                          'However, it was passed an array with shape ' + str(self.x.shape) +
-                          ' (' + str(self.x.shape[channels_axis]) + ' channels).')
+        if image_data_generator is not None:
+            # Parse inputs as 4D image data
+            if self.x.ndim != 4:
+                raise ValueError('Input data in `NumpyArrayIterator` '
+                                 'should have rank 4. You passed an array '
+                                 'with shape', self.x.shape)
+            channels_axis = 3 if data_format == 'channels_last' else 1
+            if self.x.shape[channels_axis] not in {1, 3, 4}:
+                warnings.warn('NumpyArrayIterator is set to use the '
+                              'data format convention "' + data_format + '" '
+                              '(channels on axis ' + str(channels_axis) + '), i.e. expected '
+                              'either 1, 3 or 4 channels on axis ' + str(channels_axis) + '. '
+                              'However, it was passed an array with shape ' + str(self.x.shape) +
+                              ' (' + str(self.x.shape[channels_axis]) + ' channels).')
         if y is not None:
             self.y = np.asarray(y)
         else:
@@ -1141,8 +1143,9 @@ class NumpyArrayIterator(Iterator):
                            dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
-            x = self.image_data_generator.random_transform(x.astype(K.floatx()))
-            x = self.image_data_generator.standardize(x)
+            if self.image_data_generator is not None:
+                x = self.image_data_generator.random_transform(x.astype(K.floatx()))
+                x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         if self.save_to_dir:
             for i, j in enumerate(index_array):

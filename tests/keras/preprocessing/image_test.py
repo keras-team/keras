@@ -174,6 +174,15 @@ class TestImage(object):
         x = np.random.random((32, 1, 4, 4))
         generator.fit(x)
 
+    def test_numpy_index_array_generator(self):
+        x = np.random.random((32, 784))
+        y = np.random.random((32, 10))
+        generator = image.NumpyArrayIterator(x, y, batch_size=16)
+        for i in range(2):
+            x_batch, y_batch = next(generator)
+            assert x_batch.shape == (16, 784)
+            assert y_batch.shape == (16, 10)
+
     def test_directory_iterator(self, tmpdir):
         num_classes = 2
 
