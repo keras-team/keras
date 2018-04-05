@@ -7,8 +7,9 @@
 
 Adapted from code contributed by BigMoyan.
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os
 import warnings
@@ -23,6 +24,7 @@ from ..layers import MaxPooling2D
 from ..layers import AveragePooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
+from ..layers import ZeroPadding2D
 from ..layers import BatchNormalization
 from ..models import Model
 from .. import backend as K
@@ -85,12 +87,14 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
         filters: list of integers, the filters of 3 conv layer at main path
         stage: integer, current stage label, used for generating layer names
         block: 'a','b'..., current block label, used for generating layer names
+        strides: Strides for the first conv layer in the block.
 
     # Returns
         Output tensor for the block.
 
-    Note that from stage 3, the first conv layer at main path is with strides=(2,2)
-    And the shortcut should have strides=(2,2) as well
+    Note that from stage 3,
+    the first conv layer at main path is with strides=(2, 2)
+    And the shortcut should have strides=(2, 2) as well
     """
     filters1, filters2, filters3 = filters
     if K.image_data_format() == 'channels_last':
@@ -206,8 +210,8 @@ def ResNet50(include_top=True, weights='imagenet',
     else:
         bn_axis = 1
 
-    x = Conv2D(
-        64, (7, 7), strides=(2, 2), padding='same', name='conv1')(img_input)
+    x = ZeroPadding2D(padding=(3, 3), name='conv1_pad')(img_input)
+    x = Conv2D(64, (7, 7), strides=(2, 2), padding='valid', name='conv1')(x)
     x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
     x = Activation('relu')(x)
     x = MaxPooling2D((3, 3), strides=(2, 2))(x)

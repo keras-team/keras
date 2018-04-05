@@ -22,7 +22,6 @@ You can also pass an element-wise TensorFlow/Theano/CNTK function as an activati
 from keras import backend as K
 
 model.add(Dense(64, activation=K.tanh))
-model.add(Activation(K.tanh))
 ```
 
 ## Available activations

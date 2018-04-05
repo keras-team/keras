@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+"""Core Keras layers.
+"""
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 
@@ -19,6 +22,7 @@ from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
 from ..utils.generic_utils import has_arg
+from ..utils import conv_utils
 from ..legacy import interfaces
 
 
@@ -67,6 +71,9 @@ class Masking(Layer):
         config = {'mask_value': self.mask_value}
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class Dropout(Layer):
@@ -123,6 +130,9 @@ class Dropout(Layer):
                   'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class SpatialDropout1D(Dropout):
@@ -298,6 +308,9 @@ class Activation(Layer):
         base_config = super(Activation, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class Reshape(Layer):
     """Reshapes an output to a certain shape.
@@ -453,6 +466,13 @@ class Permute(Layer):
 class Flatten(Layer):
     """Flattens the input. Does not affect the batch size.
 
+    # Arguments
+        data_format: A string, one of `channels_last` (default) or `channels_first`.
+          The ordering of the dimensions in the inputs.
+          `channels_last` corresponds to inputs with shape
+          `(batch, ..., channels)` while `channels_first` corresponds to
+          inputs with shape `(batch, channels, ...)`.
+
     # Example
 
     ```python
@@ -467,9 +487,10 @@ class Flatten(Layer):
     ```
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, data_format='channels_last', **kwargs):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
+        self.data_format = conv_utils.normalize_data_format(data_format)
 
     def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):
@@ -482,7 +503,20 @@ class Flatten(Layer):
         return (input_shape[0], np.prod(input_shape[1:]))
 
     def call(self, inputs):
+        if self.data_format == 'channels_first':
+            # Ensure works for any dim
+            permutation = [0]
+            permutation.extend([i for i in
+                                range(2, K.ndim(inputs))])
+            permutation.append(1)
+            inputs = K.permute_dimensions(inputs, permutation)
+
         return K.batch_flatten(inputs)
+
+    def get_config(self):
+        config = {'data_format': self.data_format}
+        base_config = super(Flatten, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class RepeatVector(Layer):
@@ -899,3 +933,6 @@ class ActivityRegularization(Layer):
                   'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

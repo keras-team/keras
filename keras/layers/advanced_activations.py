@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
+"""Layers that act as activation functions.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -44,6 +49,9 @@ class LeakyReLU(Layer):
         config = {'alpha': float(self.alpha)}
         base_config = super(LeakyReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class PReLU(Layer):
@@ -137,6 +145,9 @@ class PReLU(Layer):
         base_config = super(PReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class ELU(Layer):
     """Exponential Linear Unit.
@@ -173,6 +184,9 @@ class ELU(Layer):
         base_config = super(ELU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class ThresholdedReLU(Layer):
     """Thresholded Rectified Linear Unit.
@@ -208,3 +222,38 @@ class ThresholdedReLU(Layer):
         config = {'theta': float(self.theta)}
         base_config = super(ThresholdedReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class Softmax(Layer):
+    """Softmax activation function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        axis: Integer, axis along which the softmax normalization is applied.
+    """
+
+    def __init__(self, axis=-1, **kwargs):
+        super(Softmax, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.axis = axis
+
+    def call(self, inputs):
+        return activations.softmax(inputs, axis=self.axis)
+
+    def get_config(self):
+        config = {'axis': self.axis}
+        base_config = super(Softmax, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

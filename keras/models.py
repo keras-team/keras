@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
+"""Sequential model class and model-related utilities.
+"""
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import warnings
@@ -43,7 +46,9 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
     # Arguments
         model: Keras model instance to be saved.
-        filepath: String, path where to save the model.
+        filepath: one of the following:
+            - string, path where to save the model, or
+            - h5py.File object where to save the model
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
@@ -94,13 +99,20 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
     from . import __version__ as keras_version
 
-    # If file exists and should not be overwritten.
-    if not overwrite and os.path.isfile(filepath):
-        proceed = ask_to_proceed_with_overwrite(filepath)
-        if not proceed:
-            return
+    if not isinstance(filepath, h5py.File):
+        # If file exists and should not be overwritten.
+        if not overwrite and os.path.isfile(filepath):
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
 
-    with h5py.File(filepath, mode='w') as f:
+        f = h5py.File(filepath, mode='w')
+        opened_new_file = True
+    else:
+        f = filepath
+        opened_new_file = False
+
+    try:
         f.attrs['keras_version'] = str(keras_version).encode('utf8')
         f.attrs['backend'] = K.backend().encode('utf8')
         f.attrs['model_config'] = json.dumps({
@@ -149,7 +161,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     for i, (w, val) in enumerate(zip(symbolic_weights,
                                                      weight_values)):
                         # Default values of symbolic_weights is /variable
-                        # for theano and cntk
+                        # for Theano and CNTK
                         if K.backend() == 'theano' or K.backend() == 'cntk':
                             if hasattr(w, 'name'):
                                 if w.name.split('/')[-1] == 'variable':
@@ -176,13 +188,18 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                         else:
                             param_dset[:] = val
         f.flush()
+    finally:
+        if opened_new_file:
+            f.close()
 
 
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
     # Arguments
-        filepath: String, path to the saved model.
+        filepath: one of the following:
+            - string, path to the saved model, or
+            - h5py.File object from which to load the model
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -231,7 +248,14 @@ def load_model(filepath, custom_objects=None, compile=True):
         if obj in custom_objects:
             return custom_objects[obj]
         return obj
-    with h5py.File(filepath, mode='r') as f:
+
+    opened_new_file = not isinstance(filepath, h5py.File)
+    if opened_new_file:
+        f = h5py.File(filepath, mode='r')
+    else:
+        f = filepath
+
+    try:
         # instantiate model
         model_config = f.attrs.get('model_config')
         if model_config is None:
@@ -289,7 +313,10 @@ def load_model(filepath, custom_objects=None, compile=True):
                               'state. As a result, your model is '
                               'starting with a freshly initialized '
                               'optimizer.')
-    return model
+        return model
+    finally:
+        if opened_new_file:
+            f.close()
 
 
 def model_from_config(config, custom_objects=None):
@@ -389,12 +416,11 @@ class Sequential(Model):
         self.inputs = []  # List of input tensors
         self.outputs = []  # List of length 1: the output tensor (unique).
         self._trainable = True
-        self._updatable = True
         self._initial_weights = None
 
         # Model attributes.
-        self.inbound_nodes = []
-        self.outbound_nodes = []
+        self._inbound_nodes = []
+        self._outbound_nodes = []
         self.built = False
 
         # Set model name.
@@ -464,13 +490,13 @@ class Sequential(Model):
                 # to the input layer we just created.
                 layer(x)
 
-            if len(layer.inbound_nodes[-1].output_tensors) != 1:
+            if len(layer._inbound_nodes[-1].output_tensors) != 1:
                 raise ValueError('All layers in a Sequential model '
                                  'should have a single output tensor. '
                                  'For multi-output layers, '
                                  'use the functional API.')
 
-            self.outputs = [layer.inbound_nodes[-1].output_tensors[0]]
+            self.outputs = [layer._inbound_nodes[-1].output_tensors[0]]
             self.inputs = topology.get_source_inputs(self.outputs[0])
 
             # We create an input node, which we will keep updated
@@ -494,9 +520,9 @@ class Sequential(Model):
                                 'For multi-output layers, '
                                 'use the functional API.')
             self.outputs = [output_tensor]
-            # update self.inbound_nodes
-            self.inbound_nodes[0].output_tensors = self.outputs
-            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+            # update self._inbound_nodes
+            self._inbound_nodes[0].output_tensors = self.outputs
+            self._inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
 
         self.layers.append(layer)
         self.built = False
@@ -513,14 +539,14 @@ class Sequential(Model):
         self.layers.pop()
         if not self.layers:
             self.outputs = []
-            self.inbound_nodes = []
-            self.outbound_nodes = []
+            self._inbound_nodes = []
+            self._outbound_nodes = []
         else:
-            self.layers[-1].outbound_nodes = []
+            self.layers[-1]._outbound_nodes = []
             self.outputs = [self.layers[-1].output]
-            # update self.inbound_nodes
-            self.inbound_nodes[0].output_tensors = self.outputs
-            self.inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
+            # update self._inbound_nodes
+            self._inbound_nodes[0].output_tensors = self.outputs
+            self._inbound_nodes[0].output_shapes = [self.outputs[0]._keras_shape]
         self.built = False
 
     def get_layer(self, name=None, index=None):
@@ -554,7 +580,6 @@ class Sequential(Model):
         self.model = Model(self.inputs, self.outputs[0],
                            name=self.name + '_model')
         self.model.trainable = self.trainable
-        self.model.updatable = self.updatable
 
         # mirror model attributes
         self.supports_masking = self.model.supports_masking
@@ -567,12 +592,12 @@ class Sequential(Model):
         self.output_layers = self.model.output_layers
         self.output_layers_node_indices = self.model.output_layers_node_indices
         self.output_layers_tensor_indices = self.model.output_layers_tensor_indices
-        self.nodes_by_depth = self.model.nodes_by_depth
-        self.container_nodes = self.model.container_nodes
+        self._nodes_by_depth = self.model._nodes_by_depth
         self.output_names = self.model.output_names
         self.input_names = self.model.input_names
         self._feed_input_names = self.model._feed_input_names
         self._feed_inputs = self.model._feed_inputs
+        self._container_nodes = self.model._container_nodes
 
         # Make sure child model callbacks
         # will call the parent Sequential model.
@@ -627,16 +652,6 @@ class Sequential(Model):
         if self.built:
             self.model.trainable = value
         self._trainable = value
-
-    @property
-    def updatable(self):
-        return self._updatable
-
-    @updatable.setter
-    def updatable(self, value):
-        if self.built:
-            self.model.updatable = value
-        self._updatable = value
 
     @property
     def trainable_weights(self):
@@ -727,25 +742,24 @@ class Sequential(Model):
             self.build()
         self.model.set_weights(weights)
 
-    def load_weights(self, filepath, by_name=False, skip_mismatch=False):
+    def load_weights(self, filepath, by_name=False, skip_mismatch=False, reshape=False):
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
-        f = h5py.File(filepath, mode='r')
-        if 'layer_names' not in f.attrs and 'model_weights' in f:
-            f = f['model_weights']
+        with h5py.File(filepath, mode='r') as f:
+            if 'layer_names' not in f.attrs and 'model_weights' in f:
+                f = f['model_weights']
 
-        # Legacy support
-        if legacy_models.needs_legacy_support(self):
-            layers = legacy_models.legacy_sequential_layers(self)
-        else:
-            layers = self.layers
-        if by_name:
-            topology.load_weights_from_hdf5_group_by_name(f, layers,
-                                                          skip_mismatch=skip_mismatch)
-        else:
-            topology.load_weights_from_hdf5_group(f, layers)
-        if hasattr(f, 'close'):
-            f.close()
+            # Legacy support
+            if legacy_models.needs_legacy_support(self):
+                layers = legacy_models.legacy_sequential_layers(self)
+            else:
+                layers = self.layers
+            if by_name:
+                topology.load_weights_from_hdf5_group_by_name(f, layers,
+                                                              skip_mismatch=skip_mismatch,
+                                                              reshape=reshape)
+            else:
+                topology.load_weights_from_hdf5_group(f, layers, reshape=reshape)
 
     def save_weights(self, filepath, overwrite=True):
         if h5py is None:
@@ -761,10 +775,9 @@ class Sequential(Model):
         else:
             layers = self.layers
 
-        f = h5py.File(filepath, 'w')
-        topology.save_weights_to_hdf5_group(f, layers)
-        f.flush()
-        f.close()
+        with h5py.File(filepath, 'w') as f:
+            topology.save_weights_to_hdf5_group(f, layers)
+            f.flush()
 
     def compile(self, optimizer, loss,
                 metrics=None,
@@ -812,6 +825,7 @@ class Sequential(Model):
 
         # Raises
             ValueError: In case of invalid arguments for
+                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
 
         # Example
             ```python
@@ -1013,7 +1027,7 @@ class Sequential(Model):
                                    sample_weight=sample_weight,
                                    steps=steps)
 
-    def predict(self, x, batch_size=None, verbose=0):
+    def predict(self, x, batch_size=None, verbose=0, steps=None):
         """Generates output predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1022,13 +1036,17 @@ class Sequential(Model):
             x: the input data, as a Numpy array.
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             A Numpy array of predictions.
         """
         if not self.built:
             self.build()
-        return self.model.predict(x, batch_size=batch_size, verbose=verbose)
+        return self.model.predict(x, batch_size=batch_size, verbose=verbose,
+                                  steps=steps)
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
@@ -1097,7 +1115,7 @@ class Sequential(Model):
         return self.model.test_on_batch(x, y,
                                         sample_weight=sample_weight)
 
-    def predict_proba(self, x, batch_size=None, verbose=0):
+    def predict_proba(self, x, batch_size=None, verbose=0, steps=None):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1107,11 +1125,15 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
+
 
         # Returns
             A Numpy array of probability predictions.
         """
-        preds = self.predict(x, batch_size, verbose)
+        preds = self.predict(x, batch_size, verbose, steps=steps)
         if preds.min() < 0. or preds.max() > 1.:
             warnings.warn('Network returning invalid probability values. '
                           'The last layer might not normalize predictions '
@@ -1119,7 +1141,7 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=None, verbose=0):
+    def predict_classes(self, x, batch_size=None, verbose=0, steps=None):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
@@ -1129,18 +1151,23 @@ class Sequential(Model):
                 (if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: verbosity mode, 0 or 1.
+            steps: Total number of steps (batches of samples)
+                before declaring the prediction round finished.
+                Ignored with the default value of `None`.
 
         # Returns
             A numpy array of class predictions.
         """
-        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
+        proba = self.predict(x, batch_size=batch_size, verbose=verbose,
+                             steps=steps)
         if proba.shape[-1] > 1:
             return proba.argmax(axis=-1)
         else:
             return (proba > 0.5).astype('int32')
 
     @interfaces.legacy_generator_methods_support
-    def fit_generator(self, generator,
+    def fit_generator(self,
+                      generator,
                       steps_per_epoch=None,
                       epochs=1,
                       verbose=1,
@@ -1159,12 +1186,23 @@ class Sequential(Model):
         For instance, this allows you to do real-time data augmentation
         on images on CPU in parallel to training your model on GPU.
 
+        The use of `keras.utils.Sequence` guarantees the ordering
+        and guarantees the single use of every input per epoch when
+        using `use_multiprocessing=True`.
+
         # Arguments
-            generator: A generator.
+            generator: A generator or an instance of `Sequence`
+                (`keras.utils.Sequence`) object in order to avoid duplicate data
+                    when using multiprocessing.
                 The output of the generator must be either
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
-                All arrays should contain the same number of samples.
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
+                This tuple (a single output of the generator) makes a single
+                batch. Therefore, all arrays in this tuple must have the same
+                length (equal to the size of this batch). Different batches may
+                have different sizes. For example, the last batch of the epoch
+                is commonly smaller than the others, if the size of the dataset
+                is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
@@ -1180,35 +1218,45 @@ class Sequential(Model):
                 epochs is to be understood as "final epoch". The model is
                 not trained for n steps given by epochs, but until the
                 epoch epochs is reached.
-            verbose: Verbosity mode, 0, 1, or 2.
-            callbacks: List of callbacks to be called during training.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             validation_data: This can be either
-                - A generator for the validation data
-                - A tuple (inputs, targets)
-                - A tuple (inputs, targets, sample_weights).
+                - a generator for the validation data
+                - a tuple `(inputs, targets)`
+                - a tuple `(inputs, targets, sample_weights)`.
             validation_steps: Only relevant if `validation_data`
-                is a generator.
-                Number of steps to yield from validation generator
+                is a generator. Total number of steps (batches of samples)
+                to yield from `validation_data` generator before stopping
                 at the end of every epoch. It should typically
                 be equal to the number of samples of your
                 validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
-            class_weight: Dictionary mapping class indices to a weight
-                for the class.
-            max_queue_size: Maximum size for the generator queue
-            workers: Maximum number of processes to spin up
-            use_multiprocessing: if True, use process based threading.
-                Note that because
-                this implementation relies on multiprocessing,
-                you should not pass
-                non picklable arguments to the generator
-                as they can't be passed
-                easily to children processes.
-            shuffle: Whether to shuffle the order of the batches at
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) value, used for weighting the loss function
+                (during training only). This can be useful to tell the model to
+                "pay more attention" to samples from an under-represented class.
+            max_queue_size: Integer. Maximum size for the generator queue.
+                If unspecified, `max_queue_size` will default to 10.
+            workers: Integer. Maximum number of processes to spin up
+                when using process-based threading.
+                If unspecified, `workers` will default to 1. If 0, will
+                execute the generator on the main thread.
+            use_multiprocessing: Boolean.
+                If `True`, use process-based threading.
+                If unspecified, `use_multiprocessing` will default to `False`.
+                Note that because this implementation relies on multiprocessing,
+                you should not pass non-picklable arguments to the generator
+                as they can't be passed easily to children processes.
+            shuffle: Boolean (whether to shuffle the order of the batches at
                 the beginning of each epoch. Only used with instances
-                of `Sequence` (keras.utils.Sequence).
-            initial_epoch: Epoch at which to start training
+                of `Sequence` (`keras.utils.Sequence`).
+                Has no effect when `steps_per_epoch` is not `None`.
+            initial_epoch: Integer.
+                Epoch at which to start training
                 (useful for resuming a previous training run).
 
         # Returns
@@ -1216,19 +1264,19 @@ class Sequential(Model):
 
         # Raises
             RuntimeError: if the model was never compiled.
+            ValueError: In case the generator yields data in an invalid format.
 
         # Example
 
         ```python
             def generate_arrays_from_file(path):
-                while 1:
-                    f = open(path)
-                    for line in f:
-                        # create Numpy arrays of input data
-                        # and labels, from each line in the file
-                        x, y = process_line(line)
-                        yield (x, y)
-                    f.close()
+                while True:
+                    with open(path) as f:
+                        for line in f:
+                            # create Numpy arrays of input data
+                            # and labels, from each line in the file
+                            x, y = process_line(line)
+                            yield (x, y)
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 steps_per_epoch=1000, epochs=10)
@@ -1499,10 +1547,10 @@ def _clone_functional_model(model, input_tensors=None):
         tensor_map[x] = (y, None)  # tensor, mask
 
     # Iterated over every node in the reference model, in depth order.
-    depth_keys = list(model.nodes_by_depth.keys())
+    depth_keys = list(model._nodes_by_depth.keys())
     depth_keys.sort(reverse=True)
     for depth in depth_keys:
-        nodes = model.nodes_by_depth[depth]
+        nodes = model._nodes_by_depth[depth]
         for node in nodes:
             # Recover the corresponding layer.
             layer = node.outbound_layer

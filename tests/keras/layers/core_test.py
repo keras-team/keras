@@ -97,9 +97,63 @@ def test_permute():
 
 @keras_test
 def test_flatten():
-    layer_test(layers.Flatten,
-               kwargs={},
-               input_shape=(3, 2, 4))
+
+    def test_4d():
+        np_inp_channels_last = np.arange(24, dtype='float32').reshape(
+                                        (1, 4, 3, 2))
+
+        np_output_cl = layer_test(layers.Flatten,
+                                  kwargs={'data_format':
+                                          'channels_last'},
+                                  input_data=np_inp_channels_last)
+
+        np_inp_channels_first = np.transpose(np_inp_channels_last,
+                                             [0, 3, 1, 2])
+
+        np_output_cf = layer_test(layers.Flatten,
+                                  kwargs={'data_format':
+                                          'channels_first'},
+                                  input_data=np_inp_channels_first,
+                                  expected_output=np_output_cl)
+
+    def test_3d():
+        np_inp_channels_last = np.arange(12, dtype='float32').reshape(
+            (1, 4, 3))
+
+        np_output_cl = layer_test(layers.Flatten,
+                                  kwargs={'data_format':
+                                          'channels_last'},
+                                  input_data=np_inp_channels_last)
+
+        np_inp_channels_first = np.transpose(np_inp_channels_last,
+                                             [0, 2, 1])
+
+        np_output_cf = layer_test(layers.Flatten,
+                                  kwargs={'data_format':
+                                          'channels_first'},
+                                  input_data=np_inp_channels_first,
+                                  expected_output=np_output_cl)
+
+    def test_5d():
+        np_inp_channels_last = np.arange(120, dtype='float32').reshape(
+            (1, 5, 4, 3, 2))
+
+        np_output_cl = layer_test(layers.Flatten,
+                                  kwargs={'data_format':
+                                          'channels_last'},
+                                  input_data=np_inp_channels_last)
+
+        np_inp_channels_first = np.transpose(np_inp_channels_last,
+                                             [0, 4, 1, 2, 3])
+
+        np_output_cf = layer_test(layers.Flatten,
+                                  kwargs={'data_format':
+                                          'channels_first'},
+                                  input_data=np_inp_channels_first,
+                                  expected_output=np_output_cl)
+    test_3d()
+    test_4d()
+    test_5d()
 
 
 @keras_test
@@ -149,25 +203,55 @@ def test_lambda():
         def mask(inputs, mask=None):
             return [None, None]
 
-        i = layers.Input(shape=(64, 64, 3))
+        i = layers.Input(shape=(3, 2, 1))
         o = layers.Lambda(function=func,
                           output_shape=output_shape,
                           mask=mask)(i)
 
         o1, o2 = o
-        assert o1._keras_shape == (None, 64, 64, 3)
-        assert o2._keras_shape == (None, 64, 64, 3)
+        assert o1._keras_shape == (None, 3, 2, 1)
+        assert o2._keras_shape == (None, 3, 2, 1)
 
         model = Model(i, o)
 
-        x = np.random.random((4, 64, 64, 3))
+        x = np.random.random((4, 3, 2, 1))
         out1, out2 = model.predict(x)
-        assert out1.shape == (4, 64, 64, 3)
-        assert out2.shape == (4, 64, 64, 3)
+        assert out1.shape == (4, 3, 2, 1)
+        assert out2.shape == (4, 3, 2, 1)
         assert_allclose(out1, x * 0.2, atol=1e-4)
         assert_allclose(out2, x * 0.3, atol=1e-4)
 
     test_multiple_outputs()
+
+    # test layer with multiple outputs and no
+    # explicit mask
+    def test_multiple_outputs_no_mask():
+        def func(x):
+            return [x * 0.2, x * 0.3]
+
+        def output_shape(input_shape):
+            return [input_shape, input_shape]
+
+        i = layers.Input(shape=(3, 2, 1))
+        o = layers.Lambda(function=func,
+                          output_shape=output_shape)(i)
+
+        assert o[0]._keras_shape == (None, 3, 2, 1)
+        assert o[1]._keras_shape == (None, 3, 2, 1)
+
+        o = layers.add(o)
+        model = Model(i, o)
+
+        i2 = layers.Input(shape=(3, 2, 1))
+        o2 = model(i2)
+        model2 = Model(i2, o2)
+
+        x = np.random.random((4, 3, 2, 1))
+        out = model2.predict(x)
+        assert out.shape == (4, 3, 2, 1)
+        assert_allclose(out, x * 0.2 + x * 0.3, atol=1e-4)
+
+    test_multiple_outputs_no_mask()
 
     # test serialization with function
     def f(x):

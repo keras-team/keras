@@ -17,8 +17,9 @@ due to its reliance on `SeparableConvolution` layers.
 - [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
 
 """
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os
 import warnings

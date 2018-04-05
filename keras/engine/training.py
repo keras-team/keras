@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
+"""Training-related part of the Keras engine.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import warnings
 import copy
 import numpy as np
-import six
-
-from keras.utils import Sequence
-from keras.utils import GeneratorEnqueuer
-from keras.utils import OrderedEnqueuer
-
-try:
-    import queue
-except ImportError:
-    import Queue as queue
+from scipy.sparse import issparse
 
 from .topology import Container
+from .topology import Layer
 from .. import backend as K
 from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
+from ..utils.data_utils import Sequence
+from ..utils.data_utils import GeneratorEnqueuer
+from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 from ..legacy import interfaces
@@ -59,99 +57,71 @@ def _standardize_input_data(data, names, shapes=None,
         return []
     if data is None:
         return [None for _ in range(len(names))]
-    if isinstance(data, dict):
-        for key, value in data.items():
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        arrays = []
-        for name in names:
-            if name not in data:
-                raise ValueError('No data provided for "' +
-                                 name + '". Need data for each key in: ' +
-                                 str(names))
-            arrays.append(data[name])
-    elif isinstance(data, list):
-        for key, value in enumerate(data):
-            if value.__class__.__name__ == 'DataFrame':
-                data[key] = value.values
-        if len(data) != len(names):
-            if data and hasattr(data[0], 'shape'):
-                raise ValueError('Error when checking model ' +
-                                 exception_prefix +
-                                 ': the list of Numpy arrays '
-                                 'that you are passing to your model '
-                                 'is not the size the model expected. '
-                                 'Expected to see ' + str(len(names)) +
-                                 ' array(s), but instead got '
-                                 'the following list of ' + str(len(data)) +
-                                 ' arrays: ' + str(data)[:200] +
-                                 '...')
-            else:
-                if len(names) == 1:
-                    data = [np.asarray(data)]
-                else:
-                    raise ValueError(
-                        'Error when checking model ' +
-                        exception_prefix +
-                        ': you are passing a list as '
-                        'input to your model, '
-                        'but the model expects '
-                        'a list of ' + str(len(names)) +
-                        ' Numpy arrays instead. '
-                        'The list you passed was: ' +
-                        str(data)[:200])
-        arrays = data
-    else:
-        if data.__class__.__name__ == 'DataFrame':
-            # test if data is a DataFrame, without pandas installed
-            data = data.values
-        if not hasattr(data, 'shape'):
-            raise TypeError('Error when checking model ' +
-                            exception_prefix +
-                            ': data should be a Numpy array, '
-                            'or list/dict of Numpy arrays. '
-                            'Found: ' + str(data)[:200] + '...')
-        if len(names) > 1:
-            # Case: model expects multiple inputs but only received
-            # a single Numpy array.
-            raise ValueError('The model expects ' + str(len(names)) + ' ' +
-                             exception_prefix +
-                             ' arrays, but only received one array. '
-                             'Found: array with shape ' + str(data.shape))
-        arrays = [data]
 
-    # Make arrays at least 2D.
-    for i in range(len(names)):
-        array = arrays[i]
-        if len(array.shape) == 1:
-            array = np.expand_dims(array, 1)
-            arrays[i] = array
+    if isinstance(data, dict):
+        try:
+            data = [data[x].values if data[x].__class__.__name__ == 'DataFrame' else data[x] for x in names]
+        except KeyError as e:
+            raise ValueError(
+                'No data provided for "' + e.args[0] + '". Need data '
+                'for each key in: ' + str(names))
+    elif isinstance(data, list):
+        if len(names) == 1 and data and isinstance(data[0], (float, int)):
+            data = [np.asarray(data)]
+        else:
+            data = [x.values if x.__class__.__name__ == 'DataFrame' else x for x in data]
+    else:
+        data = data.values if data.__class__.__name__ == 'DataFrame' else data
+        data = [data]
+    data = [np.expand_dims(x, 1) if x is not None and x.ndim == 1 else x for x in data]
+
+    if len(data) != len(names):
+        if data and hasattr(data[0], 'shape'):
+            raise ValueError(
+                'Error when checking model ' + exception_prefix +
+                ': the list of Numpy arrays that you are passing to '
+                'your model is not the size the model expected. '
+                'Expected to see ' + str(len(names)) + ' array(s), '
+                'but instead got the following list of ' +
+                str(len(data)) + ' arrays: ' + str(data)[:200] + '...')
+        elif len(names) > 1:
+            raise ValueError(
+                'Error when checking model ' + exception_prefix +
+                ': you are passing a list as input to your model, '
+                'but the model expects a list of ' + str(len(names)) +
+                ' Numpy arrays instead. The list you passed was: ' +
+                str(data)[:200])
+        elif len(data) == 1 and not hasattr(data[0], 'shape'):
+            raise TypeError(
+                'Error when checking model ' + exception_prefix +
+                ': data should be a Numpy array, or list/dict of '
+                'Numpy arrays. Found: ' + str(data)[:200] + '...')
+        elif len(names) == 1:
+            data = [np.asarray(data)]
 
     # Check shapes compatibility.
     if shapes:
         for i in range(len(names)):
-            if shapes[i] is None:
-                continue
-            array = arrays[i]
-            if len(array.shape) != len(shapes[i]):
-                raise ValueError('Error when checking ' + exception_prefix +
-                                 ': expected ' + names[i] +
-                                 ' to have ' + str(len(shapes[i])) +
-                                 ' dimensions, but got array with shape ' +
-                                 str(array.shape))
-            for j, (dim, ref_dim) in enumerate(zip(array.shape, shapes[i])):
-                if not j and not check_batch_axis:
-                    # skip the first axis
-                    continue
-                if ref_dim:
-                    if ref_dim != dim:
+            if shapes[i] is not None:
+                data_shape = data[i].shape
+                shape = shapes[i]
+                if data[i].ndim != len(shape):
+                    raise ValueError(
+                        'Error when checking ' + exception_prefix +
+                        ': expected ' + names[i] + ' to have ' +
+                        str(len(shape)) + ' dimensions, but got array '
+                        'with shape ' + str(data_shape))
+                if not check_batch_axis:
+                    data_shape = data_shape[1:]
+                    shape = shape[1:]
+                for dim, ref_dim in zip(data_shape, shape):
+                    if ref_dim != dim and ref_dim:
                         raise ValueError(
                             'Error when checking ' + exception_prefix +
-                            ': expected ' + names[i] +
-                            ' to have shape ' + str(shapes[i]) +
-                            ' but got array with shape ' +
-                            str(array.shape))
-    return arrays
+                            ': expected ' + names[i] + ' to have shape ' +
+                            str(shape) + ' but got array with shape ' +
+                            str(data_shape))
+    return data
 
 
 def _standardize_sample_or_class_weights(x_weight, output_names, weight_type):
@@ -214,7 +184,7 @@ def _standardize_sample_weights(sample_weight, output_names):
 
 
 def _check_array_lengths(inputs, targets, weights=None):
-    """Does user input validation for numpy arrays.
+    """Checks if batch axes are the same for numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -277,7 +247,7 @@ def _check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                   losses.binary_crossentropy,
                   losses.categorical_crossentropy}
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
-        if loss is None:
+        if y is None or loss is None:
             continue
         if loss is losses.categorical_crossentropy:
             if y.shape[-1] == 1:
@@ -458,7 +428,7 @@ def _weighted_masked_objective(fn):
         # score_array has ndim >= 2
         score_array = fn(y_true, y_pred)
         if mask is not None:
-            # Cast the mask to floatX to avoid float64 upcasting in theano
+            # Cast the mask to floatX to avoid float64 upcasting in Theano
             mask = K.cast(mask, K.floatx())
             # mask should have the same shape as score_array
             score_array *= mask
@@ -547,7 +517,7 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             raise ValueError('`class_weight` not supported for '
                              '3+ dimensional targets.')
         if y.shape[1] > 1:
-            y_classes = y.argmax(axis=1)
+            y_classes = np.argmax(y, axis=1)
         elif y.shape[1] == 1:
             y_classes = np.reshape(y, y.shape[0])
         else:
@@ -576,7 +546,7 @@ class Model(Container):
     """The `Model` class adds training & evaluation routines to a `Container`.
     """
 
-    def compile(self, optimizer, loss, metrics=None, loss_weights=None,
+    def compile(self, optimizer, loss=None, metrics=None, loss_weights=None,
                 sample_weight_mode=None, weighted_metrics=None,
                 target_tensors=None, **kwargs):
         """Configures the model for training.
@@ -730,10 +700,10 @@ class Model(Container):
                                          'dictionary: "' + name + '". '
                                          'Only expected the following keys: ' +
                                          str(self.output_names))
-                _target_tensors = []
+                tmp_target_tensors = []
                 for name in self.output_names:
-                    _target_tensors.append(target_tensors.get(name, None))
-                target_tensors = _target_tensors
+                    tmp_target_tensors.append(target_tensors.get(name, None))
+                target_tensors = tmp_target_tensors
             else:
                 raise TypeError('Expected `target_tensors` to be '
                                 'a list or dict, but got:', target_tensors)
@@ -741,7 +711,7 @@ class Model(Container):
             if i in skip_target_indices:
                 self.targets.append(None)
             else:
-                shape = self.internal_output_shapes[i]
+                shape = self._internal_output_shapes[i]
                 name = self.output_names[i]
                 if target_tensors is not None:
                     target = target_tensors[i]
@@ -838,7 +808,7 @@ class Model(Container):
                 self._feed_sample_weight_modes.append(self.sample_weight_modes[i])
 
         # Prepare metrics.
-        self.metrics = metrics
+        self.metrics = metrics or []
         self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
@@ -881,14 +851,8 @@ class Model(Container):
         # contains tuples (metrics for output, names of metrics).
         nested_metrics = _collect_metrics(metrics, self.output_names)
         nested_weighted_metrics = _collect_metrics(weighted_metrics, self.output_names)
-
-        def append_metric(layer_index, metric_name, metric_tensor):
-            """Helper function used in loop below."""
-            if len(self.output_names) > 1:
-                metric_name = self.output_names[layer_index] + '_' + metric_name
-            self.metrics_names.append(metric_name)
-            self.metrics_tensors.append(metric_tensor)
-
+        self.metrics_updates = []
+        self.stateful_metric_names = []
         with K.name_scope('metrics'):
             for i in range(len(self.outputs)):
                 if i in skip_target_indices:
@@ -904,32 +868,68 @@ class Model(Container):
                     metric_name_prefix = 'weighted_' if weights is not None else ''
 
                     for metric in metrics:
-                        if metric == 'accuracy' or metric == 'acc':
-                            # custom handling of accuracy
+                        if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
+                            # custom handling of accuracy/crossentropy
                             # (because of class mode duality)
-                            output_shape = self.internal_output_shapes[i]
+                            output_shape = self._internal_output_shapes[i]
                             if (output_shape[-1] == 1 or
                                self.loss_functions[i] == losses.binary_crossentropy):
-                                # case: binary accuracy
-                                acc_fn = metrics_module.binary_accuracy
+                                # case: binary accuracy/crossentropy
+                                if metric in ('accuracy', 'acc'):
+                                    metric_fn = metrics_module.binary_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    metric_fn = metrics_module.binary_crossentropy
                             elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
-                                # case: categorical accuracy with sparse targets
-                                acc_fn = metrics_module.sparse_categorical_accuracy
+                                # case: categorical accuracy/crossentropy with sparse targets
+                                if metric in ('accuracy', 'acc'):
+                                    metric_fn = metrics_module.sparse_categorical_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    metric_fn = metrics_module.sparse_categorical_crossentropy
                             else:
-                                acc_fn = metrics_module.categorical_accuracy
-
-                            weighted_metric_fn = _weighted_masked_objective(acc_fn)
-                            metric_name = metric_name_prefix + 'acc'
+                                # case: categorical accuracy/crossentropy
+                                if metric in ('accuracy', 'acc'):
+                                    metric_fn = metrics_module.categorical_accuracy
+                                elif metric in ('crossentropy', 'ce'):
+                                    metric_fn = metrics_module.categorical_crossentropy
+                            if metric in ('accuracy', 'acc'):
+                                    suffix = 'acc'
+                            elif metric in ('crossentropy', 'ce'):
+                                    suffix = 'ce'
+                            weighted_metric_fn = _weighted_masked_objective(metric_fn)
+                            metric_name = metric_name_prefix + suffix
                         else:
                             metric_fn = metrics_module.get(metric)
                             weighted_metric_fn = _weighted_masked_objective(metric_fn)
-                            metric_name = metric_name_prefix + metric_fn.__name__
+                            # Get metric name as string
+                            if hasattr(metric_fn, 'name'):
+                                metric_name = metric_fn.name
+                            else:
+                                metric_name = metric_fn.__name__
+                            metric_name = metric_name_prefix + metric_name
 
                         with K.name_scope(metric_name):
                             metric_result = weighted_metric_fn(y_true, y_pred,
                                                                weights=weights,
                                                                mask=masks[i])
-                        append_metric(i, metric_name, metric_result)
+
+                        # Append to self.metrics_names, self.metric_tensors,
+                        # self.stateful_metric_names
+                        if len(self.output_names) > 1:
+                            metric_name = self.output_names[i] + '_' + metric_name
+                        # Dedupe name
+                        j = 1
+                        base_metric_name = metric_name
+                        while metric_name in self.metrics_names:
+                            metric_name = base_metric_name + '_' + str(j)
+                            j += 1
+                        self.metrics_names.append(metric_name)
+                        self.metrics_tensors.append(metric_result)
+
+                        # Keep track of state updates created by
+                        # stateful metrics (i.e. metrics layers).
+                        if isinstance(metric_fn, Layer) and metric_fn.stateful:
+                            self.stateful_metric_names.append(metric_name)
+                            self.metrics_updates += metric_fn.updates
 
                 handle_metrics(output_metrics)
                 handle_metrics(output_weighted_metrics, weights=weights)
@@ -988,7 +988,7 @@ class Model(Container):
                     training_updates = self.optimizer.get_updates(
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
-                updates = self.updates + training_updates
+                updates = self.updates + training_updates + self.metrics_updates
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(inputs,
                                                  [self.total_loss] + self.metrics_tensors,
@@ -1007,7 +1007,7 @@ class Model(Container):
             # Does update the network states.
             self.test_function = K.function(inputs,
                                             [self.total_loss] + self.metrics_tensors,
-                                            updates=self.state_updates,
+                                            updates=self.state_updates + self.metrics_updates,
                                             name='test_function',
                                             **self._function_kwargs)
 
@@ -1053,6 +1053,9 @@ class Model(Container):
             processed based on the size of the first dimension of the
             first input numpy array. When steps is not `None` and
             `batch_size` is `None`, returns `None`.
+
+        # Raises
+            ValueError: In case of invalid arguments.
         """
         if steps is not None:
             num_samples = None
@@ -1125,14 +1128,19 @@ class Model(Container):
             index_array = np.arange(num_train_samples)
 
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
+        _callbacks = [cbks.BaseLogger(
+            stateful_metrics=self.stateful_metric_names)]
         if verbose:
             if steps_per_epoch is not None:
                 count_mode = 'steps'
             else:
                 count_mode = 'samples'
-            callbacks += [cbks.ProgbarLogger(count_mode)]
-        callbacks = cbks.CallbackList(callbacks)
+            _callbacks.append(
+                cbks.ProgbarLogger(
+                    count_mode,
+                    stateful_metrics=self.stateful_metric_names))
+        _callbacks += (callbacks or []) + [self.history]
+        callbacks = cbks.CallbackList(_callbacks)
         out_labels = out_labels or []
 
         # it's possible to callback a different model than self
@@ -1157,7 +1165,18 @@ class Model(Container):
         for cbk in callbacks:
             cbk.validation_data = val_ins
 
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         for epoch in range(initial_epoch, epochs):
+            # Reset stateful metrics
+            for m in self.metrics:
+                if isinstance(m, Layer) and m.stateful:
+                    m.reset_states()
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
@@ -1210,6 +1229,9 @@ class Model(Container):
                     batch_logs['batch'] = batch_index
                     batch_logs['size'] = len(batch_ids)
                     callbacks.on_batch_begin(batch_index, batch_logs)
+                    for i in indices_for_conversion_to_dense:
+                        ins_batch[i] = ins_batch[i].toarray()
+
                     outs = f(ins_batch)
                     if not isinstance(outs, list):
                         outs = [outs]
@@ -1261,6 +1283,12 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        indices_for_conversion_to_dense = []
+        for i in range(len(self._feed_inputs)):
+            if issparse(ins[i]) and not K.is_sparse(self._feed_inputs[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             # Step-based predictions.
             # Since we do not know how many samples
@@ -1296,6 +1324,9 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
+
                 batch_outs = f(ins_batch)
                 if not isinstance(batch_outs, list):
                     batch_outs = [batch_outs]
@@ -1330,6 +1361,17 @@ class Model(Container):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
+
+        if hasattr(self, 'metrics'):
+            for m in self.metrics:
+                if isinstance(m, Layer) and m.stateful:
+                    m.reset_states()
+            stateful_metric_indices = [
+                i for i, name in enumerate(self.metrics_names)
+                if str(name) in self.stateful_metric_names]
+        else:
+            stateful_metric_indices = []
+
         num_samples = self._check_num_samples(ins, batch_size,
                                               steps,
                                               'steps')
@@ -1339,6 +1381,14 @@ class Model(Container):
                 progbar = Progbar(target=steps)
             else:
                 progbar = Progbar(target=num_samples)
+
+        # To prevent a slowdown, we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs + self._feed_targets + self._feed_sample_weights
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+
         if steps is not None:
             for step in range(steps):
                 batch_outs = f(ins)
@@ -1347,7 +1397,10 @@ class Model(Container):
                         for _ in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out
+                        if i in stateful_metric_indices:
+                            outs[i] = float(batch_out)
+                        else:
+                            outs[i] += batch_out
                 else:
                     if step == 0:
                         outs.append(0.)
@@ -1355,7 +1408,8 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(step + 1)
             for i in range(len(outs)):
-                outs[i] /= steps
+                if i not in stateful_metric_indices:
+                    outs[i] /= steps
         else:
             batches = _make_batches(num_samples, batch_size)
             index_array = np.arange(num_samples)
@@ -1366,6 +1420,8 @@ class Model(Container):
                     ins_batch = _slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
                 else:
                     ins_batch = _slice_arrays(ins, batch_ids)
+                for i in indices_for_conversion_to_dense:
+                    ins_batch[i] = ins_batch[i].toarray()
 
                 batch_outs = f(ins_batch)
                 if isinstance(batch_outs, list):
@@ -1373,7 +1429,10 @@ class Model(Container):
                         for batch_out in enumerate(batch_outs):
                             outs.append(0.)
                     for i, batch_out in enumerate(batch_outs):
-                        outs[i] += batch_out * len(batch_ids)
+                        if i in stateful_metric_indices:
+                            outs[i] = batch_out
+                        else:
+                            outs[i] += batch_out * len(batch_ids)
                 else:
                     if batch_index == 0:
                         outs.append(0.)
@@ -1382,14 +1441,15 @@ class Model(Container):
                 if verbose == 1:
                     progbar.update(batch_end)
             for i in range(len(outs)):
-                outs[i] /= num_samples
+                if i not in stateful_metric_indices:
+                    outs[i] /= num_samples
         if len(outs) == 1:
             return outs[0]
         return outs
 
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
-                               check_batch_axis=True, batch_size=None):
+                               check_array_lengths=True, batch_size=None):
         if not hasattr(self, 'optimizer'):
             raise RuntimeError('You must compile a model before '
                                'training/testing. '
@@ -1408,6 +1468,8 @@ class Model(Container):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output_shape)
+        # `check_batch_axis` is set to False since `x` may contain multiple batches
+        #  and in general `x[0].shape[0] != self._feed_input_shapes[0][0]`
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes,
                                     check_batch_axis=False,
@@ -1423,7 +1485,9 @@ class Model(Container):
         sample_weights = [_standardize_weights(ref, sw, cw, mode)
                           for (ref, sw, cw, mode)
                           in zip(y, sample_weights, class_weights, self._feed_sample_weight_modes)]
-        _check_array_lengths(x, y, sample_weights)
+
+        if check_array_lengths:
+            _check_array_lengths(x, y, sample_weights)
         _check_loss_and_target_compatibility(y,
                                              self._feed_loss_fns,
                                              self._feed_output_shapes)
@@ -1435,20 +1499,6 @@ class Model(Container):
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
-
-    def _get_deduped_metrics_names(self):
-        out_labels = self.metrics_names
-
-        # Rename duplicated metrics name
-        # (can happen with an output layer shared among multiple dataflows).
-        deduped_out_labels = []
-        for i, label in enumerate(out_labels):
-            new_label = label
-            if out_labels.count(label) > 1:
-                dup_idx = out_labels[:i].count(label)
-                new_label += '_' + str(dup_idx + 1)
-            deduped_out_labels.append(new_label)
-        return deduped_out_labels
 
     def fit(self,
             x=None,
@@ -1577,7 +1627,6 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight,
-            check_batch_axis=False,
             batch_size=batch_size)
         # Prepare validation data.
         do_validation = False
@@ -1598,7 +1647,6 @@ class Model(Container):
             val_x, val_y, val_sample_weights = self._standardize_user_data(
                 val_x, val_y,
                 sample_weight=val_sample_weight,
-                check_batch_axis=False,
                 batch_size=batch_size)
             if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
                 val_ins = val_x + val_y + val_sample_weights + [0.]
@@ -1635,7 +1683,7 @@ class Model(Container):
         f = self.train_function
 
         # Prepare display labels.
-        out_labels = self._get_deduped_metrics_names()
+        out_labels = self.metrics_names
 
         if do_validation:
             self._make_test_function()
@@ -1700,7 +1748,6 @@ class Model(Container):
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
 
-
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
             or list of scalars (if the model has multiple outputs
@@ -1718,7 +1765,6 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            check_batch_axis=False,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
@@ -1828,8 +1874,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight,
-            class_weight=class_weight,
-            check_batch_axis=True)
+            class_weight=class_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [1.]
         else:
@@ -1870,8 +1915,7 @@ class Model(Container):
         """
         x, y, sample_weights = self._standardize_user_data(
             x, y,
-            sample_weight=sample_weight,
-            check_batch_axis=True)
+            sample_weight=sample_weight)
         if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
             ins = x + y + sample_weights + [0.]
         else:
@@ -1918,7 +1962,7 @@ class Model(Container):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Fits the model on data yielded batch-by-batch by a Python generator.
+        """Trains the model on data generated batch-by-batch by a Python generator or an instance of `Sequence`.
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1929,84 +1973,105 @@ class Model(Container):
         using `use_multiprocessing=True`.
 
         # Arguments
-            generator: A generator or an instance of `Sequence` (`keras.utils.Sequence`)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+            generator: A generator or an instance of `Sequence`
+                (`keras.utils.Sequence`) object in order to avoid
+                duplicate data when using multiprocessing.
                 The output of the generator must be either
                 - a tuple `(inputs, targets)`
                 - a tuple `(inputs, targets, sample_weights)`.
-                This tuple (a single output of the generator) makes a single batch.
-                Therefore, all arrays in this tuple must have the same length (equal
-                to the size of this batch). Different batches may have different sizes.
-                For example, the last batch of the epoch is commonly smaller than the
-                others, if the size of the dataset is not divisible by the batch size.
+                This tuple (a single output of the generator) makes a single
+                batch. Therefore, all arrays in this tuple must have the same
+                length (equal to the size of this batch). Different batches may
+                have different sizes. For example, the last batch of the epoch
+                is commonly smaller than the others, if the size of the dataset
+                is not divisible by the batch size.
                 The generator is expected to loop over its data
                 indefinitely. An epoch finishes when `steps_per_epoch`
                 batches have been seen by the model.
-            steps_per_epoch: Total number of steps (batches of samples)
+            steps_per_epoch: Integer.
+                Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
                 be equal to the number of samples of your dataset
                 divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
-            epochs: Integer, total number of iterations on the data.
-            verbose: Verbosity mode, 0, 1, or 2.
-            callbacks: List of callbacks to be called during training.
+            epochs: Integer. Number of epochs to train the model.
+                An epoch is an iteration over the entire data provided,
+                as defined by `steps_per_epoch`.
+                Note that in conjunction with `initial_epoch`,
+                `epochs` is to be understood as "final epoch".
+                The model is not trained for a number of iterations
+                given by `epochs`, but merely until the epoch
+                of index `epochs` is reached.
+            verbose: Integer. 0, 1, or 2. Verbosity mode.
+                0 = silent, 1 = progress bar, 2 = one line per epoch.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             validation_data: This can be either
                 - a generator for the validation data
-                - a tuple (inputs, targets)
-                - a tuple (inputs, targets, sample_weights).
+                - tuple `(x_val, y_val)`
+                - tuple `(x_val, y_val, val_sample_weights)`
+                on which to evaluate
+                the loss and any model metrics at the end of each epoch.
+                The model will not be trained on this data.
             validation_steps: Only relevant if `validation_data`
                 is a generator. Total number of steps (batches of samples)
-                to yield from `generator` before stopping.
+                to yield from `validation_data` generator before stopping
+                at the end of every epoch. It should typically
+                be equal to the number of samples of your
+                validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
-            class_weight: Dictionary mapping class indices to a weight
-                for the class.
+            class_weight: Optional dictionary mapping class indices (integers)
+                to a weight (float) value, used for weighting the loss function
+                (during training only). This can be useful to tell the model to
+                "pay more attention" to samples from an under-represented class.
             max_queue_size: Integer. Maximum size for the generator queue.
                 If unspecified, `max_queue_size` will default to 10.
             workers: Integer. Maximum number of processes to spin up
-                when using process based threading.
+                when using process-based threading.
                 If unspecified, `workers` will default to 1. If 0, will
                 execute the generator on the main thread.
-            use_multiprocessing: Boolean. If True, use process based threading.
-                If unspecified, `workers` will default to False.
-                Note that because
-                this implementation relies on multiprocessing,
-                you should not pass
-                non picklable arguments to the generator
-                as they can't be passed
-                easily to children processes.
-            shuffle: Whether to shuffle the order of the batches at
+            use_multiprocessing: Boolean.
+                If `True`, use process-based threading.
+                If unspecified, `use_multiprocessing` will default to `False`.
+                Note that because this implementation relies on multiprocessing,
+                you should not pass non-picklable arguments to the generator
+                as they can't be passed easily to children processes.
+            shuffle: Boolean. Whether to shuffle the order of the batches at
                 the beginning of each epoch. Only used with instances
-                of `Sequence` (keras.utils.Sequence).
-            initial_epoch: Epoch at which to start training
-                (useful for resuming a previous training run)
+                of `Sequence` (`keras.utils.Sequence`).
+                Has no effect when `steps_per_epoch` is not `None`.
+            initial_epoch: Integer.
+                Epoch at which to start training
+                (useful for resuming a previous training run).
 
         # Returns
-            A `History` object.
+            A `History` object. Its `History.history` attribute is
+            a record of training loss values and metrics values
+            at successive epochs, as well as validation loss values
+            and validation metrics values (if applicable).
+
+        # Raises
+            ValueError: In case the generator yields data in an invalid format.
 
         # Example
 
         ```python
             def generate_arrays_from_file(path):
-                while 1:
-                    f = open(path)
-                    for line in f:
-                        # create numpy arrays of input data
-                        # and labels, from each line in the file
-                        x1, x2, y = process_line(line)
-                        yield ({'input_1': x1, 'input_2': x2}, {'output': y})
-                    f.close()
+                while True:
+                    with open(path) as f:
+                        for line in f:
+                            # create numpy arrays of input data
+                            # and labels, from each line in the file
+                            x1, x2, y = process_line(line)
+                            yield ({'input_1': x1, 'input_2': x2}, {'output': y})
 
             model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                                 steps_per_epoch=10000, epochs=10)
         ```
-
-        # Raises
-            ValueError: In case the generator yields
-                data in an invalid format.
         """
         wait_time = 0.01  # in seconds
         epoch = initial_epoch
@@ -2045,15 +2110,20 @@ class Model(Container):
                              ' the `keras.utils.Sequence` class.')
 
         # Prepare display labels.
-        out_labels = self._get_deduped_metrics_names()
+        out_labels = self.metrics_names
         callback_metrics = out_labels + ['val_' + n for n in out_labels]
 
         # prepare callbacks
         self.history = cbks.History()
-        callbacks = [cbks.BaseLogger()] + (callbacks or []) + [self.history]
+        _callbacks = [cbks.BaseLogger(
+            stateful_metrics=self.stateful_metric_names)]
         if verbose:
-            callbacks += [cbks.ProgbarLogger(count_mode='steps')]
-        callbacks = cbks.CallbackList(callbacks)
+            _callbacks.append(
+                cbks.ProgbarLogger(
+                    count_mode='steps',
+                    stateful_metrics=self.stateful_metric_names))
+        _callbacks += (callbacks or []) + [self.history]
+        callbacks = cbks.CallbackList(_callbacks)
 
         # it's possible to callback a different model than self:
         if hasattr(self, 'callback_model') and self.callback_model:
@@ -2070,27 +2140,30 @@ class Model(Container):
         })
         callbacks.on_train_begin()
 
-        if do_validation and not val_gen:
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
-            else:
-                raise ValueError('`validation_data` should be a tuple '
-                                 '`(val_x, val_y, val_sample_weight)` '
-                                 'or `(val_x, val_y)`. Found: ' +
-                                 str(validation_data))
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
-                val_data += [0.]
-            for cbk in callbacks:
-                cbk.validation_data = val_data
         enqueuer = None
+        val_enqueuer = None
 
         try:
+            if do_validation and not val_gen:
+                # Prepare data for validation
+                if len(validation_data) == 2:
+                    val_x, val_y = validation_data
+                    val_sample_weight = None
+                elif len(validation_data) == 3:
+                    val_x, val_y, val_sample_weight = validation_data
+                else:
+                    raise ValueError('`validation_data` should be a tuple '
+                                     '`(val_x, val_y, val_sample_weight)` '
+                                     'or `(val_x, val_y)`. Found: ' +
+                                     str(validation_data))
+                val_x, val_y, val_sample_weights = self._standardize_user_data(
+                    val_x, val_y, val_sample_weight)
+                val_data = val_x + val_y + val_sample_weights
+                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                    val_data += [0.]
+                for cbk in callbacks:
+                    cbk.validation_data = val_data
+
             if workers > 0:
                 if is_sequence:
                     enqueuer = OrderedEnqueuer(generator,
@@ -2103,10 +2176,18 @@ class Model(Container):
                 enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                 output_generator = enqueuer.get()
             else:
-                output_generator = generator
+                if is_sequence:
+                    output_generator = iter(generator)
+                else:
+                    output_generator = generator
 
             callback_model.stop_training = False
+            # Construct epoch logs.
+            epoch_logs = {}
             while epoch < epochs:
+                for m in self.metrics:
+                    if isinstance(m, Layer) and m.stateful:
+                        m.reset_states()
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
                 batch_index = 0
@@ -2131,7 +2212,11 @@ class Model(Container):
                                          str(generator_output))
                     # build batch logs
                     batch_logs = {}
-                    if isinstance(x, list):
+                    if x is None or len(x) == 0:
+                        # Handle data tensors support when no input given
+                        # step-size = 1 for data tensors
+                        batch_size = 1
+                    elif isinstance(x, list):
                         batch_size = x[0].shape[0]
                     elif isinstance(x, dict):
                         batch_size = list(x.values())[0].shape[0]
@@ -2152,8 +2237,6 @@ class Model(Container):
 
                     callbacks.on_batch_end(batch_index, batch_logs)
 
-                    # Construct epoch logs.
-                    epoch_logs = {}
                     batch_index += 1
                     steps_done += 1
 
@@ -2163,9 +2246,9 @@ class Model(Container):
                             val_outs = self.evaluate_generator(
                                 validation_data,
                                 validation_steps,
-                                max_queue_size=max_queue_size,
                                 workers=workers,
-                                use_multiprocessing=use_multiprocessing)
+                                use_multiprocessing=use_multiprocessing,
+                                max_queue_size=max_queue_size)
                         else:
                             # No need for try/except because
                             # data has already been validated.
@@ -2189,8 +2272,12 @@ class Model(Container):
                     break
 
         finally:
-            if enqueuer is not None:
-                enqueuer.stop()
+            try:
+                if enqueuer is not None:
+                    enqueuer.stop()
+            finally:
+                if val_enqueuer is not None:
+                    val_enqueuer.stop()
 
         callbacks.on_train_end()
         return self.history
@@ -2199,7 +2286,8 @@ class Model(Container):
     def evaluate_generator(self, generator, steps=None,
                            max_queue_size=10,
                            workers=1,
-                           use_multiprocessing=False):
+                           use_multiprocessing=False,
+                           verbose=0):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -2209,8 +2297,8 @@ class Model(Container):
             generator: Generator yielding tuples (inputs, targets)
                 or (inputs, targets, sample_weights)
                 or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
@@ -2227,6 +2315,7 @@ class Model(Container):
                 non picklable arguments to the generator
                 as they can't be passed
                 easily to children processes.
+            verbose: verbosity mode, 0 or 1.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -2240,9 +2329,20 @@ class Model(Container):
         """
         self._make_test_function()
 
+        stateful_metric_indices = []
+        if hasattr(self, 'metrics'):
+            for i, m in enumerate(self.metrics):
+                if isinstance(m, Layer) and m.stateful:
+                    m.reset_states()
+            stateful_metric_indices = [
+                i for i, name in enumerate(self.metrics_names)
+                if str(name) in self.stateful_metric_names]
+        else:
+            stateful_metric_indices = []
+
         steps_done = 0
         wait_time = 0.01
-        all_outs = []
+        outs_per_batch = []
         batch_sizes = []
         is_sequence = isinstance(generator, Sequence)
         if not is_sequence and use_multiprocessing and workers > 1:
@@ -2273,7 +2373,13 @@ class Model(Container):
                 enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                 output_generator = enqueuer.get()
             else:
-                output_generator = generator
+                if is_sequence:
+                    output_generator = iter(generator)
+                else:
+                    output_generator = generator
+
+            if verbose == 1:
+                progbar = Progbar(target=steps)
 
             while steps_done < steps:
                 generator_output = next(output_generator)
@@ -2293,8 +2399,15 @@ class Model(Container):
                                      'or (x, y). Found: ' +
                                      str(generator_output))
                 outs = self.test_on_batch(x, y, sample_weight=sample_weight)
+                if not isinstance(outs, list):
+                    outs = [outs]
+                outs_per_batch.append(outs)
 
-                if isinstance(x, list):
+                if x is None or len(x) == 0:
+                    # Handle data tensors support when no input given
+                    # step-size = 1 for data tensors
+                    batch_size = 1
+                elif isinstance(x, list):
                     batch_size = x[0].shape[0]
                 elif isinstance(x, dict):
                     batch_size = list(x.values())[0].shape[0]
@@ -2303,24 +2416,26 @@ class Model(Container):
                 if batch_size == 0:
                     raise ValueError('Received an empty batch. '
                                      'Batches should at least contain one item.')
-                all_outs.append(outs)
 
                 steps_done += 1
                 batch_sizes.append(batch_size)
+                if verbose == 1:
+                    progbar.update(steps_done)
 
         finally:
             if enqueuer is not None:
                 enqueuer.stop()
 
-        if not isinstance(outs, list):
-            return np.average(np.asarray(all_outs),
-                              weights=batch_sizes)
-        else:
-            averages = []
-            for i in range(len(outs)):
-                averages.append(np.average([out[i] for out in all_outs],
+        averages = []
+        for i in range(len(outs)):
+            if i not in stateful_metric_indices:
+                averages.append(np.average([out[i] for out in outs_per_batch],
                                            weights=batch_sizes))
-            return averages
+            else:
+                averages.append(float(outs_per_batch[-1][i]))
+        if len(averages) == 1:
+            return averages[0]
+        return averages
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator, steps=None,
@@ -2335,9 +2450,9 @@ class Model(Container):
 
         # Arguments
             generator: Generator yielding batches of input samples
-                    or an instance of Sequence (keras.utils.Sequence)
-                    object in order to avoid duplicate data
-                    when using multiprocessing.
+                or an instance of Sequence (keras.utils.Sequence)
+                object in order to avoid duplicate data
+                when using multiprocessing.
             steps: Total number of steps (batches of samples)
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
@@ -2397,7 +2512,10 @@ class Model(Container):
                 enqueuer.start(workers=workers, max_queue_size=max_queue_size)
                 output_generator = enqueuer.get()
             else:
-                output_generator = generator
+                if is_sequence:
+                    output_generator = iter(generator)
+                else:
+                    output_generator = generator
 
             if verbose == 1:
                 progbar = Progbar(target=steps)

@@ -11,6 +11,7 @@ has at least ~100k characters. ~1M is better.
 '''
 
 from __future__ import print_function
+from keras.callbacks import LambdaCallback
 from keras.models import Sequential
 from keras.layers import Dense, Activation
 from keras.layers import LSTM
@@ -22,7 +23,8 @@ import sys
 import io
 
 path = get_file('nietzsche.txt', origin='https://s3.amazonaws.com/text-datasets/nietzsche.txt')
-text = io.open(path, encoding='utf-8').read().lower()
+with io.open(path, encoding='utf-8') as f:
+    text = f.read().lower()
 print('corpus length:', len(text))
 
 chars = sorted(list(set(text)))
@@ -69,19 +71,14 @@ def sample(preds, temperature=1.0):
     probas = np.random.multinomial(1, preds, 1)
     return np.argmax(probas)
 
-# train the model, output generated text after each iteration
-for iteration in range(1, 60):
+
+def on_epoch_end(epoch, logs):
+    # Function invoked at end of each epoch. Prints generated text.
     print()
-    print('-' * 50)
-    print('Iteration', iteration)
-    model.fit(x, y,
-              batch_size=128,
-              epochs=1)
+    print('----- Generating text after Epoch: %d' % epoch)
 
     start_index = random.randint(0, len(text) - maxlen - 1)
-
     for diversity in [0.2, 0.5, 1.0, 1.2]:
-        print()
         print('----- diversity:', diversity)
 
         generated = ''
@@ -105,3 +102,10 @@ for iteration in range(1, 60):
             sys.stdout.write(next_char)
             sys.stdout.flush()
         print()
+
+print_callback = LambdaCallback(on_epoch_end=on_epoch_end)
+
+model.fit(x, y,
+          batch_size=128,
+          epochs=60,
+          callbacks=[print_callback])

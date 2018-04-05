@@ -1,4 +1,4 @@
-﻿# Keras: Deep Learning for Python
+﻿# Keras: Deep Learning for humans
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
@@ -120,9 +120,9 @@ Before installing Keras, please install one of its backend engines: TensorFlow, 
 
 You may also consider installing the following **optional dependencies**:
 
-- cuDNN (recommended if you plan on running Keras on GPU).
-- HDF5 and h5py (required if you plan on saving Keras models to disk).
-- graphviz and pydot (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
+- [cuDNN](https://docs.nvidia.com/deeplearning/sdk/cudnn-install/) (recommended if you plan on running Keras on GPU).
+- HDF5 and [h5py](http://docs.h5py.org/en/latest/build.html) (required if you plan on saving Keras models to disk).
+- [graphviz](https://graphviz.gitlab.io/download/) and [pydot](https://github.com/erocarrera/pydot) (used by [visualization utilities](https://keras.io/visualization/) to plot model graphs).
 
 Then, you can install Keras itself. There are two ways to install Keras:
 
@@ -138,7 +138,7 @@ If you are using a virtualenv, you may want to avoid using sudo:
 pip install keras
 ```
 
-- **Alternatively: install Keras from the Github source:**
+- **Alternatively: install Keras from the GitHub source:**
 
 First, clone Keras using `git`:
 
@@ -155,7 +155,7 @@ sudo python setup.py install
 ------------------
 
 
-## Switching from TensorFlow to CNTK or Theano
+## Using a different backend than TensorFlow
 
 By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](https://keras.io/backend/) to configure the Keras backend.
 
@@ -169,7 +169,7 @@ You can ask questions and join the development discussion:
 - On the [Keras Google group](https://groups.google.com/forum/#!forum/keras-users).
 - On the [Keras Slack channel](https://kerasteam.slack.com). Use [this link](https://keras-slack-autojoin.herokuapp.com/) to request an invitation to the channel.
 
-You can also post **bug reports and feature requests** (only) in [Github issues](https://github.com/keras-team/keras/issues). Make sure to read [our guidelines](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md) first.
+You can also post **bug reports and feature requests** (only) in [GitHub issues](https://github.com/keras-team/keras/issues). Make sure to read [our guidelines](https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md) first.
 
 
 ------------------

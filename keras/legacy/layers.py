@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import types as python_types
 import warnings
@@ -5,6 +9,7 @@ import warnings
 from ..engine.topology import Layer, InputSpec
 from .. import backend as K
 from ..utils.generic_utils import func_dump, func_load, has_arg
+from ..utils import conv_utils
 from .. import regularizers
 from .. import constraints
 from .. import activations
@@ -82,14 +87,16 @@ class Merge(Layer):
         self._per_input_losses = {}
 
         # Layer parameters.
-        self.inbound_nodes = []
-        self.outbound_nodes = []
+        self._inbound_nodes = []
+        self._outbound_nodes = []
         self.constraints = {}
         self._trainable_weights = []
         self._non_trainable_weights = []
         self.supports_masking = True
         self.uses_learning_phase = False
         self.input_spec = None  # Compatible with anything.
+        self.stateful = False
+        self.trainable = True
         if not name:
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
@@ -115,7 +122,7 @@ class Merge(Layer):
             for i, layer in enumerate(layers):
                 node_index = node_indices[i]
                 tensor_index = tensor_indices[i]
-                inbound_node = layer.inbound_nodes[node_index]
+                inbound_node = layer._inbound_nodes[node_index]
                 input_tensors.append(inbound_node.output_tensors[tensor_index])
                 input_masks.append(inbound_node.output_masks[tensor_index])
             self(input_tensors, mask=input_masks)
@@ -456,7 +463,7 @@ def merge(inputs, mode='sum', concat_axis=-1,
                             node_indices=node_indices,
                             tensor_indices=tensor_indices,
                             name=name)
-        return merge_layer.inbound_nodes[0].output_tensors[0]
+        return merge_layer._inbound_nodes[0].output_tensors[0]
     else:
         merge_layer = Merge(mode=mode,
                             concat_axis=concat_axis,
@@ -1113,4 +1120,152 @@ class Recurrent(Layer):
                   'unroll': self.unroll,
                   'implementation': self.implementation}
         base_config = super(Recurrent, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class ConvRecurrent2D(Recurrent):
+    """Abstract base class for convolutional recurrent layers.
+
+    Do not use in a model -- it's not a functional layer!
+
+    # Arguments
+        filters: Integer, the dimensionality of the output space
+            (i.e. the number output of filters in the convolution).
+        kernel_size: An integer or tuple/list of n integers, specifying the
+            dimensions of the convolution window.
+        strides: An integer or tuple/list of n integers,
+            specifying the strides of the convolution.
+            Specifying any stride value != 1 is incompatible with specifying
+            any `dilation_rate` value != 1.
+        padding: One of `"valid"` or `"same"` (case-insensitive).
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, time, ..., channels)`
+            while `channels_first` corresponds to
+            inputs with shape `(batch, time, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+        dilation_rate: An integer or tuple/list of n integers, specifying
+            the dilation rate to use for dilated convolution.
+            Currently, specifying any `dilation_rate` value != 1 is
+            incompatible with specifying any `strides` value != 1.
+        return_sequences: Boolean. Whether to return the last output
+            in the output sequence, or the full sequence.
+        go_backwards: Boolean (default False).
+            If True, process the input sequence backwards.
+        stateful: Boolean (default False). If True, the last state
+            for each sample at index i in a batch will be used as initial
+            state for the sample of index i in the following batch.
+
+    # Input shape
+        5D tensor with shape `(num_samples, timesteps, channels, rows, cols)`.
+
+    # Output shape
+        - if `return_sequences`: 5D tensor with shape
+            `(num_samples, timesteps, channels, rows, cols)`.
+        - else, 4D tensor with shape `(num_samples, channels, rows, cols)`.
+
+    # Masking
+        This layer supports masking for input data with a variable number
+        of timesteps. To introduce masks to your data,
+        use an [Embedding](embeddings.md) layer with the `mask_zero` parameter
+        set to `True`.
+        **Note:** for the time being, masking is only supported with Theano.
+
+    # Note on using statefulness in RNNs
+        You can set RNN layers to be 'stateful', which means that the states
+        computed for the samples in one batch will be reused as initial states
+        for the samples in the next batch.
+        This assumes a one-to-one mapping between
+        samples in different successive batches.
+
+        To enable statefulness:
+            - specify `stateful=True` in the layer constructor.
+            - specify a fixed batch size for your model, by passing
+                a `batch_input_size=(...)` to the first layer in your model.
+                This is the expected shape of your inputs *including the batch
+                size*.
+                It should be a tuple of integers, e.g. `(32, 10, 100)`.
+
+        To reset the states of your model, call `.reset_states()` on either
+        a specific layer, or on your entire model.
+    """
+
+    def __init__(self, filters,
+                 kernel_size,
+                 strides=(1, 1),
+                 padding='valid',
+                 data_format=None,
+                 dilation_rate=(1, 1),
+                 return_sequences=False,
+                 go_backwards=False,
+                 stateful=False,
+                 **kwargs):
+        super(ConvRecurrent2D, self).__init__(**kwargs)
+        self.filters = filters
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
+        self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
+        self.padding = conv_utils.normalize_padding(padding)
+        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
+        self.return_sequences = return_sequences
+        self.go_backwards = go_backwards
+        self.stateful = stateful
+        self.input_spec = [InputSpec(ndim=5)]
+        self.state_spec = None
+
+    def compute_output_shape(self, input_shape):
+        if isinstance(input_shape, list):
+            input_shape = input_shape[0]
+        if self.data_format == 'channels_first':
+            rows = input_shape[3]
+            cols = input_shape[4]
+        elif self.data_format == 'channels_last':
+            rows = input_shape[2]
+            cols = input_shape[3]
+        rows = conv_utils.conv_output_length(rows,
+                                             self.kernel_size[0],
+                                             padding=self.padding,
+                                             stride=self.strides[0],
+                                             dilation=self.dilation_rate[0])
+        cols = conv_utils.conv_output_length(cols,
+                                             self.kernel_size[1],
+                                             padding=self.padding,
+                                             stride=self.strides[1],
+                                             dilation=self.dilation_rate[1])
+        if self.return_sequences:
+            if self.data_format == 'channels_first':
+                output_shape = (input_shape[0], input_shape[1],
+                                self.filters, rows, cols)
+            elif self.data_format == 'channels_last':
+                output_shape = (input_shape[0], input_shape[1],
+                                rows, cols, self.filters)
+        else:
+            if self.data_format == 'channels_first':
+                output_shape = (input_shape[0], self.filters, rows, cols)
+            elif self.data_format == 'channels_last':
+                output_shape = (input_shape[0], rows, cols, self.filters)
+
+        if self.return_state:
+            if self.data_format == 'channels_first':
+                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in range(2)]
+            elif self.data_format == 'channels_last':
+                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in range(2)]
+
+        return output_shape
+
+    def get_config(self):
+        config = {'filters': self.filters,
+                  'kernel_size': self.kernel_size,
+                  'strides': self.strides,
+                  'padding': self.padding,
+                  'data_format': self.data_format,
+                  'dilation_rate': self.dilation_rate,
+                  'return_sequences': self.return_sequences,
+                  'go_backwards': self.go_backwards,
+                  'stateful': self.stateful}
+        base_config = super(ConvRecurrent2D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))

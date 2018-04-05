@@ -71,9 +71,9 @@ Here's a quick guide to submitting your improvements:
     - You will need to install the test requirements as well: `pip install -e .[tests]`.
 
 6. Make sure all tests are passing:
-    - with the Theano backend, on Python 2.7 and Python 3.5. Make sure you have the development version of Theano.
-    - with the TensorFlow backend, on Python 2.7 and Python 3.5. Make sure you have the development version of TensorFlow.
-    - with the CNTK backend, on Python 2.7 and Python 3.5. Make sure you have the development version of CNTK.
+    - with the Theano backend, on Python 2.7 and Python 3.6. Make sure you have the development version of Theano.
+    - with the TensorFlow backend, on Python 2.7 and Python 3.6. Make sure you have the development version of TensorFlow.
+    - with the CNTK backend, on Python 2.7 and Python 3.6. Make sure you have the development version of CNTK.
 
 7. We use PEP8 syntax conventions, but we aren't dogmatic when it comes to line length. Make sure your lines stay reasonably sized, though. To make your life easier, we recommend running a PEP8 linter:
     - Install PEP8 packages: `pip install pep8 pytest-pep8 autopep8`

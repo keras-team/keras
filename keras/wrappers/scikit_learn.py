@@ -1,4 +1,8 @@
+"""Wrapper for using the Scikit-Learn API with Keras models.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import copy
 import types
@@ -172,7 +176,7 @@ class KerasClassifier(BaseWrapper):
     """Implementation of the scikit-learn classifier API for Keras.
     """
 
-    def fit(self, x, y, **kwargs):
+    def fit(self, x, y, sample_weight=None, **kwargs):
         """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
 
         # Arguments
@@ -200,6 +204,8 @@ class KerasClassifier(BaseWrapper):
         else:
             raise ValueError('Invalid shape for y: ' + str(y.shape))
         self.n_classes_ = len(self.classes_)
+        if sample_weight is not None:
+            kwargs['sample_weight'] = sample_weight
         return super(KerasClassifier, self).fit(x, y, **kwargs)
 
     def predict(self, x, **kwargs):
@@ -218,7 +224,12 @@ class KerasClassifier(BaseWrapper):
                 Class predictions.
         """
         kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
-        classes = self.model.predict_classes(x, **kwargs)
+
+        proba = self.model.predict(x, **kwargs)
+        if proba.shape[-1] > 1:
+            classes = proba.argmax(axis=-1)
+        else:
+            classes = (proba > 0.5).astype('int32')
         return self.classes_[classes]
 
     def predict_proba(self, x, **kwargs):
@@ -241,7 +252,7 @@ class KerasClassifier(BaseWrapper):
                 (instead of `(n_sample, 1)` as in Keras).
         """
         kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
-        probs = self.model.predict_proba(x, **kwargs)
+        probs = self.model.predict(x, **kwargs)
 
         # check if binary classification
         if probs.shape[1] == 1:

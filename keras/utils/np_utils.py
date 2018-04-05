@@ -1,5 +1,7 @@
 """Numpy-related utilities."""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 
@@ -25,7 +27,7 @@ def to_categorical(y, num_classes=None):
     if not num_classes:
         num_classes = np.max(y) + 1
     n = y.shape[0]
-    categorical = np.zeros((n, num_classes))
+    categorical = np.zeros((n, num_classes), dtype=np.float32)
     categorical[np.arange(n), y] = 1
     output_shape = input_shape + (num_classes,)
     categorical = np.reshape(categorical, output_shape)
