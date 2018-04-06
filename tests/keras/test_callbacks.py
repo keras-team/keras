@@ -602,7 +602,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
                                       write_images=True, write_grads=True,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
-                                      embeddings_data=X_test,
+                                      embeddings_data=[X_test] * 2,
                                       batch_size=5)]
 
     # fit without validation data

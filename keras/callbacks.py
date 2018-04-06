@@ -16,11 +16,9 @@ import warnings
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
-from functools import reduce
-from operator import mul
 from .utils.generic_utils import Progbar
 from . import backend as K
-from .engine.topology import Layer
+from .engine.utils import _standardize_input_data
 
 try:
     import requests
@@ -661,7 +659,8 @@ class TensorBoard(Callback):
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved. If set to 0, embeddings won't be computed.
-            Data to be visualized must be passed as `embeddings_data`.
+            Data to be visualized in TensorBoard's Embedding tab must be passed
+            as `embeddings_data`.
         embeddings_layer_names: a list of names of layers to keep eye on. If
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
@@ -669,7 +668,10 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
-        embeddings_data: embedding data as Numpy array.
+        embeddings_data: data to be embedded at layers specified in
+            `embeddings_layer_names`. Numpy array (if the model has a single
+            input) or list of Numpy arrays (if the model has multiple inputs).
+            Learn [more about embeddings](https://www.tensorflow.org/programmers_guide/embedding)
     """
 
     def __init__(self, log_dir='./logs',
@@ -786,6 +788,8 @@ class TensorBoard(Callback):
             self.writer = tf.summary.FileWriter(self.log_dir)
 
         if self.embeddings_freq and self.embeddings_data is not None:
+            self.embeddings_data = _standardize_input_data(self.embeddings_data, model.input_names)
+
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
@@ -801,10 +805,10 @@ class TensorBoard(Callback):
                     self.step = step = tf.placeholder(tf.int32)
 
                     embedding_input = self.model.get_layer(layer.name).output
-                    embedding_size = reduce(mul, embedding_input.shape[1:])
+                    embedding_size = np.prod(embedding_input.shape[1:])
                     embedding_input = tf.reshape(embedding_input,
                                                  (step, int(embedding_size)))
-                    shape = (self.embeddings_data.shape[0], int(embedding_size))
+                    shape = (self.embeddings_data[0].shape[0], int(embedding_size))
                     embedding = tf.Variable(tf.zeros(shape),
                                             name=layer.name + '_embedding')
                     embeddings_vars[layer.name] = embedding
@@ -875,19 +879,18 @@ class TensorBoard(Callback):
             if epoch % self.embeddings_freq == 0:
 
                 embeddings_data = self.embeddings_data
-                n_samples = embeddings_data.shape[0]
+                n_samples = embeddings_data[0].shape[0]
 
                 i = 0
                 while i < n_samples:
-
                     step = min(self.batch_size, n_samples - i)
-                    batch_val = embeddings_data[i:i + step]
+                    batch = slice(i, i + step)
 
                     if type(self.model.input) == list:
-                        feed_dict = {model_input: batch_val
-                                     for model_input in self.model.input}
+                        feed_dict = {model_input: embeddings_data[idx][batch]
+                                     for idx, model_input in enumerate(self.model.input)}
                     else:
-                        feed_dict = {self.model.input: batch_val}
+                        feed_dict = {self.model.input: embeddings_data[0][batch]}
 
                     feed_dict.update({self.batch_id: i, self.step: step})
 
