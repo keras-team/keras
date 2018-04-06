@@ -180,9 +180,6 @@ def test_stacked_lstm_char_prediction():
     assert(generated == alphabet)
 
 
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support unroll=False '
-                           'in RNN yet.')
 @keras_test
 def test_masked_temporal():
     '''
@@ -221,10 +218,8 @@ def test_masked_temporal():
     assert(np.abs(history.history['loss'][-1] - ground_truth) < 0.06)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support unroll=False '
-                           'in RNN yet.')
+@pytest.mark.skipif(K.backend() != 'tensorflow' and K.backend() != 'mxnet',
+                    reason='Requires TensorFlow or MXNet backend')
 @keras_test
 def test_embedding_with_clipnorm():
     model = Sequential()

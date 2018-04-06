@@ -135,7 +135,13 @@ class Embedding(Layer):
     def call(self, inputs):
         if K.dtype(inputs) != 'int32':
             inputs = K.cast(inputs, 'int32')
-        out = K.gather(self.embeddings, inputs)
+        # Use K.embedding(mx.sym.Embedding) in MXNet backend instead of K.gather(mx.sym.take)
+        # K.gather is not working with Embedding layer using MXNet backend
+        # Refer to this issue: https://github.com/awslabs/keras-apache-mxnet/issues/63
+        if K.backend() == "mxnet":
+            out = K.embedding(inputs, self.embeddings, self.input_dim, self.output_dim)
+        else:
+            out = K.gather(self.embeddings, inputs)
         return out
 
     def get_config(self):

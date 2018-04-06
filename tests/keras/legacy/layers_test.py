@@ -222,8 +222,6 @@ def test_merge_mask_2d():
     model_concat.fit([rand(2, 3), rand(2, 3)], [rand(2, 6)], epochs=1)
 
 
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support RNN yet.')
 @keras_test
 def test_merge_mask_3d():
     rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')
@@ -247,9 +245,6 @@ def test_merge_mask_3d():
     model.fit([rand(2, 3), rand(2, 3)], [rand(2, 3, 6)])
 
 
-@pytest.mark.skipif(K.backend() == 'mxnet',
-                    reason='MXNet backend does not support unroll=False in RNN '
-                           'and Embedding layer yet.')
 @keras_test
 def test_sequential_regression():
     # start with a basic example of using a Sequential model

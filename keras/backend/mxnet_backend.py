@@ -1171,6 +1171,16 @@ def gather(reference, indices):
     return KerasSymbol(mx.sym.take(reference.symbol, indices))
 
 
+@keras_mxnet_symbol
+def embedding(data, weight, input_dim, output_dim):
+    # check if inputs are KerasSymbol
+    if isinstance(data, KerasSymbol):
+        data = data.symbol
+    if isinstance(weight, KerasSymbol):
+        weight = weight.symbol
+    return KerasSymbol(mx.sym.Embedding(data, weight=weight, input_dim=input_dim, output_dim=output_dim))
+
+
 # ELEMENT-WISE OPERATIONS
 @keras_mxnet_symbol
 def max(x, axis=None, keepdims=False):
