@@ -220,8 +220,18 @@ class TestImage(object):
         with pytest.raises(ValueError):
             generator.flow_from_directory(str(tmpdir), class_mode='output')
 
+        def preprocessing_function(x):
+            """This will fail if not provided by a Numpy array.
+            Note: This is made to enforce backward compatibility.
+            """
+
+            assert x.shape == (26, 26, 3)
+            assert type(x) is np.ndarray
+
+            return np.zeros_like(x)
+
         # Test usage as Sequence
-        generator = image.ImageDataGenerator()
+        generator = image.ImageDataGenerator(preprocessing_function=preprocessing_function)
         dir_seq = generator.flow_from_directory(str(tmpdir),
                                                 target_size=(26, 26),
                                                 color_mode='rgb',
@@ -232,31 +242,10 @@ class TestImage(object):
         assert x1.shape == (3, 26, 26, 3)
         assert y1.shape == (3, num_classes)
         x1, y1 = dir_seq[5]
+        assert (x1 == 0).all()
+
         with pytest.raises(ValueError):
             x1, y1 = dir_seq[9]
-
-        # Test Preprocessing before resize
-        def preprocess_test(img):
-            return img.resize((1, 1))
-
-        generator = image.ImageDataGenerator(preprocessing_function=preprocess_test)
-        dir_seq = generator.flow_from_directory(str(tmpdir),
-                                                target_size=(26, 26),
-                                                color_mode='rgb',
-                                                batch_size=1,
-                                                class_mode='categorical')
-
-        gen_x1, gen_y1 = dir_seq[1]
-
-        test_x1 = image.load_img(os.path.join(dir_seq.directory, dir_seq.filenames[1]),
-                                 grayscale=False)
-        test_x1 = preprocess_test(test_x1)
-        test_x1 = test_x1.resize((26, 26))
-        test_x1 = image.img_to_array(test_x1)
-        test_x1 = dir_seq.image_data_generator.random_transform(test_x1)
-        test_x1 = dir_seq.image_data_generator.standardize(test_x1)
-
-        assert gen_x1.shape[1:] == test_x1.shape
 
     def test_directory_iterator_class_mode_input(self, tmpdir):
         tmpdir.join('class-1').mkdir()

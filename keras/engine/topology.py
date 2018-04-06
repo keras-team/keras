@@ -1855,6 +1855,8 @@ class Container(Layer):
     def get_layer(self, name=None, index=None):
         """Retrieves a layer based on either its name (unique) or index.
 
+        If `name` and `index` are both provided, `index` will take precedence.
+
         Indices are based on order of horizontal graph traversal (bottom-up).
 
         # Arguments
@@ -2208,7 +2210,6 @@ class Container(Layer):
             for node in nodes:
                 # This is always a single layer, never a list.
                 layer = node.outbound_layer
-
                 reference_input_tensors = node.input_tensors
                 reference_output_tensors = node.output_tensors
 
@@ -2232,8 +2233,12 @@ class Container(Layer):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
                             output_tensors = _to_list(layer.call(computed_tensor, **kwargs))
-                            output_masks = _to_list(layer.compute_mask(computed_tensor,
-                                                                       computed_mask))
+                            output_masks = layer.compute_mask(computed_tensor,
+                                                              computed_mask)
+                            if output_masks is None:
+                                output_masks = [None for _ in output_tensors]
+                            else:
+                                output_masks = _to_list(output_masks)
                             computed_tensors = [computed_tensor]
                             computed_masks = [computed_mask]
                         else:
@@ -2243,14 +2248,22 @@ class Container(Layer):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_masks
                             output_tensors = _to_list(layer.call(computed_tensors, **kwargs))
-                            output_masks = _to_list(layer.compute_mask(computed_tensors,
-                                                                       computed_masks))
-
+                            output_masks = layer.compute_mask(computed_tensors,
+                                                              computed_masks)
+                            if output_masks is None:
+                                output_masks = [None for _ in output_tensors]
+                            else:
+                                output_masks = _to_list(output_masks)
                         # Apply activity regularizer if any:
                         if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
                             regularization_losses = [layer.activity_regularizer(x) for x in output_tensors]
                             layer.add_loss(regularization_losses, computed_tensors)
 
+                        if len(output_masks) != len(output_tensors):
+                            raise Exception('Layers should have equal number of output tensors '
+                                            'and output masks. Layer ' + str(layer.name) + ' has'
+                                            ' ' + str(len(output_tensors)) + ' output tensors and'
+                                            ' ' + str(len(output_masks)) + ' output masks.')
                     # Update model updates and losses:
                     # Keep track of updates that depend on the inputs
                     # (e.g. BN updates).
@@ -3357,7 +3370,7 @@ def load_weights_from_hdf5_group(f, layers, reshape=False):
     for k, name in enumerate(layer_names):
         g = f[name]
         weight_names = _load_attributes_from_hdf5_group(g, 'weight_names')
-        weight_values = [g[weight_name] for weight_name in weight_names]
+        weight_values = [np.asarray(g[weight_name]) for weight_name in weight_names]
         layer = filtered_layers[k]
         symbolic_weights = layer.weights
         weight_values = preprocess_weights_for_loading(layer,
@@ -3425,7 +3438,7 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
     for k, name in enumerate(layer_names):
         g = f[name]
         weight_names = _load_attributes_from_hdf5_group(g, 'weight_names')
-        weight_values = [g[weight_name] for weight_name in weight_names]
+        weight_values = [np.asarray(g[weight_name]) for weight_name in weight_names]
 
         for layer in index.get(name, []):
             symbolic_weights = layer.weights

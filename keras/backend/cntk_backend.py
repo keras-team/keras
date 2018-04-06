@@ -1108,7 +1108,10 @@ def reshape(x, shape):
 def permute_dimensions(x, pattern):
     dims = len(int_shape(x))
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    current_layout = tuple([i for i in range(dims)])
+    if isinstance(pattern, list):
+        current_layout = [i for i in range(dims)]
+    else:
+        current_layout = tuple([i for i in range(dims)])
 
     if num_dynamic_axis > 0 and pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]:
         raise ValueError('CNTK backend: the permute pattern %s '
@@ -1727,8 +1730,8 @@ def batch_flatten(x):
     return x
 
 
-def softmax(x):
-    return C.softmax(x)
+def softmax(x, axis=-1):
+    return C.softmax(x, axis=axis)
 
 
 def softplus(x):

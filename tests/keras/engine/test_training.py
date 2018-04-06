@@ -288,6 +288,9 @@ def test_model_methods():
     out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
+    # enable verbose for evaluate_generator
+    out = model.evaluate_generator(gen_data(4), steps=3, verbose=1)
+
     # empty batch
     with pytest.raises(ValueError):
         def gen_data():
@@ -428,7 +431,8 @@ def test_model_methods():
 
     # Need range check here as filling of the queue depends on sleep in the enqueuers
     assert 6 <= gen_counters[0] <= 8
-    assert 3 <= gen_counters[1] <= 5
+    # 12 = (epoch * workers * validation steps * max_queue_size)
+    assert 3 <= gen_counters[1] <= 12
 
     gen_counters = [0]
     out = model.fit_generator(generator=RandomSequence(3), epochs=3,
@@ -436,8 +440,10 @@ def test_model_methods():
                               validation_steps=1,
                               max_queue_size=2,
                               workers=2)
+
+    # 12 = (epoch * workers * validation steps * max_queue_size)
     # Need range check here as filling of the queue depends on sleep in the enqueuers
-    assert 3 <= gen_counters[0] <= 5
+    assert 3 <= gen_counters[0] <= 12
 
     # predict_generator output shape behavior should be consistent
     def expected_shape(batch_size, n_batches):
@@ -860,6 +866,20 @@ def test_model_with_external_loss():
         with pytest.raises(ValueError):
             out = model.fit(None, None, epochs=1, batch_size=10)
         out = model.fit(None, None, epochs=1, steps_per_epoch=1)
+
+        # define a generator to produce x=None and y=None
+        def data_tensors_generator():
+            while True:
+                yield (None, None)
+
+        generator = data_tensors_generator()
+
+        # test fit_generator for framework-native data tensors
+        out = model.fit_generator(generator, epochs=1,
+                                  steps_per_epoch=3)
+
+        # test evaluate_generator for framework-native data tensors
+        out = model.evaluate_generator(generator, steps=3)
 
         # test fit with validation data
         with pytest.raises(ValueError):

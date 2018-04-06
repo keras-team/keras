@@ -328,7 +328,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return np.ceil(len(self.x) / float(self.batch_size))
+                return int(np.ceil(len(self.x) / float(self.batch_size)))
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -365,6 +365,12 @@ class Sequence(object):
         """Method called at the end of every epoch.
         """
         pass
+
+    def __iter__(self):
+        """Create an infinite generator that iterate over the Sequence."""
+        while True:
+            for item in (self[i] for i in range(len(self))):
+                yield item
 
 
 # Global variables to be shared across processes
