@@ -17,6 +17,7 @@ from keras import backend as K
 num_samples, timesteps, embedding_dim, units = 2, 5, 4, 3
 embedding_num = 12
 
+
 @keras_test
 def rnn_test(f):
     """
@@ -343,6 +344,7 @@ def test_specify_initial_state_non_keras_tensor(layer_class):
     inputs = np.random.random((num_samples, timesteps, embedding_dim))
     targets = np.random.random((num_samples, units))
     model.fit(inputs, targets)
+
 
 @rnn_test
 def test_reset_states_with_values(layer_class):
