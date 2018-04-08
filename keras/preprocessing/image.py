@@ -425,7 +425,7 @@ class ImageDataGenerator(object):
         rotation_range: Int. Degree range for random rotations.
         width_shift_range: Float (fraction of total width). Range for random horizontal shifts.
         height_shift_range: Float (fraction of total height). Range for random vertical shifts.
-        shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction as radians)
+        shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction in degrees)
         zoom_range: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
         channel_shift_range: Float. Range for random channel shifts.
         fill_mode: One of {"constant", "nearest", "reflect" or "wrap"}.  Default is 'nearest'.
@@ -680,6 +680,8 @@ class ImageDataGenerator(object):
                save_prefix: str (default: `''`). Prefix to use for filenames of saved pictures
                 (only relevant if `save_to_dir` is set).
                 save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
+               subset: Subset of data (`"training"` or `"validation"`) if
+                `validation_split` is set in `ImageDataGenerator`.
 
         # Returns
             An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
@@ -739,6 +741,14 @@ class ImageDataGenerator(object):
                 save_prefix: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
                 save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
                 follow_links: whether to follow symlinks inside class subdirectories (default: False).
+                subset: Subset of data (`"training"` or `"validation"`) if
+                 `validation_split` is set in `ImageDataGenerator`.
+                interpolation: Interpolation method used to resample the image if the
+                 target size is different from that of the loaded image.
+                 Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
+                 If PIL version 1.1.3 or newer is installed, `"lanczos"` is also
+                 supported. If PIL version 3.4.0 or newer is installed, `"box"` and
+                 `"hamming"` are also supported. By default, `"nearest"` is used.
 
         # Returns
             A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and

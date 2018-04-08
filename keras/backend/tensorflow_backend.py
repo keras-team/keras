@@ -73,7 +73,8 @@ def get_uid(prefix=''):
 
 
 def reset_uids():
-    """Reset graph identifiers."""
+    """Resets graph identifiers.
+    """
     global _GRAPH_UID_DICTS
     _GRAPH_UID_DICTS = {}
 
@@ -2503,7 +2504,7 @@ def function(inputs, outputs, updates=None, **kwargs):
 
 
 def gradients(loss, variables):
-    """Returns the gradients of `variables` w.r.t. `loss`.
+    """Returns the gradients of `loss` w.r.t. `variables`.
 
     # Arguments
         loss: Scalar tensor to minimize.
@@ -3941,8 +3942,8 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         Tensor with shape (samples,1) containing the
             CTC loss of each element.
     """
-    label_length = tf.to_int32(tf.squeeze(label_length))
-    input_length = tf.to_int32(tf.squeeze(input_length))
+    label_length = tf.to_int32(tf.squeeze(label_length, axis=-1))
+    input_length = tf.to_int32(tf.squeeze(input_length, axis=-1))
     sparse_labels = tf.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
 
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())

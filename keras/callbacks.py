@@ -547,25 +547,31 @@ class RemoteMonitor(Callback):
     Events are sent to `root + '/publish/epoch/end/'` by default. Calls are
     HTTP POST, with a `data` argument which is a
     JSON-encoded dictionary of event data.
+    If send_as_json is set to True, the content type of the request will be application/json.
+    Otherwise the serialized JSON will be send within a form
 
     # Arguments
         root: String; root url of the target server.
         path: String; path relative to `root` to which the events will be sent.
-        field: String; JSON field under which the data will be stored.
+        field: String; JSON field under which the data will be stored. The field is used only if the payload is sent
+        within a form (i.e. send_as_json is set to False).
         headers: Dictionary; optional custom HTTP headers.
+        send_as_json: Boolean; whether the request should be send as application/json.
     """
 
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
                  field='data',
-                 headers=None):
+                 headers=None,
+                 send_as_json=False):
         super(RemoteMonitor, self).__init__()
 
         self.root = root
         self.path = path
         self.field = field
         self.headers = headers
+        self.send_as_json = send_as_json
 
     def on_epoch_end(self, epoch, logs=None):
         if requests is None:
@@ -580,9 +586,12 @@ class RemoteMonitor(Callback):
             else:
                 send[k] = v
         try:
-            requests.post(self.root + self.path,
-                          {self.field: json.dumps(send)},
-                          headers=self.headers)
+            if self.send_as_json:
+                requests.post(self.root + self.path, json=send, headers=self.headers)
+            else:
+                requests.post(self.root + self.path,
+                              {self.field: json.dumps(send)},
+                              headers=self.headers)
         except requests.exceptions.RequestException:
             warnings.warn('Warning: could not reach RemoteMonitor '
                           'root server at ' + str(self.root))
@@ -898,7 +907,7 @@ class ReduceLROnPlateau(Callback):
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
-        epsilon: threshold for measuring the new optimum,
+        min_delta: threshold for measuring the new optimum,
             to only focus on significant changes.
         cooldown: number of epochs to wait before resuming
             normal operation after lr has been reduced.
@@ -906,16 +915,21 @@ class ReduceLROnPlateau(Callback):
     """
 
     def __init__(self, monitor='val_loss', factor=0.1, patience=10,
-                 verbose=0, mode='auto', epsilon=1e-4, cooldown=0, min_lr=0):
+                 verbose=0, mode='auto', min_delta=1e-4, cooldown=0, min_lr=0,
+                 **kwargs):
         super(ReduceLROnPlateau, self).__init__()
 
         self.monitor = monitor
         if factor >= 1.0:
             raise ValueError('ReduceLROnPlateau '
                              'does not support a factor >= 1.0.')
+        if 'epsilon' in kwargs:
+            min_delta = kwargs.pop('epsilon')
+            warnings.warn('`epsilon` argument is deprecated and '
+                          'will be removed, use `min_delta` insted.')
         self.factor = factor
         self.min_lr = min_lr
-        self.epsilon = epsilon
+        self.min_delta = min_delta
         self.patience = patience
         self.verbose = verbose
         self.cooldown = cooldown
@@ -936,10 +950,10 @@ class ReduceLROnPlateau(Callback):
             self.mode = 'auto'
         if (self.mode == 'min' or
            (self.mode == 'auto' and 'acc' not in self.monitor)):
-            self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
+            self.monitor_op = lambda a, b: np.less(a, b - self.min_delta)
             self.best = np.Inf
         else:
-            self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
+            self.monitor_op = lambda a, b: np.greater(a, b + self.min_delta)
             self.best = -np.Inf
         self.cooldown_counter = 0
         self.wait = 0
@@ -967,6 +981,7 @@ class ReduceLROnPlateau(Callback):
                 self.best = current
                 self.wait = 0
             elif not self.in_cooldown():
+                self.wait += 1
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
                     if old_lr > self.min_lr:
@@ -978,7 +993,6 @@ class ReduceLROnPlateau(Callback):
                                   'rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
-                self.wait += 1
 
     def in_cooldown(self):
         return self.cooldown_counter > 0

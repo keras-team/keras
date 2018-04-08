@@ -46,7 +46,9 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
     # Arguments
         model: Keras model instance to be saved.
-        filepath: String, path where to save the model.
+        filepath: one of the following:
+            - string, path where to save the model, or
+            - h5py.File object where to save the model
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
@@ -97,13 +99,20 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
     from . import __version__ as keras_version
 
-    # If file exists and should not be overwritten.
-    if not overwrite and os.path.isfile(filepath):
-        proceed = ask_to_proceed_with_overwrite(filepath)
-        if not proceed:
-            return
+    if not isinstance(filepath, h5py.File):
+        # If file exists and should not be overwritten.
+        if not overwrite and os.path.isfile(filepath):
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
 
-    with h5py.File(filepath, mode='w') as f:
+        f = h5py.File(filepath, mode='w')
+        opened_new_file = True
+    else:
+        f = filepath
+        opened_new_file = False
+
+    try:
         f.attrs['keras_version'] = str(keras_version).encode('utf8')
         f.attrs['backend'] = K.backend().encode('utf8')
         f.attrs['model_config'] = json.dumps({
@@ -179,13 +188,18 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                         else:
                             param_dset[:] = val
         f.flush()
+    finally:
+        if opened_new_file:
+            f.close()
 
 
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
     # Arguments
-        filepath: String, path to the saved model.
+        filepath: one of the following:
+            - string, path to the saved model, or
+            - h5py.File object from which to load the model
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -234,7 +248,14 @@ def load_model(filepath, custom_objects=None, compile=True):
         if obj in custom_objects:
             return custom_objects[obj]
         return obj
-    with h5py.File(filepath, mode='r') as f:
+
+    opened_new_file = not isinstance(filepath, h5py.File)
+    if opened_new_file:
+        f = h5py.File(filepath, mode='r')
+    else:
+        f = filepath
+
+    try:
         # instantiate model
         model_config = f.attrs.get('model_config')
         if model_config is None:
@@ -292,7 +313,10 @@ def load_model(filepath, custom_objects=None, compile=True):
                               'state. As a result, your model is '
                               'starting with a freshly initialized '
                               'optimizer.')
-    return model
+        return model
+    finally:
+        if opened_new_file:
+            f.close()
 
 
 def model_from_config(config, custom_objects=None):
