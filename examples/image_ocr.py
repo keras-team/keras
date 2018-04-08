@@ -212,7 +212,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.Y_len = [0] * self.num_words
 
         # monogram file is sorted by frequency in english speech
-        with codecs.open(self.monogram_file, mode='rt', encoding='utf-8') as f:
+        with codecs.open(self.monogram_file, mode='r', encoding='utf-8') as f:
             for line in f:
                 if len(tmp_string_list) == int(self.num_words * mono_fraction):
                     break
@@ -221,7 +221,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                     tmp_string_list.append(word)
 
         # bigram file contains common word pairings in english speech
-        with codecs.open(self.bigram_file, mode='rt', encoding='utf-8') as f:
+        with codecs.open(self.bigram_file, mode='r', encoding='utf-8') as f:
             lines = f.readlines()
             for line in lines:
                 if len(tmp_string_list) == self.num_words:
