@@ -49,6 +49,8 @@ def _standardize_input_data(data, names, shapes=None,
     # Raises
         ValueError: in case of improperly formatted user-provided data.
     """
+    if data.shape == (1,1): 
+        if isinstance(data[0][0], dict): data = data[0][0]
     if not names:
         if data is not None and hasattr(data, '__len__') and len(data):
             raise ValueError('Error when checking model ' +
