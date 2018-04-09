@@ -3028,6 +3028,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
     # Returns
         Output tensor.
     """
+    # If the channels are in axis 1, move them to be the last axis:
+    if image_data_format() == 'channels_first':
+        permutation = [0] + list(range(len(output.get_shape())))[2:] + [1]
+        output = tf.transpose(output, perm=permutation)
+
     # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
