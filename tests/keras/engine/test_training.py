@@ -1176,35 +1176,41 @@ def test_pandas_dataframe():
 @keras_test
 def test_model_with_sparse_loss_channels_first():
     """
-    Tests correctness of _standardize_user_data when using sparse_categorical_crossentropy loss with 'channels_first'
-    image_data_format.
+    Tests use of sparse_categorical_crossentropy loss with 'channels_first'.
 
-    Verifies that error no longer occurs after PR #9715.
+    Verifies that evaluate gives the same result with either 'channels_first'
+    or 'channels_last' image_data_format. Tests PR #9715.
     """
+
+    data_channels_first = np.array([[[[8., 7.1, 0.], [4.5, 2.6, 0.55], [0.9, 4.2, 11.2]]]])
+    labels_channels_first = np.array([[[[0, 1, 3], [2, 1, 0], [2, 2, 1]]]])
+
     old_data_format = K.image_data_format()
 
+    # Evaluate a simple network with channels last:
     K.set_image_data_format('channels_last')
-
-    data = np.zeros((1, 3, 3, 1))
-    labels = np.array([[[[0, 1, 0], [2, 1, 0], [2, 2, 1]]]])
-    labels = np.moveaxis(labels, 1, -1)
+    data = np.moveaxis(data_channels_first, 1, -1)
+    labels = np.moveaxis(labels_channels_first, 1, -1)
     inputs = Input(shape=(3, 3, 1))
-    predictions = Conv2D(3, 1, activation='softmax')(inputs)
+    predictions = Conv2D(4, 1, activation='softmax', kernel_initializer='ones', bias_initializer='ones')(inputs)
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
-    model.fit(data, labels)
+    y_channels_last = model.evaluate(x=data, y=labels, batch_size=1, verbose=0)
 
+    # Evaluate the same network with channels first:
     K.set_image_data_format('channels_first')
-
-    data = np.zeros((1, 1, 3, 3))
-    labels = np.array([[[[0, 1, 0], [2, 1, 0], [2, 2, 1]]]])
+    data = data_channels_first
+    labels = labels_channels_first
     inputs = Input(shape=(1, 3, 3))
-    predictions = Conv2D(3, 1, activation='softmax')(inputs)
+    predictions = Conv2D(4, 1, activation='softmax', kernel_initializer='ones', bias_initializer='ones')(inputs)
     model = Model(inputs=inputs, outputs=predictions)
     model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
-    model.fit(data, labels)
+    y_channels_first = model.evaluate(x=data, y=labels, batch_size=1, verbose=0)
 
     K.set_image_data_format(old_data_format)
+
+    assert y_channels_last == y_channels_first, \
+        "sparse_categorical_crossentropy loss comes out different for channels_first and channels_last."
 
 
 if __name__ == '__main__':
