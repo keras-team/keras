@@ -158,9 +158,12 @@ def NASNet(input_shape=None,
         raise ValueError('If using `weights` as ImageNet with `include_top` '
                          'as true, `classes` should be 1000')
 
-    if isinstance(input_shape, tuple) and None in input_shape:
-        raise ValueError('When specifying the input shape of a NASNet,'
-                         'all dimensions must be defined by an integer.'
+    if (isinstance(input_shape, tuple) and
+            None in input_shape and
+            weights == 'imagenet'):
+        raise ValueError('When specifying the input shape of a NASNet'
+                         ' and loading `ImageNet` weights, '
+                         'all dimensions must be defined by an integer. '
                          '`None` is not a valid value here, but you have '
                          'set `input_shape=' + str(input_shape) + '`.')
 
