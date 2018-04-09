@@ -1173,6 +1173,8 @@ def test_pandas_dataframe():
                           [output_a_df, output_b_df])
 
 
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='channels_first with sparse_categorical_crossentropy not yet supported with other backends')
 @keras_test
 def test_model_with_sparse_loss_channels_first():
     """
