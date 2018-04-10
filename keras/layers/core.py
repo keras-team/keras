@@ -136,6 +136,22 @@ class Dropout(Layer):
 
 
 class DropConnect(Layer):
+    """Applies a DropConnect mask to the inputs
+
+    # Arguments
+        rate: float between 0 and 1. Fraction of the input units to drop.
+        noise_shape: 1D integer tensor representing the shape of the
+            binary dropout mask that will be multiplied with the input.
+            For instance, if your inputs have shape
+            `(batch_size, timesteps, features)` and
+            you want the dropout mask to be the same for all timesteps,
+            you can use `noise_shape=(batch_size, 1, features)`.
+        seed: A Python integer to use as random seed.
+
+    # References
+        - [Regularization of Neural Networks using DropConnect](http://proceedings.mlr.press/v28/wan13.pdf)
+    """
+
     @interfaces.legacy_dropout_support
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(DropConnect, self).__init__(**kwargs)
