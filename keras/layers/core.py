@@ -135,6 +135,45 @@ class Dropout(Layer):
         return input_shape
 
 
+class DropConnect(Layer):
+    @interfaces.legacy_dropout_support
+    def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
+        super(DropConnect, self).__init__(**kwargs)
+        self.rate = min(1., max(0., rate))
+        self.noise_shape = noise_shape
+        self.seed = seed
+        self.supports_masking = True
+
+    def _get_noise_shape(self, inputs):
+        if self.noise_shape is None:
+            return self.noise_shape
+
+        symbolic_shape = K.shape(inputs)
+        noise_shape = [symbolic_shape[axis] if shape is None else shape
+                       for axis, shape in enumerate(self.noise_shape)]
+        return tuple(noise_shape)
+
+    def call(self, inputs, training=None):
+        if 0. < self.rate < 1.:
+            noise_shape = self._get_noise_shape(inputs)
+
+            def dropped_connections():
+                return K.dropout(inputs, self.rate, noise_shape=noise_shape) * self.rate
+            return K.in_train_phase(dropped_connections, inputs,
+                                    training=training)
+        return inputs
+
+    def get_config(self):
+        config = {'rate': self.rate,
+                  'noise_shape': self.noise_shape,
+                  'seed': self.seed}
+        base_config = super(DropConnect, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
 class SpatialDropout1D(Dropout):
     """Spatial 1D version of Dropout.
 
