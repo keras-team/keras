@@ -11,6 +11,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from .recurrent import _generate_dropout_mask
+from .recurrent import _standardize_args
 
 import numpy as np
 import warnings
@@ -270,8 +271,8 @@ class ConvRNN2D(RNN):
             return [initial_state]
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        inputs, initial_state, constants = self._standardize_args(
-            inputs, initial_state, constants)
+        inputs, initial_state, constants = _standardize_args(
+            inputs, initial_state, constants, self._num_constants)
 
         if initial_state is None and constants is None:
             return super(ConvRNN2D, self).__call__(inputs, **kwargs)

@@ -12,6 +12,8 @@ from ..engine.topology import _object_list_uid
 from ..utils.generic_utils import has_arg
 from .. import backend as K
 
+from . import recurrent
+
 
 class Wrapper(Layer):
     """Abstract wrapper base class.
@@ -316,8 +318,8 @@ class Bidirectional(Wrapper):
         return output_shape
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        inputs, initial_state, constants = self._standardize_args(
-            inputs, initial_state, constants)
+        inputs, initial_state, constants = recurrent._standardize_args(
+            inputs, initial_state, constants, self._num_constants)
 
         if initial_state is None and constants is None:
             return super(Bidirectional, self).__call__(inputs, **kwargs)
@@ -433,48 +435,6 @@ class Bidirectional(Wrapper):
                 return output + states
             return [output] + states
         return output
-
-    def _standardize_args(self, inputs, initial_state, constants):
-        """Standardize `__call__` to a single list of tensor inputs.
-
-        This method is taken from `RNN` as it is.
-
-        When running a model loaded from file, the input tensors
-        `initial_state` and `constants` can be passed to `RNN.__call__` as part
-        of `inputs` instead of by the dedicated keyword arguments. This method
-        makes sure the arguments are separated and that `initial_state` and
-        `constants` are lists of tensors (or None).
-
-        # Arguments
-            inputs: tensor or list/tuple of tensors
-            initial_state: tensor or list of tensors or None
-            constants: tensor or list of tensors or None
-
-        # Returns
-            inputs: tensor
-            initial_state: list of tensors or None
-            constants: list of tensors or None
-        """
-        if isinstance(inputs, list):
-            assert initial_state is None and constants is None
-            if self._num_constants is not None:
-                constants = inputs[-self._num_constants:]
-                inputs = inputs[:-self._num_constants]
-            if len(inputs) > 1:
-                initial_state = inputs[1:]
-            inputs = inputs[0]
-
-        def to_list_or_none(x):
-            if x is None or isinstance(x, list):
-                return x
-            if isinstance(x, tuple):
-                return list(x)
-            return [x]
-
-        initial_state = to_list_or_none(initial_state)
-        constants = to_list_or_none(constants)
-
-        return inputs, initial_state, constants
 
     def reset_states(self):
         self.forward_layer.reset_states()
