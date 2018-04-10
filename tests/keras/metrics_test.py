@@ -107,7 +107,8 @@ def test_sparse_top_k_categorical_accuracy():
 
 
 @keras_test
-def test_stateful_metrics():
+@pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
+def test_stateful_metrics(metrics_mode):
     np.random.seed(1334)
 
     class BinaryTruePositives(keras.layers.Layer):
@@ -155,11 +156,17 @@ def test_stateful_metrics():
 
     # Test on simple model
     inputs = keras.Input(shape=(2,))
-    outputs = keras.layers.Dense(1, activation='sigmoid')(inputs)
+    outputs = keras.layers.Dense(1, activation='sigmoid', name='out')(inputs)
     model = keras.Model(inputs, outputs)
-    model.compile(optimizer='sgd',
-                  loss='binary_crossentropy',
-                  metrics=['acc', metric_fn])
+
+    if metrics_mode == 'list':
+        model.compile(optimizer='sgd',
+                      loss='binary_crossentropy',
+                      metrics=['acc', metric_fn])
+    elif metrics_mode == 'dict':
+        model.compile(optimizer='sgd',
+                      loss='binary_crossentropy',
+                      metrics={'out': ['acc', metric_fn]})
 
     samples = 1000
     x = np.random.random((samples, 2))

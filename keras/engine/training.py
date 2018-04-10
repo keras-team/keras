@@ -853,6 +853,7 @@ class Model(Container):
         nested_weighted_metrics = _collect_metrics(weighted_metrics, self.output_names)
         self.metrics_updates = []
         self.stateful_metric_names = []
+        self.stateful_metric_functions = []
         with K.name_scope('metrics'):
             for i in range(len(self.outputs)):
                 if i in skip_target_indices:
@@ -929,6 +930,7 @@ class Model(Container):
                         # stateful metrics (i.e. metrics layers).
                         if isinstance(metric_fn, Layer) and metric_fn.stateful:
                             self.stateful_metric_names.append(metric_name)
+                            self.stateful_metric_functions.append(metric_fn)
                             self.metrics_updates += metric_fn.updates
 
                 handle_metrics(output_metrics)
@@ -1174,9 +1176,8 @@ class Model(Container):
 
         for epoch in range(initial_epoch, epochs):
             # Reset stateful metrics
-            for m in self.metrics:
-                if isinstance(m, Layer) and m.stateful:
-                    m.reset_states()
+            for m in self.stateful_metric_functions:
+                m.reset_states()
             callbacks.on_epoch_begin(epoch)
             epoch_logs = {}
             if steps_per_epoch is not None:
@@ -1363,9 +1364,8 @@ class Model(Container):
         """
 
         if hasattr(self, 'metrics'):
-            for m in self.metrics:
-                if isinstance(m, Layer) and m.stateful:
-                    m.reset_states()
+            for m in self.stateful_metric_functions:
+                m.reset_states()
             stateful_metric_indices = [
                 i for i, name in enumerate(self.metrics_names)
                 if str(name) in self.stateful_metric_names]
@@ -2185,9 +2185,8 @@ class Model(Container):
             # Construct epoch logs.
             epoch_logs = {}
             while epoch < epochs:
-                for m in self.metrics:
-                    if isinstance(m, Layer) and m.stateful:
-                        m.reset_states()
+                for m in self.stateful_metric_functions:
+                    m.reset_states()
                 callbacks.on_epoch_begin(epoch)
                 steps_done = 0
                 batch_index = 0
@@ -2331,9 +2330,8 @@ class Model(Container):
 
         stateful_metric_indices = []
         if hasattr(self, 'metrics'):
-            for i, m in enumerate(self.metrics):
-                if isinstance(m, Layer) and m.stateful:
-                    m.reset_states()
+            for m in self.stateful_metric_functions:
+                m.reset_states()
             stateful_metric_indices = [
                 i for i, name in enumerate(self.metrics_names)
                 if str(name) in self.stateful_metric_names]
