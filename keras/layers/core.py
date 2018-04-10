@@ -150,6 +150,7 @@ class DropConnect(Layer):
 
     # References
         - [Regularization of Neural Networks using DropConnect](http://proceedings.mlr.press/v28/wan13.pdf)
+        - [DropConnect Implementation in Python and TensorFlow](https://ewanlee.github.io/2018/01/15/DropConnect-Implementation-in-Python-and-TensorFlow-Repost/)
     """
 
     @interfaces.legacy_dropout_support
