@@ -718,17 +718,17 @@ class ImageDataGenerator(object):
                  The dimensions to which all images found will be resized.
                 color_mode: one of "grayscale", "rbg". Default: "rgb".
                  Whether the images will be converted to have 1 or 3 color channels.
-                classes: optional list of class subdirectories (e.g. `['dogs', 'cats']`).
-                 Default: None. If not provided, the list of classes will
-                 be automatically inferred from the subdirectory names/structure under `directory`,
+                classes: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None.
+                 If not provided, the list of classes will be automatically
+                 inferred from the subdirectory names/structure under `directory`,
                  where each subdirectory will be treated as a different class
                  (and the order of the classes, which will map to the label indices, will be alphanumeric).
                  The dictionary containing the mapping from class names to class
                  indices can be obtained via the attribute `class_indices`.
-                class_mode: one of "categorical", "binary", "sparse", "input" or None.
-                 Default: "categorical". Determines the type of label arrays that are
-                 returned: "categorical" will be 2D one-hot encoded labels, "binary" will be 1D binary labels,
-                 "sparse" will be 1D integer labels, "input" will be images identical to input images (mainly used to work with autoencoders).
+                class_mode: one of "categorical", "binary", "sparse", "input" or None. Default: "categorical".
+                 Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels,
+                 "binary" will be 1D binary labels, "sparse" will be 1D integer labels, "input" will be images identical
+                 to input images (mainly used to work with autoencoders).
                  If None, no labels are returned (the generator will only yield batches of image data, which is useful to use
                  `model.predict_generator()`, `model.evaluate_generator()`, etc.).
                   Please note that in case of class_mode None,
@@ -751,8 +751,8 @@ class ImageDataGenerator(object):
                  `"hamming"` are also supported. By default, `"nearest"` is used.
 
         # Returns
-            A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
-             `y` is a numpy array of corresponding labels.
+            A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array containing a batch
+            of images with shape `(batch_size, *target_size, channels)` and `y` is a numpy array of corresponding labels.
         """
         return DirectoryIterator(
             directory, self,
