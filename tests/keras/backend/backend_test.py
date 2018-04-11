@@ -1763,6 +1763,15 @@ class TestBackend(object):
         for training in [True, False]:
             check_two_tensor_operation('in_train_phase', (3, 3), (2, 2), [KTH, KTF],
                                        training=training)
+            check_two_tensor_operation('in_train_phase', (2, 3), (2, 3), BACKENDS,
+                                       training=training)
+
+    def test_in_test_phase(self):
+        for training in [True, False]:
+            check_two_tensor_operation('in_test_phase', (3, 3), (2, 2), [KTH, KTF],
+                                       training=training)
+            check_two_tensor_operation('in_test_phase', (2, 3), (2, 3), BACKENDS,
+                                       training=training)
 
     def test_setfloatx_incorrect_values(self):
         # Keep track of the old value
