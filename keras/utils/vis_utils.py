@@ -14,15 +14,21 @@ except ImportError:
 
 
 def _check_pydot():
+    """Raise errors if `pydot` or GraphViz unavailable."""
+    if pydot is None:
+        raise ImportError(
+            'Failed to import `pydot`. '
+            'Please install `pydot`. '
+            'For example with `pip install pydot`.')
     try:
         # Attempt to create an image of a blank graph
         # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
-    except Exception:
-        # pydot raises a generic Exception here,
-        # so no specific class can be caught.
-        raise ImportError('Failed to import pydot. You must install pydot'
-                          ' and graphviz for `pydotprint` to work.')
+    except OSError:
+        raise OSError(
+            '`pydot` failed to call GraphViz.'
+            'Please install GraphViz (https://www.graphviz.org/) '
+            'and ensure that its executables are in the $PATH.')
 
 
 def model_to_dot(model,
