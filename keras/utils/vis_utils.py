@@ -5,31 +5,30 @@ from __future__ import print_function
 
 import os
 
+# `pydot` is an optional dependency,
+# see `extras_require` in `setup.py`.
 try:
-    # pydot-ng is a fork of pydot that is better maintained.
-    import pydot_ng as pydot
+    import pydot
 except ImportError:
-    # pydotplus is an improved version of pydot
-    try:
-        import pydotplus as pydot
-    except ImportError:
-        # Fall back on pydot if necessary.
-        try:
-            import pydot
-        except ImportError:
-            pydot = None
+    pydot = None
 
 
 def _check_pydot():
+    """Raise errors if `pydot` or GraphViz unavailable."""
+    if pydot is None:
+        raise ImportError(
+            'Failed to import `pydot`. '
+            'Please install `pydot`. '
+            'For example with `pip install pydot`.')
     try:
         # Attempt to create an image of a blank graph
         # to check the pydot/graphviz installation.
         pydot.Dot.create(pydot.Dot())
-    except Exception:
-        # pydot raises a generic Exception here,
-        # so no specific class can be caught.
-        raise ImportError('Failed to import pydot. You must install pydot'
-                          ' and graphviz for `pydotprint` to work.')
+    except OSError:
+        raise OSError(
+            '`pydot` failed to call GraphViz.'
+            'Please install GraphViz (https://www.graphviz.org/) '
+            'and ensure that its executables are in the $PATH.')
 
 
 def model_to_dot(model,
