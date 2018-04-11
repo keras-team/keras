@@ -149,9 +149,14 @@ def variable(value, dtype=None, name=None, constraint=None):
     shape = value.shape if hasattr(value, 'shape') else ()
     if hasattr(value, 'dtype') and value.dtype != dtype and len(shape) > 0:
         value = value.astype(dtype)
-    # cntk will init type based on the value type
+
+    # TODO: remove the conversion when cntk supports int32, int64
+    # https://docs.microsoft.com/en-us/python/api/cntk.variables.parameter
+    dtype = 'float32' if 'int' in str(dtype) else dtype
+
     v = C.parameter(shape=shape,
                     init=value,
+                    dtype=dtype,
                     name=_prepare_name(name, 'variable'))
     v._keras_shape = v.shape
     v._uses_learning_phase = False
