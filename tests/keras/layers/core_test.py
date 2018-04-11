@@ -57,6 +57,21 @@ def test_dropout():
 
 
 @keras_test
+def test_dropconnect():
+    layer_test(layers.DropConnect,
+               kwargs={'rate': 0.5},
+               input_shape=(3, 2))
+
+    layer_test(layers.DropConnect,
+               kwargs={'rate': 0.5, 'noise_shape': [3, 1]},
+               input_shape=(3, 2))
+
+    layer_test(layers.DropConnect,
+               kwargs={'rate': 0.5, 'noise_shape': [None, 1]},
+               input_shape=(3, 2))
+
+
+@keras_test
 def test_activation():
     # with string argument
     layer_test(layers.Activation,
