@@ -1807,6 +1807,15 @@ class TestBackend(object):
         # Restore old value
         set_floatx(old_floatx)
 
+    def test_dtype(self):
+        assert K.dtype(K.variable(1, dtype='float64')) == 'float64'
+        assert K.dtype(K.variable(1, dtype='float32')) == 'float32'
+        if K.backend() == 'cntk':
+            with pytest.raises(ValueError):
+                K.variable(1, dtype='float16')
+        else:
+            assert K.dtype(K.variable(1, dtype='float16')) == 'float16'
+
     def test_variable_support_bool_dtype(self):
         # Github issue: 7819
         if K.backend() == 'tensorflow':
