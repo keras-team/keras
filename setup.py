@@ -16,7 +16,7 @@ setup(name='Keras',
                         'pyyaml',
                         'h5py'],
       extras_require={
-          'visualize': ['pydot>=1.2.0'],
+          'visualize': ['pydot>=1.2.4'],
           'tests': ['pytest',
                     'pytest-pep8',
                     'pytest-xdist',
