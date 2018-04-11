@@ -16,6 +16,7 @@ examples/img/*
 # test-related
 .coverage
 .cache
+.pytest_cache
 
 # developer environments
 .idea
