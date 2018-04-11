@@ -3014,7 +3014,7 @@ def categorical_crossentropy(target, output, from_logits=False):
                                                        logits=output)
 
 
-def sparse_categorical_crossentropy(target, output, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False, data_format=None):
     """Categorical crossentropy with integer targets.
 
     # Arguments
@@ -3024,12 +3024,20 @@ def sparse_categorical_crossentropy(target, output, from_logits=False):
             case `output` is expected to be the logits).
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
+        data_format: String specifying the data format,
+            'channels_first' or 'channels_last'. Defaults
+            to 'channels_last'.
 
     # Returns
         Output tensor.
     """
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format: ' + str(data_format))
+
     # If the channels are in axis 1, move them to be the last axis:
-    if image_data_format() == 'channels_first':
+    if data_format == 'channels_first':
         permutation = [0] + list(range(len(output.get_shape())))[2:] + [1]
         output = tf.transpose(output, perm=permutation)
 
