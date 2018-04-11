@@ -888,13 +888,13 @@ class SimpleRNNCell(Layer):
         prev_output = states[0]
         if 0 < self.dropout < 1 and self._dropout_mask is None:
             self._dropout_mask = _generate_dropout_mask(
-                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                K.ones_like(inputs),
                 self.dropout,
                 training=training)
         if (0 < self.recurrent_dropout < 1 and
                 self._recurrent_dropout_mask is None):
             self._recurrent_dropout_mask = _generate_dropout_mask(
-                _generate_dropout_ones(inputs, self.units),
+                K.ones_like(prev_output),
                 self.recurrent_dropout,
                 training=training)
 
@@ -1329,14 +1329,14 @@ class GRUCell(Layer):
 
         if 0 < self.dropout < 1 and self._dropout_mask is None:
             self._dropout_mask = _generate_dropout_mask(
-                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                K.ones_like(inputs),
                 self.dropout,
                 training=training,
                 count=3)
         if (0 < self.recurrent_dropout < 1 and
                 self._recurrent_dropout_mask is None):
             self._recurrent_dropout_mask = _generate_dropout_mask(
-                _generate_dropout_ones(inputs, self.units),
+                K.ones_like(h_tm1),
                 self.recurrent_dropout,
                 training=training,
                 count=3)
@@ -1887,14 +1887,14 @@ class LSTMCell(Layer):
     def call(self, inputs, states, training=None):
         if 0 < self.dropout < 1 and self._dropout_mask is None:
             self._dropout_mask = _generate_dropout_mask(
-                _generate_dropout_ones(inputs, K.shape(inputs)[-1]),
+                K.ones_like(inputs),
                 self.dropout,
                 training=training,
                 count=4)
         if (0 < self.recurrent_dropout < 1 and
                 self._recurrent_dropout_mask is None):
             self._recurrent_dropout_mask = _generate_dropout_mask(
-                _generate_dropout_ones(inputs, self.units),
+                K.ones_like(states[0]),
                 self.recurrent_dropout,
                 training=training,
                 count=4)
@@ -2247,16 +2247,6 @@ class LSTM(RNN):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 1
         return cls(**config)
-
-
-def _generate_dropout_ones(inputs, dims):
-    # Currently, CNTK can't instantiate `ones` with symbolic shapes.
-    # Will update workaround once CNTK supports it.
-    if K.backend() == 'cntk':
-        ones = K.ones_like(K.reshape(inputs[:, 0], (-1, 1)))
-        return K.tile(ones, (1, dims))
-    else:
-        return K.ones((K.shape(inputs)[0], dims))
 
 
 def _generate_dropout_mask(ones, rate, training=None, count=1):
