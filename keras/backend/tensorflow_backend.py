@@ -3030,6 +3030,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, data_form
 
     # Returns
         Output tensor.
+
+    # Raises
+        ValueError: if `data_format` is neither
+            `channels_last` or `channels_first`.
     """
     if data_format is None:
         data_format = image_data_format()
