@@ -88,15 +88,8 @@ def in_train_phase(x, alt, training=None):
         return result
 
 
-def in_test_phase(x, alt):
-    global _LEARNING_PHASE
-    # Similar as in_train_phase, use element_select as workaround.
-    if callable(x) and isinstance(x, C.cntk_py.Function) is False:
-        x = x()
-    if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
-        alt = alt()
-
-    return C.element_select(learning_phase(), x, alt)
+def in_test_phase(x, alt, training=None):
+    return in_train_phase(alt, x, training=training)
 
 
 def _convert_string_dtype(dtype):
