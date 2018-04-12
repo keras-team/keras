@@ -1,8 +1,10 @@
 import pytest
 import os
+import h5py
 import tempfile
 import numpy as np
-from numpy.testing import assert_allclose, assert_raises
+from numpy.testing import assert_allclose
+from numpy.testing import assert_raises
 
 from keras import backend as K
 from keras.models import Model, Sequential
@@ -99,6 +101,79 @@ def test_functional_model_saving():
     os.remove(fname)
 
     out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_model_saving_to_pre_created_h5py_file():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, mode='r+') as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    # test non-default options in h5
+    with h5py.File('does not matter', driver='core',
+                   backing_store=False) as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_model_saving_to_binary_stream():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, mode='r+') as h5file:
+        save_model(model, h5file)
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    # Save the model to an in-memory-only h5 file.
+    with h5py.File('does not matter', driver='core',
+                   backing_store=False) as h5file:
+        save_model(model, h5file)
+        h5file.flush()  # Very important! Otherwise you get all zeroes below.
+        binary_data = h5file.fid.get_file_image()
+
+        # Make sure the binary data is correct by saving it to a file manually
+        # and then loading it the usual way.
+        with open(fname, 'wb') as raw_file:
+            raw_file.write(binary_data)
+
+    # Load the manually-saved binary data, and make sure the model is intact.
+    with h5py.File(fname, mode='r') as h5file:
+        loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+
     assert_allclose(out, out2, atol=1e-05)
 
 
@@ -403,6 +478,94 @@ def test_saving_custom_activation_function():
 
     model = load_model(fname, custom_objects={'cos': K.cos})
     os.remove(fname)
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_saving_model_with_long_layer_names():
+    # This layer name will make the `layers_name` HDF5 attribute blow
+    # out of proportion. Note that it fits into the internal HDF5
+    # attribute memory limit on its own but because h5py converts
+    # the list of layer names into numpy array, which uses the same
+    # amout of memory for every item, it increases the memory
+    # requirements substantially.
+    x = Input(shape=(2,), name='input_' + ('x' * (2**15)))
+    f = x
+    for i in range(4):
+        f = Dense(2, name='dense_%d' % (i,))(f)
+
+    model = Model(inputs=[x], outputs=[f])
+
+    model.compile(loss='mse', optimizer='adam', metrics=['acc'])
+
+    x = np.random.random((1, 2))
+    y = np.random.random((1, 2))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+
+    # Check that the HDF5 files contains chunked array
+    # of layer names.
+    with h5py.File(fname, 'r') as h5file:
+        n_layer_names_arrays = len([attr for attr in h5file['model_weights'].attrs
+                                    if attr.startswith('layer_names')])
+
+    os.remove(fname)
+
+    # The chunking of layer names array should have happend.
+    assert n_layer_names_arrays > 0
+
+    out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+@keras_test
+def test_saving_model_with_long_weights_names():
+    x = Input(shape=(2,), name='nested_model_input')
+    f = x
+    for i in range(4):
+        f = Dense(2, name='nested_model_dense_%d' % (i,))(f)
+    # This layer name will make the `weights_name`
+    # HDF5 attribute blow out of proportion.
+    f = Dense(2, name='nested_model_output' + ('x' * (2**15)))(f)
+    nested_model = Model(inputs=[x], outputs=[f], name='nested_model')
+
+    x = Input(shape=(2,), name='outer_model_input')
+    f = nested_model(x)
+    f = Dense(2, name='outer_model_output')(f)
+
+    model = Model(inputs=[x], outputs=[f])
+
+    model.compile(loss='mse', optimizer='adam', metrics=['acc'])
+
+    x = np.random.random((1, 2))
+    y = np.random.random((1, 2))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    model = load_model(fname)
+
+    # Check that the HDF5 files contains chunked array
+    # of weight names.
+    with h5py.File(fname, 'r') as h5file:
+        n_weight_names_arrays = len([attr for attr in h5file['model_weights']['nested_model'].attrs
+                                     if attr.startswith('weight_names')])
+
+    os.remove(fname)
+
+    # The chunking of layer names array should have happend.
+    assert n_weight_names_arrays > 0
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)

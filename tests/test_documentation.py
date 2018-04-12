@@ -6,7 +6,8 @@ from itertools import compress
 
 import pytest
 
-modules = ['keras.layers', 'keras.models', 'keras', 'keras.backend.tensorflow_backend']
+modules = ['keras.layers', 'keras.models', 'keras', 'keras.backend.tensorflow_backend', 'keras.preprocessing.image',
+           'keras.preprocessing.text']
 accepted_name = ['from_config']
 accepted_module = ['keras.legacy.layers', 'keras.utils.generic_utils']
 
@@ -27,12 +28,14 @@ def handle_class(name, member):
 
 
 def handle_function(name, member):
-    if is_accepted(name, member):
+    if is_accepted(name, member) or member_too_small(member):
+        # We don't need to check this one.
         return
     doc = member.__doc__
-    if doc is None and not member_too_small(member):
+    if doc is None:
         raise ValueError("{} function doesn't have any documentation".format(name),
                          member.__module__, inspect.getmodule(member).__file__)
+
     args = list(inspect.signature(member).parameters.keys())
     assert_args_presence(args, doc, member, name)
     assert_function_style(name, member, doc, args)

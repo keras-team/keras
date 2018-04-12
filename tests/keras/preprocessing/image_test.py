@@ -3,6 +3,8 @@ from keras.preprocessing import image
 from PIL import Image
 import numpy as np
 import os
+import tempfile
+import shutil
 
 
 class TestImage(object):
@@ -46,6 +48,7 @@ class TestImage(object):
                 shear_range=0.5,
                 zoom_range=0.2,
                 channel_shift_range=0.,
+                brightness_range=(1, 5),
                 fill_mode='nearest',
                 cval=0.5,
                 horizontal_flip=True,
@@ -89,6 +92,34 @@ class TestImage(object):
             seq.on_epoch_end()
             x2, y2 = seq[0]
             assert list(y) != list(y2)
+
+    def test_image_data_generator_with_validation_split(self):
+        for test_images in self.all_test_images:
+            img_list = []
+            for im in test_images:
+                img_list.append(image.img_to_array(im)[None, ...])
+
+            images = np.vstack(img_list)
+            generator = image.ImageDataGenerator(validation_split=0.5)
+            seq = generator.flow(images, np.arange(images.shape[0]),
+                                 shuffle=False, batch_size=3,
+                                 subset='validation')
+            x, y = seq[0]
+            assert list(y) == [0, 1, 2]
+            seq = generator.flow(images, np.arange(images.shape[0]),
+                                 shuffle=False, batch_size=3,
+                                 subset='training')
+            x2, y2 = seq[0]
+            assert list(y2) == [4, 5, 6]
+
+            with pytest.raises(ValueError):
+                generator.flow(images, np.arange(images.shape[0]),
+                               shuffle=False, batch_size=3,
+                               subset='foo')
+
+    def test_image_data_generator_with_split_value_error(self):
+        with pytest.raises(ValueError):
+            generator = image.ImageDataGenerator(validation_split=5)
 
     def test_image_data_generator_invalid_data(self):
         generator = image.ImageDataGenerator(
@@ -181,7 +212,7 @@ class TestImage(object):
         # check number of classes and images
         assert len(dir_iterator.class_indices) == num_classes
         assert len(dir_iterator.classes) == count
-        assert dir_iterator.filenames == sorted(filenames)
+        assert set(dir_iterator.filenames) == set(filenames)
 
         # Test invalid use cases
         with pytest.raises(ValueError):
@@ -189,8 +220,18 @@ class TestImage(object):
         with pytest.raises(ValueError):
             generator.flow_from_directory(str(tmpdir), class_mode='output')
 
+        def preprocessing_function(x):
+            """This will fail if not provided by a Numpy array.
+            Note: This is made to enforce backward compatibility.
+            """
+
+            assert x.shape == (26, 26, 3)
+            assert type(x) is np.ndarray
+
+            return np.zeros_like(x)
+
         # Test usage as Sequence
-        generator = image.ImageDataGenerator()
+        generator = image.ImageDataGenerator(preprocessing_function=preprocessing_function)
         dir_seq = generator.flow_from_directory(str(tmpdir),
                                                 target_size=(26, 26),
                                                 color_mode='rgb',
@@ -201,6 +242,8 @@ class TestImage(object):
         assert x1.shape == (3, 26, 26, 3)
         assert y1.shape == (3, num_classes)
         x1, y1 = dir_seq[5]
+        assert (x1 == 0).all()
+
         with pytest.raises(ValueError):
             x1, y1 = dir_seq[9]
 
@@ -227,6 +270,62 @@ class TestImage(object):
         output_img = batch[1][0]
         output_img[0][0][0] += 1
         assert(input_img[0][0][0] != output_img[0][0][0])
+
+    @pytest.mark.parametrize('validation_split,num_training', [
+        (0.25, 12),
+        (0.40, 10),
+        (0.50, 8),
+    ])
+    def test_directory_iterator_with_validation_split(self, validation_split, num_training):
+        num_classes = 2
+        tmp_folder = tempfile.mkdtemp(prefix='test_images')
+
+        # create folders and subfolders
+        paths = []
+        for cl in range(num_classes):
+            class_directory = 'class-{}'.format(cl)
+            classpaths = [
+                class_directory,
+                os.path.join(class_directory, 'subfolder-1'),
+                os.path.join(class_directory, 'subfolder-2'),
+                os.path.join(class_directory, 'subfolder-1', 'sub-subfolder')
+            ]
+            for path in classpaths:
+                os.mkdir(os.path.join(tmp_folder, path))
+            paths.append(classpaths)
+
+        # save the images in the paths
+        count = 0
+        filenames = []
+        for test_images in self.all_test_images:
+            for im in test_images:
+                # rotate image class
+                im_class = count % num_classes
+                # rotate subfolders
+                classpaths = paths[im_class]
+                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filenames.append(filename)
+                im.save(os.path.join(tmp_folder, filename))
+                count += 1
+
+        # create iterator
+        generator = image.ImageDataGenerator(validation_split=validation_split)
+
+        with pytest.raises(ValueError):
+            generator.flow_from_directory(tmp_folder, subset='foo')
+
+        train_iterator = generator.flow_from_directory(tmp_folder, subset='training')
+        assert train_iterator.samples == num_training
+
+        valid_iterator = generator.flow_from_directory(tmp_folder, subset='validation')
+        assert valid_iterator.samples == count - num_training
+
+        # check number of classes and images
+        assert len(train_iterator.class_indices) == num_classes
+        assert len(train_iterator.classes) == num_training
+        assert len(set(train_iterator.filenames) & set(filenames)) == num_training
+
+        shutil.rmtree(tmp_folder)
 
     def test_img_utils(self):
         height, width = 10, 8
@@ -302,6 +401,7 @@ class TestImage(object):
                 shear_range=0.5,
                 zoom_range=0.2,
                 channel_shift_range=0.,
+                brightness_range=(1, 5),
                 fill_mode='nearest',
                 cval=0.5,
                 horizontal_flip=True,

@@ -302,6 +302,7 @@ def test_clone_functional_model():
 
     x_a = dense_1(input_a)
     x_a = keras.layers.Dropout(0.5)(x_a)
+    x_a = keras.layers.BatchNormalization()(x_a)
     x_b = dense_1(input_b)
     x_a = dense_2(x_a)
     outputs = keras.layers.add([x_a, x_b])
@@ -340,6 +341,7 @@ def test_clone_sequential_model():
 
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(4, input_shape=(4,)))
+    model.add(keras.layers.BatchNormalization())
     model.add(keras.layers.Dropout(0.5))
     model.add(keras.layers.Dense(4))
 

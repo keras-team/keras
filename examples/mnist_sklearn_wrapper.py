@@ -65,7 +65,7 @@ def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
     model.add(Flatten())
     for layer_size in dense_layer_sizes:
         model.add(Dense(layer_size))
-    model.add(Activation('relu'))
+        model.add(Activation('relu'))
     model.add(Dropout(0.5))
     model.add(Dense(num_classes))
     model.add(Activation('softmax'))

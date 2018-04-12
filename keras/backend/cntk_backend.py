@@ -88,15 +88,8 @@ def in_train_phase(x, alt, training=None):
         return result
 
 
-def in_test_phase(x, alt):
-    global _LEARNING_PHASE
-    # Similar as in_train_phase, use element_select as workaround.
-    if callable(x) and isinstance(x, C.cntk_py.Function) is False:
-        x = x()
-    if callable(alt) and isinstance(alt, C.cntk_py.Function) is False:
-        alt = alt()
-
-    return C.element_select(learning_phase(), x, alt)
+def in_test_phase(x, alt, training=None):
+    return in_train_phase(alt, x, training=training)
 
 
 def _convert_string_dtype(dtype):
@@ -156,9 +149,14 @@ def variable(value, dtype=None, name=None, constraint=None):
     shape = value.shape if hasattr(value, 'shape') else ()
     if hasattr(value, 'dtype') and value.dtype != dtype and len(shape) > 0:
         value = value.astype(dtype)
-    # cntk will init type based on the value type
+
+    # TODO: remove the conversion when cntk supports int32, int64
+    # https://docs.microsoft.com/en-us/python/api/cntk.variables.parameter
+    dtype = 'float32' if 'int' in str(dtype) else dtype
+
     v = C.parameter(shape=shape,
                     init=value,
+                    dtype=dtype,
                     name=_prepare_name(name, 'variable'))
     v._keras_shape = v.shape
     v._uses_learning_phase = False
@@ -565,7 +563,7 @@ def transpose(x):
 def gather(reference, indices):
     # There is a bug in cntk gather op which may cause crash.
     # We have made a fix but not catched in CNTK 2.1 release.
-    # Will udpate with gather op in next release
+    # Will update with gather op in next release
     if _get_cntk_version() >= 2.2:
         return C.ops.gather(reference, indices)
     else:
@@ -1108,7 +1106,10 @@ def reshape(x, shape):
 def permute_dimensions(x, pattern):
     dims = len(int_shape(x))
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    current_layout = tuple([i for i in range(dims)])
+    if isinstance(pattern, list):
+        current_layout = [i for i in range(dims)]
+    else:
+        current_layout = tuple([i for i in range(dims)])
 
     if num_dynamic_axis > 0 and pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]:
         raise ValueError('CNTK backend: the permute pattern %s '
@@ -1512,12 +1513,71 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
-    raise NotImplementedError
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv2d_input(x, data_format)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = C.reshape(C.transpose(depthwise_kernel, (1, 0, 2, 3)),
+                                 (-1, 1) + depthwise_kernel.shape[2:])
+    pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
+    padding = _preprocess_border_mode(padding)
+
+    if dilation_rate == (1, 1):
+        strides = (1,) + strides
+        x = C.convolution(depthwise_kernel, x,
+                          strides=strides,
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+        x = C.convolution(pointwise_kernel, x,
+                          strides=(1, 1, 1),
+                          auto_padding=[False])
+    else:
+        if dilation_rate[0] != dilation_rate[1]:
+            raise ValueError('CNTK Backend: non-square dilation_rate is '
+                             'not supported.')
+        if strides != (1, 1):
+            raise ValueError('Invalid strides for dilated convolution')
+        x = C.convolution(depthwise_kernel, x,
+                          strides=dilation_rate[0],
+                          auto_padding=[False, padding, padding])
+        x = C.convolution(pointwise_kernel, x,
+                          strides=(1, 1, 1),
+                          auto_padding=[False])
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
-    raise NotImplementedError
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+
+    x = _preprocess_conv2d_input(x, data_format)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = C.reshape(C.transpose(depthwise_kernel, (1, 0, 2, 3)),
+                                 (-1, 1) + depthwise_kernel.shape[2:])
+    padding = _preprocess_border_mode(padding)
+    if dilation_rate == (1, 1):
+        strides = (1,) + strides
+        x = C.convolution(depthwise_kernel, x,
+                          strides=strides,
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+    else:
+        if dilation_rate[0] != dilation_rate[1]:
+            raise ValueError('CNTK Backend: non-square dilation_rate is '
+                             'not supported.')
+        if strides != (1, 1):
+            raise ValueError('Invalid strides for dilated convolution')
+        x = C.convolution(depthwise_kernel, x,
+                          strides=dilation_rate[0],
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+    return _postprocess_conv2d_output(x, data_format)
 
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
@@ -1668,8 +1728,8 @@ def batch_flatten(x):
     return x
 
 
-def softmax(x):
-    return C.softmax(x)
+def softmax(x, axis=-1):
+    return C.softmax(x, axis=axis)
 
 
 def softplus(x):
@@ -2039,8 +2099,8 @@ def batch_get_value(xs):
 def set_value(x, value):
     if (isinstance(x, C.variables.Parameter) or
        isinstance(x, C.variables.Constant)):
-        if isinstance(value, float):
-            value = np.full(x.shape, value)
+        if isinstance(value, (float, int)):
+            value = np.full(x.shape, value, dtype=floatx())
         x.value = value
     else:
         raise NotImplementedError
@@ -2079,8 +2139,8 @@ def switch(condition, then_expression, else_expression):
         raise ValueError('Rank of condition should be less'
                          ' than or equal to rank of then and'
                          ' else expressions. ndim(condition)=' +
-                         str(cond_ndim) + ', ndim(then_expression)'
-                         '=' + str(expr_ndim))
+                         str(ndim_cond) + ', ndim(then_expression)'
+                         '=' + str(ndim_expr))
     elif ndim_cond < ndim_expr:
         shape_expr = int_shape(then_expression)
         ndim_diff = ndim_expr - ndim_cond

@@ -325,19 +325,22 @@ def test_Bidirectional_state_reuse():
     timesteps = 3
     units = 3
 
-    inputs = Input((timesteps, dim))
+    input1 = Input((timesteps, dim))
     layer = wrappers.Bidirectional(rnn(units, return_state=True, return_sequences=True))
-    outputs = layer(inputs)
-    output, state = outputs[0], outputs[1:]
+    state = layer(input1)[1:]
 
     # test passing invalid initial_state: passing a tensor
+    input2 = Input((timesteps, dim))
     with pytest.raises(ValueError):
-        output = wrappers.Bidirectional(rnn(units))(output, initial_state=state[0])
+        output = wrappers.Bidirectional(rnn(units))(input2, initial_state=state[0])
 
     # test valid usage: passing a list
-    output = wrappers.Bidirectional(rnn(units))(output, initial_state=state)
-    model = Model(inputs, output)
-    inputs = np.random.rand(samples, timesteps, dim)
+    output = wrappers.Bidirectional(rnn(units))(input2, initial_state=state)
+    model = Model([input1, input2], output)
+    assert len(model.layers) == 4
+    assert isinstance(model.layers[-1].input, list)
+    inputs = [np.random.rand(samples, timesteps, dim),
+              np.random.rand(samples, timesteps, dim)]
     outputs = model.predict(inputs)
 
 
