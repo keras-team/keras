@@ -58,12 +58,8 @@ install:
   # install TensorFlow (CPU version).
   - pip install tensorflow
   
-  # install cntk
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp36-cp36m-linux_x86_64.whl;
-    fi
+  # install cntk (as of the CNTK 2.5 release, users can now install CNTK via PyPI)
+  - pip install cntk
 
   # install pydot for visualization tests
   - conda install pydot graphviz
@@ -84,15 +80,6 @@ install:
   - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/backend/"* ]] || [[ "$entry" == "keras/engine/"* ]] || [[ "$entry" == "keras/layers/"* ]]; then export CORE_CHANGED=True; fi; done
   - export APP_CHANGED=False;
   - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
-
-  #install open mpi
-  - rm -rf ~/mpi
-  - mkdir ~/mpi
-  - pushd ~/mpi
-  - wget http://cntk.ai/PythonWheel/ForKeras/depends/openmpi_1.10-3.zip
-  - unzip ./openmpi_1.10-3.zip
-  - sudo dpkg -i openmpi_1.10-3.deb
-  - popd
 
 # command to run tests
 script:
