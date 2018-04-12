@@ -37,6 +37,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
 
     Note: Please also see
     [How can I install HDF5 or h5py to save my models in Keras?](
+        /getting-started/faq/
         #how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
     in the FAQ for instructions on how to install `h5py`.
 
@@ -771,7 +772,8 @@ class Sequential(Model):
 
         Note: Please also see
         [How can I install HDF5 or h5py to save my models in Keras?](
-            #how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
+        /getting-started/faq/
+        #how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
         in the FAQ for instructions on how to install `h5py`.
         """
 
