@@ -1552,14 +1552,12 @@ def clip(x, min_value, max_value):
 
     # Arguments
         x: Tensor or variable.
-        min_value: Python float or integer.
-        max_value: Python float or integer.
+        min_value: Python float, integer or tensor/variable.
+        max_value: Python float, integer or tensor/variable.
 
     # Returns
         A tensor.
     """
-    if max_value is not None and max_value < min_value:
-        max_value = min_value
     if max_value is None:
         max_value = np.inf
     min_value = _to_tensor(min_value, x.dtype.base_dtype)

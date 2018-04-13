@@ -636,8 +636,16 @@ def pow(x, a):
 
 
 def clip(x, min_value, max_value):
-    if max_value is not None and max_value < min_value:
-        max_value = min_value
+    """Element-wise value clipping.
+
+    # Arguments
+        x: Tensor or variable.
+        min_value: Python float, integer or tensor/variable.
+        max_value: Python float, integer or tensor/variable.
+
+    # Returns
+        A tensor.
+    """
     if max_value is None:
         max_value = np.inf
     return T.clip(x, min_value, max_value)
