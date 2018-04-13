@@ -8,17 +8,16 @@ import argparse
 import json
 import keras
 import sys
-#import upload_benchmarks_bq as bq
 from models import model_config
 
 if keras.backend.backend() == "tensorflow":
-  import tensorflow as tf
+    import tensorflow as tf
 if keras.backend.backend() == "theano":
-  import theano
+    import theano
 if keras.backend.backend() == "cntk":
-  import cntk
+    import cntk
 if keras.backend.backend() == "mxnet":
-  import mxnet
+    import mxnet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--pwd',
@@ -47,10 +46,10 @@ if args.inference:
         inference = True
 
 # Load the json config file for the requested mode.
-# TODO(anjalisridhar): Can we set the benchmarks home dir? Lets add that as an argument that is part of our setup script
 config_file = open(args.pwd + "/config.json", 'r')
 config_contents = config_file.read()
 config = json.loads(config_contents)[args.mode]
+
 
 def get_backend_version():
     if keras.backend.backend() == "tensorflow":
@@ -63,10 +62,10 @@ def get_backend_version():
         return mxnet.__version__
     return "undefined"
 
+
 model = model_config.get_model_config(args.model_name)
 
-use_dataset_tensors=False
+use_dataset_tensors = False
 model.run_benchmark(gpus=config['gpus'], inference=inference, use_dataset_tensors=use_dataset_tensors)
-if args.dry_run == True:
-  print("Model :total_time", model.test_name, model.total_time)
-
+if args.dry_run:
+    print("Model :total_time", model.test_name, model.total_time)

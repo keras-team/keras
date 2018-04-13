@@ -14,29 +14,20 @@ https://arxiv.org/pdf/1603.05027.pdf
 """
 
 from __future__ import print_function
-import keras
-from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-from keras.layers import AveragePooling2D, Input, Flatten
-from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler
-from keras.callbacks import ReduceLROnPlateau
-from keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
-from keras.regularizers import l2
-from keras import backend as K
-from keras.models import Model
-from keras.datasets import cifar10
-from keras.utils import multi_gpu_model
-import numpy as np
 
-import os, sys
-import time, math
-import argparse
+import keras
+from keras.layers import AveragePooling2D, Input, Flatten
+from keras.layers import Dense, Conv2D, BatchNormalization, Activation
+from keras.models import Model
+from keras.regularizers import l2
+
 
 def get_resnet_model(version, input_shape, depth, num_classes):
     if version == 1:
         return resnet_v1(input_shape, depth, num_classes)
     else:
         return resnet_v2(input_shape, depth, num_classes)
+
 
 def resnet_layer(inputs,
                  num_filters=16,
@@ -208,7 +199,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
             else:
                 num_filters_out = num_filters_in * 2
                 if res_block == 0:  # first layer but not first stage
-                    strides = 2    # downsample
+                    strides = 2  # downsample
 
             # bottleneck residual unit
             y = resnet_layer(inputs=x,

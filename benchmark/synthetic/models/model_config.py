@@ -6,11 +6,10 @@ https://github.com/tensorflow/benchmarks/blob/keras-benchmarks/scripts/keras_ben
 from models import resnet50_benchmark
 from models import resnet50_benchmark_tf_keras
 
-def get_model_config(model_name):
 
+def get_model_config(model_name):
     if model_name == 'resnet50':
         return resnet50_benchmark.Resnet50Benchmark()
 
     if model_name == 'resnet50_tf_keras':
         return resnet50_benchmark_tf_keras.Resnet50Benchmark()
-

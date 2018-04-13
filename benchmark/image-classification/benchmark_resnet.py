@@ -14,21 +14,25 @@ https://arxiv.org/pdf/1603.05027.pdf
 """
 
 from __future__ import print_function
-import keras
 
-from keras.optimizers import Adam
-from keras.callbacks import ModelCheckpoint, LearningRateScheduler
-from keras.callbacks import ReduceLROnPlateau
-from keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
-from keras import backend as K
-from keras.datasets import cifar10
-from keras.utils import multi_gpu_model
+import argparse
+import math
+import os
+import random
+import sys
+import time
+
 import numpy as np
 from models.resnet import get_resnet_model
 
-import os, sys
-import time, math
-import argparse
+import keras
+from keras import backend as K
+from keras.callbacks import ModelCheckpoint, LearningRateScheduler
+from keras.callbacks import ReduceLROnPlateau
+from keras.datasets import cifar10
+from keras.optimizers import Adam
+from keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
+from keras.utils import multi_gpu_model
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--data_set',
@@ -61,7 +65,8 @@ if args.num_layer not in ["20", "56", "110"]:
 
 if args.data_set == "imagenet":
     if not args.train_mode or not args.data_path:
-        print("Need to provide training mode(train_on_batch or fit_generator) and data path to imagenet dataset")
+        print("Need to provide training mode(train_on_batch or fit_generator) "
+              "and data path to imagenet dataset")
         sys.exit()
 
     if args.train_mode not in ["train_on_batch", "fit_generator"]:
@@ -74,7 +79,7 @@ else:
     num_gpus = int(args.gpus)
 
 # Training parameters
-batch_size = 32*num_gpus if num_gpus > 0 else 32 # orig paper trained all networks with batch_size=128
+batch_size = 32 * num_gpus if num_gpus > 0 else 32
 epochs = 200
 num_classes = 1000 if args.data_set == "imagenet" else 10
 data_format = K._image_data_format
@@ -133,7 +138,8 @@ if args.data_set == "imagenet":
         label_counter = 0
         for subdir, dirs, files in os.walk(args.data_path):
             for folder in dirs:
-                for folder_subdir, folder_dirs, folder_files in os.walk(os.path.join(subdir, folder)):
+                for folder_subdir, folder_dirs, folder_files in \
+                        os.walk(os.path.join(subdir, folder)):
                     for file in folder_files:
                         train_images.append(os.path.join(folder_subdir, file))
                         train_labels.append(label_counter)
@@ -141,12 +147,12 @@ if args.data_set == "imagenet":
                 label_counter = label_counter + 1
 
         # shuffle data
-        import random
         perm = list(range(len(train_images)))
         random.shuffle(perm)
         train_images = [train_images[index] for index in perm]
         train_labels = [train_labels[index] for index in perm]
         nice_n = math.floor(len(train_images) / batch_size) * batch_size
+
 
 # process batch data for imagenet
 def get_batch():
@@ -159,7 +165,8 @@ def get_batch():
 
     while index < batch_size:
         try:
-            img = load_img(train_images[current_index].rstrip(), target_size=(256,256,3))
+            img = load_img(train_images[current_index].rstrip(),
+                           target_size=(256, 256, 3))
             B[index] = img_to_array(img)
             B[index] /= 255
 
@@ -171,6 +178,7 @@ def get_batch():
             current_index = current_index + 1
 
     return B, keras.utils.to_categorical(L, num_classes)
+
 
 # Prepare Model
 # Model parameter
@@ -198,6 +206,7 @@ depth = int(args.num_layer)
 # Model name, depth and version
 model_type = 'ResNet%dv%d' % (depth, version)
 
+
 def lr_schedule(epoch):
     """Learning Rate Schedule
 
@@ -222,13 +231,16 @@ def lr_schedule(epoch):
     print('Learning rate: ', lr)
     return lr
 
+
 if use_parallel_model:
     # host model on cpu and train copies of it on gpu for TensorFlow backend with multiple gpus
     with tf.device('/cpu:0'):
-        model = get_resnet_model(version=version, input_shape=input_shape, depth=depth, num_classes=num_classes)
+        model = get_resnet_model(version=version, input_shape=input_shape,
+                                 depth=depth, num_classes=num_classes)
 
 else:
-    model = get_resnet_model(version=version, input_shape=input_shape, depth=depth, num_classes=num_classes)
+    model = get_resnet_model(version=version, input_shape=input_shape,
+                             depth=depth, num_classes=num_classes)
 
 # use multi gpu model for multi gpus
 if num_gpus > 1:
@@ -241,14 +253,14 @@ if num_gpus > 1:
     if K.backend() == 'tensorflow':
         parallel_model = multi_gpu_model(model, gpus=num_gpus)
         parallel_model.compile(loss='categorical_crossentropy',
-                      optimizer=Adam(lr=lr_schedule(0)),
-                      metrics=['accuracy'])
+                               optimizer=Adam(lr=lr_schedule(0)),
+                               metrics=['accuracy'])
 else:
     model.compile(loss='categorical_crossentropy',
-                      optimizer=Adam(lr=lr_schedule(0)),
-                      metrics=['accuracy'])
+                  optimizer=Adam(lr=lr_schedule(0)),
+                  metrics=['accuracy'])
 model.summary()
-print(model_type)
+print("Training using: " + model_type)
 
 # Prepare model saving directory.
 save_dir = os.path.join(os.getcwd(), 'saved_models')
@@ -290,9 +302,10 @@ if args.data_set == "imagenet":
                     loss, accuracy = model.train_on_batch(b, l)
                 end_time = time.time()
                 total_time += 1000 * (end_time - start_time)
-                print('batch {}/{} loss: {} accuracy: {} time: {}ms'.format(int(current_index / batch_size),
-                                                                            int(nice_n / batch_size), loss, accuracy,
-                                                                            1000 * (end_time - start_time)))
+                print('batch {}/{} loss: {} accuracy: {} '
+                      'time: {}ms'.format(int(current_index / batch_size),
+                                          int(nice_n / batch_size), loss, accuracy,
+                                          1000 * (end_time - start_time)))
 
             print('finish epoch {}/{}  total epoch time: {}ms'.format(i, epochs, total_time))
 
@@ -300,23 +313,24 @@ if args.data_set == "imagenet":
         if K.backend() == "tensorflow" and num_gpus > 1:
             parallel_model.fit_generator(train_generator, epochs=epochs)
         else:
-            model.fit_generator(train_generator,epochs=epochs)
+            model.fit_generator(train_generator, epochs=epochs)
 else:
     if use_parallel_model:
-        # not saving model due to Keras issue 8123: https://github.com/keras-team/keras/issues/8123
+        # not saving model due to Keras issue 8123:
+        # https://github.com/keras-team/keras/issues/8123
         parallel_model.fit(x_train, y_train,
-             batch_size=batch_size,
-             epochs=epochs,
-             validation_data=(x_test, y_test),
-             shuffle=True,
-             callbacks=[lr_reducer, lr_scheduler])
+                           batch_size=batch_size,
+                           epochs=epochs,
+                           validation_data=(x_test, y_test),
+                           shuffle=True,
+                           callbacks=[lr_reducer, lr_scheduler])
     else:
         model.fit(x_train, y_train,
-             batch_size=batch_size,
-             epochs=epochs,
-             validation_data=(x_test, y_test),
-             shuffle=True,
-             callbacks=callbacks)
+                  batch_size=batch_size,
+                  epochs=epochs,
+                  validation_data=(x_test, y_test),
+                  shuffle=True,
+                  callbacks=callbacks)
 
 # Score trained model.
 scores = model.evaluate(x_test, y_test, verbose=1)

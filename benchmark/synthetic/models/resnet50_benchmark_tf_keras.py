@@ -84,5 +84,3 @@ class Resnet50Benchmark:
 
         if tf.keras.backend.backend() == "tensorflow":
             tf.keras.backend.clear_session()
-
-
