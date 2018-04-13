@@ -451,6 +451,18 @@ def batch_dot(x, y, axes=None):
     if axes is None:
         # behaves like tf.batch_matmul as default
         axes = [x.ndim - 1, y.ndim - 2]
+    if isinstance(axes, tuple):
+        axes = list(axes)
+
+    # workaround because theano doesn't accept axes
+    # which contains the batch axis (0)
+    if axes[0] == 0:
+        x = transpose(x)
+        axes[0] = x.ndim - 1
+    if axes[1] == 0:
+        y = transpose(y)
+        axes[1] = y.ndim - 1
+
     out = T.batched_tensordot(x, y, axes=axes)
     if ndim(out) == 1:
         out = expand_dims(out, 1)
