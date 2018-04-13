@@ -1132,6 +1132,9 @@ def batch_dot(x, y, axes=None):
         axes = (axes, axes)
     x_ndim = ndim(x)
     y_ndim = ndim(y)
+    if axes is None:
+        # behaves like tf.batch_matmul as default
+        axes = [x_ndim - 1, y_ndim - 2]
     if x_ndim > y_ndim:
         diff = x_ndim - y_ndim
         y = tf.reshape(y, tf.concat([tf.shape(y), [1] * (diff)], axis=0))
