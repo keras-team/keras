@@ -532,7 +532,11 @@ def batch_dot(x, y, axes=None):
         axes = [len(x_shape) - 1, len(y_shape) - 2]
 
     if len(x_shape) == 2 and len(y_shape) == 2:
-        return sum(x * y, axis=1, keepdims=True)
+        if axes[0] == axes[1]:
+            result = sum(x * y, axis=axes[0], keepdims=True)
+            return result if axes[0] == 1 else transpose(result)
+        else:
+            return sum(x * transpose(y), axis=axes[0], keepdims=True)
     else:
         if len(y_shape) == 2:
             y = expand_dims(y)
