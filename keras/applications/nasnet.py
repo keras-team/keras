@@ -163,9 +163,9 @@ def NASNet(input_shape=None,
             weights == 'imagenet'):
         raise ValueError('When specifying the input shape of a NASNet'
                          ' and loading `ImageNet` weights, '
-                         'all dimensions must be defined by an integer. '
-                         '`None` is not a valid value here, but you have '
-                         'set `input_shape=' + str(input_shape) + '`.')
+                         'the input_shape argument must be static '
+                         '(no None entries). Got: `input_shape='
+                         + str(input_shape) + '`.')
 
     if default_size is None:
         default_size = 331
