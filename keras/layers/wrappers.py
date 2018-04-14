@@ -448,6 +448,8 @@ class Bidirectional(Wrapper):
         self.built = True
 
     def compute_mask(self, inputs, mask):
+        if isinstance(mask, list):
+            mask = mask[0]
         if self.return_sequences:
             if not self.merge_mode:
                 output_mask = [mask, mask]
