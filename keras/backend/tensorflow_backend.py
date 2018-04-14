@@ -2865,7 +2865,7 @@ def in_train_phase(x, alt, training=None):
         training = learning_phase()
         uses_learning_phase = True
     else:
-        uses_learning_phase = False
+        uses_learning_phase = getattr(training, '_uses_learning_phase', False)
 
     if training is 1 or training is True:
         if callable(x):
