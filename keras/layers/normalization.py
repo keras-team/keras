@@ -73,7 +73,7 @@ class BatchNormalization(Layer):
                  gamma_constraint=None,
                  **kwargs):
         self._trainable = True
-        self._trainable_tensor = K.variable(1, dtype='int32', name='trainable')
+        self._trainable_tensor = K.variable(1, dtype='float32', name='trainable')
         super(BatchNormalization, self).__init__(**kwargs)
         self.supports_masking = True
         self.axis = axis
@@ -191,8 +191,8 @@ class BatchNormalization(Layer):
             return normalize_inference()
         elif training is None:
             # If it's undefined then if trainable tensor is on respect learning phase else set to false
-            training = K.switch(self._trainable_tensor, K.cast(K.learning_phase(), 'int32'),
-                                K.constant(0, dtype='int32'))
+            training = K.switch(self._trainable_tensor, K.cast(K.learning_phase(), 'float32'),
+                                K.constant(0, dtype='float32'))
             training._uses_learning_phase = True
 
         # If the learning is either dynamic, or set to training:
