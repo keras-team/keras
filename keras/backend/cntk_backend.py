@@ -1353,31 +1353,37 @@ def rnn(step_function, inputs, initial_states,
                                   'variable-length sequences. Please specify a '
                                   'static length for your sequences.')
 
+    rnn_inputs = inputs
     if need_convert:
         if go_backwards:
-            inputs = reverse(inputs, 1)
+            rnn_inputs = reverse(rnn_inputs, 1)
 
-        inputs = C.to_sequence(inputs)
+        rnn_inputs = C.to_sequence(rnn_inputs)
 
-        j = 0
-        while j < len(constants):
-            if isinstance(constants[j], list):
-                i = 0
-                while i < len(constants[j]):
-                    if _get_dynamic_axis_num(constants[j][i]) == 1:
-                        constants[j][i] = C.sequence.broadcast_as(constants[j][i], inputs)
-                    i += 1
+        rnn_constants = []
+        for constant in constants:
+            if isinstance(constant, list):
+                new_c = []
+                for c in constant:
+                    if _get_dynamic_axis_num(c) == 1:
+                        new_c.append(C.sequence.broadcast_as(c, rnn_inputs))
+                    else:
+                        new_c.append(c)
+                rnn_constants.append(new_c)
             else:
-                if _get_dynamic_axis_num(constants[j]) == 1:
-                    constants[j] = C.sequence.broadcast_as(constants[j], inputs)
-            j += 1
+                if _get_dynamic_axis_num(constant) == 1:
+                    rnn_constants.append(C.sequence.broadcast_as(constant, rnn_inputs))
+                else:
+                    rnn_constants.append(constant)
+    else:
+        rnn_constants = constants
 
     if mask is not None and not has_seq_axis(mask):
         if go_backwards:
             mask = reverse(mask, 1)
         if len(int_shape(mask)) == 2:
             mask = expand_dims(mask)
-        mask = C.to_sequence_like(mask, inputs)
+        mask = C.to_sequence_like(mask, rnn_inputs)
 
     states = tuple(initial)
 
@@ -1389,7 +1395,7 @@ def rnn(step_function, inputs, initial_states,
             for s, p in zip(states, place_holders):
                 past_values.append(C.sequence.past_value(p, s))
             new_output, new_states = step_function(
-                x, tuple(past_values) + tuple(constants))
+                x, tuple(past_values) + tuple(rnn_constants))
 
             if getattr(new_output, '_uses_learning_phase', False):
                 global uses_learning_phase
@@ -1404,7 +1410,7 @@ def rnn(step_function, inputs, initial_states,
                 new_output = n_s[0]
             return new_output, n_s
 
-        final_output, final_states = _recurrence(inputs, states, mask)
+        final_output, final_states = _recurrence(rnn_inputs, states, mask)
         last_output = C.sequence.last(final_output)
         last_states = [C.sequence.last(s) for s in final_states]
 
