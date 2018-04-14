@@ -92,12 +92,13 @@ class BatchNormalization(Layer):
 
     @property
     def trainable(self):
+        # Use cached value to avoid unnecessary get_value() calls
         return self._trainable
 
     @trainable.setter
     def trainable(self, trainable):
         trainable = bool(trainable)
-        # Speed it up by avoiding unnecessary set_value() calls
+        # Change when different to avoid unnecessary set_value() calls
         if self._trainable != trainable:
             self._trainable = trainable
             K.set_value(self._trainable_tensor, 1 if trainable else 0)
