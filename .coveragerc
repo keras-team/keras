@@ -17,3 +17,4 @@ omit =
     keras/datasets/*
     keras/layers/cudnn_recurrent.py
     keras/legacy/*
+    keras/utils/multi_gpu_utils.py
