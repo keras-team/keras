@@ -242,7 +242,7 @@ def test_batchnorm_trainable():
     model = get_model(bn_mean, bn_std)
     model.compile(loss='mse', optimizer='rmsprop')
     out = model.predict(input_4)
-    assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-4)
+    assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
 
 
 if __name__ == '__main__':
