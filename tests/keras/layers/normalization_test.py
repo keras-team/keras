@@ -12,6 +12,7 @@ from keras import backend as K
 input_1 = np.arange(10)
 input_2 = np.zeros(10)
 input_3 = np.ones((10))
+input_4 = np.expand_dims(np.arange(10.), axis=1)
 input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
 
@@ -221,6 +222,36 @@ def test_that_trainable_disables_updates():
     model.train_on_batch(val_a, val_out)
     x2 = model.predict(val_a)
     assert_allclose(x1, x2, atol=1e-7)
+
+
+@keras_test
+def test_batchnorm_trainable():
+    bn_mean = 0.5
+    bn_std = 10.
+
+    def get_model(bn_mean, bn_std):
+        input = Input(shape=(1,))
+        x = normalization.BatchNormalization(center=False, scale=False)(input)
+        model = Model(input, x)
+        model.set_weights([np.array([bn_mean]), np.array([bn_std**2])])
+        return model
+
+    # Simulates training-mode with trainable layer. Should use mini-batch statistics.
+    K.set_learning_phase(1)
+    model = get_model(bn_mean, bn_std)
+    model.layers[1].trainable = True
+    model.compile(loss='mse', optimizer='rmsprop')
+    out = model.predict(input_4)
+    assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-4)
+
+    # In all other cases we should use the moving mean and variance from BN.
+    for lp, trainable in [(1, False), (0, True), (0, False)]:
+        K.set_learning_phase(lp)
+        model = get_model(bn_mean, bn_std)
+        model.layers[1].trainable = trainable
+        model.compile(loss='mse', optimizer='rmsprop')
+        out = model.predict(input_4)
+        assert_allclose((input_4 - bn_mean) / bn_std, out, atol=1e-4)
 
 
 if __name__ == '__main__':
