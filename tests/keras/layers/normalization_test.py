@@ -231,9 +231,10 @@ def test_batchnorm_trainable():
 
     def get_model(bn_mean, bn_std):
         input = Input(shape=(1,))
-        x = normalization.BatchNormalization(center=False, scale=False)(input)
+        x = normalization.BatchNormalization()(input)
         model = Model(input, x)
-        model.set_weights([np.array([bn_mean]), np.array([bn_std**2])])
+        model.set_weights([np.array([1.]), np.array([0.]),
+                           np.array([bn_mean]), np.array([bn_std**2])])
         return model
 
     # Simulates training-mode with trainable layer. Should use mini-batch statistics.
