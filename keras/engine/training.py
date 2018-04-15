@@ -23,6 +23,7 @@ from ..utils.generic_utils import Progbar
 from .. import callbacks as cbks
 from ..legacy import interfaces
 
+
 def _is_dynamic_lp():
     lp = K.learning_phase()
     if K.backend() == 'cntk':
@@ -33,6 +34,7 @@ def _is_dynamic_lp():
         return lp.is_dynamic
     else:
         return not isinstance(lp, int)
+
 
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
