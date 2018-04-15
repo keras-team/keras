@@ -423,8 +423,15 @@ class ImageDataGenerator(object):
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
         zca_whitening: Boolean. Apply ZCA whitening.
         rotation_range: Int. Degree range for random rotations.
-        width_shift_range: Float (fraction of total width). Range for random horizontal shifts.
-        height_shift_range: Float (fraction of total height). Range for random vertical shifts.
+        width_shift_range: float, 1-D array-like or int
+            float: fraction of total width, if < 1, or pixels if >= 1.
+            1-D array-like: random elements from the array.
+            int: integer number of pixels from interval
+                `(-width_shift_range, +width_shift_range)`
+            With `width_shift_range=2` possible values are integers [-1, 0, +1],
+            same as with `width_shift_range=[-1, 0, +1]`,
+            while with `width_shift_range=1.0` possible values are floats in
+            the interval [-1.0, +1.0).
         shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction in degrees)
         zoom_range: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
         channel_shift_range: Float. Range for random channel shifts.
@@ -839,15 +846,25 @@ class ImageDataGenerator(object):
             theta = 0
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
-            if self.height_shift_range < 1:
+            try:  # 1-D array-like or int
+                tx = np.random.choice(self.height_shift_range)
+                tx *= np.random.choice([-1, 1])
+            except ValueError:  # floating point
+                tx = np.random.uniform(-self.height_shift_range,
+                                       self.height_shift_range)
+            if np.max(self.height_shift_range) < 1:
                 tx *= x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
-            if self.width_shift_range < 1:
+            try:  # 1-D array-like or int
+                ty = np.random.choice(self.width_shift_range)
+                ty *= np.random.choice([-1, 1])
+            except ValueError:  # floating point
+                ty = np.random.uniform(-self.width_shift_range,
+                                       self.width_shift_range)
+            if np.max(self.width_shift_range) < 1:
                 ty *= x.shape[img_col_axis]
         else:
             ty = 0
