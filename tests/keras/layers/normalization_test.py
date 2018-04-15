@@ -243,6 +243,9 @@ def test_batchnorm_trainable():
     model.compile(loss='mse', optimizer='rmsprop')
     out = model.predict(input_4)
     assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
+    if K.backend() == 'cntk':
+        # Reset the learning phase for next tests
+        K.learning_phase().is_dynamic = True
 
 
 if __name__ == '__main__':
