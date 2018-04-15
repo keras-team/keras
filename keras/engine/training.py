@@ -24,14 +24,15 @@ from .. import callbacks as cbks
 from ..legacy import interfaces
 
 def _is_dynamic_lp():
+    lp = K.learning_phase()
     if K.backend() == 'cntk':
         # Ugly hack for CNTK because of the way Learning Phase
         # is implemented. Since it does not support static values
         # we use this variable to know if it was set statically
         # by the user.
-        return getattr(K, '_DYNAMIC_LEARNING_PHASE', True)
+        return lp.is_dynamic
     else:
-        return not isinstance(K.learning_phase(), int)
+        return not isinstance(lp, int)
 
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
