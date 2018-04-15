@@ -57,7 +57,7 @@ def test_TerminateOnNaN():
                         validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
     loss = history.history['loss']
     assert len(loss) == 1
-    assert loss[0] == np.inf
+    assert loss[0] == np.inf or np.isnan(loss[0])
 
     # case 2 fit_generator
     def data_generator():
@@ -662,6 +662,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support it yet.')
 def test_TensorBoard_convnet(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')

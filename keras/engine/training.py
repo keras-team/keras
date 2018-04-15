@@ -2564,3 +2564,8 @@ class Model(Container):
             return [out[0] for out in all_outs]
         else:
             return [np.concatenate(out) for out in all_outs]
+
+# We need to overload the Keras Model class to handle MXNet model building activities.
+# get_model() returns the reference to MXNetModel that inherits and extends keras.engine.Model.
+if K.backend() == 'mxnet':
+    Model = K.get_model()

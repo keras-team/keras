@@ -3,8 +3,6 @@ import random
 import os
 from multiprocessing import Process, Queue
 from keras.utils.test_utils import keras_test
-from keras.utils.test_utils import layer_test
-from keras.models import Sequential
 from keras import applications
 from keras import backend as K
 
@@ -55,6 +53,8 @@ def _test_application_basic(app, last_dim=1000):
     assert output_shape == (None, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 @keras_test
 def _test_application_notop(app, last_dim):
     output_shape = _get_output_shape(
@@ -62,6 +62,8 @@ def _test_application_notop(app, last_dim):
     assert output_shape == (None, None, None, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 @keras_test
 def _test_application_variable_input_channels(app, last_dim):
     if K.image_data_format() == 'channels_first':
@@ -81,6 +83,8 @@ def _test_application_variable_input_channels(app, last_dim):
     assert output_shape == (None, None, None, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 @keras_test
 def _test_app_pooling(app, last_dim):
     output_shape = _get_output_shape(
@@ -90,6 +94,8 @@ def _test_app_pooling(app, last_dim):
     assert output_shape == (None, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 def test_resnet50():
     app = applications.ResNet50
     last_dim = 2048
@@ -99,6 +105,8 @@ def test_resnet50():
     _test_app_pooling(app, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 def test_vgg():
     app = random.choice([applications.VGG16, applications.VGG19])
     last_dim = 512
@@ -119,6 +127,8 @@ def test_xception():
     _test_app_pooling(app, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 def test_inceptionv3():
     app = applications.InceptionV3
     last_dim = 2048
@@ -128,6 +138,8 @@ def test_inceptionv3():
     _test_app_pooling(app, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 def test_inceptionresnetv2():
     app = applications.InceptionResNetV2
     last_dim = 1536
@@ -137,6 +149,8 @@ def test_inceptionresnetv2():
     _test_app_pooling(app, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support depthwise_conv2d yet.')
 def test_mobilenet():
     app = applications.MobileNet
     last_dim = 1024
@@ -146,6 +160,8 @@ def test_mobilenet():
     _test_app_pooling(app, last_dim)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend requires input shape for convolution')
 def test_densenet():
     app, last_dim = random.choice(DENSENET_LIST)
     _test_application_basic(app)

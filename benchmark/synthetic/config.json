@@ -1,0 +1,39 @@
+{
+  "cpu_config": {
+    "cpu_num_cores": 32,
+    "cpu_memory": 244,
+    "cpu_memory_info": "GB",
+    "platform_type": "AWS",
+    "platform_machine_type": "p3.8xlarge",
+    "gpus": 0,
+    "gpu_platform": "NVIDIA Tesla V100"
+  },
+   "gpu_config": {
+    "cpu_num_cores": 32,
+    "cpu_memory": 244,
+    "cpu_memory_info": "GB",
+    "platform_type": "AWS",
+    "platform_machine_type": "p3.8xlarge",
+    "gpus": 1,
+    "gpu_platform": "NVIDIA Tesla V100"
+  },
+  "4_gpu_config": {
+    "cpu_num_cores": 32,
+    "cpu_memory": 244,
+    "cpu_memory_info": "GB",
+    "platform_type": "AWS",
+    "platform_machine_type": "p3.8xlarge",
+    "gpus": 4,
+    "gpu_platform": "NVIDIA Tesla V100"
+  },
+  "8_gpu_config": {
+    "cpu_num_cores": 64,
+    "cpu_memory": 488,
+    "cpu_memory_info": "GB",
+    "platform_type": "AWS",
+    "platform_machine_type": "p3.16xlarge",
+    "gpus": 8,
+    "gpu_platform": "NVIDIA Tesla V100"
+  }
+}
+

@@ -3,6 +3,7 @@ import json
 from keras.utils.test_utils import keras_test
 import keras
 import numpy as np
+from keras import backend as K
 
 
 @keras_test
@@ -768,6 +769,9 @@ def test_cropping3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support '
+                           'sparse_categorical_crossentropy yet.')
 @keras_test
 def test_generator_methods_interface():
     def train_generator():
@@ -846,6 +850,8 @@ def test_spatialdropout3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support get_updates() yet.')
 @keras_test
 def test_optimizer_get_updates_legacy_interface():
     for optimizer_cls in [keras.optimizers.RMSprop,

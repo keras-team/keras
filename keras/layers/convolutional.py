@@ -129,7 +129,11 @@ class _Conv(Layer):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
-        kernel_shape = self.kernel_size + (input_dim, self.filters)
+
+        if self.data_format == 'channels_first' and K.backend() == 'mxnet':
+            kernel_shape = (self.filters, input_dim) + self.kernel_size
+        else:
+            kernel_shape = self.kernel_size + (input_dim, self.filters)
 
         self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
@@ -729,7 +733,11 @@ class Conv2DTranspose(Conv2D):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
-        kernel_shape = self.kernel_size + (self.filters, input_dim)
+
+        if self.data_format == 'channels_first' and K.backend() == 'mxnet':
+            kernel_shape = (input_dim, self.filters) + self.kernel_size
+        else:
+            kernel_shape = self.kernel_size + (self.filters, input_dim)
 
         self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
@@ -945,7 +953,10 @@ class Conv3DTranspose(Conv3D):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = input_shape[channel_axis]
-        kernel_shape = self.kernel_size + (self.filters, input_dim)
+        if self.data_format == 'channels_first' and K.backend() == 'mxnet':
+            kernel_shape = (input_dim, self.filters) + self.kernel_size
+        else:
+            kernel_shape = self.kernel_size + (self.filters, input_dim)
 
         self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,

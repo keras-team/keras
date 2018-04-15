@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from keras.applications import imagenet_utils as utils
 from keras.models import Model
 from keras.layers import Input, Lambda
+from keras import backend as K
 
 
 def test_preprocess_input():
@@ -27,6 +28,8 @@ def test_preprocess_input():
     assert_allclose(out1, out2.transpose(1, 2, 0))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support Lambda')
 def test_preprocess_input_symbolic():
     # Test image batch
     x = np.random.uniform(0, 255, (2, 10, 10, 3))

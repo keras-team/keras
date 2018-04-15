@@ -21,11 +21,28 @@ allobj = [losses.mean_squared_error,
           losses.logcosh,
           losses.categorical_hinge]
 
+# MXNet backend does not support logcosh and kullback_leibler_divergence loss function yet.
+allobj_mxnet = [losses.mean_squared_error,
+                losses.mean_absolute_error,
+                losses.mean_absolute_percentage_error,
+                losses.mean_squared_logarithmic_error,
+                losses.squared_hinge,
+                losses.hinge,
+                losses.binary_crossentropy,
+                losses.kullback_leibler_divergence,
+                losses.poisson,
+                losses.cosine_proximity,
+                losses.categorical_hinge]
+
 
 def test_objective_shapes_3d():
     y_a = K.variable(np.random.random((5, 6, 7)))
     y_b = K.variable(np.random.random((5, 6, 7)))
-    for obj in allobj:
+    if K.backend() == 'mxnet':
+        test_obj = allobj_mxnet
+    else:
+        test_obj = allobj
+    for obj in test_obj:
         objective_output = obj(y_a, y_b)
         assert K.eval(objective_output).shape == (5, 6)
 
@@ -33,11 +50,17 @@ def test_objective_shapes_3d():
 def test_objective_shapes_2d():
     y_a = K.variable(np.random.random((6, 7)))
     y_b = K.variable(np.random.random((6, 7)))
-    for obj in allobj:
+    if K.backend() == 'mxnet':
+        test_obj = allobj_mxnet
+    else:
+        test_obj = allobj
+    for obj in test_obj:
         objective_output = obj(y_a, y_b)
         assert K.eval(objective_output).shape == (6,)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_cce_one_hot():
     y_a = K.variable(np.random.randint(0, 7, (5, 6)))
     y_b = K.variable(np.random.random((5, 6, 7)))
@@ -59,6 +82,8 @@ def test_categorical_hinge():
     assert np.isclose(expected_loss, np.mean(loss))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_sparse_categorical_crossentropy():
     y_pred = K.variable(np.array([[0.3, 0.6, 0.1],
                                   [0.1, 0.2, 0.7]]))
@@ -68,6 +93,8 @@ def test_sparse_categorical_crossentropy():
     assert np.isclose(expected_loss, np.mean(loss))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_sparse_categorical_crossentropy_4d():
     y_pred = K.variable(np.array([[[[0.7, 0.1, 0.2],
                                     [0.0, 0.3, 0.7],
@@ -112,6 +139,9 @@ def test_serializing_loss_class():
     assert deserialized.mse_fraction == 0.3
 
 
+# https://github.com/deep-learning-tools/keras/issues/25
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not fully support custom loss yet.')
 def test_serializing_model_with_loss_class(tmpdir):
     model_filename = str(tmpdir / 'custom_loss.hdf')
 

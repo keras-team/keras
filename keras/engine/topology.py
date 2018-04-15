@@ -3318,7 +3318,8 @@ def _need_convert_kernel(original_backend):
         return False
     uses_correlation = {'tensorflow': True,
                         'theano': False,
-                        'cntk': True}
+                        'cntk': True,
+                        'mxnet': False}
     return uses_correlation[original_backend] != uses_correlation[K.backend()]
 
 

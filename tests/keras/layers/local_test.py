@@ -3,6 +3,11 @@ import pytest
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras.layers import local
+from keras import backend as K
+
+
+pytestmark = pytest.mark.skipif(K.backend() == 'mxnet',
+                                reason='MXNet backend does not support local_conv1d/2d yet.')
 
 
 @keras_test

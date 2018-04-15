@@ -4,9 +4,7 @@ from numpy.testing import assert_allclose
 from keras import layers
 from keras import models
 from keras import backend as K
-from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
-from keras.layers import merge
 
 
 @keras_test
@@ -238,6 +236,8 @@ def test_merge_dot():
     assert_allclose(out, expected, atol=1e-4)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not allow broadcast for unknown shape in Layers yet')
 @keras_test
 def test_merge_broadcast():
     # shapes provided

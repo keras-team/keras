@@ -19,8 +19,8 @@ else:
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support dilated conv")
+@pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
+                    reason='cntk/mxnet do not support Causal padding in conv1d')
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -113,7 +113,13 @@ def test_conv_1d():
 
 @keras_test
 def test_maxpooling_1d():
-    for padding in ['valid', 'same']:
+    # MXNet backend does not support pooling with same mode yet.
+    if K.backend() == 'mxnet':
+        padding_modes = ['valid']
+    else:
+        padding_modes = ['valid', 'same']
+
+    for padding in padding_modes:
         for stride in [1, 2]:
             layer_test(convolutional.MaxPooling1D,
                        kwargs={'strides': stride,
@@ -123,7 +129,13 @@ def test_maxpooling_1d():
 
 @keras_test
 def test_averagepooling_1d():
-    for padding in ['valid', 'same']:
+    # MXNet backend does not support pooling with same mode yet.
+    if K.backend() == 'mxnet':
+        padding_modes = ['valid']
+    else:
+        padding_modes = ['valid', 'same']
+
+    for padding in padding_modes:
         for stride in [1, 2]:
             layer_test(convolutional.AveragePooling1D,
                        kwargs={'strides': stride,
@@ -133,7 +145,7 @@ def test_averagepooling_1d():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support dilated conv")
+                    reason='cntk does not support dilated conv')
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -185,7 +197,6 @@ def test_convolution_2d():
                                                  batch_input_shape=(None, None, 5, None))])
 
 
-@keras_test
 def test_conv2d_transpose():
     num_samples = 2
     filters = 2
@@ -279,7 +290,8 @@ def test_separable_conv_1d():
                                                           batch_input_shape=(None, 5, None))])
 
 
-@pytest.mark.skipif(K.backend() == 'theano', reason='Theano does not support it yet')
+@pytest.mark.skipif(K.backend() == 'theano' or K.backend() == 'mxnet',
+                    reason='Theano/MXNet does not support it yet')
 @keras_test
 def test_separable_conv_2d():
     num_samples = 2
@@ -332,6 +344,8 @@ def test_separable_conv_2d():
                                                           batch_input_shape=(None, None, 5, None))])
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet does not support depthwise_conv_2d yet')
 @keras_test
 def test_depthwise_conv_2d():
     num_samples = 2
@@ -468,9 +482,8 @@ def test_convolution_3d():
                                'kernel_size': 3,
                                'padding': padding,
                                'strides': strides},
-                       input_shape=(num_samples,
-                                    input_len_dim1, input_len_dim2, input_len_dim3,
-                                    stack_size))
+                       input_shape=(num_samples, stack_size,
+                                    input_len_dim1, input_len_dim2, input_len_dim3))
 
     layer_test(convolutional.Convolution3D,
                kwargs={'filters': filters,
@@ -488,6 +501,8 @@ def test_convolution_3d():
                             stack_size))
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support Conv3D Transpose on CPU yet.')
 @keras_test
 def test_conv3d_transpose():
     filters = 2
@@ -837,8 +852,8 @@ def test_upsampling_3d():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support slice to 0 dimension")
+@pytest.mark.skipif((K.backend() == 'cntk' or K.backend() == 'mxnet'),
+                    reason='cntk/mxnet does not support slice to 0 dimension')
 def test_cropping_1d():
     num_samples = 2
     time_length = 4
@@ -850,6 +865,8 @@ def test_cropping_1d():
                input_shape=inputs.shape)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support cropping yet.')
 def test_cropping_2d():
     num_samples = 2
     stack_size = 2
@@ -914,6 +931,8 @@ def test_cropping_2d():
         layer = convolutional.Cropping2D(cropping=lambda x: x)
 
 
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support cropping yet.')
 def test_cropping_3d():
     num_samples = 2
     stack_size = 2

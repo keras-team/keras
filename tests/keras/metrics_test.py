@@ -22,6 +22,20 @@ all_metrics = [
     metrics.logcosh,
 ]
 
+# MXNet backend does not support categorical_crossentropy and logcosh yet.
+all_metrics_mxnet = [
+    metrics.binary_accuracy,
+    metrics.categorical_accuracy,
+    metrics.mean_squared_error,
+    metrics.mean_absolute_error,
+    metrics.mean_absolute_percentage_error,
+    metrics.mean_squared_logarithmic_error,
+    metrics.squared_hinge,
+    metrics.hinge,
+    metrics.binary_crossentropy,
+    metrics.poisson,
+    metrics.cosine_proximity]
+
 all_sparse_metrics = [
     metrics.sparse_categorical_accuracy,
     metrics.sparse_categorical_crossentropy,
@@ -32,13 +46,19 @@ all_sparse_metrics = [
 def test_metrics():
     y_a = K.variable(np.random.random((6, 7)))
     y_b = K.variable(np.random.random((6, 7)))
-    for metric in all_metrics:
+    if K.backend() == 'mxnet':
+        test_metrics = all_metrics_mxnet
+    else:
+        test_metrics = all_metrics
+
+    for metric in test_metrics:
         output = metric(y_a, y_b)
         print(metric.__name__)
         assert K.eval(output).shape == (6,)
 
 
-@keras_test
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `sparse` yet.')
 def test_sparse_metrics():
     for metric in all_sparse_metrics:
         y_a = K.variable(np.random.randint(0, 7, (6,)), dtype=K.floatx())
@@ -86,9 +106,10 @@ def test_top_k_categorical_accuracy():
     assert failure_result == 0
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `sparse` yet.')
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='CNTK backend does not support top_k yet')
-@keras_test
+                    reason='keras cntk backend does not support `top_k` yet')
 def test_sparse_top_k_categorical_accuracy():
     y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
     y_true = K.variable(np.array([[1], [0]]))
@@ -106,6 +127,8 @@ def test_sparse_top_k_categorical_accuracy():
     assert failure_result == 0
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support `update` operations yet.')
 @keras_test
 @pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
 def test_stateful_metrics(metrics_mode):

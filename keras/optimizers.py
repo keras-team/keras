@@ -688,6 +688,10 @@ class TFOptimizer(Optimizer):
         raise NotImplementedError
 
 
+if K.backend() == 'mxnet':
+    SGD, Adagrad, Adadelta, Adam, Adamax, RMSprop, Nadam = K.get_optimizers()
+
+
 # Aliases.
 
 sgd = SGD

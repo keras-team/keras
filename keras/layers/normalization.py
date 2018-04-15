@@ -74,7 +74,6 @@ class BatchNormalization(Layer):
                  **kwargs):
         super(BatchNormalization, self).__init__(**kwargs)
         self.supports_masking = True
-        self.axis = axis
         self.momentum = momentum
         self.epsilon = epsilon
         self.center = center
@@ -87,6 +86,12 @@ class BatchNormalization(Layer):
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
+
+        # MXNet backend is not yet capable of automatically handling feature axis in channels_last format.
+        if axis == -1 and K.image_data_format() == 'channels_first' and K.backend() == 'mxnet':
+            self.axis = 1
+        else:
+            self.axis = axis
 
     def build(self, input_shape):
         dim = input_shape[self.axis]
@@ -128,6 +133,14 @@ class BatchNormalization(Layer):
         self.built = True
 
     def call(self, inputs, training=None):
+
+        # MXNet Backend calculates moving mean and moving variance in batch_norm operation directly.
+        # Hence, calling native mxnet batchnorm.
+        # This is functional for now, however, needs to be revisited to do it in native Keras way.
+        if K.backend() == 'mxnet':
+            return K.mxnet_batchnorm(inputs, self.gamma, self.beta, self.moving_mean, self.moving_variance,
+                                     self.momentum, axis=self.axis, epsilon=self.epsilon)
+
         input_shape = K.int_shape(inputs)
         # Prepare broadcasting shape.
         ndim = len(input_shape)

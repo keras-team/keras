@@ -213,6 +213,7 @@ def test_lambda():
         assert o2._keras_shape == (None, 3, 2, 1)
 
         model = Model(i, o)
+        model.compile('rmsprop', 'mse')
 
         x = np.random.random((4, 3, 2, 1))
         out1, out2 = model.predict(x)
@@ -315,6 +316,8 @@ def test_dense():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'mxnet'),
+                    reason='MXNet backend does not support native functional API yet.')
 def test_activity_regularization():
     layer = layers.ActivityRegularization(l1=0.01, l2=0.01)
 

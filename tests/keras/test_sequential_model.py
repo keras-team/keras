@@ -289,6 +289,9 @@ def test_rebuild_model():
     assert(model.get_layer(index=-1).output_shape == (None, 32))
 
 
+# https://github.com/deep-learning-tools/keras/issues/30
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not fully support functional_model yet.')
 @keras_test
 def test_clone_functional_model():
     val_a = np.random.random((10, 4))
@@ -334,6 +337,8 @@ def test_clone_functional_model():
     new_model.train_on_batch(None, val_out)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not fully support clone model yet.')
 @keras_test
 def test_clone_sequential_model():
     val_a = np.random.random((10, 4))
@@ -369,6 +374,8 @@ def test_clone_sequential_model():
     new_model.train_on_batch(None, val_out)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support update_add yet.')
 @keras_test
 def test_sequential_update_disabling():
     val_a = np.random.random((10, 4))

@@ -42,6 +42,10 @@ def test_maxout_dense():
                input_shape=(3, 2))
 
 
+# https://github.com/deep-learning-tools/keras/issues/20
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support predict without compile.'
+                           'To be fixed.')
 @keras_test
 def test_merge():
     # test modes: 'sum', 'mul', 'concat', 'ave', 'cos', 'dot'.
@@ -183,6 +187,8 @@ def test_merge():
     assert np.all(model.predict(inputs) == output)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support bool dtype yet.')
 @keras_test
 def test_merge_mask_2d():
     rand = lambda *shape: np.asarray(np.random.random(shape) > 0.5, dtype='int32')

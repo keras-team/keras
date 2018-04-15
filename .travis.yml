@@ -21,6 +21,10 @@ matrix:
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.6
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+        - python: 2.7
+          env: KERAS_BACKEND=mxnet PYTHONWARNINGS=ignore
+        - python: 3.6
+          env: KERAS_BACKEND=mxnet PYTHONWARNINGS=ignore
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -38,7 +42,7 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest pandas
+  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION nose scipy matplotlib pandas pytest h5py
   - source activate test-environment
   - pip install --only-binary=numpy,scipy numpy nose scipy matplotlib h5py theano
   - conda install mkl mkl-service
@@ -57,7 +61,11 @@ install:
 
   # install TensorFlow (CPU version).
   - pip install tensorflow
-  
+
+  # install Apache MXNet (CPU version).
+  - pip install mxnet
+  - pip install --upgrade numpy
+
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
@@ -77,6 +85,9 @@ install:
     fi
   - if [[ "$KERAS_BACKEND" != "cntk" ]]; then
       echo '    keras/backend/cntk_backend.py' >> .coveragerc;
+    fi
+  - if [[ "$KERAS_BACKEND" != "mxnet" ]]; then
+      echo '    keras/backend/mxnet_backend.py' >> .coveragerc;
     fi
 
   # detect whether core files are changed or not

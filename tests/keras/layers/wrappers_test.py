@@ -12,6 +12,10 @@ from keras import backend as K
 from keras.engine.topology import _object_list_uid, _to_list
 
 
+pytestmark = pytest.mark.skipif(K.backend() == 'mxnet',
+                                reason='MXNet backend does not support TimeDistributed and RNN yet')
+
+
 @keras_test
 def test_TimeDistributed():
     # first, test with Dense layer

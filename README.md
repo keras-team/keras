@@ -2,12 +2,15 @@
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
-[![Build Status](https://travis-ci.org/keras-team/keras.svg?branch=master)](https://travis-ci.org/keras-team/keras)
+| ubuntu/python-2.7 | ubuntu/python-3.5 |
+|---------|---------|
+| ![Python3 Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoidHBzRFVlMG5SMGFQRTVzMUhxejNIK2dZRU1kb3p2c0JIbTVObDZtdDgxYThYdjRCZlg0RGF1eCsrSUtGQmgwYkFkZzJaT1BrdHpqcVJqcWE2aSt6QmRnPSIsIml2UGFyYW1ldGVyU3BlYyI6IklPMmRORld4TDYrdWNrWDciLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) | ![Python2 Build Status](https://codebuild.us-east-1.amazonaws.com/badges?uuid=eyJlbmNyeXB0ZWREYXRhIjoibHFOTlladW1VK050SFBST1N0UUtNOGdOV24vM25hVUJDQVVKNitvSFpXTFZ4RzlvUXppdHU4RytRR3hLdk1nSDd2VHlTSlZ5ZTlCUC9GdWdscHZRRFBNPSIsIml2UGFyYW1ldGVyU3BlYyI6IjZrQksycy9aWWV5QXh1MkoiLCJtYXRlcmlhbFNldFNlcmlhbCI6MX0%3D&branch=master) |
+
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/keras-team/keras/blob/master/LICENSE)
 
 ## You have just found Keras.
 
-Keras is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
+Keras is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), [Apache MXNet](https://github.com/apache/incubator-mxnet/), or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
 
 Use Keras if you need a deep learning library that:
 
@@ -117,6 +120,7 @@ Before installing Keras, please install one of its backend engines: TensorFlow, 
 - [TensorFlow installation instructions](https://www.tensorflow.org/install/).
 - [Theano installation instructions](http://deeplearning.net/software/theano/install.html#install).
 - [CNTK installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
+- [MXNet installation instructions](http://mxnet.incubator.apache.org/install/index.html).
 
 You may also consider installing the following **optional dependencies**:
 
@@ -155,7 +159,7 @@ sudo python setup.py install
 ------------------
 
 
-## Using a different backend than TensorFlow
+## Switching from TensorFlow to CNTK, MXNet or Theano
 
 By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](https://keras.io/backend/) to configure the Keras backend.
 

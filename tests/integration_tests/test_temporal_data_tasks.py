@@ -11,6 +11,9 @@ import keras.backend as K
 import keras
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support unroll=False '
+                           'in RNN yet.')
 @keras_test
 def test_temporal_classification():
     '''
@@ -44,6 +47,9 @@ def test_temporal_classification():
     model = Sequential.from_config(config)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support unroll=False '
+                           'in RNN yet.')
 @keras_test
 def test_temporal_classification_functional():
     '''
@@ -74,6 +80,9 @@ def test_temporal_classification_functional():
     assert(history.history['acc'][-1] >= 0.8)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support unroll=False '
+                           'in RNN yet.')
 @keras_test
 def test_temporal_regression():
     '''
@@ -119,6 +128,9 @@ def test_3d_to_3d():
     assert(history.history['loss'][-1] < 1.)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support unroll=False '
+                           'in RNN yet.')
 @keras_test
 def test_stacked_lstm_char_prediction():
     '''
@@ -206,13 +218,15 @@ def test_masked_temporal():
     assert(np.abs(history.history['loss'][-1] - ground_truth) < 0.06)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
+@pytest.mark.skipif(K.backend() != 'tensorflow' and K.backend() != 'mxnet',
+                    reason='Requires TensorFlow or MXNet backend')
 @keras_test
 def test_embedding_with_clipnorm():
     model = Sequential()
     model.add(layers.Embedding(input_dim=1, output_dim=1))
     model.compile(optimizer=optimizers.SGD(clipnorm=0.1), loss='mse')
     model.fit(np.array([[0]]), np.array([[[0.5]]]), epochs=1)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

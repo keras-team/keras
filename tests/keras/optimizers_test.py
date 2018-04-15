@@ -64,6 +64,10 @@ def _test_optimizer(optimizer, target=0.75):
     assert_allclose(bias, 2.)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def _test_no_grad(optimizer):
     inp = Input([3])
@@ -75,6 +79,10 @@ def _test_no_grad(optimizer):
         mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32), batch_size=10, epochs=10)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
@@ -82,53 +90,88 @@ def test_sgd():
     _test_no_grad(sgd)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_rmsprop():
     _test_optimizer(optimizers.RMSprop())
     _test_optimizer(optimizers.RMSprop(decay=1e-3))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adagrad():
     _test_optimizer(optimizers.Adagrad())
     _test_optimizer(optimizers.Adagrad(decay=1e-3))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adadelta():
     _test_optimizer(optimizers.Adadelta(), target=0.6)
     _test_optimizer(optimizers.Adadelta(decay=1e-3), target=0.6)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adam():
     _test_optimizer(optimizers.Adam())
     _test_optimizer(optimizers.Adam(decay=1e-3))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_adamax():
     _test_optimizer(optimizers.Adamax())
     _test_optimizer(optimizers.Adamax(decay=1e-3))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
 
 
+# https://github.com/deep-learning-tools/keras/issues/27
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support Adam_AMSGrad optimizer yet.')
 @keras_test
 def test_adam_amsgrad():
     _test_optimizer(optimizers.Adam(amsgrad=True))
     _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
 
 
+@pytest.mark.skipif(K.backend() == 'mxnet',
+                    reason='MXNet backend does not support constraints. '
+                           'Keyword arguments such as `kernel_constraint` '
+                           'and `bias_constraint`')
 @keras_test
 def test_clipvalue():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipvalue=0.5)

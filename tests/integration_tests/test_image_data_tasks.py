@@ -6,6 +6,10 @@ from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import Sequential
 from keras import layers
 from keras.utils.np_utils import to_categorical
+from keras import backend as K
+
+pytestmark = pytest.mark.skipif(K.backend() == 'mxnet',
+                                reason='MXNet backend does not support Pooling2d with SAME mode yet.')
 
 
 @keras_test
