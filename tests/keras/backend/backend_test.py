@@ -1834,14 +1834,12 @@ class TestBackend(object):
                 K.variable('', dtype='unsupported')
 
     def test_clip_with_tensors(self):
-        # Create tensor
-        import keras
+        # Create tensors
         x_placeholder = K.placeholder(ndim=0)
-        y = keras.layers.Input(shape=(1,))
-		# y_placeholder = KTF.placeholder(shape=())
+        y_placeholder = K.placeholder(shape=())
         # Check correct values
-        clip_ = K.clip(y, x_placeholder + 1.0, x_placeholder - 1.0)
-        assert isinstance(clip_, type(y))
+        clip_ = K.clip(y_placeholder, x_placeholder + 1.0, x_placeholder - 1.0)
+        assert isinstance(clip_, type(x_placeholder))
 
 
 if __name__ == '__main__':
