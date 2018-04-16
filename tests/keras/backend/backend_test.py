@@ -1833,6 +1833,16 @@ class TestBackend(object):
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
 
+    def test_clip_with_tensors(self):
+        # Create tensor
+        import keras
+        x_placeholder = K.placeholder(ndim=0)
+        y = keras.layers.Input(shape=(1,))
+		# y_placeholder = KTF.placeholder(shape=())
+        # Check correct values
+        clip_ = K.clip(y, x_placeholder + 1.0, x_placeholder - 1.0)
+        assert isinstance(clip_, type(y))
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
