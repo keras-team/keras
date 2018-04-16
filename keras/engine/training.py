@@ -24,6 +24,18 @@ from .. import callbacks as cbks
 from ..legacy import interfaces
 
 
+def _is_dynamic_lp():
+    lp = K.learning_phase()
+    if K.backend() == 'cntk':
+        # Ugly hack for CNTK because of the way Learning Phase
+        # is implemented. Since it does not support static values
+        # we use this variable to know if it was set statically
+        # by the user.
+        return lp.is_dynamic
+    else:
+        return not isinstance(lp, int)
+
+
 def _standardize_input_data(data, names, shapes=None,
                             check_batch_axis=True,
                             exception_prefix=''):
@@ -982,7 +994,7 @@ class Model(Container):
         self._check_trainable_weights_consistency()
         if self.train_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            if self.uses_learning_phase and _is_dynamic_lp():
                 inputs += [K.learning_phase()]
 
             with K.name_scope('training'):
@@ -1003,7 +1015,7 @@ class Model(Container):
             raise RuntimeError('You must compile your model before using it.')
         if self.test_function is None:
             inputs = self._feed_inputs + self._feed_targets + self._feed_sample_weights
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            if self.uses_learning_phase and _is_dynamic_lp():
                 inputs += [K.learning_phase()]
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
@@ -1017,7 +1029,7 @@ class Model(Container):
         if not hasattr(self, 'predict_function'):
             self.predict_function = None
         if self.predict_function is None:
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            if self.uses_learning_phase and _is_dynamic_lp():
                 inputs = self._feed_inputs + [K.learning_phase()]
             else:
                 inputs = self._feed_inputs
@@ -1648,7 +1660,7 @@ class Model(Container):
                 val_x, val_y,
                 sample_weight=val_sample_weight,
                 batch_size=batch_size)
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            if self.uses_learning_phase and _is_dynamic_lp():
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
@@ -1664,18 +1676,18 @@ class Model(Container):
             sample_weights, val_sample_weights = (
                 _slice_arrays(sample_weights, 0, split_at),
                 _slice_arrays(sample_weights, split_at))
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            if self.uses_learning_phase and _is_dynamic_lp():
                 val_ins = val_x + val_y + val_sample_weights + [0.]
             else:
                 val_ins = val_x + val_y + val_sample_weights
 
         elif validation_steps:
             do_validation = True
-            if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+            if self.uses_learning_phase and _is_dynamic_lp():
                 val_ins = [0.]
 
         # Prepare input arrays and training function.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if self.uses_learning_phase and _is_dynamic_lp():
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1767,7 +1779,7 @@ class Model(Container):
             sample_weight=sample_weight,
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `_test_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if self.uses_learning_phase and _is_dynamic_lp():
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1825,7 +1837,7 @@ class Model(Container):
                                  'Batch size: ' + str(batch_size) + '.')
 
         # Prepare inputs, delegate logic to `_predict_loop`.
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if self.uses_learning_phase and _is_dynamic_lp():
             ins = x + [0.]
         else:
             ins = x
@@ -1875,7 +1887,7 @@ class Model(Container):
             x, y,
             sample_weight=sample_weight,
             class_weight=class_weight)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if self.uses_learning_phase and _is_dynamic_lp():
             ins = x + y + sample_weights + [1.]
         else:
             ins = x + y + sample_weights
@@ -1916,7 +1928,7 @@ class Model(Container):
         x, y, sample_weights = self._standardize_user_data(
             x, y,
             sample_weight=sample_weight)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if self.uses_learning_phase and _is_dynamic_lp():
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
@@ -1937,7 +1949,7 @@ class Model(Container):
         """
         x = _standardize_input_data(x, self._feed_input_names,
                                     self._feed_input_shapes)
-        if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+        if self.uses_learning_phase and _is_dynamic_lp():
             ins = x + [0.]
         else:
             ins = x
@@ -2159,7 +2171,7 @@ class Model(Container):
                 val_x, val_y, val_sample_weights = self._standardize_user_data(
                     val_x, val_y, val_sample_weight)
                 val_data = val_x + val_y + val_sample_weights
-                if self.uses_learning_phase and not isinstance(K.learning_phase(), int):
+                if self.uses_learning_phase and _is_dynamic_lp():
                     val_data += [0.]
                 for cbk in callbacks:
                     cbk.validation_data = val_data

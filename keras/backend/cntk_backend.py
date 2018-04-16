@@ -25,6 +25,7 @@ if dev.type() == 0:
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 _LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name='_keras_learning_phase')
+_LEARNING_PHASE.is_dynamic = True
 _UID_PREFIXES = defaultdict(int)
 
 # cntk doesn't support gradient as symbolic op, to hook up with keras model,
@@ -61,10 +62,10 @@ def set_learning_phase(value):
                          'expected 0 or 1.' % value)
     v = np.asarray(value)
     _LEARNING_PHASE.value = v
+    _LEARNING_PHASE.is_dynamic = False
 
 
 def in_train_phase(x, alt, training=None):
-    global _LEARNING_PHASE
     if training is None:
         training = learning_phase()
         uses_learning_phase = True
