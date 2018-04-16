@@ -22,7 +22,6 @@ from ..utils.layer_utils import count_params
 from ..utils.generic_utils import has_arg
 from ..utils import conv_utils
 from ..legacy import interfaces
-from ..models import Model
 try:
 	import h5py
 except ImportError:
