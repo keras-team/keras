@@ -228,6 +228,7 @@ def test_that_trainable_disables_updates():
 def test_batchnorm_trainable():
     bn_mean = 0.5
     bn_std = 10.
+
     def get_model(bn_mean, bn_std):
         input = Input(shape=(1,))
         x = normalization.BatchNormalization()(input)

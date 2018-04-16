@@ -24,8 +24,9 @@ if dev.type() == 0:
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
+# LEARNING_PHASE_PLACEHOLDER is the placeholder for dynamic learning phase
 _LEARNING_PHASE_PLACEHOLDER = C.constant(shape=(), dtype=np.float32, value=1.0, name='_keras_learning_phase')
-# static learning phase flag
+# static learning phase flag, if it is not 0 or 1, we will go with dynamic learning phase tensor.
 _LEARNING_PHASE = -1
 _UID_PREFIXES = defaultdict(int)
 
@@ -51,7 +52,7 @@ def get_uid(prefix=''):
 
 
 def learning_phase():
-    # False = test, True = train
+    # If _LEARNING_PHASE is not 0 or 1, return dynamic learning phase tensor
     return _LEARNING_PHASE if _LEARNING_PHASE in {0, 1} else _LEARNING_PHASE_PLACEHOLDER
 
 
@@ -93,6 +94,7 @@ def in_train_phase(x, alt, training=None):
         x._uses_learning_phase = uses_learning_phase
         return x
     else:
+        # if _LEARNING_PHASE is static
         if isinstance(training, int):
             result = x if training == 1 else alt
         else:
