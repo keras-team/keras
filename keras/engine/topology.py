@@ -1881,9 +1881,7 @@ class Container(Layer):
 
 		for layer in self.layers:
 			if isinstance (layer, Model):
-				# Check if there is one sub_model
-				sub_model = layer
-				return sub_model.get_layer(name)
+				return layer.get_layer(name)
 
 			elif layer.name == name:
 				return layer
