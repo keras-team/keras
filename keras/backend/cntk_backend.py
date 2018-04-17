@@ -323,6 +323,9 @@ def is_sparse(tensor):
 
 
 def int_shape(x):
+    if type(x) in {int, float}:
+        return ()
+
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
 
