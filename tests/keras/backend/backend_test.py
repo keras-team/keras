@@ -1257,6 +1257,20 @@ class TestBackend(object):
             assert np.max(rand) == 1
             assert np.min(rand) == 0
 
+    def test_truncated_normal(self):
+        trunc_const = .87962566103423978
+        mean = 0.
+        std = 1.
+        min_val = -2. / trunc_const
+        max_val = 2. / trunc_const
+        for k in BACKENDS:
+            rand = k.eval(k.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
+            assert rand.shape == (300, 200)
+            assert np.abs(np.mean(rand) - mean) < 0.015
+            assert np.abs(np.std(rand) - std) < 0.015
+            assert np.max(rand) <= max_val
+            assert np.min(rand) >= min_val
+
     def test_conv_invalid_use(self):
         with pytest.raises(ValueError):
             K.conv1d(K.variable(np.ones((4, 8, 2))),

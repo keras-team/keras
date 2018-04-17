@@ -3881,6 +3881,10 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
         dtype = floatx()
     if seed is None:
         seed = np.random.randint(10e6)
+
+    # constant taken from scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
+    stddev /= tf.constant(.87962566103423978)
+
     return tf.truncated_normal(shape, mean, stddev, dtype=dtype, seed=seed)
 
 
