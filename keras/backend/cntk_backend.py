@@ -24,7 +24,10 @@ if dev.type() == 0:
 
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_LEARNING_PHASE = C.constant(shape=(), dtype=np.float32, value=1.0, name='_keras_learning_phase')
+# LEARNING_PHASE_PLACEHOLDER is the placeholder for dynamic learning phase
+_LEARNING_PHASE_PLACEHOLDER = C.constant(shape=(), dtype=np.float32, value=1.0, name='_keras_learning_phase')
+# static learning phase flag, if it is not 0 or 1, we will go with dynamic learning phase tensor.
+_LEARNING_PHASE = -1
 _UID_PREFIXES = defaultdict(int)
 
 # cntk doesn't support gradient as symbolic op, to hook up with keras model,
@@ -49,8 +52,8 @@ def get_uid(prefix=''):
 
 
 def learning_phase():
-    # False = test, True = train
-    return _LEARNING_PHASE
+    # If _LEARNING_PHASE is not 0 or 1, return dynamic learning phase tensor
+    return _LEARNING_PHASE if _LEARNING_PHASE in {0, 1} else _LEARNING_PHASE_PLACEHOLDER
 
 
 def set_learning_phase(value):
@@ -59,8 +62,16 @@ def set_learning_phase(value):
         raise ValueError('CNTK Backend: Set learning phase '
                          'with value %s is not supported, '
                          'expected 0 or 1.' % value)
-    v = np.asarray(value)
-    _LEARNING_PHASE.value = v
+    _LEARNING_PHASE = value
+
+
+def clear_session():
+    """Reset learning phase flag for cntk backend.
+    """
+    global _LEARNING_PHASE
+    global _LEARNING_PHASE_PLACEHOLDER
+    _LEARNING_PHASE = -1
+    _LEARNING_PHASE_PLACEHOLDER.value = np.asarray(1.0)
 
 
 def in_train_phase(x, alt, training=None):
@@ -83,7 +94,11 @@ def in_train_phase(x, alt, training=None):
         x._uses_learning_phase = uses_learning_phase
         return x
     else:
-        result = C.element_select(training, x, alt)
+        # if _LEARNING_PHASE is static
+        if isinstance(training, int) or isinstance(training, bool):
+            result = x if training == 1 or training is True else alt
+        else:
+            result = C.element_select(training, x, alt)
         result._uses_learning_phase = uses_learning_phase
         return result
 
@@ -1854,6 +1869,7 @@ class Function(object):
         return True
 
     def __call__(self, inputs):
+        global _LEARNING_PHASE_PLACEHOLDER
         global _LEARNING_PHASE
         assert isinstance(inputs, (list, tuple))
         feed_dict = {}
@@ -1864,8 +1880,8 @@ class Function(object):
                value.dtype != np.float64):
                 value = value.astype(np.float32)
 
-            if tensor == _LEARNING_PHASE:
-                _LEARNING_PHASE.value = np.asarray(value)
+            if tensor == _LEARNING_PHASE_PLACEHOLDER:
+                _LEARNING_PHASE_PLACEHOLDER.value = np.asarray(value)
             else:
                 # in current version cntk can't support input with variable
                 # length. Will support it in next release.
@@ -1911,7 +1927,8 @@ class Function(object):
             # "forward" method to let cntk know we want to evaluate them.from
             # But the assign ops won't be executed under this mode, that's why
             # we need this check.
-            if self.unrelated_updates is None and _LEARNING_PHASE.value == 1.0:
+            if (self.unrelated_updates is None and
+                    (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
                 _, output_values = self.metrics_func.forward(
                     input_dict,
                     self.metrics_func.outputs,
