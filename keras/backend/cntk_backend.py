@@ -456,6 +456,9 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     else:
         dtype = _convert_string_dtype(dtype)
 
+    # constant taken from scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
+    stddev /= .87962566103423978
+
     return C.parameter(
         shape, init=C.initializer.truncated_normal(
             stddev, seed=seed), dtype=dtype)
