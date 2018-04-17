@@ -2336,7 +2336,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if seed is None:
         seed = np.random.randint(1, 10e6)
     rng = RandomStreams(seed=seed)
-    
+
     try:
         return rng.truncated_normal(size=shape, avg=mean, std=stddev, dtype=dtype)
     except AttributeError:
