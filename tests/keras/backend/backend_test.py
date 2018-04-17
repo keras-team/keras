@@ -1256,7 +1256,7 @@ class TestBackend(object):
             assert np.abs(np.mean(rand) - p) < 0.015
             assert np.max(rand) == 1
             assert np.min(rand) == 0
-    
+
     def test_truncated_normal(self):
         trunc_const = .87962566103423978
         mean = 0.
