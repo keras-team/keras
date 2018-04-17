@@ -1927,8 +1927,8 @@ class Function(object):
             # "forward" method to let cntk know we want to evaluate them.from
             # But the assign ops won't be executed under this mode, that's why
             # we need this check.
-            if (self.unrelated_updates is None
-                and (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
+            if (self.unrelated_updates is None and
+                    (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
                 _, output_values = self.metrics_func.forward(
                     input_dict,
                     self.metrics_func.outputs,
