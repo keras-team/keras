@@ -46,7 +46,7 @@ def test_normal(tensor_shape):
 def test_truncated_normal(tensor_shape):
     _runner(initializers.TruncatedNormal(mean=0, stddev=1), tensor_shape,
             target_mean=0., target_std=1, 
-            target_min=2/TRUNC_CONSTANT, target_max=2/TRUNC_CONSTANT)
+            target_max=2/TRUNC_CONSTANT, target_min=-2/TRUNC_CONSTANT)
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
