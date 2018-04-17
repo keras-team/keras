@@ -236,12 +236,24 @@ def test_batchnorm_trainable():
         model.set_weights([np.array([1.]), np.array([0.]),
                            np.array([bn_mean]), np.array([bn_std ** 2])])
         return model
+
     # Simulates training-mode with trainable layer. Should use mini-batch statistics.
     K.set_learning_phase(1)
     model = get_model(bn_mean, bn_std)
+    model.layers[1].trainable = True
     model.compile(loss='mse', optimizer='rmsprop')
     out = model.predict(input_4)
     assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
+
+    # In all other cases we should use the moving mean and variance from BN.
+    for lp, trainable in [(1, False), (0, True), (0, False)]:
+        K.set_learning_phase(lp)
+        model = get_model(bn_mean, bn_std)
+        model.layers[1].trainable = trainable
+        model.compile(loss='mse', optimizer='rmsprop')
+        out = model.predict(input_4)
+        assert_allclose((input_4 - bn_mean) / bn_std, out, atol=1e-3)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

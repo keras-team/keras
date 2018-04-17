@@ -72,6 +72,8 @@ class BatchNormalization(Layer):
                  beta_constraint=None,
                  gamma_constraint=None,
                  **kwargs):
+        self._trainable = True
+        self._trainable_tensor = K.variable(1, dtype='float32', name='trainable')
         super(BatchNormalization, self).__init__(**kwargs)
         self.supports_masking = True
         self.axis = axis
@@ -87,6 +89,19 @@ class BatchNormalization(Layer):
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.beta_constraint = constraints.get(beta_constraint)
         self.gamma_constraint = constraints.get(gamma_constraint)
+
+    @property
+    def trainable(self):
+        # Use cached value to avoid unnecessary get_value() calls
+        return self._trainable
+
+    @trainable.setter
+    def trainable(self, trainable):
+        trainable = bool(trainable)
+        # Change when different to avoid unnecessary set_value() calls
+        if self._trainable != trainable:
+            self._trainable = trainable
+            K.set_value(self._trainable_tensor, 1 if trainable else 0)
 
     def build(self, input_shape):
         dim = input_shape[self.axis]
@@ -171,9 +186,14 @@ class BatchNormalization(Layer):
                     self.gamma,
                     epsilon=self.epsilon)
 
-        # If the learning phase is *static* and set to inference:
         if training in {0, False}:
+            # If the learning phase is *static* and set to inference:
             return normalize_inference()
+        elif training is None:
+            # If it's undefined then if trainable tensor is on respect learning phase else set to false
+            training = K.switch(self._trainable_tensor, K.cast(K.learning_phase(), 'float32'),
+                                K.constant(0, dtype='float32'))
+            training._uses_learning_phase = True
 
         # If the learning is either dynamic, or set to training:
         normed_training, mean, variance = K.normalize_batch_in_training(

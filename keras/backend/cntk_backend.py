@@ -80,7 +80,7 @@ def in_train_phase(x, alt, training=None):
         training = learning_phase()
         uses_learning_phase = True
     else:
-        uses_learning_phase = False
+        uses_learning_phase = getattr(training, '_uses_learning_phase', False)
 
     # CNTK currently don't support cond op, so here we use
     # element_select approach as workaround. It may have
@@ -323,6 +323,9 @@ def is_sparse(tensor):
 
 
 def int_shape(x):
+    if type(x) in {int, float}:
+        return ()
+
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
 
