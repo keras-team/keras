@@ -208,7 +208,9 @@ class VarianceScaling(Initializer):
         else:
             scale /= max(1., float(fan_in + fan_out) / 2)
         if self.distribution == 'normal':
-            stddev = np.sqrt(scale)
+            # constant taken from scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
+            # this constant is necessary to assure a distribution with the correct standard deviation
+            stddev = np.sqrt(scale) / .87962566103423978
             return K.truncated_normal(shape, 0., stddev,
                                       dtype=dtype, seed=self.seed)
         else:
