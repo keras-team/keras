@@ -1261,8 +1261,8 @@ class TestBackend(object):
         trunc_const = .87962566103423978
         mean = 0.
         std = 1.
-        min_val = -1. / trunc_const
-        max_val = 1. / trunc_const
+        min_val = -2. / trunc_const
+        max_val = 2. / trunc_const
         for k in BACKENDS:
             rand = k.eval(k.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
             assert rand.shape == (300, 200)
