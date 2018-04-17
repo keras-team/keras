@@ -12,6 +12,7 @@ from keras import backend as K
 input_1 = np.arange(10)
 input_2 = np.zeros(10)
 input_3 = np.ones((10))
+input_4 = np.expand_dims(np.arange(10.), axis=1)
 input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
 
@@ -222,6 +223,25 @@ def test_that_trainable_disables_updates():
     x2 = model.predict(val_a)
     assert_allclose(x1, x2, atol=1e-7)
 
+
+@keras_test
+def test_batchnorm_trainable():
+    bn_mean = 0.5
+    bn_std = 10.
+
+    def get_model(bn_mean, bn_std):
+        input = Input(shape=(1,))
+        x = normalization.BatchNormalization()(input)
+        model = Model(input, x)
+        model.set_weights([np.array([1.]), np.array([0.]),
+                           np.array([bn_mean]), np.array([bn_std ** 2])])
+        return model
+    # Simulates training-mode with trainable layer. Should use mini-batch statistics.
+    K.set_learning_phase(1)
+    model = get_model(bn_mean, bn_std)
+    model.compile(loss='mse', optimizer='rmsprop')
+    out = model.predict(input_4)
+    assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
 
 if __name__ == '__main__':
     pytest.main([__file__])
