@@ -2336,6 +2336,10 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if seed is None:
         seed = np.random.randint(1, 10e6)
     rng = RandomStreams(seed=seed)
+    
+    if hasattr(rng, truncated_normal):
+        return rng.truncated_normal(size=shape, avg=mean, std=stddev, dtype=dtype)
+    
     normal_tensor = rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype)
     # Poor man's truncated normal: we literally clip the tensor
     return T.clip(normal_tensor, mean - 2 * stddev, mean + 2 * stddev)
