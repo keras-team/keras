@@ -158,6 +158,15 @@ def NASNet(input_shape=None,
         raise ValueError('If using `weights` as ImageNet with `include_top` '
                          'as true, `classes` should be 1000')
 
+    if (isinstance(input_shape, tuple) and
+            None in input_shape and
+            weights == 'imagenet'):
+        raise ValueError('When specifying the input shape of a NASNet'
+                         ' and loading `ImageNet` weights, '
+                         'the input_shape argument must be static '
+                         '(no None entries). Got: `input_shape=' +
+                         str(input_shape) + '`.')
+
     if default_size is None:
         default_size = 331
 

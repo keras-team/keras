@@ -1,8 +1,11 @@
 import pytest
 import numpy as np
+import copy
 from numpy.testing import assert_allclose
 from keras.utils.test_utils import keras_test
-from keras.layers import wrappers, Input
+from keras.utils import CustomObjectScope
+from keras.layers import wrappers, Input, Layer
+from keras.layers import RNN
 from keras import layers
 from keras.models import Sequential, Model, model_from_json
 from keras import backend as K
@@ -229,6 +232,31 @@ def test_Bidirectional():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Unknown timestamps not supported in CNTK.')
+def test_Bidirectional_unkown_timespamps():
+    # test with functional API with unknown length
+    rnn = layers.SimpleRNN
+    samples = 2
+    dim = 2
+    timesteps = 2
+    output_dim = 2
+    dropout_rate = 0.2
+    for mode in ['sum', 'concat']:
+        x = np.random.random((samples, timesteps, dim))
+        target_dim = 2 * output_dim if mode == 'concat' else output_dim
+        y = np.random.random((samples, target_dim))
+
+        inputs = Input((None, dim))
+        outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
+                                             recurrent_dropout=dropout_rate),
+                                         merge_mode=mode)(inputs)
+        model = Model(inputs, outputs)
+        model.compile(loss='mse', optimizer='sgd')
+        model.fit(x, y, epochs=1, batch_size=1)
+
+
+@keras_test
 @pytest.mark.parametrize('merge_mode', ['sum', 'mul', 'ave', 'concat', None])
 def test_Bidirectional_merged_value(merge_mode):
     rnn = layers.LSTM
@@ -342,6 +370,177 @@ def test_Bidirectional_state_reuse():
     inputs = [np.random.rand(samples, timesteps, dim),
               np.random.rand(samples, timesteps, dim)]
     outputs = model.predict(inputs)
+
+
+@keras_test
+def test_Bidirectional_with_constants():
+    class RNNCellWithConstants(Layer):
+        def __init__(self, units, **kwargs):
+            self.units = units
+            self.state_size = units
+            super(RNNCellWithConstants, self).__init__(**kwargs)
+
+        def build(self, input_shape):
+            if not isinstance(input_shape, list):
+                raise TypeError('expects constants shape')
+            [input_shape, constant_shape] = input_shape
+            # will (and should) raise if more than one constant passed
+
+            self.input_kernel = self.add_weight(
+                shape=(input_shape[-1], self.units),
+                initializer='uniform',
+                name='kernel')
+            self.recurrent_kernel = self.add_weight(
+                shape=(self.units, self.units),
+                initializer='uniform',
+                name='recurrent_kernel')
+            self.constant_kernel = self.add_weight(
+                shape=(constant_shape[-1], self.units),
+                initializer='uniform',
+                name='constant_kernel')
+            self.built = True
+
+        def call(self, inputs, states, constants):
+            [prev_output] = states
+            [constant] = constants
+            h_input = K.dot(inputs, self.input_kernel)
+            h_state = K.dot(prev_output, self.recurrent_kernel)
+            h_const = K.dot(constant, self.constant_kernel)
+            output = h_input + h_state + h_const
+            return output, [output]
+
+        def get_config(self):
+            config = {'units': self.units}
+            base_config = super(RNNCellWithConstants, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    # Test basic case.
+    x = Input((5, 5))
+    c = Input((3,))
+    cell = RNNCellWithConstants(32)
+    custom_objects = {'RNNCellWithConstants': RNNCellWithConstants}
+    with CustomObjectScope(custom_objects):
+        layer = wrappers.Bidirectional(RNN(cell))
+    y = layer(x, constants=c)
+    model = Model([x, c], y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        [np.zeros((6, 5, 5)), np.zeros((6, 3))],
+        np.zeros((6, 64))
+    )
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    c_np = np.random.random((6, 3))
+    y_np = model.predict([x_np, c_np])
+    weights = model.get_weights()
+    config = layer.get_config()
+    with CustomObjectScope(custom_objects):
+        layer = wrappers.Bidirectional.from_config(copy.deepcopy(config))
+    y = layer(x, constants=c)
+    model = Model([x, c], y)
+    model.set_weights(weights)
+    y_np_2 = model.predict([x_np, c_np])
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # test flat list inputs
+    with CustomObjectScope(custom_objects):
+        layer = wrappers.Bidirectional.from_config(copy.deepcopy(config))
+    y = layer([x, c])
+    model = Model([x, c], y)
+    model.set_weights(weights)
+    y_np_3 = model.predict([x_np, c_np])
+    assert_allclose(y_np, y_np_3, atol=1e-4)
+
+
+@keras_test
+def test_Bidirectional_with_constants_layer_passing_initial_state():
+    class RNNCellWithConstants(Layer):
+        def __init__(self, units, **kwargs):
+            self.units = units
+            self.state_size = units
+            super(RNNCellWithConstants, self).__init__(**kwargs)
+
+        def build(self, input_shape):
+            if not isinstance(input_shape, list):
+                raise TypeError('expects constants shape')
+            [input_shape, constant_shape] = input_shape
+            # will (and should) raise if more than one constant passed
+
+            self.input_kernel = self.add_weight(
+                shape=(input_shape[-1], self.units),
+                initializer='uniform',
+                name='kernel')
+            self.recurrent_kernel = self.add_weight(
+                shape=(self.units, self.units),
+                initializer='uniform',
+                name='recurrent_kernel')
+            self.constant_kernel = self.add_weight(
+                shape=(constant_shape[-1], self.units),
+                initializer='uniform',
+                name='constant_kernel')
+            self.built = True
+
+        def call(self, inputs, states, constants):
+            [prev_output] = states
+            [constant] = constants
+            h_input = K.dot(inputs, self.input_kernel)
+            h_state = K.dot(prev_output, self.recurrent_kernel)
+            h_const = K.dot(constant, self.constant_kernel)
+            output = h_input + h_state + h_const
+            return output, [output]
+
+        def get_config(self):
+            config = {'units': self.units}
+            base_config = super(RNNCellWithConstants, self).get_config()
+            return dict(list(base_config.items()) + list(config.items()))
+
+    # Test basic case.
+    x = Input((5, 5))
+    c = Input((3,))
+    s_for = Input((32,))
+    s_bac = Input((32,))
+    cell = RNNCellWithConstants(32)
+    custom_objects = {'RNNCellWithConstants': RNNCellWithConstants}
+    with CustomObjectScope(custom_objects):
+        layer = wrappers.Bidirectional(RNN(cell))
+    y = layer(x, initial_state=[s_for, s_bac], constants=c)
+    model = Model([x, s_for, s_bac, c], y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        [np.zeros((6, 5, 5)), np.zeros((6, 32)), np.zeros((6, 32)), np.zeros((6, 3))],
+        np.zeros((6, 64))
+    )
+
+    # Test basic case serialization.
+    x_np = np.random.random((6, 5, 5))
+    s_fw_np = np.random.random((6, 32))
+    s_bk_np = np.random.random((6, 32))
+    c_np = np.random.random((6, 3))
+    y_np = model.predict([x_np, s_fw_np, s_bk_np, c_np])
+    weights = model.get_weights()
+    config = layer.get_config()
+    with CustomObjectScope(custom_objects):
+        layer = wrappers.Bidirectional.from_config(copy.deepcopy(config))
+    y = layer(x, initial_state=[s_for, s_bac], constants=c)
+    model = Model([x, s_for, s_bac, c], y)
+    model.set_weights(weights)
+    y_np_2 = model.predict([x_np, s_fw_np, s_bk_np, c_np])
+    assert_allclose(y_np, y_np_2, atol=1e-4)
+
+    # verify that state is used
+    y_np_2_different_s = model.predict([x_np, s_fw_np + 10., s_bk_np + 10., c_np])
+    with pytest.raises(AssertionError):
+        assert_allclose(y_np, y_np_2_different_s, atol=1e-4)
+
+    # test flat list inputs
+    with CustomObjectScope(custom_objects):
+        layer = wrappers.Bidirectional.from_config(copy.deepcopy(config))
+    y = layer([x, s_for, s_bac, c])
+    model = Model([x, s_for, s_bac, c], y)
+    model.set_weights(weights)
+    y_np_3 = model.predict([x_np, s_fw_np, s_bk_np, c_np])
+    assert_allclose(y_np, y_np_3, atol=1e-4)
 
 
 @keras_test

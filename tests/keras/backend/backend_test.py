@@ -1258,52 +1258,50 @@ class TestBackend(object):
             assert np.min(rand) == 0
 
     def test_conv_invalid_use(self):
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.conv1d(k.variable(np.ones((4, 8, 2))),
-                         k.variable(np.ones((3, 2, 3))),
-                         data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.conv1d(K.variable(np.ones((4, 8, 2))),
+                     K.variable(np.ones((3, 2, 3))),
+                     data_format='channels_middle')
 
-            with pytest.raises(ValueError):
-                k.conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                         k.variable(np.ones((2, 2, 3, 4))),
-                         data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.conv2d(K.variable(np.ones((2, 3, 4, 5))),
+                     K.variable(np.ones((2, 2, 3, 4))),
+                     data_format='channels_middle')
 
-            with pytest.raises(ValueError):
-                k.conv3d(k.variable(np.ones((2, 3, 4, 5, 4))),
-                         k.variable(np.ones((2, 2, 2, 3, 4))),
-                         data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.conv3d(K.variable(np.ones((2, 3, 4, 5, 4))),
+                     K.variable(np.ones((2, 2, 2, 3, 4))),
+                     data_format='channels_middle')
 
-            if k != KTH:
-                with pytest.raises(ValueError):
-                    k.separable_conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                                       k.variable(np.ones((2, 2, 3, 4))),
-                                       k.variable(np.ones((1, 1, 12, 7))),
-                                       data_format='channels_middle')
-
+        if K.backend() != 'theano':
             with pytest.raises(ValueError):
-                k.depthwise_conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                                   k.variable(np.ones((2, 2, 3, 4))),
+                K.separable_conv2d(K.variable(np.ones((2, 3, 4, 5))),
+                                   K.variable(np.ones((2, 2, 3, 4))),
+                                   K.variable(np.ones((1, 1, 12, 7))),
                                    data_format='channels_middle')
+
+        with pytest.raises(ValueError):
+            K.depthwise_conv2d(K.variable(np.ones((2, 3, 4, 5))),
+                               K.variable(np.ones((2, 2, 3, 4))),
+                               data_format='channels_middle')
 
     def test_pooling_invalid_use(self):
         for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
-            for k in BACKENDS:
-                x = k.variable(np.random.random(input_shape))
-                if len(pool_size) == 2:
-                    with pytest.raises(ValueError):
-                        k.pool2d(x, pool_size=pool_size, data_format='channels_middle')
-                    with pytest.raises(ValueError):
-                        k.pool2d(x, pool_size=pool_size, padding='twice')
-                    with pytest.raises(ValueError):
-                        k.pool2d(x, pool_size=pool_size, pool_mode='median')
-                else:
-                    with pytest.raises(ValueError):
-                        k.pool3d(x, pool_size=pool_size, data_format='channels_middle')
-                    with pytest.raises(ValueError):
-                        k.pool3d(x, pool_size=pool_size, padding='twice')
-                    with pytest.raises(ValueError):
-                        k.pool3d(x, pool_size=pool_size, pool_mode='median')
+            x = K.variable(np.random.random(input_shape))
+            if len(pool_size) == 2:
+                with pytest.raises(ValueError):
+                    K.pool2d(x, pool_size=pool_size, data_format='channels_middle')
+                with pytest.raises(ValueError):
+                    K.pool2d(x, pool_size=pool_size, padding='twice')
+                with pytest.raises(ValueError):
+                    K.pool2d(x, pool_size=pool_size, pool_mode='median')
+            else:
+                with pytest.raises(ValueError):
+                    K.pool3d(x, pool_size=pool_size, data_format='channels_middle')
+                with pytest.raises(ValueError):
+                    K.pool3d(x, pool_size=pool_size, padding='twice')
+                with pytest.raises(ValueError):
+                    K.pool3d(x, pool_size=pool_size, pool_mode='median')
 
     def test_resize_images(self):
         for data_format in ['channels_first', 'channels_last']:

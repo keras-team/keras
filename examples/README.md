@@ -118,3 +118,6 @@ Compares self-normalizing MLPs with regular MLPs.
 
 [mnist_tfrecord.py](mnist_tfrecord.py)
 MNIST dataset with TFRecords, the standard TensorFlow data format.
+
+[mnist_dataset_api.py](mnist_dataset_api.py)
+MNIST dataset with TensorFlow's Dataset API.
