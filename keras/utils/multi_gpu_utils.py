@@ -8,6 +8,7 @@ from ..layers.merge import concatenate
 from .. import backend as K
 from ..layers.core import Lambda
 from ..engine.training import Model
+from ..models import clone_model
 
 
 def _get_available_devices():
@@ -19,7 +20,7 @@ def _normalize_device_name(name):
     return name
 
 
-def multi_gpu_model(model, gpus):
+def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     """Replicates a model on different GPUs.
 
     Specifically, this function implements single-machine
@@ -46,12 +47,18 @@ def multi_gpu_model(model, gpus):
             (see usage example below).
         gpus: Integer >= 2 or list of integers, number of GPUs or
             list of GPU IDs on which to create model replicas.
+        cpu_merge: A boolean value to identify whether to force
+            merging model weights under the scope of the CPU or not.
+        cpu_relocation: A boolean value to identify whether to
+            create the model's weights under the scope of the CPU.
+            If the model is not defined under any preceding device
+            scope, you can still rescue it by activating this option.
 
     # Returns
         A Keras `Model` instance which can be used just like the initial
         `model` argument, but which distributes its workload on multiple GPUs.
 
-    # Example
+    # Example 1 - Training models with weights merge on CPU
 
     ```python
         import tensorflow as tf
@@ -92,6 +99,40 @@ def multi_gpu_model(model, gpus):
         model.save('my_model.h5')
     ```
 
+    # Example 2 - Training models with weights merge on CPU using cpu_relocation
+
+    ```python
+         ..
+         # Not needed to change the device scope for model definition:
+         model = Xception(weights=None, ..)
+
+         try:
+             model = multi_gpu_model(model, cpu_relocation=True)
+             print("Training using multiple GPUs..")
+         except:
+             print("Training using single GPU or CPU..")
+
+         model.compile(..)
+         ..
+    ```
+
+    # Example 3 - Training models with weights merge on GPU (recommended for NV-link)
+
+    ```python
+         ..
+         # Not needed to change the device scope for model definition:
+         model = Xception(weights=None, ..)
+
+         try:
+             model = multi_gpu_model(model, cpu_merge=False)
+             print("Training using multiple GPUs..")
+         except:
+             print("Training using single GPU or CPU..")
+
+         model.compile(..)
+         ..
+    ```
+
     # On model saving
 
     To save the multi-gpu model, use `.save(fname)` or `.save_weights(fname)`
@@ -101,6 +142,14 @@ def multi_gpu_model(model, gpus):
     if K.backend() != 'tensorflow':
         raise ValueError('`multi_gpu_model` is only available '
                          'with the TensorFlow backend.')
+
+    available_devices = _get_available_devices()
+    available_devices = [_normalize_device_name(name) for name in available_devices]
+    if not gpus:
+        # Using all visible GPUs when not specifying `gpus`
+        # e.g. CUDA_VISIBLE_DEVICES=0,2 python3 keras_mgpu.py
+        gpus = len([x for x in available_devices if 'gpu' in x])
+
     if isinstance(gpus, (list, tuple)):
         if len(gpus) <= 1:
             raise ValueError('For multi-gpu usage to be effective, '
@@ -119,8 +168,6 @@ def multi_gpu_model(model, gpus):
     import tensorflow as tf
 
     target_devices = ['/cpu:0'] + ['/gpu:%d' % i for i in target_gpu_ids]
-    available_devices = _get_available_devices()
-    available_devices = [_normalize_device_name(name) for name in available_devices]
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(
@@ -144,6 +191,11 @@ def multi_gpu_model(model, gpus):
         stride = tf.concat([step, input_shape * 0], axis=0)
         start = stride * i
         return tf.slice(data, start, size)
+
+    # Relocate the model definition under CPU device scope if needed
+    if cpu_relocation:
+        with tf.device('/cpu:0'):
+            model = clone_model(model)
 
     all_outputs = []
     for i in range(len(model.outputs)):
@@ -174,8 +226,8 @@ def multi_gpu_model(model, gpus):
                 for o in range(len(outputs)):
                     all_outputs[o].append(outputs[o])
 
-    # Merge outputs on CPU.
-    with tf.device('/cpu:0'):
+    # Merge outputs under expected scope.
+    with tf.device('/cpu:0' if cpu_merge else '/gpu:%d' % target_gpu_ids[0]):
         merged = []
         for name, outputs in zip(model.output_names, all_outputs):
             merged.append(concatenate(outputs,

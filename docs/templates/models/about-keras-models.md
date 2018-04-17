@@ -31,3 +31,5 @@ model = model_from_yaml(yaml_string)
 ```
 - `model.save_weights(filepath)`: saves the weights of the model as a HDF5 file.
 - `model.load_weights(filepath, by_name=False)`: loads the weights of the model from a HDF5 file (created by `save_weights`). By default, the architecture is expected to be unchanged. To load weights into a different architecture (with some layers in common), use `by_name=True` to load only those layers with the same name.
+
+Note: Please also see [How can I install HDF5 or h5py to save my models in Keras?](/getting-started/faq/#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) in the FAQ for instructions on how to install `h5py`.

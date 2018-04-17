@@ -22,10 +22,10 @@ from .. import backend as K
 from ..utils.data_utils import Sequence
 
 try:
+    from PIL import ImageEnhance
     from PIL import Image as pil_image
 except ImportError:
     pil_image = None
-
 
 if pil_image is not None:
     _PIL_INTERPOLATION_METHODS = {
@@ -176,12 +176,50 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_channel_shift(x, intensity, channel_axis=0):
+    """Perform a random channel shift.
+
+    # Arguments
+        x: Input tensor. Must be 3D.
+        intensity: Transformation intensity.
+        channel_axis: Index of axis for channels in the input tensor.
+
+    # Returns
+        Numpy image tensor.
+
+    """
     x = np.rollaxis(x, channel_axis, 0)
     min_x, max_x = np.min(x), np.max(x)
     channel_images = [np.clip(x_channel + np.random.uniform(-intensity, intensity), min_x, max_x)
                       for x_channel in x]
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_axis + 1)
+    return x
+
+
+def random_brightness(x, brightness_range):
+    """Perform a random brightness shift.
+
+    # Arguments
+        x: Input tensor. Must be 3D.
+        brightness_range: Tuple of floats; brightness range.
+        channel_axis: Index of axis for channels in the input tensor.
+
+    # Returns
+        Numpy image tensor.
+
+    # Raises
+        ValueError if `brightness_range` isn't a tuple.
+
+    """
+    if len(brightness_range) != 2:
+        raise ValueError('`brightness_range should be tuple or list of two floats. '
+                         'Received arg: ', brightness_range)
+
+    x = array_to_img(x)
+    x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
+    u = np.random.uniform(brightness_range[0], brightness_range[1])
+    x = imgenhancer_Brightness.enhance(u)
+    x = img_to_array(x)
     return x
 
 
@@ -221,7 +259,7 @@ def apply_transform(x,
         x_channel,
         final_affine_matrix,
         final_offset,
-        order=0,
+        order=1,
         mode=fill_mode,
         cval=cval) for x_channel in x]
     x = np.stack(channel_images, axis=0)
@@ -374,49 +412,157 @@ def list_pictures(directory, ext='jpg|jpeg|bmp|png|ppm'):
 
 
 class ImageDataGenerator(object):
-    """Generate minibatches of image data with real-time data augmentation.
+    """Generate batches of tensor image data with real-time data augmentation.
+     The data will be looped over (in batches).
 
     # Arguments
-        featurewise_center: set input mean to 0 over the dataset.
-        samplewise_center: set each sample mean to 0.
-        featurewise_std_normalization: divide inputs by std of the dataset.
-        samplewise_std_normalization: divide each input by its std.
-        zca_whitening: apply ZCA whitening.
+        featurewise_center: Boolean. Set input mean to 0 over the dataset, feature-wise.
+        samplewise_center: Boolean. Set each sample mean to 0.
+        featurewise_std_normalization: Boolean. Divide inputs by std of the dataset, feature-wise.
+        samplewise_std_normalization: Boolean. Divide each input by its std.
         zca_epsilon: epsilon for ZCA whitening. Default is 1e-6.
-        rotation_range: degrees (0 to 180).
-        width_shift_range: fraction of total width, if < 1, or pixels if >= 1.
-        height_shift_range: fraction of total height, if < 1, or pixels if >= 1.
-        shear_range: shear intensity (shear angle in degrees).
-        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
-            in the range [1-z, 1+z]. A sequence of two can be passed instead
-            to select this range.
-        channel_shift_range: shift range for each channel.
-        fill_mode: points outside the boundaries are filled according to the
-            given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
-            is 'nearest'.
-            Points outside the boundaries of the input are filled according to the given mode:
-                'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
-                'nearest':  aaaaaaaa|abcd|dddddddd
-                'reflect':  abcddcba|abcd|dcbaabcd
-                'wrap':  abcdabcd|abcd|abcdabcd
-        cval: value used for points outside the boundaries when fill_mode is
-            'constant'. Default is 0.
-        horizontal_flip: whether to randomly flip images horizontally.
-        vertical_flip: whether to randomly flip images vertically.
-        rescale: rescaling factor. If None or 0, no rescaling is applied,
-            otherwise we multiply the data by the value provided. This is
-            applied after the `preprocessing_function` (if any provided)
-            but before any other transformation.
+        zca_whitening: Boolean. Apply ZCA whitening.
+        rotation_range: Int. Degree range for random rotations.
+        width_shift_range: float, 1-D array-like or int
+            float: fraction of total width, if < 1, or pixels if >= 1.
+            1-D array-like: random elements from the array.
+            int: integer number of pixels from interval
+                `(-width_shift_range, +width_shift_range)`
+            With `width_shift_range=2` possible values are integers [-1, 0, +1],
+            same as with `width_shift_range=[-1, 0, +1]`,
+            while with `width_shift_range=1.0` possible values are floats in
+            the interval [-1.0, +1.0).
+        shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction in degrees)
+        zoom_range: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
+        channel_shift_range: Float. Range for random channel shifts.
+        fill_mode: One of {"constant", "nearest", "reflect" or "wrap"}.  Default is 'nearest'.
+        Points outside the boundaries of the input are filled according to the given mode:
+            'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+            'nearest':  aaaaaaaa|abcd|dddddddd
+            'reflect':  abcddcba|abcd|dcbaabcd
+            'wrap':  abcdabcd|abcd|abcdabcd
+        cval: Float or Int. Value used for points outside the boundaries when `fill_mode = "constant"`.
+        horizontal_flip: Boolean. Randomly flip inputs horizontally.
+        vertical_flip: Boolean. Randomly flip inputs vertically.
+        rescale: rescaling factor. Defaults to None. If None or 0, no rescaling is applied,
+                otherwise we multiply the data by the value provided (before applying
+                any other transformation).
         preprocessing_function: function that will be implied on each input.
-            The function will run before any other modification on it.
-            The function should take one argument:
-            one image (Numpy tensor with rank 3),
-            and should output a Numpy tensor with the same shape.
-        data_format: 'channels_first' or 'channels_last'. In 'channels_first' mode, the channels dimension
-            (the depth) is at index 1, in 'channels_last' mode it is at index 3.
+                The function will run after the image is resized and augmented.
+                The function should take one argument:
+                one image (Numpy tensor with rank 3),
+                and should output a Numpy tensor with the same shape.
+        data_format: One of {"channels_first", "channels_last"}.
+            "channels_last" mode means that the images should have shape `(samples, height, width, channels)`,
+            "channels_first" mode means that the images should have shape `(samples, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
+        validation_split: Float. Fraction of images reserved for validation (strictly between 0 and 1).
+
+    # Examples
+    Example of using `.flow(x, y)`:
+
+    ```python
+    (x_train, y_train), (x_test, y_test) = cifar10.load_data()
+    y_train = np_utils.to_categorical(y_train, num_classes)
+    y_test = np_utils.to_categorical(y_test, num_classes)
+
+    datagen = ImageDataGenerator(
+        featurewise_center=True,
+        featurewise_std_normalization=True,
+        rotation_range=20,
+        width_shift_range=0.2,
+        height_shift_range=0.2,
+        horizontal_flip=True)
+
+    # compute quantities required for featurewise normalization
+    # (std, mean, and principal components if ZCA whitening is applied)
+    datagen.fit(x_train)
+
+    # fits the model on batches with real-time data augmentation:
+    model.fit_generator(datagen.flow(x_train, y_train, batch_size=32),
+                        steps_per_epoch=len(x_train) / 32, epochs=epochs)
+
+    # here's a more "manual" example
+    for e in range(epochs):
+        print('Epoch', e)
+        batches = 0
+        for x_batch, y_batch in datagen.flow(x_train, y_train, batch_size=32):
+            model.fit(x_batch, y_batch)
+            batches += 1
+            if batches >= len(x_train) / 32:
+                # we need to break the loop by hand because
+                # the generator loops indefinitely
+                break
+    ```
+    Example of using `.flow_from_directory(directory)`:
+
+    ```python
+    train_datagen = ImageDataGenerator(
+            rescale=1./255,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True)
+
+    test_datagen = ImageDataGenerator(rescale=1./255)
+
+    train_generator = train_datagen.flow_from_directory(
+            'data/train',
+            target_size=(150, 150),
+            batch_size=32,
+            class_mode='binary')
+
+    validation_generator = test_datagen.flow_from_directory(
+            'data/validation',
+            target_size=(150, 150),
+            batch_size=32,
+            class_mode='binary')
+
+    model.fit_generator(
+            train_generator,
+            steps_per_epoch=2000,
+            epochs=50,
+            validation_data=validation_generator,
+            validation_steps=800)
+    ```
+
+    Example of transforming images and masks together.
+
+    ```python
+    # we create two instances with the same arguments
+    data_gen_args = dict(featurewise_center=True,
+                         featurewise_std_normalization=True,
+                         rotation_range=90.,
+                         width_shift_range=0.1,
+                         height_shift_range=0.1,
+                         zoom_range=0.2)
+    image_datagen = ImageDataGenerator(**data_gen_args)
+    mask_datagen = ImageDataGenerator(**data_gen_args)
+
+    # Provide the same seed and keyword arguments to the fit and flow methods
+    seed = 1
+    image_datagen.fit(images, augment=True, seed=seed)
+    mask_datagen.fit(masks, augment=True, seed=seed)
+
+    image_generator = image_datagen.flow_from_directory(
+        'data/images',
+        class_mode=None,
+        seed=seed)
+
+    mask_generator = mask_datagen.flow_from_directory(
+        'data/masks',
+        class_mode=None,
+        seed=seed)
+
+    # combine generators into one which yields image and masks
+    train_generator = zip(image_generator, mask_generator)
+
+    model.fit_generator(
+        train_generator,
+        steps_per_epoch=2000,
+        epochs=50)
+    ```
     """
 
     def __init__(self,
@@ -429,6 +575,7 @@ class ImageDataGenerator(object):
                  rotation_range=0.,
                  width_shift_range=0.,
                  height_shift_range=0.,
+                 brightness_range=None,
                  shear_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
@@ -438,7 +585,8 @@ class ImageDataGenerator(object):
                  vertical_flip=False,
                  rescale=None,
                  preprocessing_function=None,
-                 data_format=None):
+                 data_format=None,
+                 validation_split=0.0):
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -450,6 +598,7 @@ class ImageDataGenerator(object):
         self.rotation_range = rotation_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
+        self.brightness_range = brightness_range
         self.shear_range = shear_range
         self.zoom_range = zoom_range
         self.channel_shift_range = channel_shift_range
@@ -473,6 +622,10 @@ class ImageDataGenerator(object):
             self.channel_axis = 3
             self.row_axis = 1
             self.col_axis = 2
+        if validation_split and not 0 < validation_split < 1:
+            raise ValueError('`validation_split` must be strictly between 0 and 1. '
+                             ' Received arg: ', validation_split)
+        self._validation_split = validation_split
 
         self.mean = None
         self.std = None
@@ -514,7 +667,32 @@ class ImageDataGenerator(object):
                               '`samplewise_center`.')
 
     def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
-             save_to_dir=None, save_prefix='', save_format='png'):
+             save_to_dir=None, save_prefix='', save_format='png', subset=None):
+        """Takes numpy data & label arrays, and generates batches of
+            augmented/normalized data.
+
+        # Arguments
+               x: data. Should have rank 4.
+                In case of grayscale data,
+                the channels axis should have value 1, and in case
+                of RGB data, it should have value 3.
+               y: labels.
+               batch_size: int (default: 32).
+               shuffle: boolean (default: True).
+               seed: int (default: None).
+               save_to_dir: None or str (default: None).
+                This allows you to optionally specify a directory
+                to which to save the augmented pictures being generated
+                (useful for visualizing what you are doing).
+               save_prefix: str (default: `''`). Prefix to use for filenames of saved pictures
+                (only relevant if `save_to_dir` is set).
+                save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
+               subset: Subset of data (`"training"` or `"validation"`) if
+                `validation_split` is set in `ImageDataGenerator`.
+
+        # Returns
+            An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
+             `y` is a numpy array of corresponding labels."""
         return NumpyArrayIterator(
             x, y, self,
             batch_size=batch_size,
@@ -523,7 +701,8 @@ class ImageDataGenerator(object):
             data_format=self.data_format,
             save_to_dir=save_to_dir,
             save_prefix=save_prefix,
-            save_format=save_format)
+            save_format=save_format,
+            subset=subset)
 
     def flow_from_directory(self, directory,
                             target_size=(256, 256), color_mode='rgb',
@@ -533,7 +712,55 @@ class ImageDataGenerator(object):
                             save_prefix='',
                             save_format='png',
                             follow_links=False,
+                            subset=None,
                             interpolation='nearest'):
+        """Takes the path to a directory, and generates batches of augmented/normalized data.
+
+        # Arguments
+                directory: path to the target directory.
+                 It should contain one subdirectory per class.
+                 Any PNG, JPG, BMP, PPM or TIF images inside each of the subdirectories directory tree will be included in the generator.
+                See [this script](https://gist.github.com/fchollet/0830affa1f7f19fd47b06d4cf89ed44d) for more details.
+                target_size: tuple of integers `(height, width)`, default: `(256, 256)`.
+                 The dimensions to which all images found will be resized.
+                color_mode: one of "grayscale", "rbg". Default: "rgb".
+                 Whether the images will be converted to have 1 or 3 color channels.
+                classes: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None.
+                 If not provided, the list of classes will be automatically
+                 inferred from the subdirectory names/structure under `directory`,
+                 where each subdirectory will be treated as a different class
+                 (and the order of the classes, which will map to the label indices, will be alphanumeric).
+                 The dictionary containing the mapping from class names to class
+                 indices can be obtained via the attribute `class_indices`.
+                class_mode: one of "categorical", "binary", "sparse", "input" or None. Default: "categorical".
+                 Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels,
+                 "binary" will be 1D binary labels, "sparse" will be 1D integer labels, "input" will be images identical
+                 to input images (mainly used to work with autoencoders).
+                 If None, no labels are returned (the generator will only yield batches of image data, which is useful to use
+                 `model.predict_generator()`, `model.evaluate_generator()`, etc.).
+                  Please note that in case of class_mode None,
+                   the data still needs to reside in a subdirectory of `directory` for it to work correctly.
+                batch_size: size of the batches of data (default: 32).
+                shuffle: whether to shuffle the data (default: True)
+                seed: optional random seed for shuffling and transformations.
+                save_to_dir: None or str (default: None). This allows you to optionally specify a directory to which to save
+                 the augmented pictures being generated (useful for visualizing what you are doing).
+                save_prefix: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
+                save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
+                follow_links: whether to follow symlinks inside class subdirectories (default: False).
+                subset: Subset of data (`"training"` or `"validation"`) if
+                 `validation_split` is set in `ImageDataGenerator`.
+                interpolation: Interpolation method used to resample the image if the
+                 target size is different from that of the loaded image.
+                 Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
+                 If PIL version 1.1.3 or newer is installed, `"lanczos"` is also
+                 supported. If PIL version 3.4.0 or newer is installed, `"box"` and
+                 `"hamming"` are also supported. By default, `"nearest"` is used.
+
+        # Returns
+            A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array containing a batch
+            of images with shape `(batch_size, *target_size, channels)` and `y` is a numpy array of corresponding labels.
+        """
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
@@ -544,6 +771,7 @@ class ImageDataGenerator(object):
             save_prefix=save_prefix,
             save_format=save_format,
             follow_links=follow_links,
+            subset=subset,
             interpolation=interpolation)
 
     def standardize(self, x):
@@ -618,15 +846,25 @@ class ImageDataGenerator(object):
             theta = 0
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range)
-            if self.height_shift_range < 1:
+            try:  # 1-D array-like or int
+                tx = np.random.choice(self.height_shift_range)
+                tx *= np.random.choice([-1, 1])
+            except ValueError:  # floating point
+                tx = np.random.uniform(-self.height_shift_range,
+                                       self.height_shift_range)
+            if np.max(self.height_shift_range) < 1:
                 tx *= x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range)
-            if self.width_shift_range < 1:
+            try:  # 1-D array-like or int
+                ty = np.random.choice(self.width_shift_range)
+                ty *= np.random.choice([-1, 1])
+            except ValueError:  # floating point
+                ty = np.random.uniform(-self.width_shift_range,
+                                       self.width_shift_range)
+            if np.max(self.width_shift_range) < 1:
                 ty *= x.shape[img_col_axis]
         else:
             ty = 0
@@ -684,30 +922,27 @@ class ImageDataGenerator(object):
             if np.random.random() < 0.5:
                 x = flip_axis(x, img_row_axis)
 
+        if self.brightness_range is not None:
+            x = random_brightness(x, self.brightness_range)
+
         return x
 
     def fit(self, x,
             augment=False,
             rounds=1,
             seed=None):
-        """Fits internal statistics to some sample data.
-
-        Required for featurewise_center, featurewise_std_normalization
-        and zca_whitening.
+        """Compute the internal data stats related to the data-dependent transformations, based on an array of sample data.
+        Only required if featurewise_center or featurewise_std_normalization or zca_whitening.
 
         # Arguments
-            x: Numpy array, the data to fit on. Should have rank 4.
-                In case of grayscale data,
-                the channels axis should have value 1, and in case
-                of RGB data, it should have value 3.
-            augment: Whether to fit on randomly augmented samples
-            rounds: If `augment`,
-                how many augmentation passes to do over the data
-            seed: random seed.
-
-        # Raises
-            ValueError: in case of invalid input `x`.
-        """
+            x: sample data. Should have rank 4.
+             In case of grayscale data,
+             the channels axis should have value 1, and in case
+             of RGB data, it should have value 3.
+            augment: Boolean (default: False). Whether to fit on randomly augmented samples.
+            rounds: int (default: 1). If augment, how many augmentation passes over the data to use.
+            seed: int (default: None). Random seed.
+       """
         x = np.asarray(x, dtype=K.floatx())
         if x.ndim != 4:
             raise ValueError('Input to `.fit()` should have rank 4. '
@@ -865,22 +1100,36 @@ class NumpyArrayIterator(Iterator):
             images (if `save_to_dir` is set).
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
+        subset: Subset of data (`"training"` or `"validation"`) if
+            validation_split is set in ImageDataGenerator.
     """
 
     def __init__(self, x, y, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
                  data_format=None,
-                 save_to_dir=None, save_prefix='', save_format='png'):
+                 save_to_dir=None, save_prefix='', save_format='png',
+                 subset=None):
         if y is not None and len(x) != len(y):
-            raise ValueError('x (images tensor) and y (labels) '
+            raise ValueError('`x` (images tensor) and `y` (labels) '
                              'should have the same length. '
                              'Found: x.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
-
+        if subset is not None:
+            if subset not in {'training', 'validation'}:
+                raise ValueError('Invalid subset name:', subset,
+                                 '; expected "training" or "validation".')
+            split_idx = int(len(x) * image_data_generator._validation_split)
+            if subset == 'validation':
+                x = x[:split_idx]
+                if y is not None:
+                    y = y[:split_idx]
+            else:
+                x = x[split_idx:]
+                if y is not None:
+                    y = y[split_idx:]
         if data_format is None:
             data_format = K.image_data_format()
         self.x = np.asarray(x, dtype=K.floatx())
-
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
                              'should have rank 4. You passed an array '
@@ -940,7 +1189,7 @@ class NumpyArrayIterator(Iterator):
         return self._get_batches_of_transformed_samples(index_array)
 
 
-def _count_valid_files_in_directory(directory, white_list_formats, follow_links):
+def _iter_valid_files(directory, white_list_formats, follow_links):
     """Count files with extension in `white_list_formats` contained in directory.
 
     # Arguments
@@ -950,30 +1199,49 @@ def _count_valid_files_in_directory(directory, white_list_formats, follow_links)
             the files to be counted.
         follow_links: boolean.
 
-    # Returns
-        the count of files with extension in `white_list_formats` contained in
-        the directory.
+    # Yields
+        tuple of (root, filename) with extension in `white_list_formats`.
     """
     def _recursive_list(subpath):
         return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
 
-    samples = 0
-    for _, _, files in _recursive_list(directory):
-        for fname in files:
-            is_valid = False
+    for root, _, files in _recursive_list(directory):
+        for fname in sorted(files):
             for extension in white_list_formats:
                 if fname.lower().endswith('.tiff'):
                     warnings.warn('Using \'.tiff\' files with multiple bands will cause distortion. '
                                   'Please verify your output.')
                 if fname.lower().endswith('.' + extension):
-                    is_valid = True
-                    break
-            if is_valid:
-                samples += 1
-    return samples
+                    yield root, fname
 
 
-def _list_valid_filenames_in_directory(directory, white_list_formats,
+def _count_valid_files_in_directory(directory, white_list_formats, split, follow_links):
+    """Count files with extension in `white_list_formats` contained in directory.
+
+    # Arguments
+        directory: absolute path to the directory
+            containing files to be counted
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+        split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
+            account a certain fraction of files in each directory.
+            E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
+            of images in each directory.
+        follow_links: boolean.
+
+    # Returns
+        the count of files with extension in `white_list_formats` contained in
+        the directory.
+    """
+    num_files = len(list(_iter_valid_files(directory, white_list_formats, follow_links)))
+    if split:
+        start, stop = int(split[0] * num_files), int(split[1] * num_files)
+    else:
+        start, stop = 0, num_files
+    return stop - start
+
+
+def _list_valid_filenames_in_directory(directory, white_list_formats, split,
                                        class_indices, follow_links):
     """List paths of files in `subdir` with extensions in `white_list_formats`.
 
@@ -982,6 +1250,10 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             The directory name is used as class label and must be a key of `class_indices`.
         white_list_formats: set of strings containing allowed extensions for
             the files to be counted.
+        split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
+            account a certain fraction of files in each directory.
+            E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
+            of images in each directory.
         class_indices: dictionary mapping a class name to its index.
         follow_links: boolean.
 
@@ -991,25 +1263,22 @@ def _list_valid_filenames_in_directory(directory, white_list_formats,
             `directory`'s parent (e.g., if `directory` is "dataset/class1",
             the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
     """
-    def _recursive_list(subpath):
-        return sorted(os.walk(subpath, followlinks=follow_links), key=lambda x: x[0])
+    dirname = os.path.basename(directory)
+    if split:
+        num_files = len(list(_iter_valid_files(directory, white_list_formats, follow_links)))
+        start, stop = int(split[0] * num_files), int(split[1] * num_files)
+        valid_files = list(_iter_valid_files(directory, white_list_formats, follow_links))[start: stop]
+    else:
+        valid_files = _iter_valid_files(directory, white_list_formats, follow_links)
 
     classes = []
     filenames = []
-    subdir = os.path.basename(directory)
-    basedir = os.path.dirname(directory)
-    for root, _, files in _recursive_list(directory):
-        for fname in sorted(files):
-            is_valid = False
-            for extension in white_list_formats:
-                if fname.lower().endswith('.' + extension):
-                    is_valid = True
-                    break
-            if is_valid:
-                classes.append(class_indices[subdir])
-                # add filename relative to directory
-                absolute_path = os.path.join(root, fname)
-                filenames.append(os.path.relpath(absolute_path, basedir))
+    for root, fname in valid_files:
+        classes.append(class_indices[dirname])
+        absolute_path = os.path.join(root, fname)
+        relative_path = os.path.join(dirname, os.path.relpath(absolute_path, directory))
+        filenames.append(relative_path)
+
     return classes, filenames
 
 
@@ -1048,6 +1317,8 @@ class DirectoryIterator(Iterator):
             images (if `save_to_dir` is set).
         save_format: Format to use for saving sample images
             (if `save_to_dir` is set).
+        subset: Subset of data (`"training"` or `"validation"`) if
+            validation_split is set in ImageDataGenerator.
         interpolation: Interpolation method used to resample the image if the
             target size is different from that of the loaded image.
             Supported methods are "nearest", "bilinear", and "bicubic".
@@ -1060,9 +1331,11 @@ class DirectoryIterator(Iterator):
                  target_size=(256, 256), color_mode='rgb',
                  classes=None, class_mode='categorical',
                  batch_size=32, shuffle=True, seed=None,
-                 data_format=None, save_to_dir=None,
-                 save_prefix='', save_format='png',
-                 follow_links=False, interpolation='nearest'):
+                 data_format=None,
+                 save_to_dir=None, save_prefix='', save_format='png',
+                 follow_links=False,
+                 subset=None,
+                 interpolation='nearest'):
         if data_format is None:
             data_format = K.image_data_format()
         self.directory = directory
@@ -1096,6 +1369,19 @@ class DirectoryIterator(Iterator):
         self.save_format = save_format
         self.interpolation = interpolation
 
+        if subset is not None:
+            validation_split = self.image_data_generator._validation_split
+            if subset == 'validation':
+                split = (0, validation_split)
+            elif subset == 'training':
+                split = (validation_split, 1)
+            else:
+                raise ValueError('Invalid subset name: ', subset,
+                                 '; expected "training" or "validation"')
+        else:
+            split = None
+        self.subset = subset
+
         white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff'}
 
         # first, count the number of samples and classes
@@ -1112,7 +1398,8 @@ class DirectoryIterator(Iterator):
         pool = multiprocessing.pool.ThreadPool()
         function_partial = partial(_count_valid_files_in_directory,
                                    white_list_formats=white_list_formats,
-                                   follow_links=follow_links)
+                                   follow_links=follow_links,
+                                   split=split)
         self.samples = sum(pool.map(function_partial,
                                     (os.path.join(directory, subdir)
                                      for subdir in classes)))
@@ -1127,13 +1414,14 @@ class DirectoryIterator(Iterator):
         i = 0
         for dirpath in (os.path.join(directory, subdir) for subdir in classes):
             results.append(pool.apply_async(_list_valid_filenames_in_directory,
-                                            (dirpath, white_list_formats,
+                                            (dirpath, white_list_formats, split,
                                              self.class_indices, follow_links)))
         for res in results:
             classes, filenames = res.get()
             self.classes[i:i + len(classes)] = classes
             self.filenames += filenames
             i += len(classes)
+
         pool.close()
         pool.join()
         super(DirectoryIterator, self).__init__(self.samples, batch_size, shuffle, seed)

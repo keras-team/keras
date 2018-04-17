@@ -47,7 +47,7 @@ epochs = 5
 row_hidden = 128
 col_hidden = 128
 
-# The data, shuffled and split between train and test sets.
+# The data, split between train and test sets.
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 # Reshapes data to 4D for Hierarchical RNN.
