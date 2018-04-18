@@ -300,7 +300,7 @@ class TimeseriesGenerator(Sequence):
     targets = np.array([[i] for i in range(50)])
 
     data_gen = TimeseriesGenerator(data, targets,
-                                   length=5, sampling_rate=2,
+                                   hlength=5, sampling_rate=2,
                                    batch_size=2, shuffle=False)
     x, y = data_gen[0]
     assert len(data_gen) == 20
