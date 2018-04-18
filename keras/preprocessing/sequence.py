@@ -291,7 +291,7 @@ class TimeseriesGenerator(Sequence):
     targets = np.array([[i] for i in range(50)])
 
     data_gen = TimeseriesGenerator(data, targets,
-                                   length=10, sampling_rate=2,
+                                   hlength=10, sampling_rate=2,
                                    batch_size=2)
     assert len(data_gen) == 20
 
@@ -302,6 +302,12 @@ class TimeseriesGenerator(Sequence):
                                     [[1], [3], [5], [7], [9]]]))
     assert np.array_equal(y,
                           np.array([[10], [11]]))
+                          
+    txt = bytearray("Keras is simple.", 'utf-8')
+    data_gen = TimeseriesGenerator(txt, txt, hlength=10, batch_size=1)
+
+    for i in range(len(data_gen)):
+        print(data_gen[i][0].tostring(), "->'%s'" % data_gen[i][1].tostring())
     ```
     """
 
