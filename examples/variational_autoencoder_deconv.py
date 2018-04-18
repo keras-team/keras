@@ -63,7 +63,7 @@ def sampling(args):
     z_mean, z_log_var = args
     epsilon = K.random_normal(shape=(K.shape(z_mean)[0], latent_dim),
                               mean=0., stddev=epsilon_std)
-    return z_mean + K.exp(z_log_var) * epsilon
+    return z_mean + K.root(K.exp(z_log_var)) * epsilon
 
 # note that "output_shape" isn't necessary with the TensorFlow backend
 # so you could write `Lambda(sampling)([z_mean, z_log_var])`
