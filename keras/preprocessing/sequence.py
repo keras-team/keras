@@ -358,8 +358,8 @@ class TimeseriesGenerator(Sequence):
             warnings.warn(
                 '`length` parameter is depreciated, use `hlength` instead.', DeprecationWarning)
             if length % sampling_rate is not 0:
-                raise RuntimeError(
-                    'length must be a multiple of sampling_rate')
+                raise ValueError(
+                    '`length` must be a multiple of `sampling_rate`.')
             hlength = length // sampling_rate
 
         self.hlength = hlength
