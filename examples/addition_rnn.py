@@ -121,6 +121,36 @@ for i, sentence in enumerate(questions):
 for i, sentence in enumerate(expected):
     y[i] = ctable.encode(sentence, DIGITS + 1)
 
+'''
+Let's build the dataset for the numbers that are not in expected numbers.
+These are the numbers that the model has never seen.
+For example, the model can see '300+20 ' and also '160+160', so it has seen 320 as label.
+Now, if '160+160 ' ends up in validation set, '300+20 ' can contribute to its prediction.
+However, if 320 was not in the expectation set, we can check the prediction for '160+160'.
+It is harder to predict it; the training loop easily shows it.'''
+
+intexcpected = [int(x) for x in expected]
+neverseen = [a for a in range(1999) if a not in intexcpected]
+if len(neverseen):
+    newQs = []
+    newExp = []
+    for j in range(len(neverseen)):
+        a = int(neverseen[j]/2)
+        b = neverseen[j] - a
+        q = '{}+{}'.format(a, b)
+        query = q + ' ' * (MAXLEN - len(q))
+        ans = str(a + b)
+        ans += ' ' * (DIGITS + 1 - len(ans))
+        newQs.append(query)
+        newExp.append(ans)
+    newx = np.zeros((len(newQs), MAXLEN, len(chars)), dtype=np.bool)
+    newy = np.zeros((len(newQs), DIGITS + 1, len(chars)), dtype=np.bool)
+    for i, sentence in enumerate(newQs):
+        newx[i] = ctable.encode(sentence, MAXLEN)
+    for i, sentence in enumerate(newExp):
+        newy[i] = ctable.encode(sentence, DIGITS + 1)
+
+
 # Shuffle (x, y) in unison as the later parts of x will almost all be larger
 # digits.
 indices = np.arange(len(y))
@@ -176,7 +206,7 @@ model.summary()
 
 # Train the model each generation and show predictions against the validation
 # dataset.
-for iteration in range(1, 200):
+for iteration in range(1, 11):
     print()
     print('-' * 50)
     print('Iteration', iteration)
@@ -200,3 +230,21 @@ for iteration in range(1, 200):
         else:
             print(colors.fail + '☒' + colors.close, end=' ')
         print(guess)
+    print('Testing the never-seen numbers!')
+    corrct = 0
+    for j in range(len(neverseen)):
+
+        rowx, rowy = x_val[np.array([j])], y_val[np.array([j])]
+
+        preds = model.predict_classes(rowx, verbose=0)
+
+        q = ctable.decode(rowx[0])
+
+        correct = ctable.decode(rowy[0])
+
+        guess = ctable.decode(preds[0], calc_argmax=False)
+
+        if correct == guess:
+            corrct += 1
+    print('Never seen Acc.\t', round(corrct / len(neverseen) * 100, 2), '%')
+print("{} numbers were not seen".format(len(neverseen)))
