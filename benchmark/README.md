@@ -13,22 +13,36 @@ To switch between different backends refer to
 [configure Keras backend](https://github.com/awslabs/keras-apache-mxnet/wiki/Installation#2-configure-keras-backend)
 
 ## CNN Benchmarks
-We provide benchmark scripts to run on CIFAR10, ImageNet and Synthetic Dataset(randomly generated) 
+We provide benchmark scripts to run on CIFAR-10, ImageNet and Synthetic Dataset(randomly generated)
+
+### CIFAR-10 Dataset
+[CIFAR-10](https://www.cs.toronto.edu/~kriz/cifar.html) dataset has 60000 32x32 color images in 10 classes.
+The [training scripts](https://github.com/awslabs/keras-apache-mxnet/blob/master/benchmark/image-classification/benchmark_resnet.py)
+ will automatically download the dataset, you need to provide dataset name, resnet version 
+(1 or 2), number of layers (20, 56, or 110), number of GPUs to use. 
+
+Example Usage:
+
+`python benchmark_resnet.py --dataset cifar10 --version 1 --layers 56 --gpus 4`
+
+
 ### ImageNet Dataset
 First, download ImageNet Dataset from [here](http://image-net.org/download), there are total 1.4 million images 
-with 1000 classes, each class is in a subfolder. In this script, each image is processed to size 256*256
+with 1000 classes, each class is in a subfolder. In this script, each image is processed to size 256x256
 
 Since ImageNet Dataset is too large, there are two training mode for data that does not fit into memory: 
-`train_on_batch` and `fit_generator`, we recommend train_on_batch since it's more efficient on multi_gpu.
+[`train_on_batch`](https://keras.io/models/sequential/#train_on_batch) and 
+[`fit_generator`](https://keras.io/models/sequential/#fit_generator), 
+we recommend train_on_batch since it's more efficient on multi_gpu.
 (Refer to [Keras Document](https://keras.io/getting-started/faq/#how-can-i-use-keras-with-datasets-that-dont-fit-in-memory) 
 and Keras Issue [#9502](https://github.com/keras-team/keras/issues/9502), 
 [#9204](https://github.com/keras-team/keras/issues/9204), [#9647](https://github.com/keras-team/keras/issues/9647))
 
-Need to provide training mode, number of gpus and path to imagenet dataset.
+Compare to CIFAR-10, you need to provide additional params: training mode and path to imagenet dataset.
 
 Example usage:
 
-`python benchmark_imagenet_resnet.py --train_mode train_on_batch --gpus 4 --data_path home/ubuntu/imagenet/train/`
+`python benchmark_resnet.py --dataset imagenet --mxnet_backend_training_speed.pngversion 1 -layers 56 --gpus 4 --train_mode train_on_batch --data_path home/ubuntu/imagenet/train/`
 
 ### Synthetic Dataset
 We used benchmark scripts from 
@@ -41,16 +55,30 @@ you want to benchmark inference speed (True or False).
 Example Usage:
 
 `sh run_<backend-type>_backend.sh gpu_config False`
-### CNN Benchmark Results
-Here we list the result on ImageNet and Synthetic Data(channels first) using ResNet50V1 model, on 1, 4 GPUs using 
-AWS p3.8xLarge instance and 8 GPUs using AWS p3.16xLarge instance. For more details about the instance configuration, 
-please refer [here](https://aws.amazon.com/ec2/instance-types/p3/)
 
-| GPUs   | ImageNet  | Synthetic Data(Channels First) |
-|--------|:---------:|-------------------------------:|
-| 1      | 162       |   229                          |
-| 4      | 538       |   727                          |
-| 8      | 728       |   963                          |
+### CNN Benchmark Results
+Here we list the result of MXNet backend training speed on CIFAR-10, ImageNet and Synthetic Data using 
+ResNet50V1 model, on CPU, 1, 4, 8 GPUs using AWS instances. 
+Hardware specifications of the instances can be found [here](https://aws.amazon.com/ec2/instance-types/)
+
+For more detailed benchmark results, please refer to [CNN results](https://github.com/awslabs/keras-apache-mxnet/tree/keras2_mxnet_backend/benchmark/benchmark_result/CNN_result.md). 
+
+|||
+|  ------ | ------ |
+|  Keras Version | 2.1.5 |
+|  MXNet Version | 1.1.0 |
+|  Data Format | Channel first |
+
+|  Instance | GPU used | Package | CIFAR-10 | ImageNet | Synthetic Data |
+|  ------ | ------ | ------ | ------ | ------ | ------ |
+|  C5.18xLarge | 0  | mxnet-mkl | 87 | N/A | 9 |
+|  P3.8xLarge | 1 | mxnet-cu90 | N/A | 165 | 229 |
+|  P3.8xLarge | 4 | mxnet-cu90 | 1792 | 538 | 728 |
+|  P3.16xLarge | 8 | mxnet-cu90 | 1618 | 728 | 963 |
+
+![MXNet backend training speed](https://github.com/roywei/keras/blob/benchmark_result/benchmark/benchmark_result/mxnet_backend_training_speed.png)
+
+Note: X-axis is number of GPUs used, Y-axis is training speed(images/second)
 
 ## RNN Benchmarks
 
@@ -76,8 +104,6 @@ We have used an official WikiText-2 character level Dataset from this [link](htt
 
 The `lstm_text_generation_wikitext2.py` includes a dataset that is hosted on S3 bucket from this [link](https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-raw-v1.zip) (This is a WikiText-2 raw character level data).
 
-### 
-
 ### RNN Benchmark Results
 
 Here, we list the result on Synthetic, Nietzsche, and WikiText-2 dataset using Sequential model(LSTM) on Amazon AWS C5.xLarge(CPU) instance and P3.8xLarge(1, 4 GPUs) with MXNet backend. Batch size is 128. For more details about the instance configuration, please refer [P3](https://aws.amazon.com/ec2/instance-types/p3/) and [C5](https://aws.amazon.com/ec2/instance-types/c5/).
@@ -94,10 +120,12 @@ Here, we list the result on Synthetic, Nietzsche, and WikiText-2 dataset using S
 | P3.8xLarge | 1    | WikiText-2 | 882 sec - 264us/step                |
 | P3.8xLarge | 4    | WikiText-2 | 794 sec - 235us/step                |
 
-## 
-##Credits
-Synthetic Data scripts modified from [
-TensorFlow Benchmarks](https://github.com/tensorflow/benchmarks/tree/keras-benchmarks)
+
+
+## Credits
+
+Synthetic Data scripts modified from 
+[TensorFlow Benchmarks](https://github.com/tensorflow/benchmarks/tree/keras-benchmarks)
 
 ## Reference
 [1] [TensorFlow Benchmarks](https://github.com/tensorflow/benchmarks/tree/keras-benchmarks)

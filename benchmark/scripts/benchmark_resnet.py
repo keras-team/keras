@@ -35,11 +35,11 @@ from keras.preprocessing.image import ImageDataGenerator, img_to_array, load_img
 from keras.utils import multi_gpu_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--data_set',
+parser.add_argument('--dataset',
                     help='Dataset for training: cifar10 or imagenet')
 parser.add_argument('--version',
                     help='Provide resnet version: 1 or 2')
-parser.add_argument('--num_layer',
+parser.add_argument('--layers',
                     help="Provide number of layers: 20, 56 or 110")
 parser.add_argument('--gpus',
                     help='Number of GPUs to use')
@@ -51,7 +51,7 @@ parser.add_argument('--data_path',
 args = parser.parse_args()
 
 # Check args
-if args.data_set not in ["cifar10", "imagenet"]:
+if args.dataset not in ["cifar10", "imagenet"]:
     print("Only support cifar10 or imagenet data set")
     sys.exit()
 
@@ -59,11 +59,11 @@ if args.version not in ["1", "2"]:
     print("Provide resnet version: 1 or 2")
     sys.exit()
 
-if args.num_layer not in ["20", "56", "110"]:
+if args.layers not in ["20", "56", "110"]:
     print("Provide number of layers: 20, 56 or 110")
     sys.exit()
 
-if args.data_set == "imagenet":
+if args.dataset == "imagenet":
     if not args.train_mode or not args.data_path:
         print("Need to provide training mode(train_on_batch or fit_generator) "
               "and data path to imagenet dataset")
@@ -81,7 +81,7 @@ else:
 # Training parameters
 batch_size = 32 * num_gpus if num_gpus > 0 else 32
 epochs = 200
-num_classes = 1000 if args.data_set == "imagenet" else 10
+num_classes = 1000 if args.dataset == "imagenet" else 10
 data_format = K._image_data_format
 print('using image format:', data_format)
 # Subtracting pixel mean improves accuracy
@@ -93,7 +93,7 @@ if use_parallel_model:
 
 # Prepare Training Data
 # CIFAR10 data set
-if args.data_set == "cifar10":
+if args.dataset == "cifar10":
     # Load the CIFAR10 data.
     (x_train, y_train), (x_test, y_test) = cifar10.load_data()
 
@@ -119,7 +119,7 @@ if args.data_set == "cifar10":
     y_test = keras.utils.to_categorical(y_test, num_classes)
 
 # ImageNet Dataset
-if args.data_set == "imagenet":
+if args.dataset == "imagenet":
     input_shape = (256, 256, 3) if data_format == 'channels_last' else (3, 256, 256)
     if args.train_mode == 'fit_generator':
         train_datagen = ImageDataGenerator(
@@ -201,7 +201,7 @@ def get_batch():
 version = int(args.version)
 
 # Computed depth from supplied model parameter n
-depth = int(args.num_layer)
+depth = int(args.layers)
 
 # Model name, depth and version
 model_type = 'ResNet%dv%d' % (depth, version)
@@ -285,7 +285,7 @@ lr_reducer = ReduceLROnPlateau(factor=np.sqrt(0.1),
 callbacks = [checkpoint, lr_reducer, lr_scheduler]
 
 # Run training, without data augmentation.
-if args.data_set == "imagenet":
+if args.dataset == "imagenet":
     print('Not using data augmentation.')
     if args.train_mode == 'train_on_batch':
         for i in range(0, epochs):

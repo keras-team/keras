@@ -12,10 +12,6 @@ from models import model_config
 
 if keras.backend.backend() == "tensorflow":
     import tensorflow as tf
-if keras.backend.backend() == "theano":
-    import theano
-if keras.backend.backend() == "cntk":
-    import cntk
 if keras.backend.backend() == "mxnet":
     import mxnet
 
@@ -54,10 +50,6 @@ config = json.loads(config_contents)[args.mode]
 def get_backend_version():
     if keras.backend.backend() == "tensorflow":
         return tf.__version__
-    if keras.backend.backend() == "theano":
-        return theano.__version__
-    if keras.backend.backend() == "cntk":
-        return cntk.__version__
     if keras.backend.backend() == "mxnet":
         return mxnet.__version__
     return "undefined"
