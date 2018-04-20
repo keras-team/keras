@@ -577,8 +577,15 @@ class Sequential(Model):
             raise TypeError('Sequential model cannot be built: model is empty.'
                             ' Add some layers first.')
         # actually create the model
-        self.model = Model(self.inputs, self.outputs[0],
-                           name=self.name + '_model')
+        if K.backend() == 'mxnet' and hasattr(self, '_context') and \
+                self._context is not None:
+            # pass the CPU or GPU context
+            self.model = Model(self.inputs, self.outputs[0],
+                               name=self.name + '_model',
+                               context=list(map(str, self._context)))
+        else:
+            self.model = Model(self.inputs, self.outputs[0],
+                               name=self.name + '_model')
         self.model.trainable = self.trainable
 
         # mirror model attributes
