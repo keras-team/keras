@@ -242,6 +242,8 @@ class RMSprop(Optimizer):
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
+        #How is running average done here.
+        #It is initializing it to 0 everytime
         accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
