@@ -358,6 +358,17 @@ def img_to_array(img, data_format=None):
     return x
 
 
+def save_img(path, x):
+    """Save an image stored as a Numpy Array to a path or file object.
+
+    # Arguments
+        path: Path or file object
+        x: Input Numpy Array
+    """
+    img = pil_image.fromarray(x)
+    img.save(path)
+
+
 def load_img(path, grayscale=False, target_size=None,
              interpolation='nearest'):
     """Loads an image into PIL format.
