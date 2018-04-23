@@ -327,7 +327,6 @@ class TimeseriesGenerator(Sequence):
             raise ValueError('`batch_size` must be strictly positive.')
         if len(data) > len(targets):
             raise ValueError('`targets` has to be at least as long as `data`.')
-            
 
         if hlength is None:
             if length % sampling_rate != 0:
@@ -362,10 +361,10 @@ class TimeseriesGenerator(Sequence):
                 raise ValueError('Do not shuffle for stateful learning.')
             if self.hlength % batch_size != 0:
                 raise ValueError('For stateful learning, `hlength` has to be a multiple of `batch_size`.'
-                                 'For instance, `hlength=%i` would do.' % (2 * hlength - hlength % batch_size))
+                                 'For instance, `hlength=%i` would do.' % (3 * batch_size))
             if stride != (self.hlength // batch_size) * sampling_rate:
                 raise ValueError(
-                    'For stateful learning set `stride=%i`.' % (hlength // batch_size) * sampling_rate)
+                    '`stride=%i`, for these parameters set `stride=%i`.' % (stride, (hlength // batch_size) * sampling_rate))
 
         self.sampling_rate = sampling_rate
         self.batch_size = batch_size
@@ -382,15 +381,12 @@ class TimeseriesGenerator(Sequence):
         self.reverse = reverse
         self.target_seq = target_seq
 
-        
-        self.len = int(ceil( float(self.end_index - self.start_index) /
-                         (self.batch_size * self.stride) ))
-        print("self.len=", self.len)
+        self.len = int(ceil(float(self.end_index - self.start_index) /
+                            (self.batch_size * self.stride)))
         if self.len <= 0:
             err = 'This configuration gives no output, try with a longer input sequence or different parameters.'
             raise ValueError(err)
-        
-        
+
         assert self.len > 0
 
         self.perm = np.arange(self.start_index, self.end_index)
@@ -416,12 +412,8 @@ class TimeseriesGenerator(Sequence):
             index += self.len
         assert index < self.len
         batch_start = self.batch_size * self.stride * index
-        rows = np.arange(batch_start, min(batch_start + self.batch_size * self.stride, self.end_index - self.start_index), self.stride)
-        print ('len of rows: %i ' % len(rows))
-        print(self.end_index)
-        print(rows)
-        print(self.perm)
-        print(self.perm[rows])
+        rows = np.arange(batch_start, min(batch_start + self.batch_size *
+                                          self.stride, self.end_index - self.start_index), self.stride)
         rows = self.perm[rows]
 
         samples, targets = self._empty_batch(len(rows))
