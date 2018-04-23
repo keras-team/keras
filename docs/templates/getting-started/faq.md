@@ -622,5 +622,5 @@ module via
 import h5py
 ```
 
-If it imports without error it is installed ortherwise you can find detaild
+If it imports without error it is installed otherwise you can find detailed
 installation instructions here: http://docs.h5py.org/en/latest/build.html
