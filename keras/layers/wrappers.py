@@ -487,11 +487,32 @@ class Bidirectional(Wrapper):
             return self.forward_layer.updates + self.backward_layer.updates
         return []
 
+    def get_updates_for(self, inputs=None):
+        inner_inputs = inputs
+        if inputs is not None:
+            uid = _object_list_uid(inputs)
+            if uid in self._input_map:
+                inner_inputs = self._input_map[uid]
+
+        forward_updates = self.forward_layer.get_updates_for(inner_inputs)
+        backward_updates = self.backward_layer.get_updates_for(inner_inputs)
+        updates = forward_updates + backward_updates
+        updates += super(Wrapper, self).get_updates_for(inputs)
+        return updates
+
     @property
     def losses(self):
         if hasattr(self.forward_layer, 'losses'):
             return self.forward_layer.losses + self.backward_layer.losses
         return []
+
+    def get_losses_for(self, inputs=None):
+        if inputs is None:
+            forward_losses = self.forward_layer.get_losses_for(None)
+            backward_losses = self.backward_layer.get_losses_for(None)
+            losses = forward_losses + backward_losses
+            return losses + super(Wrapper, self).get_losses_for(None)
+        return super(Wrapper, self).get_losses_for(inputs)
 
     @property
     def constraints(self):
