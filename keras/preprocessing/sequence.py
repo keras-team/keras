@@ -208,7 +208,7 @@ def skipgrams(sequence, vocabulary_size,
         random.shuffle(words)
 
         couples += [[words[i % len(words)],
-                    random.randint(1, vocabulary_size - 1)]
+                     random.randint(1, vocabulary_size - 1)]
                     for i in range(num_negative_samples)]
         if categorical:
             labels += [[1, 0]] * num_negative_samples
@@ -258,7 +258,7 @@ class TimeseriesGenerator(Sequence):
             if 2D or more, axis 0 is expected to be the time dimension.
         targets: Targets corresponding to timesteps in `data`.
             It should have at least the same length as `data`.
-        length: length of the output sub-sequence before sampling (use hlength instead).
+        length: length of the output sub-sequence before sampling (depreciated, use hlength instead).
         sampling_rate: Period between successive individual timesteps
             within sequences, `length` has to be a multiple of `sampling_rate`.
         stride: Period between successive output sequences.
@@ -273,7 +273,7 @@ class TimeseriesGenerator(Sequence):
             in reverse chronological order.
         batch_size: Number of timeseries samples in each batch.
         hlength: Effective "history" length of the output sub-sequences after sampling (in number of timesteps).
-        gap: prediction gap, i.e. numer of timesteps ahead (usually same as samplig_rate)
+        gap: prediction gap, i.e. numer of timesteps ahead (usually zero, or same as samplig_rate)
             `x=data[i - (hlength-1)*sampling_rate - gap:i-gap+1:sampling_rate]` and `y=targets[i]`
             are used respectively as sample sequence `x` and target value `y`.
         target_seq: Boolean: if 'True', produces full shifted sequence targets:
@@ -282,7 +282,7 @@ class TimeseriesGenerator(Sequence):
             `targets[i - (hlength-1)*r]`, ..., `data[i-r]`, `data[i]`
             are used respectively as sample sequence `x` and target sequence `y`.
         dtype: force sample/target dtype (default is None)
-        stateful: helper to set parameters for stateful learning (experimental).
+        stateful: helper to check if parameters are valid for stateful learning (experimental).
 
 
     # Returns
@@ -296,41 +296,8 @@ class TimeseriesGenerator(Sequence):
     ```python
     from keras.preprocessing.sequence import TimeseriesGenerator
     import numpy as np
-    data = np.array([[i] for i in range(50)])
-    targets = np.array([[i] for i in range(50)])
 
-    data_gen = TimeseriesGenerator(data, targets,
-                                   hlength=5, sampling_rate=2,
-                                   batch_size=2, shuffle=False)
-    x, y = data_gen[0]
-    assert len(data_gen) == 20
-    assert np.array_equal(x, np.array([[[0], [2], [4], [6], [8]],
-                                   [[1], [3], [5], [7], [9]]]))
-    assert np.array_equal(y, np.array([[10], [11]]))
-
-    x, y = data_gen[-1]
-
-    assert np.array_equal(x, np.array([[[38], [40], [42], [44], [46]],
-                                   [[39], [41], [43], [45], [47]]]))
-    assert np.array_equal(y, np.array([[48], [49]]))
-
-    txt = bytearray("Keras is simple.", 'utf-8')
-    data_gen = TimeseriesGenerator(txt, txt, length=10, batch_size=1)
-
-    for i in range(len(data_gen)):
-        print(data_gen[i][0].tostring(), "->'%s'" % data_gen[i][1].tostring())
-
-    assert data_gen[-1][0].shape == (1, 10) and data_gen[-1][1].shape==(1,)
-    assert data_gen[-1][0].tostring() == u" is simple"
-    assert data_gen[-1][1].tostring() == u"."
-
-    data_gen = TimeseriesGenerator(txt, txt, length=10, target_seq=True)
-
-    assert data_gen[-1][0].shape == (1, 10) and data_gen[-1][1].shape==(1,10,1)
-    for i in range(len(data_gen)):
-        print(data_gen[i][0].tostring(), "->'%s'" % data_gen[i][1].tostring())
-
-    assert data_gen[0][1].tostring() == u"eras is si"
+    FIXME/ take examples from tests
 
 
     ```
@@ -345,7 +312,7 @@ class TimeseriesGenerator(Sequence):
                  batch_size=32,
                  hlength=None,
                  target_seq=False,
-                 gap=None,
+                 gap=0,
                  dtype=None,
                  stateful=False):
 
@@ -359,8 +326,12 @@ class TimeseriesGenerator(Sequence):
                 '`length` parameter is depreciated, use `hlength` instead.', DeprecationWarning)
             if length % sampling_rate is not 0:
                 raise ValueError(
-                    '`length` must be a multiple of `sampling_rate`.')
+                    '`length` has to be a multiple of `sampling_rate`')
             hlength = length // sampling_rate
+
+        if gap % sampling_rate != 0:
+            warnings.warn(
+                'Unless you know what you do, `gap` should be zero or a multiple of `sampling_rate`.', UserWarning)
 
         self.hlength = hlength
         assert self.hlength > 0
@@ -379,9 +350,17 @@ class TimeseriesGenerator(Sequence):
             self.data_type = dtype
             self.targets_type = dtype
 
-        # force stateful-compatible parameters
+        # Check if parameters are stateful-compatible
         if stateful:
-            shuffle = False
+            if shuffle:
+                raise ValueError('Do not shuffle for stateful learning.')
+            if self.hlength % batch_size != 0:
+                raise ValueError('For stateful learning, `hlength` has to be a multiple of `batch_size`.' +
+                                 '`hlength=%d` would do.' % hlength - hlength % batch_size)
+            if stride != (self.hlength // batch_size) * sampling_rate:
+                raise ValueError(
+                    'For stateful learning set `stride=(hlength // batch_size) * sampling_rate`.')
+
             gap = sampling_rate
             b = batch_size
             while self.hlength % b > 0:
