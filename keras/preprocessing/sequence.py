@@ -10,6 +10,7 @@ import random
 from six.moves import range
 import warnings
 from ..utils.data_utils import Sequence
+from math import ceil
 
 
 def pad_sequences(sequences, maxlen=None, dtype='int32',
@@ -309,7 +310,7 @@ class TimeseriesGenerator(Sequence):
                  start_index=0, end_index=None,
                  shuffle=False,
                  reverse=False,
-                 batch_size=32,
+                 batch_size=128,
                  hlength=None,
                  target_seq=False,
                  gap=0,
@@ -317,16 +318,21 @@ class TimeseriesGenerator(Sequence):
                  stateful=False):
 
         # Sanity check
-        assert sampling_rate > 0
-        assert batch_size > 0
-        assert len(data) <= len(targets)
+
+        if sampling_rate <= 0:
+            raise ValueError('`sampling_rate` must be strictly positive.')
+        if stride <= 0:
+            raise ValueError('`stride` must be strictly positive.')
+        if batch_size <= 0:
+            raise ValueError('`batch_size` must be strictly positive.')
+        if len(data) > len(targets):
+            raise ValueError('`targets` has to be at least as long as `data`.')
+            
 
         if hlength is None:
-            warnings.warn(
-                '`length` parameter is depreciated, use `hlength` instead.', DeprecationWarning)
-            if length % sampling_rate is not 0:
+            if length % sampling_rate != 0:
                 raise ValueError(
-                    '`length` has to be a multiple of `sampling_rate`')
+                    '`length` has to be a multiple of `sampling_rate`. For instance, `length=%i` would do.' % (2*sampling_rate))
             hlength = length // sampling_rate
 
         if gap % sampling_rate != 0:
@@ -339,7 +345,7 @@ class TimeseriesGenerator(Sequence):
         self.data = np.asarray(data)
         self.targets = np.asarray(targets)
 
-        # FIXME: targets must be 2D, seems required by sparse losses on integer seq output
+        # FIXME: targets must be 2D for sequences output
         if target_seq and len(self.targets.shape) < 2:
             self.targets = np.expand_dims(self.targets, axis=-1)
 
@@ -355,25 +361,16 @@ class TimeseriesGenerator(Sequence):
             if shuffle:
                 raise ValueError('Do not shuffle for stateful learning.')
             if self.hlength % batch_size != 0:
-                raise ValueError('For stateful learning, `hlength` has to be a multiple of `batch_size`.' +
-                                 '`hlength=%d` would do.' % hlength - hlength % batch_size)
+                raise ValueError('For stateful learning, `hlength` has to be a multiple of `batch_size`.'
+                                 'For instance, `hlength=%i` would do.' % (2 * hlength - hlength % batch_size))
             if stride != (self.hlength // batch_size) * sampling_rate:
                 raise ValueError(
-                    'For stateful learning set `stride=(hlength // batch_size) * sampling_rate`.')
-
-            gap = sampling_rate
-            b = batch_size
-            while self.hlength % b > 0:
-                b -= 1
-            batch_size = b
-            stride = (self.hlength // batch_size) * sampling_rate
+                    'For stateful learning set `stride=%i`.' % (hlength // batch_size) * sampling_rate)
 
         self.sampling_rate = sampling_rate
         self.batch_size = batch_size
         assert stride > 0
         self.stride = stride
-        if gap is None:
-            gap = sampling_rate
         self.gap = gap
 
         sliding_win_size = (self.hlength - 1) * sampling_rate + gap
@@ -385,11 +382,15 @@ class TimeseriesGenerator(Sequence):
         self.reverse = reverse
         self.target_seq = target_seq
 
-        assert self.start_index < self.end_index
-        assert self.batch_size * self.stride > 0
-        assert self.batch_size * self.stride < self.end_index - self.start_index
-        self.len = (self.end_index -
-                    self.start_index) // (self.batch_size * self.stride)
+        
+        self.len = int(ceil( float(self.end_index - self.start_index) /
+                         (self.batch_size * self.stride) ))
+        print("self.len=", self.len)
+        if self.len <= 0:
+            err = 'This configuration gives no output, try with a longer input sequence or different parameters.'
+            raise ValueError(err)
+        
+        
         assert self.len > 0
 
         self.perm = np.arange(self.start_index, self.end_index)
@@ -414,9 +415,13 @@ class TimeseriesGenerator(Sequence):
         while index < 0:
             index += self.len
         assert index < self.len
-        i = self.batch_size * self.stride * index
-        assert i + self.batch_size * self.stride <= self.end_index
-        rows = np.arange(i, i + self.batch_size * self.stride, self.stride)
+        batch_start = self.batch_size * self.stride * index
+        rows = np.arange(batch_start, min(batch_start + self.batch_size * self.stride, self.end_index - self.start_index), self.stride)
+        print ('len of rows: %i ' % len(rows))
+        print(self.end_index)
+        print(rows)
+        print(self.perm)
+        print(self.perm[rows])
         rows = self.perm[rows]
 
         samples, targets = self._empty_batch(len(rows))
