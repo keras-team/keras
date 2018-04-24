@@ -139,9 +139,10 @@ def deserialize_keras_object(identifier, module_objects=None,
         if hasattr(cls, 'from_config'):
             custom_objects = custom_objects or {}
             if has_arg(cls.from_config, 'custom_objects'):
-                return cls.from_config(config['config'],
-                                       custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
-                                                           list(custom_objects.items())))
+                return cls.from_config(
+                    config['config'],
+                    custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
+                                        list(custom_objects.items())))
             with CustomObjectScope(custom_objects):
                 return cls.from_config(config['config'])
         else:
@@ -384,7 +385,8 @@ class Progbar(object):
             if self.target is not None and current < self.target:
                 eta = time_per_unit * (self.target - current)
                 if eta > 3600:
-                    eta_format = '%d:%02d:%02d' % (eta // 3600, (eta % 3600) // 60, eta % 60)
+                    eta_format = ('%d:%02d:%02d' %
+                                  (eta // 3600, (eta % 3600) // 60, eta % 60))
                 elif eta > 60:
                     eta_format = '%d:%02d' % (eta // 60, eta % 60)
                 else:
@@ -440,3 +442,36 @@ class Progbar(object):
 
     def add(self, n, values=None):
         self.update(self._seen_so_far + n, values)
+
+
+def to_list(x):
+    """Normalizes a list/tensor into a list.
+
+    If a tensor is passed, we return
+    a list of size 1 containing the tensor.
+
+    # Arguments
+        x: target object to be normalized.
+
+    # Returns
+        A list.
+    """
+    if isinstance(x, list):
+        return x
+    return [x]
+
+
+def object_list_uid(object_list):
+    object_list = to_list(object_list)
+    return ', '.join([str(abs(id(x))) for x in object_list])
+
+
+def is_all_none(iterable_or_element):
+    if not isinstance(iterable_or_element, (list, tuple)):
+        iterable = [iterable_or_element]
+    else:
+        iterable = iterable_or_element
+    for element in iterable:
+        if element is not None:
+            return False
+    return True

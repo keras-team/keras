@@ -72,8 +72,8 @@ from .. import regularizers
 from .. import constraints
 from ..utils import conv_utils
 from ..utils.data_utils import get_file
-from ..engine.topology import get_source_inputs
-from ..engine import InputSpec
+from ..engine import get_source_inputs
+from ..engine.base_layer import InputSpec
 from . import imagenet_utils
 from .imagenet_utils import _obtain_input_shape
 from .imagenet_utils import decode_predictions

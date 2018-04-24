@@ -10,8 +10,8 @@ import copy
 import numpy as np
 from scipy.sparse import issparse
 
-from .topology import Container
-from .topology import Layer
+from .network import Network
+from .base_layer import Layer
 from .. import backend as K
 from .. import optimizers
 from .. import losses
@@ -542,8 +542,8 @@ def _standardize_weights(y, sample_weight=None, class_weight=None,
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 
 
-class Model(Container):
-    """The `Model` class adds training & evaluation routines to a `Container`.
+class Model(Network):
+    """The `Model` class adds training & evaluation routines to a `Network`.
     """
 
     def compile(self, optimizer, loss=None, metrics=None, loss_weights=None,

@@ -35,7 +35,7 @@ from ..layers import SeparableConv2D
 from ..layers import MaxPooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
-from ..engine.topology import get_source_inputs
+from ..engine import get_source_inputs
 from ..utils.data_utils import get_file
 from .. import backend as K
 from . import imagenet_utils

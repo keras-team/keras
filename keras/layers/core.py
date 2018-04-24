@@ -16,8 +16,8 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import InputSpec
-from ..engine import Layer
+from ..engine.base_layer import InputSpec
+from ..engine.base_layer import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
