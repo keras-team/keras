@@ -9,9 +9,6 @@ the VGG16 and ResNet models (299x299 instead of 224x224),
 and that the input preprocessing function
 is also different (same as Inception V3).
 
-Also do note that this model is only available for the TensorFlow backend,
-due to its reliance on `SeparableConvolution` layers.
-
 # Reference
 
 - [Xception: Deep Learning with Depthwise Separable Convolutions](https://arxiv.org/abs/1610.02357)
@@ -53,10 +50,8 @@ def Xception(include_top=True, weights='imagenet',
              classes=1000):
     """Instantiates the Xception architecture.
 
-    Optionally loads weights pre-trained
-    on ImageNet. This model is available for TensorFlow only,
-    and can only be used with inputs following the TensorFlow
-    data format `(width, height, channels)`.
+    Optionally loads weights pre-trained on ImageNet. This model can
+    only be used with the data format `(width, height, channels)`.
     You should set `image_data_format='channels_last'` in your Keras config
     located at ~/.keras/keras.json.
 
@@ -110,9 +105,6 @@ def Xception(include_top=True, weights='imagenet',
         raise ValueError('If using `weights` as imagenet with `include_top`'
                          ' as true, `classes` should be 1000')
 
-    if K.backend() != 'tensorflow':
-        raise RuntimeError('The Xception model is only available with '
-                           'the TensorFlow backend.')
     if K.image_data_format() != 'channels_last':
         warnings.warn('The Xception model is only available for the '
                       'input data format "channels_last" '
