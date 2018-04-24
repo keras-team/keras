@@ -1895,7 +1895,7 @@ class Container(Layer):
         """Retrieves the model's updates.
 
         Will only include updates that are either
-        inconditional, or conditional on inputs to this model
+        unconditional, or conditional on inputs to this model
         (e.g. will not include updates that depend on tensors
         that aren't inputs to this model).
 
@@ -1924,7 +1924,7 @@ class Container(Layer):
         """Retrieves the model's losses.
 
         Will only include losses that are either
-        inconditional, or conditional on inputs to this model
+        unconditional, or conditional on inputs to this model
         (e.g. will not include losses that depend on tensors
         that aren't inputs to this model).
 
