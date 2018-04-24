@@ -83,8 +83,9 @@ class Optimizer(object):
                              'Common ops without gradient: '
                              'K.argmax, K.round, K.eval.')
         if hasattr(self, 'clipnorm') and self.clipnorm > 0:
-            norm = K.sqrt(sum([K.sum(K.square(g)) for g in grads]))
-            grads = [clip_norm(g, self.clipnorm, norm) for g in grads]
+            aggregation_dtype = 'float32' if K.floatx() == 'float16' else K.floatx()
+            norm = K.sqrt(sum([K.sum(K.square(K.cast(g, aggregation_dtype))) for g in grads]))
+            grads = [clip_norm(g, self.clipnorm, K.cast_like(norm, g)) for g in grads]
         if hasattr(self, 'clipvalue') and self.clipvalue > 0:
             grads = [K.clip(g, -self.clipvalue, self.clipvalue) for g in grads]
         return grads
@@ -178,15 +179,15 @@ class SGD(Optimizer):
             lr *= (1. / (1. + self.decay * K.cast(self.iterations,
                                                   K.dtype(self.decay))))
         # momentum
-        shapes = [K.int_shape(p) for p in params]
-        moments = [K.zeros(shape) for shape in shapes]
+        moments = [K.zeros_like(p) for p in params]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
-            v = self.momentum * m - lr * g  # velocity
+            cast_like_p = lambda x: K.cast_like(x, p)
+            v = cast_like_p(self.momentum) * m - cast_like_p(lr) * g  # velocity
             self.updates.append(K.update(m, v))
 
             if self.nesterov:
-                new_p = p + self.momentum * v - lr * g
+                new_p = p + cast_like_p(self.momentum) * v - cast_like_p(lr) * g
             else:
                 new_p = p + v
 
@@ -242,7 +243,7 @@ class RMSprop(Optimizer):
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        accumulators = [K.zeros_like(p) for p in params]
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -252,10 +253,11 @@ class RMSprop(Optimizer):
                                                   K.dtype(self.decay))))
 
         for p, g, a in zip(params, grads, accumulators):
+            cast_like_p = lambda x: K.cast_like(x, p)
             # update accumulator
-            new_a = self.rho * a + (1. - self.rho) * K.square(g)
+            new_a = cast_like_p(self.rho) * a + cast_like_p(1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
-            new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+            new_p = p - cast_like_p(lr) * g / (K.sqrt(new_a) + self.epsilon)
 
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
@@ -302,8 +304,7 @@ class Adagrad(Optimizer):
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        shapes = [K.int_shape(p) for p in params]
-        accumulators = [K.zeros(shape) for shape in shapes]
+        accumulators = [K.zeros_like(p) for p in params]
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -313,9 +314,10 @@ class Adagrad(Optimizer):
                                                   K.dtype(self.decay))))
 
         for p, g, a in zip(params, grads, accumulators):
+            cast_like_p = lambda x: K.cast_like(x, p)
             new_a = a + K.square(g)  # update accumulator
             self.updates.append(K.update(a, new_a))
-            new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+            new_p = p - cast_like_p(lr) * g / (K.sqrt(new_a) + self.epsilon)
 
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
@@ -365,9 +367,8 @@ class Adadelta(Optimizer):
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        shapes = [K.int_shape(p) for p in params]
-        accumulators = [K.zeros(shape) for shape in shapes]
-        delta_accumulators = [K.zeros(shape) for shape in shapes]
+        accumulators = [K.zeros_like(p) for p in params]
+        delta_accumulators = [K.zeros_like(p) for p in params]
         self.weights = accumulators + delta_accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -377,13 +378,14 @@ class Adadelta(Optimizer):
                                                   K.dtype(self.decay))))
 
         for p, g, a, d_a in zip(params, grads, accumulators, delta_accumulators):
+            cast_like_p = lambda x: K.cast_like(x, p)
             # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
             update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
-            new_p = p - lr * update
+            new_p = p - cast_like_p(lr) * update
 
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
@@ -454,23 +456,24 @@ class Adam(Optimizer):
         lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
                      (1. - K.pow(self.beta_1, t)))
 
-        ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-        vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        ms = [K.zeros_like(p) for p in params]
+        vs = [K.zeros_like(p) for p in params]
         if self.amsgrad:
-            vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+            vhats = [K.zeros_like(p) for p in params]
         else:
-            vhats = [K.zeros(1) for _ in params]
+            vhats = [K.zeros(1, dtype=K.dtype(p)) for p in params]
         self.weights = [self.iterations] + ms + vs + vhats
 
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
-            m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
-            v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(g)
+            cast_like_p = lambda x: K.cast_like(x, p)
+            m_t = (cast_like_p(self.beta_1) * m) + cast_like_p(1. - self.beta_1) * g
+            v_t = (cast_like_p(self.beta_2) * v) + cast_like_p(1. - self.beta_2) * K.square(g)
             if self.amsgrad:
                 vhat_t = K.maximum(vhat, v_t)
-                p_t = p - lr_t * m_t / (K.sqrt(vhat_t) + self.epsilon)
+                p_t = p - cast_like_p(lr_t) * m_t / (K.sqrt(vhat_t) + self.epsilon)
                 self.updates.append(K.update(vhat, vhat_t))
             else:
-                p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+                p_t = p - cast_like_p(lr_t) * m_t / (K.sqrt(v_t) + self.epsilon)
 
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(v, v_t))
@@ -537,18 +540,18 @@ class Adamax(Optimizer):
         t = K.cast(self.iterations, K.floatx()) + 1
         lr_t = lr / (1. - K.pow(self.beta_1, t))
 
-        shapes = [K.int_shape(p) for p in params]
         # zero init of 1st moment
-        ms = [K.zeros(shape) for shape in shapes]
+        ms = [K.zeros_like(p) for p in params]
         # zero init of exponentially weighted infinity norm
-        us = [K.zeros(shape) for shape in shapes]
+        us = [K.zeros_like(p) for p in params]
         self.weights = [self.iterations] + ms + us
 
         for p, g, m, u in zip(params, grads, ms, us):
+            cast_like_p = lambda x: K.cast_like(x, p)
 
-            m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
-            u_t = K.maximum(self.beta_2 * u, K.abs(g))
-            p_t = p - lr_t * m_t / (u_t + self.epsilon)
+            m_t = (cast_like_p(self.beta_1) * m) + cast_like_p(1. - self.beta_1) * g
+            u_t = K.maximum(cast_like_p(self.beta_2) * u, K.abs(g))
+            p_t = p - cast_like_p(lr_t) * m_t / (u_t + self.epsilon)
 
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(u, u_t))
@@ -621,25 +624,25 @@ class Nadam(Optimizer):
         m_schedule_next = self.m_schedule * momentum_cache_t * momentum_cache_t_1
         self.updates.append((self.m_schedule, m_schedule_new))
 
-        shapes = [K.int_shape(p) for p in params]
-        ms = [K.zeros(shape) for shape in shapes]
-        vs = [K.zeros(shape) for shape in shapes]
+        ms = [K.zeros_like(p) for p in params]
+        vs = [K.zeros_like(p) for p in params]
 
         self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):
+            cast_like_p = lambda x: K.cast_like(x, p)
             # the following equations given in [1]
-            g_prime = g / (1. - m_schedule_new)
-            m_t = self.beta_1 * m + (1. - self.beta_1) * g
-            m_t_prime = m_t / (1. - m_schedule_next)
-            v_t = self.beta_2 * v + (1. - self.beta_2) * K.square(g)
-            v_t_prime = v_t / (1. - K.pow(self.beta_2, t))
-            m_t_bar = (1. - momentum_cache_t) * g_prime + momentum_cache_t_1 * m_t_prime
+            g_prime = g / cast_like_p(1. - m_schedule_new)
+            m_t = cast_like_p(self.beta_1) * m + cast_like_p(1. - self.beta_1) * g
+            m_t_prime = m_t / cast_like_p(1. - m_schedule_next)
+            v_t = cast_like_p(self.beta_2) * v + cast_like_p(1. - self.beta_2) * K.square(g)
+            v_t_prime = v_t / cast_like_p(1. - K.pow(self.beta_2, t))
+            m_t_bar = cast_like_p(1. - momentum_cache_t) * g_prime + cast_like_p(momentum_cache_t_1) * m_t_prime
 
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(v, v_t))
 
-            p_t = p - self.lr * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
+            p_t = p - cast_like_p(self.lr) * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
             new_p = p_t
 
             # Apply constraints.

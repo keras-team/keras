@@ -15,9 +15,22 @@ input_3 = np.ones((10))
 input_4 = np.expand_dims(np.arange(10.), axis=1)
 input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
+floatx_variations = ['float32', 'float16'] if K.backend() == 'tensorflow' else ['float32']
 
+@pytest.yield_fixture(autouse=True)
+def restore_floatx():
+    prev_floatx = K.floatx()
+    prev_epsilon = K.epsilon()
+    yield
+    K.set_floatx(prev_floatx)
+    K.set_epsilon(prev_epsilon)
+
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_basic_batchnorm():
+def test_basic_batchnorm(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     layer_test(normalization.BatchNormalization,
                kwargs={'momentum': 0.9,
                        'epsilon': 0.1,
@@ -45,8 +58,12 @@ def test_basic_batchnorm():
                    input_shape=(3, 4, 2, 4))
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_batchnorm_correctness_1d():
+def test_batchnorm_correctness_1d(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     model = Sequential()
     norm = normalization.BatchNormalization(input_shape=(10,), momentum=0.8)
     model.add(norm)
@@ -63,8 +80,12 @@ def test_batchnorm_correctness_1d():
     assert_allclose(out.std(), 1.0, atol=1e-1)
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_batchnorm_correctness_2d():
+def test_batchnorm_correctness_2d(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     model = Sequential()
     norm = normalization.BatchNormalization(axis=1, input_shape=(10, 6), momentum=0.8)
     model.add(norm)
@@ -81,8 +102,12 @@ def test_batchnorm_correctness_2d():
     assert_allclose(out.std(axis=(0, 2)), 1.0, atol=1.1e-1)
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_batchnorm_training_argument():
+def test_batchnorm_training_argument(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     bn1 = normalization.BatchNormalization(input_shape=(10,))
     x1 = Input(shape=(10,))
     y1 = bn1(x1, training=True)
@@ -106,8 +131,12 @@ def test_batchnorm_training_argument():
     assert not bn2.updates
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_batchnorm_mode_twice():
+def test_batchnorm_mode_twice(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     # This is a regression test for issue #4881 with the old
     # batch normalization functions in the Theano backend.
     model = Sequential()
@@ -120,8 +149,12 @@ def test_batchnorm_mode_twice():
     model.predict(x)
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_batchnorm_convnet():
+def test_batchnorm_convnet(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     model = Sequential()
     norm = normalization.BatchNormalization(axis=1, input_shape=(3, 4, 4), momentum=0.8)
     model.add(norm)
@@ -138,10 +171,14 @@ def test_batchnorm_convnet():
     assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
 @pytest.mark.skipif((K.backend() == 'theano'),
                     reason='Bug with theano backend')
-def test_batchnorm_convnet_no_center_no_scale():
+def test_batchnorm_convnet_no_center_no_scale(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     model = Sequential()
     norm = normalization.BatchNormalization(axis=-1, center=False, scale=False,
                                             input_shape=(3, 4, 4), momentum=0.8)
@@ -157,8 +194,12 @@ def test_batchnorm_convnet_no_center_no_scale():
     assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_shared_batchnorm():
+def test_shared_batchnorm(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     '''Test that a BN layer can be shared
     across different data streams.
     '''
@@ -185,8 +226,12 @@ def test_shared_batchnorm():
     new_model.train_on_batch(x, x)
 
 
+@pytest.mark.parametrize("floatx", floatx_variations)
 @keras_test
-def test_that_trainable_disables_updates():
+def test_that_trainable_disables_updates(floatx):
+    K.set_floatx(floatx)
+    if floatx == 'float16':
+        K.set_epsilon(1e-04)
     val_a = np.random.random((10, 4))
     val_out = np.random.random((10, 4))
 
@@ -244,4 +289,4 @@ def test_batchnorm_trainable():
     assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    pytest.main([__file__, '-x'])
