@@ -487,11 +487,23 @@ class Bidirectional(Wrapper):
             return self.forward_layer.updates + self.backward_layer.updates
         return []
 
+    def get_updates_for(self, inputs=None):
+        forward_updates = self.forward_layer.get_updates_for(inputs)
+        backward_updates = self.backward_layer.get_updates_for(inputs)
+        return (super(Wrapper, self).get_updates_for(inputs) +
+                forward_updates + backward_updates)
+
     @property
     def losses(self):
         if hasattr(self.forward_layer, 'losses'):
             return self.forward_layer.losses + self.backward_layer.losses
         return []
+
+    def get_losses_for(self, inputs=None):
+        forward_losses = self.forward_layer.get_losses_for(inputs)
+        backward_losses = self.backward_layer.get_losses_for(inputs)
+        return (super(Wrapper, self).get_losses_for(inputs) +
+                forward_losses + backward_losses)
 
     @property
     def constraints(self):
