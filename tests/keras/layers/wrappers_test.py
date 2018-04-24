@@ -556,5 +556,39 @@ def test_Bidirectional_trainable():
     assert len(layer.trainable_weights) == 6
 
 
+@keras_test
+def test_Bidirectional_updates():
+    x = Input(shape=(3, 2))
+    layer = wrappers.Bidirectional(layers.SimpleRNN(3))
+    assert len(layer.updates) == 0
+    assert len(layer.get_updates_for(None)) == 0
+    assert len(layer.get_updates_for(x)) == 0
+    layer.forward_layer.add_update(0, inputs=x)
+    layer.forward_layer.add_update(1, inputs=None)
+    layer.backward_layer.add_update(0, inputs=x)
+    layer.backward_layer.add_update(1, inputs=None)
+    assert len(layer.updates) == 4
+    assert len(layer.get_updates_for(None)) == 2
+    assert len(layer.get_updates_for(x)) == 2
+
+
+@keras_test
+def test_Bidirectional_losses():
+    x = Input(shape=(3, 2))
+    layer = wrappers.Bidirectional(
+        layers.SimpleRNN(3, kernel_regularizer='l1', bias_regularizer='l1'))
+    _ = layer(x)
+    assert len(layer.losses) == 4
+    assert len(layer.get_losses_for(None)) == 4
+    assert len(layer.get_losses_for(x)) == 0
+    layer.forward_layer.add_loss(0, inputs=x)
+    layer.forward_layer.add_loss(1, inputs=None)
+    layer.backward_layer.add_loss(0, inputs=x)
+    layer.backward_layer.add_loss(1, inputs=None)
+    assert len(layer.losses) == 8
+    assert len(layer.get_losses_for(None)) == 6
+    assert len(layer.get_losses_for(x)) == 2
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
