@@ -545,6 +545,10 @@ def batch_dot(x, y, axes=None):
     if axes is None:
         # behaves like tf.batch_matmul as default
         axes = [len(x_shape) - 1, len(y_shape) - 2]
+    if b_any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
 
     if len(x_shape) == 2 and len(y_shape) == 2:
         if axes[0] == axes[1]:

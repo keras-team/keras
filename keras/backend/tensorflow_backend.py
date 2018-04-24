@@ -25,6 +25,7 @@ from .common import set_image_dim_ordering
 from .common import image_dim_ordering
 
 py_all = all
+py_any = any
 py_sum = sum
 
 # INTERNAL UTILS
@@ -1135,6 +1136,10 @@ def batch_dot(x, y, axes=None):
     if axes is None:
         # behaves like tf.batch_matmul as default
         axes = [x_ndim - 1, y_ndim - 2]
+    if py_any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
     if x_ndim > y_ndim:
         diff = x_ndim - y_ndim
         y = tf.reshape(y, tf.concat([tf.shape(y), [1] * (diff)], axis=0))
