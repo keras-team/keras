@@ -1109,6 +1109,16 @@ class NumpyArrayIterator(Iterator):
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
                  subset=None):
+        if (type(x) is tuple) or (type(x) is list):
+            x_misc = np.asarray(x[1])
+            x = x[0]
+            if len(x) != len(x_misc):
+                raise ValueError('`x[0]` and `x[1]` should have the same length.'
+                                 'Found: len(x[0]) = %s, len(x[1]) = %s' %
+                                 (len(x), len(x_misc)))
+        else:
+            x_misc = None
+                
         if y is not None and len(x) != len(y):
             raise ValueError('`x` (images tensor) and `y` (labels) '
                              'should have the same length. '
@@ -1121,15 +1131,20 @@ class NumpyArrayIterator(Iterator):
             split_idx = int(len(x) * image_data_generator._validation_split)
             if subset == 'validation':
                 x = x[:split_idx]
+                if x_misc is not None:
+                    x_misc = x_misc[:split_idx]
                 if y is not None:
                     y = y[:split_idx]
             else:
                 x = x[split_idx:]
+                if x_misc is not None:
+                    x_misc = x_misc[split_idx:]
                 if y is not None:
                     y = y[split_idx:]
         if data_format is None:
             data_format = K.image_data_format()
         self.x = np.asarray(x, dtype=K.floatx())
+        self.x_misc = x_misc
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
                              'should have rank 4. You passed an array '
@@ -1156,11 +1171,15 @@ class NumpyArrayIterator(Iterator):
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = np.zeros(tuple([len(index_array)] + list(self.x.shape)[1:]),
                            dtype=K.floatx())
+        batch_x_misc = np.zeros(tuple([len(index_array)] + list(self.x_misc.shape)[1:]))
         for i, j in enumerate(index_array):
             x = self.x[j]
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+            if self.x_misc is not None:
+                batch_x_misc[i] = self.x_misc[j]
+            
         if self.save_to_dir:
             for i, j in enumerate(index_array):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
@@ -1169,10 +1188,14 @@ class NumpyArrayIterator(Iterator):
                                                                   hash=np.random.randint(1e4),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
-        if self.y is None:
-            return batch_x
-        batch_y = self.y[index_array]
-        return batch_x, batch_y
+        if self.x_misc is not None:
+            output = ([batch_x, batch_x_misc],)
+        else:
+            output = (batch_x,)
+        if self.y is not None:
+            batch_y = self.y[index_array]
+            output += (batch_y,)
+        return output
 
     def next(self):
         """For python 2.x.
