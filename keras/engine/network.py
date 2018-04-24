@@ -12,6 +12,7 @@ import copy
 import os
 from six.moves import zip
 
+from . import saving
 from .base_layer import Layer
 from .base_layer import Node
 from .input_layer import InputLayer

@@ -13,7 +13,6 @@ from six.moves import zip
 
 from .. import backend as K
 from .. import optimizers
-from .. import layers as layer_module
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..legacy import models as legacy_models
 from ..utils import conv_utils
@@ -340,7 +339,8 @@ def model_from_config(config, custom_objects=None):
         raise TypeError('`model_from_config` expects a dictionary, '
                         'not a list. Maybe you meant to use '
                         '`Sequential.from_config(config)`?')
-    return layer_module.deserialize(config, custom_objects=custom_objects)
+    from ..layers import deserialize
+    return deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_yaml(yaml_string, custom_objects=None):
@@ -356,7 +356,8 @@ def model_from_yaml(yaml_string, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     config = yaml.load(yaml_string)
-    return layer_module.deserialize(config, custom_objects=custom_objects)
+    from ..layers import deserialize
+    return deserialize(config, custom_objects=custom_objects)
 
 
 def model_from_json(json_string, custom_objects=None):
@@ -372,7 +373,8 @@ def model_from_json(json_string, custom_objects=None):
         A Keras model instance (uncompiled).
     """
     config = json.loads(json_string)
-    return layer_module.deserialize(config, custom_objects=custom_objects)
+    from ..layers import deserialize
+    return deserialize(config, custom_objects=custom_objects)
 
 
 def save_attributes_to_hdf5_group(group, name, data):
