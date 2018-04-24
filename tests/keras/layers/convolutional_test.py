@@ -279,7 +279,6 @@ def test_separable_conv_1d():
                                                           batch_input_shape=(None, 5, None))])
 
 
-@pytest.mark.skipif(K.backend() == 'theano', reason='Theano does not support it yet')
 @keras_test
 def test_separable_conv_2d():
     num_samples = 2
