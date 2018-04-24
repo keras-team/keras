@@ -21,7 +21,7 @@ from ..layers import Conv2D
 from ..layers import MaxPooling2D
 from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
-from ..engine.topology import get_source_inputs
+from ..engine import get_source_inputs
 from ..utils import layer_utils
 from ..utils.data_utils import get_file
 from .. import backend as K

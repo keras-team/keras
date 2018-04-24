@@ -6,10 +6,10 @@ from __future__ import division
 from __future__ import print_function
 
 import copy
-from ..engine import Layer
-from ..engine import InputSpec
-from ..engine.topology import _object_list_uid
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import object_list_uid
 from .. import backend as K
 
 from . import recurrent
@@ -71,7 +71,7 @@ class Wrapper(Layer):
         # get the updates from the inner layer.
         inner_inputs = inputs
         if inputs is not None:
-            uid = _object_list_uid(inputs)
+            uid = object_list_uid(inputs)
             if uid in self._input_map:
                 inner_inputs = self._input_map[uid]
 
@@ -206,7 +206,7 @@ class TimeDistributed(Wrapper):
                 input_length = K.shape(inputs)[1]
             # Shape: (num_samples * timesteps, ...). And track the
             # transformation in self._input_map.
-            input_uid = _object_list_uid(inputs)
+            input_uid = object_list_uid(inputs)
             inputs = K.reshape(inputs, (-1,) + input_shape[2:])
             self._input_map[input_uid] = inputs
             # (num_samples * timesteps, ...)

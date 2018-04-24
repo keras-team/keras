@@ -13,8 +13,8 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
 
 # Legacy support.

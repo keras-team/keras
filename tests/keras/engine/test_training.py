@@ -8,7 +8,7 @@ import scipy.sparse as sparse
 import keras
 from keras import losses
 from keras.layers import Dense, Dropout
-from keras.engine.topology import Input
+from keras.engine import Input
 from keras.engine.training import Model
 from keras.engine.training import _check_loss_and_target_compatibility
 from keras.engine.training import _weighted_masked_objective

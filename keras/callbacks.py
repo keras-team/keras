@@ -18,7 +18,6 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
-from .engine.topology import Layer
 
 try:
     import requests

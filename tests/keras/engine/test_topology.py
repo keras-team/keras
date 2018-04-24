@@ -1,11 +1,10 @@
 import pytest
 import json
 import numpy as np
-from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
-from keras.engine import Input, Layer, topology, get_source_inputs
+from keras.engine import Input, Layer, saving, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
@@ -541,7 +540,7 @@ def test_load_layers():
     weight_tensor_td_conv_old.append(np.zeros((15,)))
     td_conv_layer = model.layers[1]
     td_conv_layer.layer.data_format = 'channels_first'
-    weight_tensor_td_conv_new = topology.preprocess_weights_for_loading(
+    weight_tensor_td_conv_new = saving.preprocess_weights_for_loading(
         td_conv_layer,
         weight_tensor_td_conv_old,
         original_keras_version='1')
@@ -559,7 +558,7 @@ def test_load_layers():
             weight_tensor_bi_convlstm_old.append(np.zeros((10,)))  # bias
 
     bi_convlstm_layer = model.layers[2]
-    weight_tensor_bi_convlstm_new = topology.preprocess_weights_for_loading(
+    weight_tensor_bi_convlstm_new = saving.preprocess_weights_for_loading(
         bi_convlstm_layer,
         weight_tensor_bi_convlstm_old,
         original_keras_version='1')
@@ -606,7 +605,7 @@ def test_preprocess_weights_for_loading(layer):
     # A model is needed to initialize weights.
     _ = Sequential([layer])
     weights1 = layer.get_weights()
-    weights2 = topology.preprocess_weights_for_loading(
+    weights2 = saving.preprocess_weights_for_loading(
         layer, convert_weights(layer, weights1),
         original_keras_version='1')
     assert all([np.allclose(x, y, 1e-5)
@@ -623,7 +622,7 @@ def test_preprocess_weights_for_loading(layer):
 def test_preprocess_weights_for_loading_for_model(layer):
     model = Sequential([layer])
     weights1 = model.get_weights()
-    weights2 = topology.preprocess_weights_for_loading(
+    weights2 = saving.preprocess_weights_for_loading(
         model, convert_weights(layer, weights1),
         original_keras_version='1')
     assert all([np.allclose(x, y, 1e-5)
@@ -645,7 +644,7 @@ def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, la
     # A model is needed to initialize weights.
     _ = Sequential([layer])
     weights1 = layer.get_weights()
-    weights2 = topology.preprocess_weights_for_loading(layer, weights1)
+    weights2 = saving.preprocess_weights_for_loading(layer, weights1)
     assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
 
 
