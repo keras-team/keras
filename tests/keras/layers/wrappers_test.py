@@ -570,7 +570,7 @@ def test_Bidirectional_updates():
     assert len(layer.updates) == 4
     assert len(layer.get_updates_for(None)) == 2
     assert len(layer.get_updates_for(x)) == 2
-    
+
 
 @keras_test
 def test_Bidirectional_losses():
