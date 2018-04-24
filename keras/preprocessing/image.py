@@ -358,14 +358,16 @@ def img_to_array(img, data_format=None):
     return x
 
 
-def save_img(path, x):
+def save_img(path, x, data_format=None, scale=True):
     """Save an image stored as a Numpy Array to a path or file object.
 
     # Arguments
-        path: Path or file object
-        x: Input Numpy Array
+        path: Path or file object.
+        x: Numpy array.
+        data_format: Image data format.
+        scale: Whether to rescale image values to be within [0, 255].
     """
-    img = pil_image.fromarray(x)
+    img = array_to_img(x, data_format=data_format, scale=scale)
     img.save(path)
 
 
