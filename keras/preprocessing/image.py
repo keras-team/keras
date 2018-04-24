@@ -1110,9 +1110,12 @@ class NumpyArrayIterator(Iterator):
                  save_to_dir=None, save_prefix='', save_format='png',
                  subset=None):
         if (type(x) is tuple) or (type(x) is list):
-            x_misc = np.asarray(x[1])
+            if type(x[1]) is not list:
+                x_misc = [np.asarray(x[1])]
+            else:
+                x_misc = [np.asarray(xx) for xx in x[1]]
             x = x[0]
-            if len(x) != len(x_misc):
+            if len(x) != len(x_misc[0]):
                 raise ValueError('`x[0]` and `x[1]` should have the same length.'
                                  'Found: len(x[0]) = %s, len(x[1]) = %s' %
                                  (len(x), len(x_misc)))
@@ -1132,13 +1135,13 @@ class NumpyArrayIterator(Iterator):
             if subset == 'validation':
                 x = x[:split_idx]
                 if x_misc is not None:
-                    x_misc = x_misc[:split_idx]
+                    x_misc = [xx[:split_idx] for xx in x_misc]
                 if y is not None:
                     y = y[:split_idx]
             else:
                 x = x[split_idx:]
                 if x_misc is not None:
-                    x_misc = x_misc[split_idx:]
+                    x_misc = [xx[split_idx:] for xx in x_misc]
                 if y is not None:
                     y = y[split_idx:]
         if data_format is None:
@@ -1171,14 +1174,17 @@ class NumpyArrayIterator(Iterator):
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = np.zeros(tuple([len(index_array)] + list(self.x.shape)[1:]),
                            dtype=K.floatx())
-        batch_x_misc = np.zeros(tuple([len(index_array)] + list(self.x_misc.shape)[1:]))
+        if self.x_misc is not None:
+            batch_x_miscs = [np.zeros(tuple([len(index_array)] + list(xx.shape)[1:])) for
+                             xx in self.x_misc]
         for i, j in enumerate(index_array):
             x = self.x[j]
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
             if self.x_misc is not None:
-                batch_x_misc[i] = self.x_misc[j]
+                for k in range(len(batch_x_miscs)):
+                    batch_x_miscs[k][i] = self.x_misc[k][j]
             
         if self.save_to_dir:
             for i, j in enumerate(index_array):
@@ -1189,7 +1195,7 @@ class NumpyArrayIterator(Iterator):
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         if self.x_misc is not None:
-            output = ([batch_x, batch_x_misc],)
+            output = ([batch_x] + batch_x_miscs,)
         else:
             output = (batch_x,)
         if self.y is not None:
