@@ -500,8 +500,8 @@ class Bidirectional(Wrapper):
         return []
 
     def get_losses_for(self, inputs=None):
-        forward_losses = self.forward_layer.get_losses_for(None)
-        backward_losses = self.backward_layer.get_losses_for(None)
+        forward_losses = self.forward_layer.get_losses_for(inputs)
+        backward_losses = self.backward_layer.get_losses_for(inputs)
         return (super(Wrapper, self).get_losses_for(inputs) +
                 forward_losses + backward_losses)
 
