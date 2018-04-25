@@ -18,6 +18,9 @@ from keras import backend as K
 parser = argparse.ArgumentParser(description='Convolutional filter visualiation with Keras.')
 parser.add_argument('--image_path', metavar='image', type=str,
                     help='Path to the optional image to transform, e.g. data/cat_128x128.png')
+parser.add_argument('--layer_name', metavar='layer', type=str,
+                    help='Name of the layer to visualize, defaults to block5_conv1',
+                    default='block5_conv1')
 args = parser.parse_args()
 
 # dimensions of the generated pictures for each filter.
@@ -27,7 +30,7 @@ img_path = args.image_path
 
 # the name of the layer we want to visualize
 # (see model definition at keras/applications/vgg16.py)
-layer_name = 'block5_conv1'
+layer_name = args.layer_name
 
 # util function to open, resize and format pictures into appropriate tensors
 
@@ -155,4 +158,4 @@ for i in range(n):
                          (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
 
 # save the result to disk
-imsave('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
+imsave('stitched_filters_%dx%d.%s.png' % (n, n, layer_name), stitched_filters)
