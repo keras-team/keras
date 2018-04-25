@@ -9,7 +9,7 @@ from keras.layers import RNN
 from keras import layers
 from keras.models import Sequential, Model, model_from_json
 from keras import backend as K
-from keras.engine.topology import _object_list_uid, _to_list
+from keras.utils.generic_utils import object_list_uid, to_list
 
 
 @keras_test
@@ -121,7 +121,7 @@ def test_TimeDistributed():
     assert not np.array_equal(td.get_weights()[2], np.array([0, 0]))
     assert not np.array_equal(td.get_weights()[3], np.array([1, 1]))
     # Verify input_map has one mapping from inputs to reshaped inputs.
-    uid = _object_list_uid(model.inputs)
+    uid = object_list_uid(model.inputs)
     assert len(td._input_map.keys()) == 1
     assert uid in td._input_map
     assert K.int_shape(td._input_map[uid]) == (None, 2)
@@ -280,12 +280,12 @@ def test_Bidirectional_merged_value(merge_mode):
     # basic case
     inputs = Input((timesteps, dim))
     layer = wrappers.Bidirectional(rnn(units, return_sequences=True), merge_mode=merge_mode)
-    f_merged = K.function([inputs], _to_list(layer(inputs)))
+    f_merged = K.function([inputs], to_list(layer(inputs)))
     f_forward = K.function([inputs], [layer.forward_layer.call(inputs)])
     f_backward = K.function([inputs], [K.reverse(layer.backward_layer.call(inputs), 1)])
 
     y_merged = f_merged(X)
-    y_expected = _to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
+    y_expected = to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
     assert len(y_merged) == len(y_expected)
     for x1, x2 in zip(y_merged, y_expected):
         assert_allclose(x1, x2, atol=1e-5)
@@ -301,7 +301,7 @@ def test_Bidirectional_merged_value(merge_mode):
     y_merged = f_merged(X)
     y_forward = f_forward(X)
     y_backward = f_backward(X)
-    y_expected = _to_list(merge_func(y_forward[0], y_backward[0]))
+    y_expected = to_list(merge_func(y_forward[0], y_backward[0]))
     assert len(y_merged) == len(y_expected) + n_states * 2
     for x1, x2 in zip(y_merged, y_expected):
         assert_allclose(x1, x2, atol=1e-5)
@@ -328,19 +328,19 @@ def test_Bidirectional_dropout(merge_mode):
     inputs = Input((timesteps, dim))
     wrapped = wrappers.Bidirectional(rnn(units, dropout=0.2, recurrent_dropout=0.2),
                                      merge_mode=merge_mode)
-    outputs = _to_list(wrapped(inputs, training=True))
+    outputs = to_list(wrapped(inputs, training=True))
     assert all(not getattr(x, '_uses_learning_phase') for x in outputs)
 
     inputs = Input((timesteps, dim))
     wrapped = wrappers.Bidirectional(rnn(units, dropout=0.2, return_state=True),
                                      merge_mode=merge_mode)
-    outputs = _to_list(wrapped(inputs))
+    outputs = to_list(wrapped(inputs))
     assert all(x._uses_learning_phase for x in outputs)
 
     model = Model(inputs, outputs)
     assert model.uses_learning_phase
-    y1 = _to_list(model.predict(X))
-    y2 = _to_list(model.predict(X))
+    y1 = to_list(model.predict(X))
+    y2 = to_list(model.predict(X))
     for x1, x2 in zip(y1, y2):
         assert_allclose(x1, x2, atol=1e-5)
 
@@ -554,6 +554,40 @@ def test_Bidirectional_trainable():
     assert len(layer.trainable_weights) == 0
     layer.trainable = True
     assert len(layer.trainable_weights) == 6
+
+
+@keras_test
+def test_Bidirectional_updates():
+    x = Input(shape=(3, 2))
+    layer = wrappers.Bidirectional(layers.SimpleRNN(3))
+    assert len(layer.updates) == 0
+    assert len(layer.get_updates_for(None)) == 0
+    assert len(layer.get_updates_for(x)) == 0
+    layer.forward_layer.add_update(0, inputs=x)
+    layer.forward_layer.add_update(1, inputs=None)
+    layer.backward_layer.add_update(0, inputs=x)
+    layer.backward_layer.add_update(1, inputs=None)
+    assert len(layer.updates) == 4
+    assert len(layer.get_updates_for(None)) == 2
+    assert len(layer.get_updates_for(x)) == 2
+
+
+@keras_test
+def test_Bidirectional_losses():
+    x = Input(shape=(3, 2))
+    layer = wrappers.Bidirectional(
+        layers.SimpleRNN(3, kernel_regularizer='l1', bias_regularizer='l1'))
+    _ = layer(x)
+    assert len(layer.losses) == 4
+    assert len(layer.get_losses_for(None)) == 4
+    assert len(layer.get_losses_for(x)) == 0
+    layer.forward_layer.add_loss(0, inputs=x)
+    layer.forward_layer.add_loss(1, inputs=None)
+    layer.backward_layer.add_loss(0, inputs=x)
+    layer.backward_layer.add_loss(1, inputs=None)
+    assert len(layer.losses) == 8
+    assert len(layer.get_losses_for(None)) == 6
+    assert len(layer.get_losses_for(x)) == 2
 
 
 if __name__ == '__main__':

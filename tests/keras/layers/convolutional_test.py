@@ -5,7 +5,6 @@ from numpy.testing import assert_allclose
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras import backend as K
-from keras.engine.topology import InputLayer
 from keras.layers import convolutional
 from keras.layers import pooling
 from keras.models import Sequential

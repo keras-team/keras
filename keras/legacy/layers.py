@@ -6,7 +6,7 @@ import numpy as np
 import types as python_types
 import warnings
 
-from ..engine.topology import Layer, InputSpec
+from ..engine import Layer, InputSpec
 from .. import backend as K
 from ..utils.generic_utils import func_dump, func_load, has_arg
 from ..utils import conv_utils
