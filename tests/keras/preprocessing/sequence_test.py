@@ -219,7 +219,7 @@ def test_TimeSeriesGenerator_doesnt_miss_any_sample1():
     x = np.array([[i] for i in range(10)])
 
     for gap in range(10):
-        for length in range(1, 11-gap):
+        for length in range(1, 11 - gap):
 
             expected = len(x) - length + 1 - gap
 
@@ -228,7 +228,7 @@ def test_TimeSeriesGenerator_doesnt_miss_any_sample1():
                                         length=length,
                                         batch_size=1, gap=gap)
 
-                #print('gap: %i, hlength: %i, expected-len:%i, len: %i' % (g.gap, g.hlength, expected, g.len))
+                # print('gap: %i, hlength: %i, expected-len:%i, len: %i' % (g.gap, g.hlength, expected, g.len))
                 # for i in range(len(g)):
                 #    print(i,g[i])
 
