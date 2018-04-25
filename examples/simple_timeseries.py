@@ -1,11 +1,7 @@
-"""Train a simple RNN on synthetic data with TimeseriesGeneratorCNN.
+"""Train a simple RNN on synthetic data with `TimeseriesGenerator`.
 
 It should get a loss around `0.03` in a few epochs.
 """
-
-#
-# TimeseriesGenerator demo
-#
 
 from keras.preprocessing.sequence import TimeseriesGenerator
 import numpy as np
