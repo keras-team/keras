@@ -9,16 +9,46 @@ from __future__ import print_function
 from scipy.misc import imsave
 import numpy as np
 import time
+import argparse
+
 from keras.applications import vgg16
+from keras.preprocessing.image import load_img, img_to_array
 from keras import backend as K
+
+parser = argparse.ArgumentParser(description='Convolutional filter visualiation with Keras.')
+parser.add_argument('--image_path', metavar='image', type=str,
+                    help='Path to the optional image to transform, e.g. data/cat_128x128.png')
+parser.add_argument('--layer_name', metavar='layer', type=str,
+                    help='Name of the layer to visualize, defaults to block5_conv1',
+                    default='block5_conv1')
+parser.add_argument('--max_filters', metavar='filters', type=int,
+                    help='Max number of filters to visualize, defaults to 200',
+                    default=200)
+args = parser.parse_args()
 
 # dimensions of the generated pictures for each filter.
 img_width = 128
 img_height = 128
+img_path = args.image_path
 
 # the name of the layer we want to visualize
 # (see model definition at keras/applications/vgg16.py)
-layer_name = 'block5_conv1'
+layer_name = args.layer_name
+
+# the max number of filters to process, this must < number of filters in the selected layer
+# (see model definition at keras/applications/vgg16.py)
+max_filters = args.max_filters
+
+# util function to open, resize and format pictures into appropriate tensors
+
+
+def preprocess_image(image_path):
+    img = load_img(image_path, target_size=(img_width, img_height))
+    img = img_to_array(img)
+    img = np.expand_dims(img, axis=0)
+    img = vgg16.preprocess_input(img)
+    return img
+
 
 # util function to convert a tensor into a valid image
 
@@ -59,9 +89,9 @@ def normalize(x):
 
 
 kept_filters = []
-for filter_index in range(200):
-    # we only scan through the first 200 filters,
-    # but there are actually 512 of them
+for filter_index in range(max_filters):
+    # we only scan through the first max_filters filters
+    # max_filters must be less than the actual number of filters in each layer
     print('Processing filter %d' % filter_index)
     start_time = time.time()
 
@@ -85,12 +115,15 @@ for filter_index in range(200):
     # step size for gradient ascent
     step = 1.
 
-    # we start from a gray image with some random noise
-    if K.image_data_format() == 'channels_first':
-        input_img_data = np.random.random((1, 3, img_width, img_height))
+    if img_path:
+        input_img_data = preprocess_image(img_path)
     else:
-        input_img_data = np.random.random((1, img_width, img_height, 3))
-    input_img_data = (input_img_data - 0.5) * 20 + 128
+        # we start from a gray image with some random noise
+        if K.image_data_format() == 'channels_first':
+            input_img_data = np.random.random((1, 3, img_width, img_height))
+        else:
+            input_img_data = np.random.random((1, img_width, img_height, 3))
+        input_img_data = (input_img_data - 0.5) * 20 + 128
 
     # we run gradient ascent for 20 steps
     for i in range(20):
@@ -132,4 +165,4 @@ for i in range(n):
                          (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
 
 # save the result to disk
-imsave('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
+imsave('stitched_filters_%dx%d.%s.png' % (n, n, layer_name), stitched_filters)
