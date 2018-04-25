@@ -277,7 +277,7 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
     else:
-        raise TypeError('Not a Keras tensor:', x)
+        return None
 
 
 def ndim(x):
@@ -1845,10 +1845,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
 
-    if hasattr(kernel, '_keras_shape'):
-        kernel_shape = kernel._keras_shape
-    else:
-        kernel_shape = None
+    kernel_shape = int_shape(kernel)
     if padding == 'causal':
         # causal (dilated) convolution:
         if not kernel_shape:
@@ -1856,10 +1853,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         left_pad = dilation_rate * (kernel_shape[0] - 1)
         x = temporal_padding(x, (left_pad, 0))
         padding = 'valid'
-    if hasattr(x, '_keras_shape'):
-        shape = x._keras_shape
-    else:
-        shape = None
+    shape = int_shape(x)
     if data_format == 'channels_last':
         # original shape: (batch, length, input_dim)
         # add dim to x to have (batch, length, 1, input_dim)
@@ -1908,15 +1902,10 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
 
-    if hasattr(x, '_keras_shape'):
-        image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
-    else:
-        image_shape = None
-    if hasattr(kernel, '_keras_shape'):
-        kernel_shape = kernel._keras_shape
-    else:
-        # Will only work if `kernel` is a shared variable.
-        kernel_shape = kernel.eval().shape
+    image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
+    kernel_shape = int_shape(kernel)
+    if kernel_shape is None:
+        kernel_shape = kernel.eval().shape  # in case of a shared variable
     kernel_shape = _preprocess_conv2d_filter_shape(kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
@@ -1962,11 +1951,9 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                         output_shape[1],
                         output_shape[2])
 
-    if hasattr(kernel, '_keras_shape'):
-        kernel_shape = kernel._keras_shape
-    else:
-        # Will only work if `kernel` is a shared variable.
-        kernel_shape = kernel.eval().shape
+    kernel_shape = int_shape(kernel)
+    if kernel_shape is None:
+        kernel_shape = kernel.eval().shape  # in case of a shared variable
 
     if padding == 'same' and kernel_shape[0] % 2 == 0:
         raise ValueError('In `Conv2DTranspose`, with padding mode `same`, '
@@ -2020,21 +2007,14 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
 
-    if hasattr(x, '_keras_shape'):
-        image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
-    else:
-        image_shape = None
-    if hasattr(depthwise_kernel, '_keras_shape'):
-        depthwise_kernel_shape = depthwise_kernel._keras_shape
-    else:
-        # Will only work if `depthwise_kernel` is a shared variable.
-        depthwise_kernel_shape = depthwise_kernel.eval().shape
+    image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
+    depthwise_kernel_shape = int_shape(depthwise_kernel)
+    if depthwise_kernel_shape is None:
+        depthwise_kernel_shape = depthwise_kernel.eval().shape  # in case of a shared variable
     depthwise_kernel_shape = _preprocess_conv2d_filter_shape(depthwise_kernel_shape, data_format)
-    if hasattr(pointwise_kernel, '_keras_shape'):
-        pointwise_kernel_shape = pointwise_kernel._keras_shape
-    else:
-        # Will only work if `pointwise_kernel` is a shared variable.
-        pointwise_kernel_shape = pointwise_kernel.eval().shape
+    pointwise_kernel_shape = int_shape(pointwise_kernel)
+    if pointwise_kernel_shape is None:
+        pointwise_kernel_shape = pointwise_kernel.eval().shape  # in case of a shared variable
     pointwise_kernel_shape = _preprocess_conv2d_filter_shape(pointwise_kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
@@ -2092,15 +2072,10 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ', data_format)
 
-    if hasattr(x, '_keras_shape'):
-        image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
-    else:
-        image_shape = None
-    if hasattr(depthwise_kernel, '_keras_shape'):
-        depthwise_kernel_shape = depthwise_kernel._keras_shape
-    else:
-        # Will only work if `kernel` is a shared variable.
-        depthwise_kernel_shape = depthwise_kernel.eval().shape
+    image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
+    depthwise_kernel_shape = int_shape(depthwise_kernel)
+    if depthwise_kernel_shape is None:
+        depthwise_kernel_shape = depthwise_kernel.eval().shape  # in case of a shared variable
     depthwise_kernel_shape = _preprocess_conv2d_filter_shape(depthwise_kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
@@ -2144,15 +2119,10 @@ def conv3d(x, kernel, strides=(1, 1, 1),
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format:', data_format)
 
-    if hasattr(x, '_keras_shape'):
-        volume_shape = _preprocess_conv3d_volume_shape(int_shape(x), data_format)
-    else:
-        volume_shape = None
-    if hasattr(kernel, '_keras_shape'):
-        kernel_shape = kernel._keras_shape
-    else:
-        # Will only work if `kernel` is a shared variable.
-        kernel_shape = kernel.eval().shape
+    volume_shape = _preprocess_conv3d_volume_shape(int_shape(x), data_format)
+    kernel_shape = int_shape(kernel)
+    if kernel_shape is None:
+        kernel_shape = kernel.eval().shape  # in case of a shared variable
     kernel_shape = _preprocess_conv3d_filter_shape(kernel_shape, data_format)
 
     x = _preprocess_conv3d_input(x, data_format)
@@ -2199,11 +2169,9 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
                         output_shape[2],
                         output_shape[3])
 
-    if hasattr(kernel, '_keras_shape'):
-        kernel_shape = kernel._keras_shape
-    else:
-        # Will only work if `kernel` is a shared variable.
-        kernel_shape = kernel.eval().shape
+    kernel_shape = int_shape(kernel)
+    if kernel_shape is None:
+        kernel_shape = kernel.eval().shape  # in case of a shared variable
 
     if padding == 'same' and kernel_shape[0] % 2 == 0:
         raise ValueError('In `Conv3DTranspose`, with padding mode `same`, '
