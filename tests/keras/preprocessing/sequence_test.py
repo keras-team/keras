@@ -363,8 +363,8 @@ def test_TimeseriesGenerator_on_text():
     #    print(data_gen[i][0].tostring(), "->'%s'" % data_gen[i][1].tostring())
 
     assert data_gen[-1][0].shape == (1, 10) and data_gen[-1][1].shape == (1,)
-    assert data_gen[-1][0].tostring() == u" is simple"
-    assert data_gen[-1][1].tostring() == u"."
+    assert data_gen[-1][0].tostring() == b" is simple"
+    assert data_gen[-1][1].tostring() == b"."
 
     data_gen = TimeseriesGenerator(
         txt, txt, hlength=10, target_seq=True, batch_size=1, gap=1)
@@ -374,7 +374,7 @@ def test_TimeseriesGenerator_on_text():
     # for i in range(len(data_gen)):
     #    print(data_gen[i][0].tostring(), "->'%s'" % data_gen[i][1].tostring())
 
-    assert data_gen[0][1].tostring() == u"eras is si"
+    assert data_gen[0][1].tostring() == b"eras is si"
 
 
 def test_TimeseriesGenerator_previous_tests():
