@@ -390,7 +390,7 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
 
     def convert_weights(source_layer, target_layer):
         weights = source_layer.get_weights()
-        weights = keras.engine.topology.preprocess_weights_for_loading(target_layer, weights)
+        weights = keras.engine.saving.preprocess_weights_for_loading(target_layer, weights)
         target_layer.set_weights(weights)
 
     input_layer = keras.layers.InputLayer(input_shape)
@@ -490,7 +490,7 @@ def test_preprocess_weights_for_loading_gru_incompatible():
 
     def assert_not_compatible(src, dest, message):
         with pytest.raises(ValueError) as ex:
-            keras.engine.topology.preprocess_weights_for_loading(
+            keras.engine.saving.preprocess_weights_for_loading(
                 dest, initialize_weights(src).get_weights())
         assert message in ex.value.message
 

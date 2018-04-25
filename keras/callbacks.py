@@ -18,7 +18,7 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
-from .engine.utils import _standardize_input_data
+from .engine.training_utils import standardize_input_data
 
 try:
     import requests
@@ -797,7 +797,7 @@ class TensorBoard(Callback):
             self.writer = tf.summary.FileWriter(self.log_dir)
 
         if self.embeddings_freq and self.embeddings_data is not None:
-            self.embeddings_data = _standardize_input_data(self.embeddings_data, model.input_names)
+            self.embeddings_data = standardize_input_data(self.embeddings_data, model.input_names)
 
             embeddings_layer_names = self.embeddings_layer_names
 

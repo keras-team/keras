@@ -19,6 +19,7 @@
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
 - [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
+- [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
 
 ---
 
@@ -148,6 +149,8 @@ You can then use `keras.models.load_model(filepath)` to reinstantiate your model
 `load_model` will also take care of compiling the model using the saved training configuration
 (unless the model was never compiled in the first place).
 
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+
 Example:
 
 ```python
@@ -191,8 +194,6 @@ model = model_from_yaml(yaml_string)
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
-Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
-
 ```python
 model.save_weights('my_model_weights.h5')
 ```
@@ -208,6 +209,8 @@ If you need to load weights into a *different* architecture (with some layers in
 ```python
 model.load_weights('my_model_weights.h5', by_name=True)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
 
 For example:
 
@@ -515,6 +518,8 @@ with h5py.File('input/file.hdf5', 'r') as f:
     model.predict(x_data)
 ```
 
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+
 ---
 
 ### Where is the Keras configuration file stored?
@@ -598,3 +603,24 @@ K.set_session(sess)
 
 # Rest of code follows ...
 ```
+
+### How can I install HDF5 or h5py to save my models in Keras?
+
+In order to save your Keras models as HDF5 files, e.g. via
+`keras.callbacks.ModelCheckpoint`, Keras uses the h5py Python package. It is
+ a dependency of Keras and should be installed by default. On Debian-based
+ distributions, you will have to additionally install `libhdf5`:
+
+```
+sudo apt-get install libhdf5-serial-dev
+```
+
+If you are unsure if h5py is installed you can open a Python shell and load the
+module via
+
+```
+import h5py
+```
+
+If it imports without error it is installed otherwise you can find detailed
+installation instructions here: http://docs.h5py.org/en/latest/build.html

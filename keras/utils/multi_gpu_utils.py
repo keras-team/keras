@@ -8,6 +8,7 @@ from ..layers.merge import concatenate
 from .. import backend as K
 from ..layers.core import Lambda
 from ..engine.training import Model
+from ..models import clone_model
 
 
 def _get_available_devices():
@@ -19,7 +20,7 @@ def _normalize_device_name(name):
     return name
 
 
-def multi_gpu_model(model, gpus=None):
+def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     """Replicates a model on different GPUs.
 
     Specifically, this function implements single-machine
@@ -46,12 +47,18 @@ def multi_gpu_model(model, gpus=None):
             (see usage example below).
         gpus: Integer >= 2 or list of integers, number of GPUs or
             list of GPU IDs on which to create model replicas.
+        cpu_merge: A boolean value to identify whether to force
+            merging model weights under the scope of the CPU or not.
+        cpu_relocation: A boolean value to identify whether to
+            create the model's weights under the scope of the CPU.
+            If the model is not defined under any preceding device
+            scope, you can still rescue it by activating this option.
 
     # Returns
         A Keras `Model` instance which can be used just like the initial
         `model` argument, but which distributes its workload on multiple GPUs.
 
-    # Example
+    # Example 1 - Training models with weights merge on CPU
 
     ```python
         import tensorflow as tf
@@ -90,6 +97,40 @@ def multi_gpu_model(model, gpus=None):
 
         # Save model via the template model (which shares the same weights):
         model.save('my_model.h5')
+    ```
+
+    # Example 2 - Training models with weights merge on CPU using cpu_relocation
+
+    ```python
+         ..
+         # Not needed to change the device scope for model definition:
+         model = Xception(weights=None, ..)
+
+         try:
+             model = multi_gpu_model(model, cpu_relocation=True)
+             print("Training using multiple GPUs..")
+         except:
+             print("Training using single GPU or CPU..")
+
+         model.compile(..)
+         ..
+    ```
+
+    # Example 3 - Training models with weights merge on GPU (recommended for NV-link)
+
+    ```python
+         ..
+         # Not needed to change the device scope for model definition:
+         model = Xception(weights=None, ..)
+
+         try:
+             model = multi_gpu_model(model, cpu_merge=False)
+             print("Training using multiple GPUs..")
+         except:
+             print("Training using single GPU or CPU..")
+
+         model.compile(..)
+         ..
     ```
 
     # On model saving
@@ -151,6 +192,11 @@ def multi_gpu_model(model, gpus=None):
         start = stride * i
         return tf.slice(data, start, size)
 
+    # Relocate the model definition under CPU device scope if needed
+    if cpu_relocation:
+        with tf.device('/cpu:0'):
+            model = clone_model(model)
+
     all_outputs = []
     for i in range(len(model.outputs)):
         all_outputs.append([])
@@ -180,8 +226,8 @@ def multi_gpu_model(model, gpus=None):
                 for o in range(len(outputs)):
                     all_outputs[o].append(outputs[o])
 
-    # Merge outputs on CPU.
-    with tf.device('/cpu:0'):
+    # Merge outputs under expected scope.
+    with tf.device('/cpu:0' if cpu_merge else '/gpu:%d' % target_gpu_ids[0]):
         merged = []
         for name, outputs in zip(model.output_names, all_outputs):
             merged.append(concatenate(outputs,
