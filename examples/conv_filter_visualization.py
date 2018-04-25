@@ -21,6 +21,9 @@ parser.add_argument('--image_path', metavar='image', type=str,
 parser.add_argument('--layer_name', metavar='layer', type=str,
                     help='Name of the layer to visualize, defaults to block5_conv1',
                     default='block5_conv1')
+parser.add_argument('--max_filters', metavar='filters', type=int,
+                    help='Max number of filters to visualize, defaults to 200',
+                    default=200)
 args = parser.parse_args()
 
 # dimensions of the generated pictures for each filter.
@@ -31,6 +34,10 @@ img_path = args.image_path
 # the name of the layer we want to visualize
 # (see model definition at keras/applications/vgg16.py)
 layer_name = args.layer_name
+
+# the max number of filters to process, this must < number of filters in the selected layer
+# (see model definition at keras/applications/vgg16.py)
+max_filters = args.max_filters
 
 # util function to open, resize and format pictures into appropriate tensors
 
@@ -82,9 +89,9 @@ def normalize(x):
 
 
 kept_filters = []
-for filter_index in range(200):
-    # we only scan through the first 200 filters,
-    # but there are actually 512 of them
+for filter_index in range(max_filters):
+    # we only scan through the first max_filters filters
+    # max_filters must be less than the actual number of filters in each layer
     print('Processing filter %d' % filter_index)
     start_time = time.time()
 
