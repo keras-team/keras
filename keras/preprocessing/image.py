@@ -666,7 +666,7 @@ class ImageDataGenerator(object):
                               'which overrides setting of '
                               '`samplewise_center`.')
 
-    def flow(self, x, y=None, batch_size=32, shuffle=True, seed=None,
+    def flow(self, x, y=None, sample_weight=None, batch_size=32, shuffle=True, seed=None,
              save_to_dir=None, save_prefix='', save_format='png', subset=None):
         """Takes numpy data & label arrays, and generates batches of
             augmented/normalized data.
@@ -677,6 +677,7 @@ class ImageDataGenerator(object):
                 the channels axis should have value 1, and in case
                 of RGB data, it should have value 3.
                y: labels.
+               sample_weight: sample weights.
                batch_size: int (default: 32).
                shuffle: boolean (default: True).
                seed: int (default: None).
@@ -691,10 +692,13 @@ class ImageDataGenerator(object):
                 `validation_split` is set in `ImageDataGenerator`.
 
         # Returns
-            An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
-             `y` is a numpy array of corresponding labels."""
+            An Iterator yielding tuples of `(x, y, sample_weight)` where `x` is
+            a numpy array of image data, `y` is a numpy array of corresponding
+            labels, and `sample_weight` is a numpy array of corresponding
+            weights. If `sample_weight` is None, the Iterator only yields
+            `(x, y)`. If `y` is also None, the Iterator yields `x`. """
         return NumpyArrayIterator(
-            x, y, self,
+            x, y, sample_weight, self,
             batch_size=batch_size,
             shuffle=shuffle,
             seed=seed,
@@ -1086,6 +1090,7 @@ class NumpyArrayIterator(Iterator):
     # Arguments
         x: Numpy array of input data.
         y: Numpy array of targets data.
+        sample_weight: Numpy array of sample weights.
         image_data_generator: Instance of `ImageDataGenerator`
             to use for random transformations and normalization.
         batch_size: Integer, size of a batch.
@@ -1104,7 +1109,7 @@ class NumpyArrayIterator(Iterator):
             validation_split is set in ImageDataGenerator.
     """
 
-    def __init__(self, x, y, image_data_generator,
+    def __init__(self, x, y, sample_weight, image_data_generator,
                  batch_size=32, shuffle=False, seed=None,
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
@@ -1114,6 +1119,11 @@ class NumpyArrayIterator(Iterator):
                              'should have the same length. '
                              'Found: x.shape = %s, y.shape = %s' %
                              (np.asarray(x).shape, np.asarray(y).shape))
+        if sample_weight is not None and len(x) != len(sample_weight):
+            raise ValueError('`x` (images tensor) and `sample_weight` '
+                             'should have the same length. '
+                             'Found: x.shape = %s, sample_weight.shape = %s' %
+                             (np.asarray(x).shape, np.asarray(sample_weight).shape))
         if subset is not None:
             if subset not in {'training', 'validation'}:
                 raise ValueError('Invalid subset name:', subset,
@@ -1146,6 +1156,10 @@ class NumpyArrayIterator(Iterator):
             self.y = np.asarray(y)
         else:
             self.y = None
+        if sample_weight is not None:
+            self.sample_weight = np.asarray(sample_weight)
+        else:
+            self.sample_weight = None
         self.image_data_generator = image_data_generator
         self.data_format = data_format
         self.save_to_dir = save_to_dir
@@ -1172,7 +1186,10 @@ class NumpyArrayIterator(Iterator):
         if self.y is None:
             return batch_x
         batch_y = self.y[index_array]
-        return batch_x, batch_y
+        if self.sample_weight is None:
+            return batch_x, batch_y
+        batch_sw = self.sample_weight[index_array]
+        return batch_x, batch_y, batch_sw
 
     def next(self):
         """For python 2.x.
