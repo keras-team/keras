@@ -1266,9 +1266,11 @@ class TestBackend(object):
             rand = k.eval(k.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
             assert rand.shape == (300, 200)
             assert np.abs(np.mean(rand) - mean) < 0.015
-            assert np.abs(np.std(rand) - std * 0.87962) < 0.015  # assumption in initializers.VarianceScaling
             assert np.max(rand) <= max_val
             assert np.min(rand) >= min_val
+
+            # assumption in initializers.VarianceScaling
+            assert np.abs(np.std(rand) - std * 0.87962) < 0.015
 
     def test_conv_invalid_use(self):
         with pytest.raises(ValueError):
