@@ -9,16 +9,36 @@ from __future__ import print_function
 from scipy.misc import imsave
 import numpy as np
 import time
+import argparse
+
 from keras.applications import vgg16
+from keras.preprocessing.image import load_img, img_to_array
 from keras import backend as K
+
+parser = argparse.ArgumentParser(description='Convolutional filter visualiation with Keras.')
+parser.add_argument('--image_path', metavar='image', type=str,
+                    help='Path to the optional image to transform, e.g. data/cat_128x128.png')
+args = parser.parse_args()
 
 # dimensions of the generated pictures for each filter.
 img_width = 128
 img_height = 128
+img_path = args.image_path
 
 # the name of the layer we want to visualize
 # (see model definition at keras/applications/vgg16.py)
 layer_name = 'block5_conv1'
+
+# util function to open, resize and format pictures into appropriate tensors
+
+
+def preprocess_image(image_path):
+    img = load_img(image_path, target_size=(img_width, img_height))
+    img = img_to_array(img)
+    img = np.expand_dims(img, axis=0)
+    img = vgg16.preprocess_input(img)
+    return img
+
 
 # util function to convert a tensor into a valid image
 
@@ -85,12 +105,15 @@ for filter_index in range(200):
     # step size for gradient ascent
     step = 1.
 
-    # we start from a gray image with some random noise
-    if K.image_data_format() == 'channels_first':
-        input_img_data = np.random.random((1, 3, img_width, img_height))
+    if img_path:
+        input_img_data = preprocess_image(img_path)
     else:
-        input_img_data = np.random.random((1, img_width, img_height, 3))
-    input_img_data = (input_img_data - 0.5) * 20 + 128
+        # we start from a gray image with some random noise
+        if K.image_data_format() == 'channels_first':
+            input_img_data = np.random.random((1, 3, img_width, img_height))
+        else:
+            input_img_data = np.random.random((1, img_width, img_height, 3))
+        input_img_data = (input_img_data - 0.5) * 20 + 128
 
     # we run gradient ascent for 20 steps
     for i in range(20):
