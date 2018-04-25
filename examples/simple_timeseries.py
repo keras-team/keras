@@ -7,11 +7,11 @@ from keras.preprocessing.sequence import TimeseriesGenerator
 import numpy as np
 
 # time
-t = np.linspace(0, 20*np.pi, num=1000)
+t = np.linspace(0, 20 * np.pi, num=1000)
 # input signal
-x = np.sin(np.cos(3*t))
+x = np.sin(np.cos(3 * t))
 # output signal
-y = np.sin(np.cos(6*t+4))
+y = np.sin(np.cos(6 * t + 4))
 
 # define recurrent model
 from keras.models import Model
