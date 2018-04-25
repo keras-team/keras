@@ -380,9 +380,8 @@ def test_TimeseriesGenerator_on_text():
 def test_TimeseriesGenerator_previous_tests():
 
     data = np.array([[i] for i in range(50)])
-    targets = np.array([[i] for i in range(50)])
 
-    data_gen = TimeseriesGenerator(data, targets,
+    data_gen = TimeseriesGenerator(data, data,
                                    length=10, sampling_rate=2, reverse=True,
                                    batch_size=2, gap=2)
     assert len(data_gen) == 20
@@ -392,7 +391,7 @@ def test_TimeseriesGenerator_previous_tests():
     assert (np.allclose(data_gen[0][1],
                         np.array([[10], [11]])))
 
-    data_gen = TimeseriesGenerator(data, targets,
+    data_gen = TimeseriesGenerator(data, data,
                                    length=10, sampling_rate=2, shuffle=True,
                                    batch_size=1, gap=2)
     batch = data_gen[0]
@@ -405,7 +404,7 @@ def test_TimeseriesGenerator_previous_tests():
                                    [r - 2]]])))
     assert (np.allclose(batch[1], np.array([[r], ])))
 
-    data_gen = TimeseriesGenerator(data, targets,
+    data_gen = TimeseriesGenerator(data, data,
                                    length=10, sampling_rate=2, stride=2,
                                    batch_size=2, gap=2)
     assert len(data_gen) == 10
@@ -415,7 +414,7 @@ def test_TimeseriesGenerator_previous_tests():
     assert (np.allclose(data_gen[1][1],
                         np.array([[14], [16]])))
 
-    data_gen = TimeseriesGenerator(data, targets,
+    data_gen = TimeseriesGenerator(data, data,
                                    length=10, sampling_rate=2,
                                    start_index=10, end_index=30,
                                    batch_size=2, gap=2)
