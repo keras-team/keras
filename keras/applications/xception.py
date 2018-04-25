@@ -34,6 +34,7 @@ from ..layers import GlobalAveragePooling2D
 from ..layers import GlobalMaxPooling2D
 from ..engine.topology import get_source_inputs
 from ..utils.data_utils import get_file
+from ..utils import layer_utils
 from .. import backend as K
 from . import imagenet_utils
 from .imagenet_utils import decode_predictions
@@ -253,6 +254,8 @@ def Xception(include_top=True, weights='imagenet',
                                     cache_subdir='models',
                                     file_hash='b0042744bf5b25fce3cb969f33bebb97')
         model.load_weights(weights_path)
+        if K.backend() == 'theano':
+            layer_utils.convert_all_kernels_in_model(model)
     elif weights is not None:
         model.load_weights(weights)
 
