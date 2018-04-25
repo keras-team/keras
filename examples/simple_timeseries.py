@@ -14,7 +14,7 @@ y = np.sin(np.cos(6*t+4))
 
 # define recurrent model
 from keras.models import Model
-from keras.layers import Input, SimpleRNN, LSTM, GRU, Dense
+from keras.layers import Input, SimpleRNN, Dense
 
 inputs = Input(batch_shape=(None, None, 1))
 l = SimpleRNN(100, return_sequences=True)(inputs)
