@@ -372,7 +372,7 @@ class TimeseriesGenerator(Sequence):
         if hlength is None:
             if length % sampling_rate != 0:
                 raise ValueError(
-                    '`length` has to be a multiple of `sampling_rate`. For instance, `length=%i` would do.' % (2*sampling_rate))
+                    '`length` has to be a multiple of `sampling_rate`. For instance, `length=%i` would do.' % (2 * sampling_rate))
             hlength = length // sampling_rate
 
         if gap % sampling_rate != 0:
