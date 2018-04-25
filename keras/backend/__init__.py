@@ -33,7 +33,6 @@ if os.path.exists(_config_path):
     _epsilon = _config.get('epsilon', epsilon())
     assert isinstance(_epsilon, float)
     _backend = _config.get('backend', _BACKEND)
-    assert _backend in {'theano', 'tensorflow', 'cntk'}
     _image_data_format = _config.get('image_data_format',
                                      image_data_format())
     assert _image_data_format in {'channels_last', 'channels_first'}
@@ -69,7 +68,6 @@ if not os.path.exists(_config_path):
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
-    assert _backend in {'theano', 'tensorflow', 'cntk'}
     _BACKEND = _backend
 
 # Import backend functions.
@@ -83,7 +81,11 @@ elif _BACKEND == 'tensorflow':
     sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
-    raise ValueError('Unknown backend: ' + str(_BACKEND))
+    try:
+        exec('from ' + _BACKEND + ' import *')
+        sys.stderr.write('Using ' + _BACKEND + ' backend.\n')
+    except Exception:
+        raise ValueError('Invalid backend: ' + str(_BACKEND))
 
 
 def backend():
