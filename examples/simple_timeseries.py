@@ -1,3 +1,8 @@
+"""Train a simple RNN on synthetic data with TimeseriesGeneratorCNN.
+
+It should get a loss around `0.03` in a few epochs.
+"""
+
 #
 # TimeseriesGenerator demo
 #
