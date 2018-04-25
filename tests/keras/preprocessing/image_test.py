@@ -79,7 +79,7 @@ class TestImage(object):
                                                       np.arange(dsize),
                                                       shuffle=False, batch_size=2)):
                 assert x[0].shape == images[:2].shape
-                assert (x[1] == x_misc1[((i*2) % dsize):(((i+1)*2) % dsize)]).all()
+                assert (x[1] == x_misc1[(i * 2):((i + 1) * 2)]).all()
                 if i == 2:
                     break
 
@@ -90,20 +90,20 @@ class TestImage(object):
                                                       np.arange(dsize),
                                                       shuffle=False, batch_size=2)):
                 assert x[0].shape == images[:2].shape
-                assert (x[1] == x_misc1[((i*2) % dsize):(((i+1)*2) % dsize)]).all()
-                assert (x[2] == x_misc2[((i*2) % dsize):(((i+1)*2) % dsize)]).all()
+                assert (x[1] == x_misc1[(i * 2):((i + 1) * 2)]).all()
+                assert (x[2] == x_misc2[(i * 2):((i + 1) * 2)]).all()
                 if i == 2:
                     break
 
             # Test some failure cases:
-            x_misc_err = np.random.random((dsize+1, 3, 3))
+            x_misc_err = np.random.random((dsize + 1, 3, 3))
 
             with pytest.raises(ValueError) as e_info:
                 generator.flow((images, x_misc_err), np.arange(dsize), batch_size=3)
             assert str(e_info.value).find('All of the arrays in') != -1
 
             with pytest.raises(ValueError) as e_info:
-                generator.flow((images, x_misc1), np.arange(dsize+1), batch_size=3)
+                generator.flow((images, x_misc1), np.arange(dsize + 1), batch_size=3)
             assert str(e_info.value).find('`x` (images tensor) and `y` (labels) ') != -1
 
             # Test `flow` behavior as Sequence
