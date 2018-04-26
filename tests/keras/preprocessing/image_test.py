@@ -71,6 +71,15 @@ class TestImage(object):
                 assert list(y) != [0, 1, 2]
                 break
 
+            # Test without y
+            for x in generator.flow(images, None,
+                                       shuffle=True, save_to_dir=str(tmpdir),
+                                       batch_size=3):
+                assert type(x) is np.ndarray
+                assert x.shape == images[:3].shape
+                # Check that the sequence is shuffled.
+                break
+            
             # Test with a single miscellaneous input data array
             dsize = images.shape[0]
             x_misc1 = np.random.random(dsize)
@@ -94,6 +103,22 @@ class TestImage(object):
                 assert (x[2] == x_misc2[(i * 2):((i + 1) * 2)]).all()
                 if i == 2:
                     break
+
+            # Test cases with `y = None`
+            x = generator.flow(images, None, batch_size=3).next()
+            assert type(x) is np.ndarray
+            assert x.shape == images[:3].shape
+            x = generator.flow((images, x_misc1), None,
+                               batch_size=3, shuffle=False).next()
+            assert type(x) is list
+            assert x[0].shape == images[:3].shape
+            assert (x[1] == x_misc1[:3]).all()
+            x = generator.flow((images, [x_misc1, x_misc2]), None,
+                               batch_size=3, shuffle=False).next()
+            assert type(x) is list
+            assert x[0].shape == images[:3].shape
+            assert (x[1] == x_misc1[:3]).all()
+            assert (x[2] == x_misc2[:3]).all()
 
             # Test some failure cases:
             x_misc_err = np.random.random((dsize + 1, 3, 3))
