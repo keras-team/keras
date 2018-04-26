@@ -90,11 +90,21 @@ class Model(Network):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
-        loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.loss = loss
+        self.loss = loss or []
+        self.metrics = metrics or []
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
+        self.weighted_metrics = weighted_metrics
+
+        if not self.built:
+            # Model is not compilable because
+            # it does not know its number of inputs
+            # and outputs, nor their shapes and names.
+            # We will compile after the first
+            # time the model gets called on training data.
+            return
+        self._is_compiled = True
 
         # Prepare loss functions.
         if isinstance(loss, dict):
@@ -202,7 +212,7 @@ class Model(Network):
             if i in skip_target_indices:
                 self.targets.append(None)
             else:
-                shape = self._internal_output_shapes[i]
+                shape = K.int_shape(self.outputs[i])
                 name = self.output_names[i]
                 if target_tensors is not None:
                     target = target_tensors[i]
@@ -301,8 +311,6 @@ class Model(Network):
                     self.sample_weight_modes[i])
 
         # Prepare metrics.
-        self.metrics = metrics or []
-        self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
 
@@ -356,7 +364,7 @@ class Model(Network):
                 if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
                     # custom handling of accuracy/crossentropy
                     # (because of class mode duality)
-                    output_shape = self._internal_output_shapes[i]
+                    output_shape = K.int_shape(self.outputs[i])
                     if (output_shape[-1] == 1 or
                        self.loss_functions[i] == losses.binary_crossentropy):
                         # case: binary accuracy/crossentropy
@@ -539,7 +547,7 @@ class Model(Network):
     def _standardize_user_data(self, x, y,
                                sample_weight=None, class_weight=None,
                                check_array_lengths=True, batch_size=None):
-        if not hasattr(self, 'optimizer'):
+        if not self.optimizer:
             raise RuntimeError('You must compile a model before '
                                'training/testing. '
                                'Use `model.compile(optimizer, loss)`.')
