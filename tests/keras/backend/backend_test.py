@@ -230,6 +230,12 @@ class TestBackend(object):
                                    BACKENDS, cntk_two_dynamicity=True, axes=1)
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
                                    BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=0)
+        check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=None)
+        check_two_tensor_operation('batch_dot', (32, 20, 10), (32, 20, 10),
+                                   BACKENDS, cntk_two_dynamicity=True, axes=([1, 2], [1, 2]))
 
         check_single_tensor_operation('transpose', (4, 2), BACKENDS)
         check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS, axes=1)
