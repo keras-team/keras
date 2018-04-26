@@ -1129,7 +1129,7 @@ class NumpyArrayIterator(Iterator):
                                      'Found a pair with: len(x[0]) = %s, len(x[?]) = %s' %
                                      (len(x), len(xx)))
         else:
-            x_misc = None
+            x_misc = []
 
         if y is not None and len(x) != len(y):
             raise ValueError('`x` (images tensor) and `y` (labels) '
@@ -1143,14 +1143,12 @@ class NumpyArrayIterator(Iterator):
             split_idx = int(len(x) * image_data_generator._validation_split)
             if subset == 'validation':
                 x = x[:split_idx]
-                if x_misc is not None:
-                    x_misc = [np.asarray(xx[:split_idx]) for xx in x_misc]
+                x_misc = [np.asarray(xx[:split_idx]) for xx in x_misc]
                 if y is not None:
                     y = y[:split_idx]
             else:
                 x = x[split_idx:]
-                if x_misc is not None:
-                    x_misc = [np.asarray(xx[split_idx:]) for xx in x_misc]
+                x_misc = [np.asarray(xx[split_idx:]) for xx in x_misc]
                 if y is not None:
                     y = y[split_idx:]
         if data_format is None:
@@ -1197,14 +1195,11 @@ class NumpyArrayIterator(Iterator):
                                                                   hash=np.random.randint(1e4),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
-        if self.x_misc is not None:
-            batch_x_miscs = [xx[index_array] for xx in self.x_misc]
-            output = ([batch_x] + batch_x_miscs,)
-        else:
-            output = (batch_x,)
-        if self.y is not None:
-            batch_y = self.y[index_array]
-            output += (batch_y,)
+        batch_x_miscs = [xx[index_array] for xx in self.x_misc]
+        output = (batch_x if batch_x_miscs == [] else [batch_x] + batch_x_miscs,)
+        if self.y is None:
+            return output[0]
+        output += (self.y[index_array],)
         return output
 
     def next(self):
