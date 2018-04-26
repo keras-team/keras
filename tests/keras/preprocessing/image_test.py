@@ -73,13 +73,13 @@ class TestImage(object):
 
             # Test without y
             for x in generator.flow(images, None,
-                                       shuffle=True, save_to_dir=str(tmpdir),
-                                       batch_size=3):
+                                    shuffle=True, save_to_dir=str(tmpdir),
+                                    batch_size=3):
                 assert type(x) is np.ndarray
                 assert x.shape == images[:3].shape
                 # Check that the sequence is shuffled.
                 break
-            
+
             # Test with a single miscellaneous input data array
             dsize = images.shape[0]
             x_misc1 = np.random.random(dsize)
