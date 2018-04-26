@@ -672,9 +672,14 @@ class ImageDataGenerator(object):
             augmented/normalized data.
 
         # Arguments
-               x: data. Should have rank 4.
-                In case of grayscale data,
-                the channels axis should have value 1, and in case
+               x: data. Numpy array of rank 4 or a tuple. If tuple, the first element
+                should contain the images and the second element another numpy array
+                or a list of numpy arrays of miscellaneous data that gets passed to the output
+                without any modifications. Can be used to feed the model miscellaneous data
+                along with the images.
+
+                In case of grayscale data, the channels axis of the image array
+                should have value 1, and in case
                 of RGB data, it should have value 3.
                y: labels.
                batch_size: int (default: 32).
@@ -691,8 +696,9 @@ class ImageDataGenerator(object):
                 `validation_split` is set in `ImageDataGenerator`.
 
         # Returns
-            An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data and
-             `y` is a numpy array of corresponding labels."""
+            An Iterator yielding tuples of `(x, y)` where `x` is a numpy array of image data
+             (in the case of a single image input) or a list of numpy arrays (in the case with
+             additional inputs) and `y` is a numpy array of corresponding labels."""
         return NumpyArrayIterator(
             x, y, self,
             batch_size=batch_size,
@@ -1084,7 +1090,9 @@ class NumpyArrayIterator(Iterator):
     """Iterator yielding data from a Numpy array.
 
     # Arguments
-        x: Numpy array of input data.
+        x: Numpy array of input data or tuple. If tuple, the second elements is either
+            another numpy array or a list of numpy arrays, each of which gets passed
+            through as an output without any modifications.
         y: Numpy array of targets data.
         image_data_generator: Instance of `ImageDataGenerator`
             to use for random transformations and normalization.
@@ -1109,6 +1117,20 @@ class NumpyArrayIterator(Iterator):
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
                  subset=None):
+        if (type(x) is tuple) or (type(x) is list):
+            if type(x[1]) is not list:
+                x_misc = [np.asarray(x[1])]
+            else:
+                x_misc = [np.asarray(xx) for xx in x[1]]
+            x = x[0]
+            for xx in x_misc:
+                if len(x) != len(xx):
+                    raise ValueError('All of the arrays in `x` should have the same length. '
+                                     'Found a pair with: len(x[0]) = %s, len(x[?]) = %s' %
+                                     (len(x), len(xx)))
+        else:
+            x_misc = []
+
         if y is not None and len(x) != len(y):
             raise ValueError('`x` (images tensor) and `y` (labels) '
                              'should have the same length. '
@@ -1121,15 +1143,18 @@ class NumpyArrayIterator(Iterator):
             split_idx = int(len(x) * image_data_generator._validation_split)
             if subset == 'validation':
                 x = x[:split_idx]
+                x_misc = [np.asarray(xx[:split_idx]) for xx in x_misc]
                 if y is not None:
                     y = y[:split_idx]
             else:
                 x = x[split_idx:]
+                x_misc = [np.asarray(xx[split_idx:]) for xx in x_misc]
                 if y is not None:
                     y = y[split_idx:]
         if data_format is None:
             data_format = K.image_data_format()
         self.x = np.asarray(x, dtype=K.floatx())
+        self.x_misc = x_misc
         if self.x.ndim != 4:
             raise ValueError('Input data in `NumpyArrayIterator` '
                              'should have rank 4. You passed an array '
@@ -1161,6 +1186,7 @@ class NumpyArrayIterator(Iterator):
             x = self.image_data_generator.random_transform(x.astype(K.floatx()))
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
+
         if self.save_to_dir:
             for i, j in enumerate(index_array):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
@@ -1169,10 +1195,12 @@ class NumpyArrayIterator(Iterator):
                                                                   hash=np.random.randint(1e4),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
+        batch_x_miscs = [xx[index_array] for xx in self.x_misc]
+        output = (batch_x if batch_x_miscs == [] else [batch_x] + batch_x_miscs,)
         if self.y is None:
-            return batch_x
-        batch_y = self.y[index_array]
-        return batch_x, batch_y
+            return output[0]
+        output += (self.y[index_array],)
+        return output
 
     def next(self):
         """For python 2.x.
