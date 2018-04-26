@@ -72,6 +72,7 @@ class Sequential(Model):
         self.outputs = []  # List of length 1: the output tensor (unique).
         self._trainable = True
         self._initial_weights = None
+        self._is_graph_network = True
 
         # Model attributes.
         self._inbound_nodes = []

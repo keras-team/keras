@@ -290,8 +290,8 @@ class Network(Layer):
                                                    layer.__class__.__name__))
             self.input_names.append(layer.name)
             if layer.is_placeholder:
-                self._feed_input_names.append(layer.name)
                 self._feed_inputs.append(layer.input)
+                self._feed_input_names.append(layer.name)
                 self._feed_input_shapes.append(self.inputs[i]._keras_shape)
 
         for layer in self._output_layers:
@@ -305,6 +305,22 @@ class Network(Layer):
         self.outputs = None
         self.inputs = None
         self.built = False
+
+    def __setattr__(self, name, value):
+        # Automatically track layers set as Model
+        # attributes for subclassed Models.
+        if isinstance(value, (Layer, Network)):
+            try:
+                is_graph_network = self._is_graph_network
+            except AttributeError:
+                raise RuntimeError(
+                    'It looks like you are subclassing `Model` and you '
+                    'forgot to call `super(YourClass, self).__init__()`.'
+                    ' Always start with this line.')
+            if not is_graph_network:
+                if value not in self._layers:
+                    self._layers.append(value)
+        super(Network, self).__setattr__(name, value)
 
     @property
     def layers(self):
@@ -365,16 +381,19 @@ class Network(Layer):
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
-                # Collect updates that are dependent on inputs
-                # that are part of the model.
-                for node_index, node in enumerate(layer._inbound_nodes):
-                    node_key = self._node_key(layer, node_index)
-                    if node_key in self._network_nodes:
-                        # The model owns this layer node.
-                        inputs = node.input_tensors
-                        updates += layer.get_updates_for(inputs)
-                # Collect unconditional updates.
-                updates += layer.get_updates_for(None)
+                if self._is_graph_network:
+                    # Collect updates that are dependent on inputs
+                    # that are part of the model.
+                    for node_index, node in enumerate(layer._inbound_nodes):
+                        node_key = self._node_key(layer, node_index)
+                        if node_key in self._network_nodes:
+                            # The model owns this layer node.
+                            inputs = node.input_tensors
+                            updates += layer.get_updates_for(inputs)
+                    # Collect unconditional updates.
+                    updates += layer.get_updates_for(None)
+                else:
+                    updates += layer.updates
         return updates
 
     @property
@@ -390,19 +409,22 @@ class Network(Layer):
             A list of loss tensors.
         """
         losses = []
-        # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
-                # Collect losses that are dependent on inputs
-                # that are part of the model.
-                for node_index, node in enumerate(layer._inbound_nodes):
-                    node_key = self._node_key(layer, node_index)
-                    if node_key in self._network_nodes:
-                        # The model owns this layer node.
-                        inputs = node.input_tensors
-                        losses += layer.get_losses_for(inputs)
-                # Collect unconditional losses.
-                losses += layer.get_losses_for(None)
+                if self._is_graph_network:
+                    # Collect losses that are dependent on inputs
+                    # that are part of the model.
+                    for node_index, node in enumerate(layer._inbound_nodes):
+                        node_key = self._node_key(layer, node_index)
+                        if node_key in self._network_nodes:
+                            # The model owns this layer node.
+                            inputs = node.input_tensors
+                            losses += layer.get_losses_for(inputs)
+                    # Collect unconditional losses.
+                    losses += layer.get_losses_for(None)
+                else:
+                    losses += layer.losses
+
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
 
@@ -413,6 +435,8 @@ class Network(Layer):
 
     @property
     def uses_learning_phase(self):
+        if not self.outputs:
+            return False
         return any([x._uses_learning_phase for x in self.outputs])
 
     @property

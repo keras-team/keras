@@ -212,11 +212,16 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if not isinstance(x, (T.TensorVariable,
-                          T.sharedvar.TensorSharedVariable)):
-        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
+    if not is_tensor(x):
+        raise ValueError('Unexpectedly found an instance of type `' +
+                         str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
+
+
+def is_tensor(x):
+    return isinstance(x, (T.TensorVariable,
+                          T.sharedvar.TensorSharedVariable))
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
