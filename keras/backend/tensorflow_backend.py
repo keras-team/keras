@@ -356,7 +356,7 @@ def to_dense(tensor):
 name_scope = tf.name_scope
 
 
-def variable(value, dtype=None, name=None, constraint=None):
+def variable(value, dtype=None, name=None, constraint=None, manifold=None):
     """Instantiates a variable and returns it.
 
     # Arguments
@@ -406,6 +406,8 @@ def variable(value, dtype=None, name=None, constraint=None):
         v.constraint = constraint
     except AttributeError:
         v._constraint = constraint
+
+    v._manifold = manifold
     return v
 
 

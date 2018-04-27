@@ -835,6 +835,7 @@ class Dense(Layer):
                  bias_regularizer=None,
                  activity_regularizer=None,
                  kernel_constraint=None,
+                 kernel_manifold=None,
                  bias_constraint=None,
                  **kwargs):
         if 'input_shape' not in kwargs and 'input_dim' in kwargs:
@@ -849,6 +850,7 @@ class Dense(Layer):
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
+        self.kernel_manifold = kernel_manifold
         self.bias_constraint = constraints.get(bias_constraint)
         self.input_spec = InputSpec(min_ndim=2)
         self.supports_masking = True
@@ -860,6 +862,7 @@ class Dense(Layer):
         self.kernel = self.add_weight(shape=(input_dim, self.units),
                                       initializer=self.kernel_initializer,
                                       name='kernel',
+                                      manifold=self.kernel_manifold,
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
