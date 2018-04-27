@@ -1564,7 +1564,7 @@ def relu(x, alpha=0., max_value=None):
 
 
 def softmax(x, axis=-1):
-    if axis == -1 or axis == x.ndim - 1:
+    if (axis == -1 or axis == x.ndim - 1) and x.ndim == 2:
         return T.nnet.softmax(x)
     xm = x.max(axis=axis, keepdims=True)
     return T.exp(x - xm) / T.exp(
