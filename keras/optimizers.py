@@ -173,22 +173,22 @@ class SGD(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        learning_rate = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * K.cast(self.iterations,
+            learning_rate *= (1. / (1. + self.decay * K.cast(self.iterations,
                                                   K.dtype(self.decay))))
         # momentum
         shapes = [K.int_shape(p) for p in params]
         moments = [K.zeros(shape) for shape in shapes]
         self.weights = [self.iterations] + moments
-        for p, g, m in zip(params, grads, moments):
-            v = self.momentum * m - lr * g  # velocity
-            self.updates.append(K.update(m, v))
+        for p, grad, moment in zip(params, grads, moments):
+            velocity = self.momentum * moment - learning_rate * grad  # velocity
+            self.updates.append(K.update(moment, velocity))
 
             if self.nesterov:
-                new_p = p + self.momentum * v - lr * g
+                new_p = p + self.momentum * velocity - learning_rate * grad
             else:
-                new_p = p + v
+                new_p = p + velocity
 
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
