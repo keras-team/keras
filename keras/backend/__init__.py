@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import importlib
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -81,11 +82,24 @@ elif _BACKEND == 'tensorflow':
     sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
+    # Try and load external backend.
     try:
-        exec('from ' + _BACKEND + ' import *')
+        backend_module = importlib.import_module(_BACKEND)
+        entries = backend_module.__dict__
+        # Check if valid backend.
+        # Module is a valid backend if it has the required entries.
+        required_entries = ['placeholder', 'variable', 'function']
+        for e in required_entries:
+            if e not in entries:
+                raise Exception('Invalid backend. Missing required entry : ' + e)
+        namespace = globals()
+        for k, v in entries.items():
+            # Make sure we don't override any entries from common, such as epsilon.
+            if k not in namespace:
+                namespace[k] = v
         sys.stderr.write('Using ' + _BACKEND + ' backend.\n')
-    except Exception:
-        raise ValueError('Invalid backend: ' + str(_BACKEND))
+    except ImportError:
+        raise ValueError('Unable to import backend : ' + str(_BACKEND))
 
 
 def backend():
