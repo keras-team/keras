@@ -21,7 +21,7 @@ def softmax(x, axis=-1):
     # Returns
         Tensor, output of softmax transformation.
     """
-    return K.softmax(x)
+    return K.softmax(x, axis=axis)
 
 
 def elu(x, alpha=1.0):
