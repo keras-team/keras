@@ -58,7 +58,7 @@ def _clone_functional_model(model, input_tensors=None):
         # Create placeholders to build the model on top of.
         input_layers = []
         input_tensors = []
-        for layer in model.input_layers:
+        for layer in model._input_layers:
             input_tensor = Input(batch_shape=layer.batch_input_shape,
                                  dtype=layer.dtype,
                                  sparse=layer.sparse,
@@ -67,7 +67,7 @@ def _clone_functional_model(model, input_tensors=None):
             # Cache newly created input layer.
             newly_created_input_layer = input_tensor._keras_history[0]
             layer_map[layer] = newly_created_input_layer
-        for original_input_layer, cloned_input_layer in zip(model.input_layers, input_layers):
+        for original_input_layer, cloned_input_layer in zip(model._input_layers, input_layers):
             layer_map[original_input_layer] = cloned_input_layer
     else:
         # Make sure that all input tensors come from a Keras layer.
@@ -76,7 +76,7 @@ def _clone_functional_model(model, input_tensors=None):
         _input_tensors = []
         for i, x in enumerate(input_tensors):
             if not K.is_keras_tensor(x):
-                name = model.input_layers[i].name
+                name = model._input_layers[i].name
                 input_tensor = Input(tensor=x,
                                      name='input_wrapper_for_' + name)
                 _input_tensors.append(input_tensor)
