@@ -245,7 +245,8 @@ class Layer(object):
                             name=name,
                             constraint=constraint)
         if regularizer is not None:
-            self.add_loss(regularizer(weight))
+            with K.name_scope('weight_regularizer'):
+                self.add_loss(regularizer(weight))
         if trainable:
             self._trainable_weights.append(weight)
         else:
@@ -498,9 +499,10 @@ class Layer(object):
             # Apply activity regularizer if any:
             if (hasattr(self, 'activity_regularizer') and
                     self.activity_regularizer is not None):
-                regularization_losses = [
-                    self.activity_regularizer(x)
-                    for x in to_list(output)]
+                with K.name_scope('activity_regularizer'):
+                    regularization_losses = [
+                        self.activity_regularizer(x)
+                        for x in to_list(output)]
                 self.add_loss(regularization_losses,
                               inputs=to_list(inputs))
         return output

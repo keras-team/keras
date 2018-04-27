@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+from tensorflow.python.framework import ops as tf_ops
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -464,12 +465,15 @@ def is_keras_tensor(x):
         True
     ```
     """
-    if not isinstance(x, (tf.Tensor,
-                          tf_variables.Variable,
-                          tf.SparseTensor)):
-        raise ValueError('Unexpectedly found an instance of type `' + str(type(x)) + '`. '
+    if not is_tensor(x):
+        raise ValueError('Unexpectedly found an instance of type `' +
+                         str(type(x)) + '`. '
                          'Expected a symbolic tensor instance.')
     return hasattr(x, '_keras_history')
+
+
+def is_tensor(x):
+    return isinstance(x, tf_ops._TensorLike) or tf_ops.is_dense_tensor_like(x)
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):

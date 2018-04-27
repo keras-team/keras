@@ -21,6 +21,7 @@ from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.layer_utils import print_summary as print_layer_summary
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
+from ..utils.generic_utils import object_list_uid
 from ..legacy import interfaces
 
 try:
@@ -39,8 +40,7 @@ class Network(Layer):
         name
         inputs
         outputs
-        input_layers
-        output_layers
+        layers
         input_spec (list of class instances)
             each entry describes one required input:
                 - ndim
@@ -48,18 +48,30 @@ class Network(Layer):
         trainable (boolean)
         input_shape
         output_shape
-        inbound_nodes: list of nodes
-        outbound_nodes: list of nodes
+        weights (list of variables)
         trainable_weights (list of variables)
         non_trainable_weights (list of variables)
+        losses
+        updates
+        state_updates
+        stateful
 
     # Methods
+        __call__
         summary
         get_layer
         get_weights
         set_weights
         get_config
         compute_output_shape
+        save
+        add_loss
+        add_update
+        get_losses_for
+        get_updates_for
+        to_json
+        to_yaml
+        reset_states
 
     # Class Methods
         from_config
@@ -70,19 +82,61 @@ class Network(Layer):
     """
 
     @interfaces.legacy_model_constructor_support
-    def __init__(self, inputs, outputs, name=None):
+    def __init__(self, *args, **kwargs):
+        # Signature detection
+        if (len(args) == 2 or
+            len(args) == 1 and 'outputs' in kwargs or
+                'inputs' in kwargs and 'outputs' in kwargs):
+            # Graph network
+            self._init_graph_network(*args, **kwargs)
+        else:
+            # Subclassed network
+            self._init_subclassed_network(**kwargs)
+
+    def _base_init(self, name=None):
+        # The following are implemented as property functions:
+        # self.trainable_weights
+        # self.non_trainable_weights
+        # self.input_spec
+        # self.losses
+        # self.updates
+
         # Handle `name` argument.
         if not name:
             prefix = self.__class__.__name__.lower()
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
 
-        self.supports_masking = False
+        # This acts just like the `trainable` attribute of any layer instance.
+        # It does not affect users of the underlying layers, only users of the
+        # Network instance.
         self.trainable = True
+        self._is_compiled = False
+        self._expects_training_arg = False
+        self._initial_weights = None
+
+        self.supports_masking = False
+        if not hasattr(self, 'optimizer'):
+            # Don't reset optimizer if already set.
+            self.optimizer = None
+
+        # Private attributes to implement compatibility with Layer.
+        self._updates = []
+        self._losses = []
         self._per_input_losses = {}
         self._per_input_updates = {}
 
-        # Network-specific properties.
+        # All layers in order of horizontal graph traversal.
+        # Entries are unique. Includes input and output layers.
+        self._layers = []
+
+        # Used only in conjonction with graph-networks
+        self._outbound_nodes = []
+        self._inbound_nodes = []
+
+    def _init_graph_network(self, inputs, outputs, name=None):
+        self._uses_inputs_arg = True
+        # Normalize and set self.inputs, self.outputs.
         if isinstance(inputs, (list, tuple)):
             self.inputs = list(inputs)  # Tensor or list of tensors.
         else:
@@ -92,318 +146,98 @@ class Network(Layer):
         else:
             self.outputs = [outputs]
 
+        # User-provided argument validation.
         # Check for redundancy in inputs.
         if len(set(self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
                              ' Found: ' + str(self.inputs))
+        for x in self.inputs:
+            # Check that x has appropriate `_keras_history` metadata.
+            if not hasattr(x, '_keras_history'):
+                cls_name = self.__class__.__name__
+                raise ValueError('Input tensors to a ' + cls_name + ' ' +
+                                 'must come from `tf.layers.Input`. '
+                                 'Received: ' + str(x) +
+                                 ' (missing previous layer metadata).')
+        # Check that x is an input tensor.
+        layer, node_index, tensor_index = x._keras_history
+        if (len(layer._inbound_nodes) > 1 or
+                (layer._inbound_nodes and
+                 layer._inbound_nodes[0].inbound_layers)):
+            cls_name = self.__class__.__name__
+            warnings.warn(cls_name + ' inputs must come from '
+                          '`tf.layers.Input` '
+                          '(thus holding past layer metadata), '
+                          'they cannot be the output of '
+                          'a previous non-Input layer. '
+                          'Here, a tensor specified as '
+                          'input to "' + self.name +
+                          '" was not an Input tensor, '
+                          'it was generated by layer ' +
+                          layer.name + '.\n'
+                          'Note that input tensors are '
+                          'instantiated via '
+                          '`tensor = tf.layers.Input(shape)`.\n'
+                          'The tensor that caused the issue was: ' +
+                          str(x.name))
+        for x in self.outputs:
+            if not hasattr(x, '_keras_history'):
+                cls_name = self.__class__.__name__
+                raise ValueError('Output tensors to a ' + cls_name +
+                                 ' must be '
+                                 'the output of a TensorFlow `Layer` '
+                                 '(thus holding past layer metadata). '
+                                 'Found: ' + str(x))
+        self._base_init(name=name)
+        self._compute_previous_mask = (
+            has_arg(self.call, 'mask') or
+            hasattr(self, 'compute_mask'))
+        # A Network does not create weights of its own,
+        # thus it is already built.
+        self.built = True
+        self._is_graph_network = True
 
-        # Check for redundancy in outputs.
-        if len(set(self.outputs)) != len(self.outputs):
-            warnings.warn('The list of outputs passed to the model '
-                          'is redundant. '
-                          'All outputs should only appear once.'
-                          ' Found: ' + str(self.outputs))
+        self._input_layers = []
+        self._output_layers = []
+        self._input_coordinates = []
+        self._output_coordinates = []
 
-        # List of initial layers (1 to 1 mapping with self.inputs,
-        # hence the same layer might appear twice)
-        self.input_layers = []
-        self.input_layers_node_indices = []
-        self.input_layers_tensor_indices = []
-        # list of layers (1 to 1 mapping with self.inputs,
-        # hence the same layer might appear twice)
-        self.output_layers = []
-        self.output_layers_node_indices = []
-        self.output_layers_tensor_indices = []
-        # all layers in order of horizontal graph traversal.
-        # Entries are unique. Includes input and output layers.
-        self.layers = []
-
-        # This is for performance optimization
-        # when calling the Network on new inputs.
-        # every time the Network is called on a set on input tensors,
+        # This is for performance optimization when calling the Network on new
+        # inputs. Every time the Network is called on a set on input tensors,
         # we compute the output tensors,
         # output masks and output shapes in one pass,
-        # then cache them here. When one of these output is queried later,
-        # we retrieve it from there instead of recomputing it.
+        # then cache them here. When any of these outputs is queried later, we
+        # retrieve it from there instead of recomputing it.
         self._output_mask_cache = {}
         self._output_tensor_cache = {}
         self._output_shape_cache = {}
 
-        # User-provided arguments validation.
-        for x in self.inputs:
-            # Check that x is a Keras tensor.
-            if not hasattr(x, '_keras_history'):
-                cls_name = self.__class__.__name__
-                raise TypeError('Input tensors to a ' + cls_name + ' ' +
-                                'must be Keras tensors. Found: ' + str(x) +
-                                ' (missing Keras metadata).')
-            # Check that x is an input tensor.
-            layer, node_index, tensor_index = x._keras_history
-            if (len(layer._inbound_nodes) > 1 or
-                    (layer._inbound_nodes and
-                     layer._inbound_nodes[0].inbound_layers)):
-                cls_name = self.__class__.__name__
-                warnings.warn(cls_name + ' inputs must come from '
-                              'a Keras Input layer, '
-                              'they cannot be the output of '
-                              'a previous non-Input layer. '
-                              'Here, a tensor specified as '
-                              'input to "' + self.name +
-                              '" was not an Input tensor, '
-                              'it was generated by layer ' +
-                              layer.name + '.\n'
-                              'Note that input tensors are '
-                              'instantiated via `tensor = Input(shape)`.\n'
-                              'The tensor that caused the issue was: ' +
-                              str(x.name))
-        for x in self.outputs:
-            if not hasattr(x, '_keras_history'):
-                cls_name = self.__class__.__name__
-                raise TypeError('Output tensors to a ' + cls_name + ' must be '
-                                'Keras tensors. Found: ' + str(x))
-        # Build self.output_layers:
+        # Build self._output_layers:
         for x in self.outputs:
             layer, node_index, tensor_index = x._keras_history
-            self.output_layers.append(layer)
-            self.output_layers_node_indices.append(node_index)
-            self.output_layers_tensor_indices.append(tensor_index)
+            self._output_layers.append(layer)
+            self._output_coordinates.append((layer, node_index, tensor_index))
 
-        # Fill in the output mask cache.
-        masks = []
-        for x in self.inputs:
-            layer, node_index, tensor_index = x._keras_history
-            node = layer._inbound_nodes[node_index]
-            mask = node.output_masks[tensor_index]
-            masks.append(mask)
-        mask_cache_key = ','.join([str(id(x)) for x in self.inputs])
-        mask_cache_key += '_' + ','.join([str(id(x)) for x in masks])
-        masks = []
-        for x in self.outputs:
-            layer, node_index, tensor_index = x._keras_history
-            node = layer._inbound_nodes[node_index]
-            mask = node.output_masks[tensor_index]
-            masks.append(mask)
-        if len(masks) == 1:
-            mask = masks[0]
-        else:
-            mask = masks
-        self._output_mask_cache[mask_cache_key] = mask
-
-        # Build self.input_layers:
+        # Build self._input_layers:
         for x in self.inputs:
             layer, node_index, tensor_index = x._keras_history
             # It's supposed to be an input layer, so only one node
             # and one tensor output.
             assert node_index == 0
             assert tensor_index == 0
-            self.input_layers.append(layer)
-            self.input_layers_node_indices.append(node_index)
-            self.input_layers_tensor_indices.append(tensor_index)
+            self._input_layers.append(layer)
+            self._input_coordinates.append((layer, node_index, tensor_index))
 
-        # Build self.input_names and self.output_names.
-        self.input_names = []
-        self.output_names = []
-        self._feed_input_names = []
-        self._feed_inputs = []
-        self._feed_input_shapes = []
-        for i, layer in enumerate(self.input_layers):
-            # Check that layer is an InputLayer.
-            if not isinstance(layer, InputLayer):
-                raise TypeError(
-                    'Input layers to a `Model` must be `InputLayer` objects. '
-                    'Received inputs: {}. '
-                    'Input {} (0-based) originates '
-                    'from layer type `{}`.'.format(inputs,
-                                                   i,
-                                                   layer.__class__.__name__))
-            self.input_names.append(layer.name)
-            if layer.is_placeholder:
-                self._feed_input_names.append(layer.name)
-                self._feed_inputs.append(layer.input)
-                self._feed_input_shapes.append(self.inputs[i]._keras_shape)
-        for layer in self.output_layers:
-            self.output_names.append(layer.name)
-
-        self._internal_input_shapes = [x._keras_shape for x in self.inputs]
-        self._internal_output_shapes = [x._keras_shape for x in self.outputs]
-
-        # Network_nodes: set of nodes included in the graph
-        # (not all nodes included in the layers
-        # are relevant to the current graph).
-        network_nodes = set()  # ids of all nodes relevant to the Network
-        nodes_depths = {}  # dict {node: depth value}
-        layers_depths = {}  # dict {layer: depth value}
-        layer_indices = {}  # dict {layer: index in traversal}
-        nodes_in_decreasing_depth = []
-
-        def build_map_of_graph(tensor, finished_nodes, nodes_in_progress,
-                               layer=None, node_index=None, tensor_index=None):
-            """Builds a map of the graph of layers.
-
-            This recursively updates the map `layer_indices`,
-            the list `nodes_in_decreasing_depth` and the set `network_nodes`.
-
-            # Arguments
-                tensor: Some tensor in a graph.
-                finished_nodes: Set of nodes whose subgraphs
-                    have been traversed completely.
-                    Useful to prevent duplicated work.
-                nodes_in_progress: Set of nodes that are currently active
-                    on the recursion stack. Useful to detect cycles.
-                layer: Layer from which `tensor` comes from. If not provided,
-                    will be obtained from `tensor._keras_history`.
-                node_index: Node index from which `tensor` comes from.
-                tensor_index: Tensor_index from which `tensor` comes from.
-
-            # Raises
-                RuntimeError: if a cycle is detected.
-            """
-            if not layer or node_index is None or tensor_index is None:
-                layer, node_index, tensor_index = tensor._keras_history
-            node = layer._inbound_nodes[node_index]
-
-            # Prevent cycles.
-            if node in nodes_in_progress:
-                raise RuntimeError(
-                    'The tensor ' + str(tensor) + ' at layer "' +
-                    layer.name + '" is part of a cycle.')
-
-            # Don't repeat work for shared subgraphs
-            if node in finished_nodes:
-                return
-
-            # Update network_nodes.
-            network_nodes.add(self._node_key(layer, node_index))
-
-            # Store the traversal order for layer sorting.
-            if layer not in layer_indices:
-                layer_indices[layer] = len(layer_indices)
-
-            nodes_in_progress.add(node)
-
-            # Propagate to all previous tensors connected to this node.
-            for i in range(len(node.inbound_layers)):
-                x = node.input_tensors[i]
-                layer = node.inbound_layers[i]
-                node_index = node.node_indices[i]
-                tensor_index = node.tensor_indices[i]
-                build_map_of_graph(x, finished_nodes, nodes_in_progress,
-                                   layer, node_index, tensor_index)
-
-            finished_nodes.add(node)
-            nodes_in_progress.remove(node)
-
-            nodes_in_decreasing_depth.append(node)
-
-        finished_nodes = set()
-        nodes_in_progress = set()
-        for x in self.outputs:
-            build_map_of_graph(x, finished_nodes, nodes_in_progress)
-
-        for node in reversed(nodes_in_decreasing_depth):
-            # If the depth is not set,
-            # the node has no outbound nodes (depth 0).
-            depth = nodes_depths.setdefault(node, 0)
-
-            # Update the depth of the corresponding layer
-            previous_depth = layers_depths.get(node.outbound_layer, 0)
-            # If we've seen this layer before at a higher depth,
-            # we should use that depth instead of the node depth.
-            # This is necessary for shared layers that have inputs at different
-            # depth levels in the graph.
-            depth = max(depth, previous_depth)
-            layers_depths[node.outbound_layer] = depth
-            nodes_depths[node] = depth
-
-            # Update the depth of inbound nodes.
-            for i in range(len(node.inbound_layers)):
-                inbound_layer = node.inbound_layers[i]
-                node_index = node.node_indices[i]
-                inbound_node = inbound_layer._inbound_nodes[node_index]
-                previous_depth = nodes_depths.get(inbound_node, 0)
-                nodes_depths[inbound_node] = max(depth + 1, previous_depth)
-
-        # Build a dict {depth: list of nodes with this depth}
-        nodes_by_depth = {}
-        for node, depth in nodes_depths.items():
-            if depth not in nodes_by_depth:
-                nodes_by_depth[depth] = []
-            nodes_by_depth[depth].append(node)
-
-        # Build a dict {depth: list of layers with this depth}
-        layers_by_depth = {}
-        for layer, depth in layers_depths.items():
-            if depth not in layers_by_depth:
-                layers_by_depth[depth] = []
-            layers_by_depth[depth].append(layer)
-
-        # Get sorted list of layer depths.
-        depth_keys = list(layers_by_depth.keys())
-        depth_keys.sort(reverse=True)
-
-        # Set self.layers and self.layers_by_depth.
-        layers = []
-        for depth in depth_keys:
-            layers_for_depth = layers_by_depth[depth]
-            # Network.layers needs to have a deterministic order:
-            # here we order them by traversal order.
-            layers_for_depth.sort(key=lambda x: layer_indices[x])
-            for layer in layers_for_depth:
-                layers.append(layer)
-        self.layers = layers
-        self.layers_by_depth = layers_by_depth
-
-        # Get sorted list of node depths.
-        depth_keys = list(nodes_by_depth.keys())
-        depth_keys.sort(reverse=True)
-
-        # Check that all tensors required are computable.
-        # computable_tensors: all tensors in the graph
-        # that can be computed from the inputs provided.
-        computable_tensors = []
-        for x in self.inputs:
-            computable_tensors.append(x)
-
-        layers_with_complete_input = []  # To provide a better error msg.
-        for depth in depth_keys:
-            for node in nodes_by_depth[depth]:
-                layer = node.outbound_layer
-                if layer:
-                    for x in node.input_tensors:
-                        if x not in computable_tensors:
-                            raise RuntimeError(
-                                'Graph disconnected: '
-                                'cannot obtain value for tensor ' +
-                                str(x) + ' at layer "' + layer.name + '". '
-                                'The following previous layers '
-                                'were accessed without issue: ' +
-                                str(layers_with_complete_input))
-                    for x in node.output_tensors:
-                        computable_tensors.append(x)
-                    layers_with_complete_input.append(layer.name)
-
-        # Set self._network_nodes and self._nodes_by_depth.
-        self._network_nodes = network_nodes
+        # Keep track of the network's nodes and layers.
+        nodes, nodes_by_depth, layers, layers_by_depth = _map_graph_network(
+            self.inputs, self.outputs)
+        self._network_nodes = nodes
         self._nodes_by_depth = nodes_by_depth
+        self._layers = layers
+        self._layers_by_depth = layers_by_depth
 
-        # Ensure name unicity, which will be crucial for serialization
-        # (since serialized nodes refer to layers by their name).
-        all_names = [layer.name for layer in self.layers]
-        for name in all_names:
-            if all_names.count(name) != 1:
-                raise RuntimeError('The name "' + name + '" is used ' +
-                                   str(all_names.count(name)) +
-                                   ' times in the model. '
-                                   'All layer names should be unique. '
-                                   'Layer names: ', all_names)
-
-        # Layer parameters.
-        # The new network starts with a single inbound node
-        # for its inputs, and no outbound nodes.
-        self._outbound_nodes = []  # Appended to by calls to `__call__`.
-        self._inbound_nodes = []  # Appended to by calls to `__call__`.
         # Create the node linking internal inputs to internal outputs.
         Node(outbound_layer=self,
              inbound_layers=[],
@@ -416,12 +250,81 @@ class Network(Layer):
              output_masks=[None for _ in self.outputs],
              input_shapes=[x._keras_shape for x in self.inputs],
              output_shapes=[x._keras_shape for x in self.outputs])
-        self.built = True
 
-        # The following are implemented as property functions:
-        # self.trainable_weights
-        # self.non_trainable_weights
-        # self.input_spec
+        # Fill in the output mask cache.
+        masks = []
+        for x in self.inputs:
+            layer, node_index, tensor_index = x._keras_history
+            node = layer._inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
+        mask_cache_key = object_list_uid(inputs)
+        mask_cache_key += '_' + object_list_uid(masks)
+        masks = []
+        for x in self.outputs:
+            layer, node_index, tensor_index = x._keras_history
+            node = layer._inbound_nodes[node_index]
+            mask = node.output_masks[tensor_index]
+            masks.append(mask)
+        if len(masks) == 1:
+            mask = masks[0]
+        else:
+            mask = masks
+        self._output_mask_cache[mask_cache_key] = mask
+
+        # Build self.input_names and self.output_names.
+        self.input_names = []
+        self.output_names = []
+        self._feed_input_names = []
+        self._feed_inputs = []
+        self._feed_input_shapes = []
+        for i, layer in enumerate(self._input_layers):
+            # Check that layer is an InputLayer.
+            if not isinstance(layer, InputLayer):
+                raise TypeError(
+                    'Input layers to a `Model` must be `InputLayer` objects. '
+                    'Received inputs: {}. '
+                    'Input {} (0-based) originates '
+                    'from layer type `{}`.'.format(inputs,
+                                                   i,
+                                                   layer.__class__.__name__))
+            self.input_names.append(layer.name)
+            if layer.is_placeholder:
+                self._feed_inputs.append(layer.input)
+                self._feed_input_names.append(layer.name)
+                self._feed_input_shapes.append(self.inputs[i]._keras_shape)
+
+        for layer in self._output_layers:
+            self.output_names.append(layer.name)
+
+    def _init_subclassed_network(self, name=None):
+        self._base_init(name=name)
+        self._is_graph_network = False
+        self._expects_training_arg = has_arg(self.call, 'training')
+        self._uses_inputs_arg = has_arg(self.call, 'inputs')
+        self.outputs = None
+        self.inputs = None
+        self.built = False
+
+    def __setattr__(self, name, value):
+        # Automatically track layers set as Model
+        # attributes for subclassed Models.
+        if isinstance(value, (Layer, Network)):
+            try:
+                is_graph_network = self._is_graph_network
+            except AttributeError:
+                raise RuntimeError(
+                    'It looks like you are subclassing `Model` and you '
+                    'forgot to call `super(YourClass, self).__init__()`.'
+                    ' Always start with this line.')
+            if not is_graph_network:
+                if value not in self._layers:
+                    self._layers.append(value)
+        super(Network, self).__setattr__(name, value)
+
+    @property
+    def layers(self):
+        return self._layers
 
     def get_layer(self, name=None, index=None):
         """Retrieves a layer based on either its name (unique) or index.
@@ -478,16 +381,19 @@ class Network(Layer):
         updates = []
         for layer in self.layers:
             if hasattr(layer, 'updates'):
-                # Collect updates that are dependent on inputs
-                # that are part of the model.
-                for node_index, node in enumerate(layer._inbound_nodes):
-                    node_key = self._node_key(layer, node_index)
-                    if node_key in self._network_nodes:
-                        # The model owns this layer node.
-                        inputs = node.input_tensors
-                        updates += layer.get_updates_for(inputs)
-                # Collect unconditional updates.
-                updates += layer.get_updates_for(None)
+                if self._is_graph_network:
+                    # Collect updates that are dependent on inputs
+                    # that are part of the model.
+                    for node_index, node in enumerate(layer._inbound_nodes):
+                        node_key = self._node_key(layer, node_index)
+                        if node_key in self._network_nodes:
+                            # The model owns this layer node.
+                            inputs = node.input_tensors
+                            updates += layer.get_updates_for(inputs)
+                    # Collect unconditional updates.
+                    updates += layer.get_updates_for(None)
+                else:
+                    updates += layer.updates
         return updates
 
     @property
@@ -503,19 +409,22 @@ class Network(Layer):
             A list of loss tensors.
         """
         losses = []
-        # Retrieve losses for all internal layers.
         for layer in self.layers:
             if hasattr(layer, 'losses'):
-                # Collect losses that are dependent on inputs
-                # that are part of the model.
-                for node_index, node in enumerate(layer._inbound_nodes):
-                    node_key = self._node_key(layer, node_index)
-                    if node_key in self._network_nodes:
-                        # The model owns this layer node.
-                        inputs = node.input_tensors
-                        losses += layer.get_losses_for(inputs)
-                # Collect unconditional losses.
-                losses += layer.get_losses_for(None)
+                if self._is_graph_network:
+                    # Collect losses that are dependent on inputs
+                    # that are part of the model.
+                    for node_index, node in enumerate(layer._inbound_nodes):
+                        node_key = self._node_key(layer, node_index)
+                        if node_key in self._network_nodes:
+                            # The model owns this layer node.
+                            inputs = node.input_tensors
+                            losses += layer.get_losses_for(inputs)
+                    # Collect unconditional losses.
+                    losses += layer.get_losses_for(None)
+                else:
+                    losses += layer.losses
+
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
 
@@ -526,6 +435,8 @@ class Network(Layer):
 
     @property
     def uses_learning_phase(self):
+        if not self.outputs:
+            return False
         return any([x._uses_learning_phase for x in self.outputs])
 
     @property
@@ -611,8 +522,12 @@ class Network(Layer):
             A list of `InputSpec` instances (one per input to the model)
                 or a single instance if the model has only one input.
         """
+        if not self._is_graph_network:
+            # TODO: support it in subclassd networks after inputs are set.
+            return None
+
         specs = []
-        for layer in getattr(self, 'input_layers', []):
+        for layer in getattr(self, '_input_layers', []):
             if layer.input_spec is None:
                 specs.append(None)
             else:
@@ -650,8 +565,8 @@ class Network(Layer):
             masks = [None for _ in range(len(inputs))]
         else:
             masks = to_list(mask)
-        cache_key = ','.join([str(id(x)) for x in inputs])
-        cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        cache_key = object_list_uid(inputs)
+        cache_key += '_' + object_list_uid(masks)
         if cache_key in self._output_tensor_cache:
             return self._output_tensor_cache[cache_key]
         else:
@@ -659,13 +574,16 @@ class Network(Layer):
             return output_tensors
 
     def compute_mask(self, inputs, mask):
+        if not self._is_graph_network:
+            return None
+
         inputs = to_list(inputs)
         if mask is None:
             masks = [None for _ in range(len(inputs))]
         else:
             masks = to_list(mask)
-        cache_key = ','.join([str(id(x)) for x in inputs])
-        cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        cache_key = object_list_uid(inputs)
+        cache_key += '_' + object_list_uid(masks)
         if cache_key in self._output_mask_cache:
             return self._output_mask_cache[cache_key]
         else:
@@ -673,13 +591,17 @@ class Network(Layer):
             return output_masks
 
     def compute_output_shape(self, input_shape):
+        if not self._is_graph_network:
+            # Must be implemented by subclasses.
+            raise NotImplementedError
+
         input_shapes = to_list(input_shape)
-        if len(input_shapes) != len(self.input_layers):
+        if len(input_shapes) != len(self._input_layers):
             raise ValueError('Invalid input_shape argument ' +
                              str(input_shape) + ': model has ' +
-                             str(len(self.input_layers)) + ' tensor inputs.')
+                             str(len(self._input_layers)) + ' tensor inputs.')
 
-        cache_key = ','.join([str(x) for x in input_shapes])
+        cache_key = ', '.join([str(x) for x in input_shapes])
         if cache_key in self._output_shape_cache:
             output_shapes = self._output_shape_cache[cache_key]
             if isinstance(output_shapes, list) and len(output_shapes) == 1:
@@ -689,7 +611,7 @@ class Network(Layer):
             # Bad luck, we have to run the graph manually.
             layers_to_output_shapes = {}
             for i in range(len(input_shapes)):
-                layer = self.input_layers[i]
+                layer = self._input_layers[i]
                 input_shape = input_shapes[i]
                 # It's an input layer: compute_output_shape is identity,
                 # and there is only one node and one tensor output.
@@ -705,7 +627,7 @@ class Network(Layer):
                     for node in nodes:
                         # This is always a single layer, never a list.
                         layer = node.outbound_layer
-                        if layer in self.input_layers:
+                        if layer in self._input_layers:
                             # We've already covered the input layers
                             # a few lines above.
                             continue
@@ -734,10 +656,10 @@ class Network(Layer):
             # Read final output shapes from layers_to_output_shapes.
             output_shapes = []
             output_shape_keys = []
-            for i in range(len(self.output_layers)):
-                layer = self.output_layers[i]
-                node_index = self.output_layers_node_indices[i]
-                tensor_index = self.output_layers_tensor_indices[i]
+            for i in range(len(self._output_layers)):
+                layer = self._output_layers[i]
+                node_index = self._output_coordinates[i][1]
+                tensor_index = self._output_coordinates[i][2]
                 shape_key = layer.name + '_%s_%s' % (node_index, tensor_index)
                 output_shape_keys.append(shape_key)
 
@@ -830,9 +752,10 @@ class Network(Layer):
                                 output_masks = to_list(output_masks)
                         # Apply activity regularizer if any:
                         if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
-                            regularization_losses = [
-                                layer.activity_regularizer(x)
-                                for x in output_tensors]
+                            with K.name_scope('activity_regularizer'):
+                                regularization_losses = [
+                                    layer.activity_regularizer(x)
+                                    for x in output_tensors]
                             layer.add_loss(regularization_losses,
                                            inputs=computed_tensors)
 
@@ -887,8 +810,8 @@ class Network(Layer):
 
         # Update cache;
         # keys are based on ids on input tensors and inputs masks.
-        cache_key = ','.join([str(id(x)) for x in inputs])
-        cache_key += '_' + ','.join([str(id(x)) for x in masks])
+        cache_key = object_list_uid(inputs)
+        cache_key += '_' + object_list_uid(masks)
 
         if len(output_tensors) == 1:
             output_tensors = output_tensors[0]
@@ -904,7 +827,7 @@ class Network(Layer):
 
         if output_shapes is not None:
             input_shapes = [x._keras_shape for x in inputs]
-            cache_key = ','.join([str(x) for x in input_shapes])
+            cache_key = ', '.join([str(x) for x in input_shapes])
             if len(output_shapes) == 1:
                 output_shapes = output_shapes[0]
                 self._output_shape_cache[cache_key] = output_shapes
@@ -913,6 +836,12 @@ class Network(Layer):
         return output_tensors, output_masks, output_shapes
 
     def get_config(self):
+        if not self._is_graph_network:
+            # Subclassed networks are not serializable
+            # (unless serialization is implemented by
+            # the author of the subclassed network).
+            raise NotImplementedError
+
         config = {
             'name': self.name,
         }
@@ -987,27 +916,27 @@ class Network(Layer):
 
         # Gather info about inputs and outputs.
         model_inputs = []
-        for i in range(len(self.input_layers)):
-            layer = self.input_layers[i]
-            node_index = self.input_layers_node_indices[i]
+        for i in range(len(self._input_layers)):
+            layer = self._input_layers[i]
+            node_index = self._input_coordinates[i][1]
 
             node_key = self._node_key(layer, node_index)
             if node_key not in self._network_nodes:
                 continue
             new_node_index = node_conversion_map[node_key]
-            tensor_index = self.input_layers_tensor_indices[i]
+            tensor_index = self._input_coordinates[i][2]
             model_inputs.append([layer.name, new_node_index, tensor_index])
         config['input_layers'] = model_inputs
         model_outputs = []
-        for i in range(len(self.output_layers)):
-            layer = self.output_layers[i]
-            node_index = self.output_layers_node_indices[i]
+        for i in range(len(self._output_layers)):
+            layer = self._output_layers[i]
+            node_index = self._output_coordinates[i][1]
 
             node_key = self._node_key(layer, node_index)
             if node_key not in self._network_nodes:
                 continue
             new_node_index = node_conversion_map[node_key]
-            tensor_index = self.output_layers_tensor_indices[i]
+            tensor_index = self._output_coordinates[i][2]
             model_outputs.append([layer.name, new_node_index, tensor_index])
         config['output_layers'] = model_outputs
         return copy.deepcopy(config)
@@ -1169,6 +1098,8 @@ class Network(Layer):
         model = load_model('my_model.h5')
         ```
         """
+        if not self._is_graph_network:
+            raise NotImplementedError
         from ..models import save_model
         save_model(self, filepath, overwrite, include_optimizer)
 
@@ -1374,3 +1305,193 @@ def get_source_inputs(tensor, layer=None, node_index=None):
                     if x not in source_tensors:
                         source_tensors.append(x)
             return source_tensors
+
+
+def _make_node_key(layer_name, node_index):
+    return layer_name + '_ib-' + str(node_index)
+
+
+def _map_graph_network(inputs, outputs):
+    """Validates a network's topology and gather its layers and nodes.
+
+    # Arguments
+        inputs: List of input tensors.
+        outputs: List of outputs tensors.
+
+    # Returns
+        A tuple `(nodes, nodes_by_depth, layers, layers_by_depth)`.
+        - nodes: list of Node instances.
+        - nodes_by_depth: dict mapping ints (depth) to lists of node instances.
+        - layers: list of Layer instances.
+        - layers_by_depth: dict mapping ints (depth)
+            to lists of layer instances.
+
+    # Raises
+        ValueError: In case the network is not valid (e.g. disconnected graph).
+    """
+    # Network_nodes: set of nodes included in the graph of layers
+    # (not all nodes included in the layers are relevant to the current graph).
+    network_nodes = set()  # ids of all nodes relevant to the Network
+    nodes_depths = {}  # dict {node: depth value}
+    layers_depths = {}  # dict {layer: depth value}
+    layer_indices = {}  # dict {layer: index in traversal}
+    nodes_in_decreasing_depth = []
+
+    def build_map(tensor,
+                  finished_nodes,
+                  nodes_in_progress,
+                  layer,
+                  node_index,
+                  tensor_index):
+        """Builds a map of the graph of layers.
+
+        This recursively updates the map `layer_indices`,
+        the list `nodes_in_decreasing_depth` and the set `network_nodes`.
+
+        # Arguments:
+            tensor: Some tensor in a graph.
+            finished_nodes: Set of nodes whose subgraphs have been traversed
+                completely. Useful to prevent duplicated work.
+            nodes_in_progress: Set of nodes that are currently active on the
+                recursion stack. Useful to detect cycles.
+            layer: Layer from which `tensor` comes from. If not provided,
+                will be obtained from `tensor._keras_history`.
+            node_index: Node index from which `tensor` comes from.
+            tensor_index: Tensor_index from which `tensor` comes from.
+
+        # Raises:
+            ValueError: if a cycle is detected.
+        """
+        node = layer._inbound_nodes[node_index]
+
+        # Prevent cycles.
+        if node in nodes_in_progress:
+            raise ValueError('The tensor ' + str(tensor) + ' at layer "' +
+                             layer.name + '" is part of a cycle.')
+
+        # Don't repeat work for shared subgraphs
+        if node in finished_nodes:
+            return
+
+        node_key = _make_node_key(layer.name, node_index)
+        # Update network_nodes.
+        network_nodes.add(node_key)
+
+        # Store the traversal order for layer sorting.
+        if layer not in layer_indices:
+            layer_indices[layer] = len(layer_indices)
+
+        nodes_in_progress.add(node)
+
+        # Propagate to all previous tensors connected to this node.
+        for i in range(len(node.inbound_layers)):
+            x = node.input_tensors[i]
+            layer = node.inbound_layers[i]
+            node_index = node.node_indices[i]
+            tensor_index = node.tensor_indices[i]
+            build_map(x, finished_nodes, nodes_in_progress, layer,
+                      node_index, tensor_index)
+
+        finished_nodes.add(node)
+        nodes_in_progress.remove(node)
+        nodes_in_decreasing_depth.append(node)
+
+    finished_nodes = set()
+    nodes_in_progress = set()
+    for x in outputs:
+        layer, node_index, tensor_index = x._keras_history
+        build_map(x, finished_nodes, nodes_in_progress,
+                  layer=layer,
+                  node_index=node_index,
+                  tensor_index=tensor_index)
+
+    for node in reversed(nodes_in_decreasing_depth):
+        # If the depth is not set, the node has no outbound nodes (depth 0).
+        depth = nodes_depths.setdefault(node, 0)
+
+        # Update the depth of the corresponding layer
+        previous_depth = layers_depths.get(node.outbound_layer, 0)
+        # If we've seen this layer before at a higher depth,
+        # we should use that depth instead of the node depth.
+        # This is necessary for shared layers that have inputs at different
+        # depth levels in the graph.
+        depth = max(depth, previous_depth)
+        layers_depths[node.outbound_layer] = depth
+        nodes_depths[node] = depth
+
+        # Update the depth of inbound nodes.
+        # The "depth" of a node is the max of the depths
+        # of all layers it is connected to.
+        for i in range(len(node.inbound_layers)):
+            inbound_layer = node.inbound_layers[i]
+            node_index = node.node_indices[i]
+            inbound_node = inbound_layer._inbound_nodes[node_index]
+            previous_depth = nodes_depths.get(inbound_node, 0)
+            nodes_depths[inbound_node] = max(depth + 1, previous_depth)
+
+    # Build a dict {depth: list of nodes with this depth}
+    nodes_by_depth = {}
+    for node, depth in nodes_depths.items():
+        if depth not in nodes_by_depth:
+            nodes_by_depth[depth] = []
+        nodes_by_depth[depth].append(node)
+
+    # Build a dict {depth: list of layers with this depth}
+    layers_by_depth = {}
+    for layer, depth in layers_depths.items():
+        if depth not in layers_by_depth:
+            layers_by_depth[depth] = []
+        layers_by_depth[depth].append(layer)
+
+    # Get sorted list of layer depths.
+    depth_keys = list(layers_by_depth.keys())
+    depth_keys.sort(reverse=True)
+
+    # Set self.layers and self._layers_by_depth.
+    layers = []
+    for depth in depth_keys:
+        layers_for_depth = layers_by_depth[depth]
+        # Network.layers needs to have a deterministic order:
+        # here we order them by traversal order.
+        layers_for_depth.sort(key=lambda x: layer_indices[x])
+        layers.extend(layers_for_depth)
+
+    # Get sorted list of node depths.
+    depth_keys = list(nodes_by_depth.keys())
+    depth_keys.sort(reverse=True)
+
+    # Check that all tensors required are computable.
+    # computable_tensors: all tensors in the graph
+    # that can be computed from the inputs provided.
+    computable_tensors = []
+    for x in inputs:
+        computable_tensors.append(x)
+
+    layers_with_complete_input = []  # To provide a better error msg.
+    for depth in depth_keys:
+        for node in nodes_by_depth[depth]:
+            layer = node.outbound_layer
+            if layer:
+                for x in node.input_tensors:
+                    if x not in computable_tensors:
+                        raise ValueError('Graph disconnected: '
+                                         'cannot obtain value for tensor ' +
+                                         str(x) + ' at layer "' +
+                                         layer.name + '". '
+                                         'The following previous layers '
+                                         'were accessed without issue: ' +
+                                         str(layers_with_complete_input))
+                for x in node.output_tensors:
+                    computable_tensors.append(x)
+                layers_with_complete_input.append(layer.name)
+
+    # Ensure name unicity, which will be crucial for serialization
+    # (since serialized nodes refer to layers by their name).
+    all_names = [layer.name for layer in layers]
+    for name in all_names:
+        if all_names.count(name) != 1:
+            raise ValueError('The name "' + name + '" is used ' +
+                             str(all_names.count(name)) +
+                             ' times in the model. '
+                             'All layer names should be unique.')
+    return network_nodes, nodes_by_depth, layers, layers_by_depth

@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import warnings
 import copy
+import numpy as np
 
 from .network import Network
 from .base_layer import Layer
@@ -90,11 +91,21 @@ class Model(Network):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
-        loss = loss or {}
         self.optimizer = optimizers.get(optimizer)
-        self.loss = loss
+        self.loss = loss or []
+        self.metrics = metrics or []
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
+        self.weighted_metrics = weighted_metrics
+
+        if not self.built:
+            # Model is not compilable because
+            # it does not know its number of inputs
+            # and outputs, nor their shapes and names.
+            # We will compile after the first
+            # time the model gets called on training data.
+            return
+        self._is_compiled = True
 
         # Prepare loss functions.
         if isinstance(loss, dict):
@@ -202,7 +213,7 @@ class Model(Network):
             if i in skip_target_indices:
                 self.targets.append(None)
             else:
-                shape = self._internal_output_shapes[i]
+                shape = K.int_shape(self.outputs[i])
                 name = self.output_names[i]
                 if target_tensors is not None:
                     target = target_tensors[i]
@@ -301,8 +312,6 @@ class Model(Network):
                     self.sample_weight_modes[i])
 
         # Prepare metrics.
-        self.metrics = metrics or []
-        self.weighted_metrics = weighted_metrics
         self.metrics_names = ['loss']
         self.metrics_tensors = []
 
@@ -356,7 +365,7 @@ class Model(Network):
                 if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
                     # custom handling of accuracy/crossentropy
                     # (because of class mode duality)
-                    output_shape = self._internal_output_shapes[i]
+                    output_shape = K.int_shape(self.outputs[i])
                     if (output_shape[-1] == 1 or
                        self.loss_functions[i] == losses.binary_crossentropy):
                         # case: binary accuracy/crossentropy
@@ -536,58 +545,273 @@ class Model(Network):
         return (self.uses_learning_phase and
                 not isinstance(K.learning_phase(), int))
 
-    def _standardize_user_data(self, x, y,
-                               sample_weight=None, class_weight=None,
-                               check_array_lengths=True, batch_size=None):
-        if not hasattr(self, 'optimizer'):
-            raise RuntimeError('You must compile a model before '
-                               'training/testing. '
-                               'Use `model.compile(optimizer, loss)`.')
+    def _set_inputs(self, inputs, outputs=None, training=None):
+        """Set model's input and output specs based on the input data received.
 
-        output_shapes = []
-        for output_shape, loss_fn in zip(self._feed_output_shapes,
-                                         self._feed_loss_fns):
-            if loss_fn is losses.sparse_categorical_crossentropy:
-                output_shapes.append(output_shape[:-1] + (1,))
-            elif (not hasattr(loss_fn, '__name__') or
-                  getattr(losses, loss_fn.__name__, None) is None):
-                # If `loss_fn` is not a function (e.g. callable class)
-                # or if it not in the `losses` module, then
-                # it is a user-defined loss and we make no assumptions
-                # about it.
-                output_shapes.append(None)
+        This is to be used for Model subclasses, which do not know at instantiation
+        time what their inputs look like.
+
+        # Arguments
+          inputs: Single array, or list of arrays. The arrays could be placeholders,
+            Numpy arrays, or data tensors.
+            - if placeholders: the model is built on top of these placeholders,
+              and we expect Numpy data to be fed for them when calling `fit`/etc.
+            - if Numpy data: we create placeholders matching the shape of the Numpy
+              arrays. We expect Numpy data to be fed for these placeholders
+              when calling `fit`/etc.
+            - if data tensors: the model is built on top of these tensors.
+              We do not expect any Numpy data to be provided when calling `fit`/etc.
+          outputs: Optional output tensors (if already computed by running the model).
+          training: Boolean or None. Only relevant in symbolic mode. Specifies
+            whether to build the model's graph in inference mode (False), training
+            mode (True), or using the Keras learning phase (None).
+        """
+        if self.__class__.__name__ == 'Sequential':
+            # Note: we can't test whether the model
+            # is `Sequential` via `isinstance`
+            # since `Sequential` depends on `Model`.
+            if isinstance(inputs, list):
+                assert len(inputs) == 1
+                inputs = inputs[0]
+            self.build(input_shape=(None,) + inputs.shape[1:])
+            return
+
+        if self.inputs:
+            raise ValueError('Model inputs are already set.')
+
+        # On-the-fly setting of symbolic model inputs
+        # (either by using the tensor provided,
+        # or by creating a placeholder if Numpy data was provided).
+        self.inputs = []
+        self.input_names = []
+        self._feed_inputs = []
+        self._feed_input_names = []
+        self._feed_input_shapes = []
+        if isinstance(inputs, (list, tuple)):
+            inputs = list(inputs)
+        else:
+            inputs = [inputs]
+
+        for i, v in enumerate(inputs):
+            name = 'input_%d' % (i + 1)
+            self.input_names.append(name)
+            if isinstance(v, list):
+                v = np.asarray(v)
+                if v.ndim == 1:
+                    v = np.expand_dims(v, 1)
+            if isinstance(v, (np.ndarray)):
+                # We fix the placeholder shape except the batch size.
+                # This is suboptimal, but it is the best we can do with the info
+                # we have. The user should call `model._set_inputs(placeholders)`
+                # to specify custom placeholders if the need arises.
+                shape = (None,) + v.shape[1:]
+                placeholder = K.placeholder(shape=shape, name=name)
+                self.inputs.append(placeholder)
+                self._feed_inputs.append(placeholder)
+                self._feed_input_names.append(name)
+                self._feed_input_shapes.append(shape)
             else:
-                output_shapes.append(output_shape)
-        # `check_batch_axis` is set to False since `x`
-        # may contain multiple batches
-        # and in general `x[0].shape[0] != self._feed_input_shapes[0][0]`
-        x = standardize_input_data(x,
-                                   self._feed_input_names,
-                                   self._feed_input_shapes,
-                                   check_batch_axis=False,
-                                   exception_prefix='input')
-        y = standardize_input_data(y,
-                                   self._feed_output_names,
-                                   output_shapes,
-                                   check_batch_axis=False,
-                                   exception_prefix='target')
-        sample_weights = standardize_sample_weights(sample_weight,
-                                                    self._feed_output_names)
-        class_weights = standardize_class_weights(class_weight,
-                                                  self._feed_output_names)
-        sample_weights = [standardize_weights(ref, sw, cw, mode)
-                          for (ref, sw, cw, mode)
-                          in zip(y,
-                                 sample_weights,
-                                 class_weights,
-                                 self._feed_sample_weight_modes)]
+                # Assumed tensor - TODO(fchollet) additional type check?
+                self.inputs.append(v)
+                if K.is_placeholder(v):
+                    self._feed_inputs.append(v)
+                    self._feed_input_names.append(name)
+                    self._feed_input_shapes.append(K.int_shape(v))
 
-        if check_array_lengths:
+        if outputs is None:
+            # Obtain symbolic outputs by calling the model.
+            if len(self.inputs) == 1:
+                if self._expects_training_arg:
+                    outputs = self.call(self.inputs[0], training=training)
+                else:
+                    outputs = self.call(self.inputs[0])
+            else:
+                if self._expects_training_arg:
+                    outputs = self.call(self.inputs, training=training)
+                else:
+                    outputs = self.call(self.inputs)
+        if isinstance(outputs, (list, tuple)):
+            outputs = list(outputs)
+        else:
+            outputs = [outputs]
+        self.outputs = outputs
+        self.output_names = [
+            'output_%d' % (i + 1) for i in range(len(self.outputs))]
+        self.built = True
+
+    def _standardize_user_data(self, x,
+                               y=None,
+                               sample_weight=None,
+                               class_weight=None,
+                               check_array_lengths=True,
+                               batch_size=None):
+        all_inputs = []
+        if not self.built:
+            # We need to use `x` to set the model inputs.
+            # We type-check that `x` and `y` are either single arrays
+            # or lists of arrays.
+            if isinstance(x, (list, tuple)):
+                if not all(isinstance(v, np.ndarray) or
+                           K.is_tensor(v) for v in x):
+                    raise ValueError('Please provide as model inputs '
+                                     'either a single '
+                                     'array or a list of arrays. '
+                                     'You passed: x=' + str(x))
+                all_inputs += list(x)
+            elif isinstance(x, dict):
+                raise ValueError('Please do not pass a dictionary '
+                                 'as model inputs.')
+            else:
+                if not isinstance(x, np.ndarray) and not K.is_tensor(x):
+                    raise ValueError('Please provide as model inputs '
+                                     'either a single '
+                                     'array or a list of arrays. '
+                                     'You passed: x=' + str(x))
+                all_inputs.append(x)
+
+            # Build the model using the retrieved inputs (value or symbolic).
+            # If values, then in symbolic-mode placeholders will be created
+            # to match the value shapes.
+            if not self.inputs:
+                self._set_inputs(x)
+
+        if y is not None:
+            if not self.optimizer:
+                raise RuntimeError('You must compile a model before '
+                                   'training/testing. '
+                                   'Use `model.compile(optimizer, loss)`.')
+            if not self._is_compiled:
+                # On-the-fly compilation of the model.
+                # We need to use `y` to set the model targets.
+                if isinstance(y, (list, tuple)):
+                    if not all(isinstance(v, np.ndarray) or
+                               K.is_tensor(v) for v in y):
+                        raise ValueError('Please provide as model targets '
+                                         'either a single '
+                                         'array or a list of arrays. '
+                                         'You passed: y=' + str(y))
+                elif isinstance(y, dict):
+                    raise ValueError('Please do not pass a dictionary '
+                                     'as model targets.')
+                else:
+                    if not isinstance(y, np.ndarray) and not K.is_tensor(y):
+                        raise ValueError('Please provide as model targets '
+                                         'either a single '
+                                         'array or a list of arrays. '
+                                         'You passed: y=' + str(y))
+                # Typecheck that all inputs are *either* value *or* symbolic.
+                if y is not None:
+                    if isinstance(y, (list, tuple)):
+                        all_inputs += list(y)
+                    else:
+                        all_inputs.append(y)
+                if any(K.is_tensor(v) for v in all_inputs):
+                    if not all(K.is_tensor(v) for v in all_inputs):
+                        raise ValueError('Do not pass inputs that mix Numpy '
+                                         'arrays and symbolic tensors. '
+                                         'You passed: x=' + str(x) +
+                                         '; y=' + str(y))
+
+                # Handle target tensors if any passed.
+                if not isinstance(y, (list, tuple)):
+                    y = [y]
+                target_tensors = [v for v in y if K.is_tensor(v)]
+                if not target_tensors:
+                    target_tensors = None
+                self.compile(optimizer=self.optimizer,
+                             loss=self.loss,
+                             metrics=self.metrics,
+                             loss_weights=self.loss_weights,
+                             target_tensors=target_tensors)
+
+        # If `x` and `y` were all symbolic,
+        # then the model should not be fed any inputs and targets.
+        # Note: in this case, `any` and `all` are equivalent since we disallow
+        # mixed symbolic/value inputs.
+        if any(K.is_tensor(v) for v in all_inputs):
+            return [], [], []
+
+        # What follows is input validation and standardization to list format,
+        # in the case where all inputs are value arrays.
+
+        if not self._is_graph_network:
+            # Case: symbolic-mode subclassed network.
+            # Do not do shape validation.
+            feed_input_names = self._feed_input_names
+            feed_input_shapes = None
+        else:
+            # Case: symbolic-mode graph network.
+            # In this case, we run extensive shape validation checks.
+            feed_input_names = self._feed_input_names
+            feed_input_shapes = self._feed_input_shapes
+
+        # Standardize the inputs.
+        x = standardize_input_data(
+            x,
+            feed_input_names,
+            feed_input_shapes,
+            check_batch_axis=False,  # Don't enforce the batch size.
+            exception_prefix='input')
+
+        if y is not None:
+            if not self._is_graph_network:
+                feed_output_names = self._feed_output_names
+                feed_output_shapes = None
+                # Sample weighting not supported in this case.
+                # TODO: consider supporting it.
+                feed_sample_weight_modes = [None for _ in self.outputs]
+            else:
+                feed_output_names = self._feed_output_names
+                feed_sample_weight_modes = self._feed_sample_weight_modes
+                feed_output_shapes = []
+                for output_shape, loss_fn in zip(self._feed_output_shapes,
+                                                 self._feed_loss_fns):
+                    if loss_fn is losses.sparse_categorical_crossentropy:
+                        feed_output_shapes.append(output_shape[:-1] + (1,))
+                    elif (not hasattr(loss_fn, '__name__') or
+                            getattr(losses, loss_fn.__name__, None) is None):
+                        # If `loss_fn` is not a function (e.g. callable class)
+                        # or if it not in the `losses` module, then
+                        # it is a user-defined loss and we make no assumptions
+                        # about it.
+                        feed_output_shapes.append(None)
+                    else:
+                        feed_output_shapes.append(output_shape)
+
+            # Standardize the outputs.
+            y = standardize_input_data(
+                y,
+                feed_output_names,
+                feed_output_shapes,
+                check_batch_axis=False,  # Don't enforce the batch size.
+                exception_prefix='target')
+
+            # Generate sample-wise weight values given the `sample_weight` and
+            # `class_weight` arguments.
+            sample_weights = standardize_sample_weights(
+                sample_weight, feed_output_names)
+            class_weights = standardize_class_weights(
+                class_weight, feed_output_names)
+            sample_weights = [
+                standardize_weights(ref, sw, cw, mode)
+                for (ref, sw, cw, mode) in
+                zip(y, sample_weights, class_weights,
+                    feed_sample_weight_modes)
+            ]
+            # Check that all arrays have the same length.
             check_array_length_consistency(x, y, sample_weights)
-        check_loss_and_target_compatibility(y,
-                                            self._feed_loss_fns,
-                                            self._feed_output_shapes)
+            if self._is_graph_network:
+                # Additional checks to avoid users mistakenly
+                # using improper loss fns.
+                check_loss_and_target_compatibility(
+                    y, self._feed_loss_fns, feed_output_shapes)
+        else:
+            y = []
+            sample_weights = []
+
         if self.stateful and batch_size:
+            # Check that for stateful networks, number of samples is a multiple
+            # of the static batch size.
             if x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
                                  'you should only pass inputs with '
@@ -916,10 +1140,7 @@ class Model(Network):
                              'you should specify the `steps` '
                              'argument.')
         # Validate user data.
-        x = standardize_input_data(x,
-                                   self._feed_input_names,
-                                   self._feed_input_shapes,
-                                   check_batch_axis=False)
+        x, _, _ = self._standardize_user_data(x)
         if self.stateful:
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
@@ -1042,9 +1263,7 @@ class Model(Network):
         # Returns
             Numpy array(s) of predictions.
         """
-        x = standardize_input_data(x,
-                                   self._feed_input_names,
-                                   self._feed_input_shapes)
+        x, _, _ = self._standardize_user_data(x)
         if self._uses_dynamic_learning_phase():
             ins = x + [0.]
         else:
