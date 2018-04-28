@@ -591,7 +591,7 @@ class EarlyBaselineStopping(Callback):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn(
-                'Early threshold stopping conditioned on metric `%s` '
+                'Early baseline stopping conditioned on metric `%s` '
                 'which is not available. Available metrics are: %s' %
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
@@ -611,7 +611,7 @@ class EarlyBaselineStopping(Callback):
       
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early threshold stopping' % (self.stopped_epoch + 1))
+            print('Epoch %05d: early baseline stopping' % (self.stopped_epoch + 1))
 
 
 class RemoteMonitor(Callback):
