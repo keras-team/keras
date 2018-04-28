@@ -598,7 +598,7 @@ class EarlyBaselineStopping(Callback):
             return
         if epoch<=self.patience:
             if epoch==1:
-                self.best=current
+                self.best = current
             elif epoch==self.patience:
                 if self.monitor_op(current,self.best):
                     self.best = current
