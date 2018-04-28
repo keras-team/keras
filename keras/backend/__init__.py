@@ -91,7 +91,7 @@ else:
         required_entries = ['placeholder', 'variable', 'function']
         for e in required_entries:
             if e not in entries:
-                raise Exception('Invalid backend. Missing required entry : ' + e)
+                raise ValueError('Invalid backend. Missing required entry : ' + e)
         namespace = globals()
         for k, v in entries.items():
             # Make sure we don't override any entries from common, such as epsilon.
