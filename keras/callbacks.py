@@ -544,12 +544,9 @@ class EarlyThresholdStopping(Callback):
 
     # Arguments
         monitor: quantity to be monitored.
-        min_delta: minimum change in the monitored quantity
-            to qualify as an improvement, i.e. an absolute
-            change of less than min_delta, will count as no
-            improvement.
-        patience: number of epochs with no improvement
-            after which training will be stopped.
+        min_threshold: minimum threshold for the monitored quantity
+            to reach
+        patience: number of epochs for the threshold to be reached.
         verbose: verbosity mode.
         mode: one of {auto, min, max}. In `min` mode,
             training will stop when the quantity
