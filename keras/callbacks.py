@@ -539,44 +539,42 @@ class EarlyStopping(Callback):
             print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
 
 
-class EarlyThresholdStopping(Callback):
-    """Stop training when a monitored quantity has not reached a threshold.
+class EarlyBaselineStopping(Callback):
+    """Stop training when a monitored quantity has not reached a designated baseline
 
     # Arguments
         monitor: quantity to be monitored.
-        min_threshold: minimum threshold for the monitored quantity
-            to reach
-        patience: number of epochs for the threshold to be reached.
+        baseline: baseline value for the monitored quantity to reach
+        patience: number of epochs for the baseline to be reached.
         verbose: verbosity mode.
-        mode: one of {auto, min, max}. In `min` mode,
+        mode: one of {auto, above, below}. In `above` mode,
             training will stop when the quantity
-            monitored has stopped decreasing; in `max`
+            monitored is below the baseline; in `below`
             mode it will stop when the quantity
-            monitored has stopped increasing; in `auto`
+            monitored is above the baseline; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
     """
 
     def __init__(self, monitor='val_loss',
-                 min_delta=0, patience=0, verbose=0, mode='auto'):
-        super(EarlyStopping, self).__init__()
+                 baseline=0, patience=0, verbose=0, mode='auto'):
+        super(EarlyBaselineStopping, self).__init__()
 
         self.monitor = monitor
         self.patience = patience
         self.verbose = verbose
-        self.min_delta = min_delta
-        self.wait = 0
+        self.baseline = baseline
         self.stopped_epoch = 0
 
-        if mode not in ['auto', 'min', 'max']:
-            warnings.warn('EarlyStopping mode %s is unknown, '
+        if mode not in ['auto', 'above', 'below']:
+            warnings.warn('EarlyBaselineStopping mode %s is unknown, '
                           'fallback to auto mode.' % mode,
                           RuntimeWarning)
             mode = 'auto'
 
-        if mode == 'min':
+        if mode == 'below':
             self.monitor_op = np.less
-        elif mode == 'max':
+        elif mode == 'above':
             self.monitor_op = np.greater
         else:
             if 'acc' in self.monitor:
@@ -584,38 +582,27 @@ class EarlyThresholdStopping(Callback):
             else:
                 self.monitor_op = np.less
 
-        if self.monitor_op == np.greater:
-            self.min_delta *= 1
-        else:
-            self.min_delta *= -1
-
     def on_train_begin(self, logs=None):
         # Allow instances to be re-used
-        self.wait = 0
         self.stopped_epoch = 0
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
-
+        
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
         if current is None:
             warnings.warn(
-                'Early stopping conditioned on metric `%s` '
+                'Early threshold stopping conditioned on metric `%s` '
                 'which is not available. Available metrics are: %s' %
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
             return
-        if self.monitor_op(current - self.min_delta, self.best):
-            self.best = current
-            self.wait = 0
-        else:
-            self.wait += 1
-            if self.wait >= self.patience:
+        if epoch==self.patience:
+            if not self.monitor_op(current, self.baseline):
                 self.stopped_epoch = epoch
-                self.model.stop_training = True
-
+                self.model.stop_training = True      
+      
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
+            print('Epoch %05d: early threshold stopping' % (self.stopped_epoch + 1))
 
 
 class RemoteMonitor(Callback):
