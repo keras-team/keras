@@ -565,6 +565,7 @@ class EarlyBaselineStopping(Callback):
         self.verbose = verbose
         self.baseline = baseline
         self.stopped_epoch = 0
+        self.best = 0
 
         if mode not in ['auto', 'above', 'below']:
             warnings.warn('EarlyBaselineStopping mode %s is unknown, '
@@ -595,10 +596,18 @@ class EarlyBaselineStopping(Callback):
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
             return
-        if epoch==self.patience:
-            if not self.monitor_op(current, self.baseline):
-                self.stopped_epoch = epoch
-                self.model.stop_training = True      
+        if epoch<=self.patience:
+            if epoch==1:
+                self.best=current
+            elif epoch==self.patience:
+                if self.monitor_op(current,self.best):
+                    self.best = current
+                if not self.monitor_op(self.best, self.baseline):
+                    self.stopped_epoch = epoch
+                    self.model.stop_training = True
+            else:
+                if self.monitor_op(current,self.best):
+                    self.best = current                  
       
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
