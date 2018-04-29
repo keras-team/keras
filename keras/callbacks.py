@@ -447,8 +447,8 @@ class ModelCheckpoint(Callback):
                             self.model.save(filepath, overwrite=True)
                     else:
                         if self.verbose > 0:
-                            print('\nEpoch %05d: %s did not improve' %
-                                  (epoch + 1, self.monitor))
+                            print('\nEpoch %05d: %s did not improve from %0.5f' %
+                                  (epoch + 1, self.monitor, self.best))
             else:
                 if self.verbose > 0:
                     print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
