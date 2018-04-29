@@ -89,7 +89,7 @@ def test_softmax_3d():
 
     x = K.placeholder(ndim=3)
     f = K.function([x], [activations.softmax(x, axis=1)])
-    test_values = np.random.randn(10, 10, 10)
+    test_values = test_serialization()[:, :, np.newaxis]
 
     result = f([test_values])[0]
     expected = softmax(test_values, axis=1)
