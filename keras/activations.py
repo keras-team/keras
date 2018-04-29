@@ -21,7 +21,11 @@ def softmax(x, axis=-1):
     # Returns
         Tensor, output of softmax transformation.
     """
-    return K.softmax(x, axis=axis)
+    ndim = K.ndim(x)
+    if ndim == 1:
+        raise ValueError('Cannot apply softmax to a tensor that is 1D')
+    else:
+        return K.softmax(x, axis=axis)
 
 
 def elu(x, alpha=1.0):
