@@ -83,7 +83,7 @@ def test_softmax_3d():
     """Test using a reference implementation of softmax.
     """
     def softmax(values, axis):
-        m = np.max(axis=axis, keepdims=True)
+        m = np.max(values, axis=axis, keepdims=True)
         e = np.exp(values - m)
         return e / np.sum(e, axis=axis, keepdims=True)
 
