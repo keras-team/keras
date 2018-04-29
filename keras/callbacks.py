@@ -885,6 +885,15 @@ class TensorBoard(Callback):
 
         if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
+                # We need a second forward-pass here because we're passing
+                # the `embeddings_data` explicitly. This design allows to pass
+                # arbitrary data as `embeddings_data` and results from the fact
+                # that we need to know the size of the `tf.Variable`s which
+                # hold the embeddings in `set_model`. At this point, however,
+                # the `validation_data` is not yet set.
+
+                # More details in this discussion:
+                # https://github.com/keras-team/keras/pull/7766#issuecomment-329195622
 
                 embeddings_data = self.embeddings_data
                 n_samples = embeddings_data[0].shape[0]
