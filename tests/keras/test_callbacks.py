@@ -320,7 +320,7 @@ def test_EarlyBaselineStopping_baseline_not_met():
 
     acc_levels = [0.55, 0.74, 0.81, 0.81]
 
-    # Should stop since the baseline was not reached by the second epoch
+    # Should stop early since the baseline was not reached by the second epoch
     epochs_trained = 0
     early_baseline_stop.on_train_begin()
 
