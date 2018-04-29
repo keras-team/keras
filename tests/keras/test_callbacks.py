@@ -291,23 +291,47 @@ def test_EarlyBaselineStopping_baseline_met():
         def __init__(self):
             self.stop_training = False
 
-    early_stop = callbacks.EarlyBaselineStopping(monitor='val_acc', baseline=0.75, patience=2)
-    early_stop.model = DummyModel()
+    early_baseline_stop = callbacks.EarlyBaselineStopping(monitor='val_acc', baseline=0.75, patience=2)
+    early_baseline_stop.model = DummyModel()
 
     acc_levels = [0.55, 0.76, 0.81, 0.81]
 
     # Should run all epochs since the baseline was reached by the second epoch
     epochs_trained = 0
-    early_stop.on_train_begin()
+    early_baseline_stop.on_train_begin()
 
     for epoch in range(len(acc_levels)):
         epochs_trained += 1
-        early_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
+        early_baseline_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
 
-        if early_stop.model.stop_training:
+        if early_baseline_stop.model.stop_training:
             break
 
     assert epochs_trained == 4
+    
+@keras_test
+def test_EarlyBaselineStopping_baseline_not_met():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    early_baseline_stop = callbacks.EarlyBaselineStopping(monitor='val_acc', baseline=0.75, patience=2)
+    early_baseline_stop.model = DummyModel()
+
+    acc_levels = [0.55, 0.74, 0.81, 0.81]
+
+    # Should stop since the baseline was not reached by the second epoch
+    epochs_trained = 0
+    early_baseline_stop.on_train_begin()
+
+    for epoch in range(len(acc_levels)):
+        epochs_trained += 1
+        early_baseline_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
+
+        if early_baseline_stop.model.stop_training:
+            break
+
+    assert epochs_trained == 2
 
 
 @keras_test
