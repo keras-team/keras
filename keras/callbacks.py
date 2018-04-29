@@ -596,10 +596,10 @@ class EarlyBaselineStopping(Callback):
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
             return
-        if epoch <= self.patience:
-            if epoch == 1:
+        if epoch+1 <= self.patience:
+            if epoch == 0:
                 self.best = current
-            elif epoch == self.patience:
+            elif epoch+1 == self.patience:
                 if self.monitor_op(current, self.best):
                     self.best = current
                 if not self.monitor_op(self.best, self.baseline):
