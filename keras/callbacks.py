@@ -804,15 +804,14 @@ class TensorBoard(Callback):
             if not embeddings_layer_names:
                 embeddings_layer_names = [layer.name for layer in self.model.layers
                                           if type(layer).__name__ == 'Embedding']
-            self.embeddings = []
+            self.assign_embeddings = []
             embeddings_vars = {}
+
+            self.batch_id = batch_id = tf.placeholder(tf.int32)
+            self.step = step = tf.placeholder(tf.int32)
 
             for layer in self.model.layers:
                 if layer.name in embeddings_layer_names:
-
-                    self.batch_id = batch_id = tf.placeholder(tf.int32)
-                    self.step = step = tf.placeholder(tf.int32)
-
                     embedding_input = self.model.get_layer(layer.name).output
                     embedding_size = np.prod(embedding_input.shape[1:])
                     embedding_input = tf.reshape(embedding_input,
@@ -821,9 +820,9 @@ class TensorBoard(Callback):
                     embedding = tf.Variable(tf.zeros(shape),
                                             name=layer.name + '_embedding')
                     embeddings_vars[layer.name] = embedding
-                    assignment = tf.assign(embedding[batch_id:batch_id + step],
-                                           embedding_input)
-                    self.embeddings.append(assignment)
+                    batch = tf.assign(embedding[batch_id:batch_id + step],
+                                      embedding_input)
+                    self.assign_embeddings.append(batch)
 
             self.saver = tf.train.Saver(list(embeddings_vars.values()))
 
@@ -906,7 +905,7 @@ class TensorBoard(Callback):
                     if self.model.uses_learning_phase:
                         feed_dict[K.learning_phase()] = False
 
-                    self.sess.run(self.embeddings, feed_dict=feed_dict)
+                    self.sess.run(self.assign_embeddings, feed_dict=feed_dict)
                     self.saver.save(self.sess,
                                     os.path.join(self.log_dir, 'keras_embedding.ckpt'),
                                     epoch)
