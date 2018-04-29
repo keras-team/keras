@@ -586,7 +586,7 @@ class EarlyBaselineStopping(Callback):
     def on_train_begin(self, logs=None):
         # Allow instances to be re-used
         self.stopped_epoch = 0
-        
+
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
         if current is None:
