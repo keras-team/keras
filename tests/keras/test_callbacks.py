@@ -298,11 +298,11 @@ def test_EarlyBaselineStopping():
         # Should stop early since the baseline was not reached by the second epoch
         epochs_trained = 0
         early_baseline_stop.on_train_begin()
-    
+
         for epoch in range(len(acc_levels)):
             epochs_trained += 1
             early_baseline_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
-    
+
             if early_baseline_stop.model.stop_training:
                 break
         return epochs_trained
@@ -315,7 +315,7 @@ def test_EarlyBaselineStopping():
     acc_levels = [0.55, 0.74, 0.81, 0.81]
     baseline_not_met_epochs_trained = baseline_tester(acc_levels)
 
-    assert baseline_met_epochs_trained == 4    
+    assert baseline_met_epochs_trained == 4
     assert baseline_not_met_epochs_trained == 2
 
 
