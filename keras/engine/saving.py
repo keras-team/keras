@@ -125,7 +125,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             model_layers = model.layers
         save_weights_to_hdf5_group(model_weights_group, model_layers)
 
-        if include_optimizer and hasattr(model, 'optimizer'):
+        if include_optimizer and model.optimizer:
             if isinstance(model.optimizer, optimizers.TFOptimizer):
                 warnings.warn(
                     'TensorFlow optimizers do not '

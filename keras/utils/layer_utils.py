@@ -42,6 +42,10 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
 
     if model.__class__.__name__ == 'Sequential':
         sequential_like = True
+    elif not model._is_graph_network:
+        # We treat subclassed models as a simple sequence of layers,
+        # for logging purposes.
+        sequential_like = True
     else:
         sequential_like = True
         nodes_by_depth = model._nodes_by_depth.values()
@@ -81,7 +85,10 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+        to_display = ['Layer (type)',
+                      'Output Shape',
+                      'Param #',
+                      'Connected to']
         relevant_nodes = []
         for v in model._nodes_by_depth.values():
             relevant_nodes += v
@@ -107,7 +114,8 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
             output_shape = 'multiple'
         name = layer.name
         cls_name = layer.__class__.__name__
-        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params()]
+        fields = [name + ' (' + cls_name + ')',
+                  output_shape, layer.count_params()]
         print_row(fields, positions)
 
     def print_layer_summary_with_connections(layer):
@@ -129,7 +137,9 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
                 inbound_layer = node.inbound_layers[i].name
                 inbound_node_index = node.node_indices[i]
                 inbound_tensor_index = node.tensor_indices[i]
-                connections.append(inbound_layer + '[' + str(inbound_node_index) + '][' + str(inbound_tensor_index) + ']')
+                connections.append(inbound_layer +
+                                   '[' + str(inbound_node_index) + '][' +
+                                   str(inbound_tensor_index) + ']')
 
         name = layer.name
         cls_name = layer.__class__.__name__
@@ -137,7 +147,11 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
             first_connection = ''
         else:
             first_connection = connections[0]
-        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), first_connection]
+        fields = [name +
+                  ' (' + cls_name + ')',
+                  output_shape,
+                  layer.count_params(),
+                  first_connection]
         print_row(fields, positions)
         if len(connections) > 1:
             for i in range(1, len(connections)):
@@ -164,7 +178,8 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
     non_trainable_count = int(
         np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
 
-    print_fn('Total params: {:,}'.format(trainable_count + non_trainable_count))
+    print_fn(
+        'Total params: {:,}'.format(trainable_count + non_trainable_count))
     print_fn('Trainable params: {:,}'.format(trainable_count))
     print_fn('Non-trainable params: {:,}'.format(non_trainable_count))
     print_fn('_' * line_length)
