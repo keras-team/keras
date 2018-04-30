@@ -14,7 +14,6 @@ from .input_layer import Input
 from .input_layer import InputLayer
 from .. import backend as K
 from .. import layers as layer_module
-from ..legacy import layers as legacy_layers
 
 try:
     import h5py
@@ -134,7 +133,7 @@ class Sequential(Model):
         if not self._layers:
             set_inputs = False
             # First layer in model: check that it is an input layer.
-            if not isinstance(layer, (InputLayer, legacy_layers.Merge)):
+            if not isinstance(layer, InputLayer):
                 # Create an input tensor and call `layer` on the input tensor.
                 # First, we need to infer the expected input shape and dtype.
                 first_layer = layer
