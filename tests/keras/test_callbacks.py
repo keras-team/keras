@@ -287,53 +287,36 @@ def test_EarlyStopping_patience():
 
 
 @keras_test
-def test_EarlyBaselineStopping_baseline_met():
+def test_EarlyBaselineStopping():
     class DummyModel(object):
         def __init__(self):
             self.stop_training = False
 
-    early_baseline_stop = callbacks.EarlyBaselineStopping(monitor='val_acc', baseline=0.75, patience=2)
-    early_baseline_stop.model = DummyModel()
+    def baseline_tester(acc_levels):
+        early_baseline_stop = callbacks.EarlyBaselineStopping(monitor='val_acc', baseline=0.75, patience=2)
+        early_baseline_stop.model = DummyModel()
+        # Should stop early since the baseline was not reached by the second epoch
+        epochs_trained = 0
+        early_baseline_stop.on_train_begin()
+    
+        for epoch in range(len(acc_levels)):
+            epochs_trained += 1
+            early_baseline_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
+    
+            if early_baseline_stop.model.stop_training:
+                break
+        return epochs_trained
 
+    # These accuracy levels meet a baseline of 0.75 by the second epoch
     acc_levels = [0.55, 0.76, 0.81, 0.81]
+    baseline_met_epochs_trained = baseline_tester(acc_levels)
 
-    # Should run all epochs since the baseline was reached by the second epoch
-    epochs_trained = 0
-    early_baseline_stop.on_train_begin()
-
-    for epoch in range(len(acc_levels)):
-        epochs_trained += 1
-        early_baseline_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
-
-        if early_baseline_stop.model.stop_training:
-            break
-
-    assert epochs_trained == 4
-
-
-@keras_test
-def test_EarlyBaselineStopping_baseline_not_met():
-    class DummyModel(object):
-        def __init__(self):
-            self.stop_training = False
-
-    early_baseline_stop = callbacks.EarlyBaselineStopping(monitor='val_acc', baseline=0.75, patience=2)
-    early_baseline_stop.model = DummyModel()
-
+    # These accuracy levels do not meet a baseline of 0.75 by the second epoch
     acc_levels = [0.55, 0.74, 0.81, 0.81]
+    baseline_not_met_epochs_trained = baseline_tester(acc_levels)
 
-    # Should stop early since the baseline was not reached by the second epoch
-    epochs_trained = 0
-    early_baseline_stop.on_train_begin()
-
-    for epoch in range(len(acc_levels)):
-        epochs_trained += 1
-        early_baseline_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
-
-        if early_baseline_stop.model.stop_training:
-            break
-
-    assert epochs_trained == 2
+    assert baseline_met_epochs_trained == 4    
+    assert baseline_not_met_epochs_trained == 2
 
 
 @keras_test
