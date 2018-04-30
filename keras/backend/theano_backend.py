@@ -2338,11 +2338,12 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     rng = RandomStreams(seed=seed)
 
     try:
-        return rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype, truncate=True)
+        return rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype,
+                          truncate=True)
     except TypeError:
-        normal_tensor = rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype)
+        normal_t = rng.normal(size=shape, avg=mean, std=stddev, dtype=dtype)
         # Poor man's truncated normal: we literally clip the tensor
-        return T.clip(normal_tensor, mean - 2 * stddev, mean + 2 * stddev)
+        return T.clip(normal_t, mean - 2 * stddev, mean + 2 * stddev)
 
 
 # Theano implementation of CTC
