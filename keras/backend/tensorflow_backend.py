@@ -9,7 +9,6 @@ from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
-from tensorflow.python.ops import variables as tf_variables
 from tensorflow.python.client import device_lib
 
 from collections import defaultdict
