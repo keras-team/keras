@@ -358,17 +358,17 @@ def img_to_array(img, data_format=None):
     return x
 
 
-def save_img(path, 
-             x, 
-             data_format=None, 
-             file_format=None, 
+def save_img(path,
+             x,
+             data_format=None,
+             file_format=None,
              scale=True, **kwargs):
     """Save an image stored as a Numpy array to a path or file object.
 
     # Arguments
         path: Path or file object.
         x: Numpy array.
-        data_format: Image data format.  One of {"channels_first" or "channels_last"}.  
+        data_format: Image data format.  One of {"channels_first" or "channels_last"}.
             Default is 'channels_last'.
         file_format: Optional file format override.  If omitted, the
             format to use is determined from the filename extension.
