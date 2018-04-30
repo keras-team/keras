@@ -375,6 +375,7 @@ def save_img(path,
             If a file object was used instead of a filename, this
             parameter should always be used.
         scale: Whether to rescale image values to be within [0, 255].
+        **kwargs: Additional keyword arguments passed to PIL.Image.save(). 
     """
     img = array_to_img(x, data_format=data_format, scale=scale)
     img.save(path, format=file_format, **kwargs)

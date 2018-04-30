@@ -348,7 +348,6 @@ class Evaluator(object):
         self.grad_values = None
         return grad_values
 
-
 evaluator = Evaluator()
 
 # Generate images by iterative optimization

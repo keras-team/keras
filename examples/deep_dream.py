@@ -67,7 +67,6 @@ def deprocess_image(x):
     x = np.clip(x, 0, 255).astype('uint8')
     return x
 
-
 K.set_learning_phase(0)
 
 # Build the InceptionV3 network with our placeholder.
@@ -84,8 +83,7 @@ layer_dict = dict([(layer.name, layer) for layer in model.layers])
 loss = K.variable(0.)
 for layer_name in settings['features']:
     # Add the L2 norm of the features of a layer to the loss.
-    assert layer_name in layer_dict.keys(), 'Layer ' + layer_name + \
-        ' not found in model.'
+    assert layer_name in layer_dict.keys(), 'Layer ' + layer_name + ' not found in model.'
     coeff = settings['features'][layer_name]
     x = layer_dict[layer_name].output
     # We avoid border artifacts by only involving non-border pixels in the loss.
