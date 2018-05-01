@@ -47,12 +47,11 @@ import time
 import argparse
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
-from scipy.misc import imread, imsave
 
 from keras import backend as K
 from keras.layers import Input, AveragePooling2D
 from keras.models import Model
-from keras.preprocessing.image import load_img, img_to_array
+from keras.preprocessing.image import load_img, save_img, img_to_array
 from keras.applications import vgg19
 
 # Command line arguments
@@ -83,7 +82,7 @@ use_content_img = content_img_path is not None
 num_labels = args.nlabels
 num_colors = 3  # RGB
 # determine image sizes based on target_mask
-ref_img = imread(target_mask_path)
+ref_img = img_to_array(load_img(target_mask_path))
 img_nrows, img_ncols = ref_img.shape[:2]
 
 total_variation_weight = 50.
@@ -164,6 +163,7 @@ def load_mask_labels():
 
     return (np.expand_dims(style_mask, axis=0),
             np.expand_dims(target_mask, axis=0))
+
 
 # Create tensor variables for images
 if K.image_data_format() == 'channels_first':
@@ -284,6 +284,7 @@ def total_variation_loss(x):
                      x[:, :img_nrows - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
+
 # Overall loss is the weighted sum of content_loss, style_loss and tv_loss
 # Each individual loss uses features from image/mask models.
 loss = K.variable(0)
@@ -364,7 +365,7 @@ for i in range(50):
     # save current generated image
     img = deprocess_image(x.copy())
     fname = target_img_prefix + '_at_iteration_%d.png' % i
-    imsave(fname, img)
+    save_img(fname, img)
     end_time = time.time()
     print('Image saved as', fname)
     print('Iteration %d completed in %ds' % (i, end_time - start_time))
