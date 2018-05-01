@@ -3196,12 +3196,12 @@ def _preprocess_conv1d_input(x, data_format):
     """
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
-    tf_data_format = 'NHWC'  # to pass TF Conv2dNative operations
+    tf_data_format = 'NWC'  # to pass TF Conv2dNative operations
     if data_format == 'channels_first':
         if not _has_nchw_support():
             x = tf.transpose(x, (0, 2, 1))  # NCW -> NWC
         else:
-            tf_data_format = 'NCHW'
+            tf_data_format = 'NCW'
     return x, tf_data_format
 
 
