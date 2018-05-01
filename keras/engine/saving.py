@@ -502,6 +502,34 @@ def preprocess_weights_for_loading(layer, weights,
                                                           original_keras_version,
                                                           original_backend)
         weights = forward_weights + backward_weights
+    # convert CuDNN layers nested in Model
+    # TODO: refactor with the same block in Keras 1 conversion
+    if layer.__class__.__name__ in ['Model', 'Sequential']:
+        new_weights = []
+        # trainable weights
+        for sublayer in layer.layers:
+            num_weights = len(sublayer.trainable_weights)
+            if num_weights > 0:
+                new_weights.extend(preprocess_weights_for_loading(
+                    layer=sublayer,
+                    weights=weights[:num_weights],
+                    original_keras_version=original_keras_version,
+                    original_backend=original_backend))
+                weights = weights[num_weights:]
+
+        # non-trainable weights
+        for sublayer in layer.layers:
+            num_weights = len([l for l in sublayer.weights
+                               if l not in sublayer.trainable_weights])
+            if num_weights > 0:
+                new_weights.extend(preprocess_weights_for_loading(
+                    layer=sublayer,
+                    weights=weights[:num_weights],
+                    original_keras_version=original_keras_version,
+                    original_backend=original_backend))
+                weights = weights[num_weights:]
+        weights = new_weights
+
 
     if original_keras_version == '1':
         if layer.__class__.__name__ == 'TimeDistributed':
@@ -767,7 +795,7 @@ def _convert_rnn_weights(layer, weights):
         def convert_weights(weights, from_cudnn=True):
             kernels = transform_kernels(weights[0], transpose_input(from_cudnn), n_gates)
             recurrent_kernels = transform_kernels(weights[1], lambda k: k.T, n_gates)
-            biases = weights[2].reshape((2, -1) if from_cudnn else -1)
+            biases = np.array(weights[2]).reshape((2, -1) if from_cudnn else -1)
             return [kernels, recurrent_kernels, biases]
 
         if bias_shape == (2 * units * n_gates,):
