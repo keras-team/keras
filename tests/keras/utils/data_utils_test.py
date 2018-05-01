@@ -22,8 +22,8 @@ from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
 
 pytestmark = pytest.mark.skipif(
-    # Temporary disabling
-    K.backend() == 'tensorflow')
+    K.backend() == 'tensorflow',
+    reason='Temporary disabling to fix CI build')
 
 if sys.version_info < (3,):
     def next(x):

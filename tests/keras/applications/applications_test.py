@@ -8,10 +8,8 @@ from keras import backend as K
 
 
 pytestmark = pytest.mark.skipif(
-    # Temporary disabling of large TF tests
-    K.backend() == 'tensorflow' or
-    (os.environ.get('CORE_CHANGED', 'True') == 'False' and
-     os.environ.get('APP_CHANGED', 'True') == 'False'),
+    os.environ.get('CORE_CHANGED', 'True') == 'False' and
+    os.environ.get('APP_CHANGED', 'True') == 'False',
     reason='Runs only when the relevant files have been modified.')
 
 DENSENET_LIST = [(applications.DenseNet121, 1024),
