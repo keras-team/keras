@@ -44,7 +44,7 @@ if pil_image is not None:
 
 
 def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
-                    fill_mode='nearest', cval=0.):
+                    fill_mode='constant', cval=0.):
     """Performs a random rotation of a Numpy image tensor.
 
     # Arguments
@@ -74,7 +74,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='constant', cval=0.):
     """Performs a random spatial shift of a Numpy image tensor.
 
     # Arguments
@@ -106,7 +106,7 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
-                 fill_mode='nearest', cval=0.):
+                 fill_mode='constant', cval=0.):
     """Performs a random spatial shear of a Numpy image tensor.
 
     # Arguments
@@ -136,7 +136,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 
 
 def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
-                fill_mode='nearest', cval=0.):
+                fill_mode='constant', cval=0.):
     """Performs a random spatial zoom of a Numpy image tensor.
 
     # Arguments
@@ -235,7 +235,7 @@ def transform_matrix_offset_center(matrix, x, y):
 def apply_transform(x,
                     transform_matrix,
                     channel_axis=0,
-                    fill_mode='nearest',
+                    fill_mode='constant',
                     cval=0.):
     """Apply the image transformation specified by a matrix.
 
@@ -435,7 +435,7 @@ class ImageDataGenerator(object):
         shear_range: Float. Shear Intensity (Shear angle in counter-clockwise direction in degrees)
         zoom_range: Float or [lower, upper]. Range for random zoom. If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
         channel_shift_range: Float. Range for random channel shifts.
-        fill_mode: One of {"constant", "nearest", "reflect" or "wrap"}.  Default is 'nearest'.
+        fill_mode: One of {"constant", "nearest", "reflect" or "wrap"}.  Default is 'constant'.
         Points outside the boundaries of the input are filled according to the given mode:
             'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
             'nearest':  aaaaaaaa|abcd|dddddddd
@@ -579,7 +579,7 @@ class ImageDataGenerator(object):
                  shear_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
-                 fill_mode='nearest',
+                 fill_mode='constant',
                  cval=0.,
                  horizontal_flip=False,
                  vertical_flip=False,
