@@ -3,17 +3,16 @@ import random
 import os
 from multiprocessing import Process, Queue
 from keras.utils.test_utils import keras_test
-from keras.utils.test_utils import layer_test
-from keras.models import Sequential
 from keras import applications
 from keras import backend as K
 
 
 pytestmark = pytest.mark.skipif(
-    os.environ.get('CORE_CHANGED', 'True') == 'False' and
-    os.environ.get('APP_CHANGED', 'True') == 'False',
+    # Temporary disabling of large TF tests
+    K.backend() == 'tensorflow' or
+    (os.environ.get('CORE_CHANGED', 'True') == 'False' and
+     os.environ.get('APP_CHANGED', 'True') == 'False'),
     reason='Runs only when the relevant files have been modified.')
-
 
 DENSENET_LIST = [(applications.DenseNet121, 1024),
                  (applications.DenseNet169, 1664),
