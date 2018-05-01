@@ -302,7 +302,7 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
 class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
 
-    Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
+    Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
     If you want to modify your dataset between epochs you may implement `on_epoch_end`.
     The method `__getitem__` should return a complete batch.
 
