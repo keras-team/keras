@@ -14,7 +14,6 @@ from six.moves import zip
 from .. import backend as K
 from .. import optimizers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
-from ..legacy import models as legacy_models
 from ..utils import conv_utils
 
 try:
@@ -119,10 +118,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         }, default=get_json_type).encode('utf8')
 
         model_weights_group = f.create_group('model_weights')
-        if legacy_models.needs_legacy_support(model):
-            model_layers = legacy_models.legacy_sequential_layers(model)
-        else:
-            model_layers = model.layers
+        model_layers = model.layers
         save_weights_to_hdf5_group(model_weights_group, model_layers)
 
         if include_optimizer and model.optimizer:
