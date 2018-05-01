@@ -358,6 +358,29 @@ def img_to_array(img, data_format=None):
     return x
 
 
+def save_img(path,
+             x,
+             data_format=None,
+             file_format=None,
+             scale=True, **kwargs):
+    """Save an image stored as a Numpy array to a path or file object.
+
+    # Arguments
+        path: Path or file object.
+        x: Numpy array.
+        data_format: Image data format.  One of {"channels_first" or "channels_last"}.
+            Default is 'channels_last'.
+        file_format: Optional file format override.  If omitted, the
+            format to use is determined from the filename extension.
+            If a file object was used instead of a filename, this
+            parameter should always be used.
+        scale: Whether to rescale image values to be within [0, 255].
+        **kwargs: Additional keyword arguments passed to PIL.Image.save().
+    """
+    img = array_to_img(x, data_format=data_format, scale=scale)
+    img.save(path, format=file_format, **kwargs)
+
+
 def load_img(path, grayscale=False, target_size=None,
              interpolation='nearest'):
     """Loads an image into PIL format.
