@@ -13,7 +13,7 @@ from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import model_from_json, model_from_yaml
 from keras import losses
-from keras.engine.training import _make_batches
+from keras.engine.training_utils import make_batches
 
 
 input_dim = 16
@@ -112,7 +112,7 @@ def test_sequential(in_tmpdir):
     def data_generator(x, y, batch_size=50):
         index_array = np.arange(len(x))
         while 1:
-            batches = _make_batches(len(x_test), batch_size)
+            batches = make_batches(len(x_test), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 x_batch = x[batch_ids]
@@ -382,7 +382,6 @@ def test_sequential_update_disabling():
 
     model.compile('sgd', 'mse')
     assert not model.updates
-    assert not model.model.updates
 
     x1 = model.predict(val_a)
     model.train_on_batch(val_a, val_out)
@@ -392,7 +391,6 @@ def test_sequential_update_disabling():
     model.trainable = True
     model.compile('sgd', 'mse')
     assert model.updates
-    assert model.model.updates
 
     model.train_on_batch(val_a, val_out)
     x2 = model.predict(val_a)

@@ -8,7 +8,7 @@ from .. import backend as K
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
+from ..engine.base_layer import Layer
 from ..legacy import interfaces
 
 

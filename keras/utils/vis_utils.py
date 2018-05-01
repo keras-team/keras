@@ -106,7 +106,7 @@ def model_to_dot(model,
         layer_id = str(id(layer))
         for i, node in enumerate(layer._inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
-            if node_key in model._container_nodes:
+            if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
                     layer_id = str(id(layer))

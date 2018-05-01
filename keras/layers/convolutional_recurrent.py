@@ -15,7 +15,7 @@ from .recurrent import _standardize_args
 
 import numpy as np
 import warnings
-from ..engine import InputSpec, Layer
+from ..engine.base_layer import InputSpec, Layer
 from ..utils import conv_utils
 from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D

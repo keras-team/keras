@@ -54,7 +54,7 @@ from ..layers import Cropping2D
 from ..layers import concatenate
 from ..layers import add
 from ..utils.data_utils import get_file
-from ..engine.topology import get_source_inputs
+from ..engine import get_source_inputs
 from ..applications.imagenet_utils import _obtain_input_shape
 from ..applications.inception_v3 import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
