@@ -15,8 +15,8 @@ def softmax(x, axis=-1):
     """Softmax activation function.
 
     # Arguments
-        - x : Input tensor.
-        - axis: Integer, axis along which the softmax normalization is applied.
+        x: Input tensor.
+        axis: Integer, axis along which the softmax normalization is applied.
 
     # Returns
         Tensor, output of softmax transformation.
@@ -39,14 +39,16 @@ def elu(x, alpha=1.0):
     """Exponential linear unit.
 
     # Arguments
-        - x: Input tensor.
-        - alpha: A scalar, slope of negative section.
+        x: Input tensor.
+        alpha: A scalar, slope of negative section.
 
     # Returns
-        The exponential linear activation: `x` if `x > 0` and `alpha * (exp(x)-1)` if `x < 0`
+        The exponential linear activation: `x` if `x > 0` and
+        `alpha * (exp(x)-1)` if `x < 0`.
 
     # References
-        - [Fast and Accurate Deep Network Learning by Exponential Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
+        - [Fast and Accurate Deep Network Learning by Exponential
+        Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
     """
     return K.elu(x, alpha)
 
@@ -54,11 +56,12 @@ def elu(x, alpha=1.0):
 def selu(x):
     """Scaled Exponential Linear Unit (SELU).
 
-    SELU is equal to: `scale * elu(x, alpha)`, where alpha and scale are pre-defined constants.
-    The values of `alpha` and `scale` are chosen so that the mean and variance of the inputs are
-    preserved between two consecutive layers as long as the weights are initialized correctly
-    (see "lecun_normal" initialization) and the number of inputs is "large enough" (see
-    references for more information).
+    SELU is equal to: `scale * elu(x, alpha)`, where alpha and scale
+    are pre-defined constants. The values of `alpha` and `scale` are
+    chosen so that the mean and variance of the inputs are preserved
+    between two consecutive layers as long as the weights are initialized
+    correctly (see `lecun_normal` initialization) and the number of inputs
+    is "large enough" (see references for more information).
 
     # Arguments
         x: A tensor or variable to compute the activation function for.
@@ -82,7 +85,7 @@ def softplus(x):
     """Softplus activation function.
 
     # Arguments
-        x: Input tensor
+        x: Input tensor.
 
     # Returns
         The softplus activation: `log(exp(x) + 1`.
@@ -94,10 +97,10 @@ def softsign(x):
     """Softsign activation function.
 
     # Arguments
-        x: Input tensor
+        x: Input tensor.
 
     # Returns
-        The softplus activation: `x / (abs(x) + 1)`
+        The softplus activation: `x / (abs(x) + 1)`.
     """
     return K.softsign(x)
 
@@ -106,13 +109,14 @@ def relu(x, alpha=0., max_value=None):
     """(Leaky) Rectified Linear Unit.
 
     # Arguments
-        - x: Input tensor
-        - alpha: Slope of the negative part. Defaults to zero.
-        - max_value: Maximum value for the output.
+        x: Input tensor.
+        alpha: Slope of the negative part. Defaults to zero.
+        max_value: Maximum value for the output.
 
     # Returns
-        The (leaky) rectified linear unit activation: `x` if `x > 0`, `alpha * x` if `x < 0`.
-        If `max_value` is defined, the result is clamped to this value.
+        The (leaky) rectified linear unit activation: `x` if `x > 0`,
+        `alpha * x` if `x < 0`. If `max_value` is defined, the result
+        is truncated to this value.
     """
     return K.relu(x, alpha=alpha, max_value=max_value)
 
@@ -124,7 +128,7 @@ def tanh(x):
 
 
 def sigmoid(x):
-    """Sigmoid activation function
+    """Sigmoid activation function.
     """
     return K.sigmoid(x)
 
@@ -135,17 +139,20 @@ def hard_sigmoid(x):
     Faster to compute than sigmoid activation.
 
     # Arguments
-        x: Input tensor
+        x: Input tensor.
 
     # Returns
-        Hard sigmoid activation: `0` if `x < -2.5`, `1` if `x > 2.5` and `0.2 * x + 0.5`
-        if `-2.5 <= x <= 2.5`.
+        Hard sigmoid activation:
+
+        - `0` if `x < -2.5`
+        - `1` if `x > 2.5`
+        - `0.2 * x + 0.5` if `-2.5 <= x <= 2.5`.
     """
     return K.hard_sigmoid(x)
 
 
 def linear(x):
-    """Linear (e.g. unit) activation function
+    """Linear (e.g. unit) activation function.
     """
     return x
 
