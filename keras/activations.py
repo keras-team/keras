@@ -32,7 +32,8 @@ def softmax(x, axis=-1):
         s = K.sum(e, axis=axis, keepdims=True)
         return e / s
     else:
-        raise ValueError('Cannot apply softmax to a tensor that is 1D')
+        raise ValueError('Cannot apply softmax to a tensor that is 1D. '
+                         'Received input: %s' % x)
 
 
 def elu(x, alpha=1.0):
@@ -106,7 +107,7 @@ def softsign(x):
 
 
 def relu(x, alpha=0., max_value=None):
-    """(Leaky) Rectified Linear Unit.
+    """Rectified Linear Unit.
 
     # Arguments
         x: Input tensor.
@@ -152,7 +153,7 @@ def hard_sigmoid(x):
 
 
 def linear(x):
-    """Linear (e.g. unit) activation function.
+    """Linear (i.e. identity) activation function.
     """
     return x
 
@@ -162,10 +163,11 @@ def serialize(activation):
 
 
 def deserialize(name, custom_objects=None):
-    return deserialize_keras_object(name,
-                                    module_objects=globals(),
-                                    custom_objects=custom_objects,
-                                    printable_module_name='activation function')
+    return deserialize_keras_object(
+        name,
+        module_objects=globals(),
+        custom_objects=custom_objects,
+        printable_module_name='activation function')
 
 
 def get(identifier):
