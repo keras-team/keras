@@ -13,6 +13,7 @@ from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Dropout, add
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
+from keras.utils import Sequence
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
@@ -29,6 +30,22 @@ num_classes = 2
 batch_size = 5
 train_samples = 20
 test_samples = 20
+
+
+class RandomSequence(Sequence):
+    def __init__(self, batch_size, sequence_length=12):
+        self.batch_size = batch_size
+        self.sequence_length = sequence_length
+
+    def __len__(self):
+        return self.sequence_length
+
+    def __getitem__(self, idx):
+        return ([np.random.random((self.batch_size, input_dim))],
+                [np.random.random((self.batch_size, input_dim))])
+
+    def on_epoch_end(self):
+        pass
 
 
 @keras_test
@@ -59,18 +76,38 @@ def test_TerminateOnNaN():
     assert len(loss) == 1
     assert loss[0] == np.inf
 
-    # case 2 fit_generator
-    def data_generator():
-        max_batch_index = len(X_train) // batch_size
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
         i = 0
         while 1:
-            yield (X_train[i * batch_size: (i + 1) * batch_size],
-                   y_train[i * batch_size: (i + 1) * batch_size])
+            if train:
+                # simulate multi-input/output models
+                yield (X_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size],
+                       y_test[i * batch_size: (i + 1) * batch_size])
             i += 1
             i = i % max_batch_index
-    history = model.fit_generator(data_generator(),
+
+    # case 2 fit_generator
+    history = model.fit_generator(data_generator(True),
                                   len(X_train),
                                   validation_data=(X_test, y_test),
+                                  callbacks=cbks,
+                                  epochs=20)
+    loss = history.history['loss']
+    assert len(loss) == 1
+    assert loss[0] == np.inf or np.isnan(loss[0])
+
+    # case 3 fit_generator with validation generator
+    history = model.fit_generator(data_generator(True),
+                                  len(X_train),
+                                  validation_data=data_generator(False),
+                                  validation_steps=len(X_test) // batch_size,
                                   callbacks=cbks,
                                   epochs=20)
     loss = history.history['loss']
@@ -507,6 +544,60 @@ def test_TensorBoard(tmpdir):
                         validation_data=(X_test, y_test),
                         callbacks=callbacks_factory(histogram_freq=1))
 
+    # fit generator with validation data as sequence
+
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=RandomSequence(3),
+                        callbacks=callbacks_factory(histogram_freq=1))
+    # fit generator with validation data as sequence with validation steps
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=RandomSequence(3),
+                        validation_steps=4,
+                        callbacks=callbacks_factory(histogram_freq=1))
+
+    # fit generator with validation data as sequence with validation steps
+    # and multiprocessing
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=RandomSequence(3),
+                        validation_steps=4,
+                        workers=2,
+                        use_multiprocessing=True,
+                        shuffle=True,
+                        callbacks=callbacks_factory(histogram_freq=1))
+
+    # fit generator with validation data as sequence with validation steps
+    # and multiprocessing
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=RandomSequence(3),
+                        validation_steps=4,
+                        workers=2,
+                        use_multiprocessing=True,
+                        shuffle=False,
+                        callbacks=callbacks_factory(histogram_freq=1))
+
+    # fit with preloaded validation data and multiprocessing
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=(X_test, y_test),
+                        validation_steps=4,
+                        workers=2,
+                        use_multiprocessing=True,
+                        shuffle=True,
+                        callbacks=callbacks_factory(histogram_freq=1))
+    # fit with generator validation data and multiprocessing
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=data_generator(False),
+                        validation_steps=4,
+                        workers=2,
+                        use_multiprocessing=True,
+                        shuffle=True,
+                        callbacks=callbacks_factory(histogram_freq=1))
+
+    # fit generator with validation generator
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=data_generator(False),
+                        validation_steps=len(X_test) // batch_size,
+                        callbacks=callbacks_factory(histogram_freq=1))
+
     assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
     assert not tmpdir.listdir()
@@ -573,15 +664,6 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     # histogram_freq > 0
     with pytest.raises(ValueError) as raised_exception:
         model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                            callbacks=callbacks_factory(histogram_freq=1))
-    assert 'validation_data must be provided' in str(raised_exception.value)
-
-    # fit generator with validation data generator should raise ValueError if
-    # histogram_freq > 0
-    with pytest.raises(ValueError) as raised_exception:
-        model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                            validation_data=data_generator(False),
-                            validation_steps=1,
                             callbacks=callbacks_factory(histogram_freq=1))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
@@ -654,6 +736,12 @@ def test_TensorBoard_multi_input_output(tmpdir):
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         validation_data=([X_test] * 2, [y_test] * 2),
+                        callbacks=callbacks_factory(histogram_freq=1))
+
+    # fit generator with validation generator and accuracy
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=data_generator(False),
+                        validation_steps=len(X_test) // batch_size,
                         callbacks=callbacks_factory(histogram_freq=1))
 
     assert os.path.isdir(filepath)

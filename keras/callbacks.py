@@ -16,8 +16,12 @@ import warnings
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
+from .utils.data_utils import Sequence
+from .utils.data_utils import GeneratorEnqueuer
+from .utils.data_utils import OrderedEnqueuer
 from .utils.generic_utils import Progbar
 from . import backend as K
+from .engine.topology import Layer
 
 try:
     import requests
@@ -171,6 +175,7 @@ class Callback(object):
 
     def __init__(self):
         self.validation_data = None
+        self.validation_steps = None
         self.model = None
 
     def set_params(self, params):
@@ -823,38 +828,116 @@ class TensorBoard(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-
+        wait_time = 0.01
         if not self.validation_data and self.histogram_freq:
             raise ValueError('If printing histograms, validation_data must be '
-                             'provided, and cannot be a generator.')
+                             'provided.')
         if self.validation_data and self.histogram_freq:
+            is_val_gen = (hasattr(self.validation_data, 'next') or
+                          hasattr(self.validation_data, '__next__') or
+                          isinstance(self.validation_data, Sequence))
             if epoch % self.histogram_freq == 0:
-
-                val_data = self.validation_data
-                tensors = (self.model.inputs +
-                           self.model.targets +
-                           self.model.sample_weights)
-
-                if self.model.uses_learning_phase:
-                    tensors += [K.learning_phase()]
-
-                assert len(val_data) == len(tensors)
-                val_size = val_data[0].shape[0]
-                i = 0
-                while i < val_size:
-                    step = min(self.batch_size, val_size - i)
-                    if self.model.uses_learning_phase:
-                        # do not slice the learning phase
-                        batch_val = [x[i:i + step] for x in val_data[:-1]]
-                        batch_val.append(val_data[-1])
+                if is_val_gen:
+                    assert self.validation_steps is not None
+                    is_sequence = isinstance(self.validation_data, Sequence)
+                    if self.workers > 0:
+                        if is_sequence:
+                            enqueuer = OrderedEnqueuer(
+                                self.validation_data,
+                                use_multiprocessing=self.use_multiprocessing,
+                                shuffle=self.shuffle)
+                        else:
+                            enqueuer = GeneratorEnqueuer(
+                                self.validation_data,
+                                use_multiprocessing=self.use_multiprocessing,
+                                wait_time=wait_time)
+                        enqueuer.start(workers=self.workers,
+                                       max_queue_size=self.max_queue_size)
+                        output_val_generator = enqueuer.get()
                     else:
-                        batch_val = [x[i:i + step] for x in val_data]
-                    assert len(batch_val) == len(tensors)
-                    feed_dict = dict(zip(tensors, batch_val))
-                    result = self.sess.run([self.merged], feed_dict=feed_dict)
-                    summary_str = result[0]
-                    self.writer.add_summary(summary_str, epoch)
-                    i += self.batch_size
+                        if is_sequence:
+                            output_val_generator = iter(self.validation_data)
+                        else:
+                            output_val_generator = self.validation_data
+                    tensors = (self.model.inputs +
+                               self.model.targets +
+                               self.model.sample_weights)
+                    if (self.model.uses_learning_phase and
+                            not isinstance(K.learning_phase(), int)):
+                        tensors += [K.learning_phase()]
+                    i = 0
+                    while i < self.validation_steps:
+                        generator_output = next(output_val_generator)
+                        if len(generator_output) == 2:
+                            x, y = generator_output
+                            sample_weight = None
+                        elif len(generator_output) == 3:
+                            x, y, sample_weight = generator_output
+
+                        if isinstance(x, list):
+                            batch_size = x[0].shape[0]
+                        elif isinstance(x, dict):
+                            batch_size = list(x.values())[0].shape[0]
+                        else:
+                            batch_size = x.shape[0]
+                        if batch_size == 0:
+                            raise ValueError('Received an empty batch. '
+                                             'Batches should at least contain one '
+                                             'item.')
+                        x, y, sample_weight = self.model._standardize_user_data(
+                            x, y, sample_weight=sample_weight,
+                            batch_size=batch_size)
+                        batch_val = x + y + sample_weight
+
+                        if (self.model.uses_learning_phase and
+                                not isinstance(K.learning_phase(), int)):
+                            batch_val += [0.]
+                        if not len(batch_val) == len(tensors):
+                            raise ValueError('validation_data generator\'s output '
+                                             'length ({0}) must be the same as '
+                                             'the sum of the lengths of the '
+                                             'model\'s inputs, targets and '
+                                             'sample_weights ({1}).'
+                                             .format(len(batch_val), len(tensors)))
+
+                        feed_dict = dict(zip(tensors, batch_val))
+                        result = self.sess.run([self.merged], feed_dict=feed_dict)
+                        summary_str = result[0]
+                        self.writer.add_summary(summary_str, epoch)
+                        i += 1
+                else:
+                    val_data = self.validation_data
+                    tensors = (self.model.inputs +
+                               self.model.targets +
+                               self.model.sample_weights)
+
+                    if self.model.uses_learning_phase:
+                        # fit_generator appended the learning phase to val_data,
+                        # therfore it is appended here to tensors before verifying
+                        # tensors and val_data are equal in size
+                        tensors += [K.learning_phase()]
+                    if not len(val_data) == len(tensors):
+                        raise ValueError('validation_data length ({0}) must be '
+                                         'the same as the sum of the lengths of '
+                                         'the model\'s inputs, targets and '
+                                         'sample_weights ({1}).'.format(
+                                             len(val_data)), len(tensors))
+                    val_size = val_data[0].shape[0]
+                    i = 0
+                    while i < val_size:
+                        step = min(self.batch_size, val_size - i)
+                        if self.model.uses_learning_phase:
+                            # do not slice the learning phase
+                            batch_val = [x[i:i + step] for x in val_data[:-1]]
+                            batch_val.append(val_data[-1])
+                        else:
+                            batch_val = [x[i:i + step] for x in val_data]
+                        assert len(batch_val) == len(tensors)
+                        feed_dict = dict(zip(tensors, batch_val))
+                        result = self.sess.run([self.merged], feed_dict=feed_dict)
+                        summary_str = result[0]
+                        self.writer.add_summary(summary_str, epoch)
+                        i += self.batch_size
 
         if self.embeddings_freq and self.embeddings_ckpt_path:
             if epoch % self.embeddings_freq == 0:
