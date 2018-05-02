@@ -815,7 +815,15 @@ def _need_convert_kernel(original_backend):
     uses_correlation = {'tensorflow': True,
                         'theano': False,
                         'cntk': True}
-    return uses_correlation[original_backend] != uses_correlation[K.backend()]
+    if original_backend not in uses_correlation:
+        # no way of knowing for external backend, so don't convert
+        return False
+    try:
+        current_uses_correlation = uses_correlation[K.backend()]
+    except KeyError:
+        # External backends can report this with K.uses_correlation
+        current_uses_correlation = K.uses_correlation()
+    return uses_correlation[original_backend] != current_uses_correlation
 
 
 def load_weights_from_hdf5_group(f, layers, reshape=False):
