@@ -1236,6 +1236,10 @@ def test_pandas_dataframe():
 
 @keras_test
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
+@pytest.mark.skipif((K.backend() == 'tensorflow' and
+                     not hasattr(K.get_session(),
+                                 '_make_callable_from_options')),
+                    reason='Requires TF 1.8 or higher')
 def test_training_and_eval_methods_on_symbolic_tensors_single_io():
     x = keras.layers.Input(shape=(3,), name='input')
     y = keras.layers.Dense(4, name='dense')(x)
@@ -1261,6 +1265,10 @@ def test_training_and_eval_methods_on_symbolic_tensors_single_io():
 
 @keras_test
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
+@pytest.mark.skipif((K.backend() == 'tensorflow' and
+                     not hasattr(K.get_session(),
+                                 '_make_callable_from_options')),
+                    reason='Requires TF 1.8 or higher')
 def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
     a = keras.layers.Input(shape=(3,), name='input_a')
     b = keras.layers.Input(shape=(3,), name='input_b')
