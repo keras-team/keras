@@ -11,7 +11,7 @@ python deep_dream.py img/mypic.jpg results/dream
 '''
 from __future__ import print_function
 
-from keras.preprocessing.image import load_img, img_to_array
+from keras.preprocessing.image import load_img, save_img, img_to_array
 import numpy as np
 import scipy
 import argparse
@@ -135,11 +135,6 @@ def gradient_ascent(x, iterations, step, max_loss=None):
     return x
 
 
-def save_img(img, fname):
-    pil_img = deprocess_image(np.copy(img))
-    scipy.misc.imsave(fname, pil_img)
-
-
 """Process:
 
 - Load the original image.
@@ -192,4 +187,4 @@ for shape in successive_shapes:
     img += lost_detail
     shrunk_original_img = resize_img(original_img, shape)
 
-save_img(img, fname=result_prefix + '.png')
+save_img(result_prefix + '.png', deprocess_image(np.copy(img)))

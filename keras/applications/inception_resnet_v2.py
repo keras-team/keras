@@ -33,7 +33,7 @@ from ..layers import Input
 from ..layers import Lambda
 from ..layers import MaxPooling2D
 from ..utils.data_utils import get_file
-from ..engine.topology import get_source_inputs
+from ..engine import get_source_inputs
 from . import imagenet_utils
 from .imagenet_utils import _obtain_input_shape
 from .imagenet_utils import decode_predictions

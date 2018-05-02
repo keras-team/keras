@@ -14,7 +14,7 @@ This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
 
 from __future__ import print_function
 from keras import backend as K
-from keras.engine.topology import Layer
+from keras.layers import Layer
 from keras import activations
 from keras import utils
 from keras.datasets import cifar10
