@@ -57,7 +57,7 @@ install:
 
   # install TensorFlow (CPU version).
   - pip install tensorflow
-  
+
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
@@ -95,7 +95,8 @@ install:
   - popd
 
 # command to run tests
-script: travis_wait 20
+script:
+  - "travis_wait 30 sleep 1800 &"
   - export MKL_THREADING_LAYER="GNU"
   # run keras backend init to initialize backend config
   - python -c "import keras.backend"
