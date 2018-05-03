@@ -358,63 +358,6 @@ def test_statefulness():
 
 
 @keras_test
-@pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
-@pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
-@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
-@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
-def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation):
-    input_size = 10
-    timesteps = 6
-    input_shape = (timesteps, input_size)
-    units = 2
-    num_samples = 32
-    inputs = np.random.random((num_samples, timesteps, input_size))
-
-    rnn_layer_kwargs = {
-        'recurrent_activation': 'sigmoid',
-        # ensure biases are non-zero and properly converted
-        'bias_initializer': 'random_uniform',
-        'implementation': implementation
-    }
-    if rnn_type == 'LSTM':
-        rnn_layer_class = keras.layers.LSTM
-        cudnn_rnn_layer_class = keras.layers.CuDNNLSTM
-    else:
-        rnn_layer_class = keras.layers.GRU
-        cudnn_rnn_layer_class = keras.layers.CuDNNGRU
-        rnn_layer_kwargs['reset_after'] = True
-
-    def convert_weights(source_layer, target_layer):
-        weights = source_layer.get_weights()
-        weights = keras.engine.saving.preprocess_weights_for_loading(target_layer, weights)
-        target_layer.set_weights(weights)
-
-    input_layer = keras.layers.InputLayer(input_shape)
-
-    layer = rnn_layer_class(units, **rnn_layer_kwargs)
-    if bidirectional:
-        layer = keras.layers.Bidirectional(layer)
-
-    cudnn_layer = cudnn_rnn_layer_class(units)
-    if bidirectional:
-        cudnn_layer = keras.layers.Bidirectional(cudnn_layer)
-
-    model = keras.models.Sequential([input_layer, layer])
-    cudnn_model = keras.models.Sequential([input_layer, cudnn_layer])
-
-    if to_cudnn:
-        convert_weights(layer, cudnn_layer)
-    else:
-        convert_weights(cudnn_layer, layer)
-
-    assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
-
-
-@keras_test
 @pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
@@ -469,39 +412,6 @@ def test_cudnnrnn_bidirectional():
     model = keras.Model(inputs, outputs)
     model.compile(loss='mse', optimizer='sgd')
     model.fit(x, y, epochs=1, batch_size=1)
-
-
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
-def test_preprocess_weights_for_loading_gru_incompatible():
-    """
-    Loading weights between incompatible layers should fail fast with an exception.
-    """
-    def gru(cudnn=False, **kwargs):
-        layer_class = keras.layers.CuDNNGRU if cudnn else keras.layers.GRU
-        return layer_class(2, input_shape=[3, 5], **kwargs)
-
-    def initialize_weights(layer):
-        # A model is needed to initialize weights.
-        _ = keras.models.Sequential([layer])
-        return layer
-
-    def assert_not_compatible(src, dest, message):
-        with pytest.raises(ValueError) as ex:
-            keras.engine.saving.preprocess_weights_for_loading(
-                dest, initialize_weights(src).get_weights())
-        assert message in ex.value.message
-
-    assert_not_compatible(gru(), gru(cudnn=True),
-                          'GRU(reset_after=False) is not compatible with CuDNNGRU')
-    assert_not_compatible(gru(cudnn=True), gru(),
-                          'CuDNNGRU is not compatible with GRU(reset_after=False)')
-    assert_not_compatible(gru(), gru(reset_after=True),
-                          'GRU(reset_after=False) is not compatible with GRU(reset_after=True)')
-    assert_not_compatible(gru(reset_after=True), gru(),
-                          'GRU(reset_after=True) is not compatible with GRU(reset_after=False)')
 
 
 if __name__ == '__main__':
