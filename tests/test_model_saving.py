@@ -19,6 +19,11 @@ from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
 
 
+skipif_no_tf_gpu = pytest.mark.skipif(
+    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    reason='Requires TensorFlow backend and a GPU')
+
+
 @keras_test
 def test_sequential_model_saving():
     model = Sequential()
@@ -615,8 +620,7 @@ def test_saving_recurrent_layer_without_bias():
 @pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
 @pytest.mark.parametrize('model_nest_level', [1, 2], ids=['model_plain', 'model_nested'])
 @pytest.mark.parametrize('model_type', ['func', 'seq'], ids=['model_func', 'model_seq'])
-@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
-                    reason='Requires TensorFlow backend and a GPU')
+@skipif_no_tf_gpu
 def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation,
                                            model_nest_level, model_type):
     input_size = 10
@@ -688,8 +692,7 @@ def _make_nested_model(input_shape, layer, level=1, model_type='func'):
         return make_nested_seq_model(input_shape, layer, level)
 
 
-@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
-                    reason='Requires TensorFlow backend and a GPU')
+@skipif_no_tf_gpu
 def test_preprocess_weights_for_loading_gru_incompatible():
     """
     Loading weights between incompatible layers should fail fast with an exception.

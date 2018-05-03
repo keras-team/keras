@@ -11,6 +11,11 @@ from keras.models import model_from_json, model_from_yaml
 from keras.utils.test_utils import keras_test
 
 
+skipif_no_tf_gpu = pytest.mark.skipif(
+    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    reason='Requires TensorFlow backend and a GPU')
+
+
 @keras_test
 def test_get_updates_for():
     a = Input(shape=(2,))
@@ -630,8 +635,7 @@ def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, la
     (layers.CuDNNGRU, {'units': 2, 'input_shape': [3, 5]}),
     (layers.CuDNNLSTM, {'units': 2, 'input_shape': [3, 5]}),
 ])
-@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
-                    reason='Requires TensorFlow backend and a GPU')
+@skipif_no_tf_gpu
 def test_preprocess_weights_for_loading_cudnn_rnn_should_be_idempotent(layer_class, layer_args):
     test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args)
 
