@@ -462,6 +462,7 @@ class EarlyStopping(Callback):
 
     # Arguments
         monitor: quantity to be monitored.
+        baseline: baseline value for the monitored quantity to reach
         min_delta: minimum change in the monitored quantity
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
@@ -478,11 +479,12 @@ class EarlyStopping(Callback):
             from the name of the monitored quantity.
     """
 
-    def __init__(self, monitor='val_loss',
+    def __init__(self, monitor='val_loss', baseline=0,
                  min_delta=0, patience=0, verbose=0, mode='auto'):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
+        self.baseline = baseline
         self.patience = patience
         self.verbose = verbose
         self.min_delta = min_delta
@@ -514,7 +516,10 @@ class EarlyStopping(Callback):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+        if self.baseline > 0:
+            self.best = self.baseline
+        else:
+            self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
@@ -537,81 +542,6 @@ class EarlyStopping(Callback):
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
-
-
-class EarlyBaselineStopping(Callback):
-    """Stop training when a monitored quantity has not reached a designated baseline
-
-    # Arguments
-        monitor: quantity to be monitored.
-        baseline: baseline value for the monitored quantity to reach
-        patience: number of epochs for the baseline to be reached.
-        verbose: verbosity mode.
-        mode: one of {auto, above, below}. In `above` mode,
-            training will stop when the quantity
-            monitored is below the baseline; in `below`
-            mode it will stop when the quantity
-            monitored is above the baseline; in `auto`
-            mode, the direction is automatically inferred
-            from the name of the monitored quantity.
-    """
-
-    def __init__(self, monitor='val_loss',
-                 baseline=0, patience=0, verbose=0, mode='auto'):
-        super(EarlyBaselineStopping, self).__init__()
-
-        self.monitor = monitor
-        self.patience = patience
-        self.verbose = verbose
-        self.baseline = baseline
-        self.stopped_epoch = 0
-        self.best = 0
-
-        if mode not in ['auto', 'above', 'below']:
-            warnings.warn('EarlyBaselineStopping mode %s is unknown, '
-                          'fallback to auto mode.' % mode,
-                          RuntimeWarning)
-            mode = 'auto'
-
-        if mode == 'below':
-            self.monitor_op = np.less
-        elif mode == 'above':
-            self.monitor_op = np.greater
-        else:
-            if 'acc' in self.monitor:
-                self.monitor_op = np.greater
-            else:
-                self.monitor_op = np.less
-
-    def on_train_begin(self, logs=None):
-        # Allow instances to be re-used
-        self.stopped_epoch = 0
-
-    def on_epoch_end(self, epoch, logs=None):
-        current = logs.get(self.monitor)
-        if current is None:
-            warnings.warn(
-                'Early baseline stopping conditioned on metric `%s` '
-                'which is not available. Available metrics are: %s' %
-                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
-            )
-            return
-        if (epoch + 1) <= self.patience:
-            if epoch == 0:
-                self.best = current
-            elif (epoch + 1) == self.patience:
-                if self.monitor_op(current, self.best):
-                    self.best = current
-                if not self.monitor_op(self.best, self.baseline):
-                    self.stopped_epoch = epoch
-                    self.model.stop_training = True
-            else:
-                if self.monitor_op(current, self.best):
-                    self.best = current
-
-    def on_train_end(self, logs=None):
-        if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early baseline stopping' % (self.stopped_epoch + 1))
 
 
 class RemoteMonitor(Callback):
