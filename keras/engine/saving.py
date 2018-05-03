@@ -477,8 +477,7 @@ def preprocess_weights_for_loading(layer, weights,
                                    original_keras_version=None,
                                    original_backend=None,
                                    reshape=False):
-    """Converts layers weights from Keras 1 format to Keras 2
-    and also weights of CuDNN layers in Keras 2.
+    """Converts layers weights from Keras 1 format to Keras 2 and also weights of CuDNN layers in Keras 2.
 
     # Arguments
         layer: Layer instance.
@@ -493,10 +492,12 @@ def preprocess_weights_for_loading(layer, weights,
         A list of weights values (Numpy arrays).
     """
     def convert_nested_bidirectional(weights):
-        """
-        Converts layers nested in `Bidirectional` wrapper by `preprocess_weights_for_loading()`.
-        :param weights: list of of numpy arrays
-        :return: converted list of of numpy arrays
+        """Converts layers nested in `Bidirectional` wrapper by `preprocess_weights_for_loading()`.
+
+        # Arguments
+            weights: List of weights values (Numpy arrays).
+        # Returns
+            A list of weights values (Numpy arrays).
         """
         num_weights_per_layer = len(weights) // 2
         forward_weights = preprocess_weights_for_loading(layer.forward_layer,
@@ -510,10 +511,12 @@ def preprocess_weights_for_loading(layer, weights,
         return forward_weights + backward_weights
 
     def convert_nested_model(weights):
-        """
-        Converts layers nested in `Model` or `Sequential` by `preprocess_weights_for_loading()`.
-        :param weights: list of of numpy arrays
-        :return: converted list of of numpy arrays
+        """Converts layers nested in `Model` or `Sequential` by `preprocess_weights_for_loading()`.
+        
+        # Arguments
+            weights: List of weights values (Numpy arrays).
+        # Returns
+            A list of weights values (Numpy arrays).
         """
         new_weights = []
         # trainable weights
