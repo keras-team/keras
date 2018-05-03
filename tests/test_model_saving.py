@@ -613,11 +613,14 @@ def test_saving_recurrent_layer_without_bias():
 @pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
 @pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
 @pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
+@pytest.mark.parametrize('model_nest_level', [1, 2], ids=['model_plain', 'model_nested'])
+@pytest.mark.parametrize('model_type', ['func', 'seq'], ids=['model_func', 'model_seq'])
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 @pytest.mark.skipif(not K.tensorflow_backend._get_available_gpus(),
                     reason='Requires GPU')
-def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation):
+def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation,
+                                           model_nest_level, model_type):
     input_size = 10
     timesteps = 6
     input_shape = (timesteps, input_size)
@@ -639,12 +642,11 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
         cudnn_rnn_layer_class = CuDNNGRU
         rnn_layer_kwargs['reset_after'] = True
 
-    def convert_weights(source_layer, target_layer):
-        weights = source_layer.get_weights()
-        weights = preprocess_weights_for_loading(target_layer, weights)
-        target_layer.set_weights(weights)
-
-    input_layer = InputLayer(input_shape)
+    def convert_model(source_model, target_model):
+        _, fname = tempfile.mkstemp('.h5')
+        source_model.save_weights(fname)
+        target_model.load_weights(fname)
+        os.remove(fname)
 
     layer = rnn_layer_class(units, **rnn_layer_kwargs)
     if bidirectional:
@@ -654,15 +656,38 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
     if bidirectional:
         cudnn_layer = Bidirectional(cudnn_layer)
 
-    model = Sequential([input_layer, layer])
-    cudnn_model = Sequential([input_layer, cudnn_layer])
+    model = _make_nested_model(input_shape, layer, model_nest_level, model_type)
+    cudnn_model = _make_nested_model(input_shape, cudnn_layer, model_nest_level, model_type)
 
     if to_cudnn:
-        convert_weights(layer, cudnn_layer)
+        convert_model(model, cudnn_model)
     else:
-        convert_weights(cudnn_layer, layer)
+        convert_model(cudnn_model, model)
 
     assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
+
+
+def _make_nested_model(input_shape, layer, level=1, model_type='func'):
+    # example: make_nested_seq_model((1,), Dense(10), level=2).summary()
+    def make_nested_seq_model(input_shape, layer, level=1):
+        model = layer
+        for i in range(1, level + 1):
+            layers = [InputLayer(input_shape), model] if (i == 1) else [model]
+            model = Sequential(layers)
+        return model
+
+    # example: make_nested_func_model((1,), Dense(10), level=2).summary()
+    def make_nested_func_model(input_shape, layer, level=1):
+        input = Input(input_shape)
+        model = layer
+        for i in range(level):
+            model = Model(input, model(input))
+        return model
+
+    if model_type == 'func':
+        return make_nested_func_model(input_shape, layer, level)
+    elif model_type == 'seq':
+        return make_nested_seq_model(input_shape, layer, level)
 
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
