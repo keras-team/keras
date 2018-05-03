@@ -2,16 +2,15 @@ import pytest
 import numpy as np
 from numpy.testing import assert_allclose
 import keras
+import keras.backend as K
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 import time
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_cudnn_rnn_canonical_to_params_lstm():
     units = 1
     input_size = 1
@@ -69,10 +68,8 @@ def test_cudnn_rnn_canonical_to_params_lstm():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_cudnn_rnn_canonical_to_params_gru():
     units = 7
     input_size = 9
@@ -123,10 +120,8 @@ def test_cudnn_rnn_canonical_to_params_gru():
 
 @keras_test
 @pytest.mark.parametrize('rnn_type', ['lstm', 'gru'], ids=['LSTM', 'GRU'])
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_cudnn_rnn_timing(rnn_type):
     input_size = 1000
     timesteps = 60
@@ -164,10 +159,8 @@ def test_cudnn_rnn_timing(rnn_type):
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_cudnn_rnn_basics():
     input_size = 10
     timesteps = 6
@@ -195,10 +188,8 @@ def test_cudnn_rnn_basics():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_trainability():
     input_size = 10
     units = 2
@@ -219,10 +210,8 @@ def test_trainability():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_regularizer():
     input_size = 10
     timesteps = 6
@@ -249,10 +238,8 @@ def test_regularizer():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_return_state():
     input_size = 10
     timesteps = 6
@@ -276,10 +263,8 @@ def test_return_state():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_specify_initial_state_keras_tensor():
     input_size = 10
     timesteps = 6
@@ -308,10 +293,8 @@ def test_specify_initial_state_keras_tensor():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_statefulness():
     input_size = 10
     timesteps = 6
@@ -358,10 +341,8 @@ def test_statefulness():
 
 
 @keras_test
-@pytest.mark.skipif((keras.backend.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-@pytest.mark.skipif(not keras.backend.tensorflow_backend._get_available_gpus(),
-                    reason='Requires GPU')
+@pytest.mark.skipif((K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+                    reason='Requires TensorFlow backend and a GPU')
 def test_cudnnrnn_bidirectional():
     rnn = keras.layers.CuDNNGRU
     samples = 2
