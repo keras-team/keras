@@ -687,8 +687,7 @@ class TensorBoard(Callback):
             files to be parsed by TensorBoard.
         histogram_freq: frequency (in epochs) at which to compute activation
             and weight histograms for the layers of the model. If set to 0,
-            histograms won't be computed. Validation data (or split) must be
-            specified for histogram visualizations.
+            histograms won't be computed.
         write_graph: whether to visualize the graph in TensorBoard.
             The log file can become quite large when
             write_graph is set to True.
@@ -717,7 +716,7 @@ class TensorBoard(Callback):
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
-                 batch_size=32,
+                 batch_size=None,
                  write_graph=True,
                  write_grads=False,
                  write_images=False,
@@ -760,8 +759,11 @@ class TensorBoard(Callback):
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
-        self.batch_size = batch_size
         self.embeddings_data = embeddings_data
+        if batch_size is not None:
+            warnings.warn('`batch_size` argument is deprecated and is ignored,'
+                          ' the batch_size that was given for fitting the '
+                          'model will be used instead.')
 
     def set_model(self, model):
         self.model = model
@@ -881,44 +883,24 @@ class TensorBoard(Callback):
 
             projector.visualize_embeddings(self.writer, config)
 
+    def on_epoch_begin(self, epoch, logs=None):
+        if self.model.test_function is None:
+            return
+        self.model.test_function._epoch = epoch
+        self.model.test_function._writer = self.writer
+        if self.histogram_freq and epoch % self.histogram_freq == 0:
+            self.model.test_function._merged_summaries = self.merged
+        else:
+            self.model.test_function._merged_summaries = None
+
     def on_epoch_end(self, epoch, logs=None):
+        if self.model.test_function is None:
+            return
         logs = logs or {}
 
-        if not self.validation_data and self.histogram_freq:
-            raise ValueError("If printing histograms, validation_data must be "
-                             "provided, and cannot be a generator.")
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError("To visualize embeddings, embeddings_data must "
                              "be provided.")
-        if self.validation_data and self.histogram_freq:
-            if epoch % self.histogram_freq == 0:
-
-                val_data = self.validation_data
-                tensors = (self.model.inputs +
-                           self.model.targets +
-                           self.model.sample_weights)
-
-                if self.model.uses_learning_phase:
-                    tensors += [K.learning_phase()]
-
-                assert len(val_data) == len(tensors)
-                val_size = val_data[0].shape[0]
-                i = 0
-                while i < val_size:
-                    step = min(self.batch_size, val_size - i)
-                    if self.model.uses_learning_phase:
-                        # do not slice the learning phase
-                        batch_val = [x[i:i + step] for x in val_data[:-1]]
-                        batch_val.append(val_data[-1])
-                    else:
-                        batch_val = [x[i:i + step] for x in val_data]
-                    assert len(batch_val) == len(tensors)
-                    feed_dict = dict(zip(tensors, batch_val))
-                    result = self.sess.run([self.merged], feed_dict=feed_dict)
-                    summary_str = result[0]
-                    self.writer.add_summary(summary_str, epoch)
-                    i += self.batch_size
-
         if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
                 # We need a second forward-pass here because we're passing
@@ -969,6 +951,7 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
+        self.model.test_function._merged_summaries = None
 
     def on_train_end(self, _):
         self.writer.close()

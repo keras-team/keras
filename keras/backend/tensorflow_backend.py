@@ -2551,6 +2551,7 @@ class Function(object):
                              'supported at this '
                              'time: %s', session_kwargs.keys())
         self._callable_fn = None
+        self._merged_summaries = None
         self._feed_arrays = None
         self._feed_symbols = None
         self._symbol_vals = None
@@ -2591,6 +2592,8 @@ class Function(object):
         # Handle fetches.
         for x in self.outputs + self.fetches:
             callable_opts.fetch.append(x.name)
+        if self._merged_summaries is not None:
+            callable_opts.fetch.append(self._merged_summaries.name)
         # Handle updates.
         callable_opts.target.append(self.updates_op.name)
         # Create callable.
@@ -2644,6 +2647,10 @@ class Function(object):
                                 symbol_vals,
                                 session)
         fetched = self._callable_fn(*array_vals)
+        if self._merged_summaries is not None:
+            # self._writer and self._merged_summaries and self._epoch
+            # are assigned by TensorBaord callback
+            self._writer.add_summary(fetched[-1], self._epoch)
         return fetched[:len(self.outputs)]
 
     def _legacy_call(self, inputs):
@@ -2659,9 +2666,15 @@ class Function(object):
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
         fetches = self.outputs + [self.updates_op] + self.fetches
+        if self._merged_summaries is not None:
+            fetches.append(self._merged_summaries)
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
+        if self._merged_summaries is not None:
+            # self._writer and self._merged_summaries and self._epoch
+            # are assigned by TensorBaord callback
+            self._writer.add_summary(updated[-1], self._epoch)
         return updated[:len(self.outputs)]
 
     def __call__(self, inputs):

@@ -121,7 +121,6 @@ def fit_loop(model, f, ins,
         'steps': steps_per_epoch,
         'samples': num_train_samples,
         'verbose': verbose,
-        'do_validation': do_validation,
         'metrics': callback_metrics or [],
     })
     callbacks.on_train_begin()
