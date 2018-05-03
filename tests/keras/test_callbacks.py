@@ -285,6 +285,7 @@ def test_EarlyStopping_patience():
 
     assert epochs_trained == 3
 
+
 @keras_test
 def test_EarlyStopping_baseline():
     class DummyModel(object):
