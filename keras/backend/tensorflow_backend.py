@@ -10,6 +10,7 @@ from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
 from tensorflow.python.client import device_lib
+from tensorflow.core.protobuf import config_pb2
 
 from collections import defaultdict
 
@@ -2437,11 +2438,15 @@ class Function(object):
         outputs: Output tensors to fetch.
         updates: Additional update ops to be run at function call.
         name: a name to help users identify what this function does.
-        session_kwargs: arguments to `tf.Session.run()`: `fetches`, `feed_dict`,
-        `options`, `run_metadata`
+        session_kwargs: arguments to `tf.Session.run()`:
+            `fetches`, `feed_dict`,
+            `options`, `run_metadata`
     """
 
-    def __init__(self, inputs, outputs, updates=None, name=None, **session_kwargs):
+    def __init__(self, inputs, outputs,
+                 updates=None,
+                 name=None,
+                 **session_kwargs):
         updates = updates or []
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` to a TensorFlow backend function '
@@ -2471,17 +2476,122 @@ class Function(object):
         self.fetches = session_kwargs.pop('fetches', [])
         if not isinstance(self.fetches, list):
             self.fetches = [self.fetches]
+        # The main use case of `fetches` being passed to a model is the ability
+        # to run custom updates
+        # (since the outputs of fetches are never returned).
+        # This requires us to wrap fetches in `identity` ops.
+        self.fetches = [tf.identity(x) for x in self.fetches]
         self.session_kwargs = session_kwargs
+        if session_kwargs:
+            raise ValueError('Some keys in session_kwargs are not '
+                             'supported at this '
+                             'time: %s', session_kwargs.keys())
+        self._callable_fn = None
+        self._feed_arrays = None
+        self._feed_symbols = None
+        self._symbol_vals = None
+        self._session = None
 
-    def __call__(self, inputs):
+    def _make_callable(self, feed_arrays, feed_symbols, symbol_vals, session):
+        """Generates a callable that runs the graph.
+
+        # Arguments
+            feed_arrays: List of input tensors to be fed
+                Numpy arrays at runtime.
+            feed_symbols: List of input tensors to be fed
+                symbolic tensors at runtime.
+            symbol_vals: List of symbolic tensors to be fed to `feed_symbols`.
+            session: Session to use to generate the callable.
+
+        # Returns
+            Function that runs the graph according to the above options.
+        """
+        # Prepare callable options.
+        callable_opts = config_pb2.CallableOptions()
+        # Handle external-data feed.
+        for x in feed_arrays:
+            callable_opts.feed.append(x.name)
+        if self.feed_dict:
+            for key in sorted(self.feed_dict.keys()):
+                callable_opts.feed.append(key.name)
+        # Handle symbolic feed.
+        for x, y in zip(feed_symbols, symbol_vals):
+            connection = callable_opts.tensor_connection.add()
+            if x.dtype != y.dtype:
+                y = tf.cast(y, dtype=x.dtype)
+            from_tensor = tf_ops._as_graph_element(y)
+            if from_tensor is None:
+                from_tensor = y
+            connection.from_tensor = from_tensor.name  # Data tensor
+            connection.to_tensor = x.name  # Placeholder
+        # Handle fetches.
+        for x in self.outputs + self.fetches:
+            callable_opts.fetch.append(x.name)
+        # Handle updates.
+        callable_opts.target.append(self.updates_op.name)
+        # Create callable.
+        callable_fn = session._make_callable_from_options(callable_opts)
+        # Cache parameters corresponding to the generated callable, so that
+        # we can detect future mismatches and refresh the callable.
+        self._callable_fn = callable_fn
+        self._feed_arrays = feed_arrays
+        self._feed_symbols = feed_symbols
+        self._symbol_vals = symbol_vals
+        self._session = session
+
+    def _call(self, inputs):
+        if not isinstance(inputs, (list, tuple)):
+            raise TypeError('`inputs` should be a list or tuple.')
+
+        session = get_session()
+        feed_arrays = []
+        array_vals = []
+        feed_symbols = []
+        symbol_vals = []
+        for tensor, value in zip(self.inputs, inputs):
+            if value is None:
+                continue
+            if is_tensor(value):
+                # Case: feeding symbolic tensor.
+                feed_symbols.append(tensor)
+                symbol_vals.append(value)
+            else:
+                feed_arrays.append(tensor)
+                # We need to do array conversion and type casting
+                # at this level, since
+                # `callable_fn` only supports exact matches.
+                array_vals.append(
+                    np.asarray(value,
+                               dtype=tensor.dtype.base_dtype.name))
+        if self.feed_dict:
+            for key in sorted(self.feed_dict.keys()):
+                array_vals.append(
+                    np.asarray(self.feed_dict[key],
+                               dtype=key.dtype.base_dtype.name))
+
+        # Refresh callable if anything has changed.
+        if (self._callable_fn is None or
+                feed_arrays != self._feed_arrays or
+                symbol_vals != self._symbol_vals or
+                feed_symbols != self._feed_symbols or
+                session != self._session):
+            self._make_callable(feed_arrays,
+                                feed_symbols,
+                                symbol_vals,
+                                session)
+        fetched = self._callable_fn(*array_vals)
+        return fetched[:len(self.outputs)]
+
+    def _legacy_call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
         feed_dict = self.feed_dict.copy()
         for tensor, value in zip(self.inputs, inputs):
             if is_sparse(tensor):
                 sparse_coo = value.tocoo()
-                indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
-                                          np.expand_dims(sparse_coo.col, 1)), 1)
+                indices = np.concatenate(
+                    (np.expand_dims(sparse_coo.row, 1),
+                     np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
         fetches = self.outputs + [self.updates_op] + self.fetches
@@ -2489,6 +2599,23 @@ class Function(object):
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
         return updated[:len(self.outputs)]
+
+    def __call__(self, inputs):
+        if hasattr(get_session(), '_make_callable_from_options'):
+            if py_any(is_sparse(x) for x in self.inputs):
+                if py_any(is_tensor(x) for x in inputs):
+                    raise ValueError(
+                        'Feeding from symbolic tensors is not '
+                        'supported with sparse inputs.')
+                return self._legacy_call(inputs)
+
+            return self._call(inputs)
+        else:
+            if py_any(is_tensor(x) for x in inputs):
+                raise ValueError(
+                    'In order to feed symbolic tensors to a Keras model '
+                    'in TensorFlow, you need tensorflow 1.8 or higher.')
+            return self._legacy_call(inputs)
 
 
 def function(inputs, outputs, updates=None, **kwargs):
