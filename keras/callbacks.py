@@ -462,6 +462,7 @@ class EarlyStopping(Callback):
 
     # Arguments
         monitor: quantity to be monitored.
+        baseline: baseline value for the monitored quantity to reach
         min_delta: minimum change in the monitored quantity
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
@@ -478,11 +479,12 @@ class EarlyStopping(Callback):
             from the name of the monitored quantity.
     """
 
-    def __init__(self, monitor='val_loss',
+    def __init__(self, monitor='val_loss', baseline=0,
                  min_delta=0, patience=0, verbose=0, mode='auto'):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
+        self.baseline = baseline
         self.patience = patience
         self.verbose = verbose
         self.min_delta = min_delta
@@ -514,7 +516,10 @@ class EarlyStopping(Callback):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+        if self.baseline > 0:
+            self.best = self.baseline
+        else:
+            self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
