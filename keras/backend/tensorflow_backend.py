@@ -2871,7 +2871,10 @@ def rnn(step_function, inputs, initial_states,
                 tiled_mask_t = tf.tile(mask_t,
                                        tf.stack([1, tf.shape(output)[1]]))
                 output = tf.where(tiled_mask_t, output, states[0])
-                new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
+                new_states = [
+                    tf.where(tf.tile(mask_t, tf.stack([1, tf.shape(new_states[i])[1]])),
+                             new_states[i], states[i]) for i in range(len(states))
+                ]
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:
