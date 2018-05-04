@@ -569,8 +569,7 @@ class TestBackend(object):
         ]
 
         for (i, kwargs) in enumerate(kwargs_list):
-            last_y1, y1, [h1, _] = reference_operations.rnn(
-                x, [wi, wh, None, None, None, None], [h0, None], **kwargs)
+            last_y1, y1, h1 = reference_operations.rnn(x, [wi, wh, None], h0, **kwargs)
             last_y2, y2, h2 = K.rnn(rnn_fn, x_k, h0_k, **kwargs)
 
             assert len(h2) == 1
@@ -600,93 +599,6 @@ class TestBackend(object):
                 assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
                 assert_allclose(state_list[i - 1], state_list[i], atol=1e-05)
 
-    def test_rnn_additional_states(self):
-        # implement a simple RNN with an additional state
-        # whose shape is different from that of the output
-        num_samples = 4
-        input_dim = 5
-        output_dim = 3
-        state_dim = 7
-        timesteps = 6
-
-        _, x = parse_shape_or_val((num_samples, timesteps, input_dim))
-        _, h0 = parse_shape_or_val((num_samples, output_dim))
-        _, s0 = parse_shape_or_val((num_samples, state_dim))
-        _, wi = parse_shape_or_val((input_dim, output_dim))
-        _, wh = parse_shape_or_val((output_dim, output_dim))
-        _, ws = parse_shape_or_val((state_dim, output_dim))
-        _, wxs = parse_shape_or_val((input_dim, state_dim))
-        _, wss = parse_shape_or_val((state_dim, state_dim))
-        mask = np.random.randint(2, size=(num_samples, timesteps))
-
-        x_k = K.variable(x)
-        hs0_k = [K.variable(h0), K.variable(s0)]
-        wi_k = K.variable(wi)
-        wh_k = K.variable(wh)
-        ws_k = K.variable(ws)
-        wxs_k = K.variable(wxs)
-        wss_k = K.variable(wss)
-        mask_k = K.variable(mask)
-
-        def rnn_fn(x_k, hs_k):
-            assert len(hs_k) == 2
-            h_k1, s_k1 = hs_k
-            y_k = K.dot(x_k, wi_k) + K.dot(h_k1, wh_k) + K.dot(s_k1, ws_k)
-            s_k = K.dot(x_k, wxs_k) + K.dot(s_k1, wss_k)
-            return y_k, [y_k, s_k]
-
-        # test default setup
-        last_output_list = []
-        outputs_list = []
-        state_list = []
-
-        kwargs_list = [
-            {'go_backwards': False, 'mask': None},
-            {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
-            {'go_backwards': True, 'mask': None},
-            {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
-            {'go_backwards': False, 'mask': mask_k},
-            {'go_backwards': False, 'mask': mask_k, 'unroll': True, 'input_length': timesteps},
-        ]
-
-        for (i, kwargs) in enumerate(kwargs_list):
-            last_y1, y1, [h1, s1] = reference_operations.rnn(
-                x, [wi, wh, None, ws, wxs, wss], [h0, s0], **kwargs)
-            last_y2, y2, hs2 = K.rnn(rnn_fn, x_k, hs0_k, **kwargs)
-
-            assert len(hs2) == 2
-            last_y2 = K.eval(last_y2)
-            y2 = K.eval(y2)
-            h1 = h1[:, -1]
-            s1 = s1[:, -1]
-            h2 = K.eval(hs2[0])
-            s2 = K.eval(hs2[1])
-
-            if kwargs['mask'] is not None:
-                last_y1 = last_y1 * np.expand_dims(mask[:, -1], -1)
-                last_y2 = last_y2 * np.expand_dims(mask[:, -1], -1)
-                y1 = y1 * np.expand_dims(mask, -1)
-                y2 = y2 * np.expand_dims(mask, -1)
-                h1 = h1 * np.expand_dims(mask[:, -1], -1)
-                h2 = h2 * np.expand_dims(mask[:, -1], -1)
-                s1 = s1 * np.expand_dims(mask[:, -1], -1)
-                s2 = s2 * np.expand_dims(mask[:, -1], -1)
-
-            last_output_list.append(last_y2)
-            outputs_list.append(y2)
-            state_list.append([h2, s2])
-
-            if i % 2 == 0:
-                assert_allclose(last_y1, last_y2, atol=1e-05)
-                assert_allclose(y1, y2, atol=1e-05)
-                assert_allclose(h1, h2, atol=1e-05)
-                assert_allclose(s1, s2, atol=1e-05)
-            else:
-                assert_allclose(last_output_list[i - 1], last_output_list[i], atol=1e-05)
-                assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
-                for state_i1, state_i in zip(state_list[i - 1], state_list[i]):
-                    assert_allclose(state_i1, state_i, atol=1e-05)
-
     def test_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
@@ -704,8 +616,8 @@ class TestBackend(object):
             y_k = K.dot(x_k, wi_k)
             return y_k, []
 
-        last_y1, y1, [h1, _] = reference_operations.rnn(
-            x, [wi, None, None, None, None, None], [None, None], go_backwards=False, mask=None)
+        last_y1, y1, h1 = reference_operations.rnn(x, [wi, None, None], None,
+                                                   go_backwards=False, mask=None)
         last_y2, y2, h2 = K.rnn(rnn_fn, x_k, [],
                                 go_backwards=False, mask=None)
 

@@ -126,13 +126,8 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
 
 
 def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
-    # Test these recurrent equations:
-    # h_t = w_o( x_{t} w_i + h_{t-1} w_h + s_{t-1} w_s )
-    # s_t = x_{t} w_xs + s_{t-1} w_ss
-    w_i, w_h, w_o, w_s, w_xs, w_ss = w
-    h_init, s_init = init
+    w_i, w_h, w_o = w
     h = []
-    s = []
     o = []
 
     if go_backwards:
@@ -150,48 +145,20 @@ def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=No
         h_t = np.dot(x[:, t], w_i)
 
         if w_h is not None:
-            h_prev = h[i - 1] if i > 0 else h_init
-            h_t1 = np.dot(h_prev, w_h)
+            prev = h[i - 1] if i > 0 else init
+            h_t1 = np.dot(prev, w_h)
             if np_mask is not None:
-                h_t1[np_mask[:, t] == 0] = h_prev[np_mask[:, t] == 0]
+                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
         else:
             h_t1 = 0
-        if w_s is not None:
-            s_prev = s[i - 1] if i > 0 else s_init
-            s_t1 = np.dot(s_prev, w_s)
-            if np_mask is not None:
-                s_t1 = s_t1 * np_mask[:, t].reshape(-1, 1)
-        else:
-            s_t1 = 0
+
+        o_t = h_t + h_t1
+        if w_o is not None:
+            o_t = np.dot(o_t, w_o)
+        o.append(o_t)
 
         if np_mask is not None:
             h_t = h_t * np_mask[:, t].reshape(-1, 1)
-        h_t = h_t + h_t1 + s_t1
-        h.append(h_t)
+        h.append(h_t + h_t1)
 
-        if w_o is not None:
-            o_t = np.dot(h_t, w_o)
-        else:
-            o_t = h_t
-        o.append(o_t)
-
-        if w_xs is not None:
-            s_t = np.dot(x[:, t], w_xs)
-            if np_mask is not None:
-                s_t = s_t * np_mask[:, t].reshape(-1, 1)
-            if w_ss is not None:
-                s_prev = s[i - 1] if i > 0 else s_init
-                s_t1 = np.dot(s_prev, w_ss)
-                if np_mask is not None:
-                    s_t1[np_mask[:, t] == 0] = s_prev[np_mask[:, t] == 0]
-            else:
-                s_t1 = 0
-            s_t = s_t + s_t1
-            s.append(s_t)
-
-    if w_xs is None:
-        stacked_s = None
-    else:
-        stacked_s = np.stack(s, axis=1)
-
-    return o[-1], np.stack(o, axis=1), [np.stack(h, axis=1), stacked_s]
+    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
