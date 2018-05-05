@@ -1,14 +1,16 @@
 '''Example of VAE on MNIST dataset using CNN
 
-This VAE has a modular design. The encoder, decoder and vae
-are 3 models that share weights. After training vae,
+VAE has a modular design. The encoder, decoder and VAE
+are 3 models that share weights. After training the VAE model,
 the encoder can be used to  generate latent vectors.
 The decoder can be used to generate MNIST digits by sampling the
-latent vector from a gaussian dist with mean=0 and std=1.
+latent vector from a Gaussian distribution with mean=0 and std=1.
+
+#Reference
 
 [1] Kingma, Diederik P., and Max Welling.
 "Auto-encoding variational bayes."
-arXiv preprint arXiv:1312.6114 (2013).
+https://arxiv.org/abs/1312.6114
 '''
 
 from __future__ import absolute_import
@@ -34,14 +36,13 @@ import os
 # instead of sampling from Q(z|X), sample eps = N(0,I)
 # then z = z_mean + sqrt(var)*eps
 def sampling(args):
-    """Implements reparameterization trick by sampling
-    from a gaussian with zero mean and std=1.
+    """Reparameterization trick by sampling fr an isotropic unit Gaussian.
 
     Arguments:
         args (tensor): mean and log of variance of Q(z|X)
 
     Returns:
-        sampled latent vector (tensor)
+        z (tensor): sampled latent vector
     """
 
     z_mean, z_log_var = args
@@ -56,14 +57,16 @@ def plot_results(models,
                  data,
                  batch_size=128,
                  model_name="vae_mnist"):
-    """Plots 2-dim mean values of Q(z|X) using labels as color gradient
-        then, plot MNIST digits as function of 2-dim latent vector
+    """Plots labels and MNIST digits as function of 2-dim latent vector
 
     Arguments:
         models (list): encoder and decoder models
         data (list): test data and label
         batch_size (int): prediction batch size
         model_name (string): which model is using this function
+
+    Returns:
+        none
     """
 
     encoder, decoder = models
