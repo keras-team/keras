@@ -915,7 +915,7 @@ class ImageDataGenerator(object):
                  `"hamming"` are also supported. By default, `"nearest"` is used.
 
         # Returns
-            A DirectoryIterator yielding tuples of `(x, y)` where `x` is a numpy array containing a batch
+            A DataframeIterator yielding tuples of `(x, y)` where `x` is a numpy array containing a batch
             of images with shape `(batch_size, *target_size, channels)` and `y` is a numpy array of corresponding labels.
         """
         return DataframeIterator(
