@@ -1887,6 +1887,9 @@ class DataframeIterator(Iterator):
             self.classes = self.classes.values.reshape((self.samples,))
         elif (classes is None) and (class_mode == "other"):
             self.data = self.df[y_col].values
+            print('Found %d images in the dataframe.(class_mode is "other")'
+                  % (self.samples))
+
         elif (classes is not None) and (class_mode == "other"):
             raise ValueError('If class_mode is set to "other",'
                              'classes cannot be set.')
