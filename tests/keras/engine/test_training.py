@@ -1234,5 +1234,132 @@ def test_pandas_dataframe():
                           [output_a_df, output_b_df])
 
 
+@keras_test
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
+@pytest.mark.skipif((K.backend() == 'tensorflow' and
+                     not hasattr(K.get_session(),
+                                 '_make_callable_from_options')),
+                    reason='Requires TF 1.8 or higher')
+def test_training_and_eval_methods_on_symbolic_tensors_single_io():
+    x = keras.layers.Input(shape=(3,), name='input')
+    y = keras.layers.Dense(4, name='dense')(x)
+    model = keras.Model(x, y)
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    metrics = ['mae']
+    model.compile(optimizer, loss, metrics=metrics)
+
+    inputs = keras.backend.zeros(shape=(10, 3))
+    targets = keras.backend.zeros(shape=(10, 4))
+
+    model.fit(inputs, targets, epochs=1, steps_per_epoch=2, verbose=0)
+    model.evaluate(inputs, targets, steps=2, verbose=0)
+    model.predict(inputs, steps=2)
+    model.train_on_batch(inputs, targets)
+    model.test_on_batch(inputs, targets)
+    model.fit(inputs, targets,
+              epochs=1, steps_per_epoch=2, verbose=1,
+              validation_data=(inputs, targets), validation_steps=2)
+
+
+@keras_test
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
+@pytest.mark.skipif((K.backend() == 'tensorflow' and
+                     not hasattr(K.get_session(),
+                                 '_make_callable_from_options')),
+                    reason='Requires TF 1.8 or higher')
+def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
+    a = keras.layers.Input(shape=(3,), name='input_a')
+    b = keras.layers.Input(shape=(3,), name='input_b')
+
+    dense = keras.layers.Dense(4, name='dense')
+    c = dense(a)
+    d = dense(b)
+    e = keras.layers.Dropout(0.5, name='dropout')(c)
+
+    model = keras.models.Model([a, b], [d, e])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    metrics = ['mae']
+    model.compile(optimizer, loss, metrics=metrics, loss_weights=loss_weights)
+
+    input_a_tf = keras.backend.zeros(shape=(10, 3))
+    input_b_tf = keras.backend.zeros(shape=(10, 3))
+
+    output_d_tf = keras.backend.zeros(shape=(10, 4))
+    output_e_tf = keras.backend.zeros(shape=(10, 4))
+
+    model.fit(
+        [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+        epochs=1,
+        steps_per_epoch=2,
+        verbose=0)
+    with pytest.raises(ValueError) as excinfo:
+        model.fit(
+            [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+            epochs=1,
+            batch_size=5,
+            verbose=0)
+    assert 'should specify the `steps_per_epoch`' in str(excinfo.value)
+    model.train_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
+
+    # Test with dictionary inputs
+    model.fit(
+        {'input_a': input_a_tf,
+         'input_b': input_b_tf},
+        {'dense': output_d_tf,
+         'dropout': output_e_tf},
+        epochs=1,
+        steps_per_epoch=2,
+        verbose=0)
+    model.fit(
+        {'input_a': input_a_tf,
+         'input_b': input_b_tf},
+        {'dense': output_d_tf,
+         'dropout': output_e_tf},
+        validation_data=({'input_a': input_a_tf,
+                          'input_b': input_b_tf},
+                         {'dense': output_d_tf,
+                          'dropout': output_e_tf}),
+        epochs=1,
+        steps_per_epoch=2,
+        validation_steps=2,
+        verbose=0)
+    model.train_on_batch(
+        {'input_a': input_a_tf,
+         'input_b': input_b_tf},
+        {'dense': output_d_tf,
+         'dropout': output_e_tf})
+
+    # Test with validation data
+    model.fit(
+        [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+        validation_data=([input_a_tf, input_b_tf],
+                         [output_d_tf, output_e_tf]),
+        epochs=1,
+        steps_per_epoch=2,
+        validation_steps=2,
+        verbose=0)
+    # Test with validation split
+    with pytest.raises(ValueError) as excinfo:
+        model.fit(
+            [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+            epochs=2,
+            steps_per_epoch=2,
+            verbose=0,
+            validation_split=0.2,
+            validation_steps=2)
+    assert 'you cannot use `validation_split`' in str(excinfo.value)
+
+    # Test evaluation / prediction methods
+    model.evaluate([input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+                   steps=2, verbose=0)
+    model.predict([input_a_tf, input_b_tf], steps=2)
+    model.test_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

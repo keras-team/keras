@@ -974,9 +974,13 @@ class Model(Network):
                 val_ins = val_x + val_y + val_sample_weights
 
         elif validation_split and 0. < validation_split < 1.:
+            if any(K.is_tensor(t) for t in x):
+                raise ValueError(
+                    'If your data is in the form of symbolic tensors, '
+                    'you cannot use `validation_split`.')
             do_validation = True
             if hasattr(x[0], 'shape'):
-                split_at = int(x[0].shape[0] * (1. - validation_split))
+                split_at = int(int(x[0].shape[0]) * (1. - validation_split))
             else:
                 split_at = int(len(x[0]) * (1. - validation_split))
             x, val_x = (slice_arrays(x, 0, split_at),

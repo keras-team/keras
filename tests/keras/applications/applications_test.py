@@ -144,6 +144,14 @@ def test_mobilenet():
     _test_app_pooling(app, last_dim)
 
 
+def test_mobilenetv2():
+    app = applications.MobileNetV2
+    last_dim = 1280
+    _test_application_basic(app)
+    _test_application_notop(app, last_dim)
+    _test_application_variable_input_channels(app, last_dim)
+
+
 def test_densenet():
     app, last_dim = random.choice(DENSENET_LIST)
     _test_application_basic(app)

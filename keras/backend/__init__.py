@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import sys
+import importlib
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -33,7 +34,6 @@ if os.path.exists(_config_path):
     _epsilon = _config.get('epsilon', epsilon())
     assert isinstance(_epsilon, float)
     _backend = _config.get('backend', _BACKEND)
-    assert _backend in {'theano', 'tensorflow', 'cntk'}
     _image_data_format = _config.get('image_data_format',
                                      image_data_format())
     assert _image_data_format in {'channels_last', 'channels_first'}
@@ -69,7 +69,6 @@ if not os.path.exists(_config_path):
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
-    assert _backend in {'theano', 'tensorflow', 'cntk'}
     _BACKEND = _backend
 
 # Import backend functions.
@@ -83,7 +82,24 @@ elif _BACKEND == 'tensorflow':
     sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
-    raise ValueError('Unknown backend: ' + str(_BACKEND))
+    # Try and load external backend.
+    try:
+        backend_module = importlib.import_module(_BACKEND)
+        entries = backend_module.__dict__
+        # Check if valid backend.
+        # Module is a valid backend if it has the required entries.
+        required_entries = ['placeholder', 'variable', 'function']
+        for e in required_entries:
+            if e not in entries:
+                raise ValueError('Invalid backend. Missing required entry : ' + e)
+        namespace = globals()
+        for k, v in entries.items():
+            # Make sure we don't override any entries from common, such as epsilon.
+            if k not in namespace:
+                namespace[k] = v
+        sys.stderr.write('Using ' + _BACKEND + ' backend.\n')
+    except ImportError:
+        raise ValueError('Unable to import backend : ' + str(_BACKEND))
 
 
 def backend():
