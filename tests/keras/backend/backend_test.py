@@ -1098,13 +1098,10 @@ class TestBackend(object):
         _, pointwise = parse_shape_or_val((1,) * len(kernel_shape) + (input_depth * depth_multiplier, 7))
         y1 = reference_operations.separable_conv(x, depthwise, pointwise, padding, data_format)
         if K.backend() == 'cntk':
-            if op == 'separable_conv1d':
-                y2 = y1
-            else:
-                y2 = cntk_func_three_tensor(
-                    op, input_shape,
-                    depthwise, pointwise,
-                    padding=padding, data_format=data_format)([x])[0]
+            y2 = cntk_func_three_tensor(
+                op, input_shape,
+                depthwise, pointwise,
+                padding=padding, data_format=data_format)([x])[0]
         else:
             y2 = K.eval(getattr(K, op)(
                 K.variable(x),

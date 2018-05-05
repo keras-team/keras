@@ -1542,7 +1542,55 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
 
 def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
                      padding='valid', data_format=None, dilation_rate=1):
-    raise NotImplementedError
+    if data_format is None:
+        data_format = image_data_format()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('Unknown data_format ' + str(data_format))
+    if isinstance(strides, int):
+        strides = (strides,)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,)
+
+    if data_format == 'channels_last':
+        spatial_start_dim = 2
+    else:
+        spatial_start_dim = 3
+    x = expand_dims(x, spatial_start_dim)
+    depthwise_kernel = expand_dims(depthwise_kernel, 1)
+    pointwise_kernel = expand_dims(pointwise_kernel, 1)
+    strides = (1,) + strides + (1,)
+    dilation_rate = (1,) + dilation_rate
+
+    x = _preprocess_conv2d_input(x, data_format)
+    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = C.reshape(C.transpose(depthwise_kernel, (1, 0, 2, 3)),
+                                 (-1, 1) + depthwise_kernel.shape[2:])
+    pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
+    padding = _preprocess_border_mode(padding)
+
+    if dilation_rate == (1, 1):
+        x = C.convolution(depthwise_kernel, x,
+                          strides=strides,
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+        x = C.convolution(pointwise_kernel, x,
+                          strides=(1, 1, 1),
+                          auto_padding=[False])
+    else:
+        if dilation_rate[0] != dilation_rate[1]:
+            raise ValueError('CNTK Backend: non-square dilation_rate is '
+                             'not supported.')
+        if strides != (1, 1):
+            raise ValueError('Invalid strides for dilated convolution')
+        x = C.convolution(depthwise_kernel, x,
+                          strides=strides,
+                          auto_padding=[False, padding, padding],
+                          groups=x.shape[0])
+        x = C.convolution(pointwise_kernel, x,
+                          strides=(1, 1, 1),
+                          auto_padding=[False])
+    x = _postprocess_conv2d_output(x, data_format)
+    return squeeze(x, spatial_start_dim)
 
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
