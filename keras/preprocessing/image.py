@@ -747,15 +747,14 @@ class ImageDataGenerator(object):
                 `validation_split` is set in `ImageDataGenerator`.
 
         # Returns
-            An `Iterator` yielding tuples of `(x, y, sample_weight)`
+            An `Iterator` yielding tuples of `(x, y)`
                 where `x` is a numpy array of image data
                 (in the case of a single image input) or a list
                 of numpy arrays (in the case with
-                additional inputs), `y` is a numpy array
-                of corresponding labels and `sample_weight` is a numpy
-                array of corresponding sample weights. If `sample_weight`
-                is None, the returned tuples are of the form `(x, y)`. 
-                If `y` is also None, only the numpy array `x` is returned.
+                additional inputs) and `y` is a numpy array
+                of corresponding labels. If 'sample_weight' is not None,
+                the yielded tuples are of the form `(x, y, sample_weight)`.
+                If `y` is None, only the numpy array `x` is returned.
         """
         return NumpyArrayIterator(
             x, y, sample_weight, self,
