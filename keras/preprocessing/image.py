@@ -861,7 +861,7 @@ class ImageDataGenerator(object):
             interpolation=interpolation)
 
     def flow_from_dataframe(self, dataframe, directory,
-                            x_col="filename", y_col="class",has_ext=True,
+                            x_col="filename", y_col="class", has_ext=True,
                             target_size=(256, 256), color_mode='rgb',
                             classes=None, class_mode='categorical',
                             batch_size=32, shuffle=True, seed=None,
@@ -1708,6 +1708,7 @@ class DirectoryIterator(Iterator):
         # The transformation of images is not under thread lock
         # so it can be done in parallel
         return self._get_batches_of_transformed_samples(index_array)
+
 
 def _list_valid_filenames_in_directory_df(directory, white_list_formats, split):
     """List paths of files in `subdir` with extensions in `white_list_formats`.
