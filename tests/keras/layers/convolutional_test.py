@@ -228,7 +228,7 @@ def test_conv2d_transpose():
                                                           batch_input_shape=(None, None, 5, None))])
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Requires TF backend')
 @keras_test
 def test_separable_conv_1d():
     num_samples = 2
