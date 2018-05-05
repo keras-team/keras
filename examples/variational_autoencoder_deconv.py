@@ -60,8 +60,8 @@ def plot_results(models,
     """Plots labels and MNIST digits as function of 2-dim latent vector
 
     Arguments:
-        models (list): encoder and decoder models
-        data (list): test data and label
+        models (tuple): encoder and decoder models
+        data (tuple): test data and label
         batch_size (int): prediction batch size
         model_name (string): which model is using this function
 
@@ -189,7 +189,7 @@ decoder = Model(latent_inputs, outputs, name='decoder')
 decoder.summary()
 plot_model(decoder, to_file='vae_cnn_decoder.png', show_shapes=True)
 
-# instantiate vae model
+# instantiate VAE model
 outputs = decoder(encoder(inputs)[2])
 vae = Model(inputs, outputs, name='vae')
 
