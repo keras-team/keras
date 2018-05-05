@@ -1866,7 +1866,7 @@ class DataframeIterator(Iterator):
             basenames = [os.path.splitext(base)[0] for base in filenames]
             self.df = self.df.loc[basenames, :]
         # classes are found if not set by the user
-        if class_mode != "other":
+        if class_mode != "other" and class_mode is not None:
             if classes is None:
                 if type(y_col) == str:
                     classes = sorted(set(self.df[y_col].values))
@@ -1887,10 +1887,12 @@ class DataframeIterator(Iterator):
             self.classes = self.classes.values.reshape((self.samples,))
         elif (classes is None) and (class_mode == "other"):
             self.data = self.df[y_col].values
-        else:
+        elif (classes is not None) and (class_mode == "other"):
             raise ValueError('If class_mode is set to "other",'
                              'classes cannot be set.')
-
+        elif class_mode is None:
+            print('Found %d images in the dataframe(class_mode is None).'
+                  % (self.samples))
         super(DataframeIterator, self).__init__(self.samples, batch_size, shuffle, seed)
 
     def _get_batches_of_transformed_samples(self, index_array):
