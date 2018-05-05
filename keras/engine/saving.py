@@ -512,7 +512,7 @@ def preprocess_weights_for_loading(layer, weights,
 
     def convert_nested_model(weights):
         """Converts layers nested in `Model` or `Sequential` by `preprocess_weights_for_loading()`.
-        
+
         # Arguments
             weights: List of weights values (Numpy arrays).
         # Returns
