@@ -237,6 +237,7 @@ def apply_brightness(x, brightness):
 
 def random_brightness(x, brightness_range):
     """Performs a random brightness shift.
+
     # Arguments
         x: Input tensor. Must be 3D.
         brightness_range: Tuple of floats; brightness range.
