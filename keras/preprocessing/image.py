@@ -69,7 +69,7 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
 
     h, w = x.shape[row_axis], x.shape[col_axis]
     transform_matrix = transform_matrix_offset_center(rotation_matrix, h, w)
-    x = apply_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
     return x
 
 
@@ -101,7 +101,7 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
                                    [0, 0, 1]])
 
     transform_matrix = translation_matrix  # no need to do offset
-    x = apply_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
     return x
 
 
@@ -131,7 +131,7 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
 
     h, w = x.shape[row_axis], x.shape[col_axis]
     transform_matrix = transform_matrix_offset_center(shear_matrix, h, w)
-    x = apply_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
     return x
 
 
@@ -171,7 +171,7 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
 
     h, w = x.shape[row_axis], x.shape[col_axis]
     transform_matrix = transform_matrix_offset_center(zoom_matrix, h, w)
-    x = apply_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
     return x
 
 
@@ -199,6 +199,21 @@ def apply_channel_shift(x, intensity, channel_axis=0):
     return x
 
 
+def random_channel_shift(x, intensity_range, channel_axis=0):
+    """Performs a random channel shift.
+
+    # Arguments
+        x: Input tensor. Must be 3D.
+        intensity_range: Transformation intensity.
+        channel_axis: Index of axis for channels in the input tensor.
+
+    # Returns
+        Numpy image tensor.
+    """
+    intensity = np.random.uniform(-intensity_range, intensity_range)
+    return apply_channel_shift(x, intensity, channel_axis=channel_axis)
+
+
 def apply_brightness(x, brightness):
     """Performs a brightness shift.
 
@@ -212,13 +227,32 @@ def apply_brightness(x, brightness):
 
     # Raises
         ValueError if `brightness_range` isn't a tuple.
-
     """
     x = array_to_img(x)
     x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
     x = imgenhancer_Brightness.enhance(brightness)
     x = img_to_array(x)
     return x
+
+
+def random_brightness(x, brightness_range):
+    """Performs a random brightness shift.
+    # Arguments
+        x: Input tensor. Must be 3D.
+        brightness_range: Tuple of floats; brightness range.
+        channel_axis: Index of axis for channels in the input tensor.
+    # Returns
+        Numpy image tensor.
+    # Raises
+        ValueError if `brightness_range` isn't a tuple.
+    """
+    if len(brightness_range) != 2:
+        raise ValueError(
+            '`brightness_range should be tuple or list of two floats. '
+            'Received: %s' % brightness_range)
+
+    u = np.random.uniform(brightness_range[0], brightness_range[1])
+    return apply_brightness(x, u)
 
 
 def transform_matrix_offset_center(matrix, x, y):
@@ -903,7 +937,7 @@ class ImageDataGenerator(object):
 
     def get_random_transform(self, img_shape, seed=None):
         """Generates random parameters for a transformation.
-        
+
         # Arguments
             seed: Random seed.
             img_shape: Tuple of integers. Shape of the image that is transformed.
@@ -914,8 +948,10 @@ class ImageDataGenerator(object):
         """
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
-        img_channel_axis = self.channel_axis - 1
-        
+
+        if seed is not None:
+            np.random.seed(seed)
+
         if self.rotation_range:
             theta = np.deg2rad(np.random.uniform(
                 -self.rotation_range,
@@ -961,9 +997,9 @@ class ImageDataGenerator(object):
                 self.zoom_range[0],
                 self.zoom_range[1],
                 2)
-        
-        flip_horizontal = (np.random.random() < 0.5)*self.horizontal_flip
-        flip_vertical = (np.random.random() < 0.5)*self.vertical_flip
+
+        flip_horizontal = (np.random.random() < 0.5) * self.horizontal_flip
+        flip_vertical = (np.random.random() < 0.5) * self.vertical_flip
 
         channel_shift_intensity = None
         if self.channel_shift_range != 0:
@@ -971,13 +1007,13 @@ class ImageDataGenerator(object):
                                                         self.channel_shift_range)
 
         brightness = None
-        if self.brightness_Range is not None:
-            if len(self.brightness_Range) != 2:
+        if self.brightness_range is not None:
+            if len(self.brightness_range) != 2:
                 raise ValueError(
                     '`brightness_range should be tuple or list of two floats. '
-                    'Received: %s' % brightness_range)            
-            brightness = np.random.uniform(brightness_range[0],
-                                           brightness_range[1])
+                    'Received: %s' % brightness_range)
+            brightness = np.random.uniform(self.brightness_range[0],
+                                           self.brightness_range[1])
 
         transform_parameters = {'theta': theta,
                                 'tx': tx,
@@ -988,39 +1024,33 @@ class ImageDataGenerator(object):
                                 'flip_horizontal': flip_horizontal,
                                 'flip_vertical': flip_vertical,
                                 'channel_shift_intensity': channel_shift_intensity,
-                                'brightness', brightness}
+                                'brightness': brightness}
 
         return transform_parameters
-        
-        
+
     def apply_transform(self, x, transform_parameters):
-        """Randomly augments a single image tensor.
+        """Applies a transformation to an image according to given parameters.
 
         # Arguments
             x: 3D tensor, single image.
-            seed: Random seed.
+            transform_parameters: Dictionary with parameters describing the
+              transformation.
 
         # Returns
-            A randomly transformed version of the input (same shape).
+            A ransformed version of the input (same shape).
         """
         # x is a single image, so it doesn't have image number at index 0
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
         img_channel_axis = self.channel_axis - 1
 
-        if seed is not None:
-            np.random.seed(seed)
+        theta = transform_parameters.get('theta', 0)
+        tx = transform_parameters.get('tx', 0)
+        ty = transform_parameters.get('ty', 0)
+        shear = transform_parameters.get('shear', 0)
+        zx = transform_parameters.get('zx', 1)
+        zy = transform_parameters.get('zy', 1)
 
-        # Use composition of homographies
-        # to generate final transform that needs to be applied
-        
-        theta = transform_parameters['theta']
-        tx = transform_parameters['tx']
-        ty = transform_parameters['ty']
-        shear = transform_parameters['shear']
-        zx = transform_parameters['zx']
-        zy = transform_parameters['zy']
-        
         transform_matrix = None
         if theta != 0:
             rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
@@ -1046,28 +1076,41 @@ class ImageDataGenerator(object):
                                     [0, 0, 1]])
             transform_matrix = zoom_matrix if transform_matrix is None else np.dot(transform_matrix, zoom_matrix)
 
-        if transform_matrix is not None:1
+        if transform_matrix is not None:
             h, w = x.shape[img_row_axis], x.shape[img_col_axis]
             transform_matrix = transform_matrix_offset_center(
                 transform_matrix, h, w)
             x = apply_matrix_transform(x, transform_matrix, img_channel_axis,
                                        fill_mode=self.fill_mode, cval=self.cval)
 
-        if transform_parameters['channel_shift_intensity'] is not None:
+        if transform_parameters.get('channel_shift_intensity') is not None:
             x = apply_channel_shift(x,
                                     transform_parameters['channel_shift_intensity'],
                                     img_channel_axis)
-            
-        if transform_parameters['flip_horizontal']:
+
+        if transform_parameters.get('flip_horizontal', False):
             x = flip_axis(x, img_col_axis)
 
-        if transform_parameters['flip_vertical']:
+        if transform_parameters.get('flip_vertical', False):
             x = flip_axis(x, img_row_axis)
 
-        if transform_parameters['brightness'] is not None:
+        if transform_parameters.get('brightness') is not None:
             x = apply_brightness(x, transform_parameters['brightness'])
 
         return x
+
+    def random_transform(self, x, seed=None):
+        """Applies a random transformation to an image.
+
+        # Arguments
+            x: 3D tensor, single image.
+            seed: Random seed.
+
+        # Returns
+            A randomly transformed version of the input (same shape).
+        """
+        params = self.get_random_transform(x.shape, seed)
+        return self.apply_transform(x, params)
 
     def fit(self, x,
             augment=False,
@@ -1339,8 +1382,9 @@ class NumpyArrayIterator(Iterator):
                            dtype=K.floatx())
         for i, j in enumerate(index_array):
             x = self.x[j]
-            x = self.image_data_generator.random_transform(
-                x.astype(K.floatx()))
+            params = self.image_data_generator.get_random_transform(x.shape)
+            x = self.image_data_generator.apply_transform(
+                x.astype(K.floatx()), params)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
 
@@ -1644,7 +1688,8 @@ class DirectoryIterator(Iterator):
                            target_size=self.target_size,
                            interpolation=self.interpolation)
             x = img_to_array(img, data_format=self.data_format)
-            x = self.image_data_generator.random_transform(x)
+            params = self.image_data_generator.get_random_transform(x.shape)
+            x = self.image_data_generator.apply_transform(x, params)
             x = self.image_data_generator.standardize(x)
             batch_x[i] = x
         # optionally save augmented images to disk for debugging purposes

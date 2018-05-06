@@ -441,6 +441,61 @@ class TestImage(object):
         assert image.random_zoom(x, (5, 5)).shape == (2, 28, 28)
         assert image.random_channel_shift(x, 20).shape == (2, 28, 28)
 
+        # Test get_random_transform with predefined seed
+        seed = 1
+        generator = image.ImageDataGenerator(
+            rotation_range=90.,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            shear_range=0.5,
+            zoom_range=0.2,
+            channel_shift_range=0.1,
+            brightness_range=(1, 5),
+            horizontal_flip=True,
+            vertical_flip=True)
+        transform_dict = generator.get_random_transform(x.shape, seed)
+        transform_dict2 = generator.get_random_transform(x.shape, seed * 2)
+        assert transform_dict['theta'] != 0
+        assert transform_dict['theta'] != transform_dict2['theta']
+        assert transform_dict['tx'] != 0
+        assert transform_dict['tx'] != transform_dict2['tx']
+        assert transform_dict['ty'] != 0
+        assert transform_dict['ty'] != transform_dict2['ty']
+        assert transform_dict['shear'] != 0
+        assert transform_dict['shear'] != transform_dict2['shear']
+        assert transform_dict['zx'] != 0
+        assert transform_dict['zx'] != transform_dict2['zx']
+        assert transform_dict['zy'] != 0
+        assert transform_dict['zy'] != transform_dict2['zy']
+        assert transform_dict['channel_shift_intensity'] != 0
+        assert transform_dict['channel_shift_intensity'] != transform_dict2['channel_shift_intensity']
+        assert transform_dict['brightness'] != 0
+        assert transform_dict['brightness'] != transform_dict2['brightness']
+
+        # Test get_random_transform without any randomness
+        generator = image.ImageDataGenerator()
+        transform_dict = generator.get_random_transform(x.shape, seed)
+        assert transform_dict['theta'] == 0
+        assert transform_dict['tx'] == 0
+        assert transform_dict['ty'] == 0
+        assert transform_dict['shear'] == 0
+        assert transform_dict['zx'] == 1
+        assert transform_dict['zy'] == 1
+        assert transform_dict['channel_shift_intensity'] is None
+        assert transform_dict['brightness'] is None
+
+    def test_deterministic_transform(self):
+        # Write this!
+        x = np.ones((32, 32, 3))
+        generator = image.ImageDataGenerator(
+            rotation_range=90,
+            fill_mode='constant')
+        #assert np.allclose(generator.apply_transform(x, {'theta': 1e-10}), x)
+        #assert not np.allclose(generator.apply_transform(x, {'theta': 45}), x)
+        x = np.zeros((2, 2, 1))
+        x[0, 1, 0] = 1.0
+        assert np.allclose(generator.apply_transform(x, {'flip_vertical': True}), x[0, ::-1, 0])
+
     def test_batch_standardize(self):
         # ImageDataGenerator.standardize should work on batches
         for test_images in self.all_test_images:
