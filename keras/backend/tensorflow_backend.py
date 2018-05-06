@@ -3558,6 +3558,10 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format: ' + str(data_format))
+    if isinstance(strides, int):
+        strides = (strides,)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,)
 
     x, tf_data_format = _preprocess_conv1d_input(x, data_format)
     padding = _preprocess_padding(padding)
