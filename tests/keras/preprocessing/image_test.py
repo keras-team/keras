@@ -61,7 +61,7 @@ class TestImage(object):
                 assert x.shape == images[:3].shape
                 assert list(y) == [0, 1, 2]
                 break
-            
+
             # Test with sample weights
             for x, y, w in generator.flow(images, np.arange(images.shape[0]),
                                           np.arange(images.shape[0]) + 1,
