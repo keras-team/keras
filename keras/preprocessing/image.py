@@ -175,8 +175,8 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
     return x
 
 
-def random_channel_shift(x, intensity, channel_axis=0):
-    """Performs a random channel shift.
+def apply_channel_shift(x, intensity, channel_axis=0):
+    """Performs a channel shift.
 
     # Arguments
         x: Input tensor. Must be 3D.
@@ -190,7 +190,7 @@ def random_channel_shift(x, intensity, channel_axis=0):
     x = np.rollaxis(x, channel_axis, 0)
     min_x, max_x = np.min(x), np.max(x)
     channel_images = [
-        np.clip(x_channel + np.random.uniform(-intensity, intensity),
+        np.clip(x_channel + intensity,
                 min_x,
                 max_x)
         for x_channel in x]
@@ -199,12 +199,12 @@ def random_channel_shift(x, intensity, channel_axis=0):
     return x
 
 
-def random_brightness(x, brightness_range):
-    """Performs a random brightness shift.
+def apply_brightness(x, brightness):
+    """Performs a brightness shift.
 
     # Arguments
         x: Input tensor. Must be 3D.
-        brightness_range: Tuple of floats; brightness range.
+        brightness: Float. The new brightness value.
         channel_axis: Index of axis for channels in the input tensor.
 
     # Returns
@@ -214,15 +214,9 @@ def random_brightness(x, brightness_range):
         ValueError if `brightness_range` isn't a tuple.
 
     """
-    if len(brightness_range) != 2:
-        raise ValueError(
-            '`brightness_range should be tuple or list of two floats. '
-            'Received: %s' % brightness_range)
-
     x = array_to_img(x)
     x = imgenhancer_Brightness = ImageEnhance.Brightness(x)
-    u = np.random.uniform(brightness_range[0], brightness_range[1])
-    x = imgenhancer_Brightness.enhance(u)
+    x = imgenhancer_Brightness.enhance(brightness)
     x = img_to_array(x)
     return x
 
@@ -236,11 +230,11 @@ def transform_matrix_offset_center(matrix, x, y):
     return transform_matrix
 
 
-def apply_transform(x,
-                    transform_matrix,
-                    channel_axis=0,
-                    fill_mode='nearest',
-                    cval=0.):
+def apply_matrix_transform(x,
+                           transform_matrix,
+                           channel_axis=0,
+                           fill_mode='nearest',
+                           cval=0.):
     """Applies the image transformation specified by a matrix.
 
     # Arguments
@@ -907,7 +901,99 @@ class ImageDataGenerator(object):
                               'first by calling `.fit(numpy_data)`.')
         return x
 
-    def random_transform(self, x, seed=None):
+    def get_random_transform(self, img_shape, seed=None):
+        """Generates random parameters for a transformation.
+        
+        # Arguments
+            seed: Random seed.
+            img_shape: Tuple of integers. Shape of the image that is transformed.
+
+        # Returns
+            A dictionary containing randomly chosen parameters describing the
+            transformation.
+        """
+        img_row_axis = self.row_axis - 1
+        img_col_axis = self.col_axis - 1
+        img_channel_axis = self.channel_axis - 1
+        
+        if self.rotation_range:
+            theta = np.deg2rad(np.random.uniform(
+                -self.rotation_range,
+                self.rotation_range))
+        else:
+            theta = 0
+
+        if self.height_shift_range:
+            try:  # 1-D array-like or int
+                tx = np.random.choice(self.height_shift_range)
+                tx *= np.random.choice([-1, 1])
+            except ValueError:  # floating point
+                tx = np.random.uniform(-self.height_shift_range,
+                                       self.height_shift_range)
+            if np.max(self.height_shift_range) < 1:
+                tx *= img_shape[img_row_axis]
+        else:
+            tx = 0
+
+        if self.width_shift_range:
+            try:  # 1-D array-like or int
+                ty = np.random.choice(self.width_shift_range)
+                ty *= np.random.choice([-1, 1])
+            except ValueError:  # floating point
+                ty = np.random.uniform(-self.width_shift_range,
+                                       self.width_shift_range)
+            if np.max(self.width_shift_range) < 1:
+                ty *= img_shape[img_col_axis]
+        else:
+            ty = 0
+
+        if self.shear_range:
+            shear = np.deg2rad(np.random.uniform(
+                -self.shear_range,
+                self.shear_range))
+        else:
+            shear = 0
+
+        if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
+            zx, zy = 1, 1
+        else:
+            zx, zy = np.random.uniform(
+                self.zoom_range[0],
+                self.zoom_range[1],
+                2)
+        
+        flip_horizontal = (np.random.random() < 0.5)*self.horizontal_flip
+        flip_vertical = (np.random.random() < 0.5)*self.vertical_flip
+
+        channel_shift_intensity = None
+        if self.channel_shift_range != 0:
+            channel_shift_intensity = np.random.uniform(-self.channel_shift_range,
+                                                        self.channel_shift_range)
+
+        brightness = None
+        if self.brightness_Range is not None:
+            if len(self.brightness_Range) != 2:
+                raise ValueError(
+                    '`brightness_range should be tuple or list of two floats. '
+                    'Received: %s' % brightness_range)            
+            brightness = np.random.uniform(brightness_range[0],
+                                           brightness_range[1])
+
+        transform_parameters = {'theta': theta,
+                                'tx': tx,
+                                'ty': ty,
+                                'shear': shear,
+                                'zx': zx,
+                                'zy': zy,
+                                'flip_horizontal': flip_horizontal,
+                                'flip_vertical': flip_vertical,
+                                'channel_shift_intensity': channel_shift_intensity,
+                                'brightness', brightness}
+
+        return transform_parameters
+        
+        
+    def apply_transform(self, x, transform_parameters):
         """Randomly augments a single image tensor.
 
         # Arguments
@@ -927,51 +1013,14 @@ class ImageDataGenerator(object):
 
         # Use composition of homographies
         # to generate final transform that needs to be applied
-        if self.rotation_range:
-            theta = np.deg2rad(np.random.uniform(
-                -self.rotation_range,
-                self.rotation_range))
-        else:
-            theta = 0
-
-        if self.height_shift_range:
-            try:  # 1-D array-like or int
-                tx = np.random.choice(self.height_shift_range)
-                tx *= np.random.choice([-1, 1])
-            except ValueError:  # floating point
-                tx = np.random.uniform(-self.height_shift_range,
-                                       self.height_shift_range)
-            if np.max(self.height_shift_range) < 1:
-                tx *= x.shape[img_row_axis]
-        else:
-            tx = 0
-
-        if self.width_shift_range:
-            try:  # 1-D array-like or int
-                ty = np.random.choice(self.width_shift_range)
-                ty *= np.random.choice([-1, 1])
-            except ValueError:  # floating point
-                ty = np.random.uniform(-self.width_shift_range,
-                                       self.width_shift_range)
-            if np.max(self.width_shift_range) < 1:
-                ty *= x.shape[img_col_axis]
-        else:
-            ty = 0
-
-        if self.shear_range:
-            shear = np.deg2rad(np.random.uniform(
-                -self.shear_range,
-                self.shear_range))
-        else:
-            shear = 0
-
-        if self.zoom_range[0] == 1 and self.zoom_range[1] == 1:
-            zx, zy = 1, 1
-        else:
-            zx, zy = np.random.uniform(
-                self.zoom_range[0],
-                self.zoom_range[1],
-                2)
+        
+        theta = transform_parameters['theta']
+        tx = transform_parameters['tx']
+        ty = transform_parameters['ty']
+        shear = transform_parameters['shear']
+        zx = transform_parameters['zx']
+        zy = transform_parameters['zy']
+        
         transform_matrix = None
         if theta != 0:
             rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
@@ -997,27 +1046,26 @@ class ImageDataGenerator(object):
                                     [0, 0, 1]])
             transform_matrix = zoom_matrix if transform_matrix is None else np.dot(transform_matrix, zoom_matrix)
 
-        if transform_matrix is not None:
+        if transform_matrix is not None:1
             h, w = x.shape[img_row_axis], x.shape[img_col_axis]
             transform_matrix = transform_matrix_offset_center(
                 transform_matrix, h, w)
-            x = apply_transform(x, transform_matrix, img_channel_axis,
-                                fill_mode=self.fill_mode, cval=self.cval)
+            x = apply_matrix_transform(x, transform_matrix, img_channel_axis,
+                                       fill_mode=self.fill_mode, cval=self.cval)
 
-        if self.channel_shift_range != 0:
-            x = random_channel_shift(x,
-                                     self.channel_shift_range,
-                                     img_channel_axis)
-        if self.horizontal_flip:
-            if np.random.random() < 0.5:
-                x = flip_axis(x, img_col_axis)
+        if transform_parameters['channel_shift_intensity'] is not None:
+            x = apply_channel_shift(x,
+                                    transform_parameters['channel_shift_intensity'],
+                                    img_channel_axis)
+            
+        if transform_parameters['flip_horizontal']:
+            x = flip_axis(x, img_col_axis)
 
-        if self.vertical_flip:
-            if np.random.random() < 0.5:
-                x = flip_axis(x, img_row_axis)
+        if transform_parameters['flip_vertical']:
+            x = flip_axis(x, img_row_axis)
 
-        if self.brightness_range is not None:
-            x = random_brightness(x, self.brightness_range)
+        if transform_parameters['brightness'] is not None:
+            x = apply_brightness(x, transform_parameters['brightness'])
 
         return x
 
