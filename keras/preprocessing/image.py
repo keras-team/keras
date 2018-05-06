@@ -287,6 +287,7 @@ def apply_matrix_transform(x,
     x = np.rollaxis(x, channel_axis, 0)
     final_affine_matrix = transform_matrix[:2, :2]
     final_offset = transform_matrix[:2, 2]
+    print(final_affine_matrix)
     channel_images = [ndi.interpolation.affine_transform(
         x_channel,
         final_affine_matrix,

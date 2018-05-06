@@ -485,16 +485,27 @@ class TestImage(object):
         assert transform_dict['brightness'] is None
 
     def test_deterministic_transform(self):
-        # Write this!
         x = np.ones((32, 32, 3))
         generator = image.ImageDataGenerator(
             rotation_range=90,
             fill_mode='constant')
-        #assert np.allclose(generator.apply_transform(x, {'theta': 1e-10}), x)
-        #assert not np.allclose(generator.apply_transform(x, {'theta': 45}), x)
-        x = np.zeros((2, 2, 1))
-        x[0, 1, 0] = 1.0
-        assert np.allclose(generator.apply_transform(x, {'flip_vertical': True}), x[0, ::-1, 0])
+        x = np.random.random((32, 32, 3))
+        assert np.allclose(generator.apply_transform(x, {'flip_vertical': True}),
+                           x[::-1, :, :])
+        assert np.allclose(generator.apply_transform(x, {'flip_horizontal': True}),
+                           x[:, ::-1, :])
+        x = np.ones((3, 3, 3))
+        x_rotated = np.array([[[0., 0., 0.],
+                               [0., 0., 0.],
+                               [1., 1., 1.]],
+                              [[0., 0., 0.],
+                               [1., 1., 1.],
+                               [1., 1., 1.]],
+                              [[0., 0., 0.],
+                               [0., 0., 0.],
+                               [1., 1., 1.]]])
+        assert np.allclose(generator.apply_transform(x, {'theta': np.pi / 4}),
+                           x_rotated)
 
     def test_batch_standardize(self):
         # ImageDataGenerator.standardize should work on batches
