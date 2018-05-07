@@ -38,6 +38,8 @@ def _preprocess_numpy_input(x, data_format, mode):
     # Returns
         Preprocessed Numpy array.
     """
+    x = x.astype(K.floatx())
+
     if mode == 'tf':
         x /= 127.5
         x -= 1.
