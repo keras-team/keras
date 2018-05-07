@@ -408,6 +408,7 @@ class Adadelta(Optimizer):
 class Adam(Optimizer):
     """Adam optimizer.
 
+
     Default parameters follow those provided in the original paper.
 
     # Arguments
@@ -417,7 +418,7 @@ class Adam(Optimizer):
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
         amsgrad: boolean. Whether to apply the AMSGrad variant of this
-            algorithm from the paper "On the Convergence of Adam and
+        algorithm from the paper "On the Convergence of Adam and
             Beyond".
 
     # References
@@ -465,11 +466,16 @@ class Adam(Optimizer):
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(g)
+            
+            m_t=  m_t / (1 - self.beta_1**t )
+            
             if self.amsgrad:
                 vhat_t = K.maximum(vhat, v_t)
+                vhat_t=  vhat_t / (1 - self.beta_2**t )
                 p_t = p - lr_t * m_t / (K.sqrt(vhat_t) + self.epsilon)
                 self.updates.append(K.update(vhat, vhat_t))
             else:
+                v_t=  v_t / (1 - self.beta_2**t )
                 p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
 
             self.updates.append(K.update(m, m_t))
