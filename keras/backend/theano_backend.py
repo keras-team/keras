@@ -1287,37 +1287,40 @@ def rnn(step_function, inputs, initial_states,
     """Iterates over the time dimension of a tensor.
 
     # Arguments
-        inputs: tensor of temporal data of shape (samples, time, ...)
-            (at least 3D).
         step_function:
             Parameters:
-                inputs: tensor with shape (samples, ...) (no time dimension),
+                inputs: Tensor with shape (samples, ...) (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
-                states: list of tensors.
+                states: List of tensors.
             Returns:
-                outputs: tensor with shape (samples, ...) (no time dimension),
-                new_states: list of tensors, same length and shapes
+                outputs: Tensor with shape (samples, ...) (no time dimension),
+                new_states: Tist of tensors, same length and shapes
                     as 'states'.
-        initial_states: tensor with shape (samples, ...) (no time dimension),
+        inputs: Tensor of temporal data of shape (samples, time, ...)
+            (at least 3D).
+        initial_states: Tensor with shape (samples, ...) (no time dimension),
             containing the initial values for the states used in
             the step function.
-        go_backwards: boolean. If True, do the iteration over the time
+        go_backwards: Boolean. If True, do the iteration over the time
             dimension in reverse order and return the reversed sequence.
-        mask: binary tensor with shape (samples, time),
+        mask: Binary tensor with shape (samples, time),
             with a zero for every element that is masked.
-        constants: a list of constant values passed at each step.
-        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
-        input_length: must be specified if using `unroll`.
+        constants: A list of constant values passed at each step.
+        unroll: Whether to unroll the RNN or to use a symbolic loop
+            (`while_loop` or `scan` depending on backend).
+        input_length: Static number of timesteps in the input.
+            Must be specified if using `unroll`.
 
     # Returns
         A tuple (last_output, outputs, new_states).
-            last_output: the latest output of the rnn, of shape (samples, ...)
-            outputs: tensor with shape (samples, time, ...) where each
-                entry outputs[s, t] is the output of the step function
-                at time t for sample s.
-            new_states: list of tensors, latest states returned by
-                the step function, of shape (samples, ...).
+
+        last_output: The latest output of the rnn, of shape `(samples, ...)`
+        outputs: Tensor with shape `(samples, time, ...)` where each
+            entry `outputs[s, t]` is the output of the step function
+            at time `t` for sample `s`.
+        new_states: List of tensors, latest states returned by
+            the step function, of shape `(samples, ...)`.
     """
     ndim = inputs.ndim
     assert ndim >= 3, 'Input should be at least 3D.'
