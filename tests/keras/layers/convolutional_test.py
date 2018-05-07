@@ -103,11 +103,11 @@ def test_conv_1d():
                        'dilation_rate': 2},
                input_shape=(batch_size, steps, input_dim))
 
-    # Test channels_last
+    # Test channels_first
     layer_test(convolutional.Conv1D,
                kwargs={'filters': filters,
                        'kernel_size': kernel_size,
-                       'data_format': 'channels_last'},
+                       'data_format': 'channels_first'},
                input_shape=(batch_size, input_dim, steps))
 
 

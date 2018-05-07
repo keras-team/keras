@@ -3413,7 +3413,8 @@ def conv1d(x, kernel, strides=1, padding='valid',
         A tensor, result of 1D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3422,15 +3423,16 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
+        if data_format != 'channels_last':
+            raise ValueError('When using causal padding in `conv1d`, '
+                             '`data_format` must be "channels_last" '
+                             '(temporal data).')
         # causal (dilated) convolution:
         left_pad = dilation_rate * (kernel_shape[0] - 1)
         x = temporal_padding(x, (left_pad, 0))
         padding = 'valid'
     padding = _preprocess_padding(padding)
-    if data_format == 'channels_last':
-        tf_data_format = 'NWC'
-    else:
-        tf_data_format = 'NCW'
+    x, tf_data_format = _preprocess_conv1d_input(x, data_format)
     x = tf.nn.convolution(
         input=x,
         filter=kernel,
@@ -3438,6 +3440,9 @@ def conv1d(x, kernel, strides=1, padding='valid',
         strides=(strides,),
         padding=padding,
         data_format=tf_data_format)
+
+    if data_format == 'channels_first' and tf_data_format in {'NWC', 'NHWC'}:
+        x = tf.transpose(x, (0, 2, 1))  # NWC -> NCW
     return x
 
 
@@ -3459,7 +3464,8 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         A tensor, result of 2D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3500,7 +3506,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         A tensor, result of transposed 2D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3551,7 +3558,8 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3607,7 +3615,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3648,7 +3657,8 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3690,7 +3700,8 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         A tensor, result of 3D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3729,7 +3740,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         A tensor, result of transposed 3D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -4210,7 +4222,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
         the tensor after 1d conv with un-shared weights, with shape (batch_size, output_length, filters)
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()

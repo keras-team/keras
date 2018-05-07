@@ -271,8 +271,10 @@ class Conv1D(_Conv):
             one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, length, channels)` while `"channels_first"`
-            corresponds to inputs with shape `(batch, channels, length)`.
+            `(batch, length, channels)`
+            (default format for temporal data in Keras)
+            while `"channels_first"` corresponds to inputs
+            with shape `(batch, channels, length)`.
         dilation_rate: an integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -324,6 +326,11 @@ class Conv1D(_Conv):
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
+        if padding == 'causal':
+            if data_format != 'channels_last':
+                raise ValueError('When using causal padding in `Conv1D`, '
+                                 '`data_format` must be "channels_last" '
+                                 '(temporal data).')
         super(Conv1D, self).__init__(
             rank=1,
             filters=filters,
