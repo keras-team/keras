@@ -712,7 +712,7 @@ class ImageDataGenerator(object):
                               'which overrides setting of '
                               '`samplewise_center`.')
 
-    def flow(self, x, y=None, sample_weight=None, batch_size=32, shuffle=True, seed=None,
+    def flow(self, x, y=None, batch_size=32, shuffle=True, sample_weight=None, seed=None,
              save_to_dir=None, save_prefix='', save_format='png', subset=None):
         """Takes numpy data & label arrays, and generates batches of augmented data.
 
@@ -730,9 +730,9 @@ class ImageDataGenerator(object):
                 should have value 1, and in case
                 of RGB data, it should have value 3.
             y: Labels.
-            sample_weight: Sample weights.
             batch_size: Int (default: 32).
             shuffle: Boolean (default: True).
+            sample_weight: Sample weights.
             seed: Int (default: None).
             save_to_dir: None or str (default: None).
                 This allows you to optionally specify a directory
@@ -757,9 +757,10 @@ class ImageDataGenerator(object):
                 If `y` is None, only the numpy array `x` is returned.
         """
         return NumpyArrayIterator(
-            x, y, sample_weight, self,
+            x, y, self,
             batch_size=batch_size,
             shuffle=shuffle,
+            sample_weight=sample_weight,
             seed=seed,
             data_format=self.data_format,
             save_to_dir=save_to_dir,
@@ -1198,11 +1199,11 @@ class NumpyArrayIterator(Iterator):
             each of which gets passed
             through as an output without any modifications.
         y: Numpy array of targets data.
-        sample_weight: Numpy array of sample weights.
         image_data_generator: Instance of `ImageDataGenerator`
             to use for random transformations and normalization.
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
+        sample_weight: Numpy array of sample weights.
         seed: Random seed for data shuffling.
         data_format: String, one of `channels_first`, `channels_last`.
         save_to_dir: Optional directory where to save the pictures
@@ -1217,9 +1218,9 @@ class NumpyArrayIterator(Iterator):
             validation_split is set in ImageDataGenerator.
     """
 
-    def __init__(self, x, y, sample_weight, image_data_generator,
-                 batch_size=32, shuffle=False, seed=None,
-                 data_format=None,
+    def __init__(self, x, y, image_data_generator,
+                 batch_size=32, shuffle=False, sample_weight=None,
+                 seed=None, data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
                  subset=None):
         if (type(x) is tuple) or (type(x) is list):
