@@ -1221,7 +1221,7 @@ def gather(reference, indices):
     # Returns
         A tensor of same type as `reference`.
     """
-    return tf.gather(reference, indices)
+    return tf.nn.embedding_lookup(reference, indices)
 
 
 # ELEMENT-WISE OPERATIONS
