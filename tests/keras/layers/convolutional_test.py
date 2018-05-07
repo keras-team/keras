@@ -100,14 +100,15 @@ def test_conv_1d():
                kwargs={'filters': filters,
                        'kernel_size': kernel_size,
                        'padding': padding,
-                       'dilation_rate': 2,
-                       'activation': None},
+                       'dilation_rate': 2},
                input_shape=(batch_size, steps, input_dim))
 
-    convolutional.Conv1D(filters=filters,
-                         kernel_size=kernel_size,
-                         padding=padding,
-                         input_shape=(input_dim,))
+    # Test channels_last
+    layer_test(convolutional.Conv1D,
+               kwargs={'filters': filters,
+                       'kernel_size': kernel_size,
+                       'data_format': 'channels_last'},
+               input_shape=(batch_size, input_dim, steps))
 
 
 @keras_test
