@@ -15,6 +15,8 @@ pytestmark = pytest.mark.skipif(
     reason='Runs only when the relevant files have been modified.')
 
 
+MOBILENET_LIST = [(applications.MobileNet, 1024),
+                  (applications.MobileNetV2, 1280)]
 DENSENET_LIST = [(applications.DenseNet121, 1024),
                  (applications.DenseNet169, 1664),
                  (applications.DenseNet201, 1920)]
@@ -136,20 +138,12 @@ def test_inceptionresnetv2():
 
 
 def test_mobilenet():
-    app = applications.MobileNet
-    last_dim = 1024
+    app, last_dim = random.choice(MOBILENET_LIST)
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
     _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_mobilenetv2():
-    app = applications.MobileNetV2
-    last_dim = 1280
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
+    if app == applications.MobileNet:
+        _test_app_pooling(app, last_dim)
 
 
 def test_densenet():
