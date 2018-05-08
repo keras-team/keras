@@ -251,6 +251,7 @@ def load_model(filepath, custom_objects=None, compile=True):
     else:
         f = filepath
 
+    model = None
     try:
         # instantiate model
         model_config = f.attrs.get('model_config')
@@ -262,58 +263,56 @@ def load_model(filepath, custom_objects=None, compile=True):
         # set weights
         load_weights_from_hdf5_group(f['model_weights'], model.layers)
 
-        # Early return if compilation is not required.
-        if not compile:
-            return model
+        if compile:
+            # instantiate optimizer
+            training_config = f.attrs.get('training_config')
+            if training_config is None:
+                warnings.warn('No training configuration found in save file: '
+                              'the model was *not* compiled. '
+                              'Compile it manually.')
+                return model
+            training_config = json.loads(training_config.decode('utf-8'))
+            optimizer_config = training_config['optimizer_config']
+            optimizer = optimizers.deserialize(optimizer_config,
+                                               custom_objects=custom_objects)
 
-        # instantiate optimizer
-        training_config = f.attrs.get('training_config')
-        if training_config is None:
-            warnings.warn('No training configuration found in save file: '
-                          'the model was *not* compiled. Compile it manually.')
-            return model
-        training_config = json.loads(training_config.decode('utf-8'))
-        optimizer_config = training_config['optimizer_config']
-        optimizer = optimizers.deserialize(optimizer_config,
-                                           custom_objects=custom_objects)
+            # Recover loss functions and metrics.
+            loss = convert_custom_objects(training_config['loss'])
+            metrics = convert_custom_objects(training_config['metrics'])
+            sample_weight_mode = training_config['sample_weight_mode']
+            loss_weights = training_config['loss_weights']
 
-        # Recover loss functions and metrics.
-        loss = convert_custom_objects(training_config['loss'])
-        metrics = convert_custom_objects(training_config['metrics'])
-        sample_weight_mode = training_config['sample_weight_mode']
-        loss_weights = training_config['loss_weights']
+            # Compile model.
+            model.compile(optimizer=optimizer,
+                          loss=loss,
+                          metrics=metrics,
+                          loss_weights=loss_weights,
+                          sample_weight_mode=sample_weight_mode)
 
-        # Compile model.
-        model.compile(optimizer=optimizer,
-                      loss=loss,
-                      metrics=metrics,
-                      loss_weights=loss_weights,
-                      sample_weight_mode=sample_weight_mode)
-
-        # Set optimizer weights.
-        if 'optimizer_weights' in f:
-            # Build train function (to get weight updates).
-            if model.__class__.__name__ == 'Sequential':
-                model.model._make_train_function()
-            else:
-                model._make_train_function()
-            optimizer_weights_group = f['optimizer_weights']
-            optimizer_weight_names = [
-                n.decode('utf8') for n in
-                optimizer_weights_group.attrs['weight_names']]
-            optimizer_weight_values = [optimizer_weights_group[n] for n in
-                                       optimizer_weight_names]
-            try:
-                model.optimizer.set_weights(optimizer_weight_values)
-            except ValueError:
-                warnings.warn('Error in loading the saved optimizer '
-                              'state. As a result, your model is '
-                              'starting with a freshly initialized '
-                              'optimizer.')
-        return model
+            # Set optimizer weights.
+            if 'optimizer_weights' in f:
+                # Build train function (to get weight updates).
+                if model.__class__.__name__ == 'Sequential':
+                    model.model._make_train_function()
+                else:
+                    model._make_train_function()
+                optimizer_weights_group = f['optimizer_weights']
+                optimizer_weight_names = [
+                    n.decode('utf8') for n in
+                    optimizer_weights_group.attrs['weight_names']]
+                optimizer_weight_values = [optimizer_weights_group[n] for n in
+                                           optimizer_weight_names]
+                try:
+                    model.optimizer.set_weights(optimizer_weight_values)
+                except ValueError:
+                    warnings.warn('Error in loading the saved optimizer '
+                                  'state. As a result, your model is '
+                                  'starting with a freshly initialized '
+                                  'optimizer.')
     finally:
         if opened_new_file:
             f.close()
+    return model
 
 
 def model_from_config(config, custom_objects=None):
