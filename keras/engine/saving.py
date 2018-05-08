@@ -816,13 +816,13 @@ def _need_convert_kernel(original_backend):
                         'theano': False,
                         'cntk': True}
     if original_backend not in uses_correlation:
-        # no way of knowing for external backend, so don't convert
+        # By default, do not convert the kernels if the original backend is unknown
         return False
-    try:
+    if K.backend() in uses_correlation:
         current_uses_correlation = uses_correlation[K.backend()]
-    except KeyError:
-        # External backends can report this with K.uses_correlation
-        current_uses_correlation = K.uses_correlation()
+    else:
+        # Assume unknown backends use correlation
+        current_uses_correlation = True
     return uses_correlation[original_backend] != current_uses_correlation
 
 
