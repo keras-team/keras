@@ -470,6 +470,9 @@ class Flatten(Layer):
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
+            The purpose of this argument is to preserve weight
+            ordering when switching a model from one data format
+            to another.
             `channels_last` corresponds to inputs with shape
             `(batch, ..., channels)` while `channels_first` corresponds to
             inputs with shape `(batch, channels, ...)`.

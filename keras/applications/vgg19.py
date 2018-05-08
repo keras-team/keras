@@ -167,35 +167,31 @@ def VGG19(include_top=True, weights='imagenet',
     # load weights
     if weights == 'imagenet':
         if include_top:
-            weights_path = get_file('vgg19_weights_tf_dim_ordering_tf_kernels.h5',
-                                    WEIGHTS_PATH,
-                                    cache_subdir='models',
-                                    file_hash='cbe5617147190e668d6c5d5026f83318')
+            weights_path = get_file(
+                'vgg19_weights_tf_dim_ordering_tf_kernels.h5',
+                WEIGHTS_PATH,
+                cache_subdir='models',
+                file_hash='cbe5617147190e668d6c5d5026f83318')
         else:
-            weights_path = get_file('vgg19_weights_tf_dim_ordering_tf_kernels_notop.h5',
-                                    WEIGHTS_PATH_NO_TOP,
-                                    cache_subdir='models',
-                                    file_hash='253f8cb515780f3b799900260a226db6')
+            weights_path = get_file(
+                'vgg19_weights_tf_dim_ordering_tf_kernels_notop.h5',
+                WEIGHTS_PATH_NO_TOP,
+                cache_subdir='models',
+                file_hash='253f8cb515780f3b799900260a226db6')
         model.load_weights(weights_path)
         if K.backend() == 'theano':
             layer_utils.convert_all_kernels_in_model(model)
 
-        if K.image_data_format() == 'channels_first':
-            if include_top:
-                maxpool = model.get_layer(name='block5_pool')
-                shape = maxpool.output_shape[1:]
-                dense = model.get_layer(name='fc1')
-                layer_utils.convert_dense_weights_data_format(dense, shape, 'channels_first')
-
-            if K.backend() == 'tensorflow':
-                warnings.warn('You are using the TensorFlow backend, yet you '
-                              'are using the Theano '
-                              'image data format convention '
-                              '(`image_data_format="channels_first"`). '
-                              'For best performance, set '
-                              '`image_data_format="channels_last"` in '
-                              'your Keras config '
-                              'at ~/.keras/keras.json.')
+        if (K.image_data_format() == 'channels_first' and
+                K.backend() == 'tensorflow'):
+            warnings.warn('You are using the TensorFlow backend, yet you '
+                          'are using the Theano '
+                          'image data format convention '
+                          '(`image_data_format="channels_first"`). '
+                          'For best performance, set '
+                          '`image_data_format="channels_last"` in '
+                          'your Keras config '
+                          'at `~/.keras/keras.json`.')
     elif weights is not None:
         model.load_weights(weights)
 
