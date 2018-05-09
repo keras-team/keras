@@ -423,7 +423,6 @@ To reset the states accumulated:
 Example:
 
 ```python
-
 x  # this is our input data, of shape (32, 21, 16)
 # we will feed it to our model in sequences of length 10
 
@@ -603,6 +602,8 @@ K.set_session(sess)
 
 # Rest of code follows ...
 ```
+
+---
 
 ### How can I install HDF5 or h5py to save my models in Keras?
 
