@@ -5,7 +5,6 @@ from numpy.testing import assert_allclose
 from keras.applications import imagenet_utils as utils
 from keras.models import Model
 from keras.layers import Input, Lambda
-import keras.backend as K
 
 
 def test_preprocess_input():
