@@ -45,7 +45,7 @@ def test_preprocess_input():
 
     x = np.random.uniform(0, 255, (2, 10, 10, 3))
     x2 = utils.preprocess_input(x, copy=True)
-    assert x.max() == x2.max()
+    assert x.max() != x2.max()
 
 
 def test_preprocess_input_symbolic():
