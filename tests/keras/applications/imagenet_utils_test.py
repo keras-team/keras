@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from keras.applications import imagenet_utils as utils
 from keras.models import Model
 from keras.layers import Input, Lambda
+import keras.backend as K
 
 
 def test_preprocess_input():
@@ -37,6 +38,15 @@ def test_preprocess_input():
                                      'channels_first')
     assert_allclose(out1, out2.transpose(1, 2, 0))
     assert_allclose(out1int, out2int.transpose(1, 2, 0))
+
+    # Test copying option
+    x = np.random.uniform(0, 255, (2, 10, 10, 3))
+    x2 = utils.preprocess_input(x, copy=False)
+    assert x.max() == x2.max()
+
+    x = np.random.uniform(0, 255, (2, 10, 10, 3))
+    x2 = utils.preprocess_input(x, copy=True)
+    assert x.max() == x2.max()
 
 
 def test_preprocess_input_symbolic():

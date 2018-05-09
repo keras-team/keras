@@ -18,7 +18,7 @@ CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/i
 _IMAGENET_MEAN = None
 
 
-def _preprocess_numpy_input(x, data_format, mode):
+def _preprocess_numpy_input(x, data_format, mode, copy=True):
     """Preprocesses a Numpy array encoding a batch of images.
 
     # Arguments
@@ -34,11 +34,17 @@ def _preprocess_numpy_input(x, data_format, mode):
             - torch: will scale pixels between 0 and 1 and then
                 will normalize each channel with respect to the
                 ImageNet dataset.
+        copy: Whether to allocate a new array for the results or not.
+            If set to `False`, the results are copied over the input
+            array if their datatypes are compatible.
 
     # Returns
         Preprocessed Numpy array.
     """
-    x = x.astype(K.floatx())
+    if not issubclass(x.dtype.type, np.floating):
+        x = x.astype(K.floatx(), copy=copy)
+    elif copy:
+        x = np.copy(x)
 
     if mode == 'tf':
         x /= 127.5
@@ -148,7 +154,7 @@ def _preprocess_symbolic_input(x, data_format, mode):
     return x
 
 
-def preprocess_input(x, data_format=None, mode='caffe'):
+def preprocess_input(x, data_format=None, mode='caffe', copy=True):
     """Preprocesses a tensor or Numpy array encoding a batch of images.
 
     # Arguments
@@ -164,6 +170,9 @@ def preprocess_input(x, data_format=None, mode='caffe'):
             - torch: will scale pixels between 0 and 1 and then
                 will normalize each channel with respect to the
                 ImageNet dataset.
+        copy: Whether to allocate a new array for the results or not.
+            If set to `False`, the results are copied over the input
+            array if their datatypes are compatible.
 
     # Returns
         Preprocessed tensor or Numpy array.
@@ -171,13 +180,15 @@ def preprocess_input(x, data_format=None, mode='caffe'):
     # Raises
         ValueError: In case of unknown `data_format` argument.
     """
+
     if data_format is None:
         data_format = K.image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format ' + str(data_format))
 
     if isinstance(x, np.ndarray):
-        return _preprocess_numpy_input(x, data_format=data_format, mode=mode)
+        return _preprocess_numpy_input(x, data_format=data_format, mode=mode,
+                                       copy=copy)
     else:
         return _preprocess_symbolic_input(x, data_format=data_format,
                                           mode=mode)
