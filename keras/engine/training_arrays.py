@@ -76,6 +76,11 @@ def fit_loop(model, f, ins,
                              'when doing step-wise '
                              'training, i.e. `steps_per_epoch` '
                              'must be set.')
+    elif do_validation:
+        if steps_per_epoch:
+            raise ValueError('Must specify `validation_steps` '
+                             'to perform validation '
+                             'when doing step-wise training.')
 
     num_train_samples = check_num_samples(ins,
                                           batch_size=batch_size,
