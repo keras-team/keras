@@ -180,7 +180,6 @@ def preprocess_input(x, data_format=None, mode='caffe', copy=True):
     # Raises
         ValueError: In case of unknown `data_format` argument.
     """
-
     if data_format is None:
         data_format = K.image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
