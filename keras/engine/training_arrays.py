@@ -157,7 +157,6 @@ def fit_loop(model, f, ins,
 
             if do_validation:
                 val_outs = test_loop(model, val_f, val_ins,
-                                     batch_size=batch_size,
                                      steps=validation_steps,
                                      verbose=0)
                 if not isinstance(val_outs, list):
