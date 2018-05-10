@@ -18,7 +18,7 @@ CLASS_INDEX_PATH = 'https://s3.amazonaws.com/deep-learning-models/image-models/i
 _IMAGENET_MEAN = None
 
 
-def _preprocess_numpy_input(x, data_format, mode, copy=True):
+def _preprocess_numpy_input(x, data_format, mode):
     """Preprocesses a Numpy array encoding a batch of images.
 
     # Arguments
@@ -34,17 +34,12 @@ def _preprocess_numpy_input(x, data_format, mode, copy=True):
             - torch: will scale pixels between 0 and 1 and then
                 will normalize each channel with respect to the
                 ImageNet dataset.
-        copy: Whether to allocate a new array for the results or not.
-            If set to `False`, the results are copied over the input
-            array if their datatypes are compatible.
 
     # Returns
         Preprocessed Numpy array.
     """
     if not issubclass(x.dtype.type, np.floating):
-        x = x.astype(K.floatx(), copy=copy)
-    elif copy:
-        x = np.copy(x)
+        x = x.astype(K.floatx(), copy=False)
 
     if mode == 'tf':
         x /= 127.5
@@ -154,11 +149,14 @@ def _preprocess_symbolic_input(x, data_format, mode):
     return x
 
 
-def preprocess_input(x, data_format=None, mode='caffe', copy=True):
+def preprocess_input(x, data_format=None, mode='caffe'):
     """Preprocesses a tensor or Numpy array encoding a batch of images.
 
     # Arguments
         x: Input Numpy or symbolic tensor, 3D or 4D.
+            The preprocessed data is written over the input data
+            if the data types are compatible. To avoid this
+            behaviour, `numpy.copy(x)` can be used.
         data_format: Data format of the image tensor/array.
         mode: One of "caffe", "tf" or "torch".
             - caffe: will convert the images from RGB to BGR,
@@ -170,9 +168,6 @@ def preprocess_input(x, data_format=None, mode='caffe', copy=True):
             - torch: will scale pixels between 0 and 1 and then
                 will normalize each channel with respect to the
                 ImageNet dataset.
-        copy: Whether to allocate a new array for the results or not.
-            If set to `False`, the results are copied over the input
-            array if their datatypes are compatible.
 
     # Returns
         Preprocessed tensor or Numpy array.
@@ -186,8 +181,7 @@ def preprocess_input(x, data_format=None, mode='caffe', copy=True):
         raise ValueError('Unknown data_format ' + str(data_format))
 
     if isinstance(x, np.ndarray):
-        return _preprocess_numpy_input(x, data_format=data_format, mode=mode,
-                                       copy=copy)
+        return _preprocess_numpy_input(x, data_format=data_format, mode=mode)
     else:
         return _preprocess_symbolic_input(x, data_format=data_format,
                                           mode=mode)
