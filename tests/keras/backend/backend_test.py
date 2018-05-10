@@ -1084,16 +1084,18 @@ class TestBackend(object):
                                        data_format=data_format)
 
     @pytest.mark.parametrize('op,input_shape,kernel_shape,depth_multiplier,padding,data_format', [
+        ('separable_conv1d', (2, 8, 2), (3,), 1, 'same', 'channels_last'),
+        ('separable_conv1d', (1, 8, 2), (3,), 2, 'valid', 'channels_last'),
         ('separable_conv2d', (2, 3, 4, 5), (3, 3), 1, 'same', 'channels_first'),
         ('separable_conv2d', (2, 3, 5, 6), (4, 3), 2, 'valid', 'channels_first'),
         ('separable_conv2d', (1, 6, 5, 3), (3, 4), 1, 'valid', 'channels_last'),
         ('separable_conv2d', (1, 7, 6, 3), (3, 3), 2, 'same', 'channels_last'),
     ])
-    def test_separable_conv2d(self, op, input_shape, kernel_shape, depth_multiplier, padding, data_format):
+    def test_separable_conv(self, op, input_shape, kernel_shape, depth_multiplier, padding, data_format):
         input_depth = input_shape[1] if data_format == 'channels_first' else input_shape[-1]
         _, x = parse_shape_or_val(input_shape)
         _, depthwise = parse_shape_or_val(kernel_shape + (input_depth, depth_multiplier))
-        _, pointwise = parse_shape_or_val((1, 1) + (input_depth * depth_multiplier, 7))
+        _, pointwise = parse_shape_or_val((1,) * len(kernel_shape) + (input_depth * depth_multiplier, 7))
         y1 = reference_operations.separable_conv(x, depthwise, pointwise, padding, data_format)
         if K.backend() == 'cntk':
             y2 = cntk_func_three_tensor(
@@ -1176,6 +1178,21 @@ class TestBackend(object):
             assert np.abs(np.mean(rand) - p) < 0.015
             assert np.max(rand) == 1
             assert np.min(rand) == 0
+
+    def test_truncated_normal(self):
+        mean = 0.
+        std = 1.
+        min_val = -2.
+        max_val = 2.
+        for k in BACKENDS:
+            rand = k.eval(k.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
+            assert rand.shape == (300, 200)
+            assert np.abs(np.mean(rand) - mean) < 0.015
+            assert np.max(rand) <= max_val
+            assert np.min(rand) >= min_val
+
+            # assumption in initializers.VarianceScaling
+            assert np.abs(np.std(rand) - std * 0.87962) < 0.015
 
     def test_conv_invalid_use(self):
         with pytest.raises(ValueError):

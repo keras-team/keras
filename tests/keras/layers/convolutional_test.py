@@ -100,14 +100,15 @@ def test_conv_1d():
                kwargs={'filters': filters,
                        'kernel_size': kernel_size,
                        'padding': padding,
-                       'dilation_rate': 2,
-                       'activation': None},
+                       'dilation_rate': 2},
                input_shape=(batch_size, steps, input_dim))
 
-    convolutional.Conv1D(filters=filters,
-                         kernel_size=kernel_size,
-                         padding=padding,
-                         input_shape=(input_dim,))
+    # Test channels_first
+    layer_test(convolutional.Conv1D,
+               kwargs={'filters': filters,
+                       'kernel_size': kernel_size,
+                       'data_format': 'channels_first'},
+               input_shape=(batch_size, input_dim, steps))
 
 
 @keras_test
@@ -228,7 +229,6 @@ def test_conv2d_transpose():
                                                           batch_input_shape=(None, None, 5, None))])
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
 def test_separable_conv_1d():
     num_samples = 2
@@ -243,6 +243,8 @@ def test_separable_conv_1d():
                     if padding == 'same' and strides != 1:
                         continue
                     if dilation_rate != 1 and strides != 1:
+                        continue
+                    if dilation_rate != 1 and K.backend() == 'cntk':
                         continue
 
                     layer_test(convolutional.SeparableConv1D,
