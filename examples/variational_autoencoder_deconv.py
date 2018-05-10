@@ -83,7 +83,7 @@ def plot_results(models,
     plt.show()
 
     filename = os.path.join(model_name, "digits_over_latent.png")
-    # display a 30x30 2D manifold of the digits
+    # display a 30x30 2D manifold of digits
     n = 30
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
@@ -199,6 +199,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     models = (encoder, decoder)
     data = (x_test, y_test)
+
     # VAE loss = mse_loss or xent_loss + kl_loss
     if args.mse:
         reconstruction_loss = mse(K.flatten(inputs), K.flatten(outputs))
