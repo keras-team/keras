@@ -38,6 +38,22 @@ def test_preprocess_input():
     assert_allclose(out1, out2.transpose(1, 2, 0))
     assert_allclose(out1int, out2int.transpose(1, 2, 0))
 
+    # Test that writing over the input data works predictably
+    for mode in ['torch', 'tf']:
+        x = np.random.uniform(0, 255, (2, 10, 10, 3))
+        xint = x.astype('int')
+        x2 = utils.preprocess_input(x, mode=mode)
+        xint2 = utils.preprocess_input(xint)
+        assert_allclose(x, x2)
+        assert xint.astype('float').max() != xint2.max()
+    # Caffe mode works differently from the others
+    x = np.random.uniform(0, 255, (2, 10, 10, 3))
+    xint = x.astype('int')
+    x2 = utils.preprocess_input(x, data_format='channels_last', mode='caffe')
+    xint2 = utils.preprocess_input(xint)
+    assert_allclose(x, x2[..., ::-1])
+    assert xint.astype('float').max() != xint2.max()
+
 
 def test_preprocess_input_symbolic():
     # Test image batch

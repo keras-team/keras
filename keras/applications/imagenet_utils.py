@@ -38,7 +38,8 @@ def _preprocess_numpy_input(x, data_format, mode):
     # Returns
         Preprocessed Numpy array.
     """
-    x = x.astype(K.floatx())
+    if not issubclass(x.dtype.type, np.floating):
+        x = x.astype(K.floatx(), copy=False)
 
     if mode == 'tf':
         x /= 127.5
@@ -153,6 +154,9 @@ def preprocess_input(x, data_format=None, mode='caffe'):
 
     # Arguments
         x: Input Numpy or symbolic tensor, 3D or 4D.
+            The preprocessed data is written over the input data
+            if the data types are compatible. To avoid this
+            behaviour, `numpy.copy(x)` can be used.
         data_format: Data format of the image tensor/array.
         mode: One of "caffe", "tf" or "torch".
             - caffe: will convert the images from RGB to BGR,
