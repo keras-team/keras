@@ -6,7 +6,7 @@ the encoder can be used to  generate latent vectors.
 The decoder can be used to generate MNIST digits by sampling the
 latent vector from a Gaussian distribution with mean=0 and std=1.
 
-#Reference
+# Reference
 
 [1] Kingma, Diederik P., and Max Welling.
 "Auto-encoding variational bayes."
@@ -38,10 +38,10 @@ import os
 def sampling(args):
     """Reparameterization trick by sampling fr an isotropic unit Gaussian.
 
-    Arguments:
+    # Arguments:
         args (tensor): mean and log of variance of Q(z|X)
 
-    Returns:
+    # Returns:
         z (tensor): sampled latent vector
     """
 
@@ -59,14 +59,11 @@ def plot_results(models,
                  model_name="vae_mnist"):
     """Plots labels and MNIST digits as function of 2-dim latent vector
 
-    Arguments:
+    # Arguments:
         models (tuple): encoder and decoder models
         data (tuple): test data and label
         batch_size (int): prediction batch size
         model_name (string): which model is using this function
-
-    Returns:
-        none
     """
 
     encoder, decoder = models
