@@ -146,7 +146,6 @@ def _make_divisible(v, divisor, min_value=None):
 def MobileNetV2(input_shape=None,
                 alpha=1.0,
                 depth_multiplier=1,
-                dropout=1e-3,
                 include_top=True,
                 weights='imagenet',
                 input_tensor=None,
@@ -180,7 +179,6 @@ def MobileNetV2(input_shape=None,
                  are used at each layer.
         depth_multiplier: depth multiplier for depthwise convolution
             (also called the resolution multiplier)
-        dropout: dropout rate, dropout is currently not in use
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: one of `None` (random initialization),
