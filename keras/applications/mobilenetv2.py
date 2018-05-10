@@ -352,7 +352,7 @@ def MobileNetV2(input_shape=None,
 
     x = _inverted_res_block(x, filters=16, alpha=alpha, stride=1,
                             expansion=1, block_id=0)
-    
+
     x = _inverted_res_block(x, filters=24, alpha=alpha, stride=2,
                             expansion=6, block_id=1)
     x = _inverted_res_block(x, filters=24, alpha=alpha, stride=1,
@@ -453,8 +453,8 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     pointwise_conv_filters = int(filters * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
-    prefix = 'expanded_conv_{}_'.format(block_id)
-    
+    prefix = 'mobl_expanded_conv_{}_'.format(block_id)
+
     if block_id:
         # Expand
         x = Conv2D(expansion * in_channels, kernel_size=1, padding='same',
@@ -465,10 +465,10 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
         x = Activation(relu6, name=prefix + 'expand_relu')(x)
     else:
         prefix = 'expanded_conv_'
-      
+
     # Depthwise
     x = DepthwiseConv2D(kernel_size=3, strides=stride, activation=None,
-                        use_bias=False, padding='same', 
+                        use_bias=False, padding='same',
                         name=prefix + 'depthwise')(x)
     x = BatchNormalization(epsilon=1e-3, momentum=0.999,
                            name=prefix + 'depthwise_BN')(x)
