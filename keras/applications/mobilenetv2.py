@@ -451,7 +451,7 @@ def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     pointwise_conv_filters = int(filters * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
     x = inputs
-    prefix = 'mobl_expanded_conv_{}_'.format(block_id)
+    prefix = 'block_{}_'.format(block_id)
 
     if block_id:
         # Expand
