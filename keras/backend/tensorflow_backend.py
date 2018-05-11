@@ -1866,6 +1866,27 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     # Returns
         A tensor.
     """
+    if ndim(x) == 4:
+        if len(mean.shape) == 1:
+            tf_data_format = 'NHWC'
+        elif (len(mean.shape) == 4 and mean.shape[0] == 1 and 
+                mean.shape[2] == 1 and mean.shape[3] == 1):
+            tf_data_format = 'NCHW'
+        else:
+            tf_data_format = None
+        if tf_data_format is not None:
+            y, _, _ = tf.nn.fused_batch_norm(
+                x,
+                gamma,
+                beta,
+                epsilon=epsilon,
+                mean=mean,
+                variance=var,
+                data_format=tf_data_format,
+                is_training=False
+                )
+            return y
+    #default
     return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
 
