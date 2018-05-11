@@ -7,15 +7,21 @@ from numpy.testing import assert_allclose
 from numpy.testing import assert_raises
 
 from keras import backend as K
+from keras.engine.saving import preprocess_weights_for_loading
 from keras.models import Model, Sequential
-from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, LSTM
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
 from keras.layers import Conv2D, Flatten
-from keras.layers import Input
+from keras.layers import Input, InputLayer
 from keras import optimizers
 from keras import losses
 from keras import metrics
 from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
+
+
+skipif_no_tf_gpu = pytest.mark.skipif(
+    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    reason='Requires TensorFlow backend and a GPU')
 
 
 @keras_test
@@ -605,6 +611,114 @@ def test_saving_recurrent_layer_without_bias():
 
     loaded_model = load_model(fname)
     os.remove(fname)
+
+
+@keras_test
+@pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
+@pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
+@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
+@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
+@pytest.mark.parametrize('model_nest_level', [1, 2], ids=['model_plain', 'model_nested'])
+@pytest.mark.parametrize('model_type', ['func', 'seq'], ids=['model_func', 'model_seq'])
+@skipif_no_tf_gpu
+def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation,
+                                           model_nest_level, model_type):
+    input_size = 10
+    timesteps = 6
+    input_shape = (timesteps, input_size)
+    units = 2
+    num_samples = 32
+    inputs = np.random.random((num_samples, timesteps, input_size))
+
+    rnn_layer_kwargs = {
+        'recurrent_activation': 'sigmoid',
+        # ensure biases are non-zero and properly converted
+        'bias_initializer': 'random_uniform',
+        'implementation': implementation
+    }
+    if rnn_type == 'LSTM':
+        rnn_layer_class = LSTM
+        cudnn_rnn_layer_class = CuDNNLSTM
+    else:
+        rnn_layer_class = GRU
+        cudnn_rnn_layer_class = CuDNNGRU
+        rnn_layer_kwargs['reset_after'] = True
+
+    def convert_model(source_model, target_model):
+        _, fname = tempfile.mkstemp('.h5')
+        source_model.save_weights(fname)
+        target_model.load_weights(fname)
+        os.remove(fname)
+
+    layer = rnn_layer_class(units, **rnn_layer_kwargs)
+    if bidirectional:
+        layer = Bidirectional(layer)
+
+    cudnn_layer = cudnn_rnn_layer_class(units)
+    if bidirectional:
+        cudnn_layer = Bidirectional(cudnn_layer)
+
+    model = _make_nested_model(input_shape, layer, model_nest_level, model_type)
+    cudnn_model = _make_nested_model(input_shape, cudnn_layer, model_nest_level, model_type)
+
+    if to_cudnn:
+        convert_model(model, cudnn_model)
+    else:
+        convert_model(cudnn_model, model)
+
+    assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
+
+
+def _make_nested_model(input_shape, layer, level=1, model_type='func'):
+    # example: make_nested_seq_model((1,), Dense(10), level=2).summary()
+    def make_nested_seq_model(input_shape, layer, level=1):
+        model = layer
+        for i in range(1, level + 1):
+            layers = [InputLayer(input_shape), model] if (i == 1) else [model]
+            model = Sequential(layers)
+        return model
+
+    # example: make_nested_func_model((1,), Dense(10), level=2).summary()
+    def make_nested_func_model(input_shape, layer, level=1):
+        input = Input(input_shape)
+        model = layer
+        for i in range(level):
+            model = Model(input, model(input))
+        return model
+
+    if model_type == 'func':
+        return make_nested_func_model(input_shape, layer, level)
+    elif model_type == 'seq':
+        return make_nested_seq_model(input_shape, layer, level)
+
+
+@skipif_no_tf_gpu
+def test_preprocess_weights_for_loading_gru_incompatible():
+    """
+    Loading weights between incompatible layers should fail fast with an exception.
+    """
+    def gru(cudnn=False, **kwargs):
+        layer_class = CuDNNGRU if cudnn else GRU
+        return layer_class(2, input_shape=[3, 5], **kwargs)
+
+    def initialize_weights(layer):
+        # A model is needed to initialize weights.
+        _ = Sequential([layer])
+        return layer
+
+    def assert_not_compatible(src, dest, message):
+        with pytest.raises(ValueError) as ex:
+            preprocess_weights_for_loading(dest, initialize_weights(src).get_weights())
+        assert message in ex.value.message
+
+    assert_not_compatible(gru(), gru(cudnn=True),
+                          'GRU(reset_after=False) is not compatible with CuDNNGRU')
+    assert_not_compatible(gru(cudnn=True), gru(),
+                          'CuDNNGRU is not compatible with GRU(reset_after=False)')
+    assert_not_compatible(gru(), gru(reset_after=True),
+                          'GRU(reset_after=False) is not compatible with GRU(reset_after=True)')
+    assert_not_compatible(gru(reset_after=True), gru(),
+                          'GRU(reset_after=True) is not compatible with GRU(reset_after=False)')
 
 
 if __name__ == '__main__':

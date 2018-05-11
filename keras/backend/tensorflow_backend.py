@@ -1221,7 +1221,7 @@ def gather(reference, indices):
     # Returns
         A tensor of same type as `reference`.
     """
-    return tf.gather(reference, indices)
+    return tf.nn.embedding_lookup(reference, indices)
 
 
 # ELEMENT-WISE OPERATIONS
@@ -2679,48 +2679,46 @@ def rnn(step_function, inputs, initial_states,
     """Iterates over the time dimension of a tensor.
 
     # Arguments
-        step_function: RNN step function.
+        step_function:
             Parameters:
-                inputs: tensor with shape `(samples, ...)` (no time dimension),
+                inputs: Tensor with shape (samples, ...) (no time dimension),
                     representing input for the batch of samples at a certain
                     time step.
-                states: list of tensors.
+                states: List of tensors.
             Returns:
-                outputs: tensor with shape `(samples, output_dim)`
-                    (no time dimension).
-                new_states: list of tensors, same length and shapes
-                    as 'states'. The first state in the list must be the
-                    output tensor at the previous timestep.
-        inputs: tensor of temporal data of shape `(samples, time, ...)`
+                outputs: Tensor with shape (samples, ...) (no time dimension),
+                new_states: Tist of tensors, same length and shapes
+                    as 'states'.
+        inputs: Tensor of temporal data of shape (samples, time, ...)
             (at least 3D).
-        initial_states: tensor with shape (samples, output_dim)
-            (no time dimension),
+        initial_states: Tensor with shape (samples, ...) (no time dimension),
             containing the initial values for the states used in
             the step function.
-        go_backwards: boolean. If True, do the iteration over the time
+        go_backwards: Boolean. If True, do the iteration over the time
             dimension in reverse order and return the reversed sequence.
-        mask: binary tensor with shape `(samples, time, 1)`,
+        mask: Binary tensor with shape (samples, time),
             with a zero for every element that is masked.
-        constants: a list of constant values passed at each step.
-        unroll: whether to unroll the RNN or to use a symbolic loop (`while_loop` or `scan` depending on backend).
-        input_length: not relevant in the TensorFlow implementation.
-            Must be specified if using unrolling with Theano.
+        constants: A list of constant values passed at each step.
+        unroll: Whether to unroll the RNN or to use a symbolic loop
+            (`while_loop` or `scan` depending on backend).
+        input_length: Static number of timesteps in the input.
 
     # Returns
         A tuple, `(last_output, outputs, new_states)`.
 
-            last_output: the latest output of the rnn, of shape `(samples, ...)`
-            outputs: tensor with shape `(samples, time, ...)` where each
-                entry `outputs[s, t]` is the output of the step function
-                at time `t` for sample `s`.
-            new_states: list of tensors, latest states returned by
-                the step function, of shape `(samples, ...)`.
+        last_output: The latest output of the rnn, of shape `(samples, ...)`
+        outputs: Tensor with shape `(samples, time, ...)` where each
+            entry `outputs[s, t]` is the output of the step function
+            at time `t` for sample `s`.
+        new_states: List of tensors, latest states returned by
+            the step function, of shape `(samples, ...)`.
 
     # Raises
-        ValueError: if input dimension is less than 3.
-        ValueError: if `unroll` is `True` but input timestep is not a fixed number.
-        ValueError: if `mask` is provided (not `None`) but states is not provided
-            (`len(states)` == 0).
+        ValueError: If input dimension is less than 3.
+        ValueError: If `unroll` is `True`
+            but input timestep is not a fixed number.
+        ValueError: If `mask` is provided (not `None`)
+            but states is not provided (`len(states)` == 0).
     """
     ndim = len(inputs.get_shape())
     if ndim < 3:
@@ -2871,7 +2869,10 @@ def rnn(step_function, inputs, initial_states,
                 tiled_mask_t = tf.tile(mask_t,
                                        tf.stack([1, tf.shape(output)[1]]))
                 output = tf.where(tiled_mask_t, output, states[0])
-                new_states = [tf.where(tiled_mask_t, new_states[i], states[i]) for i in range(len(states))]
+                new_states = [
+                    tf.where(tf.tile(mask_t, tf.stack([1, tf.shape(new_states[i])[1]])),
+                             new_states[i], states[i]) for i in range(len(states))
+                ]
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:
@@ -2903,7 +2904,8 @@ def rnn(step_function, inputs, initial_states,
             body=_step,
             loop_vars=(time, output_ta) + states,
             parallel_iterations=32,
-            swap_memory=True)
+            swap_memory=True,
+            maximum_iterations=input_length)
         last_time = final_outputs[0]
         output_ta = final_outputs[1]
         new_states = final_outputs[2:]
@@ -3323,12 +3325,12 @@ def _preprocess_conv1d_input(x, data_format):
     """
     if dtype(x) == 'float64':
         x = tf.cast(x, 'float32')
-    tf_data_format = 'NHWC'  # to pass TF Conv2dNative operations
+    tf_data_format = 'NWC'  # to pass TF Conv2dNative operations
     if data_format == 'channels_first':
         if not _has_nchw_support():
             x = tf.transpose(x, (0, 2, 1))  # NCW -> NWC
         else:
-            tf_data_format = 'NCHW'
+            tf_data_format = 'NCW'
     return x, tf_data_format
 
 
@@ -3411,7 +3413,8 @@ def conv1d(x, kernel, strides=1, padding='valid',
         A tensor, result of 1D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3420,15 +3423,16 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
+        if data_format != 'channels_last':
+            raise ValueError('When using causal padding in `conv1d`, '
+                             '`data_format` must be "channels_last" '
+                             '(temporal data).')
         # causal (dilated) convolution:
         left_pad = dilation_rate * (kernel_shape[0] - 1)
         x = temporal_padding(x, (left_pad, 0))
         padding = 'valid'
     padding = _preprocess_padding(padding)
-    if data_format == 'channels_last':
-        tf_data_format = 'NWC'
-    else:
-        tf_data_format = 'NCW'
+    x, tf_data_format = _preprocess_conv1d_input(x, data_format)
     x = tf.nn.convolution(
         input=x,
         filter=kernel,
@@ -3436,6 +3440,9 @@ def conv1d(x, kernel, strides=1, padding='valid',
         strides=(strides,),
         padding=padding,
         data_format=tf_data_format)
+
+    if data_format == 'channels_first' and tf_data_format == 'NWC':
+        x = tf.transpose(x, (0, 2, 1))  # NWC -> NCW
     return x
 
 
@@ -3457,7 +3464,8 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         A tensor, result of 2D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3498,7 +3506,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         A tensor, result of transposed 2D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3549,14 +3558,23 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
     if data_format not in {'channels_first', 'channels_last'}:
         raise ValueError('Unknown data_format: ' + str(data_format))
+    if isinstance(strides, int):
+        strides = (strides,)
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,)
 
     x, tf_data_format = _preprocess_conv1d_input(x, data_format)
+    if tf_data_format == 'NWC':
+        tf_data_format = 'NHWC'
+    else:
+        tf_data_format = 'NCHW'
     padding = _preprocess_padding(padding)
     if tf_data_format == 'NHWC':
         spatial_start_dim = 1
@@ -3601,7 +3619,8 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3642,7 +3661,8 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3684,7 +3704,8 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         A tensor, result of 3D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -3723,7 +3744,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         A tensor, result of transposed 3D convolution.
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()
@@ -4204,7 +4226,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
         the tensor after 1d conv with un-shared weights, with shape (batch_size, output_length, filters)
 
     # Raises
-        ValueError: if `data_format` is neither `channels_last` or `channels_first`.
+        ValueError: If `data_format` is neither
+            `"channels_last"` nor `"channels_first"`.
     """
     if data_format is None:
         data_format = image_data_format()

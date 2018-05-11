@@ -146,7 +146,6 @@ def _make_divisible(v, divisor, min_value=None):
 def MobileNetV2(input_shape=None,
                 alpha=1.0,
                 depth_multiplier=1,
-                dropout=1e-3,
                 include_top=True,
                 weights='imagenet',
                 input_tensor=None,
@@ -180,7 +179,6 @@ def MobileNetV2(input_shape=None,
                  are used at each layer.
         depth_multiplier: depth multiplier for depthwise convolution
             (also called the resolution multiplier)
-        dropout: dropout rate, dropout is currently not in use
         include_top: whether to include the fully-connected
             layer at the top of the network.
         weights: one of `None` (random initialization),
@@ -350,12 +348,8 @@ def MobileNetV2(input_shape=None,
     x = BatchNormalization(epsilon=1e-3, momentum=0.999, name='bn_Conv1')(x)
     x = Activation(relu6, name='Conv1_relu')(x)
 
-    x = _first_inverted_res_block(x,
-                                  filters=16,
-                                  alpha=alpha,
-                                  stride=1,
-                                  expansion=1,
-                                  block_id=0)
+    x = _inverted_res_block(x, filters=16, alpha=alpha, stride=1,
+                            expansion=1, block_id=0)
 
     x = _inverted_res_block(x, filters=24, alpha=alpha, stride=2,
                             expansion=6, block_id=1)
@@ -454,73 +448,39 @@ def MobileNetV2(input_shape=None,
 
 def _inverted_res_block(inputs, expansion, stride, alpha, filters, block_id):
     in_channels = inputs._keras_shape[-1]
-    prefix = 'features.' + str(block_id) + '.conv.'
     pointwise_conv_filters = int(filters * alpha)
     pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
-    # Expand
+    x = inputs
+    prefix = 'block_{}_'.format(block_id)
 
-    x = Conv2D(expansion * in_channels, kernel_size=1, padding='same',
-               use_bias=False, activation=None,
-               name='mobl%d_conv_expand' % block_id)(inputs)
-    x = BatchNormalization(epsilon=1e-3, momentum=0.999,
-                           name='bn%d_conv_bn_expand' %
-                           block_id)(x)
-    x = Activation(relu6, name='conv_%d_relu' % block_id)(x)
+    if block_id:
+        # Expand
+        x = Conv2D(expansion * in_channels, kernel_size=1, padding='same',
+                   use_bias=False, activation=None,
+                   name=prefix + 'expand')(x)
+        x = BatchNormalization(epsilon=1e-3, momentum=0.999,
+                               name=prefix + 'expand_BN')(x)
+        x = Activation(relu6, name=prefix + 'expand_relu')(x)
+    else:
+        prefix = 'expanded_conv_'
 
     # Depthwise
     x = DepthwiseConv2D(kernel_size=3, strides=stride, activation=None,
                         use_bias=False, padding='same',
-                        name='mobl%d_conv_depthwise' % block_id)(x)
+                        name=prefix + 'depthwise')(x)
     x = BatchNormalization(epsilon=1e-3, momentum=0.999,
-                           name='bn%d_conv_depthwise' % block_id)(x)
+                           name=prefix + 'depthwise_BN')(x)
 
-    x = Activation(relu6, name='conv_dw_%d_relu' % block_id)(x)
+    x = Activation(relu6, name=prefix + 'depthwise_relu')(x)
 
     # Project
     x = Conv2D(pointwise_filters,
                kernel_size=1, padding='same', use_bias=False, activation=None,
-               name='mobl%d_conv_project' % block_id)(x)
+               name=prefix + 'project')(x)
     x = BatchNormalization(epsilon=1e-3, momentum=0.999,
-                           name='bn%d_conv_bn_project' % block_id)(x)
+                           name=prefix + 'project_BN')(x)
 
     if in_channels == pointwise_filters and stride == 1:
-        return Add(name='res_connect_' + str(block_id))([inputs, x])
-
-    return x
-
-
-def _first_inverted_res_block(inputs,
-                              expansion, stride,
-                              alpha, filters, block_id):
-    in_channels = inputs._keras_shape[-1]
-    prefix = 'features.' + str(block_id) + '.conv.'
-    pointwise_conv_filters = int(filters * alpha)
-    pointwise_filters = _make_divisible(pointwise_conv_filters, 8)
-
-    # Depthwise
-    x = DepthwiseConv2D(kernel_size=3,
-                        strides=stride, activation=None,
-                        use_bias=False, padding='same',
-                        name='mobl%d_conv_depthwise' %
-                        block_id)(inputs)
-    x = BatchNormalization(epsilon=1e-3, momentum=0.999,
-                           name='bn%d_conv_depthwise' %
-                           block_id)(x)
-    x = Activation(relu6, name='conv_dw_%d_relu' % block_id)(x)
-
-    # Project
-    x = Conv2D(pointwise_filters,
-               kernel_size=1,
-               padding='same',
-               use_bias=False,
-               activation=None,
-               name='mobl%d_conv_project' %
-               block_id)(x)
-    x = BatchNormalization(epsilon=1e-3, momentum=0.999,
-                           name='bn%d_conv_project' %
-                           block_id)(x)
-
-    if in_channels == pointwise_filters and stride == 1:
-        return Add(name='res_connect_' + str(block_id))([inputs, x])
+        return Add(name=prefix + 'add')([inputs, x])
 
     return x

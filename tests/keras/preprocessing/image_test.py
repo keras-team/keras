@@ -62,6 +62,17 @@ class TestImage(object):
                 assert list(y) == [0, 1, 2]
                 break
 
+            # Test with sample weights
+            for x, y, w in generator.flow(images, np.arange(images.shape[0]),
+                                          shuffle=False,
+                                          sample_weight=np.arange(images.shape[0]) + 1,
+                                          save_to_dir=str(tmpdir),
+                                          batch_size=3):
+                assert x.shape == images[:3].shape
+                assert list(y) == [0, 1, 2]
+                assert list(w) == [1, 2, 3]
+                break
+
             # Test with `shuffle=True`
             for x, y in generator.flow(images, np.arange(images.shape[0]),
                                        shuffle=True, save_to_dir=str(tmpdir),
