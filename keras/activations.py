@@ -122,6 +122,12 @@ def relu(x, alpha=0., max_value=None):
     return K.relu(x, alpha=alpha, max_value=max_value)
 
 
+def swish(x):
+    """Swish activation function.
+    """
+    return x * K.sigmoid(x)
+
+
 def tanh(x):
     """Hyperbolic tangent activation function.
     """
