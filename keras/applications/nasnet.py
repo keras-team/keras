@@ -143,7 +143,7 @@ def NASNet(input_shape=None,
         RuntimeError: If attempting to run this model with a
             backend that does not support separable convolutions.
     '''
-    if K.backend() != 'tensorflow':
+    if K.backend() in ['cntk', 'theano']:
         raise RuntimeError('Only TensorFlow backend is currently supported, '
                            'as other backends do not support '
                            'separable convolution.')
