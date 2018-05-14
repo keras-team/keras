@@ -1731,6 +1731,17 @@ def _preprocess_conv2d_kernel(kernel, data_format):
     return kernel
 
 
+def _preprocess_conv2d_depthwise_kernel(kernel, kernel_shape, data_format):
+    # As of Keras 2.0.0, all kernels are normalized
+    # on the format `(rows, cols, input_depth, depth)`,
+    # independently of `data_format`.
+    # Theano expects `(input_depth * depth, 1, rows, cols)` for depthwise convolution.
+    kernel = kernel[::-1, ::-1, :, :]
+    kernel = kernel.dimshuffle((2, 3, 0, 1))
+    kernel = reshape(kernel, kernel_shape)
+    return kernel
+
+
 def _preprocess_conv3d_kernel(kernel, data_format):
     # As of Keras 2.0.0, all kernels are normalized
     # on the format `(space, input_depth, depth)`,
@@ -1793,6 +1804,21 @@ def _preprocess_conv2d_filter_shape(filter_shape, data_format):
             return None
     if filter_shape:
         filter_shape = (filter_shape[3], filter_shape[2],
+                        filter_shape[0], filter_shape[1])
+    if filter_shape is not None:
+        filter_shape = tuple(int_or_none(v) for v in filter_shape)
+    return filter_shape
+
+
+def _preprocess_conv2d_depthwise_filter_shape(filter_shape, data_format):
+    # Theano might not accept long type
+    def int_or_none(value):
+        try:
+            return int(value)
+        except TypeError:
+            return None
+    if filter_shape:
+        filter_shape = (filter_shape[3] * filter_shape[2], 1,
                         filter_shape[0], filter_shape[1])
     if filter_shape is not None:
         filter_shape = tuple(int_or_none(v) for v in filter_shape)
@@ -2032,23 +2058,16 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     depthwise_kernel_shape = int_shape(depthwise_kernel)
     if depthwise_kernel_shape is None:
         depthwise_kernel_shape = depthwise_kernel.eval().shape  # in case of a shared variable
-    depthwise_kernel_shape = _preprocess_conv2d_filter_shape(depthwise_kernel_shape, data_format)
+    depthwise_kernel_shape = _preprocess_conv2d_depthwise_filter_shape(depthwise_kernel_shape, data_format)
     pointwise_kernel_shape = int_shape(pointwise_kernel)
     if pointwise_kernel_shape is None:
         pointwise_kernel_shape = pointwise_kernel.eval().shape  # in case of a shared variable
     pointwise_kernel_shape = _preprocess_conv2d_filter_shape(pointwise_kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
-    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = _preprocess_conv2d_depthwise_kernel(depthwise_kernel, depthwise_kernel_shape, data_format)
     pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
     th_padding = _preprocess_padding(padding)
-
-    input_depth = depthwise_kernel_shape[1]
-    output_depth = depthwise_kernel_shape[0]
-    depthwise_kernel_shape = (input_depth * output_depth, 1) + depthwise_kernel_shape[2:]
-    depthwise_kernel = depthwise_kernel.dimshuffle((1, 0, 2, 3))
-    depthwise_kernel = reshape(depthwise_kernel, depthwise_kernel_shape)
-    depthwise_kernel = depthwise_kernel[:, :, ::-1, ::-1]
 
     conv_out = T.nnet.conv2d(x, depthwise_kernel,
                              border_mode=th_padding,
@@ -2056,7 +2075,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
                              input_shape=image_shape,
                              filter_shape=depthwise_kernel_shape,
                              filter_dilation=dilation_rate,
-                             num_groups=input_depth)
+                             num_groups=image_shape[1])
     conv_out = T.nnet.conv2d(conv_out, pointwise_kernel,
                              border_mode=th_padding,
                              subsample=(1, 1),
@@ -2099,23 +2118,16 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     depthwise_kernel_shape = int_shape(depthwise_kernel)
     if depthwise_kernel_shape is None:
         depthwise_kernel_shape = depthwise_kernel.eval().shape  # in case of a shared variable
-    depthwise_kernel_shape = _preprocess_conv2d_filter_shape(depthwise_kernel_shape, data_format)
+    depthwise_kernel_shape = _preprocess_conv2d_depthwise_filter_shape(depthwise_kernel_shape, data_format)
     pointwise_kernel_shape = int_shape(pointwise_kernel)
     if pointwise_kernel_shape is None:
         pointwise_kernel_shape = pointwise_kernel.eval().shape  # in case of a shared variable
     pointwise_kernel_shape = _preprocess_conv2d_filter_shape(pointwise_kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
-    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = _preprocess_conv2d_depthwise_kernel(depthwise_kernel, depthwise_kernel_shape, data_format)
     pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
     th_padding = _preprocess_padding(padding)
-
-    input_depth = depthwise_kernel_shape[1]
-    output_depth = depthwise_kernel_shape[0]
-    depthwise_kernel_shape = (input_depth * output_depth, 1) + depthwise_kernel_shape[2:]
-    depthwise_kernel = depthwise_kernel.dimshuffle((1, 0, 2, 3))
-    depthwise_kernel = reshape(depthwise_kernel, depthwise_kernel_shape)
-    depthwise_kernel = depthwise_kernel[:, :, ::-1, ::-1]
 
     conv_out = T.nnet.conv2d(x, depthwise_kernel,
                              border_mode=th_padding,
@@ -2123,7 +2135,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                              input_shape=image_shape,
                              filter_shape=depthwise_kernel_shape,
                              filter_dilation=dilation_rate,
-                             num_groups=input_depth)
+                             num_groups=image_shape[1])
     conv_out = T.nnet.conv2d(conv_out, pointwise_kernel,
                              border_mode=th_padding,
                              subsample=(1, 1),
@@ -2164,18 +2176,11 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     depthwise_kernel_shape = int_shape(depthwise_kernel)
     if depthwise_kernel_shape is None:
         depthwise_kernel_shape = depthwise_kernel.eval().shape  # in case of a shared variable
-    depthwise_kernel_shape = _preprocess_conv2d_filter_shape(depthwise_kernel_shape, data_format)
+    depthwise_kernel_shape = _preprocess_conv2d_depthwise_filter_shape(depthwise_kernel_shape, data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
-    depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
+    depthwise_kernel = _preprocess_conv2d_depthwise_kernel(depthwise_kernel, depthwise_kernel_shape, data_format)
     th_padding = _preprocess_padding(padding)
-
-    input_depth = depthwise_kernel_shape[1]
-    output_depth = depthwise_kernel_shape[0]
-    depthwise_kernel_shape = (input_depth * output_depth, 1) + depthwise_kernel_shape[2:]
-    depthwise_kernel = depthwise_kernel.dimshuffle((1, 0, 2, 3))
-    depthwise_kernel = reshape(depthwise_kernel, depthwise_kernel_shape)
-    depthwise_kernel = depthwise_kernel[:, :, ::-1, ::-1]
 
     conv_out = T.nnet.conv2d(x, depthwise_kernel,
                              border_mode=th_padding,
@@ -2183,7 +2188,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                              input_shape=image_shape,
                              filter_shape=depthwise_kernel_shape,
                              filter_dilation=dilation_rate,
-                             num_groups=input_depth)
+                             num_groups=image_shape[1])
     conv_out = _postprocess_conv2d_output(conv_out, x, padding,
                                           depthwise_kernel_shape, strides, data_format)
     return conv_out
