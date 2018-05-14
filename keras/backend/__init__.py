@@ -18,6 +18,9 @@ if not os.access(_keras_base_dir, os.W_OK):
     _keras_base_dir = '/tmp'
 _keras_dir = os.path.join(_keras_base_dir, '.keras')
 
+if os.environ.get('KERAS_HOME') is not None:
+    _keras_dir = os.environ.get('KERAS_HOME')
+
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
 
