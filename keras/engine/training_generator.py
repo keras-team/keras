@@ -60,14 +60,16 @@ def fit_generator(model,
     val_gen = (hasattr(validation_data, 'next') or
                hasattr(validation_data, '__next__') or
                isinstance(validation_data, Sequence))
-    if (val_gen and not isinstance(validation_data, Sequence) and
-            not validation_steps):
-        raise ValueError('`validation_steps=None` is only valid for a'
-                         ' generator based on the `keras.utils.Sequence`'
-                         ' class. Please specify `validation_steps` or use'
-                         ' the `keras.utils.Sequence` class.')
+    if val_gen and not validation_steps:
+        if not isinstance(validation_data, Sequence):
+            raise ValueError('`validation_steps=None` is only valid for a'
+                             ' generator based on the'
+                             ' `keras.utils.Sequence` class. Please specify'
+                             ' `validation_steps` or use the'
+                             ' `keras.utils.Sequence` class.')
+        validation_steps = len(validation_data)
 
-    # Prepare display labels.
+    # prepare display labels.
     out_labels = model.metrics_names
     callback_metrics = out_labels + ['val_' + n for n in out_labels]
 
@@ -122,6 +124,14 @@ def fit_generator(model,
                 val_data += [0.]
             for cbk in callbacks:
                 cbk.validation_data = val_data
+        elif do_validation and val_gen:
+            for cbk in callbacks:
+                cbk.max_queue_size = max_queue_size
+                cbk.workers = workers
+                cbk.use_multiprocessing = use_multiprocessing
+                cbk.shuffle = shuffle
+                cbk.validation_data = validation_data
+                cbk.validation_steps = validation_steps
 
         if workers > 0:
             if is_sequence:
