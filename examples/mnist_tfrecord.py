@@ -207,7 +207,7 @@ coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
 
 train_model.fit(epochs=epochs,
-                steps_per_epoch=int(np.ceil(data.train.num_examples / float(batch_size))),
+                steps_per_epoch=(data.train.num_examples + batch_size - 1) // batch_size,
                 callbacks=[EvaluateInputTensor(test_model, steps=100)])
 
 # Save the model weights.
