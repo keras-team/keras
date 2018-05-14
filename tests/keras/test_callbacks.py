@@ -10,9 +10,9 @@ from keras import optimizers
 from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout, add
+from keras.layers import Input, Dense, Dropout, add, dot, Lambda
 from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
+from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling1D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
@@ -623,7 +623,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
     (X_train, y_train), (X_test, y_test) = get_test_data(
         num_train=train_samples,
         num_test=test_samples,
-        input_shape=(input_dim,),
+        input_shape=(input_dim, input_dim),
         classification=True,
         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
@@ -646,10 +646,13 @@ def test_TensorBoard_multi_input_output(tmpdir):
             i += 1
             i = i % max_batch_index
 
-    inp1 = Input((input_dim,))
-    inp2 = Input((input_dim,))
-    inp = add([inp1, inp2])
-    hidden = Dense(num_hidden, activation='relu')(inp)
+    inp1 = Input((input_dim, input_dim))
+    inp2 = Input((input_dim, input_dim))
+    inp_3d = add([inp1, inp2])
+    inp_2d = GlobalAveragePooling1D()(inp_3d)
+    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])  # test a layer with a list of output tensors
+    hidden = dot(inp_pair, axes=-1)
+    hidden = Dense(num_hidden, activation='relu')(hidden)
     hidden = Dropout(0.1)(hidden)
     output1 = Dense(num_classes, activation='softmax')(hidden)
     output2 = Dense(num_classes, activation='softmax')(hidden)
