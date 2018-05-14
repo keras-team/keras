@@ -164,6 +164,7 @@ PAGES = [
         'classes': [
             layers.Conv1D,
             layers.Conv2D,
+            layers.SeparableConv1D,
             layers.SeparableConv2D,
             layers.Conv2DTranspose,
             layers.Conv3D,
