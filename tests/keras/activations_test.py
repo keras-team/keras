@@ -218,7 +218,7 @@ def test_linear():
 def test_swish():
     def ref_swish(x):
         if x >= 0:
-            return x * (1 / (1 + np.exp(-1)))
+            return x * (1 / (1 + np.exp(-x)))
         else:
             z = np.exp(x)
             return x * (z / (1 + z))
