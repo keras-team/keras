@@ -736,3 +736,72 @@ A Keras `Model` instance.
 ### License
 
 These weights are released under [the Apache License](https://github.com/tensorflow/models/blob/master/LICENSE).
+
+-----
+
+## mobilenet v2
+
+
+```python
+keras.applications.mobilenetv2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, classes=1000)
+```
+MobileNetV2 is a general architecture and can be used for multiple use cases.
+Depending on the use case, it can use different input layer size and
+different width factors. This allows different width models to reduce
+the number of multiply-adds and thereby
+reduce inference cost on mobile devices.
+The number of parameters and number of multiply-adds
+can be modified by using the `alpha` parameter,
+which increases/decreases the number of filters in each layer.
+
+### Arguments
+
+- input_shape: optional shape tuple, to be specified if you would
+    like to use a model with an input img resolution that is not
+    (224, 224, 3).
+    It should have exactly 3 inputs channels (224, 224, 3).
+    You can also omit this option if you would like
+    to infer input_shape from an input_tensor.
+    If you choose to include both input_tensor and input_shape then
+    input_shape will be used if they match, if the shapes
+    do not match then we will throw an error.
+    E.g. `(160, 160, 3)` would be one valid value.
+- alpha: controls the width of the network. This is known as the
+    width multiplier in the MobileNetV2 paper.
+    - If `alpha` < 1.0, proportionally decreases the number
+        of filters in each layer.
+    - If `alpha` > 1.0, proportionally increases the number
+        of filters in each layer.
+    - If `alpha` = 1, default number of filters from the paper
+         are used at each layer.
+- depth_multiplier: depth multiplier for depthwise convolution
+      (also called the resolution multiplier)
+- include_top: whether to include the fully-connected
+      layer at the top of the network.
+- weights: one of `None` (random initialization),
+        'imagenet' (pre-training on ImageNet),
+        or the path to the weights file to be loaded.
+- input_tensor: optional Keras tensor (i.e. output of
+      `layers.Input()`)
+      to use as image input for the model.
+- classes: optional number of classes to classify images
+      into, only to be specified if `include_top` is True, and
+      if no `weights` argument is specified.
+
+### Returns
+
+A Keras model instance.
+
+### Raises
+
+ValueError: in case of invalid argument for `weights`,
+    or invalid input shape or invalid depth_multiplier, alpha,
+    rows when weights='imagenet
+
+### References
+
+- [MobileNetV2: Inverted Residuals and Linear Bottlenecks](https://arxiv.org/abs/1801.04381)
+
+### License
+
+These weights are released under [the Apache License](https://github.com/tensorflow/models/blob/master/LICENSE).
