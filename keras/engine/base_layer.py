@@ -220,7 +220,8 @@ class Layer(object):
                    initializer=None,
                    regularizer=None,
                    trainable=True,
-                   constraint=None):
+                   constraint=None,
+                   manifold=None):
         """Adds a weight variable to the layer.
 
         # Arguments
@@ -243,7 +244,8 @@ class Layer(object):
         weight = K.variable(initializer(shape),
                             dtype=dtype,
                             name=name,
-                            constraint=constraint)
+                            constraint=constraint,
+                            manifold=manifold)
         if regularizer is not None:
             with K.name_scope('weight_regularizer'):
                 self.add_loss(regularizer(weight))

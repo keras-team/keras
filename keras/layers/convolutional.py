@@ -99,6 +99,7 @@ class _Conv(Layer):
                  bias_regularizer=None,
                  activity_regularizer=None,
                  kernel_constraint=None,
+                 kernel_manifold=None,
                  bias_constraint=None,
                  **kwargs):
         super(_Conv, self).__init__(**kwargs)
@@ -114,6 +115,7 @@ class _Conv(Layer):
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.bias_initializer = initializers.get(bias_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.kernel_manifold = kernel_manifold
         self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
@@ -134,6 +136,7 @@ class _Conv(Layer):
         self.kernel = self.add_weight(shape=kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
+                                      manifold=self.kernel_manifold,
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
@@ -461,6 +464,7 @@ class Conv2D(_Conv):
                  bias_regularizer=None,
                  activity_regularizer=None,
                  kernel_constraint=None,
+                 kernel_manifold=None,
                  bias_constraint=None,
                  **kwargs):
         super(Conv2D, self).__init__(
@@ -479,9 +483,11 @@ class Conv2D(_Conv):
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
             kernel_constraint=kernel_constraint,
+            kernel_manifold=kernel_manifold,
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=4)
+        print(kernel_manifold)
 
     def get_config(self):
         config = super(Conv2D, self).get_config()
