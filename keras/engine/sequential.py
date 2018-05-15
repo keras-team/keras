@@ -279,7 +279,7 @@ class Sequential(Model):
         config = []
         for layer in self.layers:
             config.append({
-                'class_name': layer.__class__.__name__,
+                'class_name': layer.class_name(),
                 'config': layer.get_config()
             })
         return copy.deepcopy(config)

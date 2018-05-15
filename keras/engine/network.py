@@ -103,7 +103,7 @@ class Network(Layer):
 
         # Handle `name` argument.
         if not name:
-            prefix = self.__class__.__name__.lower()
+            prefix = self.class_name().lower()
             name = prefix + '_' + str(K.get_uid(prefix))
         self.name = name
 
@@ -156,7 +156,7 @@ class Network(Layer):
         for x in self.inputs:
             # Check that x has appropriate `_keras_history` metadata.
             if not hasattr(x, '_keras_history'):
-                cls_name = self.__class__.__name__
+                cls_name = self.class_name()
                 raise ValueError('Input tensors to a ' + cls_name + ' ' +
                                  'must come from `tf.layers.Input`. '
                                  'Received: ' + str(x) +
@@ -166,7 +166,7 @@ class Network(Layer):
         if (len(layer._inbound_nodes) > 1 or
                 (layer._inbound_nodes and
                  layer._inbound_nodes[0].inbound_layers)):
-            cls_name = self.__class__.__name__
+            cls_name = self.class_name()
             warnings.warn(cls_name + ' inputs must come from '
                           '`tf.layers.Input` '
                           '(thus holding past layer metadata), '
@@ -184,7 +184,7 @@ class Network(Layer):
                           str(x.name))
         for x in self.outputs:
             if not hasattr(x, '_keras_history'):
-                cls_name = self.__class__.__name__
+                cls_name = self.class_name()
                 raise ValueError('Output tensors to a ' + cls_name +
                                  ' must be '
                                  'the output of a TensorFlow `Layer` '
@@ -287,7 +287,7 @@ class Network(Layer):
                     'Input {} (0-based) originates '
                     'from layer type `{}`.'.format(inputs,
                                                    i,
-                                                   layer.__class__.__name__))
+                                                   layer.class_name()))
             self.input_names.append(layer.name)
             if layer.is_placeholder:
                 self._feed_inputs.append(layer.input)
@@ -867,7 +867,7 @@ class Network(Layer):
         # serialize and save the layers in layer_configs
         layer_configs = []
         for layer in self.layers:  # From the earliest layers on.
-            layer_class_name = layer.__class__.__name__
+            layer_class_name = layer.class_name()
             layer_config = layer.get_config()
             filtered_inbound_nodes = []
             for original_node_index, node in enumerate(layer._inbound_nodes):
@@ -1189,7 +1189,7 @@ class Network(Layer):
 
         config = self.get_config()
         model_config = {
-            'class_name': self.__class__.__name__,
+            'class_name': self.class_name(),
             'config': config,
             'keras_version': keras_version,
             'backend': K.backend()
