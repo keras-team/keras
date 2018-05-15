@@ -73,7 +73,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         # if obj is a serializable Keras class instance
         # e.g. optimizer, layer
         if hasattr(obj, 'get_config'):
-            return {'class_name': obj.__class__.__name__,
+            return {'class_name': obj.class_name(),
                     'config': obj.get_config()}
 
         # if obj is any numpy type
@@ -113,7 +113,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         f.attrs['keras_version'] = str(keras_version).encode('utf8')
         f.attrs['backend'] = K.backend().encode('utf8')
         f.attrs['model_config'] = json.dumps({
-            'class_name': model.__class__.__name__,
+            'class_name': model.class_name(),
             'config': model.get_config()
         }, default=get_json_type).encode('utf8')
 
@@ -137,7 +137,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             else:
                 f.attrs['training_config'] = json.dumps({
                     'optimizer_config': {
-                        'class_name': model.optimizer.__class__.__name__,
+                        'class_name': model.optimizer.class_name(),
                         'config': model.optimizer.get_config()
                     },
                     'loss': model.loss,
@@ -292,7 +292,7 @@ def load_model(filepath, custom_objects=None, compile=True):
             # Set optimizer weights.
             if 'optimizer_weights' in f:
                 # Build train function (to get weight updates).
-                if model.__class__.__name__ == 'Sequential':
+                if model.class_name() == 'Sequential':
                     model.model._make_train_function()
                 else:
                     model._make_train_function()
@@ -541,19 +541,19 @@ def preprocess_weights_for_loading(layer, weights,
     # Convert layers nested in Bidirectional/Model/Sequential.
     # Both transformation should be ran for both Keras 1->2 conversion
     # and for conversion of CuDNN layers.
-    if layer.__class__.__name__ == 'Bidirectional':
+    if layer.class_name() == 'Bidirectional':
         weights = convert_nested_bidirectional(weights)
-    elif layer.__class__.__name__ in ['Model', 'Sequential']:
+    elif layer.class_name() in ['Model', 'Sequential']:
         weights = convert_nested_model(weights)
 
     if original_keras_version == '1':
-        if layer.__class__.__name__ == 'TimeDistributed':
+        if layer.class_name() == 'TimeDistributed':
             weights = preprocess_weights_for_loading(layer.layer,
                                                      weights,
                                                      original_keras_version,
                                                      original_backend)
 
-        if layer.__class__.__name__ == 'Conv1D':
+        if layer.class_name() == 'Conv1D':
             shape = weights[0].shape
             # Handle Keras 1.1 format
             if shape[:2] != (layer.kernel_size[0], 1) or shape[3] != layer.filters:
@@ -563,13 +563,13 @@ def preprocess_weights_for_loading(layer, weights,
                 weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
             weights[0] = weights[0][:, 0, :, :]
 
-        if layer.__class__.__name__ == 'Conv2D':
+        if layer.class_name() == 'Conv2D':
             if layer.data_format == 'channels_first':
                 # old: (filters, stack_size, kernel_rows, kernel_cols)
                 # new: (kernel_rows, kernel_cols, stack_size, filters)
                 weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
 
-        if layer.__class__.__name__ == 'Conv2DTranspose':
+        if layer.class_name() == 'Conv2DTranspose':
             if layer.data_format == 'channels_last':
                 # old: (kernel_rows, kernel_cols, stack_size, filters)
                 # new: (kernel_rows, kernel_cols, filters, stack_size)
@@ -579,13 +579,13 @@ def preprocess_weights_for_loading(layer, weights,
                 # new: (kernel_rows, kernel_cols, filters, stack_size)
                 weights[0] = np.transpose(weights[0], (2, 3, 0, 1))
 
-        if layer.__class__.__name__ == 'Conv3D':
+        if layer.class_name() == 'Conv3D':
             if layer.data_format == 'channels_first':
                 # old: (filters, stack_size, ...)
                 # new: (..., stack_size, filters)
                 weights[0] = np.transpose(weights[0], (2, 3, 4, 1, 0))
 
-        if layer.__class__.__name__ == 'GRU':
+        if layer.class_name() == 'GRU':
             if len(weights) == 9:
                 kernel = np.concatenate([weights[0],
                                          weights[3],
@@ -598,7 +598,7 @@ def preprocess_weights_for_loading(layer, weights,
                                        weights[8]], axis=-1)
                 weights = [kernel, recurrent_kernel, bias]
 
-        if layer.__class__.__name__ == 'LSTM':
+        if layer.class_name() == 'LSTM':
             if len(weights) == 12:
                 # old: i, c, f, o
                 # new: i, f, c, o
@@ -616,7 +616,7 @@ def preprocess_weights_for_loading(layer, weights,
                                        weights[11]], axis=-1)
                 weights = [kernel, recurrent_kernel, bias]
 
-        if layer.__class__.__name__ == 'ConvLSTM2D':
+        if layer.class_name() == 'ConvLSTM2D':
             if len(weights) == 12:
                 kernel = np.concatenate([weights[0],
                                          weights[6],
@@ -643,11 +643,11 @@ def preprocess_weights_for_loading(layer, weights,
                    'Conv3D',
                    'Conv2DTranspose',
                    'ConvLSTM2D']
-    if layer.__class__.__name__ in conv_layers:
+    if layer.class_name() in conv_layers:
         layer_weights_shape = K.int_shape(layer.weights[0])
         if _need_convert_kernel(original_backend):
             weights[0] = conv_utils.convert_kernel(weights[0])
-            if layer.__class__.__name__ == 'ConvLSTM2D':
+            if layer.class_name() == 'ConvLSTM2D':
                 weights[1] = conv_utils.convert_kernel(weights[1])
         if reshape and layer_weights_shape != weights[0].shape:
             if weights[0].size != np.prod(layer_weights_shape):
@@ -663,7 +663,7 @@ def preprocess_weights_for_loading(layer, weights,
             weights[0] = np.reshape(weights[0], layer_weights_shape)
         elif layer_weights_shape != weights[0].shape:
             weights[0] = np.transpose(weights[0], (3, 2, 0, 1))
-            if layer.__class__.__name__ == 'ConvLSTM2D':
+            if layer.class_name() == 'ConvLSTM2D':
                 weights[1] = np.transpose(weights[1], (3, 2, 0, 1))
 
     # convert CuDNN layers
@@ -736,7 +736,7 @@ def _convert_rnn_weights(layer, weights):
 
         return transform
 
-    target_class = layer.__class__.__name__
+    target_class = layer.class_name()
 
     # convert the weights between CuDNNLSTM and LSTM
     if target_class in ['LSTM', 'CuDNNLSTM'] and len(weights) == 3:

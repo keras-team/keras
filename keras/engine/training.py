@@ -566,7 +566,7 @@ class Model(Network):
             whether to build the model's graph in inference mode (False), training
             mode (True), or using the Keras learning phase (None).
         """
-        if self.__class__.__name__ == 'Sequential':
+        if self.class_name() == 'Sequential':
             # Note: we can't test whether the model
             # is `Sequential` via `isinstance`
             # since `Sequential` depends on `Model`.

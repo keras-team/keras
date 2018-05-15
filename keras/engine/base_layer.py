@@ -122,7 +122,7 @@ class Layer(object):
                 raise TypeError('Keyword argument not understood:', kwarg)
         name = kwargs.get('name')
         if not name:
-            prefix = self.__class__.__name__
+            prefix = self.class_name()
             name = _to_snake_case(prefix) + '_' + str(K.get_uid(prefix))
         self.name = name
 
@@ -153,6 +153,11 @@ class Layer(object):
             self._initial_weights = kwargs['weights']
         else:
             self._initial_weights = None
+
+    def class_name(self):
+        """Returns the name of this class.
+        """
+        return self.__class__.__name__
 
     @staticmethod
     def _node_key(layer, node_index):
@@ -1128,7 +1133,7 @@ class Layer(object):
                 (in which case its weights aren't yet defined).
         """
         if not self.built:
-            if self.__class__.__name__ == 'Sequential':
+            if self.class_name() == 'Sequential':
                 self.build()
             else:
                 raise RuntimeError('You tried to call `count_params` on ' +
