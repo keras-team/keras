@@ -17,7 +17,7 @@ def get_standard_values():
 def test_serialization():
     all_activations = ['softmax', 'relu', 'elu', 'tanh',
                        'sigmoid', 'hard_sigmoid', 'linear',
-                       'softplus', 'softsign', 'selu']
+                       'softplus', 'softsign', 'selu', 'swish']
     for name in all_activations:
         fn = activations.get(name)
         ref_fn = getattr(activations, name)
@@ -214,6 +214,23 @@ def test_linear():
     for x in xs:
         assert(x == activations.linear(x))
 
+
+def test_swish():
+    def ref_swish(x):
+        if x >= 0:
+            return x * (1 / (1 + np.exp(-x)))
+        else:
+            z = np.exp(x)
+            return x * (z / (1 + z))
+    swish = np.vectorize(ref_swish)
+
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.swish(x)])
+
+    test_values = get_standard_values()
+    result = f([test_values])[0]
+    expected = swish(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
 
 if __name__ == '__main__':
     pytest.main([__file__])
