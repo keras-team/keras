@@ -455,14 +455,24 @@ class ImageDataGenerator(object):
         zca_whitening: Boolean. Apply ZCA whitening.
         rotation_range: Int. Degree range for random rotations.
         width_shift_range: Float, 1-D array-like or int
-            float: fraction of total width, if < 1, or pixels if >= 1.
-            1-D array-like: random elements from the array.
-            int: integer number of pixels from interval
+            - float: fraction of total width, if < 1, or pixels if >= 1.
+            - 1-D array-like: random elements from the array.
+            - int: integer number of pixels from interval
                 `(-width_shift_range, +width_shift_range)`
-            With `width_shift_range=2` possible values
+            - With `width_shift_range=2` possible values
                 are integers `[-1, 0, +1]`,
             same as with `width_shift_range=[-1, 0, +1]`,
             while with `width_shift_range=1.0` possible values are floats in
+            the interval [-1.0, +1.0).
+        height_shift_range: Float, 1-D array-like or int
+            - float: fraction of total height, if < 1, or pixels if >= 1.
+            - 1-D array-like: random elements from the array.
+            - int: integer number of pixels from interval
+                `(-height_shift_range, +height_shift_range)`
+            - With `height_shift_range=2` possible values
+                are integers `[-1, 0, +1]`,
+            same as with `height_shift_range=[-1, 0, +1]`,
+            while with `height_shift_range=1.0` possible values are floats in
             the interval [-1.0, +1.0).
         shear_range: Float. Shear Intensity
             (Shear angle in counter-clockwise direction in degrees)
@@ -473,10 +483,10 @@ class ImageDataGenerator(object):
             Default is 'nearest'.
             Points outside the boundaries of the input are filled
             according to the given mode:
-            'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
-            'nearest':  aaaaaaaa|abcd|dddddddd
-            'reflect':  abcddcba|abcd|dcbaabcd
-            'wrap':  abcdabcd|abcd|abcdabcd
+            - 'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+            - 'nearest':  aaaaaaaa|abcd|dddddddd
+            - 'reflect':  abcddcba|abcd|dcbaabcd
+            - 'wrap':  abcdabcd|abcd|abcdabcd
         cval: Float or Int.
             Value used for points outside the boundaries
             when `fill_mode = "constant"`.
@@ -725,7 +735,6 @@ class ImageDataGenerator(object):
                 without any modifications.
                 Can be used to feed the model miscellaneous data
                 along with the images.
-
                 In case of grayscale data, the channels axis of the image array
                 should have value 1, and in case
                 of RGB data, it should have value 3.
@@ -812,7 +821,7 @@ class ImageDataGenerator(object):
                     "sparse" will be 1D integer labels,
                 - "input" will be images identical
                     to input images (mainly used to work with autoencoders).
-                If None, no labels are returned
+                - If None, no labels are returned
                 (the generator will only yield batches of image data,
                 which is useful to use with `model.predict_generator()`,
                 `model.evaluate_generator()`, etc.).
