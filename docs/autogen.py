@@ -453,6 +453,26 @@ def count_leading_spaces(s):
         return 0
 
 
+def process_list_block(docstring, anchor, marker):
+    anchor_pos = docstring.find(anchor)
+    starting_point = anchor_pos + len(anchor) + 1
+    block = ""
+    if anchor_pos > -1:
+        block = docstring[starting_point:docstring.find("\n\n", starting_point)]
+        # Place marker for later reinjection.
+        docstring = docstring.replace(block, marker)
+        # White spaces to be removed in order to correctly align the block.
+        whitespace_n = re.search("[^\s]", block).start()
+        # Remove the computed number of leading white spaces from each line.
+        lines = [re.sub('^' + ' ' * whitespace_n, '', line) for line in block.split('\n')]
+        # Format docstring lists
+        top_level_regex = r'^([^\s\\\(]+):(.*)'
+        top_level_replacement = r'- __\1__:\2'
+        lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
+        block = '\n'.join(lines)
+    return docstring, block
+
+
 def process_docstring(docstring):
     # First, extract code blocks and process them.
     code_blocks = []
@@ -492,18 +512,22 @@ def process_docstring(docstring):
             code_blocks.append(snippet)
             tmp = tmp[index:]
 
+    # Format docstring lists.
+    docstring, arguments = process_list_block(docstring, "# Arguments", "$ARGUMENTS$")
+    docstring, returns = process_list_block(docstring, "# Returns", "$RETURNS$")
+
     # Format docstring section titles.
     docstring = re.sub(r'\n(\s+)# (.*)\n',
                        r'\n\1__\2__\n\n',
-                       docstring)
-    # Format docstring lists.
-    docstring = re.sub(r'    ([^\s\\\(]+):(.*)\n',
-                       r'    - __\1__:\2\n',
                        docstring)
 
     # Strip all leading spaces.
     lines = docstring.split('\n')
     docstring = '\n'.join([line.lstrip(' ') for line in lines])
+
+    # Reinject arguments and returns blocks.
+    docstring = docstring.replace("$ARGUMENTS$", arguments)
+    docstring = docstring.replace("$RETURNS$", returns)
 
     # Reinject code blocks.
     for i, code_block in enumerate(code_blocks):
