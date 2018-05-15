@@ -155,7 +155,7 @@ sudo python setup.py install
 ------------------
 
 
-## Using a different backend than TensorFlow
+## Configuring your Keras backend
 
 By default, Keras will use TensorFlow as its tensor manipulation library. [Follow these instructions](https://keras.io/backend/) to configure the Keras backend.
 
