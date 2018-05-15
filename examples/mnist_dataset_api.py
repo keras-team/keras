@@ -51,7 +51,7 @@ def cnn_layers(inputs):
 
 batch_size = 128
 buffer_size = 10000
-steps_per_epoch = (60000 + batch_size -1) // batch_size # = 469
+steps_per_epoch = int(np.ceil(60000 / float(batch_size)))  # = 469
 epochs = 5
 num_classes = 10
 
