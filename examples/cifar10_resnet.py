@@ -130,7 +130,7 @@ def resnet_layer(inputs,
         activation (string): activation name
         batch_normalization (bool): whether to include batch normalization
         conv_first (bool): conv-bn-activation (True) or
-            activation-bn-conv (False)
+            bn-activation-conv (False)
 
     # Returns
         x (tensor): tensor as input to the next layer
