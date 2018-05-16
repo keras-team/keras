@@ -1186,6 +1186,10 @@ def reverse(x, axes):
     return x[slices]
 
 
+def slice(x, start, size):
+    raise NotImplementedError
+
+
 def pattern_broadcast(x, broadcastable):
     return T.patternbroadcast(x, broadcastable)
 

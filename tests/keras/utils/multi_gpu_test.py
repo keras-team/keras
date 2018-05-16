@@ -9,11 +9,14 @@ from keras.utils import multi_gpu_model
 import numpy as np
 import pytest
 import time
+import tempfile
 import tensorflow as tf
+from keras.utils.test_utils import keras_test
 from keras.preprocessing.image import ImageDataGenerator
 
 
-def multi_gpu_test_simple_model():
+@keras_test
+def test_multi_gpu_simple_model():
     print('####### test simple model')
     num_samples = 1000
     input_dim = 10
@@ -39,7 +42,8 @@ def multi_gpu_test_simple_model():
     parallel_model.fit(x, y, epochs=epochs)
 
 
-def multi_gpu_test_multi_io_model():
+@keras_test
+def test_multi_gpu_multi_io_model():
     print('####### test multi-io model')
     num_samples = 1000
     input_dim_a = 10
@@ -74,32 +78,61 @@ def multi_gpu_test_multi_io_model():
     parallel_model.fit([a_x, b_x], [a_y, b_y], epochs=epochs)
 
 
-def multi_gpu_test_invalid_devices():
+@keras_test
+def test_multi_gpu_invalid_devices():
     input_shape = (1000, 10)
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(10,
                                  activation='relu',
                                  input_shape=input_shape[1:]))
     model.add(keras.layers.Dense(1, activation='sigmoid'))
-    model.compile(loss='mse', optimizer='rmsprop')
 
     x = np.random.random(input_shape)
     y = np.random.random((input_shape[0], 1))
     with pytest.raises(ValueError):
         parallel_model = multi_gpu_model(model, gpus=10)
+        parallel_model.compile(loss='mse', optimizer='rmsprop')
         parallel_model.fit(x, y, epochs=2)
 
     with pytest.raises(ValueError):
         parallel_model = multi_gpu_model(model, gpus=[0, 2, 4, 6, 8])
+        parallel_model.compile(loss='mse', optimizer='rmsprop')
         parallel_model.fit(x, y, epochs=2)
 
     with pytest.raises(ValueError):
         parallel_model = multi_gpu_model(model, gpus=1)
+        parallel_model.compile(loss='mse', optimizer='rmsprop')
         parallel_model.fit(x, y, epochs=2)
 
     with pytest.raises(ValueError):
         parallel_model = multi_gpu_model(model, gpus=[0])
+        parallel_model.compile(loss='mse', optimizer='rmsprop')
         parallel_model.fit(x, y, epochs=2)
+
+
+@keras_test
+def test_serialization():
+    model = keras.models.Sequential()
+    model.add(keras.layers.Dense(3,
+                                 input_shape=(4,)))
+    model.add(keras.layers.Dense(4))
+
+    x = np.random.random((100, 4))
+    y = np.random.random((100, 4))
+
+    parallel_model = multi_gpu_model(model, gpus=2)
+    parallel_model.compile(loss='mse', optimizer='rmsprop')
+    parallel_model.fit(x, y, epochs=1)
+
+    ref_output = parallel_model.predict(x)
+
+    _, fname = tempfile.mkstemp('.h5')
+    parallel_model.save(fname)
+
+    K.clear_session()
+    parallel_model = keras.models.load_model(fname)
+    output = parallel_model.predict(x)
+    np.testing.assert_allclose(ref_output, output, atol=1e-5)
 
 
 def multi_gpu_application_np_array_benchmark():
@@ -230,8 +263,4 @@ def multi_gpu_application_folder_generator_benchmark():
 
 
 if __name__ == '__main__':
-    multi_gpu_test_simple_model()
-    multi_gpu_test_multi_io_model()
-    multi_gpu_test_invalid_devices()
-    multi_gpu_application_np_array_benchmark()
-    multi_gpu_application_folder_generator_benchmark()
+    pytest.main([__file__])
