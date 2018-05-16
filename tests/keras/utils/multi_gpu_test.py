@@ -15,6 +15,13 @@ from keras.utils.test_utils import keras_test
 from keras.preprocessing.image import ImageDataGenerator
 
 
+available_devices = keras.utils.multi_gpu_utils._get_available_devices()
+available_devices = [keras.utils.multi_gpu_utils._normalize_device_name(name)
+                     for name in available_devices]
+pytestmark = pytest.mark.skipif('/gpu:7' not in available_devices,
+                                reason='Requires 8 GPUs.')
+
+
 @keras_test
 def test_multi_gpu_simple_model():
     print('####### test simple model')
@@ -167,7 +174,7 @@ def multi_gpu_application_np_array_benchmark():
     total_time = time.time() - start_time
     print('baseline inference:', total_time)
 
-    for i in range(8, 9):
+    for i in range(2, 9, 2):
         K.clear_session()
         with tf.device('/cpu:0'):
             model = model_cls(weights=None,
