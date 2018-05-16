@@ -102,7 +102,7 @@ def NASNet(input_shape=None,
                 -   P is the number of penultimate filters
         stem_block_filters: Number of filters in the initial stem block
         skip_reduction: Whether to skip the reduction step at the tail
-            end of the network. Set to `False` for CIFAR models.
+            end of the network.
         filter_multiplier: Controls the width of the network.
             - If `filter_multiplier` < 1.0, proportionally decreases the number
                 of filters in each layer.
@@ -210,24 +210,18 @@ def NASNet(input_shape=None,
     channel_dim = 1 if K.image_data_format() == 'channels_first' else -1
     filters = penultimate_filters // 24
 
-    if not skip_reduction:
-        x = Conv2D(stem_block_filters, (3, 3), strides=(2, 2), padding='valid',
-                   use_bias=False, name='stem_conv1',
-                   kernel_initializer='he_normal')(img_input)
-    else:
-        x = Conv2D(stem_block_filters, (3, 3), strides=(1, 1), padding='same',
-                   use_bias=False, name='stem_conv1',
-                   kernel_initializer='he_normal')(img_input)
+    x = Conv2D(stem_block_filters, (3, 3), strides=(2, 2), padding='valid',
+               use_bias=False, name='stem_conv1',
+               kernel_initializer='he_normal')(img_input)
 
     x = BatchNormalization(axis=channel_dim, momentum=0.9997,
                            epsilon=1e-3, name='stem_bn1')(x)
 
     p = None
-    if not skip_reduction:  # imagenet / mobile mode
-        x, p = _reduction_a_cell(x, p, filters // (filter_multiplier ** 2),
-                                 block_id='stem_1')
-        x, p = _reduction_a_cell(x, p, filters // filter_multiplier,
-                                 block_id='stem_2')
+    x, p = _reduction_a_cell(x, p, filters // (filter_multiplier ** 2),
+                             block_id='stem_1')
+    x, p = _reduction_a_cell(x, p, filters // filter_multiplier,
+                             block_id='stem_2')
 
     for i in range(num_blocks):
         x, p = _normal_a_cell(x, p, filters, block_id='%d' % (i))
@@ -364,7 +358,7 @@ def NASNetLarge(input_shape=None,
                   penultimate_filters=4032,
                   num_blocks=6,
                   stem_block_filters=96,
-                  skip_reduction=False,
+                  skip_reduction=True,
                   filter_multiplier=2,
                   include_top=include_top,
                   weights=weights,
@@ -630,7 +624,7 @@ def _reduction_a_cell(ip, p, filters, block_id=None):
             x1_1 = _separable_conv_block(h, filters, (5, 5), strides=(2, 2),
                                          block_id='reduction_left1_%s' % block_id)
             x1_2 = _separable_conv_block(p, filters, (7, 7), strides=(2, 2),
-                                         block_id='reduction_1_%s' % block_id)
+                                         block_id='reduction_right1_%s' % block_id)
             x1 = add([x1_1, x1_2], name='reduction_add_1_%s' % block_id)
 
         with K.name_scope('block_2'):
