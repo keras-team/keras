@@ -28,6 +28,7 @@ from .common import set_image_dim_ordering, image_dim_ordering
 py_all = all
 py_any = any
 py_sum = sum
+py_slice = slice
 
 
 # INTERNAL UTILS
@@ -1103,10 +1104,10 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                         input_shape[2] + top_pad + bottom_pad,
                         input_shape[3] + left_pad + right_pad)
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(None),
-                   slice(top_pad, input_shape[2] + top_pad),
-                   slice(left_pad, input_shape[3] + left_pad))
+        indices = (py_slice(None),
+                   py_slice(None),
+                   py_slice(top_pad, input_shape[2] + top_pad),
+                   py_slice(left_pad, input_shape[3] + left_pad))
 
     else:
         output_shape = (input_shape[0],
@@ -1114,10 +1115,10 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                         input_shape[2] + left_pad + right_pad,
                         input_shape[3])
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(top_pad, input_shape[1] + top_pad),
-                   slice(left_pad, input_shape[2] + left_pad),
-                   slice(None))
+        indices = (py_slice(None),
+                   py_slice(top_pad, input_shape[1] + top_pad),
+                   py_slice(left_pad, input_shape[2] + left_pad),
+                   py_slice(None))
     y = T.set_subtensor(output[indices], x)
     y._keras_shape = output_shape
     return y
@@ -1140,11 +1141,11 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                         input_shape[3] + padding[1][0] + padding[1][1],
                         input_shape[4] + padding[2][0] + padding[2][1])
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(None),
-                   slice(padding[0][0], input_shape[2] + padding[0][0]),
-                   slice(padding[1][0], input_shape[3] + padding[1][0]),
-                   slice(padding[2][0], input_shape[4] + padding[2][0]))
+        indices = (py_slice(None),
+                   py_slice(None),
+                   py_slice(padding[0][0], input_shape[2] + padding[0][0]),
+                   py_slice(padding[1][0], input_shape[3] + padding[1][0]),
+                   py_slice(padding[2][0], input_shape[4] + padding[2][0]))
 
     else:
         output_shape = (input_shape[0],
@@ -1153,11 +1154,11 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                         input_shape[3] + padding[2][0] + padding[2][1],
                         input_shape[4])
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(padding[0][0], input_shape[1] + padding[0][0]),
-                   slice(padding[1][0], input_shape[2] + padding[1][0]),
-                   slice(padding[2][0], input_shape[3] + padding[2][0]),
-                   slice(None))
+        indices = (py_slice(None),
+                   py_slice(padding[0][0], input_shape[1] + padding[0][0]),
+                   py_slice(padding[1][0], input_shape[2] + padding[1][0]),
+                   py_slice(padding[2][0], input_shape[3] + padding[2][0]),
+                   py_slice(None))
     return T.set_subtensor(output[indices], x)
 
 
@@ -1182,7 +1183,7 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
-    slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(x.ndim)]
+    slices = [py_slice(None, None, -1) if i in axes else py_slice(None, None, None) for i in range(x.ndim)]
     return x[slices]
 
 

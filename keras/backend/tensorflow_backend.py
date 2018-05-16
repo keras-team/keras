@@ -28,6 +28,7 @@ from .common import image_dim_ordering
 py_all = all
 py_any = any
 py_sum = sum
+py_slice = slice
 
 # INTERNAL UTILS
 
@@ -4260,8 +4261,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
     xs = []
     for i in range(output_length):
-        slice_length = slice(i * stride,
-                             i * stride + kernel_size[0])
+        slice_length = py_slice(i * stride,
+                                i * stride + kernel_size[0])
         xs.append(reshape(inputs[:, slice_length, :],
                           (1, -1, feature_dim)))
     x_aggregate = concatenate(xs, axis=0)
@@ -4314,10 +4315,10 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     xs = []
     for i in range(output_row):
         for j in range(output_col):
-            slice_row = slice(i * stride_row,
-                              i * stride_row + kernel_size[0])
-            slice_col = slice(j * stride_col,
-                              j * stride_col + kernel_size[1])
+            slice_row = py_slice(i * stride_row,
+                                 i * stride_row + kernel_size[0])
+            slice_col = py_slice(j * stride_col,
+                                 j * stride_col + kernel_size[1])
             if data_format == 'channels_first':
                 xs.append(reshape(inputs[:, :, slice_row, slice_col],
                                   (1, -1, feature_dim)))
