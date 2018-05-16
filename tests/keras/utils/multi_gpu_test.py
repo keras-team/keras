@@ -15,11 +15,14 @@ from keras.utils.test_utils import keras_test
 from keras.preprocessing.image import ImageDataGenerator
 
 
-available_devices = keras.utils.multi_gpu_utils._get_available_devices()
-available_devices = [keras.utils.multi_gpu_utils._normalize_device_name(name)
-                     for name in available_devices]
-pytestmark = pytest.mark.skipif('/gpu:7' not in available_devices,
-                                reason='Requires 8 GPUs.')
+pytestmark = pytest.mark.skipif(K.backend() != 'tensorflow',
+                                reason='Requires TF.')
+if K.backend() == 'tensorflow':
+    available_devices = keras.utils.multi_gpu_utils._get_available_devices()
+    available_devices = [keras.utils.multi_gpu_utils._normalize_device_name(name)
+                         for name in available_devices]
+    pytestmark = pytest.mark.skipif('/gpu:7' not in available_devices,
+                                    reason='Requires 8 GPUs.')
 
 
 @keras_test
