@@ -1867,14 +1867,13 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
         A tensor.
     """
     if ndim(x) == 4:
+        #The CPU implementation of FusedBatchNorm only support NHWC
         if len(mean.shape) == 1:
             tf_data_format = 'NHWC'
-        elif (len(mean.shape) == 4 and mean.shape[0] == 1 and 
-                mean.shape[2] == 1 and mean.shape[3] == 1):
-            tf_data_format = 'NCHW'
         else:
             tf_data_format = None
-        if tf_data_format is not None:
+        if (tf_data_format is not None and 
+                beta is not None and gamma is not None):
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
