@@ -2468,6 +2468,10 @@ def reverse(x, axes):
     return C.slice(x, cntk_axes, begin_index, end_index, strides)
 
 
+def slice(x, start, size):
+    raise NotImplementedError
+
+
 def _reshape_batch(x, shape):
     # there is a bug in cntk 2.1's unpack_batch implementation
     if hasattr(C, 'unpack_batch') and _get_cntk_version() >= 2.2:

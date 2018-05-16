@@ -2293,7 +2293,7 @@ def one_hot(indices, num_classes):
 
 
 def reverse(x, axes):
-    """Reverse a tensor along the specified axes.
+    """Reverses a tensor along the specified axes.
 
     # Arguments
         x: Tensor to reverse.
@@ -2306,6 +2306,26 @@ def reverse(x, axes):
     if isinstance(axes, int):
         axes = [axes]
     return tf.reverse(x, axes)
+
+
+def slice(x, start, size):
+    """Extracts a slice from a tensor.
+
+    # Arguments
+        x: Input tensor.
+        start: Integer list/tuple or tensor
+            indicating the start indices of the slice
+            along each axis.
+        size: Integer list/tuple or tensor
+            indicating how many dimensions to slice
+            along each axis.
+
+    # Returns
+        Tensor `x[start[0]: start[0] + size[0],
+                  ...,
+                  start[-1]: start[-1] + size[-1]]`
+    """
+    return tf.slice(x, start, size)
 
 
 # VALUE MANIPULATION
