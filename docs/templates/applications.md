@@ -180,6 +180,8 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [DenseNet121](#densenet) | 33 MB | 0.745 | 0.918 | 8,062,504 | 121
 | [DenseNet169](#densenet) | 57 MB | 0.759 | 0.928 | 14,307,880 | 169
 | [DenseNet201](#densenet) | 80 MB | 0.770 | 0.933 | 20,242,984 | 201
+| [NASNetMobile](#nasnet) | 24,6 MB | 0.74 | 0.916 | 5,326,716 | 751
+| [NASNetlarge](#nasnet) | 360,3 MB | 0.827 | 0.962 | 88,949,818 | 1021
 
 
 The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
