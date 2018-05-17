@@ -333,9 +333,8 @@ class TimeseriesGenerator(Sequence):
                              % (self.start_index, self.end_index))
 
     def __len__(self):
-        return int(np.ceil(
-            (self.end_index - self.start_index + 1) /
-            (self.batch_size * self.stride)))
+        return (self.end_index - self.start_index +
+                self.batch_size * self.stride) // (self.batch_size * self.stride)
 
     def _empty_batch(self, num_rows):
         samples_shape = [num_rows, self.length // self.sampling_rate]
