@@ -1849,7 +1849,7 @@ def normalize_batch_in_training(x, gamma, beta,
                                                           epsilon=epsilon)
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis, epsilon=1e-3):
     """Applies batch normalization on x given mean, var, beta and gamma.
 
     I.e. returns:
@@ -1861,6 +1861,8 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
         var: Variance of batch.
         beta: Tensor with which to center the input.
         gamma: Tensor by which to scale the input.
+        axis: Integer, the axis that should be normalized.
+                (typically the features axis).
         epsilon: Fuzz factor.
 
     # Returns
@@ -1868,12 +1870,18 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     """
     if ndim(x) == 4:
         # The CPU implementation of FusedBatchNorm only support NHWC
-        if len(mean.shape) == 1:
+        if axis == 1:
+            tf_data_format = 'NCHW'
+        elif axis == 3:
             tf_data_format = 'NHWC'
         else:
             tf_data_format = None
-        if (tf_data_format is not None and
-                beta is not None and gamma is not None):
+
+        if ((tf_data_format == 'NHWC') or (tf_data_format == 'NCHW' and _has_nchw_support())):
+            if beta is None:
+                beta = zeros_like(mean)
+            if gamma is None:
+                gamma = ones_like(mean)
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
