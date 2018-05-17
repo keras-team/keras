@@ -89,7 +89,7 @@ def NASNet(input_shape=None,
         input_shape: Optional shape tuple, the input shape
             is by default `(331, 331, 3)` for NASNetLarge and
             `(224, 224, 3)` for NASNetMobile.
-            It should have exactly 3 inputs channels,
+            It should have exactly 3 input channels,
             and width and height should be no smaller than 32.
             E.g. `(224, 224, 3)` would be one valid value.
         penultimate_filters: Number of filters in the penultimate layer.
