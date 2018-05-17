@@ -1340,7 +1340,7 @@ class Model(Network):
                 List of callbacks to apply during training.
                 See [callbacks](/callbacks).
             validation_data: This can be either
-                - a generator for the validation data
+                - a generator or a `Sequence` object for the validation data
                 - tuple `(x_val, y_val)`
                 - tuple `(x_val, y_val, val_sample_weights)`
                 on which to evaluate
