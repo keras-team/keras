@@ -93,6 +93,7 @@ class Embedding(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.embeddings_constraint = constraints.get(embeddings_constraint)
         self.mask_zero = mask_zero
+        self.supports_masking = mask_zero
         self.input_length = input_length
 
     def build(self, input_shape):

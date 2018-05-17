@@ -201,21 +201,40 @@ class TimeDistributed(Wrapper):
             # No batch size specified, therefore the layer will be able
             # to process batches of any size.
             # We can go with reshape-based implementation for performance.
+
+            def get_shape_tuple(tensor, start_idx, init_tuple, int_shape=None):
+                # replace all None in int_shape by K.shape
+                if int_shape is None:
+                    int_shape = K.int_shape(tensor)[start_idx:]
+                if not any(not s for s in int_shape):
+                    return init_tuple + int_shape
+                tensor_shape = K.shape(tensor)
+                int_shape = list(int_shape)
+                for i, s in enumerate(int_shape):
+                    if not s:
+                        int_shape[i] = tensor_shape[start_idx + i]
+                return init_tuple + tuple(int_shape)
+
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
+            inner_input_shape = get_shape_tuple(inputs, 2, (-1,))
             # Shape: (num_samples * timesteps, ...). And track the
             # transformation in self._input_map.
             input_uid = object_list_uid(inputs)
-            inputs = K.reshape(inputs, (-1,) + input_shape[2:])
+            inputs = K.reshape(inputs, inner_input_shape)
             self._input_map[input_uid] = inputs
             # (num_samples * timesteps, ...)
+            if has_arg(self.layer.call, 'mask') and mask is not None:
+                inner_mask_shape = get_shape_tuple(mask, 2, (-1,))
+                kwargs['mask'] = K.reshape(mask, inner_mask_shape)
             y = self.layer.call(inputs, **kwargs)
             if hasattr(y, '_uses_learning_phase'):
                 uses_learning_phase = y._uses_learning_phase
             # Shape: (num_samples, timesteps, ...)
             output_shape = self.compute_output_shape(input_shape)
-            y = K.reshape(y, (-1, input_length) + output_shape[2:])
+            output_shape = get_shape_tuple(y, 1, (-1, input_length), output_shape[2:])
+            y = K.reshape(y, output_shape)
 
         # Apply activity regularizer if any:
         if (hasattr(self.layer, 'activity_regularizer') and
@@ -226,6 +245,48 @@ class TimeDistributed(Wrapper):
         if uses_learning_phase:
             y._uses_learning_phase = True
         return y
+
+    def compute_mask(self, inputs, mask=None):
+        # cases need to call the layer.compute_mask when input_mask is None:
+        # Masking layer and Embedding layer with mask_zero
+
+        def get_shape_tuple(tensor, start_idx, init_tuple):
+            int_shape = K.int_shape(tensor)[start_idx:]
+            if not any(not s for s in int_shape):
+                return init_tuple + int_shape
+            tensor_shape = K.shape(tensor)
+            int_shape = list(int_shape)
+            for i, s in enumerate(int_shape):
+                if not s:
+                    int_shape[i] = tensor_shape[start_idx + i]
+            return init_tuple + tuple(int_shape)
+
+        input_shape = K.int_shape(inputs)
+        if input_shape[0]:
+            # batch size matters, we currently do not handle mask explicitly
+            return mask
+        inner_mask = mask
+        if inner_mask is not None:
+            inner_mask_shape = get_shape_tuple(mask, 2, (-1,))
+            inner_mask = K.reshape(inner_mask, inner_mask_shape)
+        input_uid = object_list_uid(inputs)
+        inner_inputs = self._input_map[input_uid]
+        output_mask = self.layer.compute_mask(inner_inputs, inner_mask)
+        if output_mask is None:
+            if mask is None:
+                return None
+            # input_mask is not None, and output_mask is None: we should return a not-None mask
+            output_mask = mask
+            for _ in range(2, len(K.int_shape(mask))):
+                output_mask = K.any(output_mask, axis=-1)
+        else:
+            # output_mask is not None. We need to reshape it
+            input_length = input_shape[1]
+            if not input_length:
+                input_length = K.shape(inputs)[1]
+            output_mask_shape = get_shape_tuple(output_mask, 1, (-1, input_length))
+            output_mask = K.reshape(output_mask, output_mask_shape)
+        return output_mask
 
 
 class Bidirectional(Wrapper):
