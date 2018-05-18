@@ -60,10 +60,10 @@ from ..applications.inception_v3 import preprocess_input
 from ..applications.imagenet_utils import decode_predictions
 from .. import backend as K
 
-NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-mobile.h5'
-NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-mobile-no-top.h5'
-NASNET_LARGE_WEIGHT_PATH = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-large.h5'
-NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.8/NASNet-large-no-top.h5'
+NASNET_MOBILE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-mobile.h5'
+NASNET_MOBILE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-mobile-no-top.h5'
+NASNET_LARGE_WEIGHT_PATH = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-large.h5'
+NASNET_LARGE_WEIGHT_PATH_NO_TOP = 'https://github.com/titu1994/Keras-NASNet/releases/download/v1.2/NASNet-large-no-top.h5'
 
 
 def NASNet(input_shape=None,
@@ -268,27 +268,32 @@ def NASNet(input_shape=None,
     if weights == 'imagenet':
         if default_size == 224:  # mobile version
             if include_top:
-                weight_path = NASNET_MOBILE_WEIGHT_PATH
-                model_name = 'nasnet_mobile.h5'
+                weights_path = get_file(
+                    'nasnet_mobile.h5',
+                    NASNET_MOBILE_WEIGHT_PATH,
+                    cache_subdir='models',
+                    file_hash='020fb642bf7360b370c678b08e0adf61')
             else:
-                weight_path = NASNET_MOBILE_WEIGHT_PATH_NO_TOP
-                model_name = 'nasnet_mobile_no_top.h5'
-
-            weights_file = get_file(model_name, weight_path,
-                                    cache_subdir='models')
-            model.load_weights(weights_file)
-
+                weights_path = get_file(
+                    'nasnet_mobile_no_top.h5',
+                    NASNET_MOBILE_WEIGHT_PATH_NO_TOP,
+                    cache_subdir='models',
+                    file_hash='1ed92395b5b598bdda52abe5c0dbfd63')
+            model.load_weights(weights_path)
         elif default_size == 331:  # large version
             if include_top:
-                weight_path = NASNET_LARGE_WEIGHT_PATH
-                model_name = 'nasnet_large.h5'
+                weights_path = get_file(
+                    'nasnet_large.h5',
+                    NASNET_LARGE_WEIGHT_PATH,
+                    cache_subdir='models',
+                    file_hash='11577c9a518f0070763c2b964a382f17')
             else:
-                weight_path = NASNET_LARGE_WEIGHT_PATH_NO_TOP
-                model_name = 'nasnet_large_no_top.h5'
-
-            weights_file = get_file(model_name, weight_path,
-                                    cache_subdir='models')
-            model.load_weights(weights_file)
+                weights_path = get_file(
+                    'nasnet_large_no_top.h5',
+                    NASNET_LARGE_WEIGHT_PATH_NO_TOP,
+                    cache_subdir='models',
+                    file_hash='d81d89dc07e6e56530c4e77faddd61b5')
+            model.load_weights(weights_path)
         else:
             raise ValueError(
                 'ImageNet weights can only be loaded with NASNetLarge'
