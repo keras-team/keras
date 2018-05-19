@@ -250,8 +250,10 @@ class TimeDistributed(Wrapper):
         # cases need to call the layer.compute_mask when input_mask is None:
         # Masking layer and Embedding layer with mask_zero
 
-        def get_shape_tuple(tensor, start_idx, init_tuple):
-            int_shape = K.int_shape(tensor)[start_idx:]
+        def get_shape_tuple(tensor, start_idx, init_tuple, int_shape=None):
+            # replace all None in int_shape by K.shape
+            if int_shape is None:
+                int_shape = K.int_shape(tensor)[start_idx:]
             if not any(not s for s in int_shape):
                 return init_tuple + int_shape
             tensor_shape = K.shape(tensor)
@@ -284,7 +286,16 @@ class TimeDistributed(Wrapper):
             input_length = input_shape[1]
             if not input_length:
                 input_length = K.shape(inputs)[1]
-            output_mask_shape = get_shape_tuple(output_mask, 1, (-1, input_length))
+            output_mask_int_shape = K.int_shape(output_mask)
+            if output_mask_int_shape is None:
+                # if the output_mask does not have `_keras_shape`,
+                # its shape must be the same as mask's
+                if mask is not None:
+                    output_mask_int_shape = K.int_shape(mask)
+                else:
+                    output_mask_int_shape = K.compute_output_shape(input_shape)[:-1]
+            output_mask_shape = get_shape_tuple(output_mask, 1, (-1, input_length),
+                                                output_mask_int_shape[1:])
             output_mask = K.reshape(output_mask, output_mask_shape)
         return output_mask
 

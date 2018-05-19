@@ -109,8 +109,10 @@ class Embedding(Layer):
     def compute_mask(self, inputs, mask=None):
         if not self.mask_zero:
             return None
-        else:
-            return K.not_equal(inputs, 0)
+        output_mask = K.not_equal(inputs, 0)
+        if hasattr(inputs, '_keras_shape'):
+            output_mask._keras_shape = inputs._keras_shape
+        return output_mask
 
     def compute_output_shape(self, input_shape):
         if self.input_length is None:
