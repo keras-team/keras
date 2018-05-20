@@ -221,6 +221,16 @@ def test_conv2d_transpose():
                input_shape=(num_samples, stack_size, num_row, num_col),
                fixed_batch_size=True)
 
+    layer_test(convolutional.Conv2DTranspose,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'strides': strides,
+                       'output_shape': (9, 11, filters),
+                       'data_format': 'channels_last'},
+               input_shape=(num_samples, num_row, num_col, stack_size),
+               fixed_batch_size=True)
+
     # Test invalid use case
     with pytest.raises(ValueError):
         model = Sequential([convolutional.Conv2DTranspose(filters=filters,
@@ -523,6 +533,16 @@ def test_conv3d_transpose():
                        'bias_constraint': 'max_norm',
                        'strides': strides},
                input_shape=(None, stack_size, num_depth, num_row, num_col),
+               fixed_batch_size=True)
+
+    layer_test(convolutional.Conv3DTranspose,
+               kwargs={'filters': filters,
+                       'kernel_size': 3,
+                       'padding': padding,
+                       'strides': strides,
+                       'output_shape': (13, 9, 11, filters),
+                       'data_format': 'channels_last'},
+               input_shape=(None, num_depth, num_row, num_col, stack_size),
                fixed_batch_size=True)
 
     # Test invalid use case
