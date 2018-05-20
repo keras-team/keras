@@ -714,7 +714,6 @@ class Conv2DTranspose(Conv2D):
         - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
-    @interfaces.legacy_deconv2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
