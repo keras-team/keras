@@ -62,14 +62,9 @@ def random_rotation(x, rg, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Rotated Numpy image tensor.
     """
-    theta = np.deg2rad(np.random.uniform(-rg, rg))
-    rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
-                                [np.sin(theta), np.cos(theta), 0],
-                                [0, 0, 1]])
-
-    h, w = x.shape[row_axis], x.shape[col_axis]
-    transform_matrix = transform_matrix_offset_center(rotation_matrix, h, w)
-    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    theta = np.random.uniform(-rg, rg)
+    x = apply_affine_transform(x, theta=theta, channel_axis=channel_axis,
+                               fill_mode=fill_mode, cval=cval)
     return x
 
 
@@ -96,12 +91,8 @@ def random_shift(x, wrg, hrg, row_axis=1, col_axis=2, channel_axis=0,
     h, w = x.shape[row_axis], x.shape[col_axis]
     tx = np.random.uniform(-hrg, hrg) * h
     ty = np.random.uniform(-wrg, wrg) * w
-    translation_matrix = np.array([[1, 0, tx],
-                                   [0, 1, ty],
-                                   [0, 0, 1]])
-
-    transform_matrix = translation_matrix  # no need to do offset
-    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    x = apply_affine_transform(x, tx=tx, ty=ty, channel_axis=channel_axis,
+                               fill_mode=fill_mode, cval=cval)
     return x
 
 
@@ -124,14 +115,9 @@ def random_shear(x, intensity, row_axis=1, col_axis=2, channel_axis=0,
     # Returns
         Sheared Numpy image tensor.
     """
-    shear = np.deg2rad(np.random.uniform(-intensity, intensity))
-    shear_matrix = np.array([[1, -np.sin(shear), 0],
-                             [0, np.cos(shear), 0],
-                             [0, 0, 1]])
-
-    h, w = x.shape[row_axis], x.shape[col_axis]
-    transform_matrix = transform_matrix_offset_center(shear_matrix, h, w)
-    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    shear = np.random.uniform(-intensity, intensity)
+    x = apply_affine_transform(x, shear=shear, channel_axis=channel_axis,
+                               fill_mode=fill_mode, cval=cval)
     return x
 
 
@@ -165,13 +151,8 @@ def random_zoom(x, zoom_range, row_axis=1, col_axis=2, channel_axis=0,
         zx, zy = 1, 1
     else:
         zx, zy = np.random.uniform(zoom_range[0], zoom_range[1], 2)
-    zoom_matrix = np.array([[zx, 0, 0],
-                            [0, zy, 0],
-                            [0, 0, 1]])
-
-    h, w = x.shape[row_axis], x.shape[col_axis]
-    transform_matrix = transform_matrix_offset_center(zoom_matrix, h, w)
-    x = apply_matrix_transform(x, transform_matrix, channel_axis, fill_mode, cval)
+    x = apply_affine_transform(x, zx=zx, zy=zy, channel_axis=channel_axis,
+                               fill_mode=fill_mode, cval=cval)
     return x
 
 
@@ -214,7 +195,7 @@ def random_channel_shift(x, intensity_range, channel_axis=0):
     return apply_channel_shift(x, intensity, channel_axis=channel_axis)
 
 
-def apply_brightness(x, brightness):
+def apply_brightness_shift(x, brightness):
     """Performs a brightness shift.
 
     # Arguments
@@ -255,7 +236,7 @@ def random_brightness(x, brightness_range):
             'Received: %s' % brightness_range)
 
     u = np.random.uniform(brightness_range[0], brightness_range[1])
-    return apply_brightness(x, u)
+    return apply_brightness_shift(x, u)
 
 
 def transform_matrix_offset_center(matrix, x, y):
@@ -267,17 +248,22 @@ def transform_matrix_offset_center(matrix, x, y):
     return transform_matrix
 
 
-def apply_matrix_transform(x,
-                           transform_matrix,
-                           channel_axis=0,
-                           fill_mode='nearest',
-                           cval=0.):
-    """Applies the image transformation specified by a matrix.
+def apply_affine_transform(x, theta=0, tx=0, ty=0, shear=0, zx=1, zy=1,
+                           row_axis=0, col_axis=1, channel_axis=2,
+                           fill_mode='nearest', cval=0.):
+    """Applies an affine transformation specified by the parameters given.
 
     # Arguments
         x: 2D numpy array, single image.
-        transform_matrix: Numpy array specifying the geometric transformation.
-        channel_axis: Index of axis for channels in the input tensor.
+        theta: Rotation angle in degrees.
+        tx: Width shift.
+        ty: Heigh shift.
+        shear: Shear angle in degrees.
+        zx: Zoom in x direction.
+        zy: Zoom in y direction
+        row_axis: Index of axis for rows in the input image.
+        col_axis: Index of axis for columns in the input image.
+        channel_axis: Index of axis for channels in the input image.
         fill_mode: Points outside the boundaries of the input
             are filled according to the given mode
             (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
@@ -287,19 +273,50 @@ def apply_matrix_transform(x,
     # Returns
         The transformed version of the input.
     """
-    x = np.rollaxis(x, channel_axis, 0)
-    final_affine_matrix = transform_matrix[:2, :2]
-    final_offset = transform_matrix[:2, 2]
-    print(final_affine_matrix)
-    channel_images = [ndi.interpolation.affine_transform(
-        x_channel,
-        final_affine_matrix,
-        final_offset,
-        order=1,
-        mode=fill_mode,
-        cval=cval) for x_channel in x]
-    x = np.stack(channel_images, axis=0)
-    x = np.rollaxis(x, 0, channel_axis + 1)
+    transform_matrix = None
+    if theta != 0:
+        theta = np.deg2rad(theta)
+        rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
+                                    [np.sin(theta), np.cos(theta), 0],
+                                    [0, 0, 1]])
+        transform_matrix = rotation_matrix
+
+    if tx != 0 or ty != 0:
+        shift_matrix = np.array([[1, 0, tx],
+                                 [0, 1, ty],
+                                 [0, 0, 1]])
+        transform_matrix = shift_matrix if transform_matrix is None else np.dot(transform_matrix, shift_matrix)
+
+    if shear != 0:
+        shear = np.deg2rad(shear)
+        shear_matrix = np.array([[1, -np.sin(shear), 0],
+                                 [0, np.cos(shear), 0],
+                                 [0, 0, 1]])
+        transform_matrix = shear_matrix if transform_matrix is None else np.dot(transform_matrix, shear_matrix)
+
+    if zx != 1 or zy != 1:
+        zoom_matrix = np.array([[zx, 0, 0],
+                                [0, zy, 0],
+                                [0, 0, 1]])
+        transform_matrix = zoom_matrix if transform_matrix is None else np.dot(transform_matrix, zoom_matrix)
+
+    if transform_matrix is not None:
+        h, w = x.shape[row_axis], x.shape[col_axis]
+        transform_matrix = transform_matrix_offset_center(
+            transform_matrix, h, w)
+        x = np.rollaxis(x, channel_axis, 0)
+        final_affine_matrix = transform_matrix[:2, :2]
+        final_offset = transform_matrix[:2, 2]
+
+        channel_images = [ndi.interpolation.affine_transform(
+            x_channel,
+            final_affine_matrix,
+            final_offset,
+            order=1,
+            mode=fill_mode,
+            cval=cval) for x_channel in x]
+        x = np.stack(channel_images, axis=0)
+        x = np.rollaxis(x, 0, channel_axis + 1)
     return x
 
 
@@ -957,9 +974,9 @@ class ImageDataGenerator(object):
             np.random.seed(seed)
 
         if self.rotation_range:
-            theta = np.deg2rad(np.random.uniform(
+            theta = np.random.uniform(
                 -self.rotation_range,
-                self.rotation_range))
+                self.rotation_range)
         else:
             theta = 0
 
@@ -988,9 +1005,9 @@ class ImageDataGenerator(object):
             ty = 0
 
         if self.shear_range:
-            shear = np.deg2rad(np.random.uniform(
+            shear = np.random.uniform(
                 -self.shear_range,
-                self.shear_range))
+                self.shear_range)
         else:
             shear = 0
 
@@ -1055,37 +1072,15 @@ class ImageDataGenerator(object):
         zx = transform_parameters.get('zx', 1)
         zy = transform_parameters.get('zy', 1)
 
-        transform_matrix = None
-        if theta != 0:
-            rotation_matrix = np.array([[np.cos(theta), -np.sin(theta), 0],
-                                        [np.sin(theta), np.cos(theta), 0],
-                                        [0, 0, 1]])
-            transform_matrix = rotation_matrix
-
-        if tx != 0 or ty != 0:
-            shift_matrix = np.array([[1, 0, tx],
-                                     [0, 1, ty],
-                                     [0, 0, 1]])
-            transform_matrix = shift_matrix if transform_matrix is None else np.dot(transform_matrix, shift_matrix)
-
-        if shear != 0:
-            shear_matrix = np.array([[1, -np.sin(shear), 0],
-                                    [0, np.cos(shear), 0],
-                                    [0, 0, 1]])
-            transform_matrix = shear_matrix if transform_matrix is None else np.dot(transform_matrix, shear_matrix)
-
-        if zx != 1 or zy != 1:
-            zoom_matrix = np.array([[zx, 0, 0],
-                                    [0, zy, 0],
-                                    [0, 0, 1]])
-            transform_matrix = zoom_matrix if transform_matrix is None else np.dot(transform_matrix, zoom_matrix)
-
-        if transform_matrix is not None:
-            h, w = x.shape[img_row_axis], x.shape[img_col_axis]
-            transform_matrix = transform_matrix_offset_center(
-                transform_matrix, h, w)
-            x = apply_matrix_transform(x, transform_matrix, img_channel_axis,
-                                       fill_mode=self.fill_mode, cval=self.cval)
+        x = apply_affine_transform(x, transform_parameters.get('theta', 0),
+                                   transform_parameters.get('tx', 0),
+                                   transform_parameters.get('ty', 0),
+                                   transform_parameters.get('shear', 0),
+                                   transform_parameters.get('zx', 1),
+                                   transform_parameters.get('zy', 1),
+                                   row_axis=img_row_axis, col_axis=img_col_axis,
+                                   channel_axis=img_channel_axis,
+                                   fill_mode=self.fill_mode, cval=self.cval)
 
         if transform_parameters.get('channel_shift_intensity') is not None:
             x = apply_channel_shift(x,
@@ -1099,7 +1094,7 @@ class ImageDataGenerator(object):
             x = flip_axis(x, img_row_axis)
 
         if transform_parameters.get('brightness') is not None:
-            x = apply_brightness(x, transform_parameters['brightness'])
+            x = apply_brightness_shift(x, transform_parameters['brightness'])
 
         return x
 

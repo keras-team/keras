@@ -504,8 +504,10 @@ class TestImage(object):
                               [[0., 0., 0.],
                                [0., 0., 0.],
                                [1., 1., 1.]]])
-        assert np.allclose(generator.apply_transform(x, {'theta': np.pi / 4}),
+        assert np.allclose(generator.apply_transform(x, {'theta': 45}),
                            x_rotated)
+        assert np.allclose(image.apply_affine_transform(x, theta=45, channel_axis=2,
+                                                        fill_mode='constant'), x_rotated)
 
     def test_batch_standardize(self):
         # ImageDataGenerator.standardize should work on batches
