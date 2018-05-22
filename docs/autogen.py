@@ -453,29 +453,22 @@ def count_leading_spaces(s):
         return 0
 
 
-def process_list_block(docstring, anchor, marker):
-    anchor_spaces = re.search(r'\n[ \t]*' + re.escape(anchor) + '\n', docstring)
-    block = ""
-    if anchor_spaces:
-        starting_point = anchor_spaces.end()
-        ending_point = docstring.find('\n\n', starting_point)
-        block = docstring[starting_point:None if ending_point == -1 else ending_point]
-        # Place marker for later reinjection.
-        docstring = docstring.replace(block, marker)
-        # Detect the leading whitespaces to be removed for the chosen section.
-        # -2 for the two newline chars.
-        whitespace_n = (anchor_spaces.end() - anchor_spaces.start()) - len(anchor) - 2
-        lines = block.split('\n')
-        # Remove the computed number of leading white spaces from each line.
-        lines = [re.sub('^' + ' ' * whitespace_n, '', line) for line in lines]
-        # Usually lines have at least 4 additional leading spaces.
-        # These have to be removed, but first the list roots have to be detected.
-        top_level_regex = r'^    ([^-\s\\\(][^-\s\\\(]*):(.*)'
-        top_level_replacement = r'- __\1__:\2'
-        lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
-        # All the other lines get simply the 4 leading space (if present) removed
-        lines = [re.sub(r'^    ', '', line) for line in lines]
-        block = '\n'.join(lines)
+def process_list_block(docstring, starting_point, leading_spaces, marker):
+    ending_point = docstring.find('\n\n', starting_point)
+    block = docstring[starting_point:None if ending_point == -1 else ending_point - 1]
+    # Place marker for later reinjection.
+    docstring = docstring.replace(block, marker)
+    lines = block.split('\n')
+    # Remove the computed number of leading white spaces from each line.
+    lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
+    # Usually lines have at least 4 additional leading spaces.
+    # These have to be removed, but first the list roots have to be detected.
+    top_level_regex = r'^    ([^\s\\\(]+):(.*)'
+    top_level_replacement = r'- __\1__:\2'
+    lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
+    # All the other lines get simply the 4 leading space (if present) removed
+    lines = [re.sub(r'^    ', '', line) for line in lines]
+    block = '\n'.join(lines)
     return docstring, block
 
 
@@ -519,18 +512,21 @@ def process_docstring(docstring):
             tmp = tmp[index:]
 
     # Format docstring lists.
-    section_idx = re.search('\n(?:\s+)# (.*)\n', docstring)
+    section_regex = r'\n( +)# (.*)\n'
+    section_idx = re.search(section_regex, docstring)
     shift = 0
     sections = {}
-    while section_idx and section_idx.groups():
-        anchor = section_idx.groups()[0]
+    while section_idx and section_idx.group(2):
+        anchor = section_idx.group(2)
+        leading_spaces = len(section_idx.group(1))
+        shift += section_idx.end()
         marker = '$' + anchor.replace(' ', '_') + '$'
         docstring, content = process_list_block(docstring,
-                                                '# ' + anchor,
+                                                shift,
+                                                leading_spaces,
                                                 marker)
         sections[marker] = content
-        shift += section_idx.end()
-        section_idx = re.search('\n(?:\s+)# (.*)\n', docstring[shift:])
+        section_idx = re.search(section_regex, docstring[shift:])
 
     # Format docstring section titles.
     docstring = re.sub(r'\n(\s+)# (.*)\n',

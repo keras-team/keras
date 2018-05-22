@@ -1,5 +1,6 @@
 from docs import autogen
 import pytest
+
 test_doc1 = {
     'doc': '''This function does something really interesting.
 Like for example foo baz.
@@ -14,11 +15,13 @@ Like for example foo baz.
             - Option two
               on a new line
         arg_c: nothing to add
-
+        arg_d: with an additional
+            list:
+            - Option one
 
     # Returns
     A statement related to what the function returns
-    This should not be converted: into a list
+    This: should not be converted into a list
         Neither this.
         This_should_be_converted: into a list
             - And this into a sublist
@@ -26,7 +29,7 @@ Like for example foo baz.
         This_should_be_converted: with an additional -
 
     # Notes
-    Something to note:
+        Something to note:
         This_should_be_converted:
             - a
             - b
@@ -34,8 +37,12 @@ Like for example foo baz.
     # Raises
         Exception_a: if a happens
         Exception_b: if b happens''',
+    'result': '''This function does something really interesting.
+Like for example foo baz.
 
-    'arguments': '''- __arg_a__: something related to a
+__Arguments__
+
+- __arg_a__: something related to a
 and a new line
 - __arg_b__: something related to b
 and a sublist:
@@ -43,35 +50,37 @@ and a sublist:
         - Option one.two
     - Option two
       on a new line
-- __arg_c__: nothing to add''',
+- __arg_c__: nothing to add
+- __arg_d__: with an additional
+    list:
+    - Option one
 
-    'notes': '''Something to note:
-- __This_should_be_converted__:
-    - a
-    - b''',
+__Returns__
 
-    'raises': '''- __Exception_a__: if a happens
-- __Exception_b__: if b happens''',
-
-    'returns': '''A statement related to what the function returns
-This should not be converted: into a list
+A statement related to what the function returns
+This: should not be converted into a list
 Neither this.
 - __This_should_be_converted__: into a list
     - And this into a sublist
 - This_should_not_be_converted: no additional -
-- __This_should_be_converted__: with an additional -'''
-}
+- __This_should_be_converted__: with an additional -
+
+__Notes__
+
+Something to note:
+- __This_should_be_converted__:
+    - a
+    - b
+
+__Raises__
+
+- __Exception_a__: if a happens
+- __Exception_b__: if b happens'''}
 
 
 def test_doc_lists():
-    doc, block = autogen.process_list_block(test_doc1['doc'], "# Arguments", "$ARGUMENTS$")
-    assert test_doc1['arguments'] == block
-    doc, block = autogen.process_list_block(test_doc1['doc'], "# Returns", "$RETURNS$")
-    assert test_doc1['returns'] == block
-    oc, block = autogen.process_list_block(test_doc1['doc'], "# Raises", "$RAISES$")
-    assert test_doc1['raises'] == block
-    oc, block = autogen.process_list_block(test_doc1['doc'], "# Notes", "$NOTES$")
-    assert test_doc1['notes'] == block
+    docstring = autogen.process_docstring(test_doc1['doc'])
+    assert docstring == test_doc1['result']
 
 
 if __name__ == '__main__':
