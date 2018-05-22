@@ -8,7 +8,7 @@ from __future__ import print_function
 
 import numpy as np
 import time
-from keras.preprocessing.image import save_img
+from keras.preprocessing.image import array_to_img
 from keras.applications import vgg16
 from keras import backend as K
 
@@ -133,4 +133,4 @@ for i in range(n):
                          (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
 
 # save the result to disk
-save_img('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
+array_to_img(stitched_filters)
