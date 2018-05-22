@@ -1054,8 +1054,19 @@ class ImageDataGenerator(object):
 
         # Arguments
             x: 3D tensor, single image.
-            transform_parameters: Dictionary with parameters describing the
-              transformation.
+            transform_parameters: Dictionary with string -  parameter pairs
+            describing the transformation. Currently, the following parameters
+            from the dictionary are used:
+              - `'theta'`: Float. Rotation angle in degrees.
+              - `'tx'`: Float. Shift in the x direction.
+              - `'ty'`: Float. Shift in the y direction.
+              - `'shear'`: Float. Shear angle in degrees.
+              - `'zx'`: Float. Zoom in the x direction.
+              - `'zy'`: Float. Zoom in the y direction.
+              - `'flip_horizontal'`: Boolean. Horizontal flip.
+              - `'flip_vertical'`: Boolean. Vertical flip.
+              - `'channel_shift_intencity'`: Float. Channel shift intensity.
+              - `'brightness'`: Float. Brightness shift intensity.
 
         # Returns
             A ransformed version of the input (same shape).
@@ -1064,13 +1075,6 @@ class ImageDataGenerator(object):
         img_row_axis = self.row_axis - 1
         img_col_axis = self.col_axis - 1
         img_channel_axis = self.channel_axis - 1
-
-        theta = transform_parameters.get('theta', 0)
-        tx = transform_parameters.get('tx', 0)
-        ty = transform_parameters.get('ty', 0)
-        shear = transform_parameters.get('shear', 0)
-        zx = transform_parameters.get('zx', 1)
-        zy = transform_parameters.get('zy', 1)
 
         x = apply_affine_transform(x, transform_parameters.get('theta', 0),
                                    transform_parameters.get('tx', 0),
