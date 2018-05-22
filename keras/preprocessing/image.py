@@ -1054,9 +1054,9 @@ class ImageDataGenerator(object):
 
         # Arguments
             x: 3D tensor, single image.
-            transform_parameters: Dictionary with string -  parameter pairs
-            describing the transformation. Currently, the following parameters
-            from the dictionary are used:
+            transform_parameters: Dictionary with string - parameter pairs
+              describing the transformation. Currently, the following parameters
+              from the dictionary are used:
               - `'theta'`: Float. Rotation angle in degrees.
               - `'tx'`: Float. Shift in the x direction.
               - `'ty'`: Float. Shift in the y direction.
