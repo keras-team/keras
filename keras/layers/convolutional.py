@@ -649,11 +649,10 @@ class Conv2DTranspose(Conv2D):
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
         padding: one of `"valid"` or `"same"` (case-insensitive).
-        output_shape: A tuple of integers specifying the shape of the output
-            without the batch size. When not specified, the output shape is
-            inferred from the input shape; for some combinations of input
-            shape and layer parameters, the output shape is ambigous which
-            can result in an undesired shape.
+        output_padding: An integer or tuple/list of 2 integers,
+            specifying the amount of padding along the height and width.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -714,11 +713,12 @@ class Conv2DTranspose(Conv2D):
         - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
+    @interfaces.legacy_deconv2d_support
     def __init__(self, filters,
                  kernel_size,
                  strides=(1, 1),
                  padding='valid',
-                 output_shape=None,
+                 output_padding=0,
                  data_format=None,
                  activation=None,
                  use_bias=True,
@@ -747,17 +747,7 @@ class Conv2DTranspose(Conv2D):
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=4)
-        if output_shape is not None:
-            try:
-                self._output_shape = tuple(output_shape)
-            except TypeError:
-                raise ValueError('`output_shape` argument must be a ' +
-                                 'tuple. Received: ' + str(output_shape))
-            if len(self._output_shape) != 3:
-                raise ValueError('`output_shape` argument should have ' +
-                                 'rank ' + str(3) + '; Received:', str(output_shape))
-        else:
-            self._output_shape = output_shape
+        self.output_padding = conv_utils.normalize_tuple(output_padding, 2, 'output_padding')
 
     def build(self, input_shape):
         if len(input_shape) != 4:
@@ -802,21 +792,21 @@ class Conv2DTranspose(Conv2D):
         height, width = input_shape[h_axis], input_shape[w_axis]
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.strides
+        out_pad_h, out_pad_w = self.output_padding
 
-        # If the output shape is not specified, infer it
-        if self._output_shape is None:
-            out_height = conv_utils.deconv_length(height,
-                                                  stride_h, kernel_h,
-                                                  self.padding)
-            out_width = conv_utils.deconv_length(width,
-                                                 stride_w, kernel_w,
-                                                 self.padding)
-            if self.data_format == 'channels_first':
-                output_shape = (batch_size, self.filters, out_height, out_width)
-            else:
-                output_shape = (batch_size, out_height, out_width, self.filters)
+        # Infer the dynamic output shape:
+        out_height = conv_utils.deconv_length(height,
+                                              stride_h, kernel_h,
+                                              self.padding,
+                                              out_pad_h)
+        out_width = conv_utils.deconv_length(width,
+                                             stride_w, kernel_w,
+                                             self.padding,
+                                             out_pad_w)
+        if self.data_format == 'channels_first':
+            output_shape = (batch_size, self.filters, out_height, out_width)
         else:
-            output_shape = (batch_size,) + self._output_shape
+            output_shape = (batch_size, out_height, out_width, self.filters)
 
         outputs = K.conv2d_transpose(
             inputs,
@@ -845,23 +835,25 @@ class Conv2DTranspose(Conv2D):
 
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.strides
+        out_pad_h, out_pad_w = self.output_padding
 
-        # If the output shape is not specified, infer it
-        if self._output_shape is None:
-            output_shape[c_axis] = self.filters
-            output_shape[h_axis] = conv_utils.deconv_length(
-                output_shape[h_axis], stride_h, kernel_h, self.padding)
-            output_shape[w_axis] = conv_utils.deconv_length(
-                output_shape[w_axis], stride_w, kernel_w, self.padding)
-        else:
-            output_shape[1:] = self._output_shape
-
+        output_shape[c_axis] = self.filters
+        output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis],
+                                                        stride_h,
+                                                        kernel_h,
+                                                        self.padding,
+                                                        out_pad_h)
+        output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
+                                                        stride_w,
+                                                        kernel_w,
+                                                        self.padding,
+                                                        out_pad_w)
         return tuple(output_shape)
 
     def get_config(self):
         config = super(Conv2DTranspose, self).get_config()
         config.pop('dilation_rate')
-        config['output_shape'] = self._output_shape
+        config['output_padding'] = self.output_padding
         return config
 
 
@@ -896,11 +888,11 @@ class Conv3DTranspose(Conv3D):
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
         padding: one of `"valid"` or `"same"` (case-insensitive).
-        output_shape: A tuple of integers specifying the shape of the output
-            without the batch size. When not specified, the output shape is
-            inferred from the input shape; for some combinations of input
-            shape and layer parameters, the output shape is ambigous which
-            can result in an undesired shape.
+        output_padding: An integer or tuple/list of 3 integers,
+            specifying the amount of padding along the depth, height, and
+            width.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -965,7 +957,7 @@ class Conv3DTranspose(Conv3D):
                  kernel_size,
                  strides=(1, 1, 1),
                  padding='valid',
-                 output_shape=None,
+                 output_padding=0,
                  data_format=None,
                  activation=None,
                  use_bias=True,
@@ -994,17 +986,7 @@ class Conv3DTranspose(Conv3D):
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=5)
-        if output_shape is not None:
-            try:
-                self._output_shape = tuple(output_shape)
-            except TypeError:
-                raise ValueError('`output_shape` argument must be a ' +
-                                 'tuple. Received: ' + str(output_shape))
-            if len(self._output_shape) != 4:
-                raise ValueError('`output_shape` argument should have ' +
-                                 'rank ' + str(4) + '; Received:', str(output_shape))
-        else:
-            self._output_shape = output_shape
+        self.output_padding = conv_utils.normalize_tuple(output_padding, 3, 'output_padding')
 
     def build(self, input_shape):
         if len(input_shape) != 5:
@@ -1052,25 +1034,26 @@ class Conv3DTranspose(Conv3D):
 
         kernel_d, kernel_h, kernel_w = self.kernel_size
         stride_d, stride_h, stride_w = self.strides
+        out_pad_d, out_pad_h, out_pad_w = self.output_padding
 
-        # If the output shape is not specified, infer it
-        if self._output_shape is None:
-            out_depth = conv_utils.deconv_length(depth,
-                                                 stride_d, kernel_d,
-                                                 self.padding)
-            out_height = conv_utils.deconv_length(height,
-                                                  stride_h, kernel_h,
-                                                  self.padding)
-            out_width = conv_utils.deconv_length(width,
-                                                 stride_w, kernel_w,
-                                                 self.padding)
+        # Infer the dynamic output shape:
+        out_depth = conv_utils.deconv_length(depth,
+                                             stride_d, kernel_d,
+                                             self.padding,
+                                             out_pad_d)
+        out_height = conv_utils.deconv_length(height,
+                                              stride_h, kernel_h,
+                                              self.padding,
+                                              out_pad_h)
+        out_width = conv_utils.deconv_length(width,
+                                             stride_w, kernel_w,
+                                             self.padding,
+                                             out_pad_w)
 
-            if self.data_format == 'channels_first':
-                output_shape = (batch_size, self.filters, out_depth, out_height, out_width)
-            else:
-                output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
+        if self.data_format == 'channels_first':
+            output_shape = (batch_size, self.filters, out_depth, out_height, out_width)
         else:
-            output_shape = (batch_size,) + self._output_shape
+            output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
 
         outputs = K.conv3d_transpose(inputs,
                                      self.kernel,
@@ -1098,31 +1081,31 @@ class Conv3DTranspose(Conv3D):
 
         kernel_d, kernel_h, kernel_w = self.kernel_size
         stride_d, stride_h, stride_w = self.strides
+        out_pad_d, out_pad_h, out_pad_w = self.output_padding
 
-        # If the output shape is not specified, infer it
-        if self._output_shape is None:
-            output_shape[c_axis] = self.filters
-            output_shape[d_axis] = conv_utils.deconv_length(output_shape[d_axis],
-                                                            stride_d,
-                                                            kernel_d,
-                                                            self.padding)
-            output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis],
-                                                            stride_h,
-                                                            kernel_h,
-                                                            self.padding)
-            output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
-                                                            stride_w,
-                                                            kernel_w,
-                                                            self.padding)
-        else:
-            output_shape[1:] = self._output_shape
+        output_shape[c_axis] = self.filters
+        output_shape[d_axis] = conv_utils.deconv_length(output_shape[d_axis],
+                                                        stride_d,
+                                                        kernel_d,
+                                                        self.padding,
+                                                        out_pad_d)
+        output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis],
+                                                        stride_h,
+                                                        kernel_h,
+                                                        self.padding,
+                                                        out_pad_h)
+        output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
+                                                        stride_w,
+                                                        kernel_w,
+                                                        self.padding,
+                                                        out_pad_w)
 
         return tuple(output_shape)
 
     def get_config(self):
         config = super(Conv3DTranspose, self).get_config()
         config.pop('dilation_rate')
-        config['output_shape'] = self._output_shape
+        config['output_padding'] = self.output_padding
         return config
 
 
