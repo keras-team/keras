@@ -1177,12 +1177,23 @@ def test_pandas_dataframe():
                     reason='channels_first with sparse_categorical_crossentropy not yet supported with other backends')
 @keras_test
 def test_model_with_sparse_loss_channels_first():
-    """
-    Tests use of sparse_categorical_crossentropy loss with 'channels_first'.
+    """Tests use of sparse_categorical_crossentropy loss with `channels_first`.
 
-    Verifies that evaluate gives the same result with either 'channels_first'
-    or 'channels_last' image_data_format. Tests PR #9715.
+    Verifies that evaluate gives the same result with either
+    `channels_first` or `channels_last` image_data_format.
+    Tests PR #9715.
     """
+
+    def prepare_simple_model(input_tensor):
+        predictions = Conv2D(4, 1, activation='softmax', kernel_initializer='ones', bias_initializer='ones')(input_tensor)
+        simple_model = Model(inputs=input_tensor, outputs=predictions)
+        if K.image_data_format() == 'channels_first':
+            axis = 1
+        else:
+            axis = -1
+        loss = lambda y_true, y_pred: K.sparse_categorical_crossentropy(y_true, y_pred, axis=axis)
+        simple_model.compile(optimizer='rmsprop', loss=loss)
+        return simple_model
 
     data_channels_first = np.array([[[[8., 7.1, 0.], [4.5, 2.6, 0.55], [0.9, 4.2, 11.2]]]])
     labels_channels_first = np.array([[[[0, 1, 3], [2, 1, 0], [2, 2, 1]]]])
@@ -1194,9 +1205,7 @@ def test_model_with_sparse_loss_channels_first():
     data = np.moveaxis(data_channels_first, 1, -1)
     labels = np.moveaxis(labels_channels_first, 1, -1)
     inputs = Input(shape=(3, 3, 1))
-    predictions = Conv2D(4, 1, activation='softmax', kernel_initializer='ones', bias_initializer='ones')(inputs)
-    model = Model(inputs=inputs, outputs=predictions)
-    model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
+    model = prepare_simple_model(inputs)
     y_channels_last = model.evaluate(x=data, y=labels, batch_size=1, verbose=0)
 
     # Evaluate the same network with channels first:
@@ -1204,15 +1213,12 @@ def test_model_with_sparse_loss_channels_first():
     data = data_channels_first
     labels = labels_channels_first
     inputs = Input(shape=(1, 3, 3))
-    predictions = Conv2D(4, 1, activation='softmax', kernel_initializer='ones', bias_initializer='ones')(inputs)
-    model = Model(inputs=inputs, outputs=predictions)
-    model.compile(optimizer='rmsprop', loss='sparse_categorical_crossentropy')
+    model = prepare_simple_model(inputs)
     y_channels_first = model.evaluate(x=data, y=labels, batch_size=1, verbose=0)
 
     K.set_image_data_format(old_data_format)
 
-    assert y_channels_last == y_channels_first, \
-        "sparse_categorical_crossentropy loss comes out different for channels_first and channels_last."
+    assert y_channels_last == y_channels_first, "Computed loss is different for channels_first and channels_last."
 
 
 if __name__ == '__main__':

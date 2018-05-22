@@ -3014,7 +3014,7 @@ def categorical_crossentropy(target, output, from_logits=False):
                                                        logits=output)
 
 
-def sparse_categorical_crossentropy(target, output, from_logits=False, data_format=None):
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     """Categorical crossentropy with integer targets.
 
     # Arguments
@@ -3024,25 +3024,27 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, data_form
             case `output` is expected to be the logits).
         from_logits: Boolean, whether `output` is the
             result of a softmax, or is a tensor of logits.
-        data_format: String specifying the data format,
-            'channels_first' or 'channels_last'. Defaults
-            to 'channels_last'.
+        axis: Int specifying the channels axis. `axis=-1`
+            corresponds to data format `channels_last`,
+            and `axis=1` corresponds to data format
+            `channels_first`.
 
     # Returns
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither
-            `channels_last` or `channels_first`.
+        ValueError: if `axis` is neither -1 nor one of
+            the axes of `output`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    output_dimensions = list(range(len(output.get_shape())))
+    if axis != -1 and axis not in output_dimensions:
+        raise ValueError(
+            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
+            format(axis, len(output.get_shape())))
 
-    # If the channels are in axis 1, move them to be the last axis:
-    if data_format == 'channels_first':
-        permutation = [0] + list(range(len(output.get_shape())))[2:] + [1]
+    # If the channels are not in the last axis, move them to be there:
+    if axis != -1 and axis != output_dimensions[-1]:
+        permutation = output_dimensions[:axis] + output_dimensions[axis+1:] + [axis]
         output = tf.transpose(output, perm=permutation)
 
     # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
