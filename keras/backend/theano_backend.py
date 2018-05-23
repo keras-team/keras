@@ -1566,7 +1566,17 @@ def softsign(x):
     return T_softsign(x)
 
 
-def categorical_crossentropy(target, output, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    output_dimensions = list(range(len(int_shape(output))))
+    if axis != -1 and axis not in output_dimensions:
+        raise ValueError(
+            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
+            format(axis, len(int_shape(output))))
+    # If the channels are not in the last axis, move them to be there:
+    if axis != -1 and axis != output_dimensions[-1]:
+        permutation = output_dimensions[:axis] + output_dimensions[axis + 1:] + [axis]
+        output = permute_dimensions(output, permutation)
+        target = permute_dimensions(target, permutation)
     if from_logits:
         output = T.nnet.softmax(output)
     else:
@@ -1577,11 +1587,21 @@ def categorical_crossentropy(target, output, from_logits=False):
     return T.nnet.categorical_crossentropy(output, target)
 
 
-def sparse_categorical_crossentropy(target, output, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    output_dimensions = list(range(len(int_shape(output))))
+    if axis != -1 and axis not in output_dimensions:
+        raise ValueError(
+            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
+            format(axis, len(shape(int_shape(output)))))
+    # If the channels are not in the last axis, move them to be there:
+    if axis != -1 and axis != output_dimensions[-1]:
+        permutation = output_dimensions[:axis] + output_dimensions[axis + 1:] + [axis]
+        output = permute_dimensions(output, permutation)
+        target = permute_dimensions(target, permutation)
     target = T.cast(T.flatten(target), 'int32')
     target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
     target = reshape(target, shape(output))
-    return categorical_crossentropy(target, output, from_logits)
+    return categorical_crossentropy(target, output, from_logits, axis=-1)
 
 
 def binary_crossentropy(target, output, from_logits=False):
