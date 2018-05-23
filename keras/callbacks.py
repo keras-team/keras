@@ -18,7 +18,6 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
-from .engine.topology import Layer
 
 try:
     import requests
@@ -250,9 +249,6 @@ class TerminateOnNaN(Callback):
     """Callback that terminates training when a NaN loss is encountered.
     """
 
-    def __init__(self):
-        super(TerminateOnNaN, self).__init__()
-
     def on_batch_end(self, batch, logs=None):
         logs = logs or {}
         loss = logs.get('loss')
@@ -447,8 +443,8 @@ class ModelCheckpoint(Callback):
                             self.model.save(filepath, overwrite=True)
                     else:
                         if self.verbose > 0:
-                            print('\nEpoch %05d: %s did not improve' %
-                                  (epoch + 1, self.monitor))
+                            print('\nEpoch %05d: %s did not improve from %0.5f' %
+                                  (epoch + 1, self.monitor, self.best))
             else:
                 if self.verbose > 0:
                     print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
@@ -477,13 +473,22 @@ class EarlyStopping(Callback):
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
+        baseline: Baseline value for the monitored quantity to reach.
+            Training will stop if the model doesn't show improvement
+            over the baseline.
     """
 
-    def __init__(self, monitor='val_loss',
-                 min_delta=0, patience=0, verbose=0, mode='auto'):
+    def __init__(self,
+                 monitor='val_loss',
+                 min_delta=0,
+                 patience=0,
+                 verbose=0,
+                 mode='auto',
+                 baseline=None):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
+        self.baseline = baseline
         self.patience = patience
         self.verbose = verbose
         self.min_delta = min_delta
@@ -515,7 +520,10 @@ class EarlyStopping(Callback):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+        if self.baseline is not None:
+            self.best = self.baseline
+        else:
+            self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
         current = logs.get(self.monitor)
@@ -547,25 +555,31 @@ class RemoteMonitor(Callback):
     Events are sent to `root + '/publish/epoch/end/'` by default. Calls are
     HTTP POST, with a `data` argument which is a
     JSON-encoded dictionary of event data.
+    If send_as_json is set to True, the content type of the request will be application/json.
+    Otherwise the serialized JSON will be send within a form
 
     # Arguments
         root: String; root url of the target server.
         path: String; path relative to `root` to which the events will be sent.
-        field: String; JSON field under which the data will be stored.
+        field: String; JSON field under which the data will be stored. The field is used only if the payload is sent
+        within a form (i.e. send_as_json is set to False).
         headers: Dictionary; optional custom HTTP headers.
+        send_as_json: Boolean; whether the request should be send as application/json.
     """
 
     def __init__(self,
                  root='http://localhost:9000',
                  path='/publish/epoch/end/',
                  field='data',
-                 headers=None):
+                 headers=None,
+                 send_as_json=False):
         super(RemoteMonitor, self).__init__()
 
         self.root = root
         self.path = path
         self.field = field
         self.headers = headers
+        self.send_as_json = send_as_json
 
     def on_epoch_end(self, epoch, logs=None):
         if requests is None:
@@ -580,9 +594,12 @@ class RemoteMonitor(Callback):
             else:
                 send[k] = v
         try:
-            requests.post(self.root + self.path,
-                          {self.field: json.dumps(send)},
-                          headers=self.headers)
+            if self.send_as_json:
+                requests.post(self.root + self.path, json=send, headers=self.headers)
+            else:
+                requests.post(self.root + self.path,
+                              {self.field: json.dumps(send)},
+                              headers=self.headers)
         except requests.exceptions.RequestException:
             warnings.warn('Warning: could not reach RemoteMonitor '
                           'root server at ' + str(self.root))
@@ -608,7 +625,7 @@ class LearningRateScheduler(Callback):
             raise ValueError('Optimizer must have a "lr" attribute.')
         lr = float(K.get_value(self.model.optimizer.lr))
         try:  # new API
-            lr = self.schedule(epoch, lr=lr)
+            lr = self.schedule(epoch, lr)
         except TypeError:  # old API for backward compatibility
             lr = self.schedule(epoch)
         if not isinstance(lr, (float, np.float32, np.float64)):
@@ -769,8 +786,12 @@ class TensorBoard(Callback):
                         tf.summary.image(mapped_weight_name, w_img)
 
                 if hasattr(layer, 'output'):
-                    tf.summary.histogram('{}_out'.format(layer.name),
-                                         layer.output)
+                    if isinstance(layer.output, list):
+                        for i, output in enumerate(layer.output):
+                            tf.summary.histogram('{}_out_{}'.format(layer.name, i), output)
+                    else:
+                        tf.summary.histogram('{}_out'.format(layer.name),
+                                             layer.output)
         self.merged = tf.summary.merge_all()
 
         if self.write_graph:
@@ -898,7 +919,7 @@ class ReduceLROnPlateau(Callback):
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
-        epsilon: threshold for measuring the new optimum,
+        min_delta: threshold for measuring the new optimum,
             to only focus on significant changes.
         cooldown: number of epochs to wait before resuming
             normal operation after lr has been reduced.
@@ -906,16 +927,21 @@ class ReduceLROnPlateau(Callback):
     """
 
     def __init__(self, monitor='val_loss', factor=0.1, patience=10,
-                 verbose=0, mode='auto', epsilon=1e-4, cooldown=0, min_lr=0):
+                 verbose=0, mode='auto', min_delta=1e-4, cooldown=0, min_lr=0,
+                 **kwargs):
         super(ReduceLROnPlateau, self).__init__()
 
         self.monitor = monitor
         if factor >= 1.0:
             raise ValueError('ReduceLROnPlateau '
                              'does not support a factor >= 1.0.')
+        if 'epsilon' in kwargs:
+            min_delta = kwargs.pop('epsilon')
+            warnings.warn('`epsilon` argument is deprecated and '
+                          'will be removed, use `min_delta` insted.')
         self.factor = factor
         self.min_lr = min_lr
-        self.epsilon = epsilon
+        self.min_delta = min_delta
         self.patience = patience
         self.verbose = verbose
         self.cooldown = cooldown
@@ -936,10 +962,10 @@ class ReduceLROnPlateau(Callback):
             self.mode = 'auto'
         if (self.mode == 'min' or
            (self.mode == 'auto' and 'acc' not in self.monitor)):
-            self.monitor_op = lambda a, b: np.less(a, b - self.epsilon)
+            self.monitor_op = lambda a, b: np.less(a, b - self.min_delta)
             self.best = np.Inf
         else:
-            self.monitor_op = lambda a, b: np.greater(a, b + self.epsilon)
+            self.monitor_op = lambda a, b: np.greater(a, b + self.min_delta)
             self.best = -np.Inf
         self.cooldown_counter = 0
         self.wait = 0
@@ -967,6 +993,7 @@ class ReduceLROnPlateau(Callback):
                 self.best = current
                 self.wait = 0
             elif not self.in_cooldown():
+                self.wait += 1
                 if self.wait >= self.patience:
                     old_lr = float(K.get_value(self.model.optimizer.lr))
                     if old_lr > self.min_lr:
@@ -978,7 +1005,6 @@ class ReduceLROnPlateau(Callback):
                                   'rate to %s.' % (epoch + 1, new_lr))
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
-                self.wait += 1
 
     def in_cooldown(self):
         return self.cooldown_counter > 0

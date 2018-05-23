@@ -11,10 +11,11 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from .recurrent import _generate_dropout_mask
+from .recurrent import _standardize_args
 
 import numpy as np
 import warnings
-from ..engine import InputSpec, Layer
+from ..engine.base_layer import InputSpec, Layer
 from ..utils import conv_utils
 from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D
@@ -270,8 +271,8 @@ class ConvRNN2D(RNN):
             return [initial_state]
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        inputs, initial_state, constants = self._standardize_args(
-            inputs, initial_state, constants)
+        inputs, initial_state, constants = _standardize_args(
+            inputs, initial_state, constants, self._num_constants)
 
         if initial_state is None and constants is None:
             return super(ConvRNN2D, self).__call__(inputs, **kwargs)
@@ -621,15 +622,20 @@ class ConvLSTM2DCell(Layer):
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
         if self.use_bias:
+            if self.unit_forget_bias:
+                def bias_initializer(_, *args, **kwargs):
+                    return K.concatenate([
+                        self.bias_initializer((self.filters,), *args, **kwargs),
+                        initializers.Ones()((self.filters,), *args, **kwargs),
+                        self.bias_initializer((self.filters * 2,), *args, **kwargs),
+                    ])
+            else:
+                bias_initializer = self.bias_initializer
             self.bias = self.add_weight(shape=(self.filters * 4,),
-                                        initializer=self.bias_initializer,
                                         name='bias',
+                                        initializer=bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
-            if self.unit_forget_bias:
-                bias_value = np.zeros((self.filters * 4,))
-                bias_value[self.filters: self.filters * 2] = 1.
-                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
@@ -857,10 +863,10 @@ class ConvLSTM2D(ConvRNN2D):
     # Input shape
         - if data_format='channels_first'
             5D tensor with shape:
-            `(samples,time, channels, rows, cols)`
+            `(samples, time, channels, rows, cols)`
         - if data_format='channels_last'
             5D tensor with shape:
-            `(samples,time, rows, cols, channels)`
+            `(samples, time, rows, cols, channels)`
 
      # Output shape
         - if `return_sequences`

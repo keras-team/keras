@@ -28,13 +28,13 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
     samples = num_train + num_test
     if classification:
         y = np.random.randint(0, num_classes, size=(samples,))
-        X = np.zeros((samples,) + input_shape)
+        X = np.zeros((samples,) + input_shape, dtype=np.float32)
         for i in range(samples):
             X[i] = np.random.normal(loc=y[i], scale=0.7, size=input_shape)
     else:
         y_loc = np.random.random((samples,))
-        X = np.zeros((samples,) + input_shape)
-        y = np.zeros((samples,) + output_shape)
+        X = np.zeros((samples,) + input_shape, dtype=np.float32)
+        y = np.zeros((samples,) + output_shape, dtype=np.float32)
         for i in range(samples):
             X[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=input_shape)
             y[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=output_shape)
@@ -159,7 +159,7 @@ def keras_test(func):
     @six.wraps(func)
     def wrapper(*args, **kwargs):
         output = func(*args, **kwargs)
-        if K.backend() == 'tensorflow':
+        if K.backend() == 'tensorflow' or K.backend() == 'cntk':
             K.clear_session()
         return output
     return wrapper

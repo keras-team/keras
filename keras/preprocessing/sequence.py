@@ -270,7 +270,7 @@ class TimeseriesGenerator(Sequence):
             be centered around `data[i]`, `data[i+s]`, `data[i+2*s]`, etc.
         start_index, end_index: Data points earlier than `start_index`
             or later than `end_index` will not be used in the output sequences.
-            This is seful to reserve part of the data for test or validation.
+            This is useful to reserve part of the data for test or validation.
         shuffle: Whether to shuffle output samples,
             or instead draw them in chronological order.
         reverse: Boolean: if `true`, timesteps in each output sample will be
@@ -326,10 +326,15 @@ class TimeseriesGenerator(Sequence):
         self.reverse = reverse
         self.batch_size = batch_size
 
+        if self.start_index > self.end_index:
+            raise ValueError('`start_index+length=%i > end_index=%i` '
+                             'is disallowed, as no part of the sequence '
+                             'would be left to be used as current step.'
+                             % (self.start_index, self.end_index))
+
     def __len__(self):
-        return int(np.ceil(
-            (self.end_index - self.start_index) /
-            (self.batch_size * self.stride)))
+        return (self.end_index - self.start_index +
+                self.batch_size * self.stride) // (self.batch_size * self.stride)
 
     def _empty_batch(self, num_rows):
         samples_shape = [num_rows, self.length // self.sampling_rate]
@@ -341,11 +346,11 @@ class TimeseriesGenerator(Sequence):
     def __getitem__(self, index):
         if self.shuffle:
             rows = np.random.randint(
-                self.start_index, self.end_index, size=self.batch_size)
+                self.start_index, self.end_index + 1, size=self.batch_size)
         else:
             i = self.start_index + self.batch_size * self.stride * index
             rows = np.arange(i, min(i + self.batch_size *
-                                    self.stride, self.end_index), self.stride)
+                                    self.stride, self.end_index + 1), self.stride)
 
         samples, targets = self._empty_batch(len(rows))
         for j, row in enumerate(rows):

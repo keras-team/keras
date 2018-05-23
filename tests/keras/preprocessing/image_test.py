@@ -62,6 +62,17 @@ class TestImage(object):
                 assert list(y) == [0, 1, 2]
                 break
 
+            # Test with sample weights
+            for x, y, w in generator.flow(images, np.arange(images.shape[0]),
+                                          shuffle=False,
+                                          sample_weight=np.arange(images.shape[0]) + 1,
+                                          save_to_dir=str(tmpdir),
+                                          batch_size=3):
+                assert x.shape == images[:3].shape
+                assert list(y) == [0, 1, 2]
+                assert list(w) == [1, 2, 3]
+                break
+
             # Test with `shuffle=True`
             for x, y in generator.flow(images, np.arange(images.shape[0]),
                                        shuffle=True, save_to_dir=str(tmpdir),
@@ -70,6 +81,66 @@ class TestImage(object):
                 # Check that the sequence is shuffled.
                 assert list(y) != [0, 1, 2]
                 break
+
+            # Test without y
+            for x in generator.flow(images, None,
+                                    shuffle=True, save_to_dir=str(tmpdir),
+                                    batch_size=3):
+                assert type(x) is np.ndarray
+                assert x.shape == images[:3].shape
+                # Check that the sequence is shuffled.
+                break
+
+            # Test with a single miscellaneous input data array
+            dsize = images.shape[0]
+            x_misc1 = np.random.random(dsize)
+
+            for i, (x, y) in enumerate(generator.flow((images, x_misc1),
+                                                      np.arange(dsize),
+                                                      shuffle=False, batch_size=2)):
+                assert x[0].shape == images[:2].shape
+                assert (x[1] == x_misc1[(i * 2):((i + 1) * 2)]).all()
+                if i == 2:
+                    break
+
+            # Test with two miscellaneous inputs
+            x_misc2 = np.random.random((dsize, 3, 3))
+
+            for i, (x, y) in enumerate(generator.flow((images, [x_misc1, x_misc2]),
+                                                      np.arange(dsize),
+                                                      shuffle=False, batch_size=2)):
+                assert x[0].shape == images[:2].shape
+                assert (x[1] == x_misc1[(i * 2):((i + 1) * 2)]).all()
+                assert (x[2] == x_misc2[(i * 2):((i + 1) * 2)]).all()
+                if i == 2:
+                    break
+
+            # Test cases with `y = None`
+            x = generator.flow(images, None, batch_size=3).next()
+            assert type(x) is np.ndarray
+            assert x.shape == images[:3].shape
+            x = generator.flow((images, x_misc1), None,
+                               batch_size=3, shuffle=False).next()
+            assert type(x) is list
+            assert x[0].shape == images[:3].shape
+            assert (x[1] == x_misc1[:3]).all()
+            x = generator.flow((images, [x_misc1, x_misc2]), None,
+                               batch_size=3, shuffle=False).next()
+            assert type(x) is list
+            assert x[0].shape == images[:3].shape
+            assert (x[1] == x_misc1[:3]).all()
+            assert (x[2] == x_misc2[:3]).all()
+
+            # Test some failure cases:
+            x_misc_err = np.random.random((dsize + 1, 3, 3))
+
+            with pytest.raises(ValueError) as e_info:
+                generator.flow((images, x_misc_err), np.arange(dsize), batch_size=3)
+            assert str(e_info.value).find('All of the arrays in') != -1
+
+            with pytest.raises(ValueError) as e_info:
+                generator.flow((images, x_misc1), np.arange(dsize + 1), batch_size=3)
+            assert str(e_info.value).find('`x` (images tensor) and `y` (labels) ') != -1
 
             # Test `flow` behavior as Sequence
             seq = generator.flow(images, np.arange(images.shape[0]),
@@ -380,6 +451,74 @@ class TestImage(object):
         assert image.random_shear(x, 20).shape == (2, 28, 28)
         assert image.random_zoom(x, (5, 5)).shape == (2, 28, 28)
         assert image.random_channel_shift(x, 20).shape == (2, 28, 28)
+
+        # Test get_random_transform with predefined seed
+        seed = 1
+        generator = image.ImageDataGenerator(
+            rotation_range=90.,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            shear_range=0.5,
+            zoom_range=0.2,
+            channel_shift_range=0.1,
+            brightness_range=(1, 5),
+            horizontal_flip=True,
+            vertical_flip=True)
+        transform_dict = generator.get_random_transform(x.shape, seed)
+        transform_dict2 = generator.get_random_transform(x.shape, seed * 2)
+        assert transform_dict['theta'] != 0
+        assert transform_dict['theta'] != transform_dict2['theta']
+        assert transform_dict['tx'] != 0
+        assert transform_dict['tx'] != transform_dict2['tx']
+        assert transform_dict['ty'] != 0
+        assert transform_dict['ty'] != transform_dict2['ty']
+        assert transform_dict['shear'] != 0
+        assert transform_dict['shear'] != transform_dict2['shear']
+        assert transform_dict['zx'] != 0
+        assert transform_dict['zx'] != transform_dict2['zx']
+        assert transform_dict['zy'] != 0
+        assert transform_dict['zy'] != transform_dict2['zy']
+        assert transform_dict['channel_shift_intensity'] != 0
+        assert transform_dict['channel_shift_intensity'] != transform_dict2['channel_shift_intensity']
+        assert transform_dict['brightness'] != 0
+        assert transform_dict['brightness'] != transform_dict2['brightness']
+
+        # Test get_random_transform without any randomness
+        generator = image.ImageDataGenerator()
+        transform_dict = generator.get_random_transform(x.shape, seed)
+        assert transform_dict['theta'] == 0
+        assert transform_dict['tx'] == 0
+        assert transform_dict['ty'] == 0
+        assert transform_dict['shear'] == 0
+        assert transform_dict['zx'] == 1
+        assert transform_dict['zy'] == 1
+        assert transform_dict['channel_shift_intensity'] is None
+        assert transform_dict['brightness'] is None
+
+    def test_deterministic_transform(self):
+        x = np.ones((32, 32, 3))
+        generator = image.ImageDataGenerator(
+            rotation_range=90,
+            fill_mode='constant')
+        x = np.random.random((32, 32, 3))
+        assert np.allclose(generator.apply_transform(x, {'flip_vertical': True}),
+                           x[::-1, :, :])
+        assert np.allclose(generator.apply_transform(x, {'flip_horizontal': True}),
+                           x[:, ::-1, :])
+        x = np.ones((3, 3, 3))
+        x_rotated = np.array([[[0., 0., 0.],
+                               [0., 0., 0.],
+                               [1., 1., 1.]],
+                              [[0., 0., 0.],
+                               [1., 1., 1.],
+                               [1., 1., 1.]],
+                              [[0., 0., 0.],
+                               [0., 0., 0.],
+                               [1., 1., 1.]]])
+        assert np.allclose(generator.apply_transform(x, {'theta': 45}),
+                           x_rotated)
+        assert np.allclose(image.apply_affine_transform(x, theta=45, channel_axis=2,
+                                                        fill_mode='constant'), x_rotated)
 
     def test_batch_standardize(self):
         # ImageDataGenerator.standardize should work on batches

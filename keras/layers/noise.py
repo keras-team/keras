@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..engine import Layer
+from ..engine.base_layer import Layer
 from .. import backend as K
 import numpy as np
 from ..legacy import interfaces

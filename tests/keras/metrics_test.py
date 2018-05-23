@@ -107,7 +107,8 @@ def test_sparse_top_k_categorical_accuracy():
 
 
 @keras_test
-def test_stateful_metrics():
+@pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
+def test_stateful_metrics(metrics_mode):
     np.random.seed(1334)
 
     class BinaryTruePositives(keras.layers.Layer):
@@ -116,13 +117,12 @@ def test_stateful_metrics():
         Assumes predictions and targets of shape `(samples, 1)`.
 
         # Arguments
-            threshold: Float, lower limit on prediction value that counts as a
-                positive class prediction.
             name: String, name for the metric.
         """
 
         def __init__(self, name='true_positives', **kwargs):
             super(BinaryTruePositives, self).__init__(name=name, **kwargs)
+            self.stateful = True
             self.true_positives = K.variable(value=0, dtype='int32')
 
         def reset_states(self):
@@ -156,17 +156,28 @@ def test_stateful_metrics():
 
     # Test on simple model
     inputs = keras.Input(shape=(2,))
-    outputs = keras.layers.Dense(1, activation='sigmoid')(inputs)
+    outputs = keras.layers.Dense(1, activation='sigmoid', name='out')(inputs)
     model = keras.Model(inputs, outputs)
-    model.compile(optimizer='sgd',
-                  loss='binary_crossentropy',
-                  metrics=['acc', metric_fn])
 
-    # Test fit, evaluate
+    if metrics_mode == 'list':
+        model.compile(optimizer='sgd',
+                      loss='binary_crossentropy',
+                      metrics=['acc', metric_fn])
+    elif metrics_mode == 'dict':
+        model.compile(optimizer='sgd',
+                      loss='binary_crossentropy',
+                      metrics={'out': ['acc', metric_fn]})
+
     samples = 1000
     x = np.random.random((samples, 2))
     y = np.random.randint(2, size=(samples, 1))
-    model.fit(x, y, epochs=1, batch_size=10)
+
+    val_samples = 10
+    val_x = np.random.random((val_samples, 2))
+    val_y = np.random.randint(2, size=(val_samples, 1))
+
+    # Test fit and evaluate
+    history = model.fit(x, y, validation_data=(val_x, val_y), epochs=1, batch_size=10)
     outs = model.evaluate(x, y, batch_size=10)
     preds = model.predict(x)
 
@@ -175,6 +186,29 @@ def test_stateful_metrics():
 
     # Test correctness (e.g. updates should have been run)
     np.testing.assert_allclose(outs[2], ref_true_pos(y, preds), atol=1e-5)
+
+    # Test correctness of the validation metric computation
+    val_preds = model.predict(val_x)
+    val_outs = model.evaluate(val_x, val_y, batch_size=10)
+    np.testing.assert_allclose(val_outs[2], ref_true_pos(val_y, val_preds), atol=1e-5)
+    np.testing.assert_allclose(val_outs[2], history.history['val_true_positives'][-1], atol=1e-5)
+
+    # Test with generators
+    gen = [(np.array([x0]), np.array([y0])) for x0, y0 in zip(x, y)]
+    val_gen = [(np.array([x0]), np.array([y0])) for x0, y0 in zip(val_x, val_y)]
+    history = model.fit_generator(iter(gen), epochs=1, steps_per_epoch=samples,
+                                  validation_data=iter(val_gen), validation_steps=val_samples)
+    outs = model.evaluate_generator(iter(gen), steps=samples)
+    preds = model.predict_generator(iter(gen), steps=samples)
+
+    # Test correctness of the metric re ref_true_pos()
+    np.testing.assert_allclose(outs[2], ref_true_pos(y, preds), atol=1e-5)
+
+    # Test correctness of the validation metric computation
+    val_preds = model.predict_generator(iter(val_gen), steps=val_samples)
+    val_outs = model.evaluate_generator(iter(val_gen), steps=val_samples)
+    np.testing.assert_allclose(val_outs[2], ref_true_pos(val_y, val_preds), atol=1e-5)
+    np.testing.assert_allclose(val_outs[2], history.history['val_true_positives'][-1], atol=1e-5)
 
 
 if __name__ == '__main__':

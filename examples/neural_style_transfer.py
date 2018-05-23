@@ -50,8 +50,7 @@ keeping the generated image close enough to the original one.
 '''
 
 from __future__ import print_function
-from keras.preprocessing.image import load_img, img_to_array
-from scipy.misc import imsave
+from keras.preprocessing.image import load_img, save_img, img_to_array
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
 import time
@@ -284,7 +283,7 @@ for i in range(iterations):
     # save current generated image
     img = deprocess_image(x.copy())
     fname = result_prefix + '_at_iteration_%d.png' % i
-    imsave(fname, img)
+    save_img(fname, img)
     end_time = time.time()
     print('Image saved as', fname)
     print('Iteration %d completed in %ds' % (i, end_time - start_time))

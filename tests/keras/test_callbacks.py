@@ -10,9 +10,9 @@ from keras import optimizers
 from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout, add
+from keras.layers import Input, Dense, Dropout, add, dot, Lambda
 from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
+from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling1D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
@@ -287,6 +287,35 @@ def test_EarlyStopping_patience():
 
 
 @keras_test
+def test_EarlyStopping_baseline():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    def baseline_tester(acc_levels):
+        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75, patience=2)
+        early_stop.model = DummyModel()
+        epochs_trained = 0
+        early_stop.on_train_begin()
+        for epoch in range(len(acc_levels)):
+            epochs_trained += 1
+            early_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
+            if early_stop.model.stop_training:
+                break
+        return epochs_trained
+
+    acc_levels = [0.55, 0.76, 0.81, 0.81]
+    baseline_met = baseline_tester(acc_levels)
+    acc_levels = [0.55, 0.74, 0.81, 0.81]
+    baseline_not_met = baseline_tester(acc_levels)
+
+    # All epochs should run because baseline was met in second epoch
+    assert baseline_met == 4
+    # Baseline was not met by second epoch and should stop
+    assert baseline_not_met == 2
+
+
+@keras_test
 def test_LearningRateScheduler():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
@@ -334,16 +363,54 @@ def test_ReduceLROnPlateau():
     model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
     assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+
+
+@keras_test
+def test_ReduceLROnPlateau_patience():
+    class DummyOptimizer(object):
+        def __init__(self):
+            self.lr = K.variable(1.0)
+
+    class DummyModel(object):
+        def __init__(self):
+            self.optimizer = DummyOptimizer()
+
+    reduce_on_plateau = callbacks.ReduceLROnPlateau(monitor='val_loss',
+                                                    patience=2)
+    reduce_on_plateau.model = DummyModel()
+
+    losses = [0.0860, 0.1096, 0.1040]
+    lrs = []
+
+    for epoch in range(len(losses)):
+        reduce_on_plateau.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+        lrs.append(K.get_value(reduce_on_plateau.model.optimizer.lr))
+
+    # The learning rates should be 1.0 except the last one
+    assert all([lr == 1.0 for lr in lrs[:-1]]) and lrs[-1] < 1.0
+
+
+@keras_test
+def test_ReduceLROnPlateau_backwards_compatibility():
+    import warnings
+    with warnings.catch_warnings(record=True) as ws:
+        reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
+        # Check if warnings are disabled
+        if os.environ.get("PYTHONWARNINGS") != "ignore":
+            assert "`epsilon` argument is deprecated" in str(ws[0].message)
+    assert not hasattr(reduce_on_plateau, 'epsilon')
+    assert hasattr(reduce_on_plateau, 'min_delta')
+    assert reduce_on_plateau.min_delta == 1e-13
 
 
 @keras_test
@@ -556,7 +623,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
     (X_train, y_train), (X_test, y_test) = get_test_data(
         num_train=train_samples,
         num_test=test_samples,
-        input_shape=(input_dim,),
+        input_shape=(input_dim, input_dim),
         classification=True,
         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
@@ -579,10 +646,13 @@ def test_TensorBoard_multi_input_output(tmpdir):
             i += 1
             i = i % max_batch_index
 
-    inp1 = Input((input_dim,))
-    inp2 = Input((input_dim,))
-    inp = add([inp1, inp2])
-    hidden = Dense(num_hidden, activation='relu')(inp)
+    inp1 = Input((input_dim, input_dim))
+    inp2 = Input((input_dim, input_dim))
+    inp_3d = add([inp1, inp2])
+    inp_2d = GlobalAveragePooling1D()(inp_3d)
+    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])  # test a layer with a list of output tensors
+    hidden = dot(inp_pair, axes=-1)
+    hidden = Dense(num_hidden, activation='relu')(hidden)
     hidden = Dropout(0.1)(hidden)
     output1 = Dense(num_classes, activation='softmax')(hidden)
     output2 = Dense(num_classes, activation='softmax')(hidden)
@@ -800,6 +870,28 @@ def tests_RemoteMonitor():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     cbks = [callbacks.RemoteMonitor()]
+
+    with patch('requests.post'):
+        model.fit(X_train, y_train, batch_size=batch_size,
+                  validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
+
+
+@keras_test
+def tests_RemoteMonitorWithJsonPayload():
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_classes)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+    cbks = [callbacks.RemoteMonitor(send_as_json=True)]
 
     with patch('requests.post'):
         model.fit(X_train, y_train, batch_size=batch_size,

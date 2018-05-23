@@ -1,7 +1,6 @@
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
-import scipy.signal as signal
 import scipy.sparse as sparse
 import warnings
 from keras.utils.test_utils import keras_test
@@ -9,6 +8,8 @@ from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.backend import floatx, set_floatx, variable
 from keras.utils.conv_utils import convert_kernel
+import reference_operations
+
 
 BACKENDS = []  # Holds a list of all available back-ends
 
@@ -190,162 +191,6 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
         z_list += [z]
 
     assert_list_pairwise(z_list)
-
-
-def normalize_ref_conv(func):
-    def wrapper(*args):
-        x = args[0]
-        w = args[1]
-        if x.ndim == 3:
-            w = np.flipud(w)
-            w = np.transpose(w, (1, 2, 0))
-            if args[3] == 'channels_last':
-                x = np.transpose(x, (0, 2, 1))
-        elif x.ndim == 4:
-            w = np.fliplr(np.flipud(w))
-            w = np.transpose(w, (2, 3, 0, 1))
-            if args[3] == 'channels_last':
-                x = np.transpose(x, (0, 3, 1, 2))
-        else:
-            w = np.flip(np.fliplr(np.flipud(w)), axis=2)
-            w = np.transpose(w, (3, 4, 0, 1, 2))
-            if args[3] == 'channels_last':
-                x = np.transpose(x, (0, 4, 1, 2, 3))
-
-        y = func(x, w, args[2], args[3])
-
-        if args[3] == 'channels_last':
-            if y.ndim == 3:
-                y = np.transpose(y, (0, 2, 1))
-            elif y.ndim == 4:
-                y = np.transpose(y, (0, 2, 3, 1))
-            else:
-                y = np.transpose(y, (0, 2, 3, 4, 1))
-
-        return y
-
-    return wrapper
-
-
-@normalize_ref_conv
-def ref_conv(x, w, padding, data_format):
-    y = []
-    for i in range(x.shape[0]):
-        _y = []
-        for j in range(w.shape[1]):
-            __y = []
-            for k in range(w.shape[0]):
-                __y.append(signal.convolve(x[i, k], w[k, j], mode=padding))
-            _y.append(np.sum(np.stack(__y, axis=-1), axis=-1))
-        y.append(_y)
-    y = np.array(y)
-    return y
-
-
-@normalize_ref_conv
-def ref_depthwise_conv(x, w, padding, data_format):
-    y = []
-    for i in range(x.shape[0]):
-        _y = []
-        for j in range(w.shape[0]):
-            __y = []
-            for k in range(w.shape[1]):
-                __y.append(signal.convolve(x[i, j], w[j, k], mode=padding))
-            _y.append(np.stack(__y, axis=0))
-        y.append(np.concatenate(_y, axis=0))
-    y = np.array(y)
-    return y
-
-
-def ref_separable_conv(x, w1, w2, padding, data_format):
-    x2 = ref_depthwise_conv(x, w1, padding, data_format)
-    return ref_conv(x2, w2, padding, data_format)
-
-
-def ref_pool(x, pool_size, strides, padding, data_format, pool_mode):
-    if data_format == 'channels_last':
-        if x.ndim == 3:
-            x = np.transpose(x, (0, 2, 1))
-        elif x.ndim == 4:
-            x = np.transpose(x, (0, 3, 1, 2))
-        else:
-            x = np.transpose(x, (0, 4, 1, 2, 3))
-
-    if padding == 'same':
-        pad = [(0, 0), (0, 0)] + [(s // 2, s // 2) for s in pool_size]
-        x = np.pad(x, pad, 'constant', constant_values=-np.inf)
-
-    # indexing trick
-    x = np.pad(x, [(0, 0), (0, 0)] + [(0, 1) for _ in pool_size],
-               'constant', constant_values=0)
-
-    if x.ndim == 3:
-        y = [x[:, :, k:k1:strides[0]]
-             for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0))]
-    elif x.ndim == 4:
-        y = []
-        for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0)):
-            for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
-                y.append(x[:, :, k:k1:strides[0], l:l1:strides[1]])
-    else:
-        y = []
-        for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0)):
-            for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
-                for (m, m1) in zip(range(pool_size[2]), range(-pool_size[2], 0)):
-                    y.append(x[:, :, k:k1:strides[0], l:l1:strides[1], m:m1:strides[2]])
-    y = np.stack(y, axis=-1)
-    if pool_mode == 'avg':
-        y = np.mean(np.ma.masked_invalid(y), axis=-1).data
-    elif pool_mode == 'max':
-        y = np.max(y, axis=-1)
-
-    if data_format == 'channels_last':
-        if y.ndim == 3:
-            y = np.transpose(y, (0, 2, 1))
-        elif y.ndim == 4:
-            y = np.transpose(y, (0, 2, 3, 1))
-        else:
-            y = np.transpose(y, (0, 2, 3, 4, 1))
-
-    return y
-
-
-def ref_rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
-    w_i, w_h, w_o = w
-    h = []
-    o = []
-
-    if go_backwards:
-        t_list = range(x.shape[1] - 1, -1, -1)
-    else:
-        t_list = range(x.shape[1])
-
-    if mask is not None:
-        np_mask = K.eval(mask)
-    else:
-        np_mask = None
-
-    for (i, t) in enumerate(t_list):
-        h_t = np.dot(x[:, t], w_i)
-
-        if w_h is not None:
-            prev = h[i - 1] if i > 0 else init
-            h_t1 = np.dot(prev, w_h)
-            if np_mask is not None:
-                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
-        else:
-            h_t1 = 0
-
-        o_t = h_t + h_t1
-        if w_o is not None:
-            o_t = np.dot(o_t, w_o)
-        o.append(o_t)
-
-        if np_mask is not None:
-            h_t = h_t * np_mask[:, t].reshape(-1, 1)
-        h.append(h_t + h_t1)
-
-    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
 
 
 class TestBackend(object):
@@ -724,7 +569,7 @@ class TestBackend(object):
         ]
 
         for (i, kwargs) in enumerate(kwargs_list):
-            last_y1, y1, h1 = ref_rnn(x, [wi, wh, None], h0, **kwargs)
+            last_y1, y1, h1 = reference_operations.rnn(x, [wi, wh, None], h0, **kwargs)
             last_y2, y2, h2 = K.rnn(rnn_fn, x_k, h0_k, **kwargs)
 
             assert len(h2) == 1
@@ -754,6 +599,82 @@ class TestBackend(object):
                 assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
                 assert_allclose(state_list[i - 1], state_list[i], atol=1e-05)
 
+    def test_rnn_additional_states(self):
+        # implement a simple RNN with an additional state
+        # whose shape is different from that of the output
+        num_samples = 4
+        input_dim = 5
+        output_dim = 3
+        timesteps = 6
+
+        _, x = parse_shape_or_val((num_samples, timesteps, input_dim))
+        _, h0 = parse_shape_or_val((num_samples, output_dim))
+        _, wi = parse_shape_or_val((input_dim, output_dim))
+        _, wh = parse_shape_or_val((output_dim, output_dim))
+        mask = np.random.randint(2, size=(num_samples, timesteps))
+
+        x_k = K.variable(x)
+        h0_k = [K.variable(h0), K.variable(np.concatenate([h0, h0], axis=-1))]
+        wi_k = K.variable(wi)
+        wh_k = K.variable(wh)
+        mask_k = K.variable(mask)
+
+        def rnn_fn(x_k, h_k):
+            assert len(h_k) == 2
+            y_k = K.dot(x_k, wi_k) + K.dot(h_k[0], wh_k)
+            return y_k, [y_k, K.concatenate([y_k, y_k], axis=-1)]
+
+        # test default setup
+        last_output_list = []
+        outputs_list = []
+        state_list = []
+
+        kwargs_list = [
+            {'go_backwards': False, 'mask': None},
+            {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
+            {'go_backwards': True, 'mask': None},
+            {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
+            {'go_backwards': False, 'mask': mask_k},
+            {'go_backwards': False, 'mask': mask_k, 'unroll': True, 'input_length': timesteps},
+        ]
+
+        for (i, kwargs) in enumerate(kwargs_list):
+            last_y1, y1, h1 = reference_operations.rnn(x, [wi, wh, None], h0, **kwargs)
+            last_y2, y2, h2 = K.rnn(rnn_fn, x_k, h0_k, **kwargs)
+
+            assert len(h2) == 2
+            last_y2 = K.eval(last_y2)
+            y2 = K.eval(y2)
+            h11 = h1[:, -1]
+            h12 = np.concatenate([h1[:, -1], h1[:, -1]], axis=-1)
+            h21 = K.eval(h2[0])
+            h22 = K.eval(h2[1])
+
+            if kwargs['mask'] is not None:
+                last_y1 = last_y1 * np.expand_dims(mask[:, -1], -1)
+                last_y2 = last_y2 * np.expand_dims(mask[:, -1], -1)
+                y1 = y1 * np.expand_dims(mask, -1)
+                y2 = y2 * np.expand_dims(mask, -1)
+                h11 = h11 * np.expand_dims(mask[:, -1], -1)
+                h21 = h21 * np.expand_dims(mask[:, -1], -1)
+                h12 = h12 * np.expand_dims(mask[:, -1], -1)
+                h22 = h22 * np.expand_dims(mask[:, -1], -1)
+
+            last_output_list.append(last_y2)
+            outputs_list.append(y2)
+            state_list.append((h21, h22))
+
+            if i % 2 == 0:
+                assert_allclose(last_y1, last_y2, atol=1e-05)
+                assert_allclose(y1, y2, atol=1e-05)
+                assert_allclose(h11, h21, atol=1e-05)
+                assert_allclose(h12, h22, atol=1e-05)
+            else:
+                assert_allclose(last_output_list[i - 1], last_output_list[i], atol=1e-05)
+                assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
+                assert_allclose(state_list[i - 1][0], state_list[i][0], atol=1e-05)
+                assert_allclose(state_list[i - 1][1], state_list[i][1], atol=1e-05)
+
     def test_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
@@ -771,8 +692,8 @@ class TestBackend(object):
             y_k = K.dot(x_k, wi_k)
             return y_k, []
 
-        last_y1, y1, h1 = ref_rnn(x, [wi, None, None], None,
-                                  go_backwards=False, mask=None)
+        last_y1, y1, h1 = reference_operations.rnn(x, [wi, None, None], None,
+                                                   go_backwards=False, mask=None)
         last_y2, y2, h2 = K.rnn(rnn_fn, x_k, [],
                                 go_backwards=False, mask=None)
 
@@ -1071,7 +992,7 @@ class TestBackend(object):
         k = K.backend()
         _, x = parse_shape_or_val(input_shape)
         _, w = parse_shape_or_val(kernel_shape)
-        y1 = ref_conv(x, w, padding, data_format)
+        y1 = reference_operations.conv(x, w, padding, data_format)
         y2 = check_two_tensor_operation(
             op, x, w, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
             padding=padding, data_format=data_format,
@@ -1088,7 +1009,7 @@ class TestBackend(object):
         k = K.backend()
         _, x = parse_shape_or_val(input_shape)
         _, w = parse_shape_or_val(kernel_shape)
-        y1 = ref_depthwise_conv(x, w, padding, data_format)
+        y1 = reference_operations.depthwise_conv(x, w, padding, data_format)
         y2 = check_two_tensor_operation(
             op, x, w, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
             padding=padding, data_format=data_format,
@@ -1108,7 +1029,7 @@ class TestBackend(object):
     def test_pool(self, op, input_shape, pool_size, strides, padding, data_format, pool_mode):
         k = K.backend()
         _, x = parse_shape_or_val(input_shape)
-        y1 = ref_pool(x, pool_size, strides, padding, data_format, pool_mode)
+        y1 = reference_operations.pool(x, pool_size, strides, padding, data_format, pool_mode)
         y2 = check_single_tensor_operation(
             op, x, [KTH if k == 'theano' else KC if k == 'cntk' else KTF],
             pool_size=pool_size, strides=strides,
@@ -1162,19 +1083,20 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    @pytest.mark.skipif(K.backend() == 'theano', reason='Not supported.')
     @pytest.mark.parametrize('op,input_shape,kernel_shape,depth_multiplier,padding,data_format', [
+        ('separable_conv1d', (2, 8, 2), (3,), 1, 'same', 'channels_last'),
+        ('separable_conv1d', (1, 8, 2), (3,), 2, 'valid', 'channels_last'),
         ('separable_conv2d', (2, 3, 4, 5), (3, 3), 1, 'same', 'channels_first'),
         ('separable_conv2d', (2, 3, 5, 6), (4, 3), 2, 'valid', 'channels_first'),
         ('separable_conv2d', (1, 6, 5, 3), (3, 4), 1, 'valid', 'channels_last'),
         ('separable_conv2d', (1, 7, 6, 3), (3, 3), 2, 'same', 'channels_last'),
     ])
-    def test_separable_conv2d(self, op, input_shape, kernel_shape, depth_multiplier, padding, data_format):
+    def test_separable_conv(self, op, input_shape, kernel_shape, depth_multiplier, padding, data_format):
         input_depth = input_shape[1] if data_format == 'channels_first' else input_shape[-1]
         _, x = parse_shape_or_val(input_shape)
         _, depthwise = parse_shape_or_val(kernel_shape + (input_depth, depth_multiplier))
-        _, pointwise = parse_shape_or_val((1, 1) + (input_depth * depth_multiplier, 7))
-        y1 = ref_separable_conv(x, depthwise, pointwise, padding, data_format)
+        _, pointwise = parse_shape_or_val((1,) * len(kernel_shape) + (input_depth * depth_multiplier, 7))
+        y1 = reference_operations.separable_conv(x, depthwise, pointwise, padding, data_format)
         if K.backend() == 'cntk':
             y2 = cntk_func_three_tensor(
                 op, input_shape,
@@ -1257,53 +1179,79 @@ class TestBackend(object):
             assert np.max(rand) == 1
             assert np.min(rand) == 0
 
-    def test_conv_invalid_use(self):
+    def test_truncated_normal(self):
+        mean = 0.
+        std = 1.
+        min_val = -2.
+        max_val = 2.
         for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.conv1d(k.variable(np.ones((4, 8, 2))),
-                         k.variable(np.ones((3, 2, 3))),
-                         data_format='channels_middle')
+            rand = k.eval(k.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
+            assert rand.shape == (300, 200)
+            assert np.abs(np.mean(rand) - mean) < 0.015
+            assert np.max(rand) <= max_val
+            assert np.min(rand) >= min_val
 
-            with pytest.raises(ValueError):
-                k.conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                         k.variable(np.ones((2, 2, 3, 4))),
-                         data_format='channels_middle')
+            # assumption in initializers.VarianceScaling
+            assert np.abs(np.std(rand) - std * 0.87962) < 0.015
 
-            with pytest.raises(ValueError):
-                k.conv3d(k.variable(np.ones((2, 3, 4, 5, 4))),
-                         k.variable(np.ones((2, 2, 2, 3, 4))),
-                         data_format='channels_middle')
+    def test_conv_invalid_use(self):
+        dummy_x_1d = K.variable(np.ones((4, 8, 2)))
+        dummy_w_1d = K.variable(np.ones((3, 2, 3)))
+        dummy_x_2d = K.variable(np.ones((2, 3, 4, 5)))
+        dummy_w_2d = K.variable(np.ones((2, 2, 3, 4)))
+        dummy_x_3d = K.variable(np.ones((2, 3, 4, 5, 4)))
+        dummy_w_3d = K.variable(np.ones((2, 2, 2, 3, 4)))
+        dummy_w1x1_2d = K.variable(np.ones((1, 1, 12, 7)))
 
-            if k != KTH:
-                with pytest.raises(ValueError):
-                    k.separable_conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                                       k.variable(np.ones((2, 2, 3, 4))),
-                                       k.variable(np.ones((1, 1, 12, 7))),
-                                       data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.conv1d(dummy_x_1d, dummy_w_1d, data_format='channels_middle')
 
+        with pytest.raises(ValueError):
+            K.conv2d(dummy_x_2d, dummy_w_2d, data_format='channels_middle')
+
+        with pytest.raises(ValueError):
+            K.conv3d(dummy_x_3d, dummy_w_3d, data_format='channels_middle')
+
+        if K.backend() != 'theano':
             with pytest.raises(ValueError):
-                k.depthwise_conv2d(k.variable(np.ones((2, 3, 4, 5))),
-                                   k.variable(np.ones((2, 2, 3, 4))),
+                K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
                                    data_format='channels_middle')
+
+        with pytest.raises(ValueError):
+            K.depthwise_conv2d(dummy_x_2d, dummy_w_2d,
+                               data_format='channels_middle')
+
+        if K.backend() == 'cntk':
+            with pytest.raises(ValueError):
+                K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
+                                   dilation_rate=(1, 2))
+            with pytest.raises(ValueError):
+                K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
+                                   strides=(2, 2), dilation_rate=(1, 2))
+            with pytest.raises(ValueError):
+                K.depthwise_conv2d(dummy_x_2d, dummy_w_2d,
+                                   dilation_rate=(1, 2))
+            with pytest.raises(ValueError):
+                K.depthwise_conv2d(dummy_x_2d, dummy_w_2d,
+                                   strides=(2, 2), dilation_rate=(1, 2))
 
     def test_pooling_invalid_use(self):
         for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
-            for k in BACKENDS:
-                x = k.variable(np.random.random(input_shape))
-                if len(pool_size) == 2:
-                    with pytest.raises(ValueError):
-                        k.pool2d(x, pool_size=pool_size, data_format='channels_middle')
-                    with pytest.raises(ValueError):
-                        k.pool2d(x, pool_size=pool_size, padding='twice')
-                    with pytest.raises(ValueError):
-                        k.pool2d(x, pool_size=pool_size, pool_mode='median')
-                else:
-                    with pytest.raises(ValueError):
-                        k.pool3d(x, pool_size=pool_size, data_format='channels_middle')
-                    with pytest.raises(ValueError):
-                        k.pool3d(x, pool_size=pool_size, padding='twice')
-                    with pytest.raises(ValueError):
-                        k.pool3d(x, pool_size=pool_size, pool_mode='median')
+            x = K.variable(np.random.random(input_shape))
+            if len(pool_size) == 2:
+                with pytest.raises(ValueError):
+                    K.pool2d(x, pool_size=pool_size, data_format='channels_middle')
+                with pytest.raises(ValueError):
+                    K.pool2d(x, pool_size=pool_size, padding='twice')
+                with pytest.raises(ValueError):
+                    K.pool2d(x, pool_size=pool_size, pool_mode='median')
+            else:
+                with pytest.raises(ValueError):
+                    K.pool3d(x, pool_size=pool_size, data_format='channels_middle')
+                with pytest.raises(ValueError):
+                    K.pool3d(x, pool_size=pool_size, padding='twice')
+                with pytest.raises(ValueError):
+                    K.pool3d(x, pool_size=pool_size, pool_mode='median')
 
     def test_resize_images(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1466,6 +1414,32 @@ class TestBackend(object):
               [0.230246, 0.450868, 0.0389607, 0.038309, 0.0391602, 0.202456],
               [0.280884, 0.429522, 0.0326593, 0.0339046, 0.0326856, 0.190345],
               [0.423286, 0.315517, 0.0338439, 0.0393744, 0.0339315, 0.154046]]],
+            dtype=np.float32)
+
+        k_labels = K.variable(labels, dtype="int32")
+        k_inputs = K.variable(inputs, dtype="float32")
+        k_input_lens = K.variable(input_lens, dtype="int32")
+        k_label_lens = K.variable(label_lens, dtype="int32")
+        res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
+        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
+
+        # test when batch_size = 1, that is, one sample only
+        # get only first sample from above test case
+        if K.backend() == 'theano':
+            ref = [1.73308]
+        else:
+            ref = [3.34211]
+
+        input_lens = np.expand_dims(np.asarray([5]), 1)
+        label_lens = np.expand_dims(np.asarray([5]), 1)
+
+        labels = np.asarray([[0, 1, 2, 1, 0]])
+        inputs = np.asarray(
+            [[[0.633766, 0.221185, 0.0917319, 0.0129757, 0.0142857, 0.0260553],
+              [0.111121, 0.588392, 0.278779, 0.0055756, 0.00569609, 0.010436],
+              [0.0357786, 0.633813, 0.321418, 0.00249248, 0.00272882, 0.0037688],
+              [0.0663296, 0.643849, 0.280111, 0.00283995, 0.0035545, 0.00331533],
+              [0.458235, 0.396634, 0.123377, 0.00648837, 0.00903441, 0.00623107]]],
             dtype=np.float32)
 
         k_labels = K.variable(labels, dtype="int32")
@@ -1737,6 +1711,15 @@ class TestBackend(object):
         for training in [True, False]:
             check_two_tensor_operation('in_train_phase', (3, 3), (2, 2), [KTH, KTF],
                                        training=training)
+            check_two_tensor_operation('in_train_phase', (2, 3), (2, 3), BACKENDS,
+                                       training=training)
+
+    def test_in_test_phase(self):
+        for training in [True, False]:
+            check_two_tensor_operation('in_test_phase', (3, 3), (2, 2), [KTH, KTF],
+                                       training=training)
+            check_two_tensor_operation('in_test_phase', (2, 3), (2, 3), BACKENDS,
+                                       training=training)
 
     def test_setfloatx_incorrect_values(self):
         # Keep track of the old value
@@ -1780,6 +1763,15 @@ class TestBackend(object):
 
         # Restore old value
         set_floatx(old_floatx)
+
+    def test_dtype(self):
+        assert K.dtype(K.variable(1, dtype='float64')) == 'float64'
+        assert K.dtype(K.variable(1, dtype='float32')) == 'float32'
+        if K.backend() == 'cntk':
+            with pytest.raises(ValueError):
+                K.variable(1, dtype='float16')
+        else:
+            assert K.dtype(K.variable(1, dtype='float16')) == 'float16'
 
     def test_variable_support_bool_dtype(self):
         # Github issue: 7819

@@ -9,8 +9,8 @@ from keras.layers import recurrent
 from keras.layers import embeddings
 from keras.models import Sequential
 from keras.models import Model
-from keras.engine.topology import Input
-from keras.layers.core import Masking
+from keras.engine import Input
+from keras.layers import Masking
 from keras import regularizers
 from keras import backend as K
 
