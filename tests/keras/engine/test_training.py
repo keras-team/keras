@@ -1173,8 +1173,6 @@ def test_pandas_dataframe():
                           [output_a_df, output_b_df])
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow',
-                    reason='channels_first with crossentropy not yet supported with other backends')
 @keras_test
 def test_model_with_crossentropy_losses_channels_first():
     """Tests use of all crossentropy losses with `channels_first`.
