@@ -3217,7 +3217,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
     # If the channels are not in the last axis, move them to be there:
     if axis != -1 and axis != output_dimensions[-1]:
-        permutation = output_dimensions[:axis] + output_dimensions[axis+1:] + [axis]
+        permutation = output_dimensions[:axis] + output_dimensions[axis + 1:] + [axis]
         output = tf.transpose(output, perm=permutation)
 
     # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
