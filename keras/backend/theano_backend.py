@@ -1592,7 +1592,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     if axis != -1 and axis not in output_dimensions:
         raise ValueError(
             'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
-            format(axis, len(shape(int_shape(output)))))
+            format(axis, len(int_shape(output))))
     # If the channels are not in the last axis, move them to be there:
     if axis != -1 and axis != output_dimensions[-1]:
         permutation = output_dimensions[:axis] + output_dimensions[axis + 1:] + [axis]
