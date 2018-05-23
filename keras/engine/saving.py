@@ -292,10 +292,7 @@ def load_model(filepath, custom_objects=None, compile=True):
             # Set optimizer weights.
             if 'optimizer_weights' in f:
                 # Build train function (to get weight updates).
-                if model.__class__.__name__ == 'Sequential':
-                    model.model._make_train_function()
-                else:
-                    model._make_train_function()
+                model._make_train_function()
                 optimizer_weights_group = f['optimizer_weights']
                 optimizer_weight_names = [
                     n.decode('utf8') for n in
