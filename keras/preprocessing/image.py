@@ -510,9 +510,9 @@ class ImageDataGenerator(object):
                 `(-width_shift_range, +width_shift_range)`
             - With `width_shift_range=2` possible values
                 are integers `[-1, 0, +1]`,
-            same as with `width_shift_range=[-1, 0, +1]`,
-            while with `width_shift_range=1.0` possible values are floats in
-            the interval [-1.0, +1.0).
+                same as with `width_shift_range=[-1, 0, +1]`,
+                while with `width_shift_range=1.0` possible values are floats in
+                the interval [-1.0, +1.0).
         height_shift_range: Float, 1-D array-like or int
             - float: fraction of total height, if < 1, or pixels if >= 1.
             - 1-D array-like: random elements from the array.
@@ -520,9 +520,9 @@ class ImageDataGenerator(object):
                 `(-height_shift_range, +height_shift_range)`
             - With `height_shift_range=2` possible values
                 are integers `[-1, 0, +1]`,
-            same as with `height_shift_range=[-1, 0, +1]`,
-            while with `height_shift_range=1.0` possible values are floats in
-            the interval [-1.0, +1.0).
+                same as with `height_shift_range=[-1, 0, +1]`,
+                while with `height_shift_range=1.0` possible values are floats in
+                the interval [-1.0, +1.0).
         shear_range: Float. Shear Intensity
             (Shear angle in counter-clockwise direction in degrees)
         zoom_range: Float or [lower, upper]. Range for random zoom.
@@ -871,12 +871,12 @@ class ImageDataGenerator(object):
                 - "input" will be images identical
                     to input images (mainly used to work with autoencoders).
                 - If None, no labels are returned
-                (the generator will only yield batches of image data,
-                which is useful to use with `model.predict_generator()`,
-                `model.evaluate_generator()`, etc.).
-                Please note that in case of class_mode None,
-                the data still needs to reside in a subdirectory
-                of `directory` for it to work correctly.
+                  (the generator will only yield batches of image data,
+                  which is useful to use with `model.predict_generator()`,
+                  `model.evaluate_generator()`, etc.).
+                  Please note that in case of class_mode None,
+                  the data still needs to reside in a subdirectory
+                  of `directory` for it to work correctly.
             batch_size: Size of the batches of data (default: 32).
             shuffle: Whether to shuffle the data (default: True)
             seed: Optional random seed for shuffling and transformations.
@@ -1068,18 +1068,18 @@ class ImageDataGenerator(object):
         # Arguments
             x: 3D tensor, single image.
             transform_parameters: Dictionary with string - parameter pairs
-              describing the transformation. Currently, the following parameters
-              from the dictionary are used:
-              - `'theta'`: Float. Rotation angle in degrees.
-              - `'tx'`: Float. Shift in the x direction.
-              - `'ty'`: Float. Shift in the y direction.
-              - `'shear'`: Float. Shear angle in degrees.
-              - `'zx'`: Float. Zoom in the x direction.
-              - `'zy'`: Float. Zoom in the y direction.
-              - `'flip_horizontal'`: Boolean. Horizontal flip.
-              - `'flip_vertical'`: Boolean. Vertical flip.
-              - `'channel_shift_intencity'`: Float. Channel shift intensity.
-              - `'brightness'`: Float. Brightness shift intensity.
+                describing the transformation. Currently, the following parameters
+                from the dictionary are used:
+                - `'theta'`: Float. Rotation angle in degrees.
+                - `'tx'`: Float. Shift in the x direction.
+                - `'ty'`: Float. Shift in the y direction.
+                - `'shear'`: Float. Shear angle in degrees.
+                - `'zx'`: Float. Zoom in the x direction.
+                - `'zy'`: Float. Zoom in the y direction.
+                - `'flip_horizontal'`: Boolean. Horizontal flip.
+                - `'flip_vertical'`: Boolean. Vertical flip.
+                - `'channel_shift_intencity'`: Float. Channel shift intensity.
+                - `'brightness'`: Float. Brightness shift intensity.
 
         # Returns
             A ransformed version of the input (same shape).

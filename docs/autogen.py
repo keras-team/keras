@@ -468,6 +468,26 @@ def process_list_block(docstring, starting_point, leading_spaces, marker):
     lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
     # All the other lines get simply the 4 leading space (if present) removed
     lines = [re.sub(r'^    ', '', line) for line in lines]
+    # Fix text lines after lists
+    indent = 0
+    text_block = False
+    for i in range(len(lines)):
+        line = lines[i]
+        spaces = re.search(r'\S', line)
+        if spaces:
+            # If it is a list element
+            if line[spaces.start()] == '-':
+                indent = spaces.start() + 1
+                if text_block:
+                    text_block = False
+                    lines[i] = '\n' + line
+            elif spaces.start() < indent:
+                text_block = True
+                indent = spaces.start()
+                lines[i] = '\n' + line
+        else:
+            text_block = False
+            indent = 0
     block = '\n'.join(lines)
     return docstring, block
 
