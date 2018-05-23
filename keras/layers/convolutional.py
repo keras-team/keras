@@ -651,8 +651,8 @@ class Conv2DTranspose(Conv2D):
         padding: one of `"valid"` or `"same"` (case-insensitive).
         output_padding: An integer or tuple/list of 2 integers,
             specifying the amount of padding along the height and width.
-            Can be a single integer to specify the same value for
-            all spatial dimensions.
+            of the output tensor. Can be a single integer to specify the
+            same value for all spatial dimensions.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
