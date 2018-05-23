@@ -1207,7 +1207,7 @@ def test_model_with_crossentropy_losses_channels_first():
 
     losses_to_test = ['sparse_categorical_crossentropy', 'categorical_crossentropy', 'binary_crossentropy']
 
-    data_channels_first = np.array([[[[8., 7.1, 0.], [4.5, 2.6, 0.55], [0.9, 4.2, 11.2]]]])
+    data_channels_first = np.array([[[[8., 7.1, 0.], [4.5, 2.6, 0.55], [0.9, 4.2, 11.2]]]], dtype=np.float32)
     labels_channels_first = [np.array([[[[0, 1, 3], [2, 1, 0], [2, 2, 1]]]]),  # 4-class sparse_categorical_crossentropy
                              np.array([[[[0, 1, 0], [0, 1, 0], [0, 0, 0]],
                                         [[1, 0, 0], [0, 0, 1], [0, 1, 0]],
@@ -1215,8 +1215,8 @@ def test_model_with_crossentropy_losses_channels_first():
                                         [[0, 0, 1], [0, 0, 0], [1, 0, 0]]]]),  # 4-class categorical_crossentropy
                              np.array([[[[0, 1, 0], [0, 1, 0], [0, 0, 1]],
                                         [[1, 0, 1], [1, 0, 1], [1, 1, 0]]]])]  # 2-class binary_crossentropy
-    loss_channels_last = [0, 0, 0]  # one entry for each loss function in the list `losses_to_test`
-    loss_channels_first = [0, 0, 0]  # one entry for each loss function in the list `losses_to_test`
+    loss_channels_last = [0., 0., 0.]  # one entry for each loss function in the list `losses_to_test`
+    loss_channels_first = [0., 0., 0.]  # one entry for each loss function in the list `losses_to_test`
 
     old_data_format = K.image_data_format()
 
@@ -1240,8 +1240,8 @@ def test_model_with_crossentropy_losses_channels_first():
 
     K.set_image_data_format(old_data_format)
 
-    assert loss_channels_last == loss_channels_first, "Different loss for channels_first and channels_last: {} != {}".format(
-        loss_channels_first, loss_channels_last)
+    assert_allclose(loss_channels_first, loss_channels_last,
+                    err_msg='Computed different losses for channels_first and channels_last.')
 
 
 if __name__ == '__main__':
