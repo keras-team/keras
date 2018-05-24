@@ -268,9 +268,12 @@ class TimeseriesGenerator(Sequence):
         stride: Period between successive output sequences.
             For stride `s`, consecutive output samples would
             be centered around `data[i]`, `data[i+s]`, `data[i+2*s]`, etc.
-        start_index, end_index: Data points earlier than `start_index`
-            or later than `end_index` will not be used in the output sequences.
-            This is useful to reserve part of the data for test or validation.
+        start_index: Data points earlier than `start_index` will not be used
+            in the output sequences. This is useful to reserve part of the
+            data for test or validation.
+        end_index: Data points later than `end_index` will not be used
+            in the output sequences. This is useful to reserve part of the
+            data for test or validation.
         shuffle: Whether to shuffle output samples,
             or instead draw them in chronological order.
         reverse: Boolean: if `true`, timesteps in each output sample will be
