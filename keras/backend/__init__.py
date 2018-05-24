@@ -77,13 +77,13 @@ if 'KERAS_BACKEND' in os.environ:
 
 # Import backend functions.
 if _BACKEND == 'cntk':
-    sys.stderr.write('Using CNTK backend\n')
+    sys.stdout.write('Using CNTK backend\n')
     from .cntk_backend import *
 elif _BACKEND == 'theano':
-    sys.stderr.write('Using Theano backend.\n')
+    sys.stdout.write('Using Theano backend.\n')
     from .theano_backend import *
 elif _BACKEND == 'tensorflow':
-    sys.stderr.write('Using TensorFlow backend.\n')
+    sys.stdout.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
 else:
     # Try and load external backend.
@@ -101,7 +101,7 @@ else:
             # Make sure we don't override any entries from common, such as epsilon.
             if k not in namespace:
                 namespace[k] = v
-        sys.stderr.write('Using ' + _BACKEND + ' backend.\n')
+        sys.stdout.write('Using ' + _BACKEND + ' backend.\n')
     except ImportError:
         raise ValueError('Unable to import backend : ' + str(_BACKEND))
 
