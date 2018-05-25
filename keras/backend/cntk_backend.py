@@ -1063,7 +1063,7 @@ def _moments(x, axes=None, shift=None, keep_dims=False):
     return mean, variance
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     # The mean / var / beta / gamma may be processed by broadcast
     # so it may have an extra batch axis with 1, it is not needed
     # in cntk, need to remove those dummy axis.
