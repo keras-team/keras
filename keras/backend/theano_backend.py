@@ -731,7 +731,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, T.inv(stdinv ** 2)
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
     # TODO remove this if statement when Theano without
