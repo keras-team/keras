@@ -316,6 +316,33 @@ def test_EarlyStopping_baseline():
 
 
 @keras_test
+def test_EarlyStopping_reach():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    def reach_tester(acc_levels):
+        early_stop = callbacks.EarlyStopping(monitor='val_acc', reach=0.75)
+        early_stop.model = DummyModel()
+        epochs_trained = 0
+        early_stop.on_train_begin()
+        for epoch in range(len(acc_levels)):
+            epochs_trained += 1
+            early_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
+            if early_stop.model.stop_training:
+                break
+        return epochs_trained
+
+    acc_levels = [0.76, 0.76, 0.76, 0.76]
+    reach_met_early = reach_tester(acc_levels)
+    acc_levels = [0.55, 0.55, 0.81, 0.81]
+    reach_met_late = reach_tester(acc_levels)
+
+    assert reach_met_early == 2
+    assert reach_met_late == 4
+
+
+@keras_test
 def test_LearningRateScheduler():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,

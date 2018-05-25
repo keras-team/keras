@@ -476,6 +476,9 @@ class EarlyStopping(Callback):
         baseline: Baseline value for the monitored quantity to reach.
             Training will stop if the model doesn't show improvement
             over the baseline.
+        reach: Lower bound value for the monitored quantity to reach.
+            Training can be stopped only after
+            lower bound is reached.
     """
 
     def __init__(self,
@@ -484,11 +487,13 @@ class EarlyStopping(Callback):
                  patience=0,
                  verbose=0,
                  mode='auto',
+                 reach=None,
                  baseline=None):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
         self.baseline = baseline
+        self.reach = reach
         self.patience = patience
         self.verbose = verbose
         self.min_delta = min_delta
@@ -534,7 +539,9 @@ class EarlyStopping(Callback):
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
             return
-        if self.monitor_op(current - self.min_delta, self.best):
+        if self.reach is not None and self.monitor_op(self.reach, current):
+            pass
+        elif self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
         else:
