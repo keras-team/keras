@@ -22,18 +22,17 @@ class Layer(object):
     """Abstract base layer class.
 
     # Properties
-        inbound_nodes: List of nodes for tracking input connectivity.
         input, output: Input/output tensor(s). Note that if the layer
             is used more than once (shared layer), this is ill-defined
             and will raise an exception. In such cases, use
             `layer.get_input_at(node_index)`.
-        input_mask, output_mask: Mask tensors.  Same caveats apply as
+        input_mask, output_mask: Mask tensors. Same caveats apply as
             input, output.
         input_shape: Shape tuple. Provided for convenience, but note
             that there may be cases in which this attribute is
             ill-defined (e.g. a shared layer with multiple input
             shapes), in which case requesting `input_shape` will raise
-            an Exception.  Prefer using
+            an Exception. Prefer using
             `layer.get_input_shape_for(input_shape)`, or
             `layer.get_input_shape_at(node_index)`.
         input_spec: List of InputSpec class instances
@@ -44,10 +43,9 @@ class Layer(object):
             an `input_spec` of length `n`.
         name: String, must be unique within a model.
         non_trainable_weights: List of variables.
-        outbound_nodes: List of nodes for tracking output connectivity.
         output_shape: Shape tuple. See `input_shape`.
         stateful: Boolean indicating whether the layer carries
-            additional non-weight state.  Used in, for instance, RNN
+            additional non-weight state. Used in, for instance, RNN
             cells to carry information between batches.
         supports_masking: Boolean indicator of whether the layer
             supports masking, typically for unused timesteps in a
