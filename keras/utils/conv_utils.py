@@ -154,17 +154,33 @@ def deconv_length(dim_size, stride_size, kernel_size, padding, output_padding):
         stride_size: integer.
         kernel_size: integer.
         padding: one of "same", "valid", "full".
-        output_padding: amount of padding along of the output length, integer.
+        output_padding: amount of padding along of the output dimension,
+            integer. Can be set to `None` in which case the output length
+            is inferred.
 
     # Returns
         The output length (integer).
     """
     assert padding in {'same', 'valid', 'full'}
-    if padding == 'same':
-        pad = kernel_size // 2
-    elif padding == 'valid':
-        pad = 0
-    elif padding == 'full':
-        pad = kernel_size - 1
+    if dim_size is None:
+        return None
 
-    return (dim_size - 1) * stride_size + kernel_size - 2 * pad + output_padding
+    # Infer length if output padding is None, else compute the exact length
+    if output_padding is None:
+        if padding == 'valid':
+            dim_size = dim_size * stride_size + max(kernel_size - stride_size, 0)
+        elif padding == 'full':
+            dim_size = dim_size * stride_size - (stride_size + kernel_size - 2)
+        elif padding == 'same':
+            dim_size = dim_size * stride_size
+    else:
+        if padding == 'same':
+            pad = kernel_size // 2
+        elif padding == 'valid':
+            pad = 0
+        elif padding == 'full':
+            pad = kernel_size - 1
+
+        dim_size = (dim_size - 1) * stride_size + kernel_size - 2 * pad + output_padding
+
+    return dim_size

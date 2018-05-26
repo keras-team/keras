@@ -650,9 +650,11 @@ class Conv2DTranspose(Conv2D):
             any `dilation_rate` value != 1.
         padding: one of `"valid"` or `"same"` (case-insensitive).
         output_padding: An integer or tuple/list of 2 integers,
-            specifying the amount of padding along the height and width.
+            specifying the amount of padding along the height and width
             of the output tensor. Can be a single integer to specify the
             same value for all spatial dimensions.
+            If set to `None`, defaults to 1 if padding is `"same"` and to
+            0 if padding is '"valid"'.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -718,7 +720,7 @@ class Conv2DTranspose(Conv2D):
                  kernel_size,
                  strides=(1, 1),
                  padding='valid',
-                 output_padding=0,
+                 output_padding=None,
                  data_format=None,
                  activation=None,
                  use_bias=True,
@@ -747,7 +749,9 @@ class Conv2DTranspose(Conv2D):
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=4)
-        self.output_padding = conv_utils.normalize_tuple(output_padding, 2, 'output_padding')
+        self.output_padding = output_padding
+        if self.output_padding is not None:
+            self.output_padding = conv_utils.normalize_tuple(self.output_padding, 2, 'output_padding')
 
     def build(self, input_shape):
         if len(input_shape) != 4:
@@ -792,7 +796,10 @@ class Conv2DTranspose(Conv2D):
         height, width = input_shape[h_axis], input_shape[w_axis]
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.strides
-        out_pad_h, out_pad_w = self.output_padding
+        if self.output_padding is None:
+            out_pad_h = out_pad_w = None
+        else:
+            out_pad_h, out_pad_w = self.output_padding
 
         # Infer the dynamic output shape:
         out_height = conv_utils.deconv_length(height,
@@ -835,7 +842,10 @@ class Conv2DTranspose(Conv2D):
 
         kernel_h, kernel_w = self.kernel_size
         stride_h, stride_w = self.strides
-        out_pad_h, out_pad_w = self.output_padding
+        if self.output_padding is None:
+            out_pad_h = out_pad_w = None
+        else:
+            out_pad_h, out_pad_w = self.output_padding
 
         output_shape[c_axis] = self.filters
         output_shape[h_axis] = conv_utils.deconv_length(output_shape[h_axis],
@@ -893,6 +903,8 @@ class Conv3DTranspose(Conv3D):
             width.
             Can be a single integer to specify the same value for
             all spatial dimensions.
+            If set to `None`, defaults to 1 if padding is `"same"` and to
+            0 if padding is '"valid"'.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -957,7 +969,7 @@ class Conv3DTranspose(Conv3D):
                  kernel_size,
                  strides=(1, 1, 1),
                  padding='valid',
-                 output_padding=0,
+                 output_padding=None,
                  data_format=None,
                  activation=None,
                  use_bias=True,
@@ -986,7 +998,9 @@ class Conv3DTranspose(Conv3D):
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=5)
-        self.output_padding = conv_utils.normalize_tuple(output_padding, 3, 'output_padding')
+        self.output_padding = output_padding
+        if self.output_padding is not None:
+            self.output_padding = conv_utils.normalize_tuple(self.output_padding, 3, 'output_padding')
 
     def build(self, input_shape):
         if len(input_shape) != 5:
@@ -1034,7 +1048,10 @@ class Conv3DTranspose(Conv3D):
 
         kernel_d, kernel_h, kernel_w = self.kernel_size
         stride_d, stride_h, stride_w = self.strides
-        out_pad_d, out_pad_h, out_pad_w = self.output_padding
+        if self.output_padding is None:
+            out_pad_d = out_pad_h = out_pad_w = None
+        else:
+            out_pad_d, out_pad_h, out_pad_w = self.output_padding
 
         # Infer the dynamic output shape:
         out_depth = conv_utils.deconv_length(depth,
@@ -1081,7 +1098,10 @@ class Conv3DTranspose(Conv3D):
 
         kernel_d, kernel_h, kernel_w = self.kernel_size
         stride_d, stride_h, stride_w = self.strides
-        out_pad_d, out_pad_h, out_pad_w = self.output_padding
+        if self.output_padding is None:
+            out_pad_d = out_pad_h = out_pad_w = None
+        else:
+            out_pad_d, out_pad_h, out_pad_w = self.output_padding
 
         output_shape[c_axis] = self.filters
         output_shape[d_axis] = conv_utils.deconv_length(output_shape[d_axis],
