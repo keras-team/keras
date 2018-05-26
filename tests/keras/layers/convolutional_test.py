@@ -194,17 +194,19 @@ def test_conv2d_transpose():
     num_col = 6
 
     for padding in _convolution_paddings:
-        for strides in [(1, 1), (2, 2)]:
-            if padding == 'same' and strides != (1, 1):
-                continue
-            layer_test(convolutional.Deconvolution2D,
-                       kwargs={'filters': filters,
-                               'kernel_size': 3,
-                               'padding': padding,
-                               'strides': strides,
-                               'data_format': 'channels_last'},
-                       input_shape=(num_samples, num_row, num_col, stack_size),
-                       fixed_batch_size=True)
+        for out_padding in [None, (1, 1)]:
+            for strides in [(1, 1), (2, 2)]:
+                if padding == 'same' and strides != (1, 1):
+                    continue
+                layer_test(convolutional.Deconvolution2D,
+                           kwargs={'filters': filters,
+                                   'kernel_size': 3,
+                                   'padding': padding,
+                                   'output_padding': out_padding,
+                                   'strides': strides,
+                                   'data_format': 'channels_last'},
+                           input_shape=(num_samples, num_row, num_col, stack_size),
+                           fixed_batch_size=True)
 
     layer_test(convolutional.Deconvolution2D,
                kwargs={'filters': filters,
@@ -459,18 +461,20 @@ def test_convolution_3d():
     input_len_dim3 = 8
 
     for padding in _convolution_paddings:
-        for strides in [(1, 1, 1), (2, 2, 2)]:
-            if padding == 'same' and strides != (1, 1, 1):
-                continue
+        for out_padding in [None, (1, 1, 1)]:
+            for strides in [(1, 1, 1), (2, 2, 2)]:
+                if padding == 'same' and strides != (1, 1, 1):
+                    continue
 
-            layer_test(convolutional.Convolution3D,
-                       kwargs={'filters': filters,
-                               'kernel_size': 3,
-                               'padding': padding,
-                               'strides': strides},
-                       input_shape=(num_samples,
-                                    input_len_dim1, input_len_dim2, input_len_dim3,
-                                    stack_size))
+                layer_test(convolutional.Convolution3D,
+                           kwargs={'filters': filters,
+                                   'kernel_size': 3,
+                                   'padding': padding,
+                                   'output_padding': out_padding,
+                                   'strides': strides},
+                           input_shape=(num_samples,
+                                        input_len_dim1, input_len_dim2, input_len_dim3,
+                                        stack_size))
 
     layer_test(convolutional.Convolution3D,
                kwargs={'filters': filters,
