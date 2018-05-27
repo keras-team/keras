@@ -938,7 +938,7 @@ class ReduceLROnPlateau(Callback):
         if 'epsilon' in kwargs:
             min_delta = kwargs.pop('epsilon')
             warnings.warn('`epsilon` argument is deprecated and '
-                          'will be removed, use `min_delta` insted.')
+                          'will be removed, use `min_delta` instead.')
         self.factor = factor
         self.min_lr = min_lr
         self.min_delta = min_delta
