@@ -651,8 +651,11 @@ class Conv2DTranspose(Conv2D):
         padding: one of `"valid"` or `"same"` (case-insensitive).
         output_padding: An integer or tuple/list of 2 integers,
             specifying the amount of padding along the height and width
-            of the output tensor. Can be a single integer to specify the
-            same value for all spatial dimensions.
+            of the output tensor.
+            Can be a single integer to specify the same value for all
+            spatial dimensions.
+            The amount of output padding along a givern dimension must be
+            lower than the stride along that same dimension.
             If set to `None`, defaults to 1 if padding is `"same"` and to
             0 if padding is '"valid"'.
         data_format: A string,
@@ -749,9 +752,15 @@ class Conv2DTranspose(Conv2D):
             bias_constraint=bias_constraint,
             **kwargs)
         self.input_spec = InputSpec(ndim=4)
+
         self.output_padding = output_padding
         if self.output_padding is not None:
             self.output_padding = conv_utils.normalize_tuple(self.output_padding, 2, 'output_padding')
+            for stride, out_pad in zip(self.strides, self.output_padding):
+                if out_pad >= stride:
+                    raise ValueError('Stride ' + str(self.strides) + ' must be ' +
+                                     'greater than output padding ' +
+                                     str(self.output_padding))
 
     def build(self, input_shape):
         if len(input_shape) != 4:
@@ -901,8 +910,10 @@ class Conv3DTranspose(Conv3D):
         output_padding: An integer or tuple/list of 3 integers,
             specifying the amount of padding along the depth, height, and
             width.
-            Can be a single integer to specify the same value for
-            all spatial dimensions.
+            Can be a single integer to specify the same value for all
+            spatial dimensions.
+            The amount of output padding along a givern dimension must be
+            lower than the stride along that same dimension.
             If set to `None`, defaults to 1 if padding is `"same"` and to
             0 if padding is '"valid"'.
         data_format: A string,
@@ -1001,6 +1012,11 @@ class Conv3DTranspose(Conv3D):
         self.output_padding = output_padding
         if self.output_padding is not None:
             self.output_padding = conv_utils.normalize_tuple(self.output_padding, 3, 'output_padding')
+            for stride, out_pad in zip(self.strides, self.output_padding):
+                if out_pad >= stride:
+                    raise ValueError('Stride ' + str(self.strides) + ' must be ' +
+                                     'greater than output padding ' +
+                                     str(self.output_padding))
 
     def build(self, input_shape):
         if len(input_shape) != 5:
