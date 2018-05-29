@@ -197,7 +197,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.Y_len = [0] * self.num_words
 
         # monogram file is sorted by frequency in english speech
-        with open(self.monogram_file, 'rt') as f:
+        with open(self.monogram_file, 'r') as f:
             for line in f:
                 if len(tmp_string_list) == int(self.num_words * mono_fraction):
                     break
@@ -206,7 +206,7 @@ class TextImageGenerator(keras.callbacks.Callback):
                     tmp_string_list.append(word)
 
         # bigram file contains common word pairings in english speech
-        with open(self.bigram_file, 'rt') as f:
+        with open(self.bigram_file, 'r') as f:
             lines = f.readlines()
             for line in lines:
                 if len(tmp_string_list) == self.num_words:
@@ -485,7 +485,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
 
 if __name__ == '__main__':
-    run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
+    run_name = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     train(run_name, 0, 20, 128)
     # increase to wider images and start at epoch 20. The learned weights are reloaded
     train(run_name, 20, 25, 512)
