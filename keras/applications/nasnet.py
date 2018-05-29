@@ -80,10 +80,11 @@ def NASNet(input_shape=None,
            default_size=None):
     '''Instantiates a NASNet model.
 
-    Note that only TensorFlow is supported for now,
-    therefore it only works with the data format
-    `image_data_format='channels_last'` in your Keras config
-    at `~/.keras/keras.json`.
+    Optionally loads weights pre-trained on ImageNet.
+    Note that the data format convention used by the model is
+    the one specified in your Keras config at `~/.keras/keras.json`.
+    When using TensorFlow, for best performance you should
+    set `"image_data_format": "channels_last"` in the config.
 
     # Arguments
         input_shape: Optional shape tuple, the input shape
@@ -315,10 +316,11 @@ def NASNetLarge(input_shape=None,
                 classes=1000):
     '''Instantiates a NASNet model in ImageNet mode.
 
-    Note that only TensorFlow is supported for now,
-    therefore it only works with the data format
-    `image_data_format='channels_last'` in your Keras config
-    at `~/.keras/keras.json`.
+    Optionally loads weights pre-trained on ImageNet.
+    Note that the data format convention used by the model is
+    the one specified in your Keras config at `~/.keras/keras.json`.
+    When using TensorFlow, for best performance you should
+    set `"image_data_format": "channels_last"` in the config.
 
     # Arguments
         input_shape: Optional shape tuple, only to be specified
@@ -381,10 +383,11 @@ def NASNetMobile(input_shape=None,
                  classes=1000):
     '''Instantiates a Mobile NASNet model in ImageNet mode.
 
-    Note that only TensorFlow is supported for now,
-    therefore it only works with the data format
-    `image_data_format='channels_last'` in your Keras config
-    at `~/.keras/keras.json`.
+    Optionally loads weights pre-trained on ImageNet.
+    Note that the data format convention used by the model is
+    the one specified in your Keras config at `~/.keras/keras.json`.
+    When using TensorFlow, for best performance you should
+    set `"image_data_format": "channels_last"` in the config.
 
     # Arguments
         input_shape: Optional shape tuple, only to be specified
