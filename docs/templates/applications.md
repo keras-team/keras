@@ -739,7 +739,7 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 -----
 
-## mobilenet v2
+## MobileNetV2
 
 
 ```python
