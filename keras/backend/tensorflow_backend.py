@@ -20,6 +20,7 @@ import os
 from .common import floatx, epsilon
 from .common import image_data_format
 from ..utils.generic_utils import has_arg
+from ..legacy import interfaces
 
 # Legacy functions
 from .common import set_image_dim_ordering
@@ -3135,6 +3136,7 @@ def elu(x, alpha=1.):
         return tf.where(x > 0, res, alpha * res)
 
 
+@interfaces.generate_legacy_interface(conversions=[('dim', 'axis')])
 def softmax(x, axis=-1):
     """Softmax of a tensor.
 
