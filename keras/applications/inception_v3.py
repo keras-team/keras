@@ -92,16 +92,11 @@ def InceptionV3(include_top=True,
                 classes=1000):
     """Instantiates the Inception v3 architecture.
 
-    Optionally loads weights pre-trained
-    on ImageNet. Note that when using TensorFlow,
-    for best performance you should set
-    `image_data_format='channels_last'` in your Keras config
-    at ~/.keras/keras.json.
-    The model and the weights are compatible with both
-    TensorFlow and Theano. The data format
-    convention used by the model is the one
-    specified in your Keras config file.
-    Note that the default input image size for this model is 299x299.
+    Optionally loads weights pre-trained on ImageNet.
+    Note that the data format convention used by the model is
+    the one specified in your Keras config at `~/.keras/keras.json`.
+    When using TensorFlow, for best performance you should
+    set `"image_data_format": "channels_last"` in the config.
 
     # Arguments
         include_top: whether to include the fully-connected

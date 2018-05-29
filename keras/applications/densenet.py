@@ -119,16 +119,11 @@ def DenseNet(blocks,
              classes=1000):
     """Instantiates the DenseNet architecture.
 
-    Optionally loads weights pre-trained
-    on ImageNet. Note that when using TensorFlow,
-    for best performance you should set
-    `image_data_format='channels_last'` in your Keras config
-    at ~/.keras/keras.json.
-
-    The model and the weights are compatible with
-    TensorFlow, Theano, and CNTK. The data format
-    convention used by the model is the one
-    specified in your Keras config file.
+    Optionally loads weights pre-trained on ImageNet.
+    Note that the data format convention used by the model is
+    the one specified in your Keras config at `~/.keras/keras.json`.
+    When using TensorFlow, for best performance you should
+    set `"image_data_format": "channels_last"` in the config.
 
     # Arguments
         blocks: numbers of building blocks for the four dense layers.
