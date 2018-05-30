@@ -86,6 +86,7 @@ from ..layers import BatchNormalization
 from ..layers import Conv2D
 from ..layers import DepthwiseConv2D
 from ..layers import GlobalAveragePooling2D
+from ..layers import GlobalMaxPooling2D
 from ..layers import Add
 from ..layers import Flatten
 from ..layers import Dense
@@ -149,6 +150,7 @@ def MobileNetV2(input_shape=None,
                 include_top=True,
                 weights='imagenet',
                 input_tensor=None,
+                pooling=None,
                 classes=1000):
     """Instantiates the MobileNetV2 architecture.
 
@@ -187,6 +189,18 @@ def MobileNetV2(input_shape=None,
         input_tensor: optional Keras tensor (i.e. output of
             `layers.Input()`)
             to use as image input for the model.
+        pooling: Optional pooling mode for feature extraction
+            when `include_top` is `False`.
+            - `None` means that the output of the model
+                will be the 4D tensor output of the
+                last convolutional layer.
+            - `avg` means that global average pooling
+                will be applied to the output of the
+                last convolutional layer, and thus
+                the output of the model will be a
+                2D tensor.
+            - `max` means that global max pooling will
+                be applied.
         classes: optional number of classes to classify images
             into, only to be specified if `include_top` is True, and
             if no `weights` argument is specified.
@@ -408,6 +422,11 @@ def MobileNetV2(input_shape=None,
         x = GlobalAveragePooling2D()(x)
         x = Dense(classes, activation='softmax',
                   use_bias=True, name='Logits')(x)
+    else:
+        if pooling == 'avg':
+            x = GlobalAveragePooling2D()(x)
+        elif pooling == 'max':
+            x = GlobalMaxPooling2D()(x)
 
     # Ensure that the model takes into account
     # any potential predecessors of `input_tensor`.
