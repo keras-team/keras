@@ -159,7 +159,7 @@ def test_TimeDistributed_trainable():
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='Unknown timestamps for RNN not supported in CNTK.')
-def test_TimeDistributed_with_mask_and_unspecified_shape():
+def test_TimeDistributed_with_masked_embedding_and_unspecified_shape():
     # test with unspecified shape and Embeddings with mask_zero
     model = Sequential()
     model.add(wrappers.TimeDistributed(layers.Embedding(5, 6, mask_zero=True),
@@ -188,7 +188,7 @@ def test_TimeDistributed_with_mask_and_unspecified_shape():
 
 
 @keras_test
-def test_TimeDistributed_with_mask_and_unspecified_shape():
+def test_TimeDistributed_with_masking_layer():
     # test with Masking layer
     model = Sequential()
     model.add(wrappers.TimeDistributed(layers.Masking(mask_value=0.,),

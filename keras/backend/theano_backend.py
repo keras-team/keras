@@ -584,7 +584,26 @@ def var(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
     """
-    return T.any(x, axis=axis, keepdims=keepdims)
+    y = T.any(x, axis=axis, keepdims=keepdims)
+    if hasattr(x, '_keras_shape'):
+        if axis is None:
+            y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
+        else:
+            if isinstance(axis, int):
+                axis_list = [axis]
+            else:
+                axis_list = list(set(int(a) for a in axis))
+            keras_shape_list = list(x._keras_shape)
+            if keepdims:
+                for a in axis_list:
+                    keras_shape_list[a] = 1
+            else:
+                for a in axis_list[::-1]:
+                    keras_shape_list.pop(a)
+                if not keras_shape_list:
+                    keras_shape_list = (1,)
+            y._keras_shape = tuple(keras_shape_list)
+    return y
 
 
 def all(x, axis=None, keepdims=False):
@@ -670,7 +689,12 @@ def equal(x, y):
 
 
 def not_equal(x, y):
-    return T.neq(x, y)
+    z = T.neq(x, y)
+    if hasattr(x, '_keras_shape'):
+        z._keras_shape = x._keras_shape
+    elif hasattr(y, '_keras_shape'):
+        z._keras_shape = y._keras_shape
+    return z
 
 
 def greater(x, y):
