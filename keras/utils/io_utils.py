@@ -83,7 +83,7 @@ class HDF5Matrix(object):
                 idx = (self.start + key).tolist()
             else:
                 raise IndexError
-        elif isinstance(key, (list, xrange)):
+        elif isinstance(key, (list, six.moves.range)):
             if max(key) + self.start < self.end:
                 idx = [x + self.start for x in key]
             else:
