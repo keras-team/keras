@@ -162,7 +162,7 @@ class TimeDistributed(Wrapper):
 
     def _get_shape_tuple(self, init_tuple, tensor, start_idx, int_shape=None):
         """Finds non-specific dimensions in the static shapes
-        and replaces them by the corresponding dynamic shapes of the tensor. 
+        and replaces them by the corresponding dynamic shapes of the tensor.
 
         # Arguments
             init_tuple: a tuple, the first part of the output shape
@@ -170,13 +170,13 @@ class TimeDistributed(Wrapper):
                 as the last part of the output shape
             start_idx: int, which indicate the first dimension to take from
                 the static shape of the tensor
-            int_shape: an alternative static shape to take as the last part 
+            int_shape: an alternative static shape to take as the last part
                 of the output shape
 
         # Returns
-            The new int_shape with the first part from init_tuple 
-            and the last part from either `int_shape` (if provided) 
-            or K.int_shape(tensor), where every `None` is replaced by 
+            The new int_shape with the first part from init_tuple
+            and the last part from either `int_shape` (if provided)
+            or K.int_shape(tensor), where every `None` is replaced by
             the corresponding dimension from K.shape(tensor)
         """
         # replace all None in int_shape by K.shape
@@ -269,7 +269,7 @@ class TimeDistributed(Wrapper):
         based on the inputs, mask, and the inner layer.
 
         If batch size is specified:
-        Simply return the input `mask`. (An rnn-based implementation with 
+        Simply return the input `mask`. (An rnn-based implementation with
         more than one rnn inputs is required but not supported in Keras yet.)
 
         Otherwise we call `compute_mask` of the inner layer at each time step.
@@ -281,7 +281,7 @@ class TimeDistributed(Wrapper):
         Reduce the input_mask to 2 dimensions and return it.
         Otherwise (both the output mask and the input mask are `None`):
         (E.g., `mask` is not used at all)
-        Return `None`.         
+        Return `None`.
 
         # Arguments
             inputs: Tensor
