@@ -725,20 +725,20 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 
 ```python
-keras.applications.mobilenetv2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, classes=1000)
+keras.applications.mobilenetv2.MobileNetV2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
 ```
 
-MobileNet model, with weights pre-trained on ImageNet.
+MobileNetV2 model, with weights pre-trained on ImageNet.
 
 Note that this model only supports the data format `'channels_last'` (height, width, channels).
 
-To load a MobileNet model via `load_model`, import the custom object `relu6` and pass it to the `custom_objects` parameter.
+To load a MobileNetV2 model via `load_model`, import the custom object `relu6` and pass it to the `custom_objects` parameter.
 
 E.g.
 
 ```python
 model = load_model('mobilenet_v2.h5', custom_objects={
-                   'relu6': mobilenet.relu6})
+                   'relu6': mobilenetv2.relu6})
 ```
 
 The default input size for this model is 224x224.
@@ -773,6 +773,18 @@ The default input size for this model is 224x224.
 - input_tensor: optional Keras tensor (i.e. output of
       `layers.Input()`)
       to use as image input for the model.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model
+    will be the 4D tensor output of the
+        last convolutional layer.
+    - `'avg'` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a
+        2D tensor.
+    - `'max'` means that global max pooling will
+        be applied. 
 - classes: optional number of classes to classify images
       into, only to be specified if `include_top` is True, and
       if no `weights` argument is specified.
