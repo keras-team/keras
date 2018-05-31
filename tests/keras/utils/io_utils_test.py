@@ -90,6 +90,8 @@ def test_io_utils(in_tmpdir):
     with pytest.raises(IndexError):
         X_train[[1000, 1001]]
     with pytest.raises(IndexError):
+        X_train[[xrange(1000, 1001)]]
+    with pytest.raises(IndexError):
         X_train[np.array([1000])]
     with pytest.raises(IndexError):
         X_train[None]
