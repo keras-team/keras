@@ -585,7 +585,26 @@ def var(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
     """
-    return T.any(x, axis=axis, keepdims=keepdims)
+    y = T.any(x, axis=axis, keepdims=keepdims)
+    if hasattr(x, '_keras_shape'):
+        if axis is None:
+            y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
+        else:
+            if isinstance(axis, int):
+                axis_list = [axis]
+            else:
+                axis_list = list(set(int(a) for a in axis))
+            keras_shape_list = list(x._keras_shape)
+            if keepdims:
+                for a in axis_list:
+                    keras_shape_list[a] = 1
+            else:
+                for a in axis_list[::-1]:
+                    keras_shape_list.pop(a)
+                if not keras_shape_list:
+                    keras_shape_list = (1,)
+            y._keras_shape = tuple(keras_shape_list)
+    return y
 
 
 def all(x, axis=None, keepdims=False):
@@ -671,7 +690,12 @@ def equal(x, y):
 
 
 def not_equal(x, y):
-    return T.neq(x, y)
+    z = T.neq(x, y)
+    if hasattr(x, '_keras_shape'):
+        z._keras_shape = x._keras_shape
+    elif hasattr(y, '_keras_shape'):
+        z._keras_shape = y._keras_shape
+    return z
 
 
 def greater(x, y):
@@ -868,13 +892,12 @@ def concatenate(tensors, axis=-1):
 
 def reshape(x, shape):
     y = T.reshape(x, shape)
-    if _is_explicit_shape(shape):
-        shape = tuple(x if x != -1 else None for x in shape)
-        y._keras_shape = shape
-        if hasattr(x, '_uses_learning_phase'):
-            y._uses_learning_phase = x._uses_learning_phase
-        else:
-            y._uses_learning_phase = False
+    shape = tuple(x if isinstance(x, int) and x > 0 else None for x in shape)
+    y._keras_shape = shape
+    if hasattr(x, '_uses_learning_phase'):
+        y._uses_learning_phase = x._uses_learning_phase
+    else:
+        y._uses_learning_phase = False
     return y
 
 
