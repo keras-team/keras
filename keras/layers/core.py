@@ -103,6 +103,7 @@ class Dropout(Layer):
         self.noise_shape = noise_shape
         self.seed = seed
         self.supports_masking = True
+        self.trainable = False
 
     def _get_noise_shape(self, inputs):
         if self.noise_shape is None:
@@ -350,6 +351,7 @@ class Reshape(Layer):
     def __init__(self, target_shape, **kwargs):
         super(Reshape, self).__init__(**kwargs)
         self.target_shape = tuple(target_shape)
+        self.trainable = False
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
         """Finds and replaces a missing dimension in an output shape.
@@ -445,6 +447,7 @@ class Permute(Layer):
         super(Permute, self).__init__(**kwargs)
         self.dims = tuple(dims)
         self.input_spec = InputSpec(ndim=len(self.dims) + 1)
+        self.trainable = False
 
     def compute_output_shape(self, input_shape):
         input_shape = list(input_shape)
@@ -498,6 +501,7 @@ class Flatten(Layer):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
         self.data_format = conv_utils.normalize_data_format(data_format)
+        self.trainable = False
 
     def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):

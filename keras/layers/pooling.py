@@ -25,6 +25,7 @@ class _Pooling1D(Layer):
         self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
         self.input_spec = InputSpec(ndim=3)
+        self.trainable = False
 
     def compute_output_shape(self, input_shape):
         length = conv_utils.conv_output_length(input_shape[1],
@@ -129,6 +130,7 @@ class _Pooling2D(Layer):
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
+        self.trainable = False
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
@@ -290,6 +292,7 @@ class _Pooling3D(Layer):
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = conv_utils.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
+        self.trainable = False
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
