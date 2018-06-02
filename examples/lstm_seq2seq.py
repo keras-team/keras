@@ -66,7 +66,8 @@ input_texts = []
 target_texts = []
 input_characters = set()
 target_characters = set()
-lines = open(data_path).read().split('\n')
+with open(data_path, 'r', encoding='utf-8') as f:
+    lines = f.read().split('\n')
 for line in lines[: min(num_samples, len(lines) - 1)]:
     input_text, target_text = line.split('\t')
     # We use "tab" as the "start sequence" character
@@ -220,7 +221,7 @@ def decode_sequence(input_seq):
 
 
 for seq_index in range(100):
-    # Take one sequence (part of the training test)
+    # Take one sequence (part of the training set)
     # for trying out decoding.
     input_seq = encoder_input_data[seq_index: seq_index + 1]
     decoded_sentence = decode_sequence(input_seq)

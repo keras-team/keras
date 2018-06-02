@@ -1,27 +1,21 @@
-# -*- coding: utf-8 -*-
+"""Model-related utilities.
+"""
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-import warnings
-import copy
-import json
-import os
-import yaml
-import numpy as np
-
 from . import backend as K
-from . import optimizers
-from . import layers as layer_module
-from .utils.io_utils import ask_to_proceed_with_overwrite
 from .utils.generic_utils import has_arg
+from .utils.generic_utils import to_list
+from .engine.input_layer import Input
+from .engine.input_layer import InputLayer
 from .engine.training import Model
-from .engine import topology
-from .engine.topology import Layer
-from .engine.topology import Input
-from .engine.topology import InputLayer
-from .legacy import layers as legacy_layers
-from .legacy import models as legacy_models
-from .legacy import interfaces
+from .engine.sequential import Sequential
+from .engine.saving import save_model
+from .engine.saving import load_model
+from .engine.saving import model_from_config
+from .engine.saving import model_from_yaml
+from .engine.saving import model_from_json
 
 try:
     import h5py
@@ -1474,7 +1468,7 @@ def _clone_functional_model(model, input_tensors=None):
         # Create placeholders to build the model on top of.
         input_layers = []
         input_tensors = []
-        for layer in model.input_layers:
+        for layer in model._input_layers:
             input_tensor = Input(batch_shape=layer.batch_input_shape,
                                  dtype=layer.dtype,
                                  sparse=layer.sparse,
@@ -1483,16 +1477,16 @@ def _clone_functional_model(model, input_tensors=None):
             # Cache newly created input layer.
             newly_created_input_layer = input_tensor._keras_history[0]
             layer_map[layer] = newly_created_input_layer
-        for original_input_layer, cloned_input_layer in zip(model.input_layers, input_layers):
+        for original_input_layer, cloned_input_layer in zip(model._input_layers, input_layers):
             layer_map[original_input_layer] = cloned_input_layer
     else:
         # Make sure that all input tensors come from a Keras layer.
         # If tensor comes from an input layer: cache the input layer.
-        input_tensors = topology._to_list(input_tensors)
+        input_tensors = to_list(input_tensors)
         _input_tensors = []
         for i, x in enumerate(input_tensors):
             if not K.is_keras_tensor(x):
-                name = model.input_layers[i].name
+                name = model._input_layers[i].name
                 input_tensor = Input(tensor=x,
                                      name='input_wrapper_for_' + name)
                 _input_tensors.append(input_tensor)
@@ -1508,10 +1502,10 @@ def _clone_functional_model(model, input_tensors=None):
         tensor_map[x] = (y, None)  # tensor, mask
 
     # Iterated over every node in the reference model, in depth order.
-    depth_keys = list(model.nodes_by_depth.keys())
+    depth_keys = list(model._nodes_by_depth.keys())
     depth_keys.sort(reverse=True)
     for depth in depth_keys:
-        nodes = model.nodes_by_depth[depth]
+        nodes = model._nodes_by_depth[depth]
         for node in nodes:
             # Recover the corresponding layer.
             layer = node.outbound_layer
@@ -1526,7 +1520,7 @@ def _clone_functional_model(model, input_tensors=None):
                 # Reuse previously cloned layer.
                 layer = layer_map[layer]
                 # Don't call InputLayer multiple times.
-                if isinstance(layer, topology.InputLayer):
+                if isinstance(layer, InputLayer):
                     continue
 
             # Gather inputs to call the new layer.
@@ -1551,9 +1545,9 @@ def _clone_functional_model(model, input_tensors=None):
                     if has_arg(layer.call, 'mask'):
                         if 'mask' not in kwargs:
                             kwargs['mask'] = computed_mask
-                    output_tensors = topology._to_list(
+                    output_tensors = to_list(
                         layer(computed_tensor, **kwargs))
-                    output_masks = topology._to_list(
+                    output_masks = to_list(
                         layer.compute_mask(computed_tensor,
                                            computed_mask))
                     computed_tensors = [computed_tensor]
@@ -1564,9 +1558,9 @@ def _clone_functional_model(model, input_tensors=None):
                     if has_arg(layer.call, 'mask'):
                         if 'mask' not in kwargs:
                             kwargs['mask'] = computed_masks
-                    output_tensors = topology._to_list(
+                    output_tensors = to_list(
                         layer(computed_tensors, **kwargs))
-                    output_masks = topology._to_list(
+                    output_masks = to_list(
                         layer.compute_mask(computed_tensors,
                                            computed_masks))
                 # Update tensor_map.
@@ -1618,14 +1612,14 @@ def _clone_sequential_model(model, input_tensors=None):
     if input_tensors is None:
         return Sequential(layers=layers, name=model.name)
     else:
-        if len(topology._to_list(input_tensors)) != 1:
+        if len(to_list(input_tensors)) != 1:
             raise ValueError('To clone a `Sequential` model, we expect '
                              ' at most one tensor '
                              'as part of `input_tensors`.')
-        x = topology._to_list(input_tensors)[0]
+        x = to_list(input_tensors)[0]
         if K.is_keras_tensor(x):
             origin_layer = x._keras_history[0]
-            if isinstance(origin_layer, topology.InputLayer):
+            if isinstance(origin_layer, InputLayer):
                 return Sequential(layers=[origin_layer] + layers,
                                   name=model.name)
             else:

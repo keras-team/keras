@@ -91,7 +91,7 @@ def accuracy(y_true, y_pred):
     return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
 
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')

@@ -19,6 +19,7 @@
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
 - [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
+- [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
 
 ---
 
@@ -31,8 +32,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
   title={Keras},
   author={Chollet, Fran\c{c}ois and others},
   year={2015},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/fchollet/keras}},
+  howpublished={\url{https://keras.io}},
 }
 ```
 
@@ -149,6 +149,8 @@ You can then use `keras.models.load_model(filepath)` to reinstantiate your model
 `load_model` will also take care of compiling the model using the saved training configuration
 (unless the model was never compiled in the first place).
 
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+
 Example:
 
 ```python
@@ -192,8 +194,6 @@ model = model_from_yaml(yaml_string)
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
-Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
-
 ```python
 model.save_weights('my_model_weights.h5')
 ```
@@ -209,6 +209,8 @@ If you need to load weights into a *different* architecture (with some layers in
 ```python
 model.load_weights('my_model_weights.h5', by_name=True)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
 
 For example:
 
@@ -318,7 +320,7 @@ You can do batch training using `model.train_on_batch(x, y)` and `model.test_on_
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
-You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
+You can see batch training in action in our [CIFAR10 example](https://github.com/keras-team/keras/blob/master/examples/cifar10_cnn.py).
 
 ---
 
@@ -421,7 +423,6 @@ To reset the states accumulated:
 Example:
 
 ```python
-
 x  # this is our input data, of shape (32, 21, 16)
 # we will feed it to our model in sequences of length 10
 
@@ -497,9 +498,9 @@ For a detailed example of how to use such a pre-trained model for feature extrac
 
 The VGG16 model is also the basis for several Keras example scripts:
 
-- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
-- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
-- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+- [Style transfer](https://github.com/keras-team/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/keras-team/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/keras-team/keras/blob/master/examples/deep_dream.py)
 
 ---
 
@@ -515,6 +516,8 @@ with h5py.File('input/file.hdf5', 'r') as f:
     x_data = f['x_data']
     model.predict(x_data)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
 
 ---
 
@@ -564,7 +567,7 @@ import random as rn
 # have reproducible behavior for certain hash-based operations.
 # See these references for further details:
 # https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
-# https://github.com/fchollet/keras/issues/2280#issuecomment-306959926
+# https://github.com/keras-team/keras/issues/2280#issuecomment-306959926
 
 import os
 os.environ['PYTHONHASHSEED'] = '0'
@@ -599,3 +602,26 @@ K.set_session(sess)
 
 # Rest of code follows ...
 ```
+
+---
+
+### How can I install HDF5 or h5py to save my models in Keras?
+
+In order to save your Keras models as HDF5 files, e.g. via
+`keras.callbacks.ModelCheckpoint`, Keras uses the h5py Python package. It is
+ a dependency of Keras and should be installed by default. On Debian-based
+ distributions, you will have to additionally install `libhdf5`:
+
+```
+sudo apt-get install libhdf5-serial-dev
+```
+
+If you are unsure if h5py is installed you can open a Python shell and load the
+module via
+
+```
+import h5py
+```
+
+If it imports without error it is installed otherwise you can find detailed
+installation instructions here: http://docs.h5py.org/en/latest/build.html

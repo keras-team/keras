@@ -1,15 +1,19 @@
 import pytest
 import json
 import numpy as np
-from numpy.testing import assert_allclose
 
 from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
-from keras.engine import Input, Layer, topology, get_source_inputs
+from keras.engine import Input, Layer, saving, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
 from keras.utils.test_utils import keras_test
+
+
+skipif_no_tf_gpu = pytest.mark.skipif(
+    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    reason='Requires TensorFlow backend and a GPU')
 
 
 @keras_test
@@ -178,9 +182,9 @@ def test_node_construction():
     assert a._keras_shape == (None, 32)
     a_layer, a_node_index, a_tensor_index = a._keras_history
     b_layer, b_node_index, b_tensor_index = b._keras_history
-    assert len(a_layer.inbound_nodes) == 1
+    assert len(a_layer._inbound_nodes) == 1
     assert a_tensor_index is 0
-    node = a_layer.inbound_nodes[a_node_index]
+    node = a_layer._inbound_nodes[a_node_index]
     assert node.outbound_layer == a_layer
 
     assert isinstance(node.inbound_layers, list)
@@ -203,18 +207,18 @@ def test_node_construction():
     a_2 = dense(a)
     b_2 = dense(b)
 
-    assert len(dense.inbound_nodes) == 2
-    assert len(dense.outbound_nodes) == 0
-    assert dense.inbound_nodes[0].inbound_layers == [a_layer]
-    assert dense.inbound_nodes[0].outbound_layer == dense
-    assert dense.inbound_nodes[1].inbound_layers == [b_layer]
-    assert dense.inbound_nodes[1].outbound_layer == dense
+    assert len(dense._inbound_nodes) == 2
+    assert len(dense._outbound_nodes) == 0
+    assert dense._inbound_nodes[0].inbound_layers == [a_layer]
+    assert dense._inbound_nodes[0].outbound_layer == dense
+    assert dense._inbound_nodes[1].inbound_layers == [b_layer]
+    assert dense._inbound_nodes[1].outbound_layer == dense
 
-    assert dense.inbound_nodes[0].input_tensors == [a]
-    assert dense.inbound_nodes[1].input_tensors == [b]
+    assert dense._inbound_nodes[0].input_tensors == [a]
+    assert dense._inbound_nodes[1].input_tensors == [b]
 
-    assert dense.inbound_nodes[0].get_config()['inbound_layers'] == ['input_a']
-    assert dense.inbound_nodes[1].get_config()['inbound_layers'] == ['input_b']
+    assert dense._inbound_nodes[0].get_config()['inbound_layers'] == ['input_a']
+    assert dense._inbound_nodes[1].get_config()['inbound_layers'] == ['input_b']
 
     # test layer properties
     test_layer = Dense(16, name='test_layer')
@@ -268,39 +272,26 @@ def test_multi_input_layer():
     assert merge_node_index == 0
     assert merge_tensor_index == 0
 
-    assert len(merge_layer.inbound_nodes) == 1
-    assert len(merge_layer.outbound_nodes) == 0
+    assert len(merge_layer._inbound_nodes) == 1
+    assert len(merge_layer._outbound_nodes) == 0
 
-    assert len(merge_layer.inbound_nodes[0].input_tensors) == 2
-    assert len(merge_layer.inbound_nodes[0].inbound_layers) == 2
+    assert len(merge_layer._inbound_nodes[0].input_tensors) == 2
+    assert len(merge_layer._inbound_nodes[0].inbound_layers) == 2
 
     c = Dense(64, name='dense_2')(merged)
     d = Dense(5, name='dense_3')(c)
 
     model = Model(inputs=[a, b], outputs=[c, d], name='model')
     assert len(model.layers) == 6
-    print('model.input_layers:', model.input_layers)
-    print('model.input_layers_node_indices:', model.input_layers_node_indices)
-    print('model.input_layers_tensor_indices:', model.input_layers_tensor_indices)
-    print('model.output_layers', model.output_layers)
-
-    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
     assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
-
-    print('mask:', model.compute_mask([a, b], [None, None]))
     assert model.compute_mask([a, b], [None, None]) == [None, None]
-
-    print('output_shape:', model.compute_output_shape([(None, 32), (None, 32)]))
     assert model.compute_output_shape([(None, 32), (None, 32)]) == [(None, 64), (None, 5)]
 
     # we don't check names of first 2 layers (inputs) because
     # ordering of same-level layers is not fixed
-    print('layers:', [layer.name for layer in model.layers])
     assert [l.name for l in model.layers][2:] == ['dense_1', 'merge', 'dense_2', 'dense_3']
-    print('input_layers:', [l.name for l in model.input_layers])
-    assert [l.name for l in model.input_layers] == ['input_a', 'input_b']
-    print('output_layers:', [l.name for l in model.output_layers])
-    assert [l.name for l in model.output_layers] == ['dense_2', 'dense_3']
+    assert [l.name for l in model._input_layers] == ['input_a', 'input_b']
+    assert [l.name for l in model._output_layers] == ['dense_2', 'dense_3']
 
     # actually run model
     fn = K.function(model.inputs, model.outputs)
@@ -310,7 +301,6 @@ def test_multi_input_layer():
     assert [x.shape for x in fn_outputs] == [(10, 64), (10, 5)]
 
     # test get_source_inputs
-    print(get_source_inputs(c))
     assert get_source_inputs(c) == [a, b]
 
     # serialization / deserialization
@@ -318,13 +308,9 @@ def test_multi_input_layer():
     recreated_model = model_from_json(json_config)
     recreated_model.compile('rmsprop', 'mse')
 
-    print('recreated:')
-    print([layer.name for layer in recreated_model.layers])
-    print([layer.name for layer in recreated_model.input_layers])
-    print([layer.name for layer in recreated_model.output_layers])
     assert [l.name for l in recreated_model.layers][2:] == ['dense_1', 'merge', 'dense_2', 'dense_3']
-    assert [l.name for l in recreated_model.input_layers] == ['input_a', 'input_b']
-    assert [l.name for l in recreated_model.output_layers] == ['dense_2', 'dense_3']
+    assert [l.name for l in recreated_model._input_layers] == ['input_a', 'input_b']
+    assert [l.name for l in recreated_model._output_layers] == ['dense_2', 'dense_3']
 
     fn = K.function(recreated_model.inputs, recreated_model.outputs)
     input_a_np = np.random.random((10, 32))
@@ -369,13 +355,8 @@ def test_recursion():
 
     # we don't check names of first 2 layers (inputs) because
     # ordering of same-level layers is not fixed
-    print('final_model layers:', [layer.name for layer in final_model.layers])
     assert [layer.name for layer in final_model.layers][2:] == ['model', 'dense_4']
-
-    print(model.compute_mask([e, f], [None, None]))
     assert model.compute_mask([e, f], [None, None]) == [None, None]
-
-    print(final_model.compute_output_shape([(10, 32), (10, 32)]))
     assert final_model.compute_output_shape([(10, 32), (10, 32)]) == [(10, 7), (10, 64)]
 
     # run recursive model
@@ -430,12 +411,7 @@ def test_recursion():
     assert [x.shape for x in fn_outputs] == [(10, 69)]
 
     # test serialization
-    print('multi_io_model.layers:', multi_io_model.layers)
-    print('len(model.inbound_nodes):', len(model.inbound_nodes))
-    print('len(model.outbound_nodes):', len(model.outbound_nodes))
     model_config = multi_io_model.get_config()
-    print(model_config)
-    print(json.dumps(model_config, indent=4))
     recreated_model = Model.from_config(model_config)
 
     fn = K.function(recreated_model.inputs, recreated_model.outputs)
@@ -463,14 +439,14 @@ def test_recursion():
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
 
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         Model([j, k], [m, n])
 
     # disconnected graph
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(RuntimeError):
+    with pytest.raises(ValueError):
         Model([j], [m, n])
 
     # redundant outputs
@@ -491,7 +467,7 @@ def test_recursion():
     j = Input(shape=(32,), name='input_j')
     k = Input(shape=(32,), name='input_k')
     m, n = model([j, k])
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         Model([j, k], [m, n, 0])
 
     ####################################################
@@ -546,7 +522,7 @@ def test_load_layers():
     weight_tensor_td_conv_old.append(np.zeros((15,)))
     td_conv_layer = model.layers[1]
     td_conv_layer.layer.data_format = 'channels_first'
-    weight_tensor_td_conv_new = topology.preprocess_weights_for_loading(
+    weight_tensor_td_conv_new = saving.preprocess_weights_for_loading(
         td_conv_layer,
         weight_tensor_td_conv_old,
         original_keras_version='1')
@@ -564,7 +540,7 @@ def test_load_layers():
             weight_tensor_bi_convlstm_old.append(np.zeros((10,)))  # bias
 
     bi_convlstm_layer = model.layers[2]
-    weight_tensor_bi_convlstm_new = topology.preprocess_weights_for_loading(
+    weight_tensor_bi_convlstm_new = saving.preprocess_weights_for_loading(
         bi_convlstm_layer,
         weight_tensor_bi_convlstm_old,
         original_keras_version='1')
@@ -606,11 +582,12 @@ def convert_weights(layer, weights):
     layers.ConvLSTM2D(5, (3, 3),
                       input_shape=[6, 6, 6, 6],
                       data_format='channels_first'),
-])
+], ids=['GRU', 'LSTM', 'ConvLSTM2D'])
 def test_preprocess_weights_for_loading(layer):
-    model = Sequential([layer])
+    # A model is needed to initialize weights.
+    _ = Sequential([layer])
     weights1 = layer.get_weights()
-    weights2 = topology.preprocess_weights_for_loading(
+    weights2 = saving.preprocess_weights_for_loading(
         layer, convert_weights(layer, weights1),
         original_keras_version='1')
     assert all([np.allclose(x, y, 1e-5)
@@ -623,15 +600,44 @@ def test_preprocess_weights_for_loading(layer):
     layers.Conv2DTranspose(2, (5, 5),
                            input_shape=[7, 7, 3],
                            data_format='channels_first'),
-])
+], ids=['Conv2D', 'Conv2DTranspose'])
 def test_preprocess_weights_for_loading_for_model(layer):
     model = Sequential([layer])
     weights1 = model.get_weights()
-    weights2 = topology.preprocess_weights_for_loading(
+    weights2 = saving.preprocess_weights_for_loading(
         model, convert_weights(layer, weights1),
         original_keras_version='1')
     assert all([np.allclose(x, y, 1e-5)
                 for (x, y) in zip(weights1, weights2)])
+
+
+@keras_test
+@pytest.mark.parametrize('layer_class,layer_args', [
+    (layers.GRU, {'units': 2, 'input_shape': [3, 5]}),
+    (layers.GRU, {'units': 2, 'input_shape': [3, 5], 'reset_after': True}),
+    (layers.LSTM, {'units': 2, 'input_shape': [3, 5]}),
+])
+def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args):
+    """
+    Loading weights from a RNN class to itself should not convert the weights.
+    """
+    # layer can be instantiated only for supported backends
+    layer = layer_class(**layer_args)
+    # A model is needed to initialize weights.
+    _ = Sequential([layer])
+    weights1 = layer.get_weights()
+    weights2 = saving.preprocess_weights_for_loading(layer, weights1)
+    assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
+
+
+@keras_test
+@pytest.mark.parametrize('layer_class,layer_args', [
+    (layers.CuDNNGRU, {'units': 2, 'input_shape': [3, 5]}),
+    (layers.CuDNNLSTM, {'units': 2, 'input_shape': [3, 5]}),
+])
+@skipif_no_tf_gpu
+def test_preprocess_weights_for_loading_cudnn_rnn_should_be_idempotent(layer_class, layer_args):
+    test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, layer_args)
 
 
 @keras_test
@@ -662,6 +668,29 @@ def test_recursion_with_bn_and_loss():
 
 
 @keras_test
+def test_activity_regularization_with_model_composition():
+
+    def reg(x):
+        return K.sum(x)
+
+    net_a_input = Input((2,))
+    net_a = net_a_input
+    net_a = Dense(2, kernel_initializer='ones',
+                  use_bias=False,
+                  activity_regularizer=reg)(net_a)
+    model_a = Model([net_a_input], [net_a])
+
+    net_b_input = Input((2,))
+    net_b = model_a(net_b_input)
+    model_b = Model([net_b_input], [net_b])
+
+    model_b.compile(optimizer='sgd', loss=None)
+    x = np.ones((1, 2))
+    loss = model_b.evaluate(x)
+    assert loss == 4
+
+
+@keras_test
 def test_shared_layer_depth_is_correct():
     # Basic outline here: we have a shared embedding layer, and two inputs that go through
     # different depths of computation in the graph before the final output.  We need the computed
@@ -679,7 +708,7 @@ def test_shared_layer_depth_is_correct():
     model = Model(inputs=[input1, input2], outputs=final_output)
     input1_depth = -1
     input2_depth = -1
-    for depth, layers in model.layers_by_depth.items():
+    for depth, layers in model._layers_by_depth.items():
         for layer in layers:
             if layer.name == 'input1':
                 input1_depth = depth
@@ -766,48 +795,6 @@ def test_multi_output_mask():
     z = ArbitraryMultiInputLayer()([x, y])
     _ = Model(inputs=input_layer, outputs=z)
     assert K.int_shape(z)[1:] == (16, 16, 3)
-
-
-@keras_test
-def test_model_updatable_attribute():
-    val_a = np.random.random((10, 4))
-    val_out = np.random.random((10, 4))
-
-    a = Input(shape=(4,))
-    layer = layers.BatchNormalization(input_shape=(4,))
-    b = layer(a)
-    model = Model(a, b)
-
-    model.trainable = False
-    model.updatable = False
-
-    assert not model.updatable
-    assert not model.updates
-
-    model.compile('sgd', 'mse')
-    assert not model.updates
-
-    x1 = model.predict(val_a)
-    model.train_on_batch(val_a, val_out)
-    x2 = model.predict(val_a)
-    assert_allclose(x1, x2, atol=1e-7)
-
-    model.updatable = True
-    model.compile('sgd', 'mse')
-    assert model.updates
-
-    model.train_on_batch(val_a, val_out)
-    x2 = model.predict(val_a)
-    assert np.abs(np.sum(x1 - x2)) > 1e-5
-
-    layer.updatable = False
-    model.compile('sgd', 'mse')
-    assert not model.updates
-
-    x1 = model.predict(val_a)
-    model.train_on_batch(val_a, val_out)
-    x2 = model.predict(val_a)
-    assert_allclose(x1, x2, atol=1e-7)
 
 
 if __name__ == '__main__':

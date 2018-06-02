@@ -8,23 +8,51 @@ from keras.layers import Input, Lambda
 
 
 def test_preprocess_input():
-    # Test image batch
+    # Test image batch with float and int image input
     x = np.random.uniform(0, 255, (2, 10, 10, 3))
+    xint = x.astype('int32')
     assert utils.preprocess_input(x).shape == x.shape
+    assert utils.preprocess_input(xint).shape == xint.shape
 
     out1 = utils.preprocess_input(x, 'channels_last')
+    out1int = utils.preprocess_input(xint, 'channels_last')
     out2 = utils.preprocess_input(np.transpose(x, (0, 3, 1, 2)),
                                   'channels_first')
+    out2int = utils.preprocess_input(np.transpose(xint, (0, 3, 1, 2)),
+                                     'channels_first')
     assert_allclose(out1, out2.transpose(0, 2, 3, 1))
+    assert_allclose(out1int, out2int.transpose(0, 2, 3, 1))
 
     # Test single image
     x = np.random.uniform(0, 255, (10, 10, 3))
+    xint = x.astype('int32')
     assert utils.preprocess_input(x).shape == x.shape
+    assert utils.preprocess_input(xint).shape == xint.shape
 
     out1 = utils.preprocess_input(x, 'channels_last')
+    out1int = utils.preprocess_input(xint, 'channels_last')
     out2 = utils.preprocess_input(np.transpose(x, (2, 0, 1)),
                                   'channels_first')
+    out2int = utils.preprocess_input(np.transpose(xint, (2, 0, 1)),
+                                     'channels_first')
     assert_allclose(out1, out2.transpose(1, 2, 0))
+    assert_allclose(out1int, out2int.transpose(1, 2, 0))
+
+    # Test that writing over the input data works predictably
+    for mode in ['torch', 'tf']:
+        x = np.random.uniform(0, 255, (2, 10, 10, 3))
+        xint = x.astype('int')
+        x2 = utils.preprocess_input(x, mode=mode)
+        xint2 = utils.preprocess_input(xint)
+        assert_allclose(x, x2)
+        assert xint.astype('float').max() != xint2.max()
+    # Caffe mode works differently from the others
+    x = np.random.uniform(0, 255, (2, 10, 10, 3))
+    xint = x.astype('int')
+    x2 = utils.preprocess_input(x, data_format='channels_last', mode='caffe')
+    xint2 = utils.preprocess_input(xint)
+    assert_allclose(x, x2[..., ::-1])
+    assert xint.astype('float').max() != xint2.max()
 
 
 def test_preprocess_input_symbolic():

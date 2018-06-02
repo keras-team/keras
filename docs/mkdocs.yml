@@ -2,7 +2,7 @@ site_name: Keras Documentation
 theme: readthedocs
 # theme_dir: theme
 docs_dir: sources
-repo_url: http://github.com/fchollet/keras
+repo_url: http://github.com/keras-team/keras
 site_url: http://keras.io/
 site_description: 'Documentation for Keras, the Python Deep Learning library.'
 

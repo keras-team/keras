@@ -8,12 +8,10 @@ import scipy.sparse as sparse
 import keras
 from keras import losses
 from keras.layers import Dense, Dropout
-from keras.engine.topology import Input
+from keras.engine import Input
 from keras.engine.training import Model
-from keras.engine.training import _check_loss_and_target_compatibility
-from keras.engine.training import _weighted_masked_objective
-from keras.engine.training import _check_array_lengths
-from keras.engine.training import _slice_arrays
+from keras.engine import training_utils
+from keras.utils.generic_utils import slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
@@ -22,61 +20,64 @@ from keras.callbacks import LambdaCallback
 
 
 class RandomSequence(Sequence):
-    def __init__(self, batch_size):
+    def __init__(self, batch_size, sequence_length=12):
         self.batch_size = batch_size
+        self.sequence_length = sequence_length
 
     def __len__(self):
-        return 12
+        return self.sequence_length
 
     def __getitem__(self, idx):
-        return [np.random.random((self.batch_size, 3)), np.random.random((self.batch_size, 3))], [
-            np.random.random((self.batch_size, 4)),
-            np.random.random((self.batch_size, 3))]
+        return ([np.random.random((self.batch_size, 3)),
+                 np.random.random((self.batch_size, 3))],
+                [np.random.random((self.batch_size, 4)),
+                 np.random.random((self.batch_size, 3))])
 
     def on_epoch_end(self):
         pass
 
 
 @keras_test
-def test_check_array_lengths():
-    _check_array_lengths(None, None, None)
+def test_check_array_length_consistency():
+    training_utils.check_array_length_consistency(None, None, None)
     a_np = np.random.random((4, 3, 3))
-    _check_array_lengths(a_np, a_np, a_np)
-    _check_array_lengths([a_np, a_np], [a_np, a_np], [a_np, a_np])
-    _check_array_lengths([None], [None], [None])
+    training_utils.check_array_length_consistency(a_np, a_np, a_np)
+    training_utils.check_array_length_consistency(
+        [a_np, a_np], [a_np, a_np], [a_np, a_np])
+    training_utils.check_array_length_consistency([None], [None], [None])
 
     b_np = np.random.random((3, 4))
     with pytest.raises(ValueError):
-        _check_array_lengths(a_np, None, None)
+        training_utils.check_array_length_consistency(a_np, None, None)
     with pytest.raises(ValueError):
-        _check_array_lengths(a_np, a_np, None)
+        training_utils.check_array_length_consistency(a_np, a_np, None)
     with pytest.raises(ValueError):
-        _check_array_lengths([a_np], [None], None)
+        training_utils.check_array_length_consistency([a_np], [None], None)
     with pytest.raises(ValueError):
-        _check_array_lengths([a_np], [b_np], None)
+        training_utils.check_array_length_consistency([a_np], [b_np], None)
     with pytest.raises(ValueError):
-        _check_array_lengths([a_np], None, [b_np])
+        training_utils.check_array_length_consistency([a_np], None, [b_np])
 
 
 @keras_test
-def test_slice_arrays():
+def testslice_arrays():
     input_a = np.random.random((10, 3))
-    _slice_arrays(None)
-    _slice_arrays(input_a, 0)
-    _slice_arrays(input_a, 0, 1)
-    _slice_arrays(input_a, stop=2)
+    slice_arrays(None)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
     input_a = [None, [1, 1], None, [1, 1]]
-    _slice_arrays(input_a, 0)
-    _slice_arrays(input_a, 0, 1)
-    _slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
     input_a = [None]
-    _slice_arrays(input_a, 0)
-    _slice_arrays(input_a, 0, 1)
-    _slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
     input_a = None
-    _slice_arrays(input_a, 0)
-    _slice_arrays(input_a, 0, 1)
-    _slice_arrays(input_a, stop=2)
+    slice_arrays(input_a, 0)
+    slice_arrays(input_a, 0, 1)
+    slice_arrays(input_a, stop=2)
 
 
 @keras_test
@@ -87,7 +88,8 @@ def test_weighted_masked_objective():
     def mask_dummy(y_true=None, y_pred=None, weight=None):
         return K.placeholder(y_true.shape)
 
-    weighted_function = _weighted_masked_objective(losses.categorical_crossentropy)
+    weighted_function = training_utils.weighted_masked_objective(
+        losses.categorical_crossentropy)
     weighted_function(a, a, None)
 
 
@@ -114,7 +116,8 @@ def test_model_methods():
 
     # training/testing doesn't work before compiling.
     with pytest.raises(RuntimeError):
-        model.train_on_batch([input_a_np, input_b_np], [output_a_np, output_b_np])
+        model.train_on_batch([input_a_np, input_b_np],
+                             [output_a_np, output_b_np])
 
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
@@ -148,11 +151,14 @@ def test_model_methods():
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4,
-                    validation_data=([input_a_np, input_b_np], [output_a_np, output_b_np]))
+                    validation_data=([input_a_np, input_b_np],
+                                     [output_a_np, output_b_np]))
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     [output_a_np, output_b_np],
                     epochs=1, batch_size=4, validation_split=0.5,
-                    validation_data=({'input_a': input_a_np, 'input_b': input_b_np}, [output_a_np, output_b_np]))
+                    validation_data=({'input_a': input_a_np,
+                                      'input_b': input_b_np},
+                                     [output_a_np, output_b_np]))
     out = model.fit({'input_a': input_a_np, 'input_b': input_b_np},
                     {'dense_1': output_a_np, 'dropout': output_b_np},
                     epochs=1, batch_size=4, validation_split=0.5,
@@ -170,7 +176,8 @@ def test_model_methods():
 
     # predict_on_batch
     out = model.predict_on_batch([input_a_np, input_b_np])
-    out = model.predict_on_batch({'input_a': input_a_np, 'input_b': input_b_np})
+    out = model.predict_on_batch({'input_a': input_a_np,
+                                  'input_b': input_b_np})
 
     # predict, evaluate
     input_a_np = np.random.random((10, 3))
@@ -179,7 +186,9 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
 
     # with sample_weight
@@ -255,8 +264,10 @@ def test_model_methods():
 
     def gen_data(batch_sz):
         while True:
-            yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
-                   [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
+            yield ([np.random.random((batch_sz, 3)),
+                    np.random.random((batch_sz, 3))],
+                   [np.random.random((batch_sz, 4)),
+                    np.random.random((batch_sz, 3))])
 
     out = model.fit_generator(gen_data(4), steps_per_epoch=3, epochs=5,
                               initial_epoch=2, callbacks=[tracker_cb])
@@ -283,9 +294,16 @@ def test_model_methods():
     output_a_np = np.random.random((10, 4))
     output_b_np = np.random.random((10, 3))
 
-    out = model.fit([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4, epochs=1)
-    out = model.evaluate([input_a_np, input_b_np], [output_a_np, output_b_np], batch_size=4)
+    out = model.fit([input_a_np, input_b_np],
+                    [output_a_np, output_b_np],
+                    batch_size=4, epochs=1)
+    out = model.evaluate([input_a_np, input_b_np],
+                         [output_a_np, output_b_np],
+                         batch_size=4)
     out = model.predict([input_a_np, input_b_np], batch_size=4)
+
+    # enable verbose for evaluate_generator
+    out = model.evaluate_generator(gen_data(4), steps=3, verbose=1)
 
     # empty batch
     with pytest.raises(ValueError):
@@ -316,7 +334,8 @@ def test_model_methods():
     with pytest.raises(ValueError):
         out = model.train_on_batch([input_a_np, input_b_np],
                                    [output_a_np, output_b_np],
-                                   sample_weight=[sample_weight[1], sample_weight[1][:2]])
+                                   sample_weight=[sample_weight[1],
+                                                  sample_weight[1][:2]])
 
     # `sample_weight` is neither a dict nor a list.
     with pytest.raises(TypeError):
@@ -349,7 +368,8 @@ def test_model_methods():
 
     # `sample_weight_mode` does not match output_names.
     with pytest.raises(ValueError):
-        model.compile(optimizer, loss='mse', sample_weight_mode={'lstm': 'temporal'})
+        model.compile(optimizer, loss='mse',
+                      sample_weight_mode={'lstm': 'temporal'})
 
     # `sample_weight_mode` does not match output_names.
     with pytest.raises(ValueError):
@@ -357,14 +377,16 @@ def test_model_methods():
 
     # `sample_weight_mode` matches output_names partially.
     with pytest.raises(ValueError):
-        model.compile(optimizer, loss='mse', sample_weight_mode={'dense_1': 'temporal'})
+        model.compile(optimizer, loss='mse',
+                      sample_weight_mode={'dense_1': 'temporal'})
 
     # `loss` does not exist.
     with pytest.raises(ValueError):
         model.compile(optimizer, loss=[])
 
     model.compile(optimizer, loss=['mse', 'mae'])
-    model.compile(optimizer, loss='mse', loss_weights={'dense_1': 0.2, 'dropout': 0.8})
+    model.compile(optimizer, loss='mse', loss_weights={'dense_1': 0.2,
+                                                       'dropout': 0.8})
     model.compile(optimizer, loss='mse', loss_weights=[0.2, 0.8])
 
     # the rank of weight arrays should be 1.
@@ -373,7 +395,8 @@ def test_model_methods():
                                    [output_a_np, output_b_np],
                                    sample_weight=[None, np.random.random((10, 20, 30))])
 
-    model.compile(optimizer, loss='mse', sample_weight_mode={'dense_1': None, 'dropout': 'temporal'})
+    model.compile(optimizer, loss='mse',
+                  sample_weight_mode={'dense_1': None, 'dropout': 'temporal'})
     model.compile(optimizer, loss='mse', sample_weight_mode=[None, 'temporal'])
 
     # the rank of output arrays should be at least 3D.
@@ -386,22 +409,29 @@ def test_model_methods():
                   sample_weight_mode=None)
     trained_epochs = []
     trained_batches = []
-    out = model.fit_generator(generator=RandomSequence(3), steps_per_epoch=3, epochs=5,
-                              initial_epoch=0, validation_data=RandomSequence(4),
-                              validation_steps=3, callbacks=[tracker_cb])
+    out = model.fit_generator(generator=RandomSequence(3),
+                              steps_per_epoch=3,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=RandomSequence(4),
+                              validation_steps=3,
+                              callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(3)) * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
     trained_epochs = []
     trained_batches = []
-    out = model.fit_generator(generator=RandomSequence(3), epochs=5,
-                              initial_epoch=0, validation_data=RandomSequence(4),
+    out = model.fit_generator(generator=RandomSequence(3),
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=RandomSequence(4),
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(12)) * 5
 
-    # fit_generator will throw an exception if steps is unspecified for regular generator
+    # fit_generator will throw an exception
+    # if steps is unspecified for regular generator
     with pytest.raises(ValueError):
         def gen_data():
             while True:
@@ -410,8 +440,83 @@ def test_model_methods():
                                   initial_epoch=0, validation_data=gen_data(),
                                   callbacks=[tracker_cb])
 
+    # Check if generator is only accessed an expected number of times
+    gen_counters = [0, 0]
 
-@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+    def gen_data(i):
+        while True:
+            gen_counters[i] += 1
+            yield ([np.random.random((1, 3)), np.random.random((1, 3))],
+                   [np.random.random((1, 4)), np.random.random((1, 3))])
+    out = model.fit_generator(generator=gen_data(0), epochs=3,
+                              steps_per_epoch=2,
+                              validation_data=gen_data(1),
+                              validation_steps=1,
+                              max_queue_size=2,
+                              workers=2)
+
+    # Need range check here as filling
+    # of the queue depends on sleep in the enqueuers
+    assert 6 <= gen_counters[0] <= 8
+    # 12 = (epoch * workers * validation steps * max_queue_size)
+    assert 3 <= gen_counters[1] <= 12
+
+    gen_counters = [0]
+    out = model.fit_generator(generator=RandomSequence(3), epochs=3,
+                              validation_data=gen_data(0),
+                              validation_steps=1,
+                              max_queue_size=2,
+                              workers=2)
+
+    # 12 = (epoch * workers * validation steps * max_queue_size)
+    # Need range check here as filling
+    # of the queue depends on sleep in the enqueuers
+    assert 3 <= gen_counters[0] <= 12
+
+    # predict_generator output shape behavior should be consistent
+    def expected_shape(batch_size, n_batches):
+        return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
+
+    # Multiple outputs and one step.
+    batch_size = 5
+    sequence_length = 1
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    # Multiple outputs and multiple steps.
+    batch_size = 5
+    sequence_length = 2
+    shape_0, shape_1 = expected_shape(batch_size, sequence_length)
+    out = model.predict_generator(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
+
+    # Create a model with a single output.
+    single_output_model = Model([a, b], a_2)
+    single_output_model.compile(optimizer, loss,
+                                metrics=[], sample_weight_mode=None)
+
+    # Single output and one step.
+    batch_size = 5
+    sequence_length = 1
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
+    # Single output and multiple steps.
+    batch_size = 5
+    sequence_length = 2
+    shape_0, _ = expected_shape(batch_size, sequence_length)
+    out = single_output_model.predict_generator(
+        RandomSequence(batch_size, sequence_length=sequence_length))
+    assert np.shape(out) == shape_0
+
+
+@pytest.mark.skipif(sys.version_info < (3,),
+                    reason='Cannot catch warnings in python 2')
 @keras_test
 def test_warnings():
     a = Input(shape=(3,), name='input_a')
@@ -431,29 +536,58 @@ def test_warnings():
 
     def gen_data(batch_sz):
         while True:
-            yield ([np.random.random((batch_sz, 3)), np.random.random((batch_sz, 3))],
-                   [np.random.random((batch_sz, 4)), np.random.random((batch_sz, 3))])
+            yield ([np.random.random((batch_sz, 3)),
+                    np.random.random((batch_sz, 3))],
+                   [np.random.random((batch_sz, 4)),
+                    np.random.random((batch_sz, 3))])
 
     with pytest.warns(Warning) as w:
-        out = model.fit_generator(gen_data(4), steps_per_epoch=10, use_multiprocessing=True, workers=2)
+        out = model.fit_generator(gen_data(4),
+                                  steps_per_epoch=10,
+                                  use_multiprocessing=True,
+                                  workers=2)
     warning_raised = any(['Sequence' in str(w_.message) for w_ in w])
     assert warning_raised, 'No warning raised when using generator with processes.'
 
     with pytest.warns(None) as w:
-        out = model.fit_generator(RandomSequence(3), steps_per_epoch=4, use_multiprocessing=True, workers=2)
+        out = model.fit_generator(RandomSequence(3),
+                                  steps_per_epoch=4,
+                                  use_multiprocessing=True,
+                                  workers=2)
     assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
+
+
+@keras_test
+def test_sparse_inputs_targets():
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
+    in1 = Input(shape=(3,))
+    in2 = Input(shape=(3,))
+    out1 = Dropout(0.5, name='dropout')(in1)
+    out2 = Dense(4, name='dense_1')(in2)
+    model = Model([in1, in2], [out1, out2])
+    model.predict(test_inputs, batch_size=2)
+    model.compile('rmsprop', 'mse')
+    model.fit(test_inputs, test_outputs,
+              epochs=1, batch_size=2, validation_split=0.5)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
 @keras_test
-def test_sparse_input_validation_split():
-    test_input = sparse.random(6, 3, density=0.25).tocsr()
-    in1 = Input(shape=(3,), sparse=True)
-    out1 = Dense(4)(in1)
-    test_output = np.random.random((6, 4))
-    model = Model(in1, out1)
+def test_sparse_placeholder_fit():
+    test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
+    test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
+    in1 = Input(shape=(3,))
+    in2 = Input(shape=(3,), sparse=True)
+    out1 = Dropout(0.5, name='dropout')(in1)
+    out2 = Dense(4, name='dense_1')(in2)
+    model = Model([in1, in2], [out1, out2])
+    model.predict(test_inputs, batch_size=2)
     model.compile('rmsprop', 'mse')
-    model.fit(test_input, test_output, epochs=1, batch_size=2, validation_split=0.2)
+    model.fit(test_inputs, test_outputs,
+              epochs=1, batch_size=2, validation_split=0.5)
+    model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
 @keras_test
@@ -481,17 +615,31 @@ def test_trainable_argument():
 
 
 @keras_test
+def test_with_list_as_targets():
+    model = Sequential()
+    model.add(Dense(1, input_dim=3, trainable=False))
+    model.compile('rmsprop', 'mse')
+
+    x = np.random.random((2, 3))
+    y = [0, 1]
+    model.train_on_batch(x, y)
+
+
+@keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
-    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
-    _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, None, 3)])
+    training_utils.check_loss_and_target_compatibility(
+        [a], [losses.categorical_crossentropy], [a.shape])
+    training_utils.check_loss_and_target_compatibility(
+        [a], [losses.categorical_crossentropy], [(2, None, 3)])
 
 
 @keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [a.shape])
+        training_utils.check_loss_and_target_compatibility(
+            [a], [losses.categorical_crossentropy], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -500,7 +648,8 @@ def test_check_last_is_one():
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
-        _check_loss_and_target_compatibility([a], [losses.categorical_crossentropy], [(2, 3, 6)])
+        training_utils.check_loss_and_target_compatibility(
+            [a], [losses.categorical_crossentropy], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 
@@ -761,6 +910,20 @@ def test_model_with_external_loss():
         with pytest.raises(ValueError):
             out = model.fit(None, None, epochs=1, batch_size=10)
         out = model.fit(None, None, epochs=1, steps_per_epoch=1)
+
+        # define a generator to produce x=None and y=None
+        def data_tensors_generator():
+            while True:
+                yield (None, None)
+
+        generator = data_tensors_generator()
+
+        # test fit_generator for framework-native data tensors
+        out = model.fit_generator(generator, epochs=1,
+                                  steps_per_epoch=3)
+
+        # test evaluate_generator for framework-native data tensors
+        out = model.evaluate_generator(generator, steps=3)
 
         # test fit with validation data
         with pytest.raises(ValueError):
@@ -1069,6 +1232,133 @@ def test_pandas_dataframe():
                           output_a_df)
     model_2.test_on_batch({'input_a': input_a_df, 'input_b': input_b_df},
                           [output_a_df, output_b_df])
+
+
+@keras_test
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
+@pytest.mark.skipif((K.backend() == 'tensorflow' and
+                     not hasattr(K.get_session(),
+                                 '_make_callable_from_options')),
+                    reason='Requires TF 1.8 or higher')
+def test_training_and_eval_methods_on_symbolic_tensors_single_io():
+    x = keras.layers.Input(shape=(3,), name='input')
+    y = keras.layers.Dense(4, name='dense')(x)
+    model = keras.Model(x, y)
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    metrics = ['mae']
+    model.compile(optimizer, loss, metrics=metrics)
+
+    inputs = keras.backend.zeros(shape=(10, 3))
+    targets = keras.backend.zeros(shape=(10, 4))
+
+    model.fit(inputs, targets, epochs=1, steps_per_epoch=2, verbose=0)
+    model.evaluate(inputs, targets, steps=2, verbose=0)
+    model.predict(inputs, steps=2)
+    model.train_on_batch(inputs, targets)
+    model.test_on_batch(inputs, targets)
+    model.fit(inputs, targets,
+              epochs=1, steps_per_epoch=2, verbose=1,
+              validation_data=(inputs, targets), validation_steps=2)
+
+
+@keras_test
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
+@pytest.mark.skipif((K.backend() == 'tensorflow' and
+                     not hasattr(K.get_session(),
+                                 '_make_callable_from_options')),
+                    reason='Requires TF 1.8 or higher')
+def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
+    a = keras.layers.Input(shape=(3,), name='input_a')
+    b = keras.layers.Input(shape=(3,), name='input_b')
+
+    dense = keras.layers.Dense(4, name='dense')
+    c = dense(a)
+    d = dense(b)
+    e = keras.layers.Dropout(0.5, name='dropout')(c)
+
+    model = keras.models.Model([a, b], [d, e])
+
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+    metrics = ['mae']
+    model.compile(optimizer, loss, metrics=metrics, loss_weights=loss_weights)
+
+    input_a_tf = keras.backend.zeros(shape=(10, 3))
+    input_b_tf = keras.backend.zeros(shape=(10, 3))
+
+    output_d_tf = keras.backend.zeros(shape=(10, 4))
+    output_e_tf = keras.backend.zeros(shape=(10, 4))
+
+    model.fit(
+        [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+        epochs=1,
+        steps_per_epoch=2,
+        verbose=0)
+    with pytest.raises(ValueError) as excinfo:
+        model.fit(
+            [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+            epochs=1,
+            batch_size=5,
+            verbose=0)
+    assert 'should specify the `steps_per_epoch`' in str(excinfo.value)
+    model.train_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
+
+    # Test with dictionary inputs
+    model.fit(
+        {'input_a': input_a_tf,
+         'input_b': input_b_tf},
+        {'dense': output_d_tf,
+         'dropout': output_e_tf},
+        epochs=1,
+        steps_per_epoch=2,
+        verbose=0)
+    model.fit(
+        {'input_a': input_a_tf,
+         'input_b': input_b_tf},
+        {'dense': output_d_tf,
+         'dropout': output_e_tf},
+        validation_data=({'input_a': input_a_tf,
+                          'input_b': input_b_tf},
+                         {'dense': output_d_tf,
+                          'dropout': output_e_tf}),
+        epochs=1,
+        steps_per_epoch=2,
+        validation_steps=2,
+        verbose=0)
+    model.train_on_batch(
+        {'input_a': input_a_tf,
+         'input_b': input_b_tf},
+        {'dense': output_d_tf,
+         'dropout': output_e_tf})
+
+    # Test with validation data
+    model.fit(
+        [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+        validation_data=([input_a_tf, input_b_tf],
+                         [output_d_tf, output_e_tf]),
+        epochs=1,
+        steps_per_epoch=2,
+        validation_steps=2,
+        verbose=0)
+    # Test with validation split
+    with pytest.raises(ValueError) as excinfo:
+        model.fit(
+            [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+            epochs=2,
+            steps_per_epoch=2,
+            verbose=0,
+            validation_split=0.2,
+            validation_steps=2)
+    assert 'you cannot use `validation_split`' in str(excinfo.value)
+
+    # Test evaluation / prediction methods
+    model.evaluate([input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
+                   steps=2, verbose=0)
+    model.predict([input_a_tf, input_b_tf], steps=2)
+    model.test_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
 """Utilities for file download and caching."""
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import hashlib
@@ -65,10 +66,9 @@ if sys.version_info[0] == 2:
                 else:
                     break
 
-        response = urlopen(url, data)
-        with open(filename, 'wb') as fd:
-            for chunk in chunk_read(response, reporthook=reporthook):
-                fd.write(chunk)
+        with closing(urlopen(url, data)) as response, open(filename, 'wb') as fd:
+                for chunk in chunk_read(response, reporthook=reporthook):
+                    fd.write(chunk)
 else:
     from six.moves.urllib.request import urlretrieve
 
@@ -170,7 +170,7 @@ def get_file(fname,
         Path to the downloaded file
     """
     if cache_dir is None:
-        cache_dir = os.path.expanduser(os.path.join('~', '.keras'))
+        cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
@@ -302,7 +302,7 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
 class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
 
-    Every `Sequence` must implements the `__getitem__` and the `__len__` methods.
+    Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
     If you want to modify your dataset between epochs you may implement `on_epoch_end`.
     The method `__getitem__` should return a complete batch.
 
@@ -317,7 +317,6 @@ class Sequence(object):
         from skimage.io import imread
         from skimage.transform import resize
         import numpy as np
-        import math
 
         # Here, `x_set` is list of path to the images
         # and `y_set` are the associated classes.
@@ -329,7 +328,7 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return math.ceil(len(self.x) / self.batch_size)
+                return int(np.ceil(len(self.x) / float(self.batch_size)))
 
             def __getitem__(self, idx):
                 batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
@@ -367,11 +366,22 @@ class Sequence(object):
         """
         pass
 
+    def __iter__(self):
+        """Create an infinite generator that iterate over the Sequence."""
+        while True:
+            for item in (self[i] for i in range(len(self))):
+                yield item
+
 
 # Global variables to be shared across processes
 _SHARED_SEQUENCES = {}
 # We use a Value to provide unique id to different processes.
 _SEQUENCE_COUNTER = None
+
+
+def init_pool(seqs):
+    global _SHARED_SEQUENCES
+    _SHARED_SEQUENCES = seqs
 
 
 def get_index(uid, i):
@@ -388,7 +398,6 @@ def get_index(uid, i):
     # Returns
         The value at index `i`.
     """
-    global _SHARED_SEQUENCES
     return _SHARED_SEQUENCES[uid][i]
 
 
@@ -468,16 +477,27 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  use_multiprocessing=False,
                  shuffle=False):
         self.sequence = sequence
+        self.use_multiprocessing = use_multiprocessing
 
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
-            _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            try:
+                _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+            except OSError:
+                # In this case the OS does not allow us to use
+                # multiprocessing. We resort to an int
+                # for enqueuer indexing.
+                _SEQUENCE_COUNTER = 0
 
-        # Doing Multiprocessing.Value += x is not process-safe.
-        with _SEQUENCE_COUNTER.get_lock():
-            self.uid = _SEQUENCE_COUNTER.value
-            _SEQUENCE_COUNTER.value += 1
-        self.use_multiprocessing = use_multiprocessing
+        if isinstance(_SEQUENCE_COUNTER, int):
+            self.uid = _SEQUENCE_COUNTER
+            _SEQUENCE_COUNTER += 1
+        else:
+            # Doing Multiprocessing.Value += x is not process-safe.
+            with _SEQUENCE_COUNTER.get_lock():
+                self.uid = _SEQUENCE_COUNTER.value
+                _SEQUENCE_COUNTER.value += 1
+
         self.shuffle = shuffle
         self.workers = 0
         self.executor_fn = None
@@ -497,9 +517,12 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            self.executor_fn = lambda: multiprocessing.Pool(workers)
+            self.executor_fn = lambda seqs: multiprocessing.Pool(workers,
+                                                                 initializer=init_pool,
+                                                                 initargs=(seqs,))
         else:
-            self.executor_fn = lambda: ThreadPool(workers)
+            # We do not need the init since it's threads.
+            self.executor_fn = lambda _: ThreadPool(workers)
         self.workers = workers
         self.queue = queue.Queue(max_queue_size)
         self.stop_signal = threading.Event()
@@ -515,14 +538,14 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 return
 
     def _run(self):
-        """Function to submit request to the executor and queue the `Future` objects."""
+        """Submits request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
 
-            with closing(self.executor_fn()) as executor:
+            with closing(self.executor_fn(_SHARED_SEQUENCES)) as executor:
                 for i in sequence:
                     if self.stop_signal.is_set():
                         return
@@ -545,9 +568,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
         Skip the data if it is `None`.
 
-        # Returns
-            Generator yielding tuples (inputs, targets)
-                or (inputs, targets, sample_weights)
+        # Yields
+            The next element in the queue, i.e. a tuple
+            `(inputs, targets)` or
+            `(inputs, targets, sample_weights)`.
         """
         try:
             while self.is_running():
@@ -561,8 +585,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
-        global _SHARED_SEQUENCES
-        _SHARED_SEQUENCES[self.uid] = self.sequence  # For new processes that may spawn
+        # For new processes that may spawn
+        _SHARED_SEQUENCES[self.uid] = self.sequence
 
     def stop(self, timeout=None):
         """Stops running threads and wait for them to exit, if necessary.
@@ -572,7 +596,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         # Arguments
             timeout: maximum time to wait on `thread.join()`
         """
-        global _SHARED_SEQUENCES
         self.stop_signal.set()
         with self.queue.mutex:
             self.queue.queue.clear()
@@ -604,12 +627,67 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                  seed=None):
         self.wait_time = wait_time
         self._generator = generator
-        self._use_multiprocessing = use_multiprocessing
+        if os.name is 'nt' and use_multiprocessing is True:
+            # On Windows, avoid **SYSTEMATIC** error in `multiprocessing`:
+            # `TypeError: can't pickle generator objects`
+            # => Suggest multithreading instead of multiprocessing on Windows
+            raise ValueError('Using a generator with `use_multiprocessing=True`'
+                             ' is not supported on Windows (no marshalling of'
+                             ' generators across process boundaries). Instead,'
+                             ' use single thread/process or multithreading.')
+        else:
+            self._use_multiprocessing = use_multiprocessing
         self._threads = []
         self._stop_event = None
         self._manager = None
         self.queue = None
         self.seed = seed
+
+    def _data_generator_task(self):
+        if self._use_multiprocessing is False:
+            while not self._stop_event.is_set():
+                with self.genlock:
+                    try:
+                        if (self.queue is not None and
+                                self.queue.qsize() < self.max_queue_size):
+                            # On all OSes, avoid **SYSTEMATIC** error
+                            # in multithreading mode:
+                            # `ValueError: generator already executing`
+                            # => Serialize calls to
+                            # infinite iterator/generator's next() function
+                            generator_output = next(self._generator)
+                            self.queue.put((True, generator_output))
+                        else:
+                            time.sleep(self.wait_time)
+                    except StopIteration:
+                        break
+                    except Exception as e:
+                        # Can't pickle tracebacks.
+                        # As a compromise, print the traceback and pickle None instead.
+                        if not hasattr(e, '__traceback__'):
+                            setattr(e, '__traceback__', sys.exc_info()[2])
+                        self.queue.put((False, e))
+                        self._stop_event.set()
+                        break
+        else:
+            while not self._stop_event.is_set():
+                try:
+                    if (self.queue is not None and
+                            self.queue.qsize() < self.max_queue_size):
+                        generator_output = next(self._generator)
+                        self.queue.put((True, generator_output))
+                    else:
+                        time.sleep(self.wait_time)
+                except StopIteration:
+                    break
+                except Exception as e:
+                    # Can't pickle tracebacks.
+                    # As a compromise, print the traceback and pickle None instead.
+                    traceback.print_exc()
+                    setattr(e, '__traceback__', None)
+                    self.queue.put((False, e))
+                    self._stop_event.set()
+                    break
 
     def start(self, workers=1, max_queue_size=10):
         """Kicks off threads which add data from the generator into the queue.
@@ -619,36 +697,18 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             max_queue_size: queue size
                 (when full, threads could block on `put()`)
         """
-
-        def data_generator_task():
-            while not self._stop_event.is_set():
-                try:
-                    if self._use_multiprocessing or self.queue.qsize() < max_queue_size:
-                        generator_output = next(self._generator)
-                        self.queue.put((True, generator_output))
-                    else:
-                        time.sleep(self.wait_time)
-                except StopIteration:
-                    break
-                except Exception as e:
-                    # Can't pick tracebacks.
-                    # As a compromise, print the traceback and pickle None instead.
-                    if self._use_multiprocessing:
-                        traceback.print_exc()
-                        setattr(e, '__traceback__', None)
-                    elif not hasattr(e, '__traceback__'):
-                        setattr(e, '__traceback__', sys.exc_info()[2])
-                    self.queue.put((False, e))
-                    self._stop_event.set()
-                    break
-
         try:
+            self.max_queue_size = max_queue_size
             if self._use_multiprocessing:
                 self._manager = multiprocessing.Manager()
                 self.queue = self._manager.Queue(maxsize=max_queue_size)
                 self._stop_event = multiprocessing.Event()
             else:
-                self.queue = queue.Queue()
+                # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
+                # `ValueError: generator already executing`
+                # => Serialize calls to infinite iterator/generator's next() function
+                self.genlock = threading.Lock()
+                self.queue = queue.Queue(maxsize=max_queue_size)
                 self._stop_event = threading.Event()
 
             for _ in range(workers):
@@ -656,12 +716,12 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = multiprocessing.Process(target=data_generator_task)
+                    thread = multiprocessing.Process(target=self._data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
                 else:
-                    thread = threading.Thread(target=data_generator_task)
+                    thread = threading.Thread(target=self._data_generator_task)
                 self._threads.append(thread)
                 thread.start()
         except:
@@ -683,11 +743,15 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             self._stop_event.set()
 
         for thread in self._threads:
-            if thread.is_alive():
-                if self._use_multiprocessing:
+            if self._use_multiprocessing:
+                if thread.is_alive():
                     thread.terminate()
-                else:
-                    thread.join(timeout)
+            else:
+                # The thread.is_alive() test is subject to a race condition:
+                # the thread could terminate right after the test and before the
+                # join, rendering this test meaningless -> Call thread.join()
+                # always, which is ok no matter what the status of the thread.
+                thread.join(timeout)
 
         if self._manager:
             self._manager.shutdown()
@@ -701,8 +765,10 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
         Skip the data if it is `None`.
 
-        # Returns
-            A generator
+        # Yields
+            The next element in the queue, i.e. a tuple
+            `(inputs, targets)` or
+            `(inputs, targets, sample_weights)`.
         """
         while self.is_running():
             if not self.queue.empty():

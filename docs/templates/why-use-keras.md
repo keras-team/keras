@@ -30,13 +30,13 @@ Keras has also been adopted by researchers at large scientific organizations, in
 
 Your Keras models can be easily deployed across a greater range of platforms than any other deep learning framework:
 
-- On iOS, via [Apple’s CoreML](https://developer.apple.com/documentation/coreml) (Keras support officially provided by Apple)
-- On Android, via the TensorFlow Android runtime. Example: [Not Hotdog app](https://medium.com/@timanglade/how-hbos-silicon-valley-built-not-hotdog-with-mobile-tensorflow-keras-react-native-ef03260747f3)
-- In the browser, via GPU-accelerated JavaScript runtimes such as [Keras.js](https://transcranial.github.io/keras-js/#/) and [WebDNN](https://mil-tokyo.github.io/webdnn/)
-- On Google Cloud, via [TensorFlow-Serving](https://www.tensorflow.org/serving/)
-- In a Python webapp backend (such as a Flask app)
-- On the JVM, via [DL4J model import provided by SkyMind](https://deeplearning4j.org/model-import-keras)
-- On Raspberry Pi
+- On iOS, via [Apple’s CoreML](https://developer.apple.com/documentation/coreml) (Keras support officially provided by Apple). Here's [a tutorial](https://www.pyimagesearch.com/2018/04/23/running-keras-models-on-ios-with-coreml/).
+- On Android, via the TensorFlow Android runtime. Example: [Not Hotdog app](https://medium.com/@timanglade/how-hbos-silicon-valley-built-not-hotdog-with-mobile-tensorflow-keras-react-native-ef03260747f3).
+- In the browser, via GPU-accelerated JavaScript runtimes such as [Keras.js](https://transcranial.github.io/keras-js/#/) and [WebDNN](https://mil-tokyo.github.io/webdnn/).
+- On Google Cloud, via [TensorFlow-Serving](https://www.tensorflow.org/serving/).
+- [In a Python webapp backend (such as a Flask app)](https://blog.keras.io/building-a-simple-keras-deep-learning-rest-api.html).
+- On the JVM, via [DL4J model import provided by SkyMind](https://deeplearning4j.org/model-import-keras).
+- On Raspberry Pi.
 
 ---
 
@@ -54,7 +54,7 @@ As such, your Keras model can be trained on a number of different hardware platf
 
 - [NVIDIA GPUs](https://developer.nvidia.com/deep-learning)
 - [Google TPUs](https://cloud.google.com/tpu/), via the TensorFlow backend and Google Cloud
-- OpenGL-enabled GPUs, such as those from AMD, via [the PlaidML Keras backend](https://github.com/plaidml/plaidml)
+- OpenCL-enabled GPUs, such as those from AMD, via [the PlaidML Keras backend](https://github.com/plaidml/plaidml)
 
 ---
 
