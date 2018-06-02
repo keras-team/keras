@@ -86,9 +86,9 @@ class HDF5Matrix(object):
         else:
             # Assume list/iterable
             if max(key) + self.start < self.end:
-                   idx = [x + self.start for x in key]
+                idx = [x + self.start for x in key]
             else:
-                  raise IndexError
+                raise IndexError
         if self.normalizer is not None:
             return self.normalizer(self.data[idx])
         else:
