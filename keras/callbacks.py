@@ -275,7 +275,7 @@ class ProgbarLogger(Callback):
     """
 
     def __init__(self, count_mode='samples',
-                 stateful_metrics=None):
+                 stateful_metrics=None, every=1):
         super(ProgbarLogger, self).__init__()
         if count_mode == 'samples':
             self.use_steps = False
@@ -287,6 +287,7 @@ class ProgbarLogger(Callback):
             self.stateful_metrics = set(stateful_metrics)
         else:
             self.stateful_metrics = set()
+        self.every = every
 
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
@@ -294,7 +295,8 @@ class ProgbarLogger(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.epochs))
+            if epoch % self.every == 0:
+                print('Epoch %d/%d' % (epoch + 1, self.epochs))
             if self.use_steps:
                 target = self.params['steps']
             else:
