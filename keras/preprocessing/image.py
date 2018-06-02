@@ -922,6 +922,75 @@ class ImageDataGenerator(object):
             subset=subset,
             interpolation=interpolation)
 
+    def flow_from_dataframe(self, dataframe, directory,
+                            x_col="filename", y_col="class", has_ext=True,
+                            target_size=(256, 256), color_mode='rgb',
+                            classes=None, class_mode='categorical',
+                            batch_size=32, shuffle=True, seed=None,
+                            save_to_dir=None,
+                            save_prefix='',
+                            save_format='png',
+                            subset=None,
+                            interpolation='nearest'):
+        """Takes the dataframe and the path to a directory, and generates batches of augmented/normalized data.
+
+        # Arguments
+                dataframe: pandas like dataframe.
+                directory: string,path to the target directory that contains all the images mapped in the dataframe.
+                x_col: string,column in the dataframe that contains the filenames of the target images.
+                y_col: string or list of strings,columns in the dataframe that will be the target data.
+                has_ext: bool, True if filenames in dataframe[x_col] has filename extensions,else False.
+                target_size: tuple of integers `(height, width)`, default: `(256, 256)`.
+                 The dimensions to which all images found will be resized.
+                color_mode: one of "grayscale", "rbg". Default: "rgb".
+                 Whether the images will be converted to have 1 or 3 color channels.
+                classes: optional list of class subdirectories (e.g. `['dogs', 'cats']`). Default: None.
+                 If not provided, the list of classes will be automatically
+                 inferred from the subdirectory names/structure under `directory`,
+                 where each subdirectory will be treated as a different class
+                 (and the order of the classes, which will map to the label indices, will be alphanumeric).
+                 The dictionary containing the mapping from class names to class
+                 indices can be obtained via the attribute `class_indices`.
+                class_mode: one of "categorical", "binary", "sparse", "input" or None. Default: "categorical".
+                 Determines the type of label arrays that are returned: "categorical" will be 2D one-hot encoded labels,
+                 "binary" will be 1D binary labels, "sparse" will be 1D integer labels, "input" will be images identical
+                 to input images (mainly used to work with autoencoders).
+                 If None, no labels are returned (the generator will only yield batches of image data, which is useful to use
+                 `model.predict_generator()`, `model.evaluate_generator()`, etc.).
+                batch_size: size of the batches of data (default: 32).
+                shuffle: whether to shuffle the data (default: True)
+                seed: optional random seed for shuffling and transformations.
+                save_to_dir: None or str (default: None). This allows you to optionally specify a directory to which to save
+                 the augmented pictures being generated (useful for visualizing what you are doing).
+                save_prefix: str. Prefix to use for filenames of saved pictures (only relevant if `save_to_dir` is set).
+                save_format: one of "png", "jpeg" (only relevant if `save_to_dir` is set). Default: "png".
+                follow_links: whether to follow symlinks inside class subdirectories (default: False).
+                subset: Subset of data (`"training"` or `"validation"`) if
+                 `validation_split` is set in `ImageDataGenerator`.
+                interpolation: Interpolation method used to resample the image if the
+                 target size is different from that of the loaded image.
+                 Supported methods are `"nearest"`, `"bilinear"`, and `"bicubic"`.
+                 If PIL version 1.1.3 or newer is installed, `"lanczos"` is also
+                 supported. If PIL version 3.4.0 or newer is installed, `"box"` and
+                 `"hamming"` are also supported. By default, `"nearest"` is used.
+
+        # Returns
+            A DataframeIterator yielding tuples of `(x, y)` where `x` is a numpy array containing a batch
+            of images with shape `(batch_size, *target_size, channels)` and `y` is a numpy array of corresponding labels.
+        """
+        return DataframeIterator(
+            dataframe, self, directory,
+            x_col=x_col, y_col=y_col, has_ext=has_ext,
+            target_size=target_size, color_mode=color_mode,
+            classes=classes, class_mode=class_mode,
+            data_format=self.data_format,
+            batch_size=batch_size, shuffle=shuffle, seed=seed,
+            save_to_dir=save_to_dir,
+            save_prefix=save_prefix,
+            save_format=save_format,
+            subset=subset,
+            interpolation=interpolation)
+
     def standardize(self, x):
         """Applies the normalization configuration to a batch of inputs.
 
@@ -1743,6 +1812,248 @@ class DirectoryIterator(Iterator):
                 dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
+        else:
+            return batch_x
+        return batch_x, batch_y
+
+    def next(self):
+        """For python 2.x.
+
+        # Returns
+            The next batch.
+        """
+        with self.lock:
+            index_array = next(self.index_generator)
+        # The transformation of images is not under thread lock
+        # so it can be done in parallel
+        return self._get_batches_of_transformed_samples(index_array)
+
+
+def _list_valid_filenames_in_directory_df(directory, white_list_formats, split):
+    """List paths of files in `subdir` with extensions in `white_list_formats`.
+
+    # Arguments
+        directory: absolute path to a directory containing the files to list.
+            The directory name is used as class label and must be a key of `class_indices`.
+        white_list_formats: set of strings containing allowed extensions for
+            the files to be counted.
+        split: tuple of floats (e.g. `(0.2, 0.6)`) to only take into
+            account a certain fraction of files in each directory.
+            E.g.: `segment=(0.6, 1.0)` would only account for last 40 percent
+            of images in each directory.
+        class_indices: dictionary mapping a class name to its index.
+        follow_links: boolean.
+
+    # Returns
+        classes: a list of class indices
+        filenames: the path of valid files in `directory`, relative from
+            `directory`'s parent (e.g., if `directory` is "dataset/class1",
+            the filenames will be ["class1/file1.jpg", "class1/file2.jpg", ...]).
+    """
+    if split:
+        num_files = len(list(_iter_valid_files(directory, white_list_formats, follow_links=False)))
+        start, stop = int(split[0] * num_files), int(split[1] * num_files)
+        valid_files = list(_iter_valid_files(directory, white_list_formats, follow_links=False))[start: stop]
+    else:
+        valid_files = _iter_valid_files(directory, white_list_formats, follow_links=False)
+
+    filenames = []
+    for root, fname in valid_files:
+        filenames.append(os.path.basename(fname))
+
+    return filenames
+
+
+class DataframeIterator(Iterator):
+    """Iterator capable of reading images from a directory mapped with a dataframe.
+
+    # Arguments
+        dataframe: Pandas like Dataframe
+        image_data_generator: Instance of `ImageDataGenerator`
+            to use for random transformations and normalization.
+        directory: Path to the directory to read images from.
+            The directory should contain only the images that is
+            specified in the x_col
+            or alternatively you could specify the classes
+            via the `classes` argument.
+        x_col: String, Column of the Dataframe that has the filenames of
+            the images.
+        y_col: String or List of Strings,Columns of the Dataframe that will
+            be used as target data.
+        has_ext: bool, If the filenames in x_col contains extension set True.
+            else set False. default:True
+        target_size: tuple of integers, dimensions to resize input images to.
+        color_mode: One of `"rgb"`, `"grayscale"`. Color mode to read images.
+        classes: Optional list of strings, names of subdirectories
+            containing images from each class (e.g. `["dogs", "cats"]`).
+            It will be computed automatically if not set.
+        class_mode: Mode for yielding the targets:
+            `"binary"`: binary targets (if there are only two classes),
+            `"categorical"`: categorical targets,
+            `"sparse"`: integer targets,
+            `"input"`: targets are images identical to input images (mainly
+                used to work with autoencoders),
+            `"other"`: targets are the columns that set in y_col (for tasks
+                like regression,multi label prediction etc.)
+            `None`: no targets get yielded (only input images are yielded).
+        batch_size: Integer, size of a batch.
+        shuffle: Boolean, whether to shuffle the data between epochs.
+        seed: Random seed for data shuffling.
+        data_format: String, one of `channels_first`, `channels_last`.
+        save_to_dir: Optional directory where to save the pictures
+            being yielded, in a viewable format. This is useful
+            for visualizing the random transformations being
+            applied, for debugging purposes.
+        save_prefix: String prefix to use for saving sample
+            images (if `save_to_dir` is set).
+        save_format: Format to use for saving sample images
+            (if `save_to_dir` is set).
+        subset: Subset of data (`"training"` or `"validation"`) if
+            validation_split is set in ImageDataGenerator.
+        interpolation: Interpolation method used to resample the image if the
+            target size is different from that of the loaded image.
+            Supported methods are "nearest", "bilinear", and "bicubic".
+            If PIL version 1.1.3 or newer is installed, "lanczos" is also
+            supported. If PIL version 3.4.0 or newer is installed, "box" and
+            "hamming" are also supported. By default, "nearest" is used.
+    """
+
+    def __init__(self, dataframe, image_data_generator, directory,
+                 x_col="filenames", y_col="class", has_ext=True,
+                 target_size=(256, 256), color_mode='rgb',
+                 classes=None, class_mode='categorical',
+                 batch_size=32, shuffle=True, seed=None,
+                 data_format=None,
+                 save_to_dir=None, save_prefix='', save_format='png',
+                 subset=None,
+                 interpolation='nearest'):
+        self.df = dataframe
+        self.df[x_col] = self.df[x_col].astype(str)
+        self.directory = directory
+        if data_format is None:
+            data_format = K.image_data_format()
+        self.image_data_generator = image_data_generator
+        self.target_size = tuple(target_size)
+        if color_mode not in {'rgb', 'grayscale'}:
+            raise ValueError('Invalid color mode:', color_mode,
+                             '; expected "rgb" or "grayscale".')
+        self.color_mode = color_mode
+        self.data_format = data_format
+        if self.color_mode == 'rgb':
+            if self.data_format == 'channels_last':
+                self.image_shape = self.target_size + (3,)
+            else:
+                self.image_shape = (3,) + self.target_size
+        else:
+            if self.data_format == 'channels_last':
+                self.image_shape = self.target_size + (1,)
+            else:
+                self.image_shape = (1,) + self.target_size
+        self.classes = classes
+        if class_mode not in {'categorical', 'binary', 'sparse',
+                              'input', 'other', None}:
+            raise ValueError('Invalid class_mode:', class_mode,
+                             '; expected one of "categorical", '
+                             '"binary", "sparse", "input"'
+                             '"other" or None.')
+        self.class_mode = class_mode
+        self.save_to_dir = save_to_dir
+        self.save_prefix = save_prefix
+        self.save_format = save_format
+        self.interpolation = interpolation
+        self.data = []
+        if subset is not None:
+            validation_split = self.image_data_generator._validation_split
+            if subset == 'validation':
+                split = (0, validation_split)
+            elif subset == 'training':
+                split = (validation_split, 1)
+            else:
+                raise ValueError('Invalid subset name: ', subset,
+                                 '; expected "training" or "validation"')
+        else:
+            split = None
+        self.subset = subset
+        white_list_formats = {'png', 'jpg', 'jpeg', 'bmp', 'ppm', 'tif', 'tiff'}
+        # first, count the number of samples and filenames in dataframe
+        self.samples = self.df.shape[0]
+        if has_ext:
+            self.filenames = self.df[x_col].values
+        else:
+            filenames = _list_valid_filenames_in_directory_df(directory, white_list_formats, split)
+            self.filenames = filenames
+            self.df = self.df.set_index(x_col)
+            basenames = [os.path.splitext(base)[0] for base in filenames]
+            self.df = self.df.loc[basenames, :]
+        # classes are found if not set by the user
+        if class_mode != "other" and class_mode is not None:
+            if classes is None:
+                if type(y_col) == str:
+                    classes = sorted(set(self.df[y_col].values))
+                elif type(y_col) == list:
+                    if len(y_col) == 1:
+                        classes = sorted(set(self.df[y_col[0]].values))
+                    else:
+                        raise ValueError('y_col must be a string or list of length 1'
+                                         'if class_mode is not set to either "other"'
+                                         'or None')
+
+            self.num_classes = len(classes)
+            self.class_indices = dict(zip(classes, range(len(classes))))
+            print('Found %d images belonging to %d classes in the dataframe.'
+                  % (self.samples, self.num_classes))
+            # second, build an index of the images
+            self.classes = self.df[y_col].apply(lambda x: self.class_indices[x])
+            self.classes = self.classes.values.reshape((self.samples,))
+        elif (classes is None) and (class_mode == "other"):
+            self.data = self.df[y_col].values
+            print('Found %d images in the dataframe.(class_mode is "other")'
+                  % (self.samples))
+
+        elif (classes is not None) and (class_mode == "other"):
+            raise ValueError('If class_mode is set to "other",'
+                             'classes cannot be set.')
+        elif class_mode is None:
+            print('Found %d images in the dataframe(class_mode is None).'
+                  % (self.samples))
+        super(DataframeIterator, self).__init__(self.samples, batch_size, shuffle, seed)
+
+    def _get_batches_of_transformed_samples(self, index_array):
+        batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
+        grayscale = self.color_mode == 'grayscale'
+        # build batch of image data
+        for i, j in enumerate(index_array):
+            fname = self.filenames[j]
+            img = load_img(os.path.join(self.directory, fname),
+                           grayscale=grayscale,
+                           target_size=self.target_size,
+                           interpolation=self.interpolation)
+            x = img_to_array(img, data_format=self.data_format)
+            x = self.image_data_generator.random_transform(x)
+            x = self.image_data_generator.standardize(x)
+            batch_x[i] = x
+        # optionally save augmented images to disk for debugging purposes
+        if self.save_to_dir:
+            for i, j in enumerate(index_array):
+                img = array_to_img(batch_x[i], self.data_format, scale=True)
+                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
+                                                                  index=j,
+                                                                  hash=np.random.randint(1e7),
+                                                                  format=self.save_format)
+                img.save(os.path.join(self.save_to_dir, fname))
+        # build batch of labels
+        if self.class_mode == 'input':
+            batch_y = batch_x.copy()
+        elif self.class_mode == 'sparse':
+            batch_y = self.classes[index_array]
+        elif self.class_mode == 'binary':
+            batch_y = self.classes[index_array].astype(K.floatx())
+        elif self.class_mode == 'categorical':
+            batch_y = np.zeros((len(batch_x), self.num_classes), dtype=K.floatx())
+            for i, label in enumerate(self.classes[index_array]):
+                batch_y[i, label] = 1.
+        elif self.class_mode == 'other':
+            batch_y = self.data[index_array]
         else:
             return batch_x
         return batch_x, batch_y
