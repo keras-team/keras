@@ -269,6 +269,9 @@ class ProgbarLogger(Callback):
             should *not* be averaged over an epoch.
             Metrics in this list will be logged as-is.
             All others will be averaged over time (e.g. loss, etc).
+        every: integer that spaces out the printing of the epochs.
+            For example, if every==3, then stdout will print
+            at every 0th, 3rd, 6th, 9th,... epoch.
 
     # Raises
         ValueError: In case of invalid `count_mode`.
