@@ -97,8 +97,6 @@ def test_resnet50():
     last_dim = 2048
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 def test_vgg():
@@ -106,8 +104,6 @@ def test_vgg():
     last_dim = 512
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 def test_xception():
@@ -115,8 +111,6 @@ def test_xception():
     last_dim = 2048
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 def test_inceptionv3():
@@ -124,8 +118,6 @@ def test_inceptionv3():
     last_dim = 2048
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 def test_inceptionresnetv2():
@@ -133,24 +125,18 @@ def test_inceptionresnetv2():
     last_dim = 1536
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 def test_mobilenet():
     app, last_dim = random.choice(MOBILENET_LIST)
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 def test_densenet():
     app, last_dim = random.choice(DENSENET_LIST)
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
@@ -159,8 +145,6 @@ def test_nasnet():
     app, last_dim = random.choice(NASNET_LIST)
     _test_application_basic(app)
     _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
 
 
 if __name__ == '__main__':
