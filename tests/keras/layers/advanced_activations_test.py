@@ -43,5 +43,12 @@ def test_softmax():
                    input_shape=(2, 3, 4))
 
 
+@keras_test
+def test_relu():
+    for max_value in [None, 1., 6.]:
+        layer_test(layers.ReLU, kwargs={'max_value': max_value},
+                   input_shape=(2, 3, 4))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
