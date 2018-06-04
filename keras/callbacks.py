@@ -18,6 +18,7 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
+from .engine.training_utils import standardize_input_data
 
 try:
     import requests
@@ -675,7 +676,9 @@ class TensorBoard(Callback):
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
-            layers will be saved.
+            layers will be saved. If set to 0, embeddings won't be computed.
+            Data to be visualized in TensorBoard's Embedding tab must be passed
+            as `embeddings_data`.
         embeddings_layer_names: a list of names of layers to keep eye on. If
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
@@ -683,6 +686,10 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
+        embeddings_data: data to be embedded at layers specified in
+            `embeddings_layer_names`. Numpy array (if the model has a single
+            input) or list of Numpy arrays (if the model has multiple inputs).
+            Learn [more about embeddings](https://www.tensorflow.org/programmers_guide/embedding)
     """
 
     def __init__(self, log_dir='./logs',
@@ -693,7 +700,8 @@ class TensorBoard(Callback):
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
-                 embeddings_metadata=None):
+                 embeddings_metadata=None,
+                 embeddings_data=None):
         super(TensorBoard, self).__init__()
         global tf, projector
         try:
@@ -730,6 +738,7 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
+        self.embeddings_data = embeddings_data
 
     def set_model(self, model):
         self.model = model
@@ -800,18 +809,35 @@ class TensorBoard(Callback):
         else:
             self.writer = tf.summary.FileWriter(self.log_dir)
 
-        if self.embeddings_freq:
+        if self.embeddings_freq and self.embeddings_data is not None:
+            self.embeddings_data = standardize_input_data(self.embeddings_data, model.input_names)
+
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
                 embeddings_layer_names = [layer.name for layer in self.model.layers
                                           if type(layer).__name__ == 'Embedding']
+            self.assign_embeddings = []
+            embeddings_vars = {}
 
-            embeddings = {layer.name: layer.weights[0]
-                          for layer in self.model.layers
-                          if layer.name in embeddings_layer_names}
+            self.batch_id = batch_id = tf.placeholder(tf.int32)
+            self.step = step = tf.placeholder(tf.int32)
 
-            self.saver = tf.train.Saver(list(embeddings.values()))
+            for layer in self.model.layers:
+                if layer.name in embeddings_layer_names:
+                    embedding_input = self.model.get_layer(layer.name).output
+                    embedding_size = np.prod(embedding_input.shape[1:])
+                    embedding_input = tf.reshape(embedding_input,
+                                                 (step, int(embedding_size)))
+                    shape = (self.embeddings_data[0].shape[0], int(embedding_size))
+                    embedding = tf.Variable(tf.zeros(shape),
+                                            name=layer.name + '_embedding')
+                    embeddings_vars[layer.name] = embedding
+                    batch = tf.assign(embedding[batch_id:batch_id + step],
+                                      embedding_input)
+                    self.assign_embeddings.append(batch)
+
+            self.saver = tf.train.Saver(list(embeddings_vars.values()))
 
             embeddings_metadata = {}
 
@@ -819,13 +845,11 @@ class TensorBoard(Callback):
                 embeddings_metadata = self.embeddings_metadata
             else:
                 embeddings_metadata = {layer_name: self.embeddings_metadata
-                                       for layer_name in embeddings.keys()}
+                                       for layer_name in embeddings_vars.keys()}
 
             config = projector.ProjectorConfig()
-            self.embeddings_ckpt_path = os.path.join(self.log_dir,
-                                                     'keras_embedding.ckpt')
 
-            for layer_name, tensor in embeddings.items():
+            for layer_name, tensor in embeddings_vars.items():
                 embedding = config.embeddings.add()
                 embedding.tensor_name = tensor.name
 
@@ -838,8 +862,11 @@ class TensorBoard(Callback):
         logs = logs or {}
 
         if not self.validation_data and self.histogram_freq:
-            raise ValueError('If printing histograms, validation_data must be '
-                             'provided, and cannot be a generator.')
+            raise ValueError("If printing histograms, validation_data must be "
+                             "provided, and cannot be a generator.")
+        if self.embeddings_data is None and self.embeddings_freq:
+            raise ValueError("To visualize embeddings, embeddings_data must "
+                             "be provided.")
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
@@ -869,11 +896,43 @@ class TensorBoard(Callback):
                     self.writer.add_summary(summary_str, epoch)
                     i += self.batch_size
 
-        if self.embeddings_freq and self.embeddings_ckpt_path:
+        if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
-                self.saver.save(self.sess,
-                                self.embeddings_ckpt_path,
-                                epoch)
+                # We need a second forward-pass here because we're passing
+                # the `embeddings_data` explicitly. This design allows to pass
+                # arbitrary data as `embeddings_data` and results from the fact
+                # that we need to know the size of the `tf.Variable`s which
+                # hold the embeddings in `set_model`. At this point, however,
+                # the `validation_data` is not yet set.
+
+                # More details in this discussion:
+                # https://github.com/keras-team/keras/pull/7766#issuecomment-329195622
+
+                embeddings_data = self.embeddings_data
+                n_samples = embeddings_data[0].shape[0]
+
+                i = 0
+                while i < n_samples:
+                    step = min(self.batch_size, n_samples - i)
+                    batch = slice(i, i + step)
+
+                    if type(self.model.input) == list:
+                        feed_dict = {model_input: embeddings_data[idx][batch]
+                                     for idx, model_input in enumerate(self.model.input)}
+                    else:
+                        feed_dict = {self.model.input: embeddings_data[0][batch]}
+
+                    feed_dict.update({self.batch_id: i, self.step: step})
+
+                    if self.model.uses_learning_phase:
+                        feed_dict[K.learning_phase()] = False
+
+                    self.sess.run(self.assign_embeddings, feed_dict=feed_dict)
+                    self.saver.save(self.sess,
+                                    os.path.join(self.log_dir, 'keras_embedding.ckpt'),
+                                    epoch)
+
+                    i += self.batch_size
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
