@@ -15,13 +15,22 @@ pytestmark = pytest.mark.skipif(
     reason='Runs only when the relevant files have been modified.')
 
 
-MOBILENET_LIST = [(applications.MobileNet, 1024),
-                  (applications.MobileNetV2, 1280)]
-DENSENET_LIST = [(applications.DenseNet121, 1024),
-                 (applications.DenseNet169, 1664),
-                 (applications.DenseNet201, 1920)]
-NASNET_LIST = [(applications.NASNetMobile, 1056),
-               (applications.NASNetLarge, 4032)]
+MODEL_LIST = [
+    (applications.ResNet50, 2048),
+    (applications.VGG16, 512),
+    (applications.VGG19, 512),
+    (applications.Xception, 2048),
+    (applications.InceptionV3, 2048),
+    (applications.InceptionResNetV2, 1536),
+    (applications.MobileNet, 1024),
+    (applications.MobileNetV2, 1280),
+    (applications.DenseNet121, 1024),
+    (applications.DenseNet169, 1664),
+    (applications.DenseNet201, 1920)
+    # TODO: enable nasnet tests if they support Theano and CNTK
+    # (applications.NASNetMobile, 1056),
+    # (applications.NASNetLarge, 4032)
+]
 
 
 def _get_output_shape(model_fn):
@@ -64,103 +73,11 @@ def _test_application_notop(app, last_dim):
     assert output_shape == (None, None, None, last_dim)
 
 
-@keras_test
-def _test_application_variable_input_channels(app, last_dim):
-    if K.image_data_format() == 'channels_first':
-        input_shape = (1, None, None)
-    else:
-        input_shape = (None, None, 1)
-    output_shape = _get_output_shape(
-        lambda: app(weights=None, include_top=False, input_shape=input_shape))
-    assert output_shape == (None, None, None, last_dim)
-
-    if K.image_data_format() == 'channels_first':
-        input_shape = (4, None, None)
-    else:
-        input_shape = (None, None, 4)
-    output_shape = _get_output_shape(
-        lambda: app(weights=None, include_top=False, input_shape=input_shape))
-    assert output_shape == (None, None, None, last_dim)
-
-
-@keras_test
-def _test_app_pooling(app, last_dim):
-    output_shape = _get_output_shape(
-        lambda: app(weights=None,
-                    include_top=False,
-                    pooling=random.choice(['avg', 'max'])))
-    assert output_shape == (None, last_dim)
-
-
-def test_resnet50():
-    app = applications.ResNet50
-    last_dim = 2048
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_vgg():
-    app = random.choice([applications.VGG16, applications.VGG19])
-    last_dim = 512
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_xception():
-    app = applications.Xception
-    last_dim = 2048
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_inceptionv3():
-    app = applications.InceptionV3
-    last_dim = 2048
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_inceptionresnetv2():
-    app = applications.InceptionResNetV2
-    last_dim = 1536
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_mobilenet():
-    app, last_dim = random.choice(MOBILENET_LIST)
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-def test_densenet():
-    app, last_dim = random.choice(DENSENET_LIST)
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
-
-
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='NASNets are supported only on TensorFlow')
-def test_nasnet():
-    app, last_dim = random.choice(NASNET_LIST)
-    _test_application_basic(app)
-    _test_application_notop(app, last_dim)
-    _test_application_variable_input_channels(app, last_dim)
-    _test_app_pooling(app, last_dim)
+def test_applications():
+    for _ in range(3):
+        app, last_dim = random.choice(MODEL_LIST)
+        _test_application_basic(app)
+        _test_application_notop(app, last_dim)
 
 
 if __name__ == '__main__':
