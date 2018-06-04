@@ -269,13 +269,16 @@ class ProgbarLogger(Callback):
             should *not* be averaged over an epoch.
             Metrics in this list will be logged as-is.
             All others will be averaged over time (e.g. loss, etc).
+        every: integer that spaces out the printing of the epochs.
+            For example, if every==3, then stdout will print
+            at every 0th, 3rd, 6th, 9th,... epoch.
 
     # Raises
         ValueError: In case of invalid `count_mode`.
     """
 
     def __init__(self, count_mode='samples',
-                 stateful_metrics=None):
+                 stateful_metrics=None, every=1):
         super(ProgbarLogger, self).__init__()
         if count_mode == 'samples':
             self.use_steps = False
@@ -287,6 +290,7 @@ class ProgbarLogger(Callback):
             self.stateful_metrics = set(stateful_metrics)
         else:
             self.stateful_metrics = set()
+        self.every = every
 
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
@@ -294,7 +298,8 @@ class ProgbarLogger(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.epochs))
+            if epoch % self.every == 0:
+                print('Epoch %d/%d' % (epoch + 1, self.epochs))
             if self.use_steps:
                 target = self.params['steps']
             else:
