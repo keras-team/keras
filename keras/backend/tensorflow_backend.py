@@ -2478,19 +2478,20 @@ class Function(object):
             self.fetches = [self.fetches]
         # The main use case of `fetches` being passed to a model is the ability
         # to run custom updates
-        # (since the outputs of fetches are never returned).
+        # (since the outputs of fetches are only returned when using fetch_callbacks).
         # This requires us to wrap fetches in `identity` ops.
         self.fetches = [tf.identity(x) for x in self.fetches]
+        self.fetch_callbacks = dict()
         self.session_kwargs = session_kwargs
         if session_kwargs:
             raise ValueError('Some keys in session_kwargs are not '
                              'supported at this '
                              'time: %s', session_kwargs.keys())
         self._callable_fn = None
-        self._merged_summaries = None
         self._feed_arrays = None
         self._feed_symbols = None
         self._symbol_vals = None
+        self._fetches = None
         self._session = None
 
     def _make_callable(self, feed_arrays, feed_symbols, symbol_vals, session):
@@ -2528,8 +2529,6 @@ class Function(object):
         # Handle fetches.
         for x in self.outputs + self.fetches:
             callable_opts.fetch.append(x.name)
-        if self._merged_summaries is not None:
-            callable_opts.fetch.append(self._merged_summaries.name)
         # Handle updates.
         callable_opts.target.append(self.updates_op.name)
         # Create callable.
@@ -2540,7 +2539,13 @@ class Function(object):
         self._feed_arrays = feed_arrays
         self._feed_symbols = feed_symbols
         self._symbol_vals = symbol_vals
+        self._fetches = list(self.fetches)
         self._session = session
+
+    def _call_fetch_callbacks(self, fetches_output):
+        for fetch, output in zip(self._fetches, fetches_output):
+            if fetch in self.fetch_callbacks:
+                self.fetch_callbacks[fetch](output)
 
     def _call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
@@ -2577,16 +2582,14 @@ class Function(object):
                 feed_arrays != self._feed_arrays or
                 symbol_vals != self._symbol_vals or
                 feed_symbols != self._feed_symbols or
+                self.fetches != self._fetches or
                 session != self._session):
             self._make_callable(feed_arrays,
                                 feed_symbols,
                                 symbol_vals,
                                 session)
         fetched = self._callable_fn(*array_vals)
-        if self._merged_summaries is not None:
-            # self._writer and self._merged_summaries and self._epoch
-            # are assigned by TensorBaord callback
-            self._writer.add_summary(fetched[-1], self._epoch)
+        self._call_fetch_callbacks(fetched[-len(self._fetches):])
         return fetched[:len(self.outputs)]
 
     def _legacy_call(self, inputs):
@@ -2602,15 +2605,10 @@ class Function(object):
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
         fetches = self.outputs + [self.updates_op] + self.fetches
-        if self._merged_summaries is not None:
-            fetches.append(self._merged_summaries)
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
-        if self._merged_summaries is not None:
-            # self._writer and self._merged_summaries and self._epoch
-            # are assigned by TensorBaord callback
-            self._writer.add_summary(updated[-1], self._epoch)
+        self._call_fetch_callbacks(updated[-len(self._fetches):])
         return updated[:len(self.outputs)]
 
     def __call__(self, inputs):
