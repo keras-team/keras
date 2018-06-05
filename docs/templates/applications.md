@@ -18,11 +18,13 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [MobileNet](#mobilenet)
 - [DenseNet](#densenet)
 - [NASNet](#nasnet)
+- [MobileNetV2](#mobilenetv2)
 
-All of these architectures (except Xception and MobileNet) are compatible with both TensorFlow and Theano, and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Height-Width-Depth".
+All of these architectures are compatible with all the backends (TensorFlow, Theano, and CNTK), and upon instantiation the models will be built according to the image data format set in your Keras configuration file at `~/.keras/keras.json`. For instance, if you have set `image_data_format=channels_last`, then any model loaded from this repository will get built according to the TensorFlow data format convention, "Height-Width-Depth".
 
-The Xception model is only available for TensorFlow, due to its reliance on `SeparableConvolution` layers.
-The MobileNet model is only available for TensorFlow, due to its reliance on `DepthwiseConvolution` layers.
+Note that:
+- For `Keras < 2.1.7`, The Xception model is only available for TensorFlow, due to its reliance on `SeparableConvolution` layers.
+- For `Keras < 2.1.5`, The MobileNet model is only available for TensorFlow, due to its reliance on `DepthwiseConvolution` layers.
 
 -----
 
@@ -199,9 +201,7 @@ Xception V1 model, with weights pre-trained on ImageNet.
 On ImageNet, this model gets to a top-1 validation accuracy of 0.790
 and a top-5 validation accuracy of 0.945.
 
-Note that this model is only available for the TensorFlow backend,
-due to its reliance on `SeparableConvolution` layers. Additionally it only supports
-the data format `'channels_last'` (height, width, channels).
+Note that this model only supports the data format `'channels_last'` (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -255,8 +255,7 @@ keras.applications.vgg16.VGG16(include_top=True, weights='imagenet', input_tenso
 
 VGG16 model, with weights pre-trained on ImageNet.
 
-This model is available for both the Theano and TensorFlow backend, and can be built both
-with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+This model can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -311,8 +310,7 @@ keras.applications.vgg19.VGG19(include_top=True, weights='imagenet', input_tenso
 
 VGG19 model, with weights pre-trained on ImageNet.
 
-This model is available for both the Theano and TensorFlow backend, and can be built both
-with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+This model can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -368,8 +366,7 @@ keras.applications.resnet50.ResNet50(include_top=True, weights='imagenet', input
 
 ResNet50 model, with weights pre-trained on ImageNet.
 
-This model is available for both the Theano and TensorFlow backend, and can be built both
-with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -424,8 +421,7 @@ keras.applications.inception_v3.InceptionV3(include_top=True, weights='imagenet'
 
 Inception V3 model, with weights pre-trained on ImageNet.
 
-This model is available for both the Theano and TensorFlow backend, and can be built both
-with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -480,8 +476,7 @@ keras.applications.inception_resnet_v2.InceptionResNetV2(include_top=True, weigh
 
 Inception-ResNet V2 model, with weights pre-trained on ImageNet.
 
-This model is available for Theano, TensorFlow and CNTK backends, and can be built both
-with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -536,19 +531,16 @@ keras.applications.mobilenet.MobileNet(input_shape=None, alpha=1.0, depth_multip
 
 MobileNet model, with weights pre-trained on ImageNet.
 
-Note that only TensorFlow is supported for now,
-therefore it only works with the data format
-`image_data_format='channels_last'` in your Keras config at `~/.keras/keras.json`.
-To load a MobileNet model via `load_model`, import the custom objects `relu6` and `DepthwiseConv2D` and pass them to the `custom_objects` parameter.
+Note that this model only supports the data format `'channels_last'` (height, width, channels).
+
+To load a MobileNet model via `load_model`, import the custom object `relu6` and pass it to the `custom_objects` parameter.
 
 E.g.
 
 ```python
 model = load_model('mobilenet.h5', custom_objects={
-                   'relu6': mobilenet.relu6,
-                   'DepthwiseConv2D': mobilenet.DepthwiseConv2D})
+                   'relu6': mobilenet.relu6})
 ```
-
 
 The default input size for this model is 224x224.
 
@@ -617,16 +609,11 @@ keras.applications.densenet.DenseNet169(include_top=True, weights='imagenet', in
 keras.applications.densenet.DenseNet201(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
 ```
 
-Optionally loads weights pre-trained
-on ImageNet. Note that when using TensorFlow,
-for best performance you should set
-`image_data_format='channels_last'` in your Keras config
-at ~/.keras/keras.json.
+DenseNet models, with weights pre-trained on ImageNet.
 
-The model and the weights are compatible with
-TensorFlow, Theano, and CNTK. The data format
-convention used by the model is the one
-specified in your Keras config file.
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
+
+The default input size for this model is 224x224.
 
 ### Arguments
 
@@ -680,12 +667,7 @@ keras.applications.nasnet.NASNetLarge(input_shape=None, include_top=True, weight
 keras.applications.nasnet.NASNetMobile(input_shape=None, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
 ```
 
-Neural Architecture Search Network (NASNet) model, with weights pre-trained on ImageNet.
-
-Note that only TensorFlow is supported for now,
-therefore it only works with the data format
-`image_data_format='channels_last'` in your Keras config at `~/.keras/keras.json`.
-
+Neural Architecture Search Network (NASNet) models, with weights pre-trained on ImageNet.
 
 The default input size for the NASNetLarge model is 331x331 and for the
 NASNetMobile model is 224x224.
@@ -739,20 +721,27 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 -----
 
-## mobilenet v2
+## MobileNetV2
 
 
 ```python
-keras.applications.mobilenetv2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, classes=1000)
+keras.applications.mobilenetv2.MobileNetV2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
 ```
-MobileNetV2 is a general architecture and can be used for multiple use cases.
-Depending on the use case, it can use different input layer size and
-different width factors. This allows different width models to reduce
-the number of multiply-adds and thereby
-reduce inference cost on mobile devices.
-The number of parameters and number of multiply-adds
-can be modified by using the `alpha` parameter,
-which increases/decreases the number of filters in each layer.
+
+MobileNetV2 model, with weights pre-trained on ImageNet.
+
+Note that this model only supports the data format `'channels_last'` (height, width, channels).
+
+To load a MobileNetV2 model via `load_model`, import the custom object `relu6` and pass it to the `custom_objects` parameter.
+
+E.g.
+
+```python
+model = load_model('mobilenet_v2.h5', custom_objects={
+                   'relu6': mobilenetv2.relu6})
+```
+
+The default input size for this model is 224x224.
 
 ### Arguments
 
@@ -784,6 +773,18 @@ which increases/decreases the number of filters in each layer.
 - input_tensor: optional Keras tensor (i.e. output of
       `layers.Input()`)
       to use as image input for the model.
+- pooling: Optional pooling mode for feature extraction
+    when `include_top` is `False`.
+    - `None` means that the output of the model
+    will be the 4D tensor output of the
+        last convolutional layer.
+    - `'avg'` means that global average pooling
+        will be applied to the output of the
+        last convolutional layer, and thus
+        the output of the model will be a
+        2D tensor.
+    - `'max'` means that global max pooling will
+        be applied. 
 - classes: optional number of classes to classify images
       into, only to be specified if `include_top` is True, and
       if no `weights` argument is specified.
@@ -796,7 +797,7 @@ A Keras model instance.
 
 ValueError: in case of invalid argument for `weights`,
     or invalid input shape or invalid depth_multiplier, alpha,
-    rows when weights='imagenet
+    rows when weights='imagenet'
 
 ### References
 

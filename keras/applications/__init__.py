@@ -1,3 +1,22 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
+from .. import backend
+from .. import engine
+from .. import layers
+from .. import models
+from .. import utils
+
+import keras_applications
+
+keras_applications.set_keras_submodules(
+    backend=backend,
+    engine=engine,
+    layers=layers,
+    models=models,
+    utils=utils)
+
 from .vgg16 import VGG16
 from .vgg19 import VGG19
 from .resnet50 import ResNet50
