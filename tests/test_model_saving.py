@@ -644,12 +644,6 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
         cudnn_rnn_layer_class = CuDNNGRU
         rnn_layer_kwargs['reset_after'] = True
 
-    def convert_model(source_model, target_model):
-        _, fname = tempfile.mkstemp('.h5')
-        source_model.save_weights(fname)
-        target_model.load_weights(fname)
-        os.remove(fname)
-
     layer = rnn_layer_class(units, **rnn_layer_kwargs)
     if bidirectional:
         layer = Bidirectional(layer)
@@ -662,9 +656,9 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
     cudnn_model = _make_nested_model(input_shape, cudnn_layer, model_nest_level, model_type)
 
     if to_cudnn:
-        convert_model(model, cudnn_model)
+        _convert_model_weights(model, cudnn_model)
     else:
-        convert_model(cudnn_model, model)
+        _convert_model_weights(cudnn_model, model)
 
     assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
 
@@ -690,6 +684,13 @@ def _make_nested_model(input_shape, layer, level=1, model_type='func'):
         return make_nested_func_model(input_shape, layer, level)
     elif model_type == 'seq':
         return make_nested_seq_model(input_shape, layer, level)
+
+
+def _convert_model_weights(source_model, target_model):
+    _, fname = tempfile.mkstemp('.h5')
+    source_model.save_weights(fname)
+    target_model.load_weights(fname)
+    os.remove(fname)
 
 
 @keras_test
@@ -722,12 +723,6 @@ def test_load_weights_between_noncudnn_rnn_time_distributed(rnn_type, to_cudnn):
         cudnn_rnn_layer_class = CuDNNGRU
         rnn_layer_kwargs['reset_after'] = True
 
-    def convert_model(source_model, target_model):
-        _, fname = tempfile.mkstemp('.h5')
-        source_model.save_weights(fname)
-        target_model.load_weights(fname)
-        os.remove(fname)
-
     layer = rnn_layer_class(units, **rnn_layer_kwargs)
     layer = TimeDistributed(layer)
 
@@ -738,9 +733,9 @@ def test_load_weights_between_noncudnn_rnn_time_distributed(rnn_type, to_cudnn):
     cudnn_model = _make_nested_model(input_shape, cudnn_layer)
 
     if to_cudnn:
-        convert_model(model, cudnn_model)
+        _convert_model_weights(model, cudnn_model)
     else:
-        convert_model(cudnn_model, model)
+        _convert_model_weights(cudnn_model, model)
 
     assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
 
