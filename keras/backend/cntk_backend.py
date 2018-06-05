@@ -1824,15 +1824,20 @@ def softsign(x):
 
 
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    axis_without_batch = -1 if axis == -1 else axis - 1  # Here, unlike other backends, the tensors lack a batch dimension
+    # Here, unlike other backends, the tensors lack a batch dimension:
+    axis_without_batch = -1 if axis == -1 else axis - 1
     output_dimensions = list(range(len(output.shape)))
     if axis_without_batch != -1 and axis_without_batch not in output_dimensions:
         raise ValueError(
-            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
-            format(axis_without_batch, len(output.shape)))
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis_without_batch),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(output.shape))))
     # If the channels are not in the last axis, move them to be there:
     if axis_without_batch != -1 and axis_without_batch != output_dimensions[-1]:
-        permutation = output_dimensions[:axis_without_batch] + output_dimensions[axis_without_batch + 1:] + [axis_without_batch]
+        permutation = output_dimensions[:axis_without_batch]
+        permutation += output_dimensions[axis_without_batch + 1:]
+        permutation += [axis_without_batch]
         output = C.transpose(output, permutation)
         target = C.transpose(target, permutation)
     if from_logits:
@@ -1848,13 +1853,17 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
 
 
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
-    axis_without_batch = -1 if axis == -1 else axis - 1  # Here, unlike other backends, the tensors lack a batch dimension
+    # Here, unlike other backends, the tensors lack a batch dimension:
+    axis_without_batch = -1 if axis == -1 else axis - 1
     output_dimensions = list(range(len(output.shape)))
     if axis_without_batch != -1 and axis_without_batch not in output_dimensions:
         raise ValueError(
-            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
-            format(axis_without_batch, len(output.shape)))
-    target = C.one_hot(target, output.shape[axis_without_batch], axis=axis_without_batch)
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis_without_batch),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(output.shape))))
+    target = C.one_hot(target, output.shape[axis_without_batch],
+                       axis=axis_without_batch)
     target = C.reshape(target, output.shape)
     return categorical_crossentropy(target, output, from_logits, axis=axis)
 

@@ -767,8 +767,10 @@ class Model(Network):
                 for output_shape, loss_fn in zip(self._feed_output_shapes,
                                                  self._feed_loss_fns):
                     if loss_fn is losses.sparse_categorical_crossentropy:
-                        if K.image_data_format() == 'channels_first' and len(output_shape) in [4, 5]:
-                            feed_output_shapes.append((output_shape[0], 1) + output_shape[2:])
+                        if K.image_data_format() == 'channels_first' and len(
+                                output_shape) in [4, 5]:
+                            feed_output_shapes.append(
+                                (output_shape[0], 1) + output_shape[2:])
                         else:
                             feed_output_shapes.append(output_shape[:-1] + (1,))
                     elif (not hasattr(loss_fn, '__name__') or

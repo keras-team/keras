@@ -3170,9 +3170,10 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output_dimensions = list(range(len(output.get_shape())))
     if axis != -1 and axis not in output_dimensions:
         raise ValueError(
-            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
-            format(axis, len(output.get_shape())))
-
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(output.get_shape()))))
     # Note: tf.nn.softmax_cross_entropy_with_logits
     # expects logits, Keras expects probabilities.
     if not from_logits:
@@ -3212,12 +3213,14 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     output_dimensions = list(range(len(output.get_shape())))
     if axis != -1 and axis not in output_dimensions:
         raise ValueError(
-            'Unexpected channels axis {}. Expected to be -1 or one of the axes of output, which has {} dimensions.'.
-            format(axis, len(output.get_shape())))
-
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(output.get_shape()))))
     # If the channels are not in the last axis, move them to be there:
     if axis != -1 and axis != output_dimensions[-1]:
-        permutation = output_dimensions[:axis] + output_dimensions[axis + 1:] + [axis]
+        permutation = output_dimensions[:axis] + output_dimensions[axis + 1:]
+        permutation += [axis]
         output = tf.transpose(output, perm=permutation)
 
     # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
