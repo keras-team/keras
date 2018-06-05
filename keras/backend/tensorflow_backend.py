@@ -2608,6 +2608,7 @@ class Function(object):
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
+        self._fetches = self.fetches
         self._call_fetch_callbacks(updated[-len(self._fetches):])
         return updated[:len(self.outputs)]
 
