@@ -687,7 +687,8 @@ class TensorBoard(Callback):
             files to be parsed by TensorBoard.
         histogram_freq: frequency (in epochs) at which to compute activation
             and weight histograms for the layers of the model. If set to 0,
-            histograms won't be computed.
+            histograms won't be computed. Validation data (or split) must be
+            specified for histogram visualizations.
         write_graph: whether to visualize the graph in TensorBoard.
             The log file can become quite large when
             write_graph is set to True.
@@ -716,7 +717,7 @@ class TensorBoard(Callback):
 
     def __init__(self, log_dir='./logs',
                  histogram_freq=0,
-                 batch_size=None,
+                 batch_size=32,
                  write_graph=True,
                  write_grads=False,
                  write_images=False,
@@ -756,14 +757,11 @@ class TensorBoard(Callback):
         self.write_graph = write_graph
         self.write_grads = write_grads
         self.write_images = write_images
+        self.batch_size = batch_size
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.embeddings_data = embeddings_data
-        if batch_size is not None:
-            warnings.warn('`batch_size` argument is deprecated and is ignored,'
-                          ' the batch_size that was given for fitting the '
-                          'model will be used instead.')
 
     def set_model(self, model):
         self.model = model
@@ -883,20 +881,26 @@ class TensorBoard(Callback):
 
             projector.visualize_embeddings(self.writer, config)
 
+    def _fetch_callback(self, summary):
+        self.writer.add_summary(summary, self._epoch)
+
     def on_epoch_begin(self, epoch, logs=None):
-        if self.model.test_function is None:
-            return
-        self.model.test_function._epoch = epoch
-        self.model.test_function._writer = self.writer
+        if not self.params['do_validation'] and self.histogram_freq:
+            raise ValueError('If printing histograms, validation_data must be '
+                             'provided.')
         if self.histogram_freq and epoch % self.histogram_freq == 0:
-            self.model.test_function._merged_summaries = self.merged
-        else:
-            self.model.test_function._merged_summaries = None
+            self._epoch = epoch
+            if self.merged not in self.model.test_function.fetches:
+                self.model.test_function.fetches.append(self.merged)
+                self.model.test_function.fetch_callbacks[self.merged] = self._fetch_callback
 
     def on_epoch_end(self, epoch, logs=None):
-        if self.model.test_function is None:
-            return
         logs = logs or {}
+        if self.histogram_freq and self.histogram_freq > 1:
+            if self.merged in self.model.test_function.fetches:
+                self.model.test_function.fetches.remove(self.merged)
+            if self.merged in self.model.test_function.fetch_callbacks:
+                self.model.test_function.fetch_callbacks.pop(self.merged)
 
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError("To visualize embeddings, embeddings_data must "
@@ -951,7 +955,6 @@ class TensorBoard(Callback):
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
-        self.model.test_function._merged_summaries = None
 
     def on_train_end(self, _):
         self.writer.close()

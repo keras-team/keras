@@ -567,12 +567,23 @@ def test_CSVLogger(tmpdir):
     assert not tmpdir.listdir()
 
 
-def check_and_reset_logdir(tmpdir, dirpath):
+def check_and_reset_logdir(tmpdir, dirpath, expect_summary_events=False):
     assert os.path.isdir(dirpath)
     log_files = [os.path.join(dirpath, f) for f in os.listdir(dirpath)
                  if os.path.isfile(os.path.join(dirpath, f))]
     assert len(log_files) > 0
     assert all([os.path.getsize(f) > 0 for f in log_files])
+    if expect_summary_events:
+        import glob
+        import tensorflow as tf
+        events_file = glob.glob(os.path.join(dirpath, 'events.*'))[0]
+        epoch_logs = False
+        for event in tf.train.summary_iterator(events_file):
+            if event.summary:
+                if event.step != 0:
+                    epoch_logs = True
+                    break
+        assert epoch_logs
     shutil.rmtree(dirpath)
     assert not tmpdir.listdir()
 
@@ -652,7 +663,7 @@ def test_TensorBoard(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test),
               callbacks=callbacks_factory(histogram_freq=0), epochs=2)
-    check_and_reset_logdir(tmpdir, filepath)
+    check_and_reset_logdir(tmpdir, filepath, expect_summary_events=True)
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
@@ -664,7 +675,80 @@ def test_TensorBoard(tmpdir):
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         validation_data=(X_test, y_test),
                         callbacks=callbacks_factory(histogram_freq=1))
-    check_and_reset_logdir(tmpdir, filepath)
+    check_and_reset_logdir(tmpdir, filepath, expect_summary_events=True)
+
+    # fit generator with validation data generator
+    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                        validation_data=data_generator(False),
+                        validation_steps=1,
+                        callbacks=callbacks_factory(histogram_freq=1))
+    check_and_reset_logdir(tmpdir, filepath, expect_summary_events=True)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
+    np.random.seed(np.random.randint(1, 1e7))
+    filepath = str(tmpdir / 'logs')
+
+    (X_train, y_train), (X_test, y_test) = get_test_data(
+        num_train=train_samples,
+        num_test=test_samples,
+        input_shape=(input_dim,),
+        classification=True,
+        num_classes=num_classes)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+
+    def data_generator(train):
+        if train:
+            max_batch_index = len(X_train) // batch_size
+        else:
+            max_batch_index = len(X_test) // batch_size
+        i = 0
+        while 1:
+            if train:
+                # simulate multi-input/output models
+                yield (X_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
+            else:
+                yield (X_test[i * batch_size: (i + 1) * batch_size],
+                       y_test[i * batch_size: (i + 1) * batch_size])
+            i += 1
+            i = i % max_batch_index
+
+    inp = Input((input_dim,))
+    hidden = Dense(num_hidden, activation='relu')(inp)
+    hidden = Dropout(0.1)(hidden)
+    output = Dense(num_classes, activation='softmax')(hidden)
+    model = Model(inputs=inp, outputs=output)
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    # we must generate new callbacks for each test, as they aren't stateless
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
+        return [callbacks.TensorBoard(log_dir=filepath,
+                                      histogram_freq=histogram_freq,
+                                      write_images=True, write_grads=True,
+                                      embeddings_freq=embeddings_freq,
+                                      embeddings_layer_names=['dense_1'],
+                                      embeddings_data=X_test,
+                                      batch_size=5)]
+
+    # fit without validation data should raise ValueError if histogram_freq > 0
+    with pytest.raises(ValueError) as raised_exception:
+        model.fit(X_train, y_train, batch_size=batch_size,
+                  callbacks=callbacks_factory(histogram_freq=1), epochs=3)
+    assert 'validation_data must be provided' in str(raised_exception.value)
+
+    # fit generator without validation data should raise ValueError if
+    # histogram_freq > 0
+    with pytest.raises(ValueError) as raised_exception:
+        model.fit_generator(data_generator(True), len(X_train), epochs=2,
+                            callbacks=callbacks_factory(histogram_freq=1))
+    assert 'validation_data must be provided' in str(raised_exception.value)
 
 
 @keras_test
