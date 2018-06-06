@@ -1258,6 +1258,12 @@ class Network(Layer):
                 in order to capture the string summary.
                 It defaults to `print` (prints to stdout).
         """
+        if not self.built:
+            raise ValueError(
+                'This model has never been called, this its weights '
+                'have not yet been created, so no summary can be displayed. '
+                'Build the model first '
+                '(e.g. by calling it on some test data).')
         return print_layer_summary(self,
                                    line_length=line_length,
                                    positions=positions,
