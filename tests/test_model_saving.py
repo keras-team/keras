@@ -644,12 +644,6 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
         cudnn_rnn_layer_class = CuDNNGRU
         rnn_layer_kwargs['reset_after'] = True
 
-    def convert_model(source_model, target_model):
-        _, fname = tempfile.mkstemp('.h5')
-        source_model.save_weights(fname)
-        target_model.load_weights(fname)
-        os.remove(fname)
-
     layer = rnn_layer_class(units, **rnn_layer_kwargs)
     if bidirectional:
         layer = Bidirectional(layer)
@@ -662,9 +656,9 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
     cudnn_model = _make_nested_model(input_shape, cudnn_layer, model_nest_level, model_type)
 
     if to_cudnn:
-        convert_model(model, cudnn_model)
+        _convert_model_weights(model, cudnn_model)
     else:
-        convert_model(cudnn_model, model)
+        _convert_model_weights(cudnn_model, model)
 
     assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
 
@@ -690,6 +684,60 @@ def _make_nested_model(input_shape, layer, level=1, model_type='func'):
         return make_nested_func_model(input_shape, layer, level)
     elif model_type == 'seq':
         return make_nested_seq_model(input_shape, layer, level)
+
+
+def _convert_model_weights(source_model, target_model):
+    _, fname = tempfile.mkstemp('.h5')
+    source_model.save_weights(fname)
+    target_model.load_weights(fname)
+    os.remove(fname)
+
+
+@keras_test
+@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
+@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
+@skipif_no_tf_gpu
+def test_load_weights_between_noncudnn_rnn_time_distributed(rnn_type, to_cudnn):
+    """
+    Similar test as  test_load_weights_between_noncudnn_rnn() but has different
+    rank of input due to usage of TimeDistributed. Issue: #10356.
+    """
+    input_size = 10
+    steps = 6
+    timesteps = 6
+    input_shape = (timesteps, steps, input_size)
+    units = 2
+    num_samples = 32
+    inputs = np.random.random((num_samples,) + input_shape)
+
+    rnn_layer_kwargs = {
+        'recurrent_activation': 'sigmoid',
+        # ensure biases are non-zero and properly converted
+        'bias_initializer': 'random_uniform',
+    }
+    if rnn_type == 'LSTM':
+        rnn_layer_class = LSTM
+        cudnn_rnn_layer_class = CuDNNLSTM
+    else:
+        rnn_layer_class = GRU
+        cudnn_rnn_layer_class = CuDNNGRU
+        rnn_layer_kwargs['reset_after'] = True
+
+    layer = rnn_layer_class(units, **rnn_layer_kwargs)
+    layer = TimeDistributed(layer)
+
+    cudnn_layer = cudnn_rnn_layer_class(units)
+    cudnn_layer = TimeDistributed(cudnn_layer)
+
+    model = _make_nested_model(input_shape, layer)
+    cudnn_model = _make_nested_model(input_shape, cudnn_layer)
+
+    if to_cudnn:
+        _convert_model_weights(model, cudnn_model)
+    else:
+        _convert_model_weights(cudnn_model, model)
+
+    assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
 
 
 @skipif_no_tf_gpu
