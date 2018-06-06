@@ -67,6 +67,7 @@ import inspect
 import os
 import shutil
 
+import keras
 from keras import utils
 from keras import layers
 from keras.layers import advanced_activations
@@ -377,7 +378,7 @@ def get_function_signature(function, method=True):
         args = args[:-len(defaults)]
     else:
         kwargs = []
-    st = '%s.%s(' % (function.__module__, function.__name__)
+    st = '%s.%s(' % (clean_module_name(function.__module__), function.__name__)
 
     for a in args:
         st += str(a) + ', '
@@ -392,7 +393,7 @@ def get_function_signature(function, method=True):
 
     if not method:
         # Prepend the module name.
-        signature = function.__module__ + '.' + signature
+        signature = clean_module_name(function.__module__) + '.' + signature
     return post_process_signature(signature)
 
 
@@ -403,7 +404,7 @@ def get_class_signature(cls):
     except (TypeError, AttributeError):
         # in case the class inherits from object and does not
         # define __init__
-        class_signature = cls.__module__ + '.' + cls.__name__ + '()'
+        class_signature = clean_module_name(cls.__module__) + '.' + cls.__name__ + '()'
     return post_process_signature(class_signature)
 
 
@@ -419,17 +420,24 @@ def post_process_signature(signature):
     return signature
 
 
+def clean_module_name(name):
+    if name.startswith('keras_applications'):
+        name = name.replace('keras_applications', 'keras.applications')
+    if name.startswith('keras_preprocessing'):
+        name = name.replace('keras_preprocessing', 'keras.preprocessing')
+    assert name[:6] == 'keras.', 'Invalid module name: %s' % name
+    return name
+
+
 def class_to_docs_link(cls):
-    module_name = cls.__module__
-    assert module_name[:6] == 'keras.'
+    module_name = clean_module_name(cls.__module__)
     module_name = module_name[6:]
     link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
     return link
 
 
 def class_to_source_link(cls):
-    module_name = cls.__module__
-    assert module_name[:6] == 'keras.'
+    module_name = clean_module_name(cls.__module__)
     path = module_name.replace('.', '/')
     path += '.py'
     line = inspect.getsourcelines(cls)[-1]
@@ -620,7 +628,7 @@ if __name__ == '__main__':
     with open('sources/index.md', 'w') as f:
         f.write(index)
 
-    print('Starting autogeneration.')
+    print('Generating docs for Keras %s.' % keras.__version__)
     for page_data in PAGES:
         blocks = []
         classes = page_data.get('classes', [])
