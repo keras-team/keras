@@ -28,6 +28,7 @@ from .common import image_dim_ordering
 py_all = all
 py_any = any
 py_sum = sum
+py_slice = slice
 
 # INTERNAL UTILS
 
@@ -1849,7 +1850,7 @@ def normalize_batch_in_training(x, gamma, beta,
                                                           epsilon=epsilon)
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """Applies batch normalization on x given mean, var, beta and gamma.
 
     I.e. returns:
@@ -1861,11 +1862,39 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
         var: Variance of batch.
         beta: Tensor with which to center the input.
         gamma: Tensor by which to scale the input.
+        axis: Integer, the axis that should be normalized.
+            (typically the features axis).
         epsilon: Fuzz factor.
 
     # Returns
         A tensor.
     """
+    if ndim(x) == 4:
+        # The CPU implementation of FusedBatchNorm only support NHWC
+        if axis == 1:
+            tf_data_format = 'NCHW'
+        elif axis == 3:
+            tf_data_format = 'NHWC'
+        else:
+            tf_data_format = None
+
+        if tf_data_format == 'NHWC' or tf_data_format == 'NCHW' and _has_nchw_support():
+            if beta is None:
+                beta = zeros_like(mean)
+            if gamma is None:
+                gamma = ones_like(mean)
+            y, _, _ = tf.nn.fused_batch_norm(
+                x,
+                gamma,
+                beta,
+                epsilon=epsilon,
+                mean=mean,
+                variance=var,
+                data_format=tf_data_format,
+                is_training=False
+            )
+            return y
+    # default
     return tf.nn.batch_normalization(x, mean, var, beta, gamma, epsilon)
 
 
@@ -2293,7 +2322,7 @@ def one_hot(indices, num_classes):
 
 
 def reverse(x, axes):
-    """Reverse a tensor along the specified axes.
+    """Reverses a tensor along the specified axes.
 
     # Arguments
         x: Tensor to reverse.
@@ -2306,6 +2335,26 @@ def reverse(x, axes):
     if isinstance(axes, int):
         axes = [axes]
     return tf.reverse(x, axes)
+
+
+def slice(x, start, size):
+    """Extracts a slice from a tensor.
+
+    # Arguments
+        x: Input tensor.
+        start: Integer list/tuple or tensor
+            indicating the start indices of the slice
+            along each axis.
+        size: Integer list/tuple or tensor
+            indicating how many dimensions to slice
+            along each axis.
+
+    # Returns
+        Tensor `x[start[0]: start[0] + size[0],
+                  ...,
+                  start[-1]: start[-1] + size[-1]]`
+    """
+    return tf.slice(x, start, size)
 
 
 # VALUE MANIPULATION
@@ -4252,8 +4301,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
     xs = []
     for i in range(output_length):
-        slice_length = slice(i * stride,
-                             i * stride + kernel_size[0])
+        slice_length = py_slice(i * stride,
+                                i * stride + kernel_size[0])
         xs.append(reshape(inputs[:, slice_length, :],
                           (1, -1, feature_dim)))
     x_aggregate = concatenate(xs, axis=0)
@@ -4306,10 +4355,10 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     xs = []
     for i in range(output_row):
         for j in range(output_col):
-            slice_row = slice(i * stride_row,
-                              i * stride_row + kernel_size[0])
-            slice_col = slice(j * stride_col,
-                              j * stride_col + kernel_size[1])
+            slice_row = py_slice(i * stride_row,
+                                 i * stride_row + kernel_size[0])
+            slice_col = py_slice(j * stride_col,
+                                 j * stride_col + kernel_size[1])
             if data_format == 'channels_first':
                 xs.append(reshape(inputs[:, :, slice_row, slice_col],
                                   (1, -1, feature_dim)))

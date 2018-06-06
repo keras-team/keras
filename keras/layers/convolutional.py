@@ -860,12 +860,12 @@ class Conv3DTranspose(Conv3D):
         filters: Integer, the dimensionality of the output space
             (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 3 integers, specifying the
-            height and width of the 3D convolution window.
+            depth, height and width of the 3D convolution window.
             Can be a single integer to specify the same value for
             all spatial dimensions.
         strides: An integer or tuple/list of 3 integers,
             specifying the strides of the convolution
-            along the height and width.
+            along the depth, height and width.
             Can be a single integer to specify the same value for
             all spatial dimensions.
             Specifying any stride value != 1 is incompatible with specifying

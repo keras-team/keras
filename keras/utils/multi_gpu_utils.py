@@ -144,10 +144,11 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                          'with the TensorFlow backend.')
 
     available_devices = _get_available_devices()
-    available_devices = [_normalize_device_name(name) for name in available_devices]
+    available_devices = [_normalize_device_name(name)
+                         for name in available_devices]
     if not gpus:
         # Using all visible GPUs when not specifying `gpus`
-        # e.g. CUDA_VISIBLE_DEVICES=0,2 python3 keras_mgpu.py
+        # e.g. CUDA_VISIBLE_DEVICES=0,2 python keras_mgpu.py
         gpus = len([x for x in available_devices if 'gpu' in x])
 
     if isinstance(gpus, (list, tuple)):
@@ -171,7 +172,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(
-                'To call `multi_gpu_model` with `gpus=%d`, '
+                'To call `multi_gpu_model` with `gpus=%s`, '
                 'we expect the following devices to be available: %s. '
                 'However this machine only has: %s. '
                 'Try reducing `gpus`.' % (gpus,
@@ -179,18 +180,18 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                                           available_devices))
 
     def get_slice(data, i, parts):
-        shape = tf.shape(data)
+        shape = K.shape(data)
         batch_size = shape[:1]
         input_shape = shape[1:]
         step = batch_size // parts
-        if i == num_gpus - 1:
+        if i == parts - 1:
             size = batch_size - step * i
         else:
             size = step
-        size = tf.concat([size, input_shape], axis=0)
-        stride = tf.concat([step, input_shape * 0], axis=0)
+        size = K.concatenate([size, input_shape], axis=0)
+        stride = K.concatenate([step, input_shape * 0], axis=0)
         start = stride * i
-        return tf.slice(data, start, size)
+        return K.slice(data, start, size)
 
     # Relocate the model definition under CPU device scope if needed
     if cpu_relocation:
@@ -209,12 +210,16 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                 inputs = []
                 # Retrieve a slice of the input.
                 for x in model.inputs:
-                    input_shape = tuple(x.get_shape().as_list())[1:]
-                    slice_i = Lambda(get_slice,
-                                     output_shape=input_shape,
-                                     arguments={'i': i,
-                                                'parts': num_gpus})(x)
-                    inputs.append(slice_i)
+                    # In-place input splitting which is not only
+                    # 5% ~ 12% faster but also less GPU memory
+                    # duplication.
+                    with tf.device(x.device):
+                        input_shape = K.int_shape(x)[1:]
+                        slice_i = Lambda(get_slice,
+                                         output_shape=input_shape,
+                                         arguments={'i': i,
+                                                    'parts': num_gpus})(x)
+                        inputs.append(slice_i)
 
                 # Apply model on slice
                 # (creating a model replica on the target device).

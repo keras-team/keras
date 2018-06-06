@@ -13,6 +13,7 @@ import warnings
 C.set_global_option('align_axis', 1)
 
 b_any = any
+py_slice = slice
 
 
 dev = C.device.use_default_device()
@@ -1062,7 +1063,7 @@ def _moments(x, axes=None, shift=None, keep_dims=False):
     return mean, variance
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     # The mean / var / beta / gamma may be processed by broadcast
     # so it may have an extra batch axis with 1, it is not needed
     # in cntk, need to remove those dummy axis.
@@ -2024,20 +2025,8 @@ def function(inputs, outputs, updates=[], **kwargs):
 def temporal_padding(x, padding=(1, 1)):
     assert len(padding) == 2
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    base_shape = x.shape
-    if num_dynamic_axis > 0:
-        assert len(base_shape) == 2
-        if hasattr(C, 'pad'):
-            x = C.pad(x, pattern=[padding, (0, 0)])
-        else:
-            x = _padding(x, padding, 0)
-    else:
-        assert len(base_shape) == 3
-        if hasattr(C, 'pad'):
-            x = C.pad(x, pattern=[(0, 0), padding, (0, 0)])
-        else:
-            x = _padding(x, padding, 1)
-    return x
+    assert len(x.shape) == 3 - (1 if num_dynamic_axis > 0 else 0)
+    return pad(x, [padding], 'channels_last', num_dynamic_axis)
 
 
 def _padding(x, pattern, axis):
@@ -2061,6 +2050,24 @@ def _padding(x, pattern, axis):
     return x
 
 
+def pad(x, pad_info, data_format, num_dynamic_axis):
+    if hasattr(C, 'pad'):
+        pattern = [list(p) for p in pad_info]
+        if data_format == 'channels_first':
+            pattern = [[0, 0]] + pattern
+        else:
+            pattern = pattern + [[0, 0]]
+        if num_dynamic_axis == 0:
+            pattern = [[0, 0]] + pattern
+        return C.pad(x, pattern=pattern)
+    else:
+        for (a, p) in enumerate(pad_info):
+            x = _padding(x, p,
+                         a + (1 if num_dynamic_axis == 0 else 0) +
+                         (1 if data_format == 'channels_first' else 0))
+        return x
+
+
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
@@ -2071,38 +2078,8 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    base_shape = x.shape
-    if data_format == 'channels_first':
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 3
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-        else:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1])])
-            else:
-                x = _padding(x, padding[0], 2)
-                x = _padding(x, padding[1], 3)
-    else:
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 3
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 0)
-                x = _padding(x, padding[1], 1)
-        else:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-    return x
+    assert len(x.shape) == 4 - (1 if num_dynamic_axis > 0 else 0)
+    return pad(x, padding, data_format, num_dynamic_axis)
 
 
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
@@ -2116,42 +2093,8 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    base_shape = x.shape
-    if data_format == 'channels_first':
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-                x = _padding(x, padding[2], 3)
-        else:
-            assert len(base_shape) == 5
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
-            else:
-                x = _padding(x, padding[0], 2)
-                x = _padding(x, padding[1], 3)
-                x = _padding(x, padding[2], 4)
-    else:
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 0)
-                x = _padding(x, padding[1], 1)
-                x = _padding(x, padding[2], 2)
-        else:
-            assert len(base_shape) == 5
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-                x = _padding(x, padding[2], 3)
-    return x
+    assert len(x.shape) == 5 - (1 if num_dynamic_axis > 0 else 0)
+    return pad(x, padding, data_format, num_dynamic_axis)
 
 
 def one_hot(indices, num_classes):
@@ -2396,8 +2339,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
     xs = []
     for i in range(output_length):
-        slice_length = slice(i * stride,
-                             i * stride + kernel_size[0])
+        slice_length = py_slice(i * stride,
+                                i * stride + kernel_size[0])
         xs.append(reshape(inputs[:, slice_length, :],
                           (-1, 1, feature_dim)))
     x_aggregate = concatenate(xs, axis=1)
@@ -2430,10 +2373,10 @@ def local_conv2d(inputs,
 
     for i in range(output_row):
         for j in range(output_col):
-            slice_row = slice(i * stride_row,
-                              i * stride_row + kernel_size[0])
-            slice_col = slice(j * stride_col,
-                              j * stride_col + kernel_size[1])
+            slice_row = py_slice(i * stride_row,
+                                 i * stride_row + kernel_size[0])
+            slice_col = py_slice(j * stride_col,
+                                 j * stride_col + kernel_size[1])
             if data_format == 'channels_first':
                 xs.append(reshape(inputs[:, :, slice_row, slice_col],
                                   (-1, 1, feature_dim)))
@@ -2466,6 +2409,10 @@ def reverse(x, axes):
     end_index = [0 for _ in cntk_axes]
     strides = [-1 for _ in cntk_axes]
     return C.slice(x, cntk_axes, begin_index, end_index, strides)
+
+
+def slice(x, start, size):
+    raise NotImplementedError
 
 
 def _reshape_batch(x, shape):

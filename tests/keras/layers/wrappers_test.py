@@ -157,6 +157,59 @@ def test_TimeDistributed_trainable():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Unknown timestamps for RNN not supported in CNTK.')
+def test_TimeDistributed_with_masked_embedding_and_unspecified_shape():
+    # test with unspecified shape and Embeddings with mask_zero
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(layers.Embedding(5, 6, mask_zero=True),
+                                       input_shape=(None, None)))  # N by t_1 by t_2 by 6
+    model.add(wrappers.TimeDistributed(layers.SimpleRNN(7, return_sequences=True)))
+    model.add(wrappers.TimeDistributed(layers.SimpleRNN(8, return_sequences=False)))
+    model.add(layers.SimpleRNN(1, return_sequences=False))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model_input = np.random.randint(low=1, high=5, size=(10, 3, 4), dtype='int32')
+    for i in range(4):
+        model_input[i, i:, i:] = 0
+    model.fit(model_input,
+              np.random.random((10, 1)), epochs=1, batch_size=10)
+    mask_outputs = [model.layers[0].compute_mask(model.input)]
+    for layer in model.layers[1:]:
+        mask_outputs.append(layer.compute_mask(layer.input, mask_outputs[-1]))
+    func = K.function([model.input], mask_outputs[:-1])
+    mask_outputs_val = func([model_input])
+    ref_mask_val_0 = model_input > 0         # embedding layer
+    ref_mask_val_1 = ref_mask_val_0          # first RNN layer
+    ref_mask_val_2 = np.any(ref_mask_val_1, axis=-1)     # second RNN layer
+    ref_mask_val = [ref_mask_val_0, ref_mask_val_1, ref_mask_val_2]
+    for i in range(3):
+        assert np.array_equal(mask_outputs_val[i], ref_mask_val[i])
+    assert mask_outputs[-1] is None  # final layer
+
+
+@keras_test
+def test_TimeDistributed_with_masking_layer():
+    # test with Masking layer
+    model = Sequential()
+    model.add(wrappers.TimeDistributed(layers.Masking(mask_value=0.,),
+                                       input_shape=(None, 4)))
+    model.add(wrappers.TimeDistributed(layers.Dense(5)))
+    model.compile(optimizer='rmsprop', loss='mse')
+    model_input = np.random.randint(low=1, high=5, size=(10, 3, 4))
+    for i in range(4):
+        model_input[i, i:, :] = 0.
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.fit(model_input,
+              np.random.random((10, 3, 5)), epochs=1, batch_size=6)
+    mask_outputs = [model.layers[0].compute_mask(model.input)]
+    mask_outputs += [model.layers[1].compute_mask(model.layers[1].input, mask_outputs[-1])]
+    func = K.function([model.input], mask_outputs)
+    mask_outputs_val = func([model_input])
+    assert np.array_equal(mask_outputs_val[0], np.any(model_input, axis=-1))
+    assert np.array_equal(mask_outputs_val[1], np.any(model_input, axis=-1))
+
+
+@keras_test
 def test_regularizers():
     model = Sequential()
     model.add(wrappers.TimeDistributed(

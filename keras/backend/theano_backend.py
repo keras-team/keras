@@ -28,6 +28,7 @@ from .common import set_image_dim_ordering, image_dim_ordering
 py_all = all
 py_any = any
 py_sum = sum
+py_slice = slice
 
 
 # INTERNAL UTILS
@@ -584,7 +585,26 @@ def var(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
     """
-    return T.any(x, axis=axis, keepdims=keepdims)
+    y = T.any(x, axis=axis, keepdims=keepdims)
+    if hasattr(x, '_keras_shape'):
+        if axis is None:
+            y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
+        else:
+            if isinstance(axis, int):
+                axis_list = [axis]
+            else:
+                axis_list = list(set(int(a) for a in axis))
+            keras_shape_list = list(x._keras_shape)
+            if keepdims:
+                for a in axis_list:
+                    keras_shape_list[a] = 1
+            else:
+                for a in axis_list[::-1]:
+                    keras_shape_list.pop(a)
+                if not keras_shape_list:
+                    keras_shape_list = (1,)
+            y._keras_shape = tuple(keras_shape_list)
+    return y
 
 
 def all(x, axis=None, keepdims=False):
@@ -670,7 +690,12 @@ def equal(x, y):
 
 
 def not_equal(x, y):
-    return T.neq(x, y)
+    z = T.neq(x, y)
+    if hasattr(x, '_keras_shape'):
+        z._keras_shape = x._keras_shape
+    elif hasattr(y, '_keras_shape'):
+        z._keras_shape = y._keras_shape
+    return z
 
 
 def greater(x, y):
@@ -730,7 +755,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, T.inv(stdinv ** 2)
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
     # TODO remove this if statement when Theano without
@@ -867,13 +892,12 @@ def concatenate(tensors, axis=-1):
 
 def reshape(x, shape):
     y = T.reshape(x, shape)
-    if _is_explicit_shape(shape):
-        shape = tuple(x if x != -1 else None for x in shape)
-        y._keras_shape = shape
-        if hasattr(x, '_uses_learning_phase'):
-            y._uses_learning_phase = x._uses_learning_phase
-        else:
-            y._uses_learning_phase = False
+    shape = tuple(x if isinstance(x, int) and x > 0 else None for x in shape)
+    y._keras_shape = shape
+    if hasattr(x, '_uses_learning_phase'):
+        y._uses_learning_phase = x._uses_learning_phase
+    else:
+        y._uses_learning_phase = False
     return y
 
 
@@ -1103,10 +1127,10 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                         input_shape[2] + top_pad + bottom_pad,
                         input_shape[3] + left_pad + right_pad)
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(None),
-                   slice(top_pad, input_shape[2] + top_pad),
-                   slice(left_pad, input_shape[3] + left_pad))
+        indices = (py_slice(None),
+                   py_slice(None),
+                   py_slice(top_pad, input_shape[2] + top_pad),
+                   py_slice(left_pad, input_shape[3] + left_pad))
 
     else:
         output_shape = (input_shape[0],
@@ -1114,10 +1138,10 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                         input_shape[2] + left_pad + right_pad,
                         input_shape[3])
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(top_pad, input_shape[1] + top_pad),
-                   slice(left_pad, input_shape[2] + left_pad),
-                   slice(None))
+        indices = (py_slice(None),
+                   py_slice(top_pad, input_shape[1] + top_pad),
+                   py_slice(left_pad, input_shape[2] + left_pad),
+                   py_slice(None))
     y = T.set_subtensor(output[indices], x)
     y._keras_shape = output_shape
     return y
@@ -1140,11 +1164,11 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                         input_shape[3] + padding[1][0] + padding[1][1],
                         input_shape[4] + padding[2][0] + padding[2][1])
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(None),
-                   slice(padding[0][0], input_shape[2] + padding[0][0]),
-                   slice(padding[1][0], input_shape[3] + padding[1][0]),
-                   slice(padding[2][0], input_shape[4] + padding[2][0]))
+        indices = (py_slice(None),
+                   py_slice(None),
+                   py_slice(padding[0][0], input_shape[2] + padding[0][0]),
+                   py_slice(padding[1][0], input_shape[3] + padding[1][0]),
+                   py_slice(padding[2][0], input_shape[4] + padding[2][0]))
 
     else:
         output_shape = (input_shape[0],
@@ -1153,11 +1177,11 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                         input_shape[3] + padding[2][0] + padding[2][1],
                         input_shape[4])
         output = T.zeros(output_shape)
-        indices = (slice(None),
-                   slice(padding[0][0], input_shape[1] + padding[0][0]),
-                   slice(padding[1][0], input_shape[2] + padding[1][0]),
-                   slice(padding[2][0], input_shape[3] + padding[2][0]),
-                   slice(None))
+        indices = (py_slice(None),
+                   py_slice(padding[0][0], input_shape[1] + padding[0][0]),
+                   py_slice(padding[1][0], input_shape[2] + padding[1][0]),
+                   py_slice(padding[2][0], input_shape[3] + padding[2][0]),
+                   py_slice(None))
     return T.set_subtensor(output[indices], x)
 
 
@@ -1182,8 +1206,12 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
-    slices = [slice(None, None, -1) if i in axes else slice(None, None, None) for i in range(x.ndim)]
+    slices = [py_slice(None, None, -1) if i in axes else py_slice(None, None, None) for i in range(x.ndim)]
     return x[slices]
+
+
+def slice(x, start, size):
+    raise NotImplementedError
 
 
 def pattern_broadcast(x, broadcastable):
@@ -2658,8 +2686,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
     xs = []
     for i in range(output_length):
-        slice_length = slice(i * stride,
-                             i * stride + kernel_size[0])
+        slice_length = py_slice(i * stride,
+                                i * stride + kernel_size[0])
         xs.append(reshape(inputs[:, slice_length, :],
                           (1, -1, feature_dim)))
     x_aggregate = concatenate(xs, axis=0)
@@ -2683,10 +2711,10 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         output = []
         for i in range(output_row):
             for j in range(output_col):
-                slice_row = slice(i * stride_row,
-                                  i * stride_row + kernel_size[0])
-                slice_col = slice(j * stride_col,
-                                  j * stride_col + kernel_size[1])
+                slice_row = py_slice(i * stride_row,
+                                     i * stride_row + kernel_size[0])
+                slice_col = py_slice(j * stride_col,
+                                     j * stride_col + kernel_size[1])
                 x_flatten = reshape(inputs[:, :, slice_row, slice_col],
                                     (1, -1, feature_dim))
                 output.append(dot(x_flatten,
@@ -2699,10 +2727,10 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         xs = []
         for i in range(output_row):
             for j in range(output_col):
-                slice_row = slice(i * stride_row,
-                                  i * stride_row + kernel_size[0])
-                slice_col = slice(j * stride_col,
-                                  j * stride_col + kernel_size[1])
+                slice_row = py_slice(i * stride_row,
+                                     i * stride_row + kernel_size[0])
+                slice_col = py_slice(j * stride_col,
+                                     j * stride_col + kernel_size[1])
                 xs.append(reshape(inputs[:, slice_row, slice_col, :],
                                   (1, -1, feature_dim)))
 
