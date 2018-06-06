@@ -24,13 +24,13 @@ and is distributed under the MIT liense.
 '''
 
 setup(name='Keras',
-      version='2.1.6',
+      version='2.2.0',
       description='Deep Learning for humans',
       long_description=long_description,
       author='Francois Chollet',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/keras-team/keras',
-      download_url='https://github.com/keras-team/keras/tarball/2.1.6',
+      download_url='https://github.com/keras-team/keras/tarball/2.2.0',
       license='MIT',
       install_requires=['numpy>=1.9.1',
                         'scipy>=0.14',
