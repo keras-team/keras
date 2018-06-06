@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 
 import keras
 from keras import losses
-from keras.layers import Dense, Dropout, Conv2D
+from keras.layers import Activation, Dense, Dropout, Conv2D
 from keras.engine import Input
 from keras.engine.training import Model
 from keras.engine import training_utils
@@ -1441,6 +1441,25 @@ def test_model_with_crossentropy_losses_channels_first():
     assert_allclose(loss_channels_first, loss_channels_last,
                     err_msg='{}{}'.format('Computed different losses for ',
                                           'channels_first and channels_last.'))
+
+
+@keras_test
+def test_dynamic_set_inputs():
+    model = Sequential()
+    model.add(Dense(16, input_dim=32))
+    model.add(Activation('relu'))
+
+    model2 = Sequential()
+    model2.add(model.layers[-1])
+    model2.add(Dense(8))
+    preds2 = model2.predict([np.random.random((1, 32))])
+    assert preds2.shape == (1, 8)
+
+    model3 = Model(inputs=model.inputs, outputs=model.outputs)
+    model3.inputs = None
+    model3._set_inputs(model.inputs)
+    preds3 = model3.predict([np.random.random((1, 32))])
+    assert preds3.shape == (1, 16)
 
 
 if __name__ == '__main__':
