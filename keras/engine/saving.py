@@ -510,7 +510,8 @@ def preprocess_weights_for_loading(layer, weights,
         # Returns
             A list of weights values (Numpy arrays).
         """
-        return preprocess_weights_for_loading(layer.layer, weights, original_keras_version, original_backend)
+        return preprocess_weights_for_loading(
+            layer.layer, weights, original_keras_version, original_backend)
 
     def convert_nested_model(weights):
         """Converts layers nested in `Model` or `Sequential` by `preprocess_weights_for_loading()`.
