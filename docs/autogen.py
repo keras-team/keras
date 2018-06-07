@@ -158,6 +158,9 @@ PAGES = [
             layers.Lambda,
             layers.ActivityRegularization,
             layers.Masking,
+            layers.SpatialDropout1D,
+            layers.SpatialDropout2D,
+            layers.SpatialDropout3D,
         ],
     },
     {
@@ -193,6 +196,8 @@ PAGES = [
             layers.GlobalAveragePooling1D,
             layers.GlobalMaxPooling2D,
             layers.GlobalAveragePooling2D,
+            layers.GlobalMaxPooling3D,
+            layers.GlobalAveragePooling3D,
         ],
     },
     {
