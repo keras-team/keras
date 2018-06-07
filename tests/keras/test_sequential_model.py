@@ -397,5 +397,30 @@ def test_sequential_update_disabling():
     assert np.abs(np.sum(x1 - x2)) > 1e-5
 
 
+@keras_test
+def test_sequential_deferred_build():
+    model = keras.models.Sequential()
+    model.add(keras.layers.Dense(3))
+    model.add(keras.layers.Dense(3))
+    model.compile('sgd', 'mse')
+
+    assert model.built is False
+    assert len(model.layers) == 2
+    assert len(model.weights) == 0
+
+    model.train_on_batch(
+        np.random.random((2, 4)), np.random.random((2, 3)))
+
+    assert model.built is True
+    assert len(model.layers) == 2
+    assert len(model.weights) == 4
+
+    config = model.get_config()
+    new_model = keras.models.Sequential.from_config(config)
+    assert new_model.built is True
+    assert len(new_model.layers) == 2
+    assert len(new_model.weights) == 4
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
