@@ -158,6 +158,9 @@ PAGES = [
             layers.Lambda,
             layers.ActivityRegularization,
             layers.Masking,
+            layers.SpatialDropout1D,
+            layers.SpatialDropout2D,
+            layers.SpatialDropout3D,
         ],
     },
     {
