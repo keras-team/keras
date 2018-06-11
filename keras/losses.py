@@ -92,6 +92,9 @@ def cosine_proximity(y_true, y_pred):
     y_pred = K.l2_normalize(y_pred, axis=-1)
     return -K.sum(y_true * y_pred, axis=-1)
 
+def euclidean_distance(y_true, y_pred):
+    return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
+
 
 # Aliases.
 
@@ -101,6 +104,7 @@ mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 kld = KLD = kullback_leibler_divergence
 cosine = cosine_proximity
+euclidean = euclidean_distance
 
 
 def serialize(loss):
