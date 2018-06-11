@@ -2,7 +2,7 @@
 
 There are two main types of models available in Keras: [the Sequential model](/models/sequential), and [the Model class used with the functional API](/models/model).
 
-These models have a number of methods and attributes in common in common:
+These models have a number of methods and attributes in common:
 
 - `model.layers` is a flattened list of the layers comprising the model.
 - `model.inputs` is the list of input tensors of the model.
