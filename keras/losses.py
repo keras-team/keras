@@ -93,6 +93,14 @@ def cosine_proximity(y_true, y_pred):
     return -K.sum(y_true * y_pred, axis=-1)
 
 def euclidean_distance(y_true, y_pred):
+    """
+    Euclidean Distance prediction error
+
+    # Arguments
+        y_true: tensor of true target
+        y_pred: tensor of predicted target
+
+    """
     return K.sqrt(K.sum(K.square(y_pred - y_true), axis=-1))
 
 
