@@ -55,3 +55,28 @@ score, acc = model.evaluate(x_test, y_test,
                             batch_size=batch_size)
 print('Test score:', score)
 print('Test accuracy:', acc)
+
+# to find the sentiment of of a new review
+
+import numpy as np
+
+def test_sentiment(new_review):
+    
+    # load word indexes of imdb dataset
+    word_index = imdb.get_word_index()
+    new_review = new_review.split()
+    
+    # word index array for words in review
+    modeled_review = np.array([word_index[word] if word in word_index else 0 for word in new_review]).reshape((1,len(new_review)))
+    
+    prediction = model.predict(modeled_review).sum()
+    
+    if(prediction>0.5):
+        return 1   #positive 
+    else:
+        return 0   #negative
+        
+new_review = "this was a great movie"
+
+print("sentiment : "+str(test_sentiment(new_review)))
+
