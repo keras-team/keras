@@ -109,11 +109,12 @@ def in_test_phase(x, alt, training=None):
 
 
 def _convert_string_dtype(dtype):
-    # cntk only support float32 and float64
     if dtype == 'float32':
         return np.float32
     elif dtype == 'float64':
         return np.float64
+    elif dtype == 'float16':
+        return np.float16
     else:
         # cntk only running with float,
         # try to cast to float to run the model
@@ -125,10 +126,12 @@ def _convert_dtype_string(dtype):
         return 'float32'
     elif dtype == np.float64:
         return 'float64'
+    elif dtype == np.float16:
+        return 'float16'
     else:
         raise ValueError('CNTK Backend: Unsupported dtype: %s. '
-                         'CNTK only supports float32 and '
-                         'float64.' % dtype)
+                         'CNTK only supports float32, float64, and '
+                         'float16.' % dtype)
 
 
 def variable(value, dtype=None, name=None, constraint=None):
