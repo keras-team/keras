@@ -274,10 +274,12 @@ class RMSprop(Optimizer):
 
 
 class Adagrad(Optimizer):
-    """Adagrad optimizer. Adagrad is a gradient-based optimizer
-    with parameter-specific learning rates, which are adapted relative
-    to how frequently a parameter gets updated during training. The more
-    updates a parameter receives, the smaller the updates.
+    """Adagrad optimizer.
+
+    Adagrad is an optimizer with parameter-specific learning rates,
+    which are adapted relative to how frequently a parameter gets
+    updated during training. The more updates a parameter receives,
+    the smaller the updates.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -338,8 +340,11 @@ class Adagrad(Optimizer):
 class Adadelta(Optimizer):
     """Adadelta optimizer. Adadelta is a more robust extension of Adagrad
     that adapts learning rates based on a moving window of gradient updates,
-    instead of accumulating all past gradients. Using Adadelta, you don't
-    even have to choose an initial learning rate.
+    instead of accumulating all past gradients. This way, Adadelta continues
+    learning even when many updates have been done. Compared to Adagrad, in the
+    original version of Adadelta you don't have to set an initial learning
+    rate. In this version, initial learning rate and decay factor can
+    be set, as in most other Keras optimizers.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
