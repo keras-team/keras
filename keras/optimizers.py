@@ -338,7 +338,9 @@ class Adagrad(Optimizer):
 
 
 class Adadelta(Optimizer):
-    """Adadelta optimizer. Adadelta is a more robust extension of Adagrad
+    """Adadelta optimizer.
+
+    Adadelta is a more robust extension of Adagrad
     that adapts learning rates based on a moving window of gradient updates,
     instead of accumulating all past gradients. This way, Adadelta continues
     learning even when many updates have been done. Compared to Adagrad, in the
