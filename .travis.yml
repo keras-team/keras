@@ -61,9 +61,9 @@ install:
   
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
+      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.5.1-cp27-cp27mu-linux_x86_64.whl;
     elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp36-cp36m-linux_x86_64.whl;
+      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.5.1-cp36-cp36m-linux_x86_64.whl;
     fi
 
   # install pydot for visualization tests
