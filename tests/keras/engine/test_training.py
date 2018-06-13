@@ -7,7 +7,7 @@ import scipy.sparse as sparse
 
 import keras
 from keras import losses
-from keras.layers import Activation, Dense, Dropout, Conv2D
+from keras.layers import Activation, Dense, Dropout, Conv2D, Concatenate
 from keras.engine import Input
 from keras.engine.training import Model
 from keras.engine import training_utils
@@ -1456,10 +1456,28 @@ def test_dynamic_set_inputs():
     assert preds2.shape == (1, 8)
 
     model3 = Model(inputs=model.inputs, outputs=model.outputs)
+    with pytest.raises(ValueError):
+        model3._set_inputs(model.inputs)
+
     model3.inputs = None
     model3._set_inputs(model.inputs)
     preds3 = model3.predict([np.random.random((1, 32))])
     assert preds3.shape == (1, 16)
+
+    model3.inputs = None
+    model3._set_inputs(model.input)
+    preds3 = model3.predict(np.random.random((1, 32)))
+    assert preds3.shape == (1, 16)
+
+    aux_input = Input(shape=(5,), name='aux_input')
+    aux_model = Dense(3)(aux_input)
+    model4 = Model(inputs=model.inputs + [aux_input],
+                   outputs=Concatenate()(model.outputs + [aux_model]))
+    model4.inputs = None
+    model4._set_inputs(model.inputs + [aux_input])
+    preds4 = model4.predict([np.random.random((1, 32)),
+                             np.random.random((1, 5))])
+    assert preds4.shape == (1, 19)
 
 
 if __name__ == '__main__':
