@@ -1085,7 +1085,7 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     elif ndim(beta) == ndim(x) and shape(beta)[0] == 1:
         beta = _reshape_dummy_dim(beta, [0])
 
-    return (x - mean) / (C.sqrt(var) + epsilon) * gamma + beta
+    return (x - mean) / C.sqrt(var + epsilon) * gamma + beta
 
 
 def concatenate(tensors, axis=-1):
