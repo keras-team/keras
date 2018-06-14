@@ -944,3 +944,31 @@ class ActivityRegularization(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+class ReversedGradient(Layer):
+    """Layer that reverses the gradients of all variables before this layer
+    while keeping the gradients of all variables after this layer.
+
+    # Arguments
+        l: hyper-parameter lambda to control the gradient.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as input.
+    """
+
+    def __init__(self, l=1., **kwargs):
+        super(ReversedGradient, self).__init__(**kwargs)
+        self.supports_masking = True
+
+    def call(self, inputs):
+        if isinstance(inputs, list):
+            output = [-inp + K.stop_gradient(2. * inp) for inp in inputs]
+        else:
+            output = -inputs + K.stop_gradient(2. * inputs)
+        return output
