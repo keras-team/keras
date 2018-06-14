@@ -333,5 +333,43 @@ def test_activity_regularization():
     model.compile('rmsprop', 'mse')
 
 
+@keras_test
+def test_reversed_gradient():
+    x = layers.Input(shape=(3,))
+
+    dense11 = layers.Dense(4)
+    dense12 = layers.Dense(5)
+    y1 = dense12(layers.ReversedGradient()(dense11(x)))
+    model1 = Model(x, y1)
+    model1.compile('rmsprop', 'mse')
+
+    dense21 = layers.Dense(4)
+    dense22 = layers.Dense(5)
+    y2 = dense22(dense21(x))
+    model2 = Model(x, y2)
+    model2.compile('rmsprop', 'mse')
+
+    weight1 = dense11.get_weights()
+    dense21.set_weights(weight1)
+    weight2 = dense12.get_weights()
+    dense22.set_weights(weight2)
+
+    input_data = np.random.random((2, 3))
+    target_data = np.random.random((2, 5))
+    model1.train_on_batch(input_data, target_data)
+    model2.train_on_batch(input_data, target_data)
+
+    # test layer weight before ReversedGradient
+    for w, w1, w2 in zip(weight1, dense11.get_weights(), dense21.get_weights()):
+        assert_allclose(w1 - w, w - w2, atol=1e-6)
+    # test layer weight after ReversedGradient
+    for w1, w2 in zip(dense12.get_weights(), dense22.get_weights()):
+        assert_allclose(w1, w2, atol=1e-6)
+
+    # do standard layer test
+    layer_test(layers.ReversedGradient,
+               input_shape=(3, 4))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
