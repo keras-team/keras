@@ -226,7 +226,7 @@ def test_conv2d_transpose():
         model = Sequential([convolutional.Conv2DTranspose(filters=filters,
                                                           kernel_size=3,
                                                           padding=padding,
-                                                          use_bias=true,
+                                                          use_bias=True,
                                                           batch_input_shape=(None, None, 5, None))])
 
 
