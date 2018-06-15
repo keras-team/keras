@@ -807,7 +807,7 @@ class Conv2DTranspose(Conv2D):
             padding=self.padding,
             data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1034,7 +1034,7 @@ class Conv3DTranspose(Conv3D):
                                      padding=self.padding,
                                      data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1278,7 +1278,7 @@ class _SeparableConv(_Conv):
                 padding=self.padding,
                 dilation_rate=self.dilation_rate)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1737,7 +1737,7 @@ class DepthwiseConv2D(Conv2D):
             dilation_rate=self.dilation_rate,
             data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
