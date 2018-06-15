@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
+"""Locally-connected layers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from .. import backend as K
 from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -34,14 +38,15 @@ class LocallyConnected1D(Layer):
 
     # Arguments
         filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
+            (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of a single integer,
             specifying the length of the 1D convolution window.
         strides: An integer or tuple/list of a single integer,
             specifying the stride length of the convolution.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: One of `"valid"` or `"same"` (case-insensitive).
+        padding: Currently only supports `"valid"` (case-insensitive).
+            `"same"` may be supported in the future.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -121,14 +126,14 @@ class LocallyConnected1D(Layer):
                              self.kernel_size[0] * input_dim,
                              self.filters)
         self.kernel = self.add_weight(
-            self.kernel_shape,
+            shape=self.kernel_shape,
             initializer=self.kernel_initializer,
             name='kernel',
             regularizer=self.kernel_regularizer,
             constraint=self.kernel_constraint)
         if self.use_bias:
             self.bias = self.add_weight(
-                (output_length, self.filters),
+                shape=(output_length, self.filters),
                 initializer=self.bias_initializer,
                 name='bias',
                 regularizer=self.bias_regularizer,
@@ -146,22 +151,9 @@ class LocallyConnected1D(Layer):
         return (input_shape[0], length, self.filters)
 
     def call(self, inputs):
-        stride = self.strides[0]
-        output_length, feature_dim, filters = self.kernel_shape
-
-        xs = []
-        for i in range(output_length):
-            slice_length = slice(i * stride,
-                                 i * stride + self.kernel_size[0])
-            xs.append(K.reshape(inputs[:, slice_length, :],
-                                (1, -1, feature_dim)))
-        x_aggregate = K.concatenate(xs, axis=0)
-        # Shape: `(output_length, batch_size, filters)`.
-        output = K.batch_dot(x_aggregate, self.kernel)
-        output = K.permute_dimensions(output, (1, 0, 2))
-
+        output = K.local_conv1d(inputs, self.kernel, self.kernel_size, self.strides)
         if self.use_bias:
-            output += K.reshape(self.bias, (1, output_length, filters))
+            output = K.bias_add(output, self.bias)
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -175,7 +167,7 @@ class LocallyConnected1D(Layer):
             'activation': activations.serialize(self.activation),
             'use_bias': self.use_bias,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'bias_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
             'activity_regularizer': regularizers.serialize(self.activity_regularizer),
@@ -210,7 +202,7 @@ class LocallyConnected2D(Layer):
 
     # Arguments
         filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
+            (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 2 integers, specifying the
             width and height of the 2D convolution window.
             Can be a single integer to specify the same value for
@@ -219,16 +211,15 @@ class LocallyConnected2D(Layer):
             specifying the strides of the convolution along the width and height.
             Can be a single integer to specify the same value for
             all spatial dimensions.
-            Specifying any stride value != 1 is incompatible with specifying
-            any `dilation_rate` value != 1.
-        padding: one of `"valid"` or `"same"` (case-insensitive).
+        padding: Currently only support `"valid"` (case-insensitive).
+            `"same"` will be supported in future.
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
-            `(batch, width, height, channels)` while `channels_first`
+            `(batch, height, width, channels)` while `channels_first`
             corresponds to inputs with shape
-            `(batch, channels, width, height)`.
+            `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -325,13 +316,13 @@ class LocallyConnected2D(Layer):
         self.kernel_shape = (output_row * output_col,
                              self.kernel_size[0] * self.kernel_size[1] * input_filter,
                              self.filters)
-        self.kernel = self.add_weight(self.kernel_shape,
+        self.kernel = self.add_weight(shape=self.kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((output_row, output_col, self.filters),
+            self.bias = self.add_weight(shape=(output_row, output_col, self.filters),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -363,62 +354,16 @@ class LocallyConnected2D(Layer):
             return (input_shape[0], rows, cols, self.filters)
 
     def call(self, inputs):
-        stride_row, stride_col = self.strides
-        _, feature_dim, filters = self.kernel_shape
-
-        if self.data_format == 'channels_first':
-            if K.backend() == 'theano':
-                output = []
-                for i in range(self.output_row):
-                    for j in range(self.output_col):
-                        slice_row = slice(i * stride_row,
-                                          i * stride_row + self.kernel_size[0])
-                        slice_col = slice(j * stride_col,
-                                          j * stride_col + self.kernel_size[1])
-                        x_flatten = K.reshape(inputs[:, :, slice_row, slice_col],
-                                              (1, -1, feature_dim))
-                        output.append(K.dot(x_flatten,
-                                      self.kernel[i * self.output_col + j, :, :]))
-                output = K.concatenate(output, axis=0)
-            else:
-                xs = []
-                for i in range(self.output_row):
-                    for j in range(self.output_col):
-                        slice_row = slice(i * stride_row,
-                                          i * stride_row + self.kernel_size[0])
-                        slice_col = slice(j * stride_col,
-                                          j * stride_col + self.kernel_size[1])
-                        xs.append(K.reshape(inputs[:, :, slice_row, slice_col],
-                                            (1, -1, feature_dim)))
-                x_aggregate = K.concatenate(xs, axis=0)
-                output = K.batch_dot(x_aggregate, self.kernel)
-            output = K.reshape(output,
-                               (self.output_row, self.output_col, -1, filters))
-            output = K.permute_dimensions(output, (2, 3, 0, 1))
-
-        elif self.data_format == 'channels_last':
-            xs = []
-            for i in range(self.output_row):
-                for j in range(self.output_col):
-                    slice_row = slice(i * stride_row,
-                                      i * stride_row + self.kernel_size[0])
-                    slice_col = slice(j * stride_col,
-                                      j * stride_col + self.kernel_size[1])
-                    xs.append(K.reshape(inputs[:, slice_row, slice_col, :],
-                                        (1, -1, feature_dim)))
-            x_aggregate = K.concatenate(xs, axis=0)
-            output = K.batch_dot(x_aggregate, self.kernel)
-            output = K.reshape(output,
-                               (self.output_row, self.output_col, -1, filters))
-            output = K.permute_dimensions(output, (2, 0, 1, 3))
+        output = K.local_conv2d(inputs,
+                                self.kernel,
+                                self.kernel_size,
+                                self.strides,
+                                (self.output_row, self.output_col),
+                                self.data_format)
 
         if self.use_bias:
-            if self.data_format == 'channels_first':
-                output += K.reshape(self.bias,
-                                    (1, filters, self.output_row, self.output_col))
-            elif self.data_format == 'channels_last':
-                output += K.reshape(self.bias,
-                                    (1, self.output_row, self.output_col, filters))
+            output = K.bias_add(output, self.bias, data_format=self.data_format)
+
         output = self.activation(output)
         return output
 
@@ -432,7 +377,7 @@ class LocallyConnected2D(Layer):
             'activation': activations.serialize(self.activation),
             'use_bias': self.use_bias,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'bias_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
             'activity_regularizer': regularizers.serialize(self.activity_regularizer),

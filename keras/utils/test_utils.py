@@ -1,9 +1,13 @@
 """Utilities related to Keras unit tests."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 from numpy.testing import assert_allclose
-import inspect
 import six
 
+from .generic_utils import has_arg
 from ..engine import Model, Input
 from ..models import Sequential
 from ..models import model_from_json
@@ -17,20 +21,20 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
 
     classification=True overrides output_shape
     (i.e. output_shape is set to (1,)) and the output
-    consists in integers in [0, num_class-1].
+    consists in integers in [0, num_classes-1].
 
     Otherwise: float output with shape output_shape.
     """
     samples = num_train + num_test
     if classification:
         y = np.random.randint(0, num_classes, size=(samples,))
-        X = np.zeros((samples,) + input_shape)
+        X = np.zeros((samples,) + input_shape, dtype=np.float32)
         for i in range(samples):
             X[i] = np.random.normal(loc=y[i], scale=0.7, size=input_shape)
     else:
         y_loc = np.random.random((samples,))
-        X = np.zeros((samples,) + input_shape)
-        y = np.zeros((samples,) + output_shape)
+        X = np.zeros((samples,) + input_shape, dtype=np.float32)
+        y = np.zeros((samples,) + output_shape, dtype=np.float32)
         for i in range(samples):
             X[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=input_shape)
             y[i] = np.random.normal(loc=y_loc[i], scale=0.7, size=output_shape)
@@ -71,7 +75,9 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     layer.set_weights(weights)
 
     # test and instantiation from weights
-    if 'weights' in inspect.getargspec(layer_cls.__init__):
+    # Checking for empty weights array to avoid a problem where some
+    # legacy layers return bad values from get_weights()
+    if has_arg(layer_cls.__init__, 'weights') and len(weights):
         kwargs['weights'] = weights
         layer = layer_cls(**kwargs)
 
@@ -153,7 +159,7 @@ def keras_test(func):
     @six.wraps(func)
     def wrapper(*args, **kwargs):
         output = func(*args, **kwargs)
-        if K.backend() == 'tensorflow':
+        if K.backend() == 'tensorflow' or K.backend() == 'cntk':
             K.clear_session()
         return output
     return wrapper

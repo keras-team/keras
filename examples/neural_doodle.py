@@ -1,41 +1,44 @@
 '''Neural doodle with Keras
 
-Script Usage:
-    # Arguments:
-    ```
-    --nlabels:              # of regions (colors) in mask images
-    --style-image:          image to learn style from
-    --style-mask:           semantic labels for style image
-    --target-mask:          semantic labels for target image (your doodle)
-    --content-image:        optional image to learn content from
-    --target-image-prefix:  path prefix for generated target images
-    ```
+# Script Usage
 
-    # Example 1: doodle using a style image, style mask
-    and target mask.
-    ```
-    python neural_doodle.py --nlabels 4 --style-image Monet/style.png \
-    --style-mask Monet/style_mask.png --target-mask Monet/target_mask.png \
-    --target-image-prefix generated/monet
-    ```
+## Arguments
+```
+--nlabels:              # of regions (colors) in mask images
+--style-image:          image to learn style from
+--style-mask:           semantic labels for style image
+--target-mask:          semantic labels for target image (your doodle)
+--content-image:        optional image to learn content from
+--target-image-prefix:  path prefix for generated target images
+```
 
-    # Example 2: doodle using a style image, style mask,
-    target mask and an optional content image.
-    ```
-    python neural_doodle.py --nlabels 4 --style-image Renoir/style.png \
-    --style-mask Renoir/style_mask.png --target-mask Renoir/target_mask.png \
-    --content-image Renoir/creek.jpg \
-    --target-image-prefix generated/renoir
-    ```
+## Example 1: doodle using a style image, style mask
+and target mask.
+```
+python neural_doodle.py --nlabels 4 --style-image Monet/style.png \
+--style-mask Monet/style_mask.png --target-mask Monet/target_mask.png \
+--target-image-prefix generated/monet
+```
 
-References:
-[Dmitry Ulyanov's blog on fast-neural-doodle](http://dmitryulyanov.github.io/feed-forward-neural-doodle/)
-[Torch code for fast-neural-doodle](https://github.com/DmitryUlyanov/fast-neural-doodle)
-[Torch code for online-neural-doodle](https://github.com/DmitryUlyanov/online-neural-doodle)
-[Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images](http://arxiv.org/abs/1603.03417)
-[Discussion on parameter tuning](https://github.com/fchollet/keras/issues/3705)
+## Example 2: doodle using a style image, style mask,
+target mask and an optional content image.
+```
+python neural_doodle.py --nlabels 4 --style-image Renoir/style.png \
+--style-mask Renoir/style_mask.png --target-mask Renoir/target_mask.png \
+--content-image Renoir/creek.jpg \
+--target-image-prefix generated/renoir
+```
 
-Resources:
+# References
+
+- [Dmitry Ulyanov's blog on fast-neural-doodle](http://dmitryulyanov.github.io/feed-forward-neural-doodle/)
+- [Torch code for fast-neural-doodle](https://github.com/DmitryUlyanov/fast-neural-doodle)
+- [Torch code for online-neural-doodle](https://github.com/DmitryUlyanov/online-neural-doodle)
+- [Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images](http://arxiv.org/abs/1603.03417)
+- [Discussion on parameter tuning](https://github.com/keras-team/keras/issues/3705)
+
+# Resources
+
 Example images can be downloaded from
 https://github.com/DmitryUlyanov/fast-neural-doodle/tree/master/data
 '''
@@ -44,12 +47,11 @@ import time
 import argparse
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
-from scipy.misc import imread, imsave
 
 from keras import backend as K
 from keras.layers import Input, AveragePooling2D
 from keras.models import Model
-from keras.preprocessing.image import load_img, img_to_array
+from keras.preprocessing.image import load_img, save_img, img_to_array
 from keras.applications import vgg19
 
 # Command line arguments
@@ -80,7 +82,7 @@ use_content_img = content_img_path is not None
 num_labels = args.nlabels
 num_colors = 3  # RGB
 # determine image sizes based on target_mask
-ref_img = imread(target_mask_path)
+ref_img = img_to_array(load_img(target_mask_path))
 img_nrows, img_ncols = ref_img.shape[:2]
 
 total_variation_weight = 50.
@@ -154,13 +156,14 @@ def load_mask_labels():
                                img_ncols:].reshape((img_nrows, img_ncols))
 
     stack_axis = 0 if K.image_data_format() == 'channels_first' else -1
-    style_mask = np.stack([style_mask_label == r for r in xrange(num_labels)],
+    style_mask = np.stack([style_mask_label == r for r in range(num_labels)],
                           axis=stack_axis)
-    target_mask = np.stack([target_mask_label == r for r in xrange(num_labels)],
+    target_mask = np.stack([target_mask_label == r for r in range(num_labels)],
                            axis=stack_axis)
 
     return (np.expand_dims(style_mask, axis=0),
             np.expand_dims(target_mask, axis=0))
+
 
 # Create tensor variables for images
 if K.image_data_format() == 'channels_first':
@@ -196,8 +199,8 @@ x = mask_input
 for layer in image_model.layers[1:]:
     name = 'mask_%s' % layer.name
     if 'conv' in layer.name:
-        x = AveragePooling2D((3, 3), strides=(
-            1, 1), name=name, border_mode='same')(x)
+        x = AveragePooling2D((3, 3), padding='same', strides=(
+            1, 1), name=name)(x)
     elif 'pool' in layer.name:
         x = AveragePooling2D((2, 2), name=name)(x)
 mask_model = Model(mask_input, x)
@@ -238,6 +241,7 @@ def region_style_loss(style_image, target_image, style_mask, target_mask):
         masked_target = K.permute_dimensions(
             target_image, (2, 0, 1)) * target_mask
         num_channels = K.shape(style_image)[-1]
+    num_channels = K.cast(num_channels, dtype='float32')
     s = gram_matrix(masked_style) / K.mean(style_mask) / num_channels
     c = gram_matrix(masked_target) / K.mean(target_mask) / num_channels
     return K.mean(K.square(s - c))
@@ -250,7 +254,7 @@ def style_loss(style_image, target_image, style_masks, target_masks):
     assert 3 == K.ndim(style_image) == K.ndim(target_image)
     assert 3 == K.ndim(style_masks) == K.ndim(target_masks)
     loss = K.variable(0)
-    for i in xrange(num_labels):
+    for i in range(num_labels):
         if K.image_data_format() == 'channels_first':
             style_mask = style_masks[i, :, :]
             target_mask = target_masks[i, :, :]
@@ -279,6 +283,7 @@ def total_variation_loss(x):
         b = K.square(x[:, :img_nrows - 1, :img_ncols - 1, :] -
                      x[:, :img_nrows - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
+
 
 # Overall loss is the weighted sum of content_loss, style_loss and tv_loss
 # Each individual loss uses features from image/mask models.
@@ -360,7 +365,7 @@ for i in range(50):
     # save current generated image
     img = deprocess_image(x.copy())
     fname = target_img_prefix + '_at_iteration_%d.png' % i
-    imsave(fname, img)
+    save_img(fname, img)
     end_time = time.time()
     print('Image saved as', fname)
     print('Iteration %d completed in %ds' % (i, end_time - start_time))

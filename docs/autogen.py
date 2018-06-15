@@ -8,9 +8,7 @@ Index
 - Getting started
     Getting started with the sequential model
     Getting started with the functional api
-    Examples
     FAQ
-    Installation guide
 
 - Models
     About Keras models
@@ -26,18 +24,23 @@ Index
         explain common layer functions: get_weights, set_weights, get_config
         explain input_shape
         explain usage on non-Keras tensors
-    Core layers
-    Convolutional
-    Recurrent
-    Embeddings
-    Normalization
-    Advanced activations
-    Noise
+    Core Layers
+    Convolutional Layers
+    Pooling Layers
+    Locally-connected Layers
+    Recurrent Layers
+    Embedding Layers
+    Merge Layers
+    Advanced Activations Layers
+    Normalization Layers
+    Noise Layers
+    Layer Wrappers
+    Writing your own Keras layers
 
 - Preprocessing
-    Image preprocessing
-    Text preprocessing
-    Sequence preprocessing
+    Sequence Preprocessing
+    Text Preprocessing
+    Image Preprocessing
 
 Losses
 Metrics
@@ -45,12 +48,15 @@ Optimizers
 Activations
 Callbacks
 Datasets
+Applications
 Backend
-Initializations
+Initializers
 Regularizers
 Constraints
 Visualization
 Scikit-learn API
+Utils
+Contributing
 
 '''
 from __future__ import print_function
@@ -60,40 +66,27 @@ import re
 import inspect
 import os
 import shutil
-import sys
-if sys.version[0] == '2':
-    reload(sys)
-    sys.setdefaultencoding('utf8')
 
 import keras
 from keras import utils
 from keras import layers
-from keras import initializers
-from keras.layers import pooling
-from keras.layers import local
-from keras.layers import recurrent
-from keras.layers import core
-from keras.layers import noise
-from keras.layers import normalization
 from keras.layers import advanced_activations
-from keras.layers import embeddings
+from keras.layers import noise
 from keras.layers import wrappers
-from keras.layers import merge
+from keras import initializers
 from keras import optimizers
 from keras import callbacks
 from keras import models
-from keras.engine import topology
 from keras import losses
 from keras import metrics
 from keras import backend
-from keras import constraints
 from keras import activations
-from keras import regularizers
-from keras.utils import data_utils
-from keras.utils import io_utils
-from keras.utils import layer_utils
-from keras.utils import np_utils
-from keras.utils import generic_utils
+from keras import preprocessing
+
+import sys
+if sys.version[0] == '2':
+    reload(sys)
+    sys.setdefaultencoding('utf8')
 
 
 EXCLUDE = {
@@ -105,8 +98,19 @@ EXCLUDE = {
     'serialize',
     'deserialize',
     'get',
+    'set_image_dim_ordering',
+    'image_dim_ordering',
+    'get_variable_shape',
 }
 
+
+# For each class to document, it is possible to:
+# 1) Document only the class: [classA, classB, ...]
+# 2) Document all its methods: [classA, (classB, "*")]
+# 3) Choose which methods to document (methods listed as strings):
+# [classA, (classB, ["method1", "method2", ...]), ...]
+# 4) Choose which methods to document (methods listed as qualified names):
+# [classA, (classB, [module.classB.method1, module.classB.method2, ...]), ...]
 PAGES = [
     {
         'page': 'models/sequential.md',
@@ -115,14 +119,13 @@ PAGES = [
             models.Sequential.fit,
             models.Sequential.evaluate,
             models.Sequential.predict,
-            models.Sequential.predict_classes,
-            models.Sequential.predict_proba,
             models.Sequential.train_on_batch,
             models.Sequential.test_on_batch,
             models.Sequential.predict_on_batch,
             models.Sequential.fit_generator,
             models.Sequential.evaluate_generator,
             models.Sequential.predict_generator,
+            models.Sequential.get_layer,
         ],
     },
     {
@@ -148,12 +151,16 @@ PAGES = [
             layers.Activation,
             layers.Dropout,
             layers.Flatten,
+            layers.Input,
             layers.Reshape,
             layers.Permute,
             layers.RepeatVector,
             layers.Lambda,
             layers.ActivityRegularization,
             layers.Masking,
+            layers.SpatialDropout1D,
+            layers.SpatialDropout2D,
+            layers.SpatialDropout3D,
         ],
     },
     {
@@ -161,6 +168,7 @@ PAGES = [
         'classes': [
             layers.Conv1D,
             layers.Conv2D,
+            layers.SeparableConv1D,
             layers.SeparableConv2D,
             layers.Conv2DTranspose,
             layers.Conv3D,
@@ -178,44 +186,52 @@ PAGES = [
     {
         'page': 'layers/pooling.md',
         'classes': [
-            pooling.MaxPooling1D,
-            pooling.MaxPooling2D,
-            pooling.MaxPooling3D,
-            pooling.AveragePooling1D,
-            pooling.AveragePooling2D,
-            pooling.AveragePooling3D,
-            pooling.GlobalMaxPooling1D,
-            pooling.GlobalAveragePooling1D,
-            pooling.GlobalMaxPooling2D,
-            pooling.GlobalAveragePooling2D,
+            layers.MaxPooling1D,
+            layers.MaxPooling2D,
+            layers.MaxPooling3D,
+            layers.AveragePooling1D,
+            layers.AveragePooling2D,
+            layers.AveragePooling3D,
+            layers.GlobalMaxPooling1D,
+            layers.GlobalAveragePooling1D,
+            layers.GlobalMaxPooling2D,
+            layers.GlobalAveragePooling2D,
+            layers.GlobalMaxPooling3D,
+            layers.GlobalAveragePooling3D,
         ],
     },
     {
         'page': 'layers/local.md',
         'classes': [
-            local.LocallyConnected1D,
-            local.LocallyConnected2D,
+            layers.LocallyConnected1D,
+            layers.LocallyConnected2D,
         ],
     },
     {
         'page': 'layers/recurrent.md',
         'classes': [
-            recurrent.Recurrent,
-            recurrent.SimpleRNN,
-            recurrent.GRU,
-            recurrent.LSTM,
+            layers.RNN,
+            layers.SimpleRNN,
+            layers.GRU,
+            layers.LSTM,
+            layers.ConvLSTM2D,
+            layers.SimpleRNNCell,
+            layers.GRUCell,
+            layers.LSTMCell,
+            layers.CuDNNGRU,
+            layers.CuDNNLSTM,
         ],
     },
     {
         'page': 'layers/embeddings.md',
         'classes': [
-            embeddings.Embedding,
+            layers.Embedding,
         ],
     },
     {
         'page': 'layers/normalization.md',
         'classes': [
-            normalization.BatchNormalization,
+            layers.BatchNormalization,
         ],
     },
     {
@@ -228,7 +244,52 @@ PAGES = [
     },
     {
         'page': 'layers/merge.md',
-        'all_module_classes': [merge],
+        'classes': [
+            layers.Add,
+            layers.Subtract,
+            layers.Multiply,
+            layers.Average,
+            layers.Maximum,
+            layers.Concatenate,
+            layers.Dot,
+        ],
+        'functions': [
+            layers.add,
+            layers.subtract,
+            layers.multiply,
+            layers.average,
+            layers.maximum,
+            layers.concatenate,
+            layers.dot,
+        ]
+    },
+    {
+        'page': 'preprocessing/sequence.md',
+        'functions': [
+            preprocessing.sequence.pad_sequences,
+            preprocessing.sequence.skipgrams,
+            preprocessing.sequence.make_sampling_table,
+        ],
+        'classes': [
+            preprocessing.sequence.TimeseriesGenerator,
+        ]
+    },
+    {
+        'page': 'preprocessing/image.md',
+        'classes': [
+            (preprocessing.image.ImageDataGenerator, '*')
+        ]
+    },
+    {
+        'page': 'preprocessing/text.md',
+        'functions': [
+            preprocessing.text.hashing_trick,
+            preprocessing.text.one_hot,
+            preprocessing.text.text_to_word_sequence,
+        ],
+        'classes': [
+            preprocessing.text.Tokenizer,
+        ]
     },
     {
         'page': 'layers/wrappers.md',
@@ -265,9 +326,15 @@ PAGES = [
     },
     {
         'page': 'utils.md',
-        'all_module_functions': [utils],
+        'functions': [utils.to_categorical,
+                      utils.normalize,
+                      utils.get_file,
+                      utils.print_summary,
+                      utils.plot_model,
+                      utils.multi_gpu_model],
         'classes': [utils.CustomObjectScope,
-                    utils.HDF5Matrix]
+                    utils.HDF5Matrix,
+                    utils.Sequence],
     },
 ]
 
@@ -301,7 +368,11 @@ def get_classes_ancestors(classes):
 
 
 def get_function_signature(function, method=True):
-    signature = inspect.getargspec(function)
+    wrapped = getattr(function, '_original_function', None)
+    if wrapped is None:
+        signature = inspect.getargspec(function)
+    else:
+        signature = inspect.getargspec(wrapped)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]
@@ -312,7 +383,8 @@ def get_function_signature(function, method=True):
         args = args[:-len(defaults)]
     else:
         kwargs = []
-    st = '%s.%s(' % (function.__module__, function.__name__)
+    st = '%s.%s(' % (clean_module_name(function.__module__), function.__name__)
+
     for a in args:
         st += str(a) + ', '
     for a, v in kwargs:
@@ -320,37 +392,62 @@ def get_function_signature(function, method=True):
             v = '\'' + v + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
-        return st[:-2] + ')'
+        signature = st[:-2] + ')'
     else:
-        return st + ')'
+        signature = st + ')'
+
+    if not method:
+        # Prepend the module name.
+        signature = clean_module_name(function.__module__) + '.' + signature
+    return post_process_signature(signature)
 
 
 def get_class_signature(cls):
     try:
         class_signature = get_function_signature(cls.__init__)
         class_signature = class_signature.replace('__init__', cls.__name__)
-    except:
+    except (TypeError, AttributeError):
         # in case the class inherits from object and does not
         # define __init__
-        class_signature = cls.__module__ + '.' + cls.__name__ + '()'
-    return class_signature
+        class_signature = clean_module_name(cls.__module__) + '.' + cls.__name__ + '()'
+    return post_process_signature(class_signature)
+
+
+def post_process_signature(signature):
+    parts = re.split('\.(?!\d)', signature)
+    if len(parts) >= 4:
+        if parts[1] == 'layers':
+            signature = 'keras.layers.' + '.'.join(parts[3:])
+        if parts[1] == 'utils':
+            signature = 'keras.utils.' + '.'.join(parts[3:])
+        if parts[1] == 'backend':
+            signature = 'keras.backend.' + '.'.join(parts[3:])
+    return signature
+
+
+def clean_module_name(name):
+    if name.startswith('keras_applications'):
+        name = name.replace('keras_applications', 'keras.applications')
+    if name.startswith('keras_preprocessing'):
+        name = name.replace('keras_preprocessing', 'keras.preprocessing')
+    assert name[:6] == 'keras.', 'Invalid module name: %s' % name
+    return name
 
 
 def class_to_docs_link(cls):
-    module_name = cls.__module__
-    assert module_name[:6] == 'keras.'
+    module_name = clean_module_name(cls.__module__)
     module_name = module_name[6:]
     link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
     return link
 
 
 def class_to_source_link(cls):
-    module_name = cls.__module__
-    assert module_name[:6] == 'keras.'
+    module_name = clean_module_name(cls.__module__)
     path = module_name.replace('.', '/')
     path += '.py'
     line = inspect.getsourcelines(cls)[-1]
-    link = 'https://github.com/fchollet/keras/blob/master/' + path + '#L' + str(line)
+    link = ('https://github.com/keras-team/'
+            'keras/blob/master/' + path + '#L' + str(line))
     return '[[source]](' + link + ')'
 
 
@@ -361,36 +458,126 @@ def code_snippet(snippet):
     return result
 
 
-def process_class_docstring(docstring):
-    docstring = re.sub(r'\n    # (.*)\n',
-                       r'\n    __\1__\n\n',
+def count_leading_spaces(s):
+    ws = re.search('\S', s)
+    if ws:
+        return ws.start()
+    else:
+        return 0
+
+
+def process_list_block(docstring, starting_point, leading_spaces, marker):
+    ending_point = docstring.find('\n\n', starting_point)
+    block = docstring[starting_point:None if ending_point == -1 else ending_point - 1]
+    # Place marker for later reinjection.
+    docstring = docstring.replace(block, marker)
+    lines = block.split('\n')
+    # Remove the computed number of leading white spaces from each line.
+    lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
+    # Usually lines have at least 4 additional leading spaces.
+    # These have to be removed, but first the list roots have to be detected.
+    top_level_regex = r'^    ([^\s\\\(]+):(.*)'
+    top_level_replacement = r'- __\1__:\2'
+    lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
+    # All the other lines get simply the 4 leading space (if present) removed
+    lines = [re.sub(r'^    ', '', line) for line in lines]
+    # Fix text lines after lists
+    indent = 0
+    text_block = False
+    for i in range(len(lines)):
+        line = lines[i]
+        spaces = re.search(r'\S', line)
+        if spaces:
+            # If it is a list element
+            if line[spaces.start()] == '-':
+                indent = spaces.start() + 1
+                if text_block:
+                    text_block = False
+                    lines[i] = '\n' + line
+            elif spaces.start() < indent:
+                text_block = True
+                indent = spaces.start()
+                lines[i] = '\n' + line
+        else:
+            text_block = False
+            indent = 0
+    block = '\n'.join(lines)
+    return docstring, block
+
+
+def process_docstring(docstring):
+    # First, extract code blocks and process them.
+    code_blocks = []
+    if '```' in docstring:
+        tmp = docstring[:]
+        while '```' in tmp:
+            tmp = tmp[tmp.find('```'):]
+            index = tmp[3:].find('```') + 6
+            snippet = tmp[:index]
+            # Place marker in docstring for later reinjection.
+            docstring = docstring.replace(
+                snippet, '$CODE_BLOCK_%d' % len(code_blocks))
+            snippet_lines = snippet.split('\n')
+            # Remove leading spaces.
+            num_leading_spaces = snippet_lines[-1].find('`')
+            snippet_lines = ([snippet_lines[0]] +
+                             [line[num_leading_spaces:]
+                             for line in snippet_lines[1:]])
+            # Most code snippets have 3 or 4 more leading spaces
+            # on inner lines, but not all. Remove them.
+            inner_lines = snippet_lines[1:-1]
+            leading_spaces = None
+            for line in inner_lines:
+                if not line or line[0] == '\n':
+                    continue
+                spaces = count_leading_spaces(line)
+                if leading_spaces is None:
+                    leading_spaces = spaces
+                if spaces < leading_spaces:
+                    leading_spaces = spaces
+            if leading_spaces:
+                snippet_lines = ([snippet_lines[0]] +
+                                 [line[leading_spaces:]
+                                  for line in snippet_lines[1:-1]] +
+                                 [snippet_lines[-1]])
+            snippet = '\n'.join(snippet_lines)
+            code_blocks.append(snippet)
+            tmp = tmp[index:]
+
+    # Format docstring lists.
+    section_regex = r'\n( +)# (.*)\n'
+    section_idx = re.search(section_regex, docstring)
+    shift = 0
+    sections = {}
+    while section_idx and section_idx.group(2):
+        anchor = section_idx.group(2)
+        leading_spaces = len(section_idx.group(1))
+        shift += section_idx.end()
+        marker = '$' + anchor.replace(' ', '_') + '$'
+        docstring, content = process_list_block(docstring,
+                                                shift,
+                                                leading_spaces,
+                                                marker)
+        sections[marker] = content
+        section_idx = re.search(section_regex, docstring[shift:])
+
+    # Format docstring section titles.
+    docstring = re.sub(r'\n(\s+)# (.*)\n',
+                       r'\n\1__\2__\n\n',
                        docstring)
 
-    docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
-                       r'    - __\1__:\2\n',
-                       docstring)
+    # Strip all remaining leading spaces.
+    lines = docstring.split('\n')
+    docstring = '\n'.join([line.lstrip(' ') for line in lines])
 
-    docstring = docstring.replace('    ' * 5, '\t\t')
-    docstring = docstring.replace('    ' * 3, '\t')
-    docstring = docstring.replace('    ', '')
-    return docstring
+    # Reinject list blocks.
+    for marker, content in sections.items():
+        docstring = docstring.replace(marker, content)
 
-
-def process_function_docstring(docstring):
-    docstring = re.sub(r'\n    # (.*)\n',
-                       r'\n    __\1__\n\n',
-                       docstring)
-    docstring = re.sub(r'\n        # (.*)\n',
-                       r'\n        __\1__\n\n',
-                       docstring)
-
-    docstring = re.sub(r'    ([^\s\\]+):(.*)\n',
-                       r'    - __\1__:\2\n',
-                       docstring)
-
-    docstring = docstring.replace('    ' * 6, '\t\t')
-    docstring = docstring.replace('    ' * 4, '\t')
-    docstring = docstring.replace('    ', '')
+    # Reinject code blocks.
+    for i, code_block in enumerate(code_blocks):
+        docstring = docstring.replace(
+            '$CODE_BLOCK_%d' % i, code_block)
     return docstring
 
 print('Cleaning up existing sources directory.')
@@ -408,76 +595,126 @@ for subdir, dirs, fnames in os.walk('templates'):
             new_fpath = fpath.replace('templates', 'sources')
             shutil.copy(fpath, new_fpath)
 
-print('Starting autogeneration.')
-for page_data in PAGES:
-    blocks = []
-    classes = page_data.get('classes', [])
-    for module in page_data.get('all_module_classes', []):
-        module_classes = []
-        for name in dir(module):
-            if name[0] == '_' or name in EXCLUDE:
-                continue
-            module_member = getattr(module, name)
-            if inspect.isclass(module_member):
-                cls = module_member
-                if cls.__module__ == module.__name__:
-                    if cls not in module_classes:
-                        module_classes.append(cls)
-        module_classes.sort(key=lambda x: id(x))
-        classes += module_classes
 
-    for cls in classes:
-        subblocks = []
-        signature = get_class_signature(cls)
-        subblocks.append('<span style="float:right;">' + class_to_source_link(cls) + '</span>')
-        subblocks.append('### ' + cls.__name__ + '\n')
-        subblocks.append(code_snippet(signature))
-        docstring = cls.__doc__
-        if docstring:
-            subblocks.append(process_class_docstring(docstring))
-        blocks.append('\n'.join(subblocks))
+# Take care of index page.
+def read_file(path):
+    with open(path) as f:
+        return f.read()
 
-    functions = page_data.get('functions', [])
-    for module in page_data.get('all_module_functions', []):
-        module_functions = []
-        for name in dir(module):
-            if name[0] == '_' or name in EXCLUDE:
-                continue
-            module_member = getattr(module, name)
-            if inspect.isfunction(module_member):
-                function = module_member
-                if module.__name__ in function.__module__:
-                    if function not in module_functions:
-                        module_functions.append(function)
-        module_functions.sort(key=lambda x: id(x))
-        functions += module_functions
 
-    for function in functions:
-        subblocks = []
-        signature = get_function_signature(function, method=False)
-        signature = signature.replace(function.__module__ + '.', '')
-        subblocks.append('### ' + function.__name__ + '\n')
-        subblocks.append(code_snippet(signature))
-        docstring = function.__doc__
-        if docstring:
-            subblocks.append(process_function_docstring(docstring))
-        blocks.append('\n\n'.join(subblocks))
+def collect_class_methods(cls, methods):
+    if isinstance(methods, (list, tuple)):
+        return [getattr(cls, m) if isinstance(m, str) else m for m in methods]
+    methods = []
+    for _, method in inspect.getmembers(cls, predicate=inspect.isroutine):
+        if method.__name__[0] == '_' or method.__name__ in EXCLUDE:
+            continue
+        methods.append(method)
+    return methods
 
-    mkdown = '\n----\n\n'.join(blocks)
-    # save module page.
-    # Either insert content into existing page,
-    # or create page otherwise
-    page_name = page_data['page']
-    path = os.path.join('sources', page_name)
-    if os.path.exists(path):
-        template = open(path).read()
-        assert '{{autogenerated}}' in template, ('Template found for ' + path +
-                                                 ' but missing {{autogenerated}} tag.')
-        mkdown = template.replace('{{autogenerated}}', mkdown)
-        print('...inserting autogenerated content into template:', path)
-    else:
-        print('...creating new page with autogenerated content:', path)
-    subdir = os.path.dirname(path)
-    if not os.path.exists(subdir):
-        os.makedirs(subdir)
-    open(path, 'w').write(mkdown)
+
+def render_function(function, method=True):
+    subblocks = []
+    signature = get_function_signature(function, method=method)
+    signature = signature.replace(function.__module__ + '.', '')
+    level = 3
+    subblocks.append('#' * level + ' ' + function.__name__ + '\n')
+    subblocks.append(code_snippet(signature))
+    docstring = function.__doc__
+    if docstring:
+        subblocks.append(process_docstring(docstring))
+    return '\n\n'.join(subblocks)
+
+
+if __name__ == '__main__':
+    readme = read_file('../README.md')
+    index = read_file('templates/index.md')
+    index = index.replace('{{autogenerated}}', readme[readme.find('##'):])
+    with open('sources/index.md', 'w') as f:
+        f.write(index)
+
+    print('Generating docs for Keras %s.' % keras.__version__)
+    for page_data in PAGES:
+        blocks = []
+        classes = page_data.get('classes', [])
+        for module in page_data.get('all_module_classes', []):
+            module_classes = []
+            for name in dir(module):
+                if name[0] == '_' or name in EXCLUDE:
+                    continue
+                module_member = getattr(module, name)
+                if inspect.isclass(module_member):
+                    cls = module_member
+                    if cls.__module__ == module.__name__:
+                        if cls not in module_classes:
+                            module_classes.append(cls)
+            module_classes.sort(key=lambda x: id(x))
+            classes += module_classes
+
+        for element in classes:
+            if not isinstance(element, (list, tuple)):
+                element = (element, [])
+            cls = element[0]
+            subblocks = []
+            signature = get_class_signature(cls)
+            subblocks.append('<span style="float:right;">' +
+                             class_to_source_link(cls) + '</span>')
+            if element[1]:
+                subblocks.append('## ' + cls.__name__ + ' class\n')
+            else:
+                subblocks.append('### ' + cls.__name__ + '\n')
+            subblocks.append(code_snippet(signature))
+            docstring = cls.__doc__
+            if docstring:
+                subblocks.append(process_docstring(docstring))
+            methods = collect_class_methods(cls, element[1])
+            if methods:
+                subblocks.append('\n---')
+                subblocks.append('## ' + cls.__name__ + ' methods\n')
+                subblocks.append('\n---\n'.join(
+                    [render_function(method, method=True) for method in methods]))
+            blocks.append('\n'.join(subblocks))
+
+        functions = page_data.get('functions', [])
+        for module in page_data.get('all_module_functions', []):
+            module_functions = []
+            for name in dir(module):
+                if name[0] == '_' or name in EXCLUDE:
+                    continue
+                module_member = getattr(module, name)
+                if inspect.isfunction(module_member):
+                    function = module_member
+                    if module.__name__ in function.__module__:
+                        if function not in module_functions:
+                            module_functions.append(function)
+            module_functions.sort(key=lambda x: id(x))
+            functions += module_functions
+
+        for function in functions:
+            blocks.append(render_function(function, method=False))
+
+        if not blocks:
+            raise RuntimeError('Found no content for page ' +
+                               page_data['page'])
+
+        mkdown = '\n----\n\n'.join(blocks)
+        # save module page.
+        # Either insert content into existing page,
+        # or create page otherwise
+        page_name = page_data['page']
+        path = os.path.join('sources', page_name)
+        if os.path.exists(path):
+            template = read_file(path)
+            assert '{{autogenerated}}' in template, ('Template found for ' + path +
+                                                     ' but missing {{autogenerated}} tag.')
+            mkdown = template.replace('{{autogenerated}}', mkdown)
+            print('...inserting autogenerated content into template:', path)
+        else:
+            print('...creating new page with autogenerated content:', path)
+        subdir = os.path.dirname(path)
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
+        with open(path, 'w') as f:
+            f.write(mkdown)
+
+    shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')

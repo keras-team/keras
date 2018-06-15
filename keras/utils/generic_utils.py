@@ -1,6 +1,9 @@
 """Python utilities required by Keras."""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+import binascii
 import numpy as np
 
 import time
@@ -9,6 +12,8 @@ import six
 import marshal
 import types as python_types
 import inspect
+import codecs
+import collections
 
 _GLOBAL_CUSTOM_OBJECTS = {}
 
@@ -24,11 +29,11 @@ class CustomObjectScope(object):
 
     # Example
 
-    Consider a custom object `MyObject`
+    Consider a custom object `MyObject` (e.g. a class):
 
     ```python
-        with CustomObjectScope({"MyObject":MyObject}):
-            layer = Dense(..., W_regularizer="MyObject")
+        with CustomObjectScope({'MyObject':MyObject}):
+            layer = Dense(..., kernel_regularizer='MyObject')
             # save, load, etc. will recognize custom object by name
     ```
     """
@@ -63,8 +68,8 @@ def custom_object_scope(*args):
     Consider a custom object `MyObject`
 
     ```python
-        with custom_object_scope({"MyObject":MyObject}):
-            layer = Dense(..., W_regularizer="MyObject")
+        with custom_object_scope({'MyObject':MyObject}):
+            layer = Dense(..., kernel_regularizer='MyObject')
             # save, load, etc. will recognize custom object by name
     ```
 
@@ -89,7 +94,7 @@ def get_custom_objects():
 
     ```python
         get_custom_objects().clear()
-        get_custom_objects()["MyObject"] = MyObject
+        get_custom_objects()['MyObject'] = MyObject
     ```
 
     # Returns
@@ -132,18 +137,21 @@ def deserialize_keras_object(identifier, module_objects=None,
                 raise ValueError('Unknown ' + printable_module_name +
                                  ': ' + class_name)
         if hasattr(cls, 'from_config'):
-            arg_spec = inspect.getargspec(cls.from_config)
-            if 'custom_objects' in arg_spec.args:
-                custom_objects = custom_objects or {}
-                return cls.from_config(config['config'],
-                                       custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
-                                                           list(custom_objects.items())))
-            return cls.from_config(config['config'])
+            custom_objects = custom_objects or {}
+            if has_arg(cls.from_config, 'custom_objects'):
+                return cls.from_config(
+                    config['config'],
+                    custom_objects=dict(list(_GLOBAL_CUSTOM_OBJECTS.items()) +
+                                        list(custom_objects.items())))
+            with CustomObjectScope(custom_objects):
+                return cls.from_config(config['config'])
         else:
             # Then `cls` may be a function returning a class.
             # in this case by convention `config` holds
             # the kwargs of the function.
-            return cls(**config['config'])
+            custom_objects = custom_objects or {}
+            with CustomObjectScope(custom_objects):
+                return cls(**config['config'])
     elif isinstance(identifier, six.string_types):
         function_name = identifier
         if custom_objects and function_name in custom_objects:
@@ -153,16 +161,12 @@ def deserialize_keras_object(identifier, module_objects=None,
         else:
             fn = module_objects.get(function_name)
             if fn is None:
-                raise ValueError('Unknown ' + printable_module_name,
-                                 ':' + class_name)
+                raise ValueError('Unknown ' + printable_module_name +
+                                 ':' + function_name)
         return fn
     else:
         raise ValueError('Could not interpret serialized ' +
                          printable_module_name + ': ' + identifier)
-
-
-def make_tuple(*args):
-    return args
 
 
 def func_dump(func):
@@ -174,7 +178,8 @@ def func_dump(func):
     # Returns
         A tuple `(code, defaults, closure)`.
     """
-    code = marshal.dumps(func.__code__).decode('raw_unicode_escape')
+    raw_code = marshal.dumps(func.__code__)
+    code = codecs.encode(raw_code, 'base64').decode('ascii')
     defaults = func.__defaults__
     if func.__closure__:
         closure = tuple(c.cell_contents for c in func.__closure__)
@@ -197,7 +202,37 @@ def func_load(code, defaults=None, closure=None, globs=None):
     """
     if isinstance(code, (tuple, list)):  # unpack previous dump
         code, defaults, closure = code
-    code = marshal.loads(code.encode('raw_unicode_escape'))
+        if isinstance(defaults, list):
+            defaults = tuple(defaults)
+
+    def ensure_value_to_cell(value):
+        """Ensures that a value is converted to a python cell object.
+
+        # Arguments
+            value: Any value that needs to be casted to the cell type
+
+        # Returns
+            A value wrapped as a cell object (see function "func_load")
+
+        """
+        def dummy_fn():
+            value  # just access it so it gets captured in .__closure__
+
+        cell_value = dummy_fn.__closure__[0]
+        if not isinstance(value, type(cell_value)):
+            return cell_value
+        else:
+            return value
+
+    if closure is not None:
+        closure = tuple(ensure_value_to_cell(_) for _ in closure)
+    try:
+        raw_code = codecs.decode(code.encode('ascii'), 'base64')
+        code = marshal.loads(raw_code)
+    except (UnicodeEncodeError, binascii.Error, ValueError):
+        # backwards compatibility for models serialized prior to 2.1.2
+        raw_code = code.encode('raw_unicode_escape')
+        code = marshal.loads(raw_code)
     if globs is None:
         globs = globals()
     return python_types.FunctionType(code, globs,
@@ -206,115 +241,278 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      closure=closure)
 
 
+def has_arg(fn, name, accept_all=False):
+    """Checks if a callable accepts a given keyword argument.
+
+    For Python 2, checks if there is an argument with the given name.
+
+    For Python 3, checks if there is an argument with the given name, and
+    also whether this argument can be called with a keyword (i.e. if it is
+    not a positional-only argument).
+
+    # Arguments
+        fn: Callable to inspect.
+        name: Check if `fn` can be called with `name` as a keyword argument.
+        accept_all: What to return if there is no parameter called `name`
+                    but the function accepts a `**kwargs` argument.
+
+    # Returns
+        bool, whether `fn` accepts a `name` keyword argument.
+    """
+    if sys.version_info < (3,):
+        arg_spec = inspect.getargspec(fn)
+        if accept_all and arg_spec.keywords is not None:
+            return True
+        return (name in arg_spec.args)
+    elif sys.version_info < (3, 3):
+        arg_spec = inspect.getfullargspec(fn)
+        if accept_all and arg_spec.varkw is not None:
+            return True
+        return (name in arg_spec.args or
+                name in arg_spec.kwonlyargs)
+    else:
+        signature = inspect.signature(fn)
+        parameter = signature.parameters.get(name)
+        if parameter is None:
+            if accept_all:
+                for param in signature.parameters.values():
+                    if param.kind == inspect.Parameter.VAR_KEYWORD:
+                        return True
+            return False
+        return (parameter.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                                   inspect.Parameter.KEYWORD_ONLY))
+
+
 class Progbar(object):
     """Displays a progress bar.
 
     # Arguments
-        target: Total number of steps expected.
+        target: Total number of steps expected, None if unknown.
+        width: Progress bar width on screen.
+        verbose: Verbosity mode, 0 (silent), 1 (verbose), 2 (semi-verbose)
+        stateful_metrics: Iterable of string names of metrics that
+            should *not* be averaged over time. Metrics in this list
+            will be displayed as-is. All others will be averaged
+            by the progbar before display.
         interval: Minimum visual progress update interval (in seconds).
     """
 
-    def __init__(self, target, width=30, verbose=1, interval=0.05):
-        self.width = width
+    def __init__(self, target, width=30, verbose=1, interval=0.05,
+                 stateful_metrics=None):
         self.target = target
-        self.sum_values = {}
-        self.unique_values = []
-        self.start = time.time()
-        self.last_update = 0
-        self.interval = interval
-        self.total_width = 0
-        self.seen_so_far = 0
+        self.width = width
         self.verbose = verbose
+        self.interval = interval
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
 
-    def update(self, current, values=None, force=False):
+        self._dynamic_display = ((hasattr(sys.stdout, 'isatty') and
+                                  sys.stdout.isatty()) or
+                                 'ipykernel' in sys.modules)
+        self._total_width = 0
+        self._seen_so_far = 0
+        self._values = collections.OrderedDict()
+        self._start = time.time()
+        self._last_update = 0
+
+    def update(self, current, values=None):
         """Updates the progress bar.
 
         # Arguments
             current: Index of current step.
-            values: List of tuples (name, value_for_last_step).
-                The progress bar will display averages for these values.
-            force: Whether to force visual progress update.
+            values: List of tuples:
+                `(name, value_for_last_step)`.
+                If `name` is in `stateful_metrics`,
+                `value_for_last_step` will be displayed as-is.
+                Else, an average of the metric over time will be displayed.
         """
         values = values or []
         for k, v in values:
-            if k not in self.sum_values:
-                self.sum_values[k] = [v * (current - self.seen_so_far),
-                                      current - self.seen_so_far]
-                self.unique_values.append(k)
+            if k not in self.stateful_metrics:
+                if k not in self._values:
+                    self._values[k] = [v * (current - self._seen_so_far),
+                                       current - self._seen_so_far]
+                else:
+                    self._values[k][0] += v * (current - self._seen_so_far)
+                    self._values[k][1] += (current - self._seen_so_far)
             else:
-                self.sum_values[k][0] += v * (current - self.seen_so_far)
-                self.sum_values[k][1] += (current - self.seen_so_far)
-        self.seen_so_far = current
+                # Stateful metrics output a numeric value.  This representation
+                # means "take an average from a single value" but keeps the
+                # numeric formatting.
+                self._values[k] = [v, 1]
+        self._seen_so_far = current
 
         now = time.time()
+        info = ' - %.0fs' % (now - self._start)
         if self.verbose == 1:
-            if not force and (now - self.last_update) < self.interval:
+            if (now - self._last_update < self.interval and
+                    self.target is not None and current < self.target):
                 return
 
-            prev_total_width = self.total_width
-            sys.stdout.write('\b' * prev_total_width)
-            sys.stdout.write('\r')
+            prev_total_width = self._total_width
+            if self._dynamic_display:
+                sys.stdout.write('\b' * prev_total_width)
+                sys.stdout.write('\r')
+            else:
+                sys.stdout.write('\n')
 
-            numdigits = int(np.floor(np.log10(self.target))) + 1
-            barstr = '%%%dd/%%%dd [' % (numdigits, numdigits)
-            bar = barstr % (current, self.target)
-            prog = float(current) / self.target
-            prog_width = int(self.width * prog)
-            if prog_width > 0:
-                bar += ('=' * (prog_width - 1))
-                if current < self.target:
-                    bar += '>'
-                else:
-                    bar += '='
-            bar += ('.' * (self.width - prog_width))
-            bar += ']'
+            if self.target is not None:
+                numdigits = int(np.floor(np.log10(self.target))) + 1
+                barstr = '%%%dd/%d [' % (numdigits, self.target)
+                bar = barstr % current
+                prog = float(current) / self.target
+                prog_width = int(self.width * prog)
+                if prog_width > 0:
+                    bar += ('=' * (prog_width - 1))
+                    if current < self.target:
+                        bar += '>'
+                    else:
+                        bar += '='
+                bar += ('.' * (self.width - prog_width))
+                bar += ']'
+            else:
+                bar = '%7d/Unknown' % current
+
+            self._total_width = len(bar)
             sys.stdout.write(bar)
-            self.total_width = len(bar)
 
             if current:
-                time_per_unit = (now - self.start) / current
+                time_per_unit = (now - self._start) / current
             else:
                 time_per_unit = 0
-            eta = time_per_unit * (self.target - current)
-            info = ''
-            if current < self.target:
-                info += ' - ETA: %ds' % eta
+            if self.target is not None and current < self.target:
+                eta = time_per_unit * (self.target - current)
+                if eta > 3600:
+                    eta_format = ('%d:%02d:%02d' %
+                                  (eta // 3600, (eta % 3600) // 60, eta % 60))
+                elif eta > 60:
+                    eta_format = '%d:%02d' % (eta // 60, eta % 60)
+                else:
+                    eta_format = '%ds' % eta
+
+                info = ' - ETA: %s' % eta_format
             else:
-                info += ' - %ds' % (now - self.start)
-            for k in self.unique_values:
+                if time_per_unit >= 1:
+                    info += ' %.0fs/step' % time_per_unit
+                elif time_per_unit >= 1e-3:
+                    info += ' %.0fms/step' % (time_per_unit * 1e3)
+                else:
+                    info += ' %.0fus/step' % (time_per_unit * 1e6)
+
+            for k in self._values:
                 info += ' - %s:' % k
-                if isinstance(self.sum_values[k], list):
-                    avg = self.sum_values[k][0] / max(1, self.sum_values[k][1])
+                if isinstance(self._values[k], list):
+                    avg = np.mean(
+                        self._values[k][0] / max(1, self._values[k][1]))
                     if abs(avg) > 1e-3:
                         info += ' %.4f' % avg
                     else:
                         info += ' %.4e' % avg
                 else:
-                    info += ' %s' % self.sum_values[k]
+                    info += ' %s' % self._values[k]
 
-            self.total_width += len(info)
-            if prev_total_width > self.total_width:
-                info += ((prev_total_width - self.total_width) * ' ')
+            self._total_width += len(info)
+            if prev_total_width > self._total_width:
+                info += (' ' * (prev_total_width - self._total_width))
+
+            if self.target is not None and current >= self.target:
+                info += '\n'
 
             sys.stdout.write(info)
             sys.stdout.flush()
 
-            if current >= self.target:
-                sys.stdout.write('\n')
-
-        if self.verbose == 2:
-            if current >= self.target:
-                info = '%ds' % (now - self.start)
-                for k in self.unique_values:
+        elif self.verbose == 2:
+            if self.target is None or current >= self.target:
+                for k in self._values:
                     info += ' - %s:' % k
-                    avg = self.sum_values[k][0] / max(1, self.sum_values[k][1])
+                    avg = np.mean(
+                        self._values[k][0] / max(1, self._values[k][1]))
                     if avg > 1e-3:
                         info += ' %.4f' % avg
                     else:
                         info += ' %.4e' % avg
-                sys.stdout.write(info + "\n")
+                info += '\n'
 
-        self.last_update = now
+                sys.stdout.write(info)
+                sys.stdout.flush()
+
+        self._last_update = now
 
     def add(self, n, values=None):
-        self.update(self.seen_so_far + n, values)
+        self.update(self._seen_so_far + n, values)
+
+
+def to_list(x):
+    """Normalizes a list/tensor into a list.
+
+    If a tensor is passed, we return
+    a list of size 1 containing the tensor.
+
+    # Arguments
+        x: target object to be normalized.
+
+    # Returns
+        A list.
+    """
+    if isinstance(x, list):
+        return x
+    return [x]
+
+
+def object_list_uid(object_list):
+    object_list = to_list(object_list)
+    return ', '.join([str(abs(id(x))) for x in object_list])
+
+
+def is_all_none(iterable_or_element):
+    if not isinstance(iterable_or_element, (list, tuple)):
+        iterable = [iterable_or_element]
+    else:
+        iterable = iterable_or_element
+    for element in iterable:
+        if element is not None:
+            return False
+    return True
+
+
+def slice_arrays(arrays, start=None, stop=None):
+    """Slices an array or list of arrays.
+
+    This takes an array-like, or a list of
+    array-likes, and outputs:
+        - arrays[start:stop] if `arrays` is an array-like
+        - [x[start:stop] for x in arrays] if `arrays` is a list
+
+    Can also work on list/array of indices: `_slice_arrays(x, indices)`
+
+    # Arguments
+        arrays: Single array or list of arrays.
+        start: can be an integer index (start index)
+            or a list/array of indices
+        stop: integer (stop index); should be None if
+            `start` was a list.
+
+    # Returns
+        A slice of the array(s).
+    """
+    if arrays is None:
+        return [None]
+    elif isinstance(arrays, list):
+        if hasattr(start, '__len__'):
+            # hdf5 datasets only support list objects as indices
+            if hasattr(start, 'shape'):
+                start = start.tolist()
+            return [None if x is None else x[start] for x in arrays]
+        else:
+            return [None if x is None else x[start:stop] for x in arrays]
+    else:
+        if hasattr(start, '__len__'):
+            if hasattr(start, 'shape'):
+                start = start.tolist()
+            return arrays[start]
+        elif hasattr(start, '__getitem__'):
+            return arrays[start:stop]
+        else:
+            return [None]

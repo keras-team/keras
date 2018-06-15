@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
+"""Normalization layers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-from ..engine import Layer, InputSpec
+from ..engine.base_layer import Layer, InputSpec
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -22,7 +26,7 @@ class BatchNormalization(Layer):
             For instance, after a `Conv2D` layer with
             `data_format="channels_first"`,
             set `axis=1` in `BatchNormalization`.
-        momentum: Momentum for the moving average.
+        momentum: Momentum for the moving mean and the moving variance.
         epsilon: Small float added to variance to avoid dividing by zero.
         center: If True, add offset of `beta` to normalized tensor.
             If False, `beta` is ignored.
@@ -96,7 +100,7 @@ class BatchNormalization(Layer):
         shape = (dim,)
 
         if self.scale:
-            self.gamma = self.add_weight(shape,
+            self.gamma = self.add_weight(shape=shape,
                                          name='gamma',
                                          initializer=self.gamma_initializer,
                                          regularizer=self.gamma_regularizer,
@@ -104,7 +108,7 @@ class BatchNormalization(Layer):
         else:
             self.gamma = None
         if self.center:
-            self.beta = self.add_weight(shape,
+            self.beta = self.add_weight(shape=shape,
                                         name='beta',
                                         initializer=self.beta_initializer,
                                         regularizer=self.beta_regularizer,
@@ -112,12 +116,12 @@ class BatchNormalization(Layer):
         else:
             self.beta = None
         self.moving_mean = self.add_weight(
-            shape,
+            shape=shape,
             name='moving_mean',
             initializer=self.moving_mean_initializer,
             trainable=False)
         self.moving_variance = self.add_weight(
-            shape,
+            shape=shape,
             name='moving_variance',
             initializer=self.moving_variance_initializer,
             trainable=False)
@@ -133,57 +137,69 @@ class BatchNormalization(Layer):
         broadcast_shape[self.axis] = input_shape[self.axis]
 
         # Determines whether broadcasting is needed.
-        needs_broadcasting = (sorted(reduction_axes) != range(ndim)[:-1])
+        needs_broadcasting = (sorted(reduction_axes) != list(range(ndim))[:-1])
 
-        normed, mean, variance = K.normalize_batch_in_training(
+        def normalize_inference():
+            if needs_broadcasting:
+                # In this case we must explicitly broadcast all parameters.
+                broadcast_moving_mean = K.reshape(self.moving_mean,
+                                                  broadcast_shape)
+                broadcast_moving_variance = K.reshape(self.moving_variance,
+                                                      broadcast_shape)
+                if self.center:
+                    broadcast_beta = K.reshape(self.beta, broadcast_shape)
+                else:
+                    broadcast_beta = None
+                if self.scale:
+                    broadcast_gamma = K.reshape(self.gamma,
+                                                broadcast_shape)
+                else:
+                    broadcast_gamma = None
+                return K.batch_normalization(
+                    inputs,
+                    broadcast_moving_mean,
+                    broadcast_moving_variance,
+                    broadcast_beta,
+                    broadcast_gamma,
+                    axis=self.axis,
+                    epsilon=self.epsilon)
+            else:
+                return K.batch_normalization(
+                    inputs,
+                    self.moving_mean,
+                    self.moving_variance,
+                    self.beta,
+                    self.gamma,
+                    axis=self.axis,
+                    epsilon=self.epsilon)
+
+        # If the learning phase is *static* and set to inference:
+        if training in {0, False}:
+            return normalize_inference()
+
+        # If the learning is either dynamic, or set to training:
+        normed_training, mean, variance = K.normalize_batch_in_training(
             inputs, self.gamma, self.beta, reduction_axes,
             epsilon=self.epsilon)
 
-        if training in {0, False}:
-            return normed
-        else:
-            self.add_update([K.moving_average_update(self.moving_mean,
-                                                     mean,
-                                                     self.momentum),
-                             K.moving_average_update(self.moving_variance,
-                                                     variance,
-                                                     self.momentum)],
-                            inputs)
+        if K.backend() != 'cntk':
+            sample_size = K.prod([K.shape(inputs)[axis]
+                                  for axis in reduction_axes])
+            sample_size = K.cast(sample_size, dtype=K.dtype(inputs))
 
-            def normalize_inference():
-                if needs_broadcasting:
-                    # In this case we must explictly broadcast all parameters.
-                    broadcast_moving_mean = K.reshape(self.moving_mean,
-                                                      broadcast_shape)
-                    broadcast_moving_variance = K.reshape(self.moving_variance,
-                                                          broadcast_shape)
-                    if self.center:
-                        broadcast_beta = K.reshape(self.beta, broadcast_shape)
-                    else:
-                        broadcast_beta = None
-                    if self.scale:
-                        broadcast_gamma = K.reshape(self.gamma,
-                                                    broadcast_shape)
-                    else:
-                        broadcast_gamma = None
-                    return K.batch_normalization(
-                        inputs,
-                        broadcast_moving_mean,
-                        broadcast_moving_variance,
-                        broadcast_beta,
-                        broadcast_gamma,
-                        epsilon=self.epsilon)
-                else:
-                    return K.batch_normalization(
-                        inputs,
-                        self.moving_mean,
-                        self.moving_variance,
-                        self.beta,
-                        self.gamma,
-                        epsilon=self.epsilon)
+            # sample variance - unbiased estimator of population variance
+            variance *= sample_size / (sample_size - (1.0 + self.epsilon))
+
+        self.add_update([K.moving_average_update(self.moving_mean,
+                                                 mean,
+                                                 self.momentum),
+                         K.moving_average_update(self.moving_variance,
+                                                 variance,
+                                                 self.momentum)],
+                        inputs)
 
         # Pick the normalized form corresponding to the training phase.
-        return K.in_train_phase(normed,
+        return K.in_train_phase(normed_training,
                                 normalize_inference,
                                 training=training)
 
@@ -205,3 +221,6 @@ class BatchNormalization(Layer):
         }
         base_config = super(BatchNormalization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

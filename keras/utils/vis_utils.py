@@ -1,30 +1,50 @@
 """Utilities related to model visualization."""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import os
 
+# `pydot` is an optional dependency,
+# see `extras_require` in `setup.py`.
 try:
-    # pydot-ng is a fork of pydot that is better maintained.
-    import pydot_ng as pydot
+    import pydot
 except ImportError:
-    # Fall back on pydot if necessary.
-    try:
-        import pydot
-    except ImportError:
-        pydot = None
+    pydot = None
 
 
 def _check_pydot():
-    if not (pydot and pydot.find_graphviz()):
-        raise ImportError('Failed to import pydot. You must install pydot'
-                          ' and graphviz for `pydotprint` to work.')
+    """Raise errors if `pydot` or GraphViz unavailable."""
+    if pydot is None:
+        raise ImportError(
+            'Failed to import `pydot`. '
+            'Please install `pydot`. '
+            'For example with `pip install pydot`.')
+    try:
+        # Attempt to create an image of a blank graph
+        # to check the pydot/graphviz installation.
+        pydot.Dot.create(pydot.Dot())
+    except OSError:
+        raise OSError(
+            '`pydot` failed to call GraphViz.'
+            'Please install GraphViz (https://www.graphviz.org/) '
+            'and ensure that its executables are in the $PATH.')
 
 
-def model_to_dot(model, show_shapes=False, show_layer_names=True):
-    """Converts a Keras model to dot format.
+def model_to_dot(model,
+                 show_shapes=False,
+                 show_layer_names=True,
+                 rankdir='TB'):
+    """Convert a Keras model to dot format.
 
     # Arguments
         model: A Keras model instance.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
+        rankdir: `rankdir` argument passed to PyDot,
+            a string specifying the format of the plot:
+            'TB' creates a vertical plot;
+            'LR' creates a horizontal plot.
 
     # Returns
         A `pydot.Dot` instance representing the Keras model.
@@ -34,14 +54,13 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
 
     _check_pydot()
     dot = pydot.Dot()
-    dot.set('rankdir', 'TB')
+    dot.set('rankdir', rankdir)
     dot.set('concentrate', True)
     dot.set_node_defaults(shape='record')
 
     if isinstance(model, Sequential):
         if not model.built:
             model.build()
-        model = model.model
     layers = model.layers
 
     # Create graph nodes.
@@ -75,17 +94,18 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
                     [str(ishape) for ishape in layer.input_shapes])
             else:
                 inputlabels = 'multiple'
-            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label, inputlabels, outputlabels)
-
+            label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
+                                                           inputlabels,
+                                                           outputlabels)
         node = pydot.Node(layer_id, label=label)
         dot.add_node(node)
 
     # Connect nodes with edges.
     for layer in layers:
         layer_id = str(id(layer))
-        for i, node in enumerate(layer.inbound_nodes):
+        for i, node in enumerate(layer._inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
-            if node_key in model.container_nodes:
+            if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
                     layer_id = str(id(layer))
@@ -96,8 +116,21 @@ def model_to_dot(model, show_shapes=False, show_layer_names=True):
 def plot_model(model,
                to_file='model.png',
                show_shapes=False,
-               show_layer_names=True):
-    dot = model_to_dot(model, show_shapes, show_layer_names)
+               show_layer_names=True,
+               rankdir='TB'):
+    """Converts a Keras model to dot format and save to a file.
+
+    # Arguments
+        model: A Keras model instance
+        to_file: File name of the plot image.
+        show_shapes: whether to display shape information.
+        show_layer_names: whether to display layer names.
+        rankdir: `rankdir` argument passed to PyDot,
+            a string specifying the format of the plot:
+            'TB' creates a vertical plot;
+            'LR' creates a horizontal plot.
+    """
+    dot = model_to_dot(model, show_shapes, show_layer_names, rankdir)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = 'png'

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
+"""Core Keras layers.
+"""
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 
 import copy
-import inspect
 import types as python_types
 import warnings
 
@@ -14,11 +16,13 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import InputSpec
-from ..engine import Layer
+from ..engine.base_layer import InputSpec
+from ..engine.base_layer import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
+from ..utils.generic_utils import has_arg
+from ..utils import conv_utils
 from ..legacy import interfaces
 
 
@@ -27,7 +31,7 @@ class Masking(Layer):
 
     For each timestep in the input tensor (dimension #1 in the tensor),
     if all values in the input tensor at that timestep
-    are equal to `mask_value`, then the timestep will masked (skipped)
+    are equal to `mask_value`, then the timestep will be masked (skipped)
     in all downstream layers (as long as they support masking).
 
     If any downstream layer does not support masking yet receives such
@@ -36,7 +40,7 @@ class Masking(Layer):
     # Example
 
     Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
-    to be fed to a LSTM layer.
+    to be fed to an LSTM layer.
     You want to mask timestep #3 and #5 because you lack data for
     these timesteps. You can:
 
@@ -56,24 +60,28 @@ class Masking(Layer):
         self.mask_value = mask_value
 
     def compute_mask(self, inputs, mask=None):
-        return K.any(K.not_equal(inputs, self.mask_value), axis=-1)
+        output_mask = K.any(K.not_equal(inputs, self.mask_value), axis=-1)
+        return output_mask
 
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
                              axis=-1, keepdims=True)
-        return inputs * K.cast(boolean_mask, K.floatx())
+        return inputs * K.cast(boolean_mask, K.dtype(inputs))
 
     def get_config(self):
         config = {'mask_value': self.mask_value}
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class Dropout(Layer):
     """Applies Dropout to the input.
 
     Dropout consists in randomly setting
-    a fraction `p` of input units to 0 at each update during training time,
+    a fraction `rate` of input units to 0 at each update during training time,
     which helps prevent overfitting.
 
     # Arguments
@@ -97,8 +105,14 @@ class Dropout(Layer):
         self.seed = seed
         self.supports_masking = True
 
-    def _get_noise_shape(self, _):
-        return self.noise_shape
+    def _get_noise_shape(self, inputs):
+        if self.noise_shape is None:
+            return self.noise_shape
+
+        symbolic_shape = K.shape(inputs)
+        noise_shape = [symbolic_shape[axis] if shape is None else shape
+                       for axis, shape in enumerate(self.noise_shape)]
+        return tuple(noise_shape)
 
     def call(self, inputs, training=None):
         if 0. < self.rate < 1.:
@@ -107,14 +121,19 @@ class Dropout(Layer):
             def dropped_inputs():
                 return K.dropout(inputs, self.rate, noise_shape,
                                  seed=self.seed)
-            output = K.in_train_phase(dropped_inputs, inputs,
-                                      training=training)
-        return output
+            return K.in_train_phase(dropped_inputs, inputs,
+                                    training=training)
+        return inputs
 
     def get_config(self):
-        config = {'rate': self.rate}
+        config = {'rate': self.rate,
+                  'noise_shape': self.noise_shape,
+                  'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class SpatialDropout1D(Dropout):
@@ -129,7 +148,7 @@ class SpatialDropout1D(Dropout):
     between feature maps and should be used instead.
 
     # Arguments
-        p: float between 0 and 1. Fraction of the input units to drop.
+        rate: float between 0 and 1. Fraction of the input units to drop.
 
     # Input shape
         3D tensor with shape:
@@ -193,8 +212,8 @@ class SpatialDropout2D(Dropout):
         if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{"channels_last", "channels_first"}')
+            raise ValueError('`data_format` must be in '
+                             '{`"channels_last"`, `"channels_first"`}')
         self.data_format = data_format
         self.input_spec = InputSpec(ndim=4)
 
@@ -202,10 +221,8 @@ class SpatialDropout2D(Dropout):
         input_shape = K.shape(inputs)
         if self.data_format == 'channels_first':
             noise_shape = (input_shape[0], input_shape[1], 1, 1)
-        elif self.data_format == 'channels_last':
-            noise_shape = (input_shape[0], 1, 1, input_shape[3])
         else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            noise_shape = (input_shape[0], 1, 1, input_shape[3])
         return noise_shape
 
 
@@ -248,8 +265,8 @@ class SpatialDropout3D(Dropout):
         if data_format is None:
             data_format = K.image_data_format()
         if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('data_format must be in '
-                             '{"channels_last", "channels_first"}')
+            raise ValueError('`data_format` must be in '
+                             '{`"channels_last"`, `"channels_first"`}')
         self.data_format = data_format
         self.input_spec = InputSpec(ndim=5)
 
@@ -257,10 +274,8 @@ class SpatialDropout3D(Dropout):
         input_shape = K.shape(inputs)
         if self.data_format == 'channels_first':
             noise_shape = (input_shape[0], input_shape[1], 1, 1, 1)
-        elif self.data_format == 'channels_last':
-            noise_shape = (input_shape[0], 1, 1, 1, input_shape[4])
         else:
-            raise ValueError('Invalid data_format:', self.data_format)
+            noise_shape = (input_shape[0], 1, 1, 1, input_shape[4])
         return noise_shape
 
 
@@ -294,18 +309,21 @@ class Activation(Layer):
         base_config = super(Activation, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class Reshape(Layer):
     """Reshapes an output to a certain shape.
 
     # Arguments
-        target_shape: target shape. Tuple of integers,
-            does not include the samples dimension (batch size).
+        target_shape: target shape. Tuple of integers.
+            Does not include the batch axis.
 
     # Input shape
         Arbitrary, although all dimensions in the input shaped must be fixed.
         Use the keyword argument `input_shape`
-        (tuple of integers, does not include the samples axis)
+        (tuple of integers, does not include the batch axis)
         when using this layer as the first layer in a model.
 
     # Output shape
@@ -335,27 +353,22 @@ class Reshape(Layer):
         self.target_shape = tuple(target_shape)
 
     def _fix_unknown_dimension(self, input_shape, output_shape):
-        """Find and replace a missing dimension in an output shape.
+        """Finds and replaces a missing dimension in an output shape.
 
         This is a near direct port of the internal Numpy function
         `_fix_unknown_dimension` in `numpy/core/src/multiarray/shape.c`
 
         # Arguments
-            input_shape: shape of array being reshaped
-            output_shape: desired shape of the array with at most
+            input_shape: original shape of array being reshaped
+            output_shape: target shape of the array, with at most
                 a single -1 which indicates a dimension that should be
                 derived from the input shape.
 
         # Returns
-            The new output shape with a -1 replaced with its computed value.
-
-            Raises a ValueError if the total array size of the output_shape is
-            different then the input_shape, or more then one unknown dimension
-            is specified.
+            The new output shape with a `-1` replaced with its computed value.
 
         # Raises
-            ValueError: in case of invalid values
-                for `input_shape` or `input_shape`.
+            ValueError: if `input_shape` and `output_shape` do not match.
         """
         output_shape = list(output_shape)
         msg = 'total size of new array must be unchanged'
@@ -381,26 +394,17 @@ class Reshape(Layer):
         return tuple(output_shape)
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0],) + self._fix_unknown_dimension(
-            input_shape[1:], self.target_shape)
+        if None in input_shape[1:]:
+            # input shape (partially) unknown? replace -1's with None's
+            return ((input_shape[0],) +
+                    tuple(s if s != -1 else None for s in self.target_shape))
+        else:
+            # input shape known? then we can compute the output shape
+            return (input_shape[0],) + self._fix_unknown_dimension(
+                input_shape[1:], self.target_shape)
 
     def call(self, inputs):
-        # In case the target shape is not fully defined,
-        # we need access to the shape of x.
-        # solution:
-        # 1) rely on x._keras_shape
-        # 2) fallback: K.int_shape
-        target_shape = self.target_shape
-        if -1 in target_shape:
-            # target shape not fully defined
-            input_shape = None
-            try:
-                input_shape = K.int_shape(inputs)
-            except TypeError:
-                pass
-            if input_shape is not None:
-                target_shape = self.compute_output_shape(input_shape)[1:]
-        return K.reshape(inputs, (-1,) + target_shape)
+        return K.reshape(inputs, (K.shape(inputs)[0],) + self.target_shape)
 
     def get_config(self):
         config = {'target_shape': self.target_shape}
@@ -463,13 +467,27 @@ class Permute(Layer):
 class Flatten(Layer):
     """Flattens the input. Does not affect the batch size.
 
+    # Arguments
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            The purpose of this argument is to preserve weight
+            ordering when switching a model from one data format
+            to another.
+            `channels_last` corresponds to inputs with shape
+            `(batch, ..., channels)` while `channels_first` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+
     # Example
 
     ```python
         model = Sequential()
-        model.add(Convolution2D(64, 3, 3,
-                                border_mode='same',
-                                input_shape=(3, 32, 32)))
+        model.add(Conv2D(64, 3, 3,
+                         border_mode='same',
+                         input_shape=(3, 32, 32)))
         # now: model.output_shape == (None, 64, 32, 32)
 
         model.add(Flatten())
@@ -477,9 +495,10 @@ class Flatten(Layer):
     ```
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, data_format=None, **kwargs):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
+        self.data_format = conv_utils.normalize_data_format(data_format)
 
     def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):
@@ -492,7 +511,20 @@ class Flatten(Layer):
         return (input_shape[0], np.prod(input_shape[1:]))
 
     def call(self, inputs):
+        if self.data_format == 'channels_first':
+            # Ensure works for any dim
+            permutation = [0]
+            permutation.extend([i for i in
+                                range(2, K.ndim(inputs))])
+            permutation.append(1)
+            inputs = K.permute_dimensions(inputs, permutation)
+
         return K.batch_flatten(inputs)
+
+    def get_config(self):
+        config = {'data_format': self.data_format}
+        base_config = super(Flatten, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class RepeatVector(Layer):
@@ -648,13 +680,15 @@ class Lambda(Layer):
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
-                raise ValueError('output_shape function must return a tuple')
-            return tuple(shape)
+                raise ValueError('`output_shape` function must return a tuple or a list of tuples.')
+            if isinstance(shape, list):
+                if isinstance(shape[0], int) or shape[0] is None:
+                    shape = tuple(shape)
+            return shape
 
     def call(self, inputs, mask=None):
         arguments = self.arguments
-        arg_spec = inspect.getargspec(self.function)
-        if 'mask' in arg_spec.args:
+        if has_arg(self.function, 'mask'):
             arguments['mask'] = mask
         return self.function(inputs, **arguments)
 
@@ -691,6 +725,7 @@ class Lambda(Layer):
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
+        config = config.copy()
         globs = globals()
         if custom_objects:
             globs = dict(list(globs.items()) + list(custom_objects.items()))
@@ -719,6 +754,16 @@ class Lambda(Layer):
             output_shape = func_load(config['output_shape'], globs=globs)
         else:
             output_shape = config['output_shape']
+
+        # If arguments were numpy array, they have been saved as
+        # list. We need to recover the ndarray
+        if 'arguments' in config:
+            for key in config['arguments']:
+                if isinstance(config['arguments'][key], dict):
+                    arg_dict = config['arguments'][key]
+                    if 'type' in arg_dict and arg_dict['type'] == 'ndarray':
+                        # Overwrite the argument with its numpy translation
+                        config['arguments'][key] = np.array(arg_dict['value'])
 
         config['function'] = function
         config['output_shape'] = output_shape
@@ -820,13 +865,13 @@ class Dense(Layer):
         assert len(input_shape) >= 2
         input_dim = input_shape[-1]
 
-        self.kernel = self.add_weight((input_dim, self.units),
+        self.kernel = self.add_weight(shape=(input_dim, self.units),
                                       initializer=self.kernel_initializer,
                                       name='kernel',
                                       regularizer=self.kernel_regularizer,
                                       constraint=self.kernel_constraint)
         if self.use_bias:
-            self.bias = self.add_weight((self.units,),
+            self.bias = self.add_weight(shape=(self.units,),
                                         initializer=self.bias_initializer,
                                         name='bias',
                                         regularizer=self.bias_regularizer,
@@ -857,7 +902,7 @@ class Dense(Layer):
             'activation': activations.serialize(self.activation),
             'use_bias': self.use_bias,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'bias_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
             'activity_regularizer': regularizers.serialize(self.activity_regularizer),
@@ -896,3 +941,6 @@ class ActivityRegularization(Layer):
                   'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

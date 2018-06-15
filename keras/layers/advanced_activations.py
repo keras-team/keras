@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
+"""Layers that act as activation functions.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
+from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from .. import backend as K
 from ..legacy import interfaces
 
@@ -41,9 +46,12 @@ class LeakyReLU(Layer):
         return K.relu(inputs, alpha=self.alpha)
 
     def get_config(self):
-        config = {'alpha': self.alpha}
+        config = {'alpha': float(self.alpha)}
         base_config = super(LeakyReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class PReLU(Layer):
@@ -104,7 +112,7 @@ class PReLU(Layer):
             for i in self.shared_axes:
                 param_shape[i - 1] = 1
                 self.param_broadcast[i - 1] = True
-        self.alpha = self.add_weight(param_shape,
+        self.alpha = self.add_weight(shape=param_shape,
                                      name='alpha',
                                      initializer=self.alpha_initializer,
                                      regularizer=self.alpha_regularizer,
@@ -136,6 +144,9 @@ class PReLU(Layer):
         }
         base_config = super(PReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class ELU(Layer):
@@ -173,6 +184,9 @@ class ELU(Layer):
         base_config = super(ELU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
 
 class ThresholdedReLU(Layer):
     """Thresholded Rectified Linear Unit.
@@ -202,9 +216,76 @@ class ThresholdedReLU(Layer):
         self.theta = K.cast_to_floatx(theta)
 
     def call(self, inputs, mask=None):
-        return inputs * K.cast(inputs > self.theta, K.floatx())
+        return inputs * K.cast(K.greater(inputs, self.theta), K.floatx())
 
     def get_config(self):
         config = {'theta': float(self.theta)}
         base_config = super(ThresholdedReLU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class Softmax(Layer):
+    """Softmax activation function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        axis: Integer, axis along which the softmax normalization is applied.
+    """
+
+    def __init__(self, axis=-1, **kwargs):
+        super(Softmax, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.axis = axis
+
+    def call(self, inputs):
+        return activations.softmax(inputs, axis=self.axis)
+
+    def get_config(self):
+        config = {'axis': self.axis}
+        base_config = super(Softmax, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
+
+
+class ReLU(Layer):
+    """Rectified Linear Unit activation function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        max_value: Float, the maximum output value.
+    """
+
+    def __init__(self, max_value=None, **kwargs):
+        super(ReLU, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.max_value = max_value
+
+    def call(self, inputs):
+        return activations.relu(inputs, max_value=self.max_value)
+
+    def get_config(self):
+        config = {'max_value': self.max_value}
+        base_config = super(ReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

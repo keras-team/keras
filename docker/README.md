@@ -16,7 +16,7 @@ quick links here:
 
 We are using `Makefile` to simplify docker commands within make commands.
 
-Build the container and start a jupyter notebook
+Build the container and start a Jupyter Notebook
 
     $ make notebook
 
@@ -28,7 +28,7 @@ Build the container and start a bash
 
     $ make bash
 
-For GPU support install NVidia drivers (ideally latest) and
+For GPU support install NVIDIA drivers (ideally latest) and
 [nvidia-docker](https://github.com/NVIDIA/nvidia-docker). Run using
 
     $ make notebook GPU=0 # or [ipython, bash]

@@ -15,11 +15,11 @@ reconstructed_layer = Dense.from_config(config)
 Or:
 
 ```python
-from keras.utils.layer_utils import layer_from_config
+from keras import layers
 
 config = layer.get_config()
-layer = layer_from_config({'class_name': layer.__class__.__name__,
-                           'config': config})
+layer = layers.deserialize({'class_name': layer.__class__.__name__,
+                            'config': config})
 ```
 
 If a layer has a single node (i.e. if it isn't a shared layer), you can get its input tensor, output tensor, input shape and output shape via:

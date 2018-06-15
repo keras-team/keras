@@ -11,10 +11,13 @@ docs/theme/*
 docs/sources/*
 tags
 Keras.egg-info
+examples/img/*
 
 # test-related
 .coverage
 .cache
+.pytest_cache
 
 # developer environments
 .idea
+.vscode

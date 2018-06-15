@@ -1,4 +1,9 @@
+"""Built-in weight initializers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import six
 from . import backend as K
@@ -18,18 +23,24 @@ class Initializer(object):
 
     @classmethod
     def from_config(cls, config):
+        if 'dtype' in config:
+            # Initializers saved from `tf.keras`
+            # may contain an unused `dtype` argument.
+            config.pop('dtype')
         return cls(**config)
 
 
 class Zeros(Initializer):
-    """Initializer that generates tensors initialized to 0."""
+    """Initializer that generates tensors initialized to 0.
+    """
 
     def __call__(self, shape, dtype=None):
         return K.constant(0, shape=shape, dtype=dtype)
 
 
 class Ones(Initializer):
-    """Initializer that generates tensors initialized to 1."""
+    """Initializer that generates tensors initialized to 1.
+    """
 
     def __call__(self, shape, dtype=None):
         return K.constant(1, shape=shape, dtype=dtype)
@@ -111,7 +122,7 @@ class RandomUniform(Initializer):
 class TruncatedNormal(Initializer):
     """Initializer that generates a truncated normal distribution.
 
-    These values are similar to values from a `random_normal_initializer`
+    These values are similar to values from a `RandomNormal`
     except that values more than two standard deviations from the mean
     are discarded and re-drawn. This is the recommended initializer for
     neural network weights and filters.
@@ -146,6 +157,7 @@ class VarianceScaling(Initializer):
 
     With `distribution="normal"`, samples are drawn from a truncated normal
     distribution centered on zero, with `stddev = sqrt(scale / n)` where n is:
+
         - number of input units in the weight tensor, if mode = "fan_in"
         - number of output units, if mode = "fan_out"
         - average of the numbers of input and output units, if mode = "fan_avg"
@@ -196,7 +208,8 @@ class VarianceScaling(Initializer):
         else:
             scale /= max(1., float(fan_in + fan_out) / 2)
         if self.distribution == 'normal':
-            stddev = np.sqrt(scale)
+            # 0.879... = scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
+            stddev = np.sqrt(scale) / .87962566103423978
             return K.truncated_normal(shape, 0., stddev,
                                       dtype=dtype, seed=self.seed)
         else:
@@ -368,6 +381,29 @@ def he_normal(seed=None):
                            seed=seed)
 
 
+def lecun_normal(seed=None):
+    """LeCun normal initializer.
+
+    It draws samples from a truncated normal distribution centered on 0
+    with `stddev = sqrt(1 / fan_in)`
+    where `fan_in` is the number of input units in the weight tensor.
+
+    # Arguments
+        seed: A Python integer. Used to seed the random generator.
+
+    # Returns
+        An initializer.
+
+    # References
+        - [Self-Normalizing Neural Networks](https://arxiv.org/abs/1706.02515)
+        - [Efficient Backprop](http://yann.lecun.com/exdb/publis/pdf/lecun-98b.pdf)
+    """
+    return VarianceScaling(scale=1.,
+                           mode='fan_in',
+                           distribution='normal',
+                           seed=seed)
+
+
 def he_uniform(seed=None):
     """He uniform variance scaling initializer.
 
@@ -432,7 +468,7 @@ def _compute_fans(shape, data_format='channels_last'):
             fan_in = shape[1] * receptive_field_size
             fan_out = shape[0] * receptive_field_size
         elif data_format == 'channels_last':
-            receptive_field_size = np.prod(shape[:2])
+            receptive_field_size = np.prod(shape[:-2])
             fan_in = shape[-2] * receptive_field_size
             fan_out = shape[-1] * receptive_field_size
         else:
@@ -464,5 +500,5 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError('Could not interpret initializer identifier:',
-                         identifier)
+        raise ValueError('Could not interpret initializer identifier: ' +
+                         str(identifier))

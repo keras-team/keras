@@ -1,4 +1,5 @@
 """ This script demonstrates the use of a convolutional LSTM network.
+
 This network is used to predict the next frame of an artificially
 generated movie which contains moving squares.
 """
@@ -125,7 +126,7 @@ for i in range(15):
     if i >= 7:
         ax.text(1, 3, 'Predictions !', fontsize=20, color='w')
     else:
-        ax.text(1, 3, 'Inital trajectory', fontsize=20)
+        ax.text(1, 3, 'Initial trajectory', fontsize=20)
 
     toplot = track[i, ::, ::, 0]
 

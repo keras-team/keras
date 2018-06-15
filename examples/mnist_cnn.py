@@ -20,7 +20,7 @@ epochs = 12
 # input image dimensions
 img_rows, img_cols = 28, 28
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 if K.image_data_format() == 'channels_first':
@@ -60,8 +60,11 @@ model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer=keras.optimizers.Adadelta(),
               metrics=['accuracy'])
 
-model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs,
-          verbose=1, validation_data=(x_test, y_test))
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
 score = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])

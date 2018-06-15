@@ -1,4 +1,9 @@
+"""CIFAR100 small images classification dataset.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from .cifar import load_batch
 from ..utils.data_utils import get_file
 from .. import backend as K
@@ -19,10 +24,10 @@ def load_data(label_mode='fine'):
         ValueError: in case of invalid `label_mode`.
     """
     if label_mode not in ['fine', 'coarse']:
-        raise ValueError('label_mode must be one of "fine" "coarse".')
+        raise ValueError('`label_mode` must be one of `"fine"`, `"coarse"`.')
 
     dirname = 'cifar-100-python'
-    origin = 'http://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
+    origin = 'https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
     path = get_file(dirname, origin=origin, untar=True)
 
     fpath = os.path.join(path, 'train')

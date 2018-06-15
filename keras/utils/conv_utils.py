@@ -1,3 +1,9 @@
+"""Utilities used in convolutional layers.
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from six.moves import range
 import numpy as np
 from .. import backend as K
@@ -70,7 +76,7 @@ def convert_kernel(kernel):
     Also works reciprocally, since the transformation is its own inverse.
 
     # Arguments
-        kernel: Numpy array (4D or 5D).
+        kernel: Numpy array (3D, 4D or 5D).
 
     # Returns
         The converted kernel.
@@ -78,7 +84,8 @@ def convert_kernel(kernel):
     # Raises
         ValueError: in case of invalid kernel shape or invalid data_format.
     """
-    if not 4 <= kernel.ndim <= 5:
+    kernel = np.asarray(kernel)
+    if not 3 <= kernel.ndim <= 5:
         raise ValueError('Invalid kernel shape:', kernel.shape)
     slices = [slice(None, None, -1) for _ in range(kernel.ndim)]
     no_flip = (slice(None, None), slice(None, None))
@@ -140,10 +147,12 @@ def conv_input_length(output_length, filter_size, padding, stride):
 
 
 def deconv_length(dim_size, stride_size, kernel_size, padding):
-    if dim_size is not None:
-        dim_size *= stride_size
-    if padding == 'valid' and dim_size is not None:
-        dim_size += max(kernel_size - stride_size, 0)
-    if padding == 'full' and dim_size is not None:
-        dim_size -= stride_size + kernel_size - 2
+    if dim_size is None:
+        return None
+    if padding == 'valid':
+        dim_size = dim_size * stride_size + max(kernel_size - stride_size, 0)
+    elif padding == 'full':
+        dim_size = dim_size * stride_size - (stride_size + kernel_size - 2)
+    elif padding == 'same':
+        dim_size = dim_size * stride_size
     return dim_size

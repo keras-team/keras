@@ -1,3 +1,7 @@
+"""Utilities related to layer/model functionality.
+"""
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 from .conv_utils import convert_kernel
@@ -5,22 +9,68 @@ from .. import backend as K
 import numpy as np
 
 
-def print_summary(model, line_length=None, positions=None):
+def count_params(weights):
+    """Count the total number of scalars composing the weights.
+
+    # Arguments
+        weights: An iterable containing the weights on which to compute params
+
+    # Returns
+        The total number of scalars composing the weights
+    """
+    return int(np.sum([K.count_params(p) for p in set(weights)]))
+
+
+def print_summary(model, line_length=None, positions=None, print_fn=None):
     """Prints a summary of a model.
 
     # Arguments
         model: Keras model instance.
-        line_length: total length of printed lines
-        positions: relative or absolute positions of log elements in each line.
+        line_length: Total length of printed lines
+            (e.g. set this to adapt the display to different
+            terminal window sizes).
+        positions: Relative or absolute positions of log elements in each line.
             If not provided, defaults to `[.33, .55, .67, 1.]`.
+        print_fn: Print function to use.
+            It will be called on each line of the summary.
+            You can set it to a custom function
+            in order to capture the string summary.
+            It defaults to `print` (prints to stdout).
     """
+    if print_fn is None:
+        print_fn = print
+
     if model.__class__.__name__ == 'Sequential':
+        sequential_like = True
+    elif not model._is_graph_network:
+        # We treat subclassed models as a simple sequence of layers,
+        # for logging purposes.
         sequential_like = True
     else:
         sequential_like = True
-        for v in model.nodes_by_depth.values():
-            if len(v) > 1:
+        nodes_by_depth = model._nodes_by_depth.values()
+        nodes = []
+        for v in nodes_by_depth:
+            if (len(v) > 1) or (len(v) == 1 and len(v[0].inbound_layers) > 1):
+                # if the model has multiple nodes
+                # or if the nodes have multiple inbound_layers
+                # the model is no longer sequential
                 sequential_like = False
+                break
+            nodes += v
+        if sequential_like:
+            # search for shared layers
+            for layer in model.layers:
+                flag = False
+                for node in layer._inbound_nodes:
+                    if node in nodes:
+                        if flag:
+                            sequential_like = False
+                            break
+                        else:
+                            flag = True
+                if not sequential_like:
+                    break
 
     if sequential_like:
         line_length = line_length or 65
@@ -30,14 +80,17 @@ def print_summary(model, line_length=None, positions=None):
         # header names for the different log elements
         to_display = ['Layer (type)', 'Output Shape', 'Param #']
     else:
-        line_length = line_length or 100
+        line_length = line_length or 98
         positions = positions or [.33, .55, .67, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
-        to_display = ['Layer (type)', 'Output Shape', 'Param #', 'Connected to']
+        to_display = ['Layer (type)',
+                      'Output Shape',
+                      'Param #',
+                      'Connected to']
         relevant_nodes = []
-        for v in model.nodes_by_depth.values():
+        for v in model._nodes_by_depth.values():
             relevant_nodes += v
 
     def print_row(fields, positions):
@@ -48,11 +101,11 @@ def print_summary(model, line_length=None, positions=None):
             line += str(fields[i])
             line = line[:positions[i]]
             line += ' ' * (positions[i] - len(line))
-        print(line)
+        print_fn(line)
 
-    print('_' * line_length)
+    print_fn('_' * line_length)
     print_row(to_display, positions)
-    print('=' * line_length)
+    print_fn('=' * line_length)
 
     def print_layer_summary(layer):
         try:
@@ -61,7 +114,8 @@ def print_summary(model, line_length=None, positions=None):
             output_shape = 'multiple'
         name = layer.name
         cls_name = layer.__class__.__name__
-        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params()]
+        fields = [name + ' (' + cls_name + ')',
+                  output_shape, layer.count_params()]
         print_row(fields, positions)
 
     def print_layer_summary_with_connections(layer):
@@ -75,17 +129,17 @@ def print_summary(model, line_length=None, positions=None):
         except AttributeError:
             output_shape = 'multiple'
         connections = []
-        for node_index, node in enumerate(layer.inbound_nodes):
-            if relevant_nodes:
-                node_key = layer.name + '_ib-' + str(node_index)
-                if node_key not in relevant_nodes:
-                    # node is node part of the current network
-                    continue
+        for node in layer._inbound_nodes:
+            if relevant_nodes and node not in relevant_nodes:
+                # node is not part of the current network
+                continue
             for i in range(len(node.inbound_layers)):
                 inbound_layer = node.inbound_layers[i].name
                 inbound_node_index = node.node_indices[i]
                 inbound_tensor_index = node.tensor_indices[i]
-                connections.append(inbound_layer + '[' + str(inbound_node_index) + '][' + str(inbound_tensor_index) + ']')
+                connections.append(inbound_layer +
+                                   '[' + str(inbound_node_index) + '][' +
+                                   str(inbound_tensor_index) + ']')
 
         name = layer.name
         cls_name = layer.__class__.__name__
@@ -93,7 +147,11 @@ def print_summary(model, line_length=None, positions=None):
             first_connection = ''
         else:
             first_connection = connections[0]
-        fields = [name + ' (' + cls_name + ')', output_shape, layer.count_params(), first_connection]
+        fields = [name +
+                  ' (' + cls_name + ')',
+                  output_shape,
+                  layer.count_params(),
+                  first_connection]
         print_row(fields, positions)
         if len(connections) > 1:
             for i in range(1, len(connections)):
@@ -107,45 +165,23 @@ def print_summary(model, line_length=None, positions=None):
         else:
             print_layer_summary_with_connections(layers[i])
         if i == len(layers) - 1:
-            print('=' * line_length)
+            print_fn('=' * line_length)
         else:
-            print('_' * line_length)
+            print_fn('_' * line_length)
 
-    trainable_count, non_trainable_count = count_total_params(layers, layer_set=None)
+    model._check_trainable_weights_consistency()
+    if hasattr(model, '_collected_trainable_weights'):
+        trainable_count = count_params(model._collected_trainable_weights)
+    else:
+        trainable_count = count_params(model.trainable_weights)
 
-    print('Total params: {:,}'.format(trainable_count + non_trainable_count))
-    print('Trainable params: {:,}'.format(trainable_count))
-    print('Non-trainable params: {:,}'.format(non_trainable_count))
-    print('_' * line_length)
+    non_trainable_count = count_params(model.non_trainable_weights)
 
-
-def count_total_params(layers, layer_set=None):
-    """Counts the number of parameters in a list of layers.
-
-    # Arguments
-        layers: list of layers.
-        layer_set: set of layers already seen
-            (so that we don't count their weights twice).
-
-    # Returns
-        A tuple (count of trainable weights, count of non-trainable weights.)
-    """
-    if layer_set is None:
-        layer_set = set()
-    trainable_count = 0
-    non_trainable_count = 0
-    for layer in layers:
-        if layer in layer_set:
-            continue
-        layer_set.add(layer)
-        if hasattr(layer, 'layers'):
-            t, nt = count_total_params(layer.layers, layer_set)
-            trainable_count += t
-            non_trainable_count += nt
-        else:
-            trainable_count += np.sum([K.count_params(p) for p in layer.trainable_weights])
-            non_trainable_count += np.sum([K.count_params(p) for p in layer.non_trainable_weights])
-    return trainable_count, non_trainable_count
+    print_fn(
+        'Total params: {:,}'.format(trainable_count + non_trainable_count))
+    print_fn('Trainable params: {:,}'.format(trainable_count))
+    print_fn('Non-trainable params: {:,}'.format(non_trainable_count))
+    print_fn('_' * line_length)
 
 
 def convert_all_kernels_in_model(model):
@@ -192,7 +228,7 @@ def convert_dense_weights_data_format(dense,
             came before the target `Dense` layer.
         target_data_format: One of "channels_last", "channels_first".
             Set it "channels_last"
-            if converting a "chnnels_first" model to "channels_last",
+            if converting a "channels_first" model to "channels_last",
             or reciprocally.
     """
     assert target_data_format in {'channels_last', 'channels_first'}
@@ -210,3 +246,46 @@ def convert_dense_weights_data_format(dense,
             ki = np.transpose(ki, (1, 2, 0))  # first -> last
         kernel[:, i] = np.reshape(ki, (np.prod(previous_feature_map_shape),))
     dense.set_weights([kernel, bias])
+
+
+def get_source_inputs(tensor, layer=None, node_index=None):
+    """Returns the list of input tensors necessary to compute `tensor`.
+
+    Output will always be a list of tensors
+    (potentially with 1 element).
+
+    # Arguments
+        tensor: The tensor to start from.
+        layer: Origin layer of the tensor. Will be
+            determined via tensor._keras_history if not provided.
+        node_index: Origin node index of the tensor.
+
+    # Returns
+        List of input tensors.
+    """
+    if not hasattr(tensor, '_keras_history'):
+        return tensor
+
+    if layer is None or node_index:
+        layer, node_index, _ = tensor._keras_history
+    if not layer._inbound_nodes:
+        return [tensor]
+    else:
+        node = layer._inbound_nodes[node_index]
+        if not node.inbound_layers:
+            # Reached an Input layer, stop recursion.
+            return node.input_tensors
+        else:
+            source_tensors = []
+            for i in range(len(node.inbound_layers)):
+                x = node.input_tensors[i]
+                layer = node.inbound_layers[i]
+                node_index = node.node_indices[i]
+                previous_sources = get_source_inputs(x,
+                                                     layer,
+                                                     node_index)
+                # Avoid input redundancy.
+                for x in previous_sources:
+                    if x not in source_tensors:
+                        source_tensors.append(x)
+            return source_tensors

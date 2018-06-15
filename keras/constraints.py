@@ -1,4 +1,9 @@
+"""Constraints: functions that impose constraints on weight values.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 from . import backend as K
 from .utils.generic_utils import serialize_keras_object
@@ -27,7 +32,7 @@ class MaxNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `data_format="channels_last"`,
+            In a `Conv2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -58,7 +63,7 @@ class NonNeg(Constraint):
     """
 
     def __call__(self, w):
-        w *= K.cast(w >= 0., K.floatx())
+        w *= K.cast(K.greater_equal(w, 0.), K.floatx())
         return w
 
 
@@ -71,7 +76,7 @@ class UnitNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `data_format="channels_last"`,
+            In a `Conv2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -112,7 +117,7 @@ class MinMaxNorm(Constraint):
             has shape `(input_dim, output_dim)`,
             set `axis` to `0` to constrain each weight vector
             of length `(input_dim,)`.
-            In a `Convolution2D` layer with `dim_ordering="tf"`,
+            In a `Conv2D` layer with `data_format="channels_last"`,
             the weight tensor has shape
             `(rows, cols, input_depth, output_depth)`,
             set `axis` to `[0, 1, 2]`
@@ -176,5 +181,5 @@ def get(identifier):
     elif callable(identifier):
         return identifier
     else:
-        raise ValueError('Could not interpret constraint identifier:',
-                         identifier)
+        raise ValueError('Could not interpret constraint identifier: ' +
+                         str(identifier))

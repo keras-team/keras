@@ -1,16 +1,17 @@
 from __future__ import absolute_import
 
 from ..utils.generic_utils import deserialize_keras_object
-from ..engine import Layer
+from ..engine.base_layer import Layer
 from ..engine import Input
 from ..engine import InputLayer
-from ..engine import InputSpec
+from ..engine.base_layer import InputSpec
 from .merge import *
 from .core import *
 from .convolutional import *
 from .pooling import *
 from .local import *
 from .recurrent import *
+from .cudnn_recurrent import *
 from .normalization import *
 from .embeddings import *
 from .noise import *
@@ -21,6 +22,14 @@ from ..legacy.layers import *
 
 
 def serialize(layer):
+    """Serialize a layer.
+
+    # Arguments
+        layer: a Layer object.
+
+    # Returns
+        dictionary with config.
+    """
     return {'class_name': layer.__class__.__name__,
             'config': layer.get_config()}
 

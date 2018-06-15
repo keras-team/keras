@@ -2,8 +2,6 @@ import pytest
 import numpy as np
 
 from keras.utils.test_utils import get_test_data
-from keras.utils import np_utils
-from keras import backend as K
 
 from keras.models import Sequential
 from keras.layers.core import Dense, Activation
@@ -13,7 +11,7 @@ input_dim = 5
 hidden_dims = 5
 num_train = 100
 num_test = 50
-num_class = 3
+num_classes = 3
 batch_size = 32
 epochs = 1
 verbosity = 0
@@ -23,7 +21,7 @@ loss = 'categorical_crossentropy'
 np.random.seed(42)
 (X_train, y_train), (X_test, y_test) = get_test_data(
     num_train=num_train, num_test=num_test, input_shape=(input_dim,),
-    classification=True, num_classes=num_class)
+    classification=True, num_classes=num_classes)
 
 
 def build_fn_clf(hidden_dims):
@@ -32,22 +30,23 @@ def build_fn_clf(hidden_dims):
     model.add(Activation('relu'))
     model.add(Dense(hidden_dims))
     model.add(Activation('relu'))
-    model.add(Dense(num_class))
+    model.add(Dense(num_classes))
     model.add(Activation('softmax'))
     model.compile(optimizer='sgd', loss='categorical_crossentropy',
                   metrics=['accuracy'])
     return model
 
 
-def test_clasify_build_fn():
+def test_classify_build_fn():
     clf = KerasClassifier(
         build_fn=build_fn_clf, hidden_dims=hidden_dims,
         batch_size=batch_size, epochs=epochs)
 
     assert_classification_works(clf)
+    assert_string_classification_works(clf)
 
 
-def test_clasify_class_build_fn():
+def test_classify_class_build_fn():
     class ClassBuildFnClf(object):
 
         def __call__(self, hidden_dims):
@@ -58,9 +57,10 @@ def test_clasify_class_build_fn():
         batch_size=batch_size, epochs=epochs)
 
     assert_classification_works(clf)
+    assert_string_classification_works(clf)
 
 
-def test_clasify_inherit_class_build_fn():
+def test_classify_inherit_class_build_fn():
     class InheritClassBuildFnClf(KerasClassifier):
 
         def __call__(self, hidden_dims):
@@ -71,10 +71,11 @@ def test_clasify_inherit_class_build_fn():
         batch_size=batch_size, epochs=epochs)
 
     assert_classification_works(clf)
+    assert_string_classification_works(clf)
 
 
 def assert_classification_works(clf):
-    clf.fit(X_train, y_train, batch_size=batch_size, epochs=epochs)
+    clf.fit(X_train, y_train, sample_weight=np.ones(X_train.shape[0]), batch_size=batch_size, epochs=epochs)
 
     score = clf.score(X_train, y_train, batch_size=batch_size)
     assert np.isscalar(score) and np.isfinite(score)
@@ -82,10 +83,29 @@ def assert_classification_works(clf):
     preds = clf.predict(X_test, batch_size=batch_size)
     assert preds.shape == (num_test, )
     for prediction in np.unique(preds):
-        assert prediction in range(num_class)
+        assert prediction in range(num_classes)
 
     proba = clf.predict_proba(X_test, batch_size=batch_size)
-    assert proba.shape == (num_test, num_class)
+    assert proba.shape == (num_test, num_classes)
+    assert np.allclose(np.sum(proba, axis=1), np.ones(num_test))
+
+
+def assert_string_classification_works(clf):
+    string_classes = ['cls{}'.format(x) for x in range(num_classes)]
+    str_y_train = np.array(string_classes)[y_train]
+
+    clf.fit(X_train, str_y_train, batch_size=batch_size, epochs=epochs)
+
+    score = clf.score(X_train, str_y_train, batch_size=batch_size)
+    assert np.isscalar(score) and np.isfinite(score)
+
+    preds = clf.predict(X_test, batch_size=batch_size)
+    assert preds.shape == (num_test, )
+    for prediction in np.unique(preds):
+        assert prediction in string_classes
+
+    proba = clf.predict_proba(X_test, batch_size=batch_size)
+    assert proba.shape == (num_test, num_classes)
     assert np.allclose(np.sum(proba, axis=1), np.ones(num_test))
 
 

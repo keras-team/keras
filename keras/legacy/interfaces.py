@@ -1,5 +1,9 @@
 """Interface converters for Keras 1 support in Keras 2.
 """
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 import warnings
 import functools
@@ -83,8 +87,9 @@ def generate_legacy_interface(allowed_positional_args=None,
                         signature += ', '
                 signature += ')`'
                 warnings.warn('Update your `' + object_name +
-                              '` call to the Keras 2 API: ' + signature)
+                              '` call to the Keras 2 API: ' + signature, stacklevel=2)
             return func(*args, **kwargs)
+        wrapper._original_function = func
         return wrapper
     return legacy_support
 
@@ -122,7 +127,7 @@ def embedding_kwargs_preprocessor(args, kwargs):
         kwargs.pop('dropout')
         warnings.warn('The `dropout` argument is no longer support in `Embedding`. '
                       'You can apply a `keras.layers.SpatialDropout1D` layer '
-                      'right after the `Embedding` layer to get the same behavior.')
+                      'right after the `Embedding` layer to get the same behavior.', stacklevel=3)
     return args, kwargs, converted
 
 legacy_embedding_support = generate_legacy_interface(
@@ -148,7 +153,7 @@ legacy_gaussiannoise_support = generate_legacy_interface(
     conversions=[('sigma', 'stddev')])
 
 
-def lstm_args_preprocessor(args, kwargs):
+def recurrent_args_preprocessor(args, kwargs):
     converted = []
     if 'forget_bias_init' in kwargs:
         if kwargs['forget_bias_init'] == 'one':
@@ -159,7 +164,16 @@ def lstm_args_preprocessor(args, kwargs):
             kwargs.pop('forget_bias_init')
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones.')
+                          'instead to initialize with ones.', stacklevel=3)
+    if 'input_dim' in kwargs:
+        input_length = kwargs.pop('input_length', None)
+        input_dim = kwargs.pop('input_dim')
+        input_shape = (input_length, input_dim)
+        kwargs['input_shape'] = input_shape
+        converted.append(('input_dim', 'input_shape'))
+        warnings.warn('The `input_dim` and `input_length` arguments '
+                      'in recurrent layers are deprecated. '
+                      'Use `input_shape` instead.', stacklevel=3)
     return args, kwargs, converted
 
 legacy_recurrent_support = generate_legacy_interface(
@@ -177,7 +191,7 @@ legacy_recurrent_support = generate_legacy_interface(
     value_conversions={'consume_less': {'cpu': 0,
                                         'mem': 1,
                                         'gpu': 2}},
-    preprocessor=lstm_args_preprocessor)
+    preprocessor=recurrent_args_preprocessor)
 
 legacy_gaussiandropout_support = generate_legacy_interface(
     allowed_positional_args=['rate'],
@@ -450,7 +464,7 @@ def convlstm2d_args_preprocessor(args, kwargs):
         else:
             warnings.warn('The `forget_bias_init` argument '
                           'has been ignored. Use `unit_forget_bias=True` '
-                          'instead to intialize with ones.')
+                          'instead to initialize with ones.', stacklevel=3)
     args, kwargs, _converted = conv2d_args_preprocessor(args, kwargs)
     return args, kwargs, converted + _converted
 
@@ -493,7 +507,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
             kwargs['padding'] = ((top_pad, bottom_pad), (left_pad, right_pad))
             warnings.warn('The `padding` argument in the Keras 2 API no longer'
                           'accepts dict types. You can now input argument as: '
-                          '`padding=(top_pad, bottom_pad, left_pad, right_pad)`.')
+                          '`padding=(top_pad, bottom_pad, left_pad, right_pad)`.', stacklevel=3)
     elif len(args) == 2 and isinstance(args[1], dict):
         if set(args[1].keys()) <= {'top_pad', 'bottom_pad',
                                    'left_pad', 'right_pad'}:
@@ -504,7 +518,7 @@ def zeropadding2d_args_preprocessor(args, kwargs):
             args = (args[0], ((top_pad, bottom_pad), (left_pad, right_pad)))
             warnings.warn('The `padding` argument in the Keras 2 API no longer'
                           'accepts dict types. You can now input argument as: '
-                          '`padding=((top_pad, bottom_pad), (left_pad, right_pad))`')
+                          '`padding=((top_pad, bottom_pad), (left_pad, right_pad))`', stacklevel=3)
     return args, kwargs, converted
 
 legacy_zeropadding2d_support = generate_legacy_interface(
@@ -566,14 +580,21 @@ def generator_methods_args_preprocessor(args, kwargs):
             if hasattr(generator, 'batch_size'):
                 kwargs['steps_per_epoch'] = samples_per_epoch // generator.batch_size
             else:
-                warnings.warn('The semantics of the Keras 2 argument '
-                              ' `steps_per_epoch` is not the same as the '
-                              'Keras 1 argument `samples_per_epoch`. '
-                              '`steps_per_epoch` is the number of batches '
-                              'to draw from the generator at each epoch. '
-                              'Update your method calls accordingly.')
                 kwargs['steps_per_epoch'] = samples_per_epoch
             converted.append(('samples_per_epoch', 'steps_per_epoch'))
+
+    keras1_args = {'samples_per_epoch', 'val_samples', 'nb_epoch', 'nb_val_samples', 'nb_worker'}
+    if keras1_args.intersection(kwargs.keys()):
+        warnings.warn('The semantics of the Keras 2 argument '
+                      '`steps_per_epoch` is not the same as the '
+                      'Keras 1 argument `samples_per_epoch`. '
+                      '`steps_per_epoch` is the number of batches '
+                      'to draw from the generator at each epoch. '
+                      'Basically steps_per_epoch = samples_per_epoch/batch_size. '
+                      'Similarly `nb_val_samples`->`validation_steps` and '
+                      '`val_samples`->`steps` arguments have changed. '
+                      'Update your method calls accordingly.', stacklevel=3)
+
     return args, kwargs, converted
 
 
@@ -583,7 +604,9 @@ legacy_generator_methods_support = generate_legacy_method_interface(
                  ('val_samples', 'steps'),
                  ('nb_epoch', 'epochs'),
                  ('nb_val_samples', 'validation_steps'),
-                 ('nb_worker', 'workers')],
+                 ('nb_worker', 'workers'),
+                 ('pickle_safe', 'use_multiprocessing'),
+                 ('max_q_size', 'max_queue_size')],
     preprocessor=generator_methods_args_preprocessor)
 
 
@@ -591,3 +614,51 @@ legacy_model_constructor_support = generate_legacy_interface(
     allowed_positional_args=None,
     conversions=[('input', 'inputs'),
                  ('output', 'outputs')])
+
+legacy_input_support = generate_legacy_interface(
+    allowed_positional_args=None,
+    conversions=[('input_dtype', 'dtype')])
+
+
+def add_weight_args_preprocessing(args, kwargs):
+    if len(args) > 1:
+        if isinstance(args[1], (tuple, list)):
+            kwargs['shape'] = args[1]
+            args = (args[0],) + args[2:]
+            if len(args) > 1:
+                if isinstance(args[1], six.string_types):
+                    kwargs['name'] = args[1]
+                    args = (args[0],) + args[2:]
+    return args, kwargs, []
+
+
+legacy_add_weight_support = generate_legacy_interface(
+    allowed_positional_args=['name', 'shape'],
+    preprocessor=add_weight_args_preprocessing)
+
+
+def get_updates_arg_preprocessing(args, kwargs):
+    # Old interface: (params, constraints, loss)
+    # New interface: (loss, params)
+    if len(args) > 4:
+        raise TypeError('`get_update` call received more arguments '
+                        'than expected.')
+    elif len(args) == 4:
+        # Assuming old interface.
+        opt, params, _, loss = args
+        kwargs['loss'] = loss
+        kwargs['params'] = params
+        return [opt], kwargs, []
+    elif len(args) == 3:
+        if isinstance(args[1], (list, tuple)):
+            assert isinstance(args[2], dict)
+            assert 'loss' in kwargs
+            opt, params, _ = args
+            kwargs['params'] = params
+            return [opt], kwargs, []
+    return args, kwargs, []
+
+legacy_get_updates_support = generate_legacy_interface(
+    allowed_positional_args=None,
+    conversions=[],
+    preprocessor=get_updates_arg_preprocessing)

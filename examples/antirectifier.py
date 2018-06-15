@@ -2,7 +2,7 @@
 
 We build a custom activation layer called 'Antirectifier',
 which modifies the shape of the tensor that passes through it.
-We need to specify two methods: `get_output_shape_for` and `call`.
+We need to specify two methods: `compute_output_shape` and `call`.
 
 Note that the same result can also be achieved via a Lambda layer.
 
@@ -64,7 +64,7 @@ batch_size = 128
 num_classes = 10
 epochs = 40
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 x_train = x_train.reshape(60000, 784)
@@ -88,7 +88,7 @@ model.add(layers.Dropout(0.1))
 model.add(layers.Dense(256))
 model.add(Antirectifier())
 model.add(layers.Dropout(0.1))
-model.add(layers.Dense(10))
+model.add(layers.Dense(num_classes))
 model.add(layers.Activation('softmax'))
 
 # compile the model
@@ -98,8 +98,10 @@ model.compile(loss='categorical_crossentropy',
 
 # train the model
 model.fit(x_train, y_train,
-          batch_size=batch_size, epochs=epochs,
-          verbose=1, validation_data=(x_test, y_test))
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
 
 # next, compare with an equivalent network
 # with2x bigger Dense layers and ReLU

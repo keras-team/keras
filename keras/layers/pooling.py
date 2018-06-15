@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
+"""Pooling layers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from .. import backend as K
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -84,7 +88,7 @@ class AveragePooling1D(_Pooling1D):
     """Average pooling for temporal data.
 
     # Arguments
-        pool_size: Integer, size of the max pooling windows.
+        pool_size: Integer, size of the average pooling windows.
         strides: Integer, or None. Factor by which to downscale.
             E.g. 2 will halve the input.
             If None, it will default to `pool_size`.
@@ -180,9 +184,9 @@ class MaxPooling2D(_Pooling2D):
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
-            `(batch, width, height, channels)` while `channels_first`
+            `(batch, height, width, channels)` while `channels_first`
             corresponds to inputs with shape
-            `(batch, channels, width, height)`.
+            `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -235,9 +239,9 @@ class AveragePooling2D(_Pooling2D):
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
-            `(batch, width, height, channels)` while `channels_first`
+            `(batch, height, width, channels)` while `channels_first`
             corresponds to inputs with shape
-            `(batch, channels, width, height)`.
+            `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -456,7 +460,7 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
 
     # Output shape
         2D tensor with shape:
-        `(batch_size, channels)`
+        `(batch_size, features)`
     """
 
     def call(self, inputs):
@@ -471,7 +475,7 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
 
     # Output shape
         2D tensor with shape:
-        `(batch_size, channels)`
+        `(batch_size, features)`
     """
 
     def call(self, inputs):
@@ -511,9 +515,9 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
-            `(batch, width, height, channels)` while `channels_first`
+            `(batch, height, width, channels)` while `channels_first`
             corresponds to inputs with shape
-            `(batch, channels, width, height)`.
+            `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
@@ -546,9 +550,9 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
             one of `channels_last` (default) or `channels_first`.
             The ordering of the dimensions in the inputs.
             `channels_last` corresponds to inputs with shape
-            `(batch, width, height, channels)` while `channels_first`
+            `(batch, height, width, channels)` while `channels_first`
             corresponds to inputs with shape
-            `(batch, channels, width, height)`.
+            `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".

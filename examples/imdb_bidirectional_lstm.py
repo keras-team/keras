@@ -1,4 +1,4 @@
-'''Train a Bidirectional LSTM on the IMDB sentiment classification task.
+'''Trains a Bidirectional LSTM on the IMDB sentiment classification task.
 
 Output after 4 epochs on CPU: ~0.8146
 Time per epoch on CPU (Core i7): ~150s.
@@ -24,7 +24,7 @@ print('Loading data...')
 print(len(x_train), 'train sequences')
 print(len(x_test), 'test sequences')
 
-print("Pad sequences (samples x time)")
+print('Pad sequences (samples x time)')
 x_train = sequence.pad_sequences(x_train, maxlen=maxlen)
 x_test = sequence.pad_sequences(x_test, maxlen=maxlen)
 print('x_train shape:', x_train.shape)

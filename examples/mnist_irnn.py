@@ -31,7 +31,7 @@ hidden_units = 100
 learning_rate = 1e-6
 clip_norm = 1.0
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 x_train = x_train.reshape(x_train.shape[0], -1, 1)
@@ -62,8 +62,11 @@ model.compile(loss='categorical_crossentropy',
               optimizer=rmsprop,
               metrics=['accuracy'])
 
-model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs,
-          verbose=1, validation_data=(x_test, y_test))
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
 
 scores = model.evaluate(x_test, y_test, verbose=0)
 print('IRNN test score:', scores[0])

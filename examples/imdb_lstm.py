@@ -1,7 +1,9 @@
-'''Trains a LSTM on the IMDB sentiment classification task.
+'''Trains an LSTM model on the IMDB sentiment classification task.
+
 The dataset is actually too small for LSTM to be of any advantage
 compared to simpler, much faster methods such as TF-IDF + LogReg.
-Notes:
+
+# Notes
 
 - RNNs are tricky. Choice of batch size is important,
 choice of loss and optimizer is critical, etc.
@@ -45,7 +47,9 @@ model.compile(loss='binary_crossentropy',
               metrics=['accuracy'])
 
 print('Train...')
-model.fit(x_train, y_train, batch_size=batch_size, epochs=15,
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=15,
           validation_data=(x_test, y_test))
 score, acc = model.evaluate(x_test, y_test,
                             batch_size=batch_size)
