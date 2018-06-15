@@ -1125,7 +1125,7 @@ class Model(Network):
 
         # Arguments
             x: The input data, as a Numpy array
-                (or list of Numpy arrays if the model has multiple outputs).
+                (or list of Numpy arrays if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
             steps: Total number of steps (batches of samples)
