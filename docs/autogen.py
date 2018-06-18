@@ -607,8 +607,8 @@ def read_page_data(type):
             if name[0] == '_' or name in EXCLUDE:
                 continue
             module_member = getattr(module, name)
-            if inspect.isclass(module_member) and type == 'classes' or \
-                inspect.isfunction(module_member) and type == 'functions':
+            if (inspect.isclass(module_member) and type == 'classes' or
+               inspect.isfunction(module_member) and type == 'functions'):
                 instance = module_member
                 if module.__name__ == instance.__module__:
                     if instance not in module_data:
