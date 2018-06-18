@@ -341,32 +341,6 @@ PAGES = [
 ROOT = 'http://keras.io/'
 
 
-def get_earliest_class_that_defined_member(member, cls):
-    ancestors = get_classes_ancestors([cls])
-    result = None
-    for ancestor in ancestors:
-        if member in dir(ancestor):
-            result = ancestor
-    if not result:
-        return cls
-    return result
-
-
-def get_classes_ancestors(classes):
-    ancestors = []
-    for cls in classes:
-        ancestors += cls.__bases__
-    filtered_ancestors = []
-    for ancestor in ancestors:
-        if ancestor.__name__ in ['object']:
-            continue
-        filtered_ancestors.append(ancestor)
-    if filtered_ancestors:
-        return filtered_ancestors + get_classes_ancestors(filtered_ancestors)
-    else:
-        return filtered_ancestors
-
-
 def get_function_signature(function, method=True):
     wrapped = getattr(function, '_original_function', None)
     if wrapped is None:
@@ -414,7 +388,7 @@ def get_class_signature(cls):
 
 
 def post_process_signature(signature):
-    parts = re.split('\.(?!\d)', signature)
+    parts = re.split(r'\.(?!\d)', signature)
     if len(parts) >= 4:
         if parts[1] == 'layers':
             signature = 'keras.layers.' + '.'.join(parts[3:])
@@ -459,7 +433,7 @@ def code_snippet(snippet):
 
 
 def count_leading_spaces(s):
-    ws = re.search('\S', s)
+    ws = re.search(r'\S', s)
     if ws:
         return ws.start()
     else:
@@ -616,8 +590,7 @@ def render_function(function, method=True):
     subblocks = []
     signature = get_function_signature(function, method=method)
     signature = signature.replace(function.__module__ + '.', '')
-    level = 3
-    subblocks.append('#' * level + ' ' + function.__name__ + '\n')
+    subblocks.append('### ' + function.__name__ + '\n')
     subblocks.append(code_snippet(signature))
     docstring = function.__doc__
     if docstring:
