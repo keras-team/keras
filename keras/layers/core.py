@@ -60,8 +60,7 @@ class Masking(Layer):
         self.mask_value = mask_value
 
     def compute_mask(self, inputs, mask=None):
-        output_mask = K.any(K.not_equal(inputs, self.mask_value), axis=-1)
-        return output_mask
+        return K.any(K.not_equal(inputs, self.mask_value), axis=-1)
 
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),

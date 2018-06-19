@@ -93,7 +93,6 @@ class Embedding(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.embeddings_constraint = constraints.get(embeddings_constraint)
         self.mask_zero = mask_zero
-        self.supports_masking = mask_zero
         self.input_length = input_length
 
     def build(self, input_shape):
@@ -109,8 +108,8 @@ class Embedding(Layer):
     def compute_mask(self, inputs, mask=None):
         if not self.mask_zero:
             return None
-        output_mask = K.not_equal(inputs, 0)
-        return output_mask
+        else:
+            return K.not_equal(inputs, 0)
 
     def compute_output_shape(self, input_shape):
         if self.input_length is None:
