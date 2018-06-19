@@ -2588,13 +2588,6 @@ class Function(object):
         self._symbol_vals = symbol_vals
         self._session = session
 
-    def _numpy_dtype(self, tensor):
-        dtype_base_name = tensor.dtype.base_dtype.name
-        if dtype_base_name == "string":
-            return "object"
-        else:
-            return dtype_base_name
-
     def _call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
@@ -2618,12 +2611,12 @@ class Function(object):
                 # `callable_fn` only supports exact matches.
                 array_vals.append(
                     np.asarray(value,
-                               dtype=self._numpy_dtype(tensor)))
+                               dtype=tf.as_dtype(tensor.dtype).as_numpy_dtype))
         if self.feed_dict:
             for key in sorted(self.feed_dict.keys()):
                 array_vals.append(
                     np.asarray(self.feed_dict[key],
-                               dtype=self._numpy_dtype(key)))
+                               dtype=tf.as_dtype(key.dtype).as_numpy_dtype))
 
         # Refresh callable if anything has changed.
         if (self._callable_fn is None or
