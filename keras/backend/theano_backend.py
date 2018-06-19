@@ -1323,7 +1323,7 @@ def rnn(step_function, inputs, initial_states,
                 states: List of tensors.
             Returns:
                 outputs: Tensor with shape (samples, ...) (no time dimension),
-                new_states: Tist of tensors, same length and shapes
+                new_states: List of tensors, same length and shapes
                     as 'states'.
         inputs: Tensor of temporal data of shape (samples, time, ...)
             (at least 3D).
