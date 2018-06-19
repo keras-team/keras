@@ -175,8 +175,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
     else:
         trainable_count = count_params(model.trainable_weights)
 
-    non_trainable_count = int(
-        np.sum([K.count_params(p) for p in set(model.non_trainable_weights)]))
+    non_trainable_count = count_params(model.non_trainable_weights)
 
     print_fn(
         'Total params: {:,}'.format(trainable_count + non_trainable_count))
@@ -247,3 +246,46 @@ def convert_dense_weights_data_format(dense,
             ki = np.transpose(ki, (1, 2, 0))  # first -> last
         kernel[:, i] = np.reshape(ki, (np.prod(previous_feature_map_shape),))
     dense.set_weights([kernel, bias])
+
+
+def get_source_inputs(tensor, layer=None, node_index=None):
+    """Returns the list of input tensors necessary to compute `tensor`.
+
+    Output will always be a list of tensors
+    (potentially with 1 element).
+
+    # Arguments
+        tensor: The tensor to start from.
+        layer: Origin layer of the tensor. Will be
+            determined via tensor._keras_history if not provided.
+        node_index: Origin node index of the tensor.
+
+    # Returns
+        List of input tensors.
+    """
+    if not hasattr(tensor, '_keras_history'):
+        return tensor
+
+    if layer is None or node_index:
+        layer, node_index, _ = tensor._keras_history
+    if not layer._inbound_nodes:
+        return [tensor]
+    else:
+        node = layer._inbound_nodes[node_index]
+        if not node.inbound_layers:
+            # Reached an Input layer, stop recursion.
+            return node.input_tensors
+        else:
+            source_tensors = []
+            for i in range(len(node.inbound_layers)):
+                x = node.input_tensors[i]
+                layer = node.inbound_layers[i]
+                node_index = node.node_indices[i]
+                previous_sources = get_source_inputs(x,
+                                                     layer,
+                                                     node_index)
+                # Avoid input redundancy.
+                for x in previous_sources:
+                    if x not in source_tensors:
+                        source_tensors.append(x)
+            return source_tensors

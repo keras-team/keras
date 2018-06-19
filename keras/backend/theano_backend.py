@@ -585,7 +585,26 @@ def var(x, axis=None, keepdims=False):
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
     """
-    return T.any(x, axis=axis, keepdims=keepdims)
+    y = T.any(x, axis=axis, keepdims=keepdims)
+    if hasattr(x, '_keras_shape'):
+        if axis is None:
+            y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
+        else:
+            if isinstance(axis, int):
+                axis_list = [axis]
+            else:
+                axis_list = list(set(int(a) for a in axis))
+            keras_shape_list = list(x._keras_shape)
+            if keepdims:
+                for a in axis_list:
+                    keras_shape_list[a] = 1
+            else:
+                for a in axis_list[::-1]:
+                    keras_shape_list.pop(a)
+                if not keras_shape_list:
+                    keras_shape_list = (1,)
+            y._keras_shape = tuple(keras_shape_list)
+    return y
 
 
 def all(x, axis=None, keepdims=False):
@@ -671,7 +690,12 @@ def equal(x, y):
 
 
 def not_equal(x, y):
-    return T.neq(x, y)
+    z = T.neq(x, y)
+    if hasattr(x, '_keras_shape'):
+        z._keras_shape = x._keras_shape
+    elif hasattr(y, '_keras_shape'):
+        z._keras_shape = y._keras_shape
+    return z
 
 
 def greater(x, y):
@@ -731,7 +755,7 @@ def normalize_batch_in_training(x, gamma, beta,
     return normed, mean, T.inv(stdinv ** 2)
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
     # TODO remove this if statement when Theano without
@@ -868,13 +892,12 @@ def concatenate(tensors, axis=-1):
 
 def reshape(x, shape):
     y = T.reshape(x, shape)
-    if _is_explicit_shape(shape):
-        shape = tuple(x if x != -1 else None for x in shape)
-        y._keras_shape = shape
-        if hasattr(x, '_uses_learning_phase'):
-            y._uses_learning_phase = x._uses_learning_phase
-        else:
-            y._uses_learning_phase = False
+    shape = tuple(x if isinstance(x, int) and x > 0 else None for x in shape)
+    y._keras_shape = shape
+    if hasattr(x, '_uses_learning_phase'):
+        y._uses_learning_phase = x._uses_learning_phase
+    else:
+        y._uses_learning_phase = False
     return y
 
 
@@ -1596,7 +1619,20 @@ def softsign(x):
     return T_softsign(x)
 
 
-def categorical_crossentropy(target, output, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    output_dimensions = list(range(len(int_shape(output))))
+    if axis != -1 and axis not in output_dimensions:
+        raise ValueError(
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(int_shape(output)))))
+    # If the channels are not in the last axis, move them to be there:
+    if axis != -1 and axis != output_dimensions[-1]:
+        permutation = output_dimensions[:axis]
+        permutation += output_dimensions[axis + 1:] + [axis]
+        output = permute_dimensions(output, permutation)
+        target = permute_dimensions(target, permutation)
     if from_logits:
         output = T.nnet.softmax(output)
     else:
@@ -1607,11 +1643,24 @@ def categorical_crossentropy(target, output, from_logits=False):
     return T.nnet.categorical_crossentropy(output, target)
 
 
-def sparse_categorical_crossentropy(target, output, from_logits=False):
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    output_dimensions = list(range(len(int_shape(output))))
+    if axis != -1 and axis not in output_dimensions:
+        raise ValueError(
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(int_shape(output)))))
+    # If the channels are not in the last axis, move them to be there:
+    if axis != -1 and axis != output_dimensions[-1]:
+        permutation = output_dimensions[:axis]
+        permutation += output_dimensions[axis + 1:] + [axis]
+        output = permute_dimensions(output, permutation)
+        target = permute_dimensions(target, permutation)
     target = T.cast(T.flatten(target), 'int32')
     target = T.extra_ops.to_one_hot(target, nb_class=output.shape[-1])
     target = reshape(target, shape(output))
-    return categorical_crossentropy(target, output, from_logits)
+    return categorical_crossentropy(target, output, from_logits, axis=-1)
 
 
 def binary_crossentropy(target, output, from_logits=False):

@@ -227,28 +227,32 @@ def test_conv2d_transpose():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          batch_input_shape=(None, None, 5, None))])
+        model = Sequential([convolutional.Conv2DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            use_bias=True,
+            batch_input_shape=(None, None, 5, None))])
 
     # Test invalid output padding for given stride. Output padding equal
     # to stride
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          output_padding=(0, 3),
-                                                          strides=(1, 3),
-                                                          batch_input_shape=(None, num_row, num_col, stack_size))])
+        model = Sequential([convolutional.Conv2DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(0, 3),
+            strides=(1, 3),
+            batch_input_shape=(None, num_row, num_col, stack_size))])
     # Output padding greater than stride
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          output_padding=(2, 2),
-                                                          strides=(1, 3),
-                                                          batch_input_shape=(None, num_row, num_col, stack_size))])
+        model = Sequential([convolutional.Conv2DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(2, 2),
+            strides=(1, 3),
+            batch_input_shape=(None, num_row, num_col, stack_size))])
 
 
 @keras_test
@@ -291,6 +295,7 @@ def test_separable_conv_1d():
                        'pointwise_constraint': 'unit_norm',
                        'depthwise_constraint': 'unit_norm',
                        'strides': 1,
+                       'use_bias': True,
                        'depth_multiplier': multiplier},
                input_shape=(num_samples, stack_size, num_step))
 
@@ -386,6 +391,7 @@ def test_depthwise_conv_2d():
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
                        'depthwise_constraint': 'unit_norm',
+                       'use_bias': True,
                        'strides': strides,
                        'depth_multiplier': multiplier},
                input_shape=(num_samples, stack_size, num_row, num_col))
@@ -547,34 +553,38 @@ def test_conv3d_transpose():
                        'activity_regularizer': 'l2',
                        'kernel_constraint': 'max_norm',
                        'bias_constraint': 'max_norm',
+                       'use_bias': True,
                        'strides': strides},
                input_shape=(None, stack_size, num_depth, num_row, num_col),
                fixed_batch_size=True)
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv3DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          batch_input_shape=(None, None, 5, None, None))])
+        model = Sequential([convolutional.Conv3DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            batch_input_shape=(None, None, 5, None, None))])
 
     # Test invalid output padding for given stride. Output padding equal
     # to stride
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv3DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          output_padding=(0, 3, 3),
-                                                          strides=(1, 3, 4),
-                                                          batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
+        model = Sequential([convolutional.Conv3DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(0, 3, 3),
+            strides=(1, 3, 4),
+            batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
     # Output padding greater than stride
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv3DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          output_padding=(2, 2, 3),
-                                                          strides=(1, 3, 4),
-                                                          batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
+        model = Sequential([convolutional.Conv3DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(2, 2, 3),
+            strides=(1, 3, 4),
+            batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
 
 
 @keras_test

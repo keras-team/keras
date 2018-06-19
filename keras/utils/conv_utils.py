@@ -150,13 +150,13 @@ def deconv_length(dim_size, stride_size, kernel_size, padding, output_padding):
     """Determines output length of a transposed convolution given input length.
 
     # Arguments
-        dim_size: integer.
-        stride_size: integer.
-        kernel_size: integer.
-        padding: one of "same", "valid", "full".
-        output_padding: amount of padding along of the output dimension,
-            integer. Can be set to `None` in which case the output length
-            is inferred.
+        dim_size: Integer, the input length.
+        stride_size: Integer, the stride along the dimension of `dim_size`.
+        kernel_size: Integer, the kernel size along the dimension of
+            `dim_size`.
+        padding: One of `"same"`, `"valid"`, `"full"`.
+        output_padding: Integer, amount of padding along the output dimension,
+            Can be set to `None` in which case the output length is inferred.
 
     # Returns
         The output length (integer).
@@ -181,6 +181,7 @@ def deconv_length(dim_size, stride_size, kernel_size, padding, output_padding):
         elif padding == 'full':
             pad = kernel_size - 1
 
-        dim_size = (dim_size - 1) * stride_size + kernel_size - 2 * pad + output_padding
+        dim_size = ((dim_size - 1) * stride_size + kernel_size - 2 * pad +
+                    output_padding)
 
     return dim_size

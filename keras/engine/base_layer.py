@@ -22,37 +22,43 @@ class Layer(object):
     """Abstract base layer class.
 
     # Properties
-        name: String, must be unique within a model.
+        input, output: Input/output tensor(s). Note that if the layer
+            is used more than once (shared layer), this is ill-defined
+            and will raise an exception. In such cases, use
+            `layer.get_input_at(node_index)`.
+        input_mask, output_mask: Mask tensors. Same caveats apply as
+            input, output.
+        input_shape: Shape tuple. Provided for convenience, but note
+            that there may be cases in which this attribute is
+            ill-defined (e.g. a shared layer with multiple input
+            shapes), in which case requesting `input_shape` will raise
+            an Exception. Prefer using
+            `layer.get_input_shape_for(input_shape)`, or
+            `layer.get_input_shape_at(node_index)`.
         input_spec: List of InputSpec class instances
             each entry describes one required input:
                 - ndim
                 - dtype
             A layer with `n` input tensors must have
             an `input_spec` of length `n`.
+        name: String, must be unique within a model.
+        non_trainable_weights: List of variables.
+        output_shape: Shape tuple. See `input_shape`.
+        stateful: Boolean indicating whether the layer carries
+            additional non-weight state. Used in, for instance, RNN
+            cells to carry information between batches.
+        supports_masking: Boolean indicator of whether the layer
+            supports masking, typically for unused timesteps in a
+            sequence.
         trainable: Boolean, whether the layer weights
             will be updated during training.
+        trainable_weights: List of variables.
         uses_learning_phase: Whether any operation
             of the layer uses `K.in_training_phase()`
             or `K.in_test_phase()`.
-        input_shape: Shape tuple. Provided for convenience,
-            but note that there may be cases in which this
-            attribute is ill-defined (e.g. a shared layer
-            with multiple input shapes), in which case
-            requesting `input_shape` will raise an Exception.
-            Prefer using `layer.get_input_shape_for(input_shape)`,
-            or `layer.get_input_shape_at(node_index)`.
-        output_shape: Shape tuple. See above.
-        inbound_nodes: List of nodes.
-        outbound_nodes: List of nodes.
-        input, output: Input/output tensor(s). Note that if the layer is used
-            more than once (shared layer), this is ill-defined
-            and will raise an exception. In such cases, use
-            `layer.get_input_at(node_index)`.
-        input_mask, output_mask: Same as above, for masks.
-        trainable_weights: List of variables.
-        non_trainable_weights: List of variables.
         weights: The concatenation of the lists trainable_weights and
             non_trainable_weights (in this order).
+
 
     # Methods
         call(x, mask=None): Where the layer's logic lives.
@@ -63,26 +69,26 @@ class Layer(object):
                 - Add layer to tensor history
             If layer is not built:
                 - Build from x._keras_shape
+        compute_mask(x, mask)
+        compute_output_shape(input_shape)
+        count_params()
+        get_config()
+        get_input_at(node_index)
+        get_input_mask_at(node_index)
+        get_input_shape_at(node_index)
+        get_output_at(node_index)
+        get_output_mask_at(node_index)
+        get_output_shape_at(node_index)
         get_weights()
         set_weights(weights)
-        get_config()
-        count_params()
-        compute_output_shape(input_shape)
-        compute_mask(x, mask)
-        get_input_at(node_index)
-        get_output_at(node_index)
-        get_input_shape_at(node_index)
-        get_output_shape_at(node_index)
-        get_input_mask_at(node_index)
-        get_output_mask_at(node_index)
 
     # Class Methods
         from_config(config)
 
     # Internal methods:
-        build(input_shape)
         _add_inbound_node(layer, index=0)
         assert_input_compatibility()
+        build(input_shape)
     """
 
     def __init__(self, **kwargs):

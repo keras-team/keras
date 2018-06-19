@@ -868,7 +868,7 @@ class ConvLSTM2D(ConvRNN2D):
             5D tensor with shape:
             `(samples, time, rows, cols, channels)`
 
-     # Output shape
+    # Output shape
         - if `return_sequences`
              - if data_format='channels_first'
                 5D tensor with shape:

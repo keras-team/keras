@@ -109,11 +109,12 @@ def in_test_phase(x, alt, training=None):
 
 
 def _convert_string_dtype(dtype):
-    # cntk only support float32 and float64
     if dtype == 'float32':
         return np.float32
     elif dtype == 'float64':
         return np.float64
+    elif dtype == 'float16':
+        return np.float16
     else:
         # cntk only running with float,
         # try to cast to float to run the model
@@ -125,10 +126,12 @@ def _convert_dtype_string(dtype):
         return 'float32'
     elif dtype == np.float64:
         return 'float64'
+    elif dtype == np.float16:
+        return 'float16'
     else:
         raise ValueError('CNTK Backend: Unsupported dtype: %s. '
-                         'CNTK only supports float32 and '
-                         'float64.' % dtype)
+                         'CNTK only supports float32, float64, and '
+                         'float16.' % dtype)
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -1063,7 +1066,7 @@ def _moments(x, axes=None, shift=None, keep_dims=False):
     return mean, variance
 
 
-def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     # The mean / var / beta / gamma may be processed by broadcast
     # so it may have an extra batch axis with 1, it is not needed
     # in cntk, need to remove those dummy axis.
@@ -1082,7 +1085,7 @@ def batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
     elif ndim(beta) == ndim(x) and shape(beta)[0] == 1:
         beta = _reshape_dummy_dim(beta, [0])
 
-    return (x - mean) / (C.sqrt(var) + epsilon) * gamma + beta
+    return (x - mean) / C.sqrt(var + epsilon) * gamma + beta
 
 
 def concatenate(tensors, axis=-1):
@@ -1823,7 +1826,23 @@ def softsign(x):
     return x / (1 + C.abs(x))
 
 
-def categorical_crossentropy(target, output, from_logits=False):
+def categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    # Here, unlike other backends, the tensors lack a batch dimension:
+    axis_without_batch = -1 if axis == -1 else axis - 1
+    output_dimensions = list(range(len(output.shape)))
+    if axis_without_batch != -1 and axis_without_batch not in output_dimensions:
+        raise ValueError(
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis_without_batch),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(output.shape))))
+    # If the channels are not in the last axis, move them to be there:
+    if axis_without_batch != -1 and axis_without_batch != output_dimensions[-1]:
+        permutation = output_dimensions[:axis_without_batch]
+        permutation += output_dimensions[axis_without_batch + 1:]
+        permutation += [axis_without_batch]
+        output = C.transpose(output, permutation)
+        target = C.transpose(target, permutation)
     if from_logits:
         result = C.cross_entropy_with_softmax(output, target)
         # cntk's result shape is (batch, 1), while keras expect (batch, )
@@ -1836,10 +1855,20 @@ def categorical_crossentropy(target, output, from_logits=False):
         return -sum(target * C.log(output), axis=-1)
 
 
-def sparse_categorical_crossentropy(target, output, from_logits=False):
-    target = C.one_hot(target, output.shape[-1])
+def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
+    # Here, unlike other backends, the tensors lack a batch dimension:
+    axis_without_batch = -1 if axis == -1 else axis - 1
+    output_dimensions = list(range(len(output.shape)))
+    if axis_without_batch != -1 and axis_without_batch not in output_dimensions:
+        raise ValueError(
+            '{}{}{}'.format(
+                'Unexpected channels axis {}. '.format(axis_without_batch),
+                'Expected to be -1 or one of the axes of `output`, ',
+                'which has {} dimensions.'.format(len(output.shape))))
+    target = C.one_hot(target, output.shape[axis_without_batch],
+                       axis=axis_without_batch)
     target = C.reshape(target, output.shape)
-    return categorical_crossentropy(target, output, from_logits)
+    return categorical_crossentropy(target, output, from_logits, axis=axis)
 
 
 class Function(object):
@@ -2025,20 +2054,8 @@ def function(inputs, outputs, updates=[], **kwargs):
 def temporal_padding(x, padding=(1, 1)):
     assert len(padding) == 2
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    base_shape = x.shape
-    if num_dynamic_axis > 0:
-        assert len(base_shape) == 2
-        if hasattr(C, 'pad'):
-            x = C.pad(x, pattern=[padding, (0, 0)])
-        else:
-            x = _padding(x, padding, 0)
-    else:
-        assert len(base_shape) == 3
-        if hasattr(C, 'pad'):
-            x = C.pad(x, pattern=[(0, 0), padding, (0, 0)])
-        else:
-            x = _padding(x, padding, 1)
-    return x
+    assert len(x.shape) == 3 - (1 if num_dynamic_axis > 0 else 0)
+    return pad(x, [padding], 'channels_last', num_dynamic_axis)
 
 
 def _padding(x, pattern, axis):
@@ -2062,6 +2079,24 @@ def _padding(x, pattern, axis):
     return x
 
 
+def pad(x, pad_info, data_format, num_dynamic_axis):
+    if hasattr(C, 'pad'):
+        pattern = [list(p) for p in pad_info]
+        if data_format == 'channels_first':
+            pattern = [[0, 0]] + pattern
+        else:
+            pattern = pattern + [[0, 0]]
+        if num_dynamic_axis == 0:
+            pattern = [[0, 0]] + pattern
+        return C.pad(x, pattern=pattern)
+    else:
+        for (a, p) in enumerate(pad_info):
+            x = _padding(x, p,
+                         a + (1 if num_dynamic_axis == 0 else 0) +
+                         (1 if data_format == 'channels_first' else 0))
+        return x
+
+
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
@@ -2072,38 +2107,8 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    base_shape = x.shape
-    if data_format == 'channels_first':
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 3
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1])])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-        else:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1])])
-            else:
-                x = _padding(x, padding[0], 2)
-                x = _padding(x, padding[1], 3)
-    else:
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 3
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 0)
-                x = _padding(x, padding[1], 1)
-        else:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-    return x
+    assert len(x.shape) == 4 - (1 if num_dynamic_axis > 0 else 0)
+    return pad(x, padding, data_format, num_dynamic_axis)
 
 
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
@@ -2117,42 +2122,8 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         raise ValueError('Unknown data_format ' + str(data_format))
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    base_shape = x.shape
-    if data_format == 'channels_first':
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-                x = _padding(x, padding[2], 3)
-        else:
-            assert len(base_shape) == 5
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], [0, 0], list(padding[0]), list(padding[1]), list(padding[2])])
-            else:
-                x = _padding(x, padding[0], 2)
-                x = _padding(x, padding[1], 3)
-                x = _padding(x, padding[2], 4)
-    else:
-        if num_dynamic_axis > 0:
-            assert len(base_shape) == 4
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 0)
-                x = _padding(x, padding[1], 1)
-                x = _padding(x, padding[2], 2)
-        else:
-            assert len(base_shape) == 5
-            if hasattr(C, 'pad'):
-                x = C.pad(x, pattern=[[0, 0], list(padding[0]), list(padding[1]), list(padding[2]), [0, 0]])
-            else:
-                x = _padding(x, padding[0], 1)
-                x = _padding(x, padding[1], 2)
-                x = _padding(x, padding[2], 3)
-    return x
+    assert len(x.shape) == 5 - (1 if num_dynamic_axis > 0 else 0)
+    return pad(x, padding, data_format, num_dynamic_axis)
 
 
 def one_hot(indices, num_classes):

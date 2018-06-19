@@ -257,3 +257,35 @@ class Softmax(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape
+
+
+class ReLU(Layer):
+    """Rectified Linear Unit activation function.
+
+    # Input shape
+        Arbitrary. Use the keyword argument `input_shape`
+        (tuple of integers, does not include the samples axis)
+        when using this layer as the first layer in a model.
+
+    # Output shape
+        Same shape as the input.
+
+    # Arguments
+        max_value: Float, the maximum output value.
+    """
+
+    def __init__(self, max_value=None, **kwargs):
+        super(ReLU, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.max_value = max_value
+
+    def call(self, inputs):
+        return activations.relu(inputs, max_value=self.max_value)
+
+    def get_config(self):
+        config = {'max_value': self.max_value}
+        base_config = super(ReLU, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

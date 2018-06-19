@@ -654,10 +654,9 @@ class Conv2DTranspose(Conv2D):
             of the output tensor.
             Can be a single integer to specify the same value for all
             spatial dimensions.
-            The amount of output padding along a givern dimension must be
+            The amount of output padding along a given dimension must be
             lower than the stride along that same dimension.
-            If set to `None`, defaults to 1 if padding is `"same"` and to
-            0 if padding is '"valid"'.
+            If set to `None` (default), the output shape is inferred.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -712,6 +711,9 @@ class Conv2DTranspose(Conv2D):
         `(batch, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
+        If `output_padding` is specified:<br/>
+        `new_rows = (rows - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]`<br/>
+        `new_cols = (cols - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]`
 
     # References
         - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
@@ -755,10 +757,11 @@ class Conv2DTranspose(Conv2D):
 
         self.output_padding = output_padding
         if self.output_padding is not None:
-            self.output_padding = conv_utils.normalize_tuple(self.output_padding, 2, 'output_padding')
+            self.output_padding = conv_utils.normalize_tuple(
+                self.output_padding, 2, 'output_padding')
             for stride, out_pad in zip(self.strides, self.output_padding):
                 if out_pad >= stride:
-                    raise ValueError('Stride ' + str(self.strides) + ' must be ' +
+                    raise ValueError('Stride ' + str(self.strides) + ' must be '
                                      'greater than output padding ' +
                                      str(self.output_padding))
 
@@ -832,7 +835,7 @@ class Conv2DTranspose(Conv2D):
             padding=self.padding,
             data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -896,12 +899,12 @@ class Conv3DTranspose(Conv3D):
         filters: Integer, the dimensionality of the output space
             (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 3 integers, specifying the
-            height and width of the 3D convolution window.
+            depth, height and width of the 3D convolution window.
             Can be a single integer to specify the same value for
             all spatial dimensions.
         strides: An integer or tuple/list of 3 integers,
             specifying the strides of the convolution
-            along the height and width.
+            along the depth, height and width.
             Can be a single integer to specify the same value for
             all spatial dimensions.
             Specifying any stride value != 1 is incompatible with specifying
@@ -912,10 +915,9 @@ class Conv3DTranspose(Conv3D):
             width.
             Can be a single integer to specify the same value for all
             spatial dimensions.
-            The amount of output padding along a givern dimension must be
+            The amount of output padding along a given dimension must be
             lower than the stride along that same dimension.
-            If set to `None`, defaults to 1 if padding is `"same"` and to
-            0 if padding is '"valid"'.
+            If set to `None` (default), the output shape is inferred.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -970,6 +972,10 @@ class Conv3DTranspose(Conv3D):
         `(batch, new_depth, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `depth` and `rows` and `cols` values might have changed due to padding.
+        If `output_padding` is specified:<br/>
+        `new_depth = (depth - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]`<br/>
+        `new_rows = (rows - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]`<br/>
+        `new_cols = (cols - 1) * strides[2] + kernel_size[2] - 2 * padding[2] + output_padding[2]`
 
     # References
         - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
@@ -1011,10 +1017,11 @@ class Conv3DTranspose(Conv3D):
         self.input_spec = InputSpec(ndim=5)
         self.output_padding = output_padding
         if self.output_padding is not None:
-            self.output_padding = conv_utils.normalize_tuple(self.output_padding, 3, 'output_padding')
+            self.output_padding = conv_utils.normalize_tuple(
+                self.output_padding, 3, 'output_padding')
             for stride, out_pad in zip(self.strides, self.output_padding):
                 if out_pad >= stride:
-                    raise ValueError('Stride ' + str(self.strides) + ' must be ' +
+                    raise ValueError('Stride ' + str(self.strides) + ' must be '
                                      'greater than output padding ' +
                                      str(self.output_padding))
 
@@ -1095,7 +1102,7 @@ class Conv3DTranspose(Conv3D):
                                      padding=self.padding,
                                      data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1347,7 +1354,7 @@ class _SeparableConv(_Conv):
                 padding=self.padding,
                 dilation_rate=self.dilation_rate)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1806,7 +1813,7 @@ class DepthwiseConv2D(Conv2D):
             dilation_rate=self.dilation_rate,
             data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -2395,7 +2402,7 @@ class Cropping2D(Layer):
         # now model.output_shape == (None, 24, 20, 3)
         model.add(Conv2D(64, (3, 3), padding='same'))
         model.add(Cropping2D(cropping=((2, 2), (2, 2))))
-        # now model.output_shape == (None, 20, 16. 64)
+        # now model.output_shape == (None, 20, 16, 64)
     ```
     """
 

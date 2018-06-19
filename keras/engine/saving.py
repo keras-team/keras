@@ -292,10 +292,7 @@ def load_model(filepath, custom_objects=None, compile=True):
             # Set optimizer weights.
             if 'optimizer_weights' in f:
                 # Build train function (to get weight updates).
-                if model.__class__.__name__ == 'Sequential':
-                    model.model._make_train_function()
-                else:
-                    model._make_train_function()
+                model._make_train_function()
                 optimizer_weights_group = f['optimizer_weights']
                 optimizer_weight_names = [
                     n.decode('utf8') for n in
@@ -505,6 +502,17 @@ def preprocess_weights_for_loading(layer, weights,
                                                           original_backend)
         return forward_weights + backward_weights
 
+    def convert_nested_time_distributed(weights):
+        """Converts layers nested in `TimeDistributed` wrapper by `preprocess_weights_for_loading()`.
+
+        # Arguments
+            weights: List of weights values (Numpy arrays).
+        # Returns
+            A list of weights values (Numpy arrays).
+        """
+        return preprocess_weights_for_loading(
+            layer.layer, weights, original_keras_version, original_backend)
+
     def convert_nested_model(weights):
         """Converts layers nested in `Model` or `Sequential` by `preprocess_weights_for_loading()`.
 
@@ -538,11 +546,13 @@ def preprocess_weights_for_loading(layer, weights,
                 weights = weights[num_weights:]
         return new_weights
 
-    # Convert layers nested in Bidirectional/Model/Sequential.
+    # Convert layers nested in Bidirectional/TimeDistributed/Model/Sequential.
     # Both transformation should be ran for both Keras 1->2 conversion
     # and for conversion of CuDNN layers.
     if layer.__class__.__name__ == 'Bidirectional':
         weights = convert_nested_bidirectional(weights)
+    if layer.__class__.__name__ == 'TimeDistributed':
+        weights = convert_nested_time_distributed(weights)
     elif layer.__class__.__name__ in ['Model', 'Sequential']:
         weights = convert_nested_model(weights)
 
@@ -990,16 +1000,24 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
                                      ' element(s).')
             # Set values.
             for i in range(len(weight_values)):
-                if skip_mismatch:
-                    if K.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+                if K.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+                    if skip_mismatch:
                         warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
                                       ' due to mismatch in shape' +
                                       ' ({} vs {}).'.format(
                                           symbolic_weights[i].shape,
                                           weight_values[i].shape))
                         continue
-
-                weight_value_tuples.append((symbolic_weights[i],
-                                            weight_values[i]))
+                    else:
+                        raise ValueError('Layer #' + str(k) +
+                                         ' (named "' + layer.name +
+                                         '"), weight ' +
+                                         str(symbolic_weights[i]) +
+                                         ' has shape {}'.format(K.int_shape(symbolic_weights[i])) +
+                                         ', but the saved weight has shape ' +
+                                         str(weight_values[i].shape) + '.')
+                else:
+                    weight_value_tuples.append((symbolic_weights[i],
+                                                weight_values[i]))
 
     K.batch_set_value(weight_value_tuples)
