@@ -140,8 +140,8 @@ def fit_generator(model,
                 if model.uses_learning_phase and not isinstance(K.learning_phase(),
                                                                 int):
                     val_data += [0.]
-            for cbk in callbacks:
-                cbk.validation_data = val_data
+                for cbk in callbacks:
+                    cbk.validation_data = val_data
 
         if workers > 0:
             if is_sequence:
