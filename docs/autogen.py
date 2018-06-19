@@ -598,7 +598,7 @@ def render_function(function, method=True):
     return '\n\n'.join(subblocks)
 
 
-def read_page_data(type):
+def read_page_data(page_data, type):
     assert type in ['classes', 'functions']
     data = page_data.get(type, [])
     for module in page_data.get('all_module_{}'.format(type), []):
@@ -627,7 +627,7 @@ if __name__ == '__main__':
 
     print('Generating docs for Keras %s.' % keras.__version__)
     for page_data in PAGES:
-        classes = read_page_data('classes')
+        classes = read_page_data(page_data, 'classes')
 
         blocks = []
         for element in classes:
@@ -654,7 +654,7 @@ if __name__ == '__main__':
                     [render_function(method, method=True) for method in methods]))
             blocks.append('\n'.join(subblocks))
 
-        functions = read_page_data('functions')
+        functions = read_page_data(page_data, 'functions')
 
         for function in functions:
             blocks.append(render_function(function, method=False))
