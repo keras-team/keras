@@ -530,6 +530,16 @@ class TestBackend(object):
         assert output == [21.]
         assert KTF.get_session().run(fetches=[x, y]) == [30., 40.]
 
+    def test_function_tf_string_input(self):
+        # Test functions with string inputs.
+
+        x_placeholder = KTF.placeholder(shape=(), dtype="string")
+        x_identity = KTF.identity(x_placeholder)
+
+        f = KTF.function(inputs=[x_placeholder], outputs=[x_identity])
+        output = f([b'test'])
+        assert output == [b'test']
+
     def test_rnn(self):
         # implement a simple RNN
         num_samples = 4
