@@ -67,6 +67,7 @@ import inspect
 import os
 import shutil
 
+import keras
 from keras import utils
 from keras import layers
 from keras.layers import advanced_activations
@@ -157,6 +158,9 @@ PAGES = [
             layers.Lambda,
             layers.ActivityRegularization,
             layers.Masking,
+            layers.SpatialDropout1D,
+            layers.SpatialDropout2D,
+            layers.SpatialDropout3D,
         ],
     },
     {
@@ -192,6 +196,8 @@ PAGES = [
             layers.GlobalAveragePooling1D,
             layers.GlobalMaxPooling2D,
             layers.GlobalAveragePooling2D,
+            layers.GlobalMaxPooling3D,
+            layers.GlobalAveragePooling3D,
         ],
     },
     {
@@ -377,7 +383,7 @@ def get_function_signature(function, method=True):
         args = args[:-len(defaults)]
     else:
         kwargs = []
-    st = '%s.%s(' % (function.__module__, function.__name__)
+    st = '%s.%s(' % (clean_module_name(function.__module__), function.__name__)
 
     for a in args:
         st += str(a) + ', '
@@ -392,7 +398,7 @@ def get_function_signature(function, method=True):
 
     if not method:
         # Prepend the module name.
-        signature = function.__module__ + '.' + signature
+        signature = clean_module_name(function.__module__) + '.' + signature
     return post_process_signature(signature)
 
 
@@ -403,7 +409,7 @@ def get_class_signature(cls):
     except (TypeError, AttributeError):
         # in case the class inherits from object and does not
         # define __init__
-        class_signature = cls.__module__ + '.' + cls.__name__ + '()'
+        class_signature = clean_module_name(cls.__module__) + '.' + cls.__name__ + '()'
     return post_process_signature(class_signature)
 
 
@@ -419,17 +425,24 @@ def post_process_signature(signature):
     return signature
 
 
+def clean_module_name(name):
+    if name.startswith('keras_applications'):
+        name = name.replace('keras_applications', 'keras.applications')
+    if name.startswith('keras_preprocessing'):
+        name = name.replace('keras_preprocessing', 'keras.preprocessing')
+    assert name[:6] == 'keras.', 'Invalid module name: %s' % name
+    return name
+
+
 def class_to_docs_link(cls):
-    module_name = cls.__module__
-    assert module_name[:6] == 'keras.'
+    module_name = clean_module_name(cls.__module__)
     module_name = module_name[6:]
     link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
     return link
 
 
 def class_to_source_link(cls):
-    module_name = cls.__module__
-    assert module_name[:6] == 'keras.'
+    module_name = clean_module_name(cls.__module__)
     path = module_name.replace('.', '/')
     path += '.py'
     line = inspect.getsourcelines(cls)[-1]
@@ -453,23 +466,42 @@ def count_leading_spaces(s):
         return 0
 
 
-def process_list_block(docstring, anchor, marker):
-    anchor_pos = docstring.find(anchor)
-    starting_point = anchor_pos + len(anchor) + 1
-    block = ""
-    if anchor_pos > -1:
-        block = docstring[starting_point:docstring.find("\n\n", starting_point)]
-        # Place marker for later reinjection.
-        docstring = docstring.replace(block, marker)
-        # White spaces to be removed in order to correctly align the block.
-        whitespace_n = re.search("[^\s]", block).start()
-        # Remove the computed number of leading white spaces from each line.
-        lines = [re.sub('^' + ' ' * whitespace_n, '', line) for line in block.split('\n')]
-        # Format docstring lists
-        top_level_regex = r'^([^\s\\\(]+):(.*)'
-        top_level_replacement = r'- __\1__:\2'
-        lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
-        block = '\n'.join(lines)
+def process_list_block(docstring, starting_point, leading_spaces, marker):
+    ending_point = docstring.find('\n\n', starting_point)
+    block = docstring[starting_point:None if ending_point == -1 else ending_point - 1]
+    # Place marker for later reinjection.
+    docstring = docstring.replace(block, marker)
+    lines = block.split('\n')
+    # Remove the computed number of leading white spaces from each line.
+    lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
+    # Usually lines have at least 4 additional leading spaces.
+    # These have to be removed, but first the list roots have to be detected.
+    top_level_regex = r'^    ([^\s\\\(]+):(.*)'
+    top_level_replacement = r'- __\1__:\2'
+    lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
+    # All the other lines get simply the 4 leading space (if present) removed
+    lines = [re.sub(r'^    ', '', line) for line in lines]
+    # Fix text lines after lists
+    indent = 0
+    text_block = False
+    for i in range(len(lines)):
+        line = lines[i]
+        spaces = re.search(r'\S', line)
+        if spaces:
+            # If it is a list element
+            if line[spaces.start()] == '-':
+                indent = spaces.start() + 1
+                if text_block:
+                    text_block = False
+                    lines[i] = '\n' + line
+            elif spaces.start() < indent:
+                text_block = True
+                indent = spaces.start()
+                lines[i] = '\n' + line
+        else:
+            text_block = False
+            indent = 0
+    block = '\n'.join(lines)
     return docstring, block
 
 
@@ -513,21 +545,34 @@ def process_docstring(docstring):
             tmp = tmp[index:]
 
     # Format docstring lists.
-    docstring, arguments = process_list_block(docstring, "# Arguments", "$ARGUMENTS$")
-    docstring, returns = process_list_block(docstring, "# Returns", "$RETURNS$")
+    section_regex = r'\n( +)# (.*)\n'
+    section_idx = re.search(section_regex, docstring)
+    shift = 0
+    sections = {}
+    while section_idx and section_idx.group(2):
+        anchor = section_idx.group(2)
+        leading_spaces = len(section_idx.group(1))
+        shift += section_idx.end()
+        marker = '$' + anchor.replace(' ', '_') + '$'
+        docstring, content = process_list_block(docstring,
+                                                shift,
+                                                leading_spaces,
+                                                marker)
+        sections[marker] = content
+        section_idx = re.search(section_regex, docstring[shift:])
 
     # Format docstring section titles.
     docstring = re.sub(r'\n(\s+)# (.*)\n',
                        r'\n\1__\2__\n\n',
                        docstring)
 
-    # Strip all leading spaces.
+    # Strip all remaining leading spaces.
     lines = docstring.split('\n')
     docstring = '\n'.join([line.lstrip(' ') for line in lines])
 
-    # Reinject arguments and returns blocks.
-    docstring = docstring.replace("$ARGUMENTS$", arguments)
-    docstring = docstring.replace("$RETURNS$", returns)
+    # Reinject list blocks.
+    for marker, content in sections.items():
+        docstring = docstring.replace(marker, content)
 
     # Reinject code blocks.
     for i, code_block in enumerate(code_blocks):
@@ -581,94 +626,95 @@ def render_function(function, method=True):
     return '\n\n'.join(subblocks)
 
 
-readme = read_file('../README.md')
-index = read_file('templates/index.md')
-index = index.replace('{{autogenerated}}', readme[readme.find('##'):])
-with open('sources/index.md', 'w') as f:
-    f.write(index)
+if __name__ == '__main__':
+    readme = read_file('../README.md')
+    index = read_file('templates/index.md')
+    index = index.replace('{{autogenerated}}', readme[readme.find('##'):])
+    with open('sources/index.md', 'w') as f:
+        f.write(index)
 
-print('Starting autogeneration.')
-for page_data in PAGES:
-    blocks = []
-    classes = page_data.get('classes', [])
-    for module in page_data.get('all_module_classes', []):
-        module_classes = []
-        for name in dir(module):
-            if name[0] == '_' or name in EXCLUDE:
-                continue
-            module_member = getattr(module, name)
-            if inspect.isclass(module_member):
-                cls = module_member
-                if cls.__module__ == module.__name__:
-                    if cls not in module_classes:
-                        module_classes.append(cls)
-        module_classes.sort(key=lambda x: id(x))
-        classes += module_classes
+    print('Generating docs for Keras %s.' % keras.__version__)
+    for page_data in PAGES:
+        blocks = []
+        classes = page_data.get('classes', [])
+        for module in page_data.get('all_module_classes', []):
+            module_classes = []
+            for name in dir(module):
+                if name[0] == '_' or name in EXCLUDE:
+                    continue
+                module_member = getattr(module, name)
+                if inspect.isclass(module_member):
+                    cls = module_member
+                    if cls.__module__ == module.__name__:
+                        if cls not in module_classes:
+                            module_classes.append(cls)
+            module_classes.sort(key=lambda x: id(x))
+            classes += module_classes
 
-    for element in classes:
-        if not isinstance(element, (list, tuple)):
-            element = (element, [])
-        cls = element[0]
-        subblocks = []
-        signature = get_class_signature(cls)
-        subblocks.append('<span style="float:right;">' +
-                         class_to_source_link(cls) + '</span>')
-        if element[1]:
-            subblocks.append('## ' + cls.__name__ + ' class\n')
+        for element in classes:
+            if not isinstance(element, (list, tuple)):
+                element = (element, [])
+            cls = element[0]
+            subblocks = []
+            signature = get_class_signature(cls)
+            subblocks.append('<span style="float:right;">' +
+                             class_to_source_link(cls) + '</span>')
+            if element[1]:
+                subblocks.append('## ' + cls.__name__ + ' class\n')
+            else:
+                subblocks.append('### ' + cls.__name__ + '\n')
+            subblocks.append(code_snippet(signature))
+            docstring = cls.__doc__
+            if docstring:
+                subblocks.append(process_docstring(docstring))
+            methods = collect_class_methods(cls, element[1])
+            if methods:
+                subblocks.append('\n---')
+                subblocks.append('## ' + cls.__name__ + ' methods\n')
+                subblocks.append('\n---\n'.join(
+                    [render_function(method, method=True) for method in methods]))
+            blocks.append('\n'.join(subblocks))
+
+        functions = page_data.get('functions', [])
+        for module in page_data.get('all_module_functions', []):
+            module_functions = []
+            for name in dir(module):
+                if name[0] == '_' or name in EXCLUDE:
+                    continue
+                module_member = getattr(module, name)
+                if inspect.isfunction(module_member):
+                    function = module_member
+                    if module.__name__ in function.__module__:
+                        if function not in module_functions:
+                            module_functions.append(function)
+            module_functions.sort(key=lambda x: id(x))
+            functions += module_functions
+
+        for function in functions:
+            blocks.append(render_function(function, method=False))
+
+        if not blocks:
+            raise RuntimeError('Found no content for page ' +
+                               page_data['page'])
+
+        mkdown = '\n----\n\n'.join(blocks)
+        # save module page.
+        # Either insert content into existing page,
+        # or create page otherwise
+        page_name = page_data['page']
+        path = os.path.join('sources', page_name)
+        if os.path.exists(path):
+            template = read_file(path)
+            assert '{{autogenerated}}' in template, ('Template found for ' + path +
+                                                     ' but missing {{autogenerated}} tag.')
+            mkdown = template.replace('{{autogenerated}}', mkdown)
+            print('...inserting autogenerated content into template:', path)
         else:
-            subblocks.append('### ' + cls.__name__ + '\n')
-        subblocks.append(code_snippet(signature))
-        docstring = cls.__doc__
-        if docstring:
-            subblocks.append(process_docstring(docstring))
-        methods = collect_class_methods(cls, element[1])
-        if methods:
-            subblocks.append('\n---')
-            subblocks.append('## ' + cls.__name__ + ' methods\n')
-            subblocks.append('\n---\n'.join(
-                [render_function(method, method=True) for method in methods]))
-        blocks.append('\n'.join(subblocks))
+            print('...creating new page with autogenerated content:', path)
+        subdir = os.path.dirname(path)
+        if not os.path.exists(subdir):
+            os.makedirs(subdir)
+        with open(path, 'w') as f:
+            f.write(mkdown)
 
-    functions = page_data.get('functions', [])
-    for module in page_data.get('all_module_functions', []):
-        module_functions = []
-        for name in dir(module):
-            if name[0] == '_' or name in EXCLUDE:
-                continue
-            module_member = getattr(module, name)
-            if inspect.isfunction(module_member):
-                function = module_member
-                if module.__name__ in function.__module__:
-                    if function not in module_functions:
-                        module_functions.append(function)
-        module_functions.sort(key=lambda x: id(x))
-        functions += module_functions
-
-    for function in functions:
-        blocks.append(render_function(function, method=False))
-
-    if not blocks:
-        raise RuntimeError('Found no content for page ' +
-                           page_data['page'])
-
-    mkdown = '\n----\n\n'.join(blocks)
-    # save module page.
-    # Either insert content into existing page,
-    # or create page otherwise
-    page_name = page_data['page']
-    path = os.path.join('sources', page_name)
-    if os.path.exists(path):
-        template = read_file(path)
-        assert '{{autogenerated}}' in template, ('Template found for ' + path +
-                                                 ' but missing {{autogenerated}} tag.')
-        mkdown = template.replace('{{autogenerated}}', mkdown)
-        print('...inserting autogenerated content into template:', path)
-    else:
-        print('...creating new page with autogenerated content:', path)
-    subdir = os.path.dirname(path)
-    if not os.path.exists(subdir):
-        os.makedirs(subdir)
-    with open(path, 'w') as f:
-        f.write(mkdown)
-
-shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')
+    shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')

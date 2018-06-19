@@ -226,6 +226,8 @@ class Sequential(Model):
             for layer in self._layers:
                 x = layer(x)
             self.outputs = [x]
+            if self._layers:
+                self._layers[0].batch_input_shape = batch_shape
 
         if self.inputs:
             self._init_graph_network(self.inputs,

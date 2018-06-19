@@ -832,7 +832,7 @@ class Conv2DTranspose(Conv2D):
             padding=self.padding,
             data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -896,12 +896,12 @@ class Conv3DTranspose(Conv3D):
         filters: Integer, the dimensionality of the output space
             (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 3 integers, specifying the
-            height and width of the 3D convolution window.
+            depth, height and width of the 3D convolution window.
             Can be a single integer to specify the same value for
             all spatial dimensions.
         strides: An integer or tuple/list of 3 integers,
             specifying the strides of the convolution
-            along the height and width.
+            along the depth, height and width.
             Can be a single integer to specify the same value for
             all spatial dimensions.
             Specifying any stride value != 1 is incompatible with specifying
@@ -1095,7 +1095,7 @@ class Conv3DTranspose(Conv3D):
                                      padding=self.padding,
                                      data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1347,7 +1347,7 @@ class _SeparableConv(_Conv):
                 padding=self.padding,
                 dilation_rate=self.dilation_rate)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -1806,7 +1806,7 @@ class DepthwiseConv2D(Conv2D):
             dilation_rate=self.dilation_rate,
             data_format=self.data_format)
 
-        if self.bias:
+        if self.use_bias:
             outputs = K.bias_add(
                 outputs,
                 self.bias,
@@ -2395,7 +2395,7 @@ class Cropping2D(Layer):
         # now model.output_shape == (None, 24, 20, 3)
         model.add(Conv2D(64, (3, 3), padding='same'))
         model.add(Cropping2D(cropping=((2, 2), (2, 2))))
-        # now model.output_shape == (None, 20, 16. 64)
+        # now model.output_shape == (None, 20, 16, 64)
     ```
     """
 

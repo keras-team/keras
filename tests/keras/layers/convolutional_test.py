@@ -230,6 +230,7 @@ def test_conv2d_transpose():
         model = Sequential([convolutional.Conv2DTranspose(filters=filters,
                                                           kernel_size=3,
                                                           padding=padding,
+                                                          use_bias=True,
                                                           batch_input_shape=(None, None, 5, None))])
 
     # Test invalid output padding for given stride. Output padding equal
@@ -291,6 +292,7 @@ def test_separable_conv_1d():
                        'pointwise_constraint': 'unit_norm',
                        'depthwise_constraint': 'unit_norm',
                        'strides': 1,
+                       'use_bias': True,
                        'depth_multiplier': multiplier},
                input_shape=(num_samples, stack_size, num_step))
 
@@ -386,6 +388,7 @@ def test_depthwise_conv_2d():
                        'bias_regularizer': 'l2',
                        'activity_regularizer': 'l2',
                        'depthwise_constraint': 'unit_norm',
+                       'use_bias': True,
                        'strides': strides,
                        'depth_multiplier': multiplier},
                input_shape=(num_samples, stack_size, num_row, num_col))
@@ -547,6 +550,7 @@ def test_conv3d_transpose():
                        'activity_regularizer': 'l2',
                        'kernel_constraint': 'max_norm',
                        'bias_constraint': 'max_norm',
+                       'use_bias': True,
                        'strides': strides},
                input_shape=(None, stack_size, num_depth, num_row, num_col),
                fixed_batch_size=True)

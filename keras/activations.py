@@ -89,7 +89,7 @@ def softplus(x):
         x: Input tensor.
 
     # Returns
-        The softplus activation: `log(exp(x) + 1`.
+        The softplus activation: `log(exp(x) + 1)`.
     """
     return K.softplus(x)
 

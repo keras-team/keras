@@ -90,8 +90,10 @@ def test_io_utils(in_tmpdir):
     with pytest.raises(IndexError):
         X_train[[1000, 1001]]
     with pytest.raises(IndexError):
-        X_train[np.array([1000])]
+        X_train[six.moves.range(1000, 1001)]
     with pytest.raises(IndexError):
+        X_train[np.array([1000])]
+    with pytest.raises(TypeError):
         X_train[None]
     assert (X_train[0] == X_train[:1][0]).all()
     assert (X_train[[0, 1]] == X_train[:2]).all()
