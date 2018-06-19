@@ -103,7 +103,7 @@ def fit_generator(model,
 
     try:
         if do_validation:
-            if val_gen:
+            if val_gen and workers > 0:
                 # Create an Enqueuer that can be reused
                 val_data = validation_data
                 if isinstance(val_data, Sequence):
@@ -116,6 +116,12 @@ def fit_generator(model,
                 val_enqueuer.start(workers=workers,
                                    max_queue_size=max_queue_size)
                 val_enqueuer_gen = val_enqueuer.get()
+            elif val_gen:
+                val_data = validation_data
+                if isinstance(val_data, Sequence):
+                    val_enqueuer_gen = iter(val_data)
+                else:
+                    val_enqueuer_gen = val_data
             else:
                 # Prepare data for validation
                 if len(validation_data) == 2:
