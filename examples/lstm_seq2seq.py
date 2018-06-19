@@ -10,7 +10,7 @@ models are more common in this domain.
 # Summary of the algorithm
 
 - We start with input sequences from a domain (e.g. English sentences)
-    and correspding target sequences from another domain
+    and corresponding target sequences from another domain
     (e.g. French sentences).
 - An encoder LSTM turns input sequences to 2 state vectors
     (we keep the last LSTM state and discard the outputs).

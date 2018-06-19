@@ -131,7 +131,7 @@ class Network(Layer):
         # Entries are unique. Includes input and output layers.
         self._layers = []
 
-        # Used only in conjonction with graph-networks
+        # Used only in conjunction with graph-networks
         self._outbound_nodes = []
         self._inbound_nodes = []
 
@@ -524,7 +524,7 @@ class Network(Layer):
                 or a single instance if the model has only one input.
         """
         if not self._is_graph_network:
-            # TODO: support it in subclassd networks after inputs are set.
+            # TODO: support it in subclassed networks after inputs are set.
             return None
 
         specs = []
