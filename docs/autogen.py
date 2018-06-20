@@ -610,7 +610,7 @@ def read_page_data(page_data, type):
             if (inspect.isclass(module_member) and type == 'classes' or
                inspect.isfunction(module_member) and type == 'functions'):
                 instance = module_member
-                if module.__name__ == instance.__module__:
+                if module.__name__ in instance.__module__:
                     if instance not in module_data:
                         module_data.append(instance)
         module_data.sort(key=lambda x: id(x))
