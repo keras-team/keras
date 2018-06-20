@@ -1180,6 +1180,14 @@ class Network(Layer):
                 saving.load_weights_from_hdf5_group(
                     f, self.layers, reshape=reshape)
 
+
+    def __getstate__(self):
+        return saving.get_model_state(self)
+
+    def __setstate__(self, state):
+        model = saving.load_model_from_state(state)
+        self.__dict__ = model.__dict__
+
     def _updated_config(self):
         """Util hared between different serialization methods.
 
