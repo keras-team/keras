@@ -30,7 +30,6 @@ except ImportError:
     h5py = None
 
 
-
 def get_model_state(model):
 
     def get_json_type(obj):
@@ -60,7 +59,7 @@ def get_model_state(model):
                 return obj.item()
 
     from .. import __version__ as keras_version
-    
+
     state = {}
     state['keras_version'] = str(keras_version).encode('utf8')
     state['backend'] = K.backend().encode('utf8')
@@ -91,7 +90,7 @@ def get_model_state(model):
         layer_weights['weight_names'] = weight_names
         for name, val in zip(weight_names, weight_values):
             layer_weights[name] = pickle.dumps(val)
-    
+
     if model.optimizer:
         if isinstance(model.optimizer, optimizers.TFOptimizer):
             warnings.warn(
@@ -125,7 +124,7 @@ def get_model_state(model):
             weight_values = K.batch_get_value(symbolic_weights)
             weight_names = []
             for i, (w, val) in enumerate(zip(symbolic_weights,
-                                                weight_values)):
+                                             weight_values)):
                 # Default values of symbolic_weights is /variable
                 # for Theano and CNTK
                 if K.backend() == 'theano' or K.backend() == 'cntk':
@@ -152,7 +151,7 @@ def load_model_from_state(state):
     model_config = json.loads(state['model_config'].decode('utf-8'))
     model = model_from_config(model_config)
 
-    #set weights
+    # set weights
     if 'keras_version' in state:
         original_keras_version = state['keras_version'].decode('utf8')
     else:
@@ -161,14 +160,14 @@ def load_model_from_state(state):
         original_keras_backend = state['backend']
     else:
         original_keras_backend = None
-    
+
     layers = model.layers
     filtered_layers = []
     for layer in layers:
         weights = layer.weights
         if weights:
             filtered_layers.append(layer)
-    
+
     model_weights = state['model_weights']
     layer_names = model_weights['layer_names']
     filtered_layer_names = []
@@ -222,10 +221,10 @@ def load_model_from_state(state):
         loss_weights = training_config['loss_weights']
         # compile model
         model.compile(optimizer=optimizer,
-                        loss=loss,
-                        metrics=metrics,
-                        loss_weights=loss_weights,
-                        sample_weight_mode=sample_weight_mode)
+                      loss=loss,
+                      metrics=metrics,
+                      loss_weights=loss_weights,
+                      sample_weight_mode=sample_weight_mode)
 
         # load optimizer weights
         optimizer_weights = state['optimizer_weights']
@@ -235,14 +234,14 @@ def load_model_from_state(state):
                     n.decode('utf8') for n in
                     optimizer_weights['weight_names']]
         optimizer_weight_values = [pickle.loads(optimizer_weights[n]) for n in
-                                           optimizer_weight_names]
+                                   optimizer_weight_names]
         try:
             model.optimizer.set_weights(optimizer_weight_values)
         except ValueError:
             warnings.warn('Error in loading the saved optimizer '
-                            'state. As a result, your model is '
-                            'starting with a freshly initialized '
-                            'optimizer.')        
+                          'state. As a result, your model is '
+                          'starting with a freshly initialized '
+                          'optimizer.')
     return model
 
 
