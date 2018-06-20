@@ -58,6 +58,16 @@ def get_model_state(model):
             else:
                 return obj.item()
 
+        # misc functions (e.g. loss function)
+        if callable(obj):
+            return obj.__name__
+
+        # if obj is a python 'type'
+        if type(obj).__name__ == type.__name__:
+            return obj.__name__
+
+        raise TypeError('Not JSON Serializable:', obj)
+
     from .. import __version__ as keras_version
 
     state = {}
@@ -87,7 +97,7 @@ def get_model_state(model):
             else:
                 name = 'param_' + str(i)
             weight_names.append(name.encode('utf8'))
-        layer_weights['weight_names'] = weight_names
+        layer_weights['weight_names'] = weight_names[:]
         for name, val in zip(weight_names, weight_values):
             layer_weights[name] = pickle.dumps(val)
 
@@ -115,35 +125,36 @@ def get_model_state(model):
                 'metrics': model.metrics,
                 'sample_weight_mode': model.sample_weight_mode,
                 'loss_weights': model.loss_weights,
-            }, default=get_json_type).encode('utf8')
+            }, default=get_json_type).encode('utf-8')
 
             # save optimizer weights
             symbolic_weights = getattr(model.optimizer, 'weights')
-            optimizer_weights = {}
-            state['optimizer_weights'] = optimizer_weights
-            weight_values = K.batch_get_value(symbolic_weights)
-            weight_names = []
-            for i, (w, val) in enumerate(zip(symbolic_weights,
-                                             weight_values)):
-                # Default values of symbolic_weights is /variable
-                # for Theano and CNTK
-                if K.backend() == 'theano' or K.backend() == 'cntk':
-                    if hasattr(w, 'name'):
-                        if w.name.split('/')[-1] == 'variable':
-                            name = str(w.name) + '_' + str(i)
+            if symbolic_weights:
+                optimizer_weights = {}
+                state['optimizer_weights'] = optimizer_weights
+                weight_values = K.batch_get_value(symbolic_weights)
+                weight_names = []
+                for i, (w, val) in enumerate(zip(symbolic_weights,
+                                                 weight_values)):
+                    # Default values of symbolic_weights is /variable
+                    # for Theano and CNTK
+                    if K.backend() == 'theano' or K.backend() == 'cntk':
+                        if hasattr(w, 'name'):
+                            if w.name.split('/')[-1] == 'variable':
+                                name = str(w.name) + '_' + str(i)
+                            else:
+                                name = str(w.name)
                         else:
+                            name = 'param_' + str(i)
+                    else:
+                        if hasattr(w, 'name') and w.name:
                             name = str(w.name)
-                    else:
-                        name = 'param_' + str(i)
-                else:
-                    if hasattr(w, 'name') and w.name:
-                        name = str(w.name)
-                    else:
-                        name = 'param_' + str(i)
-                weight_names.append(name.encode('utf8'))
-            optimizer_weights['weight_names'] = weight_names
-            for name, val in zip(weight_names, weight_values):
-                optimizer_weights[name] = pickle.dumps(val)
+                        else:
+                            name = 'param_' + str(i)
+                    weight_names.append(name.encode('utf8'))
+                optimizer_weights['weight_names'] = weight_names[:]
+                for name, val in zip(weight_names, weight_values):
+                    optimizer_weights[name] = pickle.dumps(val)
     return state
 
 
@@ -220,28 +231,27 @@ def load_model_from_state(state):
         sample_weight_mode = training_config['sample_weight_mode']
         loss_weights = training_config['loss_weights']
         # compile model
-        model.compile(optimizer=optimizer,
-                      loss=loss,
-                      metrics=metrics,
-                      loss_weights=loss_weights,
-                      sample_weight_mode=sample_weight_mode)
+        if loss:
+            model.compile(optimizer=optimizer,
+                          loss=loss,
+                          metrics=metrics,
+                          loss_weights=loss_weights,
+                          sample_weight_mode=sample_weight_mode)
 
-        # load optimizer weights
-        optimizer_weights = state['optimizer_weights']
-        # Build train function (to get weight updates).
-        model._make_train_function()
-        optimizer_weight_names = [
-                    n.decode('utf8') for n in
-                    optimizer_weights['weight_names']]
-        optimizer_weight_values = [pickle.loads(optimizer_weights[n]) for n in
-                                   optimizer_weight_names]
-        try:
-            model.optimizer.set_weights(optimizer_weight_values)
-        except ValueError:
-            warnings.warn('Error in loading the saved optimizer '
-                          'state. As a result, your model is '
-                          'starting with a freshly initialized '
-                          'optimizer.')
+            # load optimizer weights
+            optimizer_weights = state.get('optimizer_weights')
+            if optimizer_weights:
+                # Build train function (to get weight updates).
+                model._make_train_function()
+                optimizer_weight_values = [pickle.loads(optimizer_weights[n]) for n in
+                                           optimizer_weights['weight_names']]
+                try:
+                    model.optimizer.set_weights(optimizer_weight_values)
+                except ValueError:
+                    warnings.warn('Error in loading the saved optimizer '
+                                  'state. As a result, your model is '
+                                  'starting with a freshly initialized '
+                                  'optimizer.')
     return model
 
 
