@@ -23,3 +23,4 @@ ImageDataGenerator = image.ImageDataGenerator
 Iterator = image.Iterator
 NumpyArrayIterator = image.NumpyArrayIterator
 DirectoryIterator = image.DirectoryIterator
+list_pictures = image.list_pictures
