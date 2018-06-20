@@ -164,3 +164,7 @@ def test_saving_unused_layers_is_ok():
     model = Model(inputs=[a, b], outputs=c)
 
     model = pickle.loads(pickle.dumps(model))
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])
