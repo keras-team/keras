@@ -1261,7 +1261,7 @@ class Network(Layer):
         """
         if not self.built:
             raise ValueError(
-                'This model has never been called, this its weights '
+                'This model has never been called, thus its weights '
                 'have not yet been created, so no summary can be displayed. '
                 'Build the model first '
                 '(e.g. by calling it on some test data).')
