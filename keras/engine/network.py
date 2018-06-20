@@ -1180,7 +1180,6 @@ class Network(Layer):
                 saving.load_weights_from_hdf5_group(
                     f, self.layers, reshape=reshape)
 
-
     def __getstate__(self):
         return saving.get_model_state(self)
 
