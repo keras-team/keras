@@ -16,7 +16,6 @@ from keras import optimizers
 from keras import losses
 from keras import metrics
 from keras.utils.test_utils import keras_test
-from keras.models import save_model, load_model
 
 if sys.version_info[0] == 3:
     import pickle
@@ -47,7 +46,7 @@ def test_sequential_model_saving():
 
     state = pickle.dumps(model)
 
-    new_model = load_model(state)
+    new_model = pickle.loads(state)
 
     out2 = new_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
@@ -102,7 +101,7 @@ def test_functional_model_saving():
     out = model.predict(x)
     state = pickle.dumps(model)
 
-    model = pickle.loads(model)
+    model = pickle.loads(state)
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
@@ -127,7 +126,7 @@ def test_saving_multiple_metrics_outputs():
     # assure that model is working
     x = np.array([[1, 1, 1, 1, 1]])
     out = model.predict(x)
-    
+
     model = pickle.loads(pickle.dumps(model))
 
     out2 = model.predict(x)
@@ -143,7 +142,6 @@ def test_saving_without_compilation():
     model.add(Dense(3))
 
     model = pickle.loads(pickle.dumps(model))
-    
 
 
 @keras_test
