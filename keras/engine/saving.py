@@ -341,7 +341,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                     'metrics': model.metrics,
                     'sample_weight_mode': model.sample_weight_mode,
                     'loss_weights': model.loss_weights,
-                }, default=get_json_type).encode('utf8')
+                }, default=_get_json_type).encode('utf8')
 
                 # Save optimizer weights.
                 symbolic_weights = getattr(model.optimizer, 'weights')
