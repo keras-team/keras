@@ -711,9 +711,12 @@ class Conv2DTranspose(Conv2D):
         `(batch, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
-        If `output_padding` is specified:<br/>
-        `new_rows = (rows - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]`<br/>
-        `new_cols = (cols - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]`
+        If `output_padding` is specified:
+
+        ```
+        new_rows = (rows - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]
+        new_cols = (cols - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]
+        ```
 
     # References
         - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
@@ -972,10 +975,13 @@ class Conv3DTranspose(Conv3D):
         `(batch, new_depth, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `depth` and `rows` and `cols` values might have changed due to padding.
-        If `output_padding` is specified:<br/>
-        `new_depth = (depth - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]`<br/>
-        `new_rows = (rows - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]`<br/>
-        `new_cols = (cols - 1) * strides[2] + kernel_size[2] - 2 * padding[2] + output_padding[2]`
+        If `output_padding` is specified::
+
+        ```
+        new_depth = (depth - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]
+        new_rows = (rows - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]
+        new_cols = (cols - 1) * strides[2] + kernel_size[2] - 2 * padding[2] + output_padding[2]
+        ```
 
     # References
         - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
