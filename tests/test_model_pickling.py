@@ -29,7 +29,7 @@ skipif_no_tf_gpu = pytest.mark.skipif(
 
 
 @keras_test
-def test_sequential_model_saving():
+def test_sequential_model_pickling():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
     model.add(RepeatVector(3))
@@ -62,7 +62,7 @@ def test_sequential_model_saving():
 
 
 @keras_test
-def test_sequential_model_saving_2():
+def test_sequential_model_pickling_2():
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
     custom_loss = losses.mse
@@ -85,7 +85,7 @@ def test_sequential_model_saving_2():
 
 
 @keras_test
-def test_functional_model_saving():
+def test_functional_model_pickling():
     inputs = Input(shape=(3,))
     x = Dense(2)(inputs)
     outputs = Dense(3)(x)
@@ -108,7 +108,7 @@ def test_functional_model_saving():
 
 
 @keras_test
-def test_saving_multiple_metrics_outputs():
+def test_pickling_multiple_metrics_outputs():
     inputs = Input(shape=(5,))
     x = Dense(5)(inputs)
     output1 = Dense(1, name='output1')(x)
@@ -134,8 +134,8 @@ def test_saving_multiple_metrics_outputs():
 
 
 @keras_test
-def test_saving_without_compilation():
-    """Test saving model without compiling.
+def test_pickling_without_compilation():
+    """Test pickling model without compiling.
     """
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
@@ -145,7 +145,7 @@ def test_saving_without_compilation():
 
 
 @keras_test
-def test_saving_right_after_compilation():
+def test_pickling_right_after_compilation():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
@@ -156,7 +156,7 @@ def test_saving_right_after_compilation():
 
 
 @keras_test
-def test_saving_unused_layers_is_ok():
+def test_pickling_unused_layers_is_ok():
     a = Input(shape=(256, 512, 6))
     b = Input(shape=(256, 512, 1))
     c = Lambda(lambda x: x[:, :, :, :1])(a)
