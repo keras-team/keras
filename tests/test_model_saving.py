@@ -206,7 +206,7 @@ def test_saving_multiple_metrics_outputs():
     save_model(model, fname)
 
     model = load_model(fname)
-    #os.remove(fname)
+    os.remove(fname)
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)

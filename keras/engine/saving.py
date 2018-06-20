@@ -29,44 +29,43 @@ try:
 except ImportError:
     h5py = None
 
+def _get_json_type(obj):
+    """Serialize any object to a JSON-serializable structure.
+
+    # Arguments
+        obj: the object to serialize
+
+    # Returns
+        JSON-serializable structure representing `obj`.
+
+    # Raises
+        TypeError: if `obj` cannot be serialized.
+    """
+    # if obj is a serializable Keras class instance
+    # e.g. optimizer, layer
+    if hasattr(obj, 'get_config'):
+        return {'class_name': obj.__class__.__name__,
+                'config': obj.get_config()}
+
+    # if obj is any numpy type
+    if type(obj).__module__ == np.__name__:
+        if isinstance(obj, np.ndarray):
+            return {'type': type(obj),
+                    'value': obj.tolist()}
+        else:
+            return obj.item()
+
+    # misc functions (e.g. loss function)
+    if callable(obj):
+        return obj.__name__
+
+    # if obj is a python 'type'
+    if type(obj).__name__ == type.__name__:
+        return obj.__name__
+
+    raise TypeError('Not JSON Serializable:', obj)
 
 def get_model_state(model):
-
-    def get_json_type(obj):
-        """Serialize any object to a JSON-serializable structure.
-
-        # Arguments
-            obj: the object to serialize
-
-        # Returns
-            JSON-serializable structure representing `obj`.
-
-        # Raises
-            TypeError: if `obj` cannot be serialized.
-        """
-        # if obj is a serializable Keras class instance
-        # e.g. optimizer, layer
-        if hasattr(obj, 'get_config'):
-            return {'class_name': obj.__class__.__name__,
-                    'config': obj.get_config()}
-
-        # if obj is any numpy type
-        if type(obj).__module__ == np.__name__:
-            if isinstance(obj, np.ndarray):
-                return {'type': type(obj),
-                        'value': obj.tolist()}
-            else:
-                return obj.item()
-
-        # misc functions (e.g. loss function)
-        if callable(obj):
-            return obj.__name__
-
-        # if obj is a python 'type'
-        if type(obj).__name__ == type.__name__:
-            return obj.__name__
-
-        raise TypeError('Not JSON Serializable:', obj)
 
     from .. import __version__ as keras_version
 
@@ -78,7 +77,7 @@ def get_model_state(model):
     state['model_config'] = json.dumps({
             'class_name': model.__class__.__name__,
             'config': model.get_config()
-        }, default=get_json_type).encode('utf8')
+        }, default=_get_json_type).encode('utf8')
 
     # save model weights
     layers = model.layers
@@ -125,7 +124,7 @@ def get_model_state(model):
                 'metrics': model.metrics,
                 'sample_weight_mode': model.sample_weight_mode,
                 'loss_weights': model.loss_weights,
-            }, default=get_json_type).encode('utf-8')
+            }, default=_get_json_type).encode('utf-8')
 
             # save optimizer weights
             symbolic_weights = getattr(model.optimizer, 'weights')
@@ -290,42 +289,6 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
 
-    def get_json_type(obj):
-        """Serialize any object to a JSON-serializable structure.
-
-        # Arguments
-            obj: the object to serialize
-
-        # Returns
-            JSON-serializable structure representing `obj`.
-
-        # Raises
-            TypeError: if `obj` cannot be serialized.
-        """
-        # if obj is a serializable Keras class instance
-        # e.g. optimizer, layer
-        if hasattr(obj, 'get_config'):
-            return {'class_name': obj.__class__.__name__,
-                    'config': obj.get_config()}
-
-        # if obj is any numpy type
-        if type(obj).__module__ == np.__name__:
-            if isinstance(obj, np.ndarray):
-                return {'type': type(obj),
-                        'value': obj.tolist()}
-            else:
-                return obj.item()
-
-        # misc functions (e.g. loss function)
-        if callable(obj):
-            return obj.__name__
-
-        # if obj is a python 'type'
-        if type(obj).__name__ == type.__name__:
-            return obj.__name__
-
-        raise TypeError('Not JSON Serializable:', obj)
-
     from .. import __version__ as keras_version
 
     if not isinstance(filepath, h5py.File):
@@ -347,7 +310,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         f.attrs['model_config'] = json.dumps({
             'class_name': model.__class__.__name__,
             'config': model.get_config()
-        }, default=get_json_type).encode('utf8')
+        }, default=_get_json_type).encode('utf8')
 
         model_weights_group = f.create_group('model_weights')
         model_layers = model.layers
