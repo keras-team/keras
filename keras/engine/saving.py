@@ -29,6 +29,7 @@ try:
 except ImportError:
     h5py = None
 
+
 def _get_json_type(obj):
     """Serialize any object to a JSON-serializable structure.
 
@@ -64,6 +65,7 @@ def _get_json_type(obj):
         return obj.__name__
 
     raise TypeError('Not JSON Serializable:', obj)
+
 
 def get_model_state(model):
 
