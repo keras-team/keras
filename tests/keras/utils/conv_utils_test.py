@@ -59,13 +59,22 @@ def test_conv_input_length():
 
 
 def test_deconv_length():
-    assert conv_utils.deconv_length(None, 1, 7, 'same') is None
-    assert conv_utils.deconv_length(224, 1, 7, 'same') == 224
-    assert conv_utils.deconv_length(224, 2, 7, 'same') == 448
-    assert conv_utils.deconv_length(32, 1, 5, 'valid') == 36
-    assert conv_utils.deconv_length(32, 2, 5, 'valid') == 67
-    assert conv_utils.deconv_length(32, 1, 5, 'full') == 28
-    assert conv_utils.deconv_length(32, 2, 5, 'full') == 59
+    assert conv_utils.deconv_length(None, 1, 7, 'same', None) is None
+    assert conv_utils.deconv_length(224, 1, 7, 'same', None) == 224
+    assert conv_utils.deconv_length(224, 2, 7, 'same', None) == 448
+    assert conv_utils.deconv_length(32, 1, 5, 'valid', None) == 36
+    assert conv_utils.deconv_length(32, 2, 5, 'valid', None) == 67
+    assert conv_utils.deconv_length(32, 1, 5, 'full', None) == 28
+    assert conv_utils.deconv_length(32, 2, 5, 'full', None) == 59
+    assert conv_utils.deconv_length(224, 1, 7, 'same', 0) == 224
+    assert conv_utils.deconv_length(224, 2, 7, 'same', 0) == 447
+    assert conv_utils.deconv_length(224, 2, 7, 'same', 1) == 448
+    assert conv_utils.deconv_length(32, 1, 5, 'valid', 0) == 36
+    assert conv_utils.deconv_length(32, 2, 5, 'valid', 0) == 67
+    assert conv_utils.deconv_length(32, 2, 5, 'valid', 1) == 68
+    assert conv_utils.deconv_length(6, 1, 3, 'full', 0) == 4
+    assert conv_utils.deconv_length(6, 2, 3, 'full', 1) == 10
+    assert conv_utils.deconv_length(6, 2, 3, 'full', 2) == 11
 
 
 if __name__ == '__main__':
