@@ -20,7 +20,7 @@ For a detailed overview of what makes Keras special, see:
 https://keras.io/why-use-keras/
 
 Keras is compatible with Python 2.7-3.6
-and is distributed under the MIT liense.
+and is distributed under the MIT license.
 '''
 
 setup(name='Keras',
