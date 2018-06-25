@@ -323,6 +323,8 @@ def test_separable_conv_2d():
                         continue
                     if dilation_rate != (1, 1) and strides != (1, 1):
                         continue
+                    if dilation_rate != (1, 1) and multiplier == dilation_rate[0]:
+                        continue
                     if dilation_rate != (1, 1) and K.backend() == 'cntk':
                         continue
 
