@@ -312,20 +312,25 @@ def test_loading_weights_by_name_and_reshape():
     model.add(Conv2D(2, (1, 1), input_shape=(1, 1, 1), use_bias=False, name='rick'))
     model.add(Flatten())
     model.add(Dense(3, name='morty'))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError,
+                       match=r'.* expects [0-9]+ .* but the saved .* [0-9]+ .*'):
         model.load_weights(fname)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError,
+                       match=r'.* expects [0-9]+ .* but the saved .* [0-9]+ .*'):
         model.load_weights(fname, by_name=True)
-    with pytest.warns(UserWarning):
+    with pytest.warns(UserWarning,
+                      match=r'Skipping loading .* due to mismatch .*'):
         model.load_weights(fname, by_name=True, skip_mismatch=True)
 
     # delete and recreate model with `filters=10`
     del(model)
     model = Sequential()
     model.add(Conv2D(10, (1, 1), input_shape=(1, 1, 1), name='rick'))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError,
+                       match=r'.* has shape .* but the saved .* shape .*'):
         model.load_weights(fname, by_name=True)
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError,
+                       match=r'.* load .* [0-9]+ layers into .* [0-9]+ layers.'):
         model.load_weights(fname)
 
     os.remove(fname)
