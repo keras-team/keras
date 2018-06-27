@@ -74,7 +74,7 @@ if not os.path.exists(_config_path):
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
     if _backend:
-      _BACKEND = _backend
+        _BACKEND = _backend
 
 # Import backend functions.
 if _BACKEND == 'cntk':
