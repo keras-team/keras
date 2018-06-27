@@ -6,8 +6,11 @@ from itertools import compress
 
 import pytest
 
-modules = ['keras.layers', 'keras.models', 'keras', 'keras.backend.tensorflow_backend', 'keras.preprocessing.image',
-           'keras.preprocessing.text']
+modules = ['keras.layers', 'keras.models', 'keras',
+           'keras.backend.tensorflow_backend', 'keras.engine',
+           'keras.wrappers', 'keras.utils',
+           'keras.callbacks', 'keras.activations',
+           'keras.losses', 'keras.models', 'keras.optimizers']
 accepted_name = ['from_config']
 accepted_module = ['keras.legacy.layers', 'keras.utils.generic_utils']
 
