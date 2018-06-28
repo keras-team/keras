@@ -450,13 +450,14 @@ def random_normal_variable(
     if name is None:
         name = ''
 
-    return C.parameter(
+    p = C.parameter(
         shape=shape,
         init=C.initializer.normal(
             scale=scale,
             seed=seed),
         dtype=dtype,
         name=name)
+    return variable(value=p.value+mean)
 
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -468,8 +469,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
                              'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
                              'instead of `None`.')
-    # how to apply mean and stddev
-    return random_normal_variable(shape=shape, mean=mean, scale=1.0, seed=seed)
+    return random_normal_variable(shape=shape, mean=mean, scale=stddev, seed=seed)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
