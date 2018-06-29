@@ -1162,13 +1162,13 @@ class TestBackend(object):
                                       strides=(1, 1, 1), padding='same', pool_mode='avg')
 
     def test_random_normal(self):
-        mean = 0.
-        std = 1.
-        for k in BACKENDS:
-            rand = k.eval(k.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
-            assert rand.shape == (300, 200)
-            assert np.abs(np.mean(rand) - mean) < 0.015
-            assert np.abs(np.std(rand) - std) < 0.015
+        # test standard normal as well as a normal with a different set of parameters
+        for mean, std in [(0.,1.),(-10.,5.)]:
+            for k in BACKENDS:
+                rand = k.eval(k.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
+                assert rand.shape == (300, 200)
+                assert np.abs(np.mean(rand) - mean) < 0.015
+                assert np.abs(np.std(rand) - std) < 0.015
 
     def test_random_uniform(self):
         min_val = -1.
