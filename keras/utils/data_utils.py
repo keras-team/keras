@@ -543,7 +543,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
         self._send_sequence()  # Share the initial sequence
         if self.sequence.seed is not None:
             random.seed(self.sequence.seed)
-            print(self.sequence.seed)
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
