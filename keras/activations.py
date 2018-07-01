@@ -171,6 +171,17 @@ def deserialize(name, custom_objects=None):
 
 
 def get(identifier):
+    """Get the `identifier` activation function.
+
+    # Arguments
+        identifier: None or str, name of the function.
+
+    # Returns
+        The activation function, `linear` if `identifier` is None.
+
+    # Raises
+        ValueError if unknown identifier
+    """
     if identifier is None:
         return linear
     if isinstance(identifier, six.string_types):
