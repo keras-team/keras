@@ -18,6 +18,17 @@ if K.backend() == 'tensorflow':
 
 
 def clip_norm(g, c, n):
+    """Clip the gradient `g` if the L2 norm `n` exceeds `c`.
+
+    # Arguments
+        g: Tensor, the gradient tensor
+        c: float >= 0. Gradients will be clipped
+            when their L2 norm exceeds this value.
+        n: Tensor, actual norm of `g`.
+
+    # Returns
+        Tensor, the gradient clipped if required.
+    """
     if c <= 0:  # if clipnorm == 0 no need to add ops to the graph
         return g
 
