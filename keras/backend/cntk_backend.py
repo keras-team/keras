@@ -385,6 +385,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
                              'instead of `None`.')
     return C.random.bernoulli(shape=shape, dtype=dtype, mean=p, seed=seed)
 
+
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
     for _ in shape:
         if _ is None:
@@ -397,6 +398,7 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e3)
     return C.random.uniform(shape=shape, dtype=dtype, low=minval, high=maxval, seed=seed)
+
 
 def random_uniform_variable(shape, low, high,
                             dtype=None, name=None, seed=None):
@@ -452,7 +454,7 @@ def random_normal_variable(
             seed=seed),
         dtype=dtype,
         name=name)
-    return variable(value=p.value+mean)
+    return variable(value=p.value + mean)
 
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):

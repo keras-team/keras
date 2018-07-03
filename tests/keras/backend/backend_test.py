@@ -1164,7 +1164,7 @@ class TestBackend(object):
     def test_random_normal(self):
         # test standard normal as well as a normal with a different set of parameters
         for k in BACKENDS:
-            for mean, std in [(0.,1.),(-10.,5.)]:
+            for mean, std in [(0., 1.), (-10., 5.)]:
                 rand = k.eval(k.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
                 assert rand.shape == (300, 200)
                 assert np.abs(np.mean(rand) - mean) < std * 0.015
@@ -1206,8 +1206,6 @@ class TestBackend(object):
             assert np.abs(np.mean(samples) - p) < 0.015
             assert np.max(samples) == 1
             assert np.min(samples) == 0
-
-
 
     def test_truncated_normal(self):
         mean = 0.
