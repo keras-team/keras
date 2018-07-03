@@ -287,32 +287,53 @@ def test_EarlyStopping_patience():
 
 
 @keras_test
-def test_EarlyStopping_baseline():
+def test_EarlyStopping_baseline_met():
     class DummyModel(object):
         def __init__(self):
             self.stop_training = False
 
-    def baseline_tester(acc_levels):
-        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75, patience=2)
-        early_stop.model = DummyModel()
-        epochs_trained = 0
-        early_stop.on_train_begin()
-        for epoch in range(len(acc_levels)):
-            epochs_trained += 1
-            early_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
-            if early_stop.model.stop_training:
-                break
-        return epochs_trained
+    early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75, patience=2)
+    early_stop.model = DummyModel()
 
-    acc_levels = [0.55, 0.76, 0.81, 0.81]
-    baseline_met = baseline_tester(acc_levels)
-    acc_levels = [0.55, 0.74, 0.81, 0.81]
-    baseline_not_met = baseline_tester(acc_levels)
+    accuracies = [0.55, 0.76, 0.81, 0.81]
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(accuracies)):
+        epochs_trained += 1
+        early_stop.on_epoch_end(epoch, logs={'val_acc': accuracies[epoch]})
+
+        if early_stop.model.stop_training:
+            break
 
     # All epochs should run because baseline was met in second epoch
-    assert baseline_met == 4
+    assert epochs_trained == 4
+
+
+@keras_test
+def test_EarlyStopping_baseline_not_met():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75, patience=2)
+    early_stop.model = DummyModel()
+
+    accuracies = [0.55, 0.74, 0.81, 0.81]
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(accuracies)):
+        epochs_trained += 1
+        early_stop.on_epoch_end(epoch, logs={'val_acc': accuracies[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
     # Baseline was not met by second epoch and should stop
-    assert baseline_not_met == 2
+    assert epochs_trained == 2
 
 
 @keras_test
