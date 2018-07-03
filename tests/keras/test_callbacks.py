@@ -337,6 +337,54 @@ def test_EarlyStopping_baseline_not_met():
 
 
 @keras_test
+def test_EarlyStopping_specified_accuracy_is_not_reached():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    early_stop = callbacks.EarlyStopping(monitor='val_acc', reach=0.90)
+    early_stop.model = DummyModel()
+
+    accuracies = [0.55, 0.81, 0.81, 0.81]
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(accuracies)):
+        epochs_trained += 1
+        early_stop.on_epoch_end(epoch, logs={'val_acc': accuracies[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    assert epochs_trained == 4
+
+
+@keras_test
+def test_EarlyStopping_specified_accuracy_is_reached():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+    early_stop = callbacks.EarlyStopping(monitor='val_acc', reach=0.90)
+    early_stop.model = DummyModel()
+
+    accuracies = [0.80, 0.90, 0.90, 0.95]
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(accuracies)):
+        epochs_trained += 1
+        early_stop.on_epoch_end(epoch, logs={'val_acc': accuracies[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    assert epochs_trained == 3
+
+
+@keras_test
 def test_LearningRateScheduler():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
