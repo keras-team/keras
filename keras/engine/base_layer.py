@@ -33,7 +33,6 @@ class Layer(object):
             ill-defined (e.g. a shared layer with multiple input
             shapes), in which case requesting `input_shape` will raise
             an Exception. Prefer using
-            `layer.get_input_shape_for(input_shape)`, or
             `layer.get_input_shape_at(node_index)`.
         input_spec: List of InputSpec class instances
             each entry describes one required input:
