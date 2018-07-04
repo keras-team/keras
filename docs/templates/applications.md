@@ -533,15 +533,6 @@ MobileNet model, with weights pre-trained on ImageNet.
 
 Note that this model only supports the data format `'channels_last'` (height, width, channels).
 
-To load a MobileNet model via `load_model`, import the custom object `relu6` and pass it to the `custom_objects` parameter.
-
-E.g.
-
-```python
-model = load_model('mobilenet.h5', custom_objects={
-                   'relu6': mobilenet.relu6})
-```
-
 The default input size for this model is 224x224.
 
 ### Arguments
@@ -731,15 +722,6 @@ keras.applications.mobilenetv2.MobileNetV2(input_shape=None, alpha=1.0, depth_mu
 MobileNetV2 model, with weights pre-trained on ImageNet.
 
 Note that this model only supports the data format `'channels_last'` (height, width, channels).
-
-To load a MobileNetV2 model via `load_model`, import the custom object `relu6` and pass it to the `custom_objects` parameter.
-
-E.g.
-
-```python
-model = load_model('mobilenet_v2.h5', custom_objects={
-                   'relu6': mobilenetv2.relu6})
-```
 
 The default input size for this model is 224x224.
 
