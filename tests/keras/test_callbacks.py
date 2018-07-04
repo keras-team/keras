@@ -547,7 +547,7 @@ def test_TensorBoard(tmpdir):
 @keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-def pipq(tmpdir):
+def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
