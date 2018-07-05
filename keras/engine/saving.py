@@ -67,7 +67,7 @@ def _get_json_type(obj):
     raise TypeError('Not JSON Serializable:', obj)
 
 
-def get_model_state(model):
+def pickle_model(model):
 
     from .. import __version__ as keras_version
 
@@ -159,7 +159,7 @@ def get_model_state(model):
     return state
 
 
-def load_model_from_state(state):
+def unpickle_model(state):
     model_config = json.loads(state['model_config'].decode('utf-8'))
     model = model_from_config(model_config)
 

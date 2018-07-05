@@ -1181,10 +1181,10 @@ class Network(Layer):
                     f, self.layers, reshape=reshape)
 
     def __getstate__(self):
-        return saving.get_model_state(self)
+        return saving.pickle_model(self)
 
     def __setstate__(self, state):
-        model = saving.load_model_from_state(state)
+        model = saving.unpickle_model(state)
         self.__dict__ = model.__dict__
 
     def _updated_config(self):
