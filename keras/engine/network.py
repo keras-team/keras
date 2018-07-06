@@ -159,7 +159,7 @@ class Network(Layer):
             if not hasattr(x, '_keras_history'):
                 cls_name = self.__class__.__name__
                 raise ValueError('Input tensors to a ' + cls_name + ' ' +
-                                 'must come from `tf.layers.Input`. '
+                                 'must come from `keras.layers.Input`. '
                                  'Received: ' + str(x) +
                                  ' (missing previous layer metadata).')
             # Check that x is an input tensor.
@@ -169,7 +169,7 @@ class Network(Layer):
                      layer._inbound_nodes[0].inbound_layers)):
                 cls_name = self.__class__.__name__
                 warnings.warn(cls_name + ' inputs must come from '
-                              '`tf.layers.Input` '
+                              '`keras.layers.Input` '
                               '(thus holding past layer metadata), '
                               'they cannot be the output of '
                               'a previous non-Input layer. '
@@ -180,7 +180,7 @@ class Network(Layer):
                               layer.name + '.\n'
                               'Note that input tensors are '
                               'instantiated via '
-                              '`tensor = tf.layers.Input(shape)`.\n'
+                              '`tensor = keras.layers.Input(shape)`.\n'
                               'The tensor that caused the issue was: ' +
                               str(x.name))
         for x in self.outputs:
