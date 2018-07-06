@@ -35,7 +35,7 @@ fitting (predicting) parameters are selected in the following order:
 
 1. Values passed to the dictionary arguments of
 `fit`, `predict`, `predict_proba`, and `score` methods
-2. Values passed to `sk_params`
+2. Values passed to `build_fn`
 3. The default values of the `keras.models.Sequential`
 `fit`, `predict`, `predict_proba` and `score` methods
 
