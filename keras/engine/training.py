@@ -206,9 +206,12 @@ class Model(Network):
                 for name in self.output_names:
                     tmp_target_tensors.append(target_tensors.get(name, None))
                 target_tensors = tmp_target_tensors
+            elif K.is_tensor(target_tensors):
+                target_tensors = [target_tensors]
             else:
-                raise TypeError('Expected `target_tensors` to be '
+                raise TypeError('Expected `target_tensors` to be a tensor, '
                                 'a list or dict, but got:', target_tensors)
+
         for i in range(len(self.outputs)):
             if i in skip_target_indices:
                 self.targets.append(None)
