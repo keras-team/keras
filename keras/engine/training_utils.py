@@ -448,9 +448,9 @@ def standardize_weights(y,
         ValueError: In case of invalid user-provided arguments.
     """
     if sample_weight_mode is not None:
-        if sample_weight_mode != 'temporal':
+        if sample_weight_mode != 'temporal' and sample_weight_mode != 'element':
             raise ValueError('"sample_weight_mode '
-                             'should be None or "temporal". '
+                             'should be None, "element" or "temporal". '
                              'Found: ' + str(sample_weight_mode))
         if len(y.shape) < 3:
             raise ValueError('Found a sample_weight array for '
@@ -460,12 +460,12 @@ def standardize_weights(y,
                              'sample_weight_mode="temporal") is restricted to '
                              'outputs that are at least 3D, i.e. that have '
                              'a time dimension.')
-        if sample_weight is not None and len(sample_weight.shape) != 2:
-            raise ValueError('Found a sample_weight array with shape ' +
+        if sample_weight is 'temporal' and len(sample_weight.shape) != 2:
+            raise ValueError('Found a temporal sample_weight array with shape ' +
                              str(sample_weight.shape) + '. '
                              'In order to use timestep-wise sample weighting, '
                              'you should pass a 2D sample_weight array.')
-    else:
+    elif sample_weight_mode is 'temporal':
         if sample_weight is not None and len(sample_weight.shape) != 1:
             raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + '. '
@@ -474,7 +474,14 @@ def standardize_weights(y,
                              'sample_weight_mode="temporal" '
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
-                             'sample_weight array is 1D.')
+                             'sample_weight array is 1D (sample_weight_mode=None) '
+                             'or the same size as the output arrays (sample_weight_mode="element").')
+    elif sample_weight_mode is 'element':
+        if sample_weight is not None and sample_weight.shape != y.shape:
+            raise ValueError('Found a sample_weight array with shape ' +
+                             str(sample_weight.shape) + ' for output with shape ' +
+                             str(y.shape) + '. When sample_weight_mode="element", weights and outputs '
+                             'must have the same size.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
@@ -517,6 +524,8 @@ def standardize_weights(y,
     else:
         if sample_weight_mode is None:
             return np.ones((y.shape[0],), dtype=K.floatx())
+        elif sample_weight_mode == 'element':
+            return np.ones(y.shape, dtype=K.floatx())
         else:
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 
