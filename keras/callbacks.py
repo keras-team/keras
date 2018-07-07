@@ -634,7 +634,7 @@ class LearningRateScheduler(Callback):
                              'should be float.')
         K.set_value(self.model.optimizer.lr, lr)
         if self.verbose > 0:
-            print('\nEpoch %05d: LearningRateScheduler reducing learning '
+            print('\nEpoch %05d: LearningRateScheduler setting learning '
                   'rate to %s.' % (epoch + 1, lr))
 
 
