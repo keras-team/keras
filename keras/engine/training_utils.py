@@ -436,9 +436,11 @@ def standardize_weights(y,
         y: Numpy array of model targets to be weighted.
         sample_weight: User-provided `sample_weight` argument.
         class_weight: User-provided `class_weight` argument.
-        sample_weight_mode: One of `None` or `"temporal"`.
-            `"temporal"` indicated that we expect 2D weight data
-            that will be applied to the last 2 dimensions of
+        sample_weight_mode: One of `None`, `"element"` or `"temporal"`.
+            `"element"` indicates that we expect n-D weight data with
+            the same size as the output. The weights will be applied
+            element-wise. `"temporal"` indicates that we expect 2D
+            weight data that will be applied to the last 2 dimensions of
             the targets (i.e. we are weighting timesteps, not samples).
 
     # Returns

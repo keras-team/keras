@@ -68,7 +68,8 @@ class Model(Network):
                 output names (strings) to scalar coefficients.
             sample_weight_mode: If you need to do timestep-wise
                 sample weighting (2D weights), set this to `"temporal"`.
-                `None` defaults to sample-wise weights (1D).
+                If you need to do element-wise weighting of the loss function,
+                set this to `"element"`. `None` defaults to sample-wise weights (1D).
                 If the model has multiple outputs, you can use a different
                 `sample_weight_mode` on each output by passing a
                 dictionary or a list of modes.
@@ -544,7 +545,6 @@ class Model(Network):
                 inputs += [K.learning_phase()]
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
-
             self.test_function = K.function(
                 inputs,
                 [self.total_loss] + self.metrics_tensors,
