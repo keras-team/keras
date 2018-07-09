@@ -100,6 +100,8 @@ class Dropout(Layer):
     @interfaces.legacy_dropout_support
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
         super(Dropout, self).__init__(**kwargs)
+        if (rate>=1) or (rate<0):
+            warnings.warn('`rate` should be between 0 and 1')
         self.rate = min(1., max(0., rate))
         self.noise_shape = noise_shape
         self.seed = seed
