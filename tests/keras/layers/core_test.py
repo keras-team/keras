@@ -281,6 +281,16 @@ def test_lambda():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'theano'),
+                    reason="theano cannot compute "
+                           "the output shape automatically.")
+def test_lambda_output_shape():
+    layer_test(layers.Lambda,
+               kwargs={'function': lambda x: K.mean(x, axis=-1)},
+               input_shape=(3, 2, 4))
+
+
+@keras_test
 def test_dense():
     layer_test(layers.Dense,
                kwargs={'units': 3},
