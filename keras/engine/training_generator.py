@@ -63,12 +63,14 @@ def fit_generator(model,
     val_gen = (hasattr(validation_data, 'next') or
                hasattr(validation_data, '__next__') or
                isinstance(validation_data, Sequence))
-    if (val_gen and not isinstance(validation_data, Sequence) and
-            not validation_steps):
-        raise ValueError('`validation_steps=None` is only valid for a'
-                         ' generator based on the `keras.utils.Sequence`'
-                         ' class. Please specify `validation_steps` or use'
-                         ' the `keras.utils.Sequence` class.')
+    if val_gen and not validation_steps:
+        if isinstance(validation_data, Sequence):
+            validation_steps = len(validation_data)
+        else:
+            raise ValueError('`validation_steps=None` is only valid for a'
+                             ' generator based on the `keras.utils.Sequence`'
+                             ' class. Please specify `validation_steps` or use'
+                             ' the `keras.utils.Sequence` class.')
 
     # Prepare display labels.
     out_labels = model.metrics_names
@@ -95,6 +97,7 @@ def fit_generator(model,
     callbacks.set_params({
         'epochs': epochs,
         'steps': steps_per_epoch,
+        'val_steps': validation_steps,
         'verbose': verbose,
         'do_validation': do_validation,
         'metrics': callback_metrics,
@@ -112,7 +115,6 @@ def fit_generator(model,
                 if isinstance(val_data, Sequence):
                     val_enqueuer = OrderedEnqueuer(val_data,
                                                    use_multiprocessing=use_multiprocessing)
-                    validation_steps = validation_steps or len(val_data)
                 else:
                     val_enqueuer = GeneratorEnqueuer(val_data,
                                                      use_multiprocessing=use_multiprocessing)

@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import math
 import os
 import csv
 import six
@@ -695,7 +696,8 @@ class TensorBoard(Callback):
         write_grads: whether to visualize gradient histograms in TensorBoard.
             `histogram_freq` must be greater than 0.
         batch_size: size of batch of inputs to feed to the network
-            for histograms computation.
+            for embedding computation (and for histograms when using fit generator
+            without validation generator).
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
@@ -762,6 +764,9 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.embeddings_data = embeddings_data
+        self._epoch = 0
+        self._current_batch = 0
+        self._val_batches_per_epoch = None
 
     def set_model(self, model):
         self.model = model
@@ -882,17 +887,31 @@ class TensorBoard(Callback):
             projector.visualize_embeddings(self.writer, config)
 
     def _fetch_callback(self, summary):
-        self.writer.add_summary(summary, self._epoch)
+        self.writer.add_summary(
+            summary, self._epoch + self._current_batch / self._val_batches_per_epoch)
+        self._current_batch += 1
 
     def on_epoch_begin(self, epoch, logs=None):
-        if not self.params['do_validation'] and self.histogram_freq:
-            raise ValueError('If printing histograms, validation_data must be '
-                             'provided.')
-        if self.histogram_freq and epoch % self.histogram_freq == 0:
-            self._epoch = epoch
-            if self.merged not in self.model.test_function.fetches:
-                self.model.test_function.fetches.append(self.merged)
-                self.model.test_function.fetch_callbacks[self.merged] = self._fetch_callback
+        if self.histogram_freq:
+            if self._val_batches_per_epoch is None:
+                if self.params['do_validation']:
+                    if self.params['val_steps']:
+                        self._val_batches_per_epoch = self.params['val_steps']
+                    else:
+                        batch_size = self.batch_size
+                        if 'batch_size' in self.params:
+                            batch_size = self.params['batch_size']
+                        self._val_batches_per_epoch = math.ceil(
+                            self.validation_data[0].shape[0] / batch_size)
+                else:
+                    raise ValueError('If printing histograms, validation_data must be '
+                                     'provided.')
+            if epoch % self.histogram_freq == 0:
+                self._epoch = epoch
+                self._current_batch = 0
+                if self.merged not in self.model.test_function.fetches:
+                    self.model.test_function.fetches.append(self.merged)
+                    self.model.test_function.fetch_callbacks[self.merged] = self._fetch_callback
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
