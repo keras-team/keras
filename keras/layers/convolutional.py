@@ -349,7 +349,6 @@ class Conv1D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=3)
 
     def get_config(self):
         config = super(Conv1D, self).get_config()
@@ -481,7 +480,6 @@ class Conv2D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=4)
 
     def get_config(self):
         config = super(Conv2D, self).get_config()
@@ -610,7 +608,6 @@ class Conv3D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=5)
 
     def get_config(self):
         config = super(Conv3D, self).get_config()
@@ -756,7 +753,6 @@ class Conv2DTranspose(Conv2D):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=4)
 
         self.output_padding = output_padding
         if self.output_padding is not None:
@@ -1020,7 +1016,7 @@ class Conv3DTranspose(Conv3D):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=5)
+
         self.output_padding = output_padding
         if self.output_padding is not None:
             self.output_padding = conv_utils.normalize_tuple(
