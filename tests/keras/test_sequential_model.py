@@ -430,7 +430,7 @@ def test_nested_sequential_deferred_build():
 
     model = keras.models.Sequential()
     model.add(inner_model)
-    model.add(Dense(5))
+    model.add(keras.layers.Dense(5))
     model.compile('sgd', 'mse')
 
     assert inner_model.built is False
