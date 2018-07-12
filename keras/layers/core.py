@@ -624,7 +624,7 @@ class Lambda(Layer):
 
     # Output shape
         Specified by `output_shape` argument
-        (or auto-inferred when using TensorFlow).
+        (or auto-inferred when using TensorFlow or CNTK).
     """
 
     @interfaces.legacy_lambda_support
@@ -649,8 +649,8 @@ class Lambda(Layer):
 
     def compute_output_shape(self, input_shape):
         if self._output_shape is None:
-            # With TensorFlow, we can infer the output shape directly:
-            if K.backend() == 'tensorflow':
+            # With TensorFlow or CNTK, we can infer the output shape directly:
+            if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
                     xs = [K.placeholder(shape=shape) for shape in input_shape]
                     x = self.call(xs)
