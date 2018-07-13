@@ -478,6 +478,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  shuffle=False):
         self.sequence = sequence
         self.use_multiprocessing = use_multiprocessing
+		self.seed = self.sequence.seed
 
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
@@ -541,8 +542,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """Submits request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
-        if self.sequence.seed is not None:
-            random.seed(self.sequence.seed)
+        if self.seed is not None:
+            random.seed(self.seed)	# Set random seed so the following shuffling is deterministic when a seed has been specified. 
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
