@@ -543,7 +543,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
         if self.seed is not None:
-            random.seed(self.seed)	# Set random seed so the following shuffling is deterministic when a seed has been specified. 
+            random.seed(self.seed)  # Set random seed so the following shuffling is deterministic when a seed has been specified.  
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
