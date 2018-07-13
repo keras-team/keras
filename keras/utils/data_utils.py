@@ -542,8 +542,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """Submits request to the executor and queue the `Future` objects."""
         sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
+        # Set random seed so the following shuffling
+        # is deterministic when a seed has been specified
         if self.seed is not None:
-            random.seed(self.seed)  # Set random seed so the following shuffling is deterministic when a seed has been specified.  
+            random.seed(self.seed)    
         while True:
             if self.shuffle:
                 random.shuffle(sequence)
