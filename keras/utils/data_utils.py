@@ -478,7 +478,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                  shuffle=False):
         self.sequence = sequence
         self.use_multiprocessing = use_multiprocessing
-		self.seed = self.sequence.seed
+        self.seed = self.sequence.seed
 
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
