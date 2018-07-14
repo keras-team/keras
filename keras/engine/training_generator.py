@@ -12,6 +12,7 @@ from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
 from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
+from ..utils.generic_utils import to_list
 from .. import callbacks as cbks
 
 
@@ -210,8 +211,7 @@ def fit_generator(model,
                                             sample_weight=sample_weight,
                                             class_weight=class_weight)
 
-                if not isinstance(outs, list):
-                    outs = [outs]
+                outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
@@ -235,8 +235,7 @@ def fit_generator(model,
                             batch_size=batch_size,
                             sample_weight=val_sample_weights,
                             verbose=0)
-                    if not isinstance(val_outs, list):
-                        val_outs = [val_outs]
+                    val_outs = to_list(val_outs)
                     # Same labels assumed.
                     for l, o in zip(out_labels, val_outs):
                         epoch_logs['val_' + l] = o
@@ -341,8 +340,7 @@ def evaluate_generator(model, generator,
                                  'or (x, y). Found: ' +
                                  str(generator_output))
             outs = model.test_on_batch(x, y, sample_weight=sample_weight)
-            if not isinstance(outs, list):
-                outs = [outs]
+            outs = to_list(outs)
             outs_per_batch.append(outs)
 
             if x is None or len(x) == 0:
@@ -451,8 +449,7 @@ def predict_generator(model, generator,
                 x = generator_output
 
             outs = model.predict_on_batch(x)
-            if not isinstance(outs, list):
-                outs = [outs]
+            outs = to_list(outs)
 
             if not all_outs:
                 for out in outs:
