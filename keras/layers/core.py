@@ -649,28 +649,17 @@ class Lambda(Layer):
 
     def compute_output_shape(self, input_shape):
         if self._output_shape is None:
-            # With TensorFlow or CNTK, we can infer the output shape directly:
-            if K.backend() in ('tensorflow', 'cntk'):
-                if isinstance(input_shape, list):
-                    xs = [K.placeholder(shape=shape) for shape in input_shape]
-                    x = self.call(xs)
-                else:
-                    x = K.placeholder(shape=input_shape)
-                    x = self.call(x)
-                if isinstance(x, list):
-                    return [K.int_shape(x_elem) for x_elem in x]
-                else:
-                    return K.int_shape(x)
-            # Otherwise, we default to the input shape.
-            warnings.warn('`output_shape` argument not specified for layer {} '
-                          'and cannot be automatically inferred '
-                          'with the Theano backend. '
-                          'Defaulting to output shape `{}` '
-                          '(same as input shape). '
-                          'If the expected output shape is different, '
-                          'specify it via the `output_shape` argument.'
-                          .format(self.name, input_shape))
-            return input_shape
+            if K.backend() == 'theano':
+                warnings.warn('`output_shape` argument not specified for layer {} '
+                              'and cannot be automatically inferred '
+                              'with the Theano backend. '
+                              'Defaulting to output shape `{}` '
+                              '(same as input shape). '
+                              'If the expected output shape is different, '
+                              'specify it via the `output_shape` argument.'
+                              .format(self.name, input_shape))
+            return super(Lambda, self).compute_output_shape(input_shape)
+
         elif isinstance(self._output_shape, (tuple, list)):
             if isinstance(input_shape, list):
                 num_samples = input_shape[0][0]

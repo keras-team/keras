@@ -11,6 +11,7 @@ from .generic_utils import has_arg
 from ..engine import Model, Input
 from ..models import Sequential
 from ..models import model_from_json
+from ..utils.generic_utils import to_list
 from .. import backend as K
 
 
@@ -44,7 +45,8 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
 
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                input_data=None, expected_output=None,
-               expected_output_dtype=None, fixed_batch_size=False):
+               expected_output_dtype=None, fixed_batch_size=False,
+               custom_layer=False):
     """Test routine for a layer with a single input tensor
     and single output tensor.
     """
@@ -81,43 +83,53 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
         kwargs['weights'] = weights
         layer = layer_cls(**kwargs)
 
-    expected_output_shape = layer.compute_output_shape(input_shape)
+    expected_output_shape_list = to_list(layer.compute_output_shape(input_shape))
+
+    if custom_layer:
+        custom_objects = {layer_cls.__name__: layer_cls}
+    else:
+        custom_objects = None
 
     def _layer_in_model_test(model):
-        actual_output = model.predict(input_data)
-        actual_output_shape = actual_output.shape
-        for expected_dim, actual_dim in zip(expected_output_shape,
-                                            actual_output_shape):
-            if expected_dim is not None:
-                assert expected_dim == actual_dim
-        if expected_output is not None:
-            assert_allclose(actual_output, expected_output, rtol=1e-3)
+        actual_output_list = to_list(model.predict(input_data))
+        for actual_output, expected_output_shape in zip(actual_output_list,
+                                                        expected_output_shape_list):
+            actual_output_shape = actual_output.shape
+            for expected_dim, actual_dim in zip(expected_output_shape,
+                                                actual_output_shape):
+                if expected_dim is not None:
+                    assert expected_dim == actual_dim
+            if expected_output is not None:
+                assert_allclose(actual_output, expected_output, rtol=1e-3)
 
         # test serialization, weight setting at model level
         model_config = model.get_config()
-        recovered_model = model.__class__.from_config(model_config)
+        recovered_model = model.__class__.from_config(model_config,
+                                                      custom_objects=custom_objects)
         if model.weights:
             weights = model.get_weights()
             recovered_model.set_weights(weights)
-            _output = recovered_model.predict(input_data)
-            assert_allclose(_output, actual_output, rtol=1e-3)
+            _output_list = to_list(recovered_model.predict(input_data))
+            for _output, actual_output in zip(_output_list, actual_output_list):
+                assert_allclose(_output, actual_output, rtol=1e-3)
 
         # test training mode (e.g. useful for dropout tests)
         model.compile('rmsprop', 'mse')
-        model.train_on_batch(input_data, actual_output)
-        return actual_output
+        model.train_on_batch(input_data, actual_output_list)
+        return actual_output_list
 
     # test in functional API
     if fixed_batch_size:
         x = Input(batch_shape=input_shape, dtype=input_dtype)
     else:
         x = Input(shape=input_shape[1:], dtype=input_dtype)
-    y = layer(x)
-    assert K.dtype(y) == expected_output_dtype
+    y = to_list(layer(x))
+    for tensor in y:
+        assert K.dtype(tensor) == expected_output_dtype
 
     # check with the functional API
     model = Model(x, y)
-    _layer_in_model_test(model)
+    actual_output = _layer_in_model_test(model)
 
     # test as first layer in Sequential API
     layer_config = layer.get_config()
@@ -125,12 +137,18 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     layer = layer.__class__.from_config(layer_config)
 
     # check with the sequential API
-    model = Sequential()
-    model.add(layer)
-    actual_output = _layer_in_model_test(model)
+    # Note that the sequential API cannot handle
+    # a layer with multiple outputs.
+    if len(y) == 1:
+        model = Sequential()
+        model.add(layer)
+        _layer_in_model_test(model)
 
     # for further checks in the caller function
-    return actual_output
+    if len(actual_output) == 1:
+        return actual_output[0]
+    else:
+        return actual_output
 
 
 def keras_test(func):

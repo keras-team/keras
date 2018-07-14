@@ -593,6 +593,19 @@ class Layer(object):
         # Returns
             An input shape tuple.
         """
+        # With TensorFlow or CNTK, we can infer the output shape directly:
+        if K.backend() in ('tensorflow', 'cntk'):
+            if isinstance(input_shape, list):
+                xs = [K.placeholder(shape=shape) for shape in input_shape]
+                x = self.call(xs)
+            else:
+                x = K.placeholder(shape=input_shape)
+                x = self.call(x)
+            if isinstance(x, list):
+                return [K.int_shape(x_elem) for x_elem in x]
+            else:
+                return K.int_shape(x)
+        # Otherwise, we default to the input shape.
         return input_shape
 
     def compute_mask(self, inputs, mask=None):
