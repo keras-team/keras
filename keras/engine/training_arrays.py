@@ -14,6 +14,7 @@ from .. import backend as K
 from .. import callbacks as cbks
 from ..utils.generic_utils import Progbar
 from ..utils.generic_utils import slice_arrays
+from ..utils.generic_utils import first_or_list
 
 
 def fit_loop(model, f, ins,
@@ -306,9 +307,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
                 outs[i][batch_start:batch_end] = batch_out
             if verbose == 1:
                 progbar.update(batch_end)
-        if len(outs) == 1:
-            return outs[0]
-        return outs
+        return first_or_list(outs)
 
 
 def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
@@ -415,6 +414,4 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
         for i in range(len(outs)):
             if i not in stateful_metric_indices:
                 outs[i] /= num_samples
-    if len(outs) == 1:
-        return outs[0]
-    return outs
+    return first_or_list(outs)
