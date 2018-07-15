@@ -1285,6 +1285,7 @@ class _SeparableConv(_Conv):
             dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
+            bias_initializer=bias_initializer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
             bias_constraint=bias_constraint,
