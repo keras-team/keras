@@ -8,6 +8,9 @@ from six.moves import range
 import numpy as np
 from .. import backend as K
 
+# Legacy import
+from ..backend import normalize_data_format
+
 
 def normalize_tuple(value, n, name):
     """Transforms a single int or iterable of ints into an int tuple.
@@ -46,17 +49,6 @@ def normalize_tuple(value, n, name):
                                  'including element ' + str(single_value) + ' of type' +
                                  ' ' + str(type(single_value)))
     return value_tuple
-
-
-def normalize_data_format(value):
-    if value is None:
-        value = K.image_data_format()
-    data_format = value.lower()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('The `data_format` argument must be one of '
-                         '"channels_first", "channels_last". Received: ' +
-                         str(value))
-    return data_format
 
 
 def normalize_padding(value):
