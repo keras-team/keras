@@ -102,7 +102,6 @@ def model_to_dot(model,
 
     # Connect nodes with edges.
     for layer in layers:
-        layer_id = str(id(layer))
         for i, node in enumerate(layer._inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
             if node_key in model._network_nodes:
