@@ -270,7 +270,7 @@ def placeholder(
         raise ValueError('CNTK backend: creating placeholder with '
                          '%d dimension is not supported, at least '
                          '%d dimensions are needed.'
-                         % (len(cntk_shape, dynamic_axis_num)))
+                         % (len(cntk_shape), dynamic_axis_num))
 
     if name is None:
         name = ''
