@@ -270,7 +270,6 @@ def evaluate_generator(model, generator,
     """See docstring for `Model.evaluate_generator`."""
     model._make_test_function()
 
-    stateful_metric_indices = []
     if hasattr(model, 'metrics'):
         for m in model.stateful_metric_functions:
             m.reset_states()

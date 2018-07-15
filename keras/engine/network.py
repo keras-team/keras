@@ -736,7 +736,6 @@ class Network(Layer):
                             else:
                                 output_masks = to_list(output_masks)
                             computed_tensors = [computed_tensor]
-                            computed_masks = [computed_mask]
                         else:
                             computed_tensors = [x[0] for x in computed_data]
                             computed_masks = [x[1] for x in computed_data]
