@@ -14,7 +14,7 @@ from ..utils.layer_utils import count_params
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import object_list_uid
 from ..utils.generic_utils import to_list
-from ..utils.generic_utils import first_or_list
+from ..utils.generic_utils import unpack_singleton
 from ..utils.generic_utils import is_all_none
 from ..legacy import interfaces
 
@@ -428,7 +428,7 @@ class Layer(object):
                                          'and thus cannot be built. '
                                          'You can build it manually via: '
                                          '`layer.build(batch_input_shape)`')
-                self.build(first_or_list(input_shapes))
+                self.build(unpack_singleton(input_shapes))
                 self.built = True
 
                 # Load weights that were specified at layer instantiation.
@@ -466,7 +466,7 @@ class Layer(object):
                 if x in inputs_ls:
                     x = K.identity(x)
                 output_ls_copy.append(x)
-            output = first_or_list(output_ls_copy)
+            output = unpack_singleton(output_ls_copy)
 
             # Inferring the output shape is only relevant for Theano.
             if all([s is not None
@@ -663,7 +663,7 @@ class Layer(object):
                              ', but the layer has only ' +
                              str(len(self._inbound_nodes)) + ' inbound nodes.')
         values = getattr(self._inbound_nodes[node_index], attr)
-        return first_or_list(values)
+        return unpack_singleton(values)
 
     def get_input_shape_at(self, node_index):
         """Retrieves the input shape(s) of a layer at a given node.
@@ -889,7 +889,7 @@ class Layer(object):
             [str(node.input_shapes) for node in self._inbound_nodes])
         if len(all_input_shapes) == 1:
             input_shapes = self._inbound_nodes[0].input_shapes
-            return first_or_list(input_shapes)
+            return unpack_singleton(input_shapes)
         else:
             raise AttributeError('The layer "' + str(self.name) +
                                  ' has multiple inbound nodes, '
@@ -921,7 +921,7 @@ class Layer(object):
             [str(node.output_shapes) for node in self._inbound_nodes])
         if len(all_output_shapes) == 1:
             output_shapes = self._inbound_nodes[0].output_shapes
-            return first_or_list(output_shapes)
+            return unpack_singleton(output_shapes)
         else:
             raise AttributeError('The layer "' + str(self.name) +
                                  ' has multiple inbound nodes, '
@@ -1312,7 +1312,7 @@ def _collect_previous_mask(input_tensors):
             masks.append(mask)
         else:
             masks.append(None)
-    return first_or_list(masks)
+    return unpack_singleton(masks)
 
 
 def _to_snake_case(name):
@@ -1341,4 +1341,4 @@ def _collect_input_shape(input_tensors):
             shapes.append(K.int_shape(x))
         except TypeError:
             shapes.append(None)
-    return first_or_list(shapes)
+    return unpack_singleton(shapes)

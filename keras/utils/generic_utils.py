@@ -461,16 +461,16 @@ def to_list(x):
     return [x]
 
 
-def first_or_list(x):
-    """ Get the first element if the iterable has only one value.
+def unpack_singleton(x):
+    """Gets the first element if the iterable has only one value.
 
-    Otherwise return the iterable
+    Otherwise return the iterable.
 
     # Argument:
-        x: An iterable
+        x: A list or tuple.
 
     # Returns:
-        The same iterable or the first element
+        The same iterable or the first element.
     """
     if len(x) == 1:
         return x[0]

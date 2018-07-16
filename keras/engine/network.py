@@ -23,7 +23,7 @@ from ..utils.layer_utils import get_source_inputs
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import object_list_uid
-from ..utils.generic_utils import first_or_list
+from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
 
 try:
@@ -268,7 +268,7 @@ class Network(Layer):
             node = layer._inbound_nodes[node_index]
             mask = node.output_masks[tensor_index]
             masks.append(mask)
-        mask = first_or_list(masks)
+        mask = unpack_singleton(masks)
         self._output_mask_cache[mask_cache_key] = mask
 
         # Build self.input_names and self.output_names.
@@ -537,7 +537,7 @@ class Network(Layer):
                                     'Found input_spec = ' +
                                     str(layer.input_spec))
                 specs += layer.input_spec
-        return first_or_list(specs)
+        return unpack_singleton(specs)
 
     def call(self, inputs, mask=None):
         """Calls the model on new inputs.
@@ -602,7 +602,7 @@ class Network(Layer):
         if cache_key in self._output_shape_cache:
             output_shapes = self._output_shape_cache[cache_key]
             if isinstance(output_shapes, list):
-                return first_or_list(output_shapes)
+                return unpack_singleton(output_shapes)
             return output_shapes
         else:
             # Bad luck, we have to run the graph manually.
@@ -639,7 +639,7 @@ class Network(Layer):
                             input_shape = layers_to_output_shapes[shape_key]
                             input_shapes.append(input_shape)
 
-                        output_shape = layer.compute_output_shape(first_or_list(input_shapes))
+                        output_shape = layer.compute_output_shape(unpack_singleton(input_shapes))
 
                         output_shapes = to_list(output_shape)
                         node_index = layer._inbound_nodes.index(node)
@@ -663,7 +663,7 @@ class Network(Layer):
             # Store in cache.
             self._output_shape_cache[cache_key] = output_shapes
             if isinstance(output_shapes, list):
-                return first_or_list(output_shapes)
+                return unpack_singleton(output_shapes)
             return output_shapes
 
     def run_internal_graph(self, inputs, masks=None):
@@ -774,7 +774,7 @@ class Network(Layer):
 
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):
-                        input_shapes = first_or_list([x._keras_shape for x in computed_tensors])
+                        input_shapes = unpack_singleton([x._keras_shape for x in computed_tensors])
                         shapes = to_list(layer.compute_output_shape(input_shapes))
                         uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors])
 
@@ -805,17 +805,17 @@ class Network(Layer):
         cache_key = object_list_uid(inputs)
         cache_key += '_' + object_list_uid(masks)
 
-        output_tensors = first_or_list(output_tensors)
+        output_tensors = unpack_singleton(output_tensors)
         self._output_tensor_cache[cache_key] = output_tensors
 
-        output_masks = first_or_list(output_masks)
+        output_masks = unpack_singleton(output_masks)
         self._output_mask_cache[cache_key] = output_masks
 
         if output_shapes is not None:
             input_shapes = [x._keras_shape for x in inputs]
             cache_key = ', '.join([str(x) for x in input_shapes])
 
-            output_shapes = first_or_list(output_shapes)
+            output_shapes = unpack_singleton(output_shapes)
             self._output_shape_cache[cache_key] = output_shapes
         return output_tensors, output_masks, output_shapes
 
@@ -983,7 +983,7 @@ class Network(Layer):
             # Call layer on its inputs, thus creating the node
             # and building the layer if needed.
             if input_tensors:
-                layer(first_or_list(input_tensors), **kwargs)
+                layer(unpack_singleton(input_tensors), **kwargs)
 
         def process_layer(layer_data):
             """Deserializes a layer, then call it on appropriate inputs.
