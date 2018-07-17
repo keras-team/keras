@@ -13,6 +13,9 @@ matrix:
           env: KERAS_BACKEND=tensorflow
         - python: 3.6
           env: KERAS_BACKEND=tensorflow
+        - python: 3.7
+          env: KERAS_BACKEND=tensorflow
+          dist: xenial  # required for Python 3.7
         - python: 2.7
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 3.6
@@ -50,7 +53,7 @@ install:
   # install PIL for preprocessing tests
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
       conda install pil;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
+    else
       conda install Pillow;
     fi
 
