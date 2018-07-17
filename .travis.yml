@@ -3,27 +3,24 @@ dist: trusty
 language: python
 matrix:
     include:
-        #- python: 2.7
-        #  env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
-        #- python: 2.7
-        #  env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
-        #- python: 3.6
-        #  env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
-        #- python: 2.7
-        #  env: KERAS_BACKEND=tensorflow
-        #- python: 3.6
-        #  env: KERAS_BACKEND=tensorflow
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
+        - python: 2.7
+          env: KERAS_BACKEND=tensorflow
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow
         - python: 2.7
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 3.6
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
-        - python: 3.7
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
-          dist: xenial  # required for Python 3.7
-        #- python: 2.7
-        #  env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
-        #- python: 3.6
-        #  env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+        - python: 2.7
+          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+        - python: 3.6
+          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -60,7 +57,7 @@ install:
   - pip install -e .[tests]
 
   # install TensorFlow (CPU version).
-  #- pip install tensorflow==1.7
+  - pip install tensorflow==1.7
   
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
