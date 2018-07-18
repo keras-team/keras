@@ -1879,10 +1879,20 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
             tf_data_format = None
 
         if tf_data_format == 'NHWC' or tf_data_format == 'NCHW' and _has_nchw_support():
+            # The mean / var / beta / gamma may be processed by broadcast
+            # so it may have extra axes with 1, it is not needed and should be removed
+            if ndim(mean) > 1:
+                mean = tf.squeeze(mean)
+            if ndim(var) > 1:
+                var = tf.squeeze(var)
             if beta is None:
                 beta = zeros_like(mean)
+            elif ndim(beta) > 1:
+                beta = tf.squeeze(beta)
             if gamma is None:
                 gamma = ones_like(mean)
+            elif ndim(gamma) > 1:
+                gamma = tf.squeeze(gamma)
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
