@@ -17,7 +17,8 @@ from __future__ import print_function
 
 from keras.models import Sequential, Model
 from keras.layers.embeddings import Embedding
-from keras.layers import Input, Activation, Dense, Permute, Dropout, add, dot, concatenate
+from keras.layers import Input, Activation, Dense, Permute, Dropout
+from keras.layers import add, dot, concatenate
 from keras.layers import LSTM
 from keras.utils.data_utils import get_file
 from keras.preprocessing.sequence import pad_sequences
