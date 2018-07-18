@@ -461,6 +461,22 @@ def to_list(x):
     return [x]
 
 
+def unpack_singleton(x):
+    """Gets the first element if the iterable has only one value.
+
+    Otherwise return the iterable.
+
+    # Argument:
+        x: A list or tuple.
+
+    # Returns:
+        The same iterable or the first element.
+    """
+    if len(x) == 1:
+        return x[0]
+    return x
+
+
 def object_list_uid(object_list):
     object_list = to_list(object_list)
     return ', '.join([str(abs(id(x))) for x in object_list])
