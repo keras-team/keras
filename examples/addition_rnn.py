@@ -10,20 +10,25 @@ Input may optionally be reversed, shown to increase performance in many tasks in
 http://arxiv.org/abs/1410.4615
 and
 "Sequence to Sequence Learning with Neural Networks"
-http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf
+http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-
+networks.pdf
 Theoretically it introduces shorter term dependencies between source and target.
 
 Two digits reversed:
-+ One layer LSTM (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
++ One layer LSTM (128 HN), 5k training examples = 99% train/test accuracy in 55
+epochs
 
 Three digits reversed:
-+ One layer LSTM (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
++ One layer LSTM (128 HN), 50k training examples = 99% train/test accuracy in 100
+epochs
 
 Four digits reversed:
-+ One layer LSTM (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
++ One layer LSTM (128 HN), 400k training examples = 99% train/test accuracy in 20
+epochs
 
 Five digits reversed:
-+ One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
++ One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30
+epochs
 '''
 
 from __future__ import print_function

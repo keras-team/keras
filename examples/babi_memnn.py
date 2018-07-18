@@ -79,7 +79,8 @@ def get_stories(f, only_supporting=False, max_length=None):
     '''
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+    data = [(flatten(story), q, answer) for story, q, answer in data
+            if not max_length or len(flatten(story)) < max_length]
     return data
 
 
@@ -94,19 +95,24 @@ def vectorize_stories(data):
             np.array(answers))
 
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
+    path = get_file('babi-tasks-v1-2.tar.gz',
+                    origin='https://s3.amazonaws.com/text-datasets/'
+                           'babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
-          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
+          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2'
+          '.tar.gz\n'
           '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
     raise
 
 
 challenges = {
     # QA1 with 10,000 samples
-    'single_supporting_fact_10k': 'tasks_1-20_v1-2/en-10k/qa1_single-supporting-fact_{}.txt',
+    'single_supporting_fact_10k': 'tasks_1-20_v1-2/en-10k/qa1_'
+                                  'single-supporting-fact_{}.txt',
     # QA2 with 10,000 samples
-    'two_supporting_facts_10k': 'tasks_1-20_v1-2/en-10k/qa2_two-supporting-facts_{}.txt',
+    'two_supporting_facts_10k': 'tasks_1-20_v1-2/en-10k/qa2_'
+                                'two-supporting-facts_{}.txt',
 }
 challenge_type = 'single_supporting_fact_10k'
 challenge = challenges[challenge_type]
