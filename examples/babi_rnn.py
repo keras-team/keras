@@ -123,7 +123,8 @@ def get_stories(f, only_supporting=False, max_length=None):
     '''
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+    data = [(flatten(story), q, answer) for story, q, answer in data
+            if not max_length or len(flatten(story)) < max_length]
     return data
 
 
@@ -140,7 +141,8 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
         xs.append(x)
         xqs.append(xq)
         ys.append(y)
-    return pad_sequences(xs, maxlen=story_maxlen), pad_sequences(xqs, maxlen=query_maxlen), np.array(ys)
+    return (pad_sequences(xs, maxlen=story_maxlen),
+            pad_sequences(xqs, maxlen=query_maxlen), np.array(ys))
 
 RNN = recurrent.LSTM
 EMBED_HIDDEN_SIZE = 50
@@ -154,10 +156,13 @@ print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
                                                            QUERY_HIDDEN_SIZE))
 
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
+    path = get_file('babi-tasks-v1-2.tar.gz',
+                    origin='https://s3.amazonaws.com/text-datasets/'
+                           'babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
-          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
+          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2'
+          '.tar.gz\n'
           '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
     raise
 
