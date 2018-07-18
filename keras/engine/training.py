@@ -1016,22 +1016,15 @@ class Model(Network):
         self._make_train_function()
         f = self.train_function
 
-        # Prepare display labels.
-        out_labels = self.metrics_names
-
         if do_validation:
             self._make_test_function()
             val_f = self.test_function
-            callback_metrics = copy.copy(out_labels) + [
-                'val_' + n for n in out_labels]
         else:
-            callback_metrics = copy.copy(out_labels)
             val_f = None
             val_ins = []
 
         # Delegate logic to `fit_loop`.
         return training_arrays.fit_loop(self, f, ins,
-                                        out_labels=out_labels,
                                         batch_size=batch_size,
                                         epochs=epochs,
                                         verbose=verbose,
@@ -1039,7 +1032,6 @@ class Model(Network):
                                         val_f=val_f,
                                         val_ins=val_ins,
                                         shuffle=shuffle,
-                                        callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
                                         steps_per_epoch=steps_per_epoch,
                                         validation_steps=validation_steps)
@@ -1047,6 +1039,7 @@ class Model(Network):
     def evaluate(self, x=None, y=None,
                  batch_size=None,
                  verbose=1,
+                 callbacks=None,
                  sample_weight=None,
                  steps=None):
         """Returns the loss value & metrics values for the model in test mode.
@@ -1072,6 +1065,9 @@ class Model(Network):
                 If unspecified, `batch_size` will default to 32.
             verbose: 0 or 1. Verbosity mode.
                 0 = silent, 1 = progress bar.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/callbacks).
             sample_weight: Optional Numpy array of weights for
                 the test samples, used for weighting the loss function.
                 You can either pass a flat (1D)
@@ -1106,21 +1102,23 @@ class Model(Network):
             x, y,
             sample_weight=sample_weight,
             batch_size=batch_size)
-        # Prepare inputs, delegate logic to `test_loop`.
+        # Prepare inputs, delegate logic to `evaluate_loop`.
         if self._uses_dynamic_learning_phase():
             ins = x + y + sample_weights + [0.]
         else:
             ins = x + y + sample_weights
         self._make_test_function()
         f = self.test_function
-        return training_arrays.test_loop(self, f, ins,
-                                         batch_size=batch_size,
-                                         verbose=verbose,
-                                         steps=steps)
+        return training_arrays.evaluate_loop(self, f, ins,
+                                             batch_size=batch_size,
+                                             verbose=verbose,
+                                             steps=steps,
+                                             callbacks=callbacks)
 
     def predict(self, x,
                 batch_size=None,
                 verbose=0,
+                callbacks=None,
                 steps=None):
         """Generates output predictions for the input samples.
 
@@ -1131,6 +1129,9 @@ class Model(Network):
                 (or list of Numpy arrays if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/callbacks).
             steps: Total number of steps (batches of samples)
                 before declaring the prediction round finished.
                 Ignored with the default value of `None`.
@@ -1172,6 +1173,7 @@ class Model(Network):
         return training_arrays.predict_loop(self, f, ins,
                                             batch_size=batch_size,
                                             verbose=verbose,
+                                            callbacks=callbacks,
                                             steps=steps)
 
     def train_on_batch(self, x, y,
@@ -1407,6 +1409,11 @@ class Model(Network):
                             steps_per_epoch=10000, epochs=10)
         ```
         """
+        do_validation = bool(validation_data)
+        self._make_train_function()
+        if do_validation:
+            self._make_test_function()
+
         return training_generator.fit_generator(
             self, generator,
             steps_per_epoch=steps_per_epoch,
@@ -1428,7 +1435,8 @@ class Model(Network):
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False,
-                           verbose=0):
+                           verbose=0,
+                           callbacks=None):
         """Evaluates the model on a data generator.
 
         The generator should return the same kind of data
@@ -1457,6 +1465,9 @@ class Model(Network):
                 as they can't be passed
                 easily to children processes.
             verbose: verbosity mode, 0 or 1.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/callbacks).
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1474,7 +1485,8 @@ class Model(Network):
             max_queue_size=max_queue_size,
             workers=workers,
             use_multiprocessing=use_multiprocessing,
-            verbose=verbose)
+            verbose=verbose,
+            callbacks=callbacks)
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator,
@@ -1482,7 +1494,8 @@ class Model(Network):
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
-                          verbose=0):
+                          verbose=0,
+                          callbacks=None):
         """Generates predictions for the input samples from a data generator.
 
         The generator should return the same kind of data as accepted by
@@ -1510,6 +1523,9 @@ class Model(Network):
                 as they can't be passed
                 easily to children processes.
             verbose: verbosity mode, 0 or 1.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/callbacks).
 
         # Returns
             Numpy array(s) of predictions.
@@ -1524,4 +1540,5 @@ class Model(Network):
             max_queue_size=max_queue_size,
             workers=workers,
             use_multiprocessing=use_multiprocessing,
-            verbose=verbose)
+            verbose=verbose,
+            callbacks=callbacks)

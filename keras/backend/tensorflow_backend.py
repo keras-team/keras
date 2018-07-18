@@ -2543,14 +2543,13 @@ class Function(object):
         # The main use case of `fetches` being passed to a model is the ability
         # to run custom updates.
         # This requires us to wrap fetches in `identity` ops.
-        # It can also be used in combination with `fetch_callbacks` to
+        # It can also be used in combination with `fetch_values` to
         # dynamically get access to values from nodes not in `outputs`.
         self.fetches = [tf.identity(x) for x in self.fetches]
-        # This mapping keeps track of the function that should receive the
-        # output from a fetch in `fetches`: { fetch: function(fetch_output) }
-        # A Callback can use this to register a function with access to the
-        # output values for a fetch it added.
-        self.fetch_callbacks = dict()
+        # This mapping stores the output from a fetch in `fetches`.
+        # A Callback can use this to access the output values for a fetch
+        # in `on_evaluate_batch_end`.
+        self.fetch_values = dict()
         self.session_kwargs = session_kwargs
         if session_kwargs:
             raise ValueError('Some keys in session_kwargs are not '
@@ -2611,11 +2610,6 @@ class Function(object):
         self._fetches = list(self.fetches)
         self._session = session
 
-    def _call_fetch_callbacks(self, fetches_output):
-        for fetch, output in zip(self._fetches, fetches_output):
-            if fetch in self.fetch_callbacks:
-                self.fetch_callbacks[fetch](output)
-
     def _call(self, inputs):
         if not isinstance(inputs, (list, tuple)):
             raise TypeError('`inputs` should be a list or tuple.')
@@ -2658,7 +2652,7 @@ class Function(object):
                                 symbol_vals,
                                 session)
         fetched = self._callable_fn(*array_vals)
-        self._call_fetch_callbacks(fetched[-len(self._fetches):])
+        self.fetch_values = dict(zip(self._fetches, fetched[-len(self._fetches):]))
         return fetched[:len(self.outputs)]
 
     def _legacy_call(self, inputs):
@@ -2678,7 +2672,7 @@ class Function(object):
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
         self._fetches = self.fetches
-        self._call_fetch_callbacks(updated[-len(self._fetches):])
+        self.fetch_values = dict(zip(self._fetches, updated[-len(self._fetches):]))
         return updated[:len(self.outputs)]
 
     def __call__(self, inputs):

@@ -35,11 +35,7 @@ def fit_generator(model,
     """See docstring for `Model.fit_generator`."""
     wait_time = 0.01  # in seconds
     epoch = initial_epoch
-
     do_validation = bool(validation_data)
-    model._make_train_function()
-    if do_validation:
-        model._make_test_function()
 
     is_sequence = isinstance(generator, Sequence)
     if not is_sequence and use_multiprocessing and workers > 1:
@@ -72,9 +68,11 @@ def fit_generator(model,
                              ' class. Please specify `validation_steps` or use'
                              ' the `keras.utils.Sequence` class.')
 
-    # Prepare display labels.
+    # prepare display labels.
     out_labels = model.metrics_names
-    callback_metrics = out_labels + ['val_' + n for n in out_labels]
+    callback_metrics = out_labels
+    if do_validation:
+        callback_metrics += ['val_' + n for n in out_labels]
 
     # prepare callbacks
     model.history = cbks.History()
@@ -83,9 +81,10 @@ def fit_generator(model,
     if verbose:
         _callbacks.append(
             cbks.ProgbarLogger(
-                count_mode='steps',
+                count_param='steps',
                 stateful_metrics=model.stateful_metric_names))
     _callbacks += (callbacks or []) + [model.history]
+    callbacks_arg = callbacks
     callbacks = cbks.CallbackList(_callbacks)
 
     # it's possible to callback a different model than self:
@@ -100,7 +99,7 @@ def fit_generator(model,
         'val_steps': validation_steps,
         'verbose': verbose,
         'do_validation': do_validation,
-        'metrics': callback_metrics,
+        'metrics': callback_metrics or [],
     })
     callbacks.on_train_begin()
 
@@ -174,9 +173,8 @@ def fit_generator(model,
             for m in model.stateful_metric_functions:
                 m.reset_states()
             callbacks.on_epoch_begin(epoch)
-            steps_done = 0
             batch_index = 0
-            while steps_done < steps_per_epoch:
+            while batch_index < steps_per_epoch:
                 generator_output = next(output_generator)
 
                 if not hasattr(generator_output, '__len__'):
@@ -207,9 +205,13 @@ def fit_generator(model,
                     batch_size = list(x.values())[0].shape[0]
                 else:
                     batch_size = x.shape[0]
+                if batch_size == 0:
+                    raise ValueError('Received an empty batch. '
+                                     'Batches should contain '
+                                     'at least one item.')
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
-                callbacks.on_batch_begin(batch_index, batch_logs)
+                callbacks.on_fit_batch_begin(batch_index, batch_logs)
 
                 outs = model.train_on_batch(x, y,
                                             sample_weight=sample_weight,
@@ -219,18 +221,18 @@ def fit_generator(model,
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
-                callbacks.on_batch_end(batch_index, batch_logs)
+                callbacks.on_fit_batch_end(batch_index, batch_logs)
 
                 batch_index += 1
-                steps_done += 1
 
                 # Epoch finished.
-                if steps_done >= steps_per_epoch and do_validation:
+                if batch_index >= steps_per_epoch and do_validation:
                     if val_gen:
                         val_outs = model.evaluate_generator(
                             val_enqueuer_gen,
                             validation_steps,
-                            workers=0)
+                            workers=0,
+                            callbacks=callbacks_arg)
                     else:
                         # No need for try/except because
                         # data has already been validated.
@@ -238,7 +240,8 @@ def fit_generator(model,
                             val_x, val_y,
                             batch_size=batch_size,
                             sample_weight=val_sample_weights,
-                            verbose=0)
+                            verbose=0,
+                            callbacks=callbacks_arg)
                     val_outs = to_list(val_outs)
                     # Same labels assumed.
                     for l, o in zip(out_labels, val_outs):
@@ -269,7 +272,8 @@ def evaluate_generator(model, generator,
                        max_queue_size=10,
                        workers=1,
                        use_multiprocessing=False,
-                       verbose=0):
+                       verbose=0,
+                       callbacks=None):
     """See docstring for `Model.evaluate_generator`."""
     model._make_test_function()
 
@@ -282,7 +286,7 @@ def evaluate_generator(model, generator,
     else:
         stateful_metric_indices = []
 
-    steps_done = 0
+    batch_index = 0
     wait_time = 0.01
     outs_per_batch = []
     batch_sizes = []
@@ -303,6 +307,33 @@ def evaluate_generator(model, generator,
                              ' `keras.utils.Sequence` class.')
     enqueuer = None
 
+    out_labels = ['val_' + n for n in model.metrics_names]
+
+    _callbacks = []
+    if verbose == 1:
+        _callbacks.append(
+            cbks.ProgbarLogger(
+                count_param='val_steps',
+                stateful_metrics=model.stateful_metric_names))
+
+    _callbacks += callbacks or []
+    callbacks = cbks.CallbackList(_callbacks)
+
+    # it's possible to callback a different model than itself
+    # (used by Sequential models)
+    if hasattr(model, 'callback_model') and model.callback_model:
+        callback_model = model.callback_model
+    else:
+        callback_model = model
+
+    callbacks.set_model(callback_model)
+    callbacks.set_params({
+        'val_steps': steps,
+        'val_metrics': out_labels,
+        'verbose': verbose
+    })
+    callback_model.stop_evaluating = False
+
     try:
         if workers > 0:
             if is_sequence:
@@ -322,10 +353,7 @@ def evaluate_generator(model, generator,
             else:
                 output_generator = generator
 
-        if verbose == 1:
-            progbar = Progbar(target=steps)
-
-        while steps_done < steps:
+        while batch_index < steps:
             generator_output = next(output_generator)
             if not hasattr(generator_output, '__len__'):
                 raise ValueError('Output of generator should be a tuple '
@@ -342,10 +370,8 @@ def evaluate_generator(model, generator,
                                  '(x, y, sample_weight) '
                                  'or (x, y). Found: ' +
                                  str(generator_output))
-            outs = model.test_on_batch(x, y, sample_weight=sample_weight)
-            outs = to_list(outs)
-            outs_per_batch.append(outs)
-
+            # build batch logs
+            batch_logs = {}
             if x is None or len(x) == 0:
                 # Handle data tensors support when no input given
                 # step-size = 1 for data tensors
@@ -360,17 +386,30 @@ def evaluate_generator(model, generator,
                 raise ValueError('Received an empty batch. '
                                  'Batches should contain '
                                  'at least one item.')
-            steps_done += 1
+            batch_logs['batch'] = batch_index
+            batch_logs['size'] = batch_size
+            callbacks.on_evaluate_batch_begin(batch_index, batch_logs)
+
+            batch_outs = model.test_on_batch(x, y, sample_weight=sample_weight)
+
+            batch_outs = to_list(batch_outs)
+            for l, o in zip(out_labels, batch_outs):
+                batch_logs[l] = o
+
+            callbacks.on_evaluate_batch_end(batch_index, batch_logs)
+
+            batch_index += 1
+            outs_per_batch.append(batch_outs)
             batch_sizes.append(batch_size)
-            if verbose == 1:
-                progbar.update(steps_done)
+            if callback_model.stop_evaluating:
+                break
 
     finally:
         if enqueuer is not None:
             enqueuer.stop()
 
     averages = []
-    for i in range(len(outs)):
+    for i in range(len(batch_outs)):
         if i not in stateful_metric_indices:
             averages.append(np.average([out[i] for out in outs_per_batch],
                                        weights=batch_sizes))
@@ -384,13 +423,13 @@ def predict_generator(model, generator,
                       max_queue_size=10,
                       workers=1,
                       use_multiprocessing=False,
-                      verbose=0):
+                      verbose=0,
+                      callbacks=None):
     """See docstring for `Model.predict_generator`."""
     model._make_predict_function()
 
-    steps_done = 0
+    batch_index = 0
     wait_time = 0.01
-    all_outs = []
     is_sequence = isinstance(generator, Sequence)
     if not is_sequence and use_multiprocessing and workers > 1:
         warnings.warn(
@@ -408,6 +447,37 @@ def predict_generator(model, generator,
                              ' `keras.utils.Sequence` class.')
     enqueuer = None
 
+    _callbacks = []
+    if verbose == 1:
+        _callbacks.append(
+            cbks.ProgbarLogger(
+                count_param='pred_steps',
+                stateful_metrics=model.stateful_metric_names))
+
+    _callbacks += callbacks or []
+    callbacks = cbks.CallbackList(_callbacks)
+
+    # it's possible to callback a different model than itself
+    # (used by Sequential models)
+    if hasattr(model, 'callback_model') and model.callback_model:
+        callback_model = model.callback_model
+    else:
+        callback_model = model
+
+    callbacks.set_model(callback_model)
+    callbacks.set_params({
+        'pred_steps': steps,
+        'verbose': verbose
+    })
+    callback_model.stop_predicting = False
+
+    # Step-based predictions.
+    # Since we do not know how many samples
+    # we will see, we cannot pre-allocate
+    # the returned Numpy arrays.
+    # Instead, we store one array per batch seen
+    # and concatenate them upon returning.
+    unconcatenated_outs = []
     try:
         if workers > 0:
             if is_sequence:
@@ -427,10 +497,7 @@ def predict_generator(model, generator,
             else:
                 output_generator = generator
 
-        if verbose == 1:
-            progbar = Progbar(target=steps)
-
-        while steps_done < steps:
+        while batch_index < steps:
             generator_output = next(output_generator)
             if isinstance(generator_output, tuple):
                 # Compatibility with the generators
@@ -449,29 +516,47 @@ def predict_generator(model, generator,
                 # yields inputs (not targets and sample weights).
                 x = generator_output
 
+            # build batch logs
+            batch_logs = {}
+            if x is None or len(x) == 0:
+                # Handle data tensors support when no input given
+                # step-size = 1 for data tensors
+                batch_size = 1
+            elif isinstance(x, list):
+                batch_size = x[0].shape[0]
+            elif isinstance(x, dict):
+                batch_size = list(x.values())[0].shape[0]
+            else:
+                batch_size = x.shape[0]
+            if batch_size == 0:
+                raise ValueError('Received an empty batch. '
+                                 'Batches should contain '
+                                 'at least one item.')
+            batch_logs['batch'] = batch_index
+            batch_logs['size'] = batch_size
+
+            callbacks.on_predict_batch_begin(batch_index, batch_logs)
+
             outs = model.predict_on_batch(x)
             outs = to_list(outs)
 
-            if not all_outs:
+            callbacks.on_predict_batch_end(batch_index, batch_logs)
+
+            if batch_index == 0:
                 for out in outs:
-                    all_outs.append([])
+                    unconcatenated_outs.append([])
 
             for i, out in enumerate(outs):
-                all_outs[i].append(out)
-            steps_done += 1
-            if verbose == 1:
-                progbar.update(steps_done)
+                unconcatenated_outs[i].append(out)
+
+            batch_index += 1
+            if callback_model.stop_predicting:
+                break
 
     finally:
         if enqueuer is not None:
             enqueuer.stop()
 
-    if len(all_outs) == 1:
-        if steps_done == 1:
-            return all_outs[0][0]
-        else:
-            return np.concatenate(all_outs[0])
-    if steps_done == 1:
-        return [out[0] for out in all_outs]
-    else:
-        return [np.concatenate(out) for out in all_outs]
+    if len(unconcatenated_outs) == 1:
+        return np.concatenate(unconcatenated_outs[0])
+    return [np.concatenate(out) for out in unconcatenated_outs]

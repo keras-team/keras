@@ -663,7 +663,7 @@ def test_TensorBoard(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test),
               callbacks=callbacks_factory(histogram_freq=0), epochs=2)
-    check_and_reset_logdir(tmpdir, filepath, expect_summary_events=True)
+    check_and_reset_logdir(tmpdir, filepath)
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,

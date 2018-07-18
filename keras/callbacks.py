@@ -51,6 +51,11 @@ class CallbackList(object):
     def set_model(self, model):
         for callback in self.callbacks:
             callback.set_model(model)
+        self._delta_t_batch = 0.
+        self._delta_ts_evaluate_batch_begin = deque([], maxlen=self.queue_length)
+        self._delta_ts_evaluate_batch_end = deque([], maxlen=self.queue_length)
+        self._delta_ts_predict_batch_begin = deque([], maxlen=self.queue_length)
+        self._delta_ts_predict_batch_end = deque([], maxlen=self.queue_length)
 
     def on_epoch_begin(self, epoch, logs=None):
         """Called at the start of an epoch.
@@ -63,8 +68,8 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_epoch_begin(epoch, logs)
         self._delta_t_batch = 0.
-        self._delta_ts_batch_begin = deque([], maxlen=self.queue_length)
-        self._delta_ts_batch_end = deque([], maxlen=self.queue_length)
+        self._delta_ts_fit_batch_begin = deque([], maxlen=self.queue_length)
+        self._delta_ts_fit_batch_end = deque([], maxlen=self.queue_length)
 
     def on_epoch_end(self, epoch, logs=None):
         """Called at the end of an epoch.
@@ -77,48 +82,76 @@ class CallbackList(object):
         for callback in self.callbacks:
             callback.on_epoch_end(epoch, logs)
 
-    def on_batch_begin(self, batch, logs=None):
+    def _batch_callbacks(self, batch, logs,
+                         callback_method,
+                         callback_duration_history):
+        logs = logs or {}
+        t_before_callbacks = time.time()
+        for callback in self.callbacks:
+            getattr(callback, callback_method)(batch, logs)
+        history = getattr(self, callback_duration_history)
+        history.append(time.time() - t_before_callbacks)
+        delta_t_median = np.median(history)
+        if (self._delta_t_batch > 0. and
+                delta_t_median > 0.95 * self._delta_t_batch and
+                delta_t_median > 0.1):
+            warnings.warn('Method %s() is slow compared '
+                          'to the batch update (%f). Check your callbacks.'
+                          % (callback_method, delta_t_median))
+
+    def _batch_begin_callbacks(self, *args):
         """Called right before processing a batch.
 
         # Arguments
             batch: integer, index of batch within the current epoch.
             logs: dictionary of logs.
         """
-        logs = logs or {}
-        t_before_callbacks = time.time()
-        for callback in self.callbacks:
-            callback.on_batch_begin(batch, logs)
-        self._delta_ts_batch_begin.append(time.time() - t_before_callbacks)
-        delta_t_median = np.median(self._delta_ts_batch_begin)
-        if (self._delta_t_batch > 0. and
-           delta_t_median > 0.95 * self._delta_t_batch and
-           delta_t_median > 0.1):
-            warnings.warn('Method on_batch_begin() is slow compared '
-                          'to the batch update (%f). Check your callbacks.'
-                          % delta_t_median)
+        self._batch_callbacks(*args)
+
         self._t_enter_batch = time.time()
 
-    def on_batch_end(self, batch, logs=None):
+    def _batch_end_callbacks(self, *args):
         """Called at the end of a batch.
 
         # Arguments
             batch: integer, index of batch within the current epoch.
             logs: dictionary of logs.
         """
-        logs = logs or {}
         if not hasattr(self, '_t_enter_batch'):
             self._t_enter_batch = time.time()
         self._delta_t_batch = time.time() - self._t_enter_batch
-        t_before_callbacks = time.time()
-        for callback in self.callbacks:
-            callback.on_batch_end(batch, logs)
-        self._delta_ts_batch_end.append(time.time() - t_before_callbacks)
-        delta_t_median = np.median(self._delta_ts_batch_end)
-        if (self._delta_t_batch > 0. and
-           (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
-            warnings.warn('Method on_batch_end() is slow compared '
-                          'to the batch update (%f). Check your callbacks.'
-                          % delta_t_median)
+
+        self._batch_callbacks(*args)
+
+    def on_fit_batch_begin(self, batch, logs=None):
+        self._batch_begin_callbacks(batch, logs,
+                                    'on_fit_batch_begin',
+                                    '_delta_ts_fit_batch_begin')
+
+    def on_fit_batch_end(self, batch, logs=None):
+        self._batch_end_callbacks(batch, logs,
+                                  'on_fit_batch_end',
+                                  '_delta_ts_fit_batch_end')
+
+    def on_evaluate_batch_begin(self, batch, logs=None):
+        self._batch_begin_callbacks(batch, logs,
+                                    'on_evaluate_batch_begin',
+                                    '_delta_ts_evaluate_batch_begin')
+
+    def on_evaluate_batch_end(self, batch, logs=None):
+        self._batch_end_callbacks(batch, logs,
+                                  'on_evaluate_batch_end',
+                                  '_delta_ts_evaluate_batch_end')
+
+    def on_predict_batch_begin(self, batch, logs=None):
+        self._batch_begin_callbacks(batch, logs,
+                                    'on_predict_batch_begin',
+                                    '_delta_ts_predict_batch_begin')
+
+    def on_predict_batch_end(self, batch, logs=None):
+        self._batch_end_callbacks(batch, logs,
+                                  'on_predict_batch_end',
+                                  '_delta_ts_predict_batch_end')
 
     def on_train_begin(self, logs=None):
         """Called at the beginning of training.
@@ -176,7 +209,9 @@ class Callback(object):
         self.model = None
 
     def set_params(self, params):
-        self.params = params
+        if not hasattr(self, 'params'):
+            self.params = {}
+        self.params.update(params)
 
     def set_model(self, model):
         self.model = model
@@ -191,6 +226,24 @@ class Callback(object):
         pass
 
     def on_batch_end(self, batch, logs=None):
+        pass
+
+    def on_fit_batch_begin(self, batch, logs=None):
+        self.on_batch_begin(batch, logs)
+
+    def on_fit_batch_end(self, batch, logs=None):
+        self.on_batch_end(batch, logs)
+
+    def on_evaluate_batch_begin(self, batch, logs=None):
+        pass
+
+    def on_evaluate_batch_end(self, batch, logs=None):
+        pass
+
+    def on_predict_batch_begin(self, batch, logs=None):
+        pass
+
+    def on_predict_batch_end(self, batch, logs=None):
         pass
 
     def on_train_begin(self, logs=None):
@@ -213,6 +266,7 @@ class BaseLogger(Callback):
     """
 
     def __init__(self, stateful_metrics=None):
+        super(BaseLogger, self).__init__()
         if stateful_metrics:
             self.stateful_metrics = set(stateful_metrics)
         else:
@@ -267,18 +321,36 @@ class ProgbarLogger(Callback):
         count_mode: One of "steps" or "samples".
             Whether the progress bar should
             count samples seen or steps (batches) seen.
+            If `count_mode=None`, it is set by looking for the
+            occurrence of a count mode as part of `count_param`.
+            If both are not given, "samples" is the default.
         stateful_metrics: Iterable of string names of metrics that
             should *not* be averaged over an epoch.
             Metrics in this list will be logged as-is.
             All others will be averaged over time (e.g. loss, etc).
+        count_param: Name of the callback param to read
+            Progbar progress from.
+            If `count_param=None`, it is set to be the `count_mode`.
 
     # Raises
         ValueError: In case of invalid `count_mode`.
     """
 
-    def __init__(self, count_mode='samples',
-                 stateful_metrics=None):
+    def __init__(self, count_mode=None,
+                 stateful_metrics=None, count_param=None):
         super(ProgbarLogger, self).__init__()
+        if count_mode is None and count_param is None:
+            self.count_param = count_mode = 'samples'
+        elif count_param is None:
+            self.count_param = count_mode
+        else:
+            self.count_param = count_param
+            if count_mode is None:
+                if 'samples' in count_param:
+                    count_mode = 'samples'
+                elif 'steps' in count_param:
+                    count_mode = 'steps'
+
         if count_mode == 'samples':
             self.use_steps = False
         elif count_mode == 'steps':
@@ -297,11 +369,7 @@ class ProgbarLogger(Callback):
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
             print('Epoch %d/%d' % (epoch + 1, self.epochs))
-            if self.use_steps:
-                target = self.params['steps']
-            else:
-                target = self.params['samples']
-            self.target = target
+            self.target = self.params[self.count_param]
             self.progbar = Progbar(target=self.target,
                                    verbose=self.verbose,
                                    stateful_metrics=self.stateful_metrics)
@@ -769,7 +837,9 @@ class TensorBoard(Callback):
         self._val_batches_per_epoch = None
 
     def set_model(self, model):
-        self.model = model
+        if self.model is not None:
+            return
+        super(TensorBoard, self).set_model(model)
         if K.backend() == 'tensorflow':
             self.sess = K.get_session()
         if self.histogram_freq and self.merged is None:
@@ -886,10 +956,13 @@ class TensorBoard(Callback):
 
             projector.visualize_embeddings(self.writer, config)
 
-    def _fetch_callback(self, summary):
-        self.writer.add_summary(
-            summary, self._epoch + self._current_batch / self._val_batches_per_epoch)
-        self._current_batch += 1
+    def on_evaluate_batch_end(self, batch, logs=None):
+        fetch_values = self.model.test_function.fetch_values
+        if self.merged in fetch_values:
+            self.writer.add_summary(
+                fetch_values[self.merged],
+                self._epoch + self._current_batch / self._val_batches_per_epoch)
+            self._current_batch += 1
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.histogram_freq:
@@ -911,15 +984,12 @@ class TensorBoard(Callback):
                 self._current_batch = 0
                 if self.merged not in self.model.test_function.fetches:
                     self.model.test_function.fetches.append(self.merged)
-                    self.model.test_function.fetch_callbacks[self.merged] = self._fetch_callback
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
         if self.histogram_freq and self.histogram_freq > 1:
             if self.merged in self.model.test_function.fetches:
                 self.model.test_function.fetches.remove(self.merged)
-            if self.merged in self.model.test_function.fetch_callbacks:
-                self.model.test_function.fetch_callbacks.pop(self.merged)
 
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError("To visualize embeddings, embeddings_data must "
