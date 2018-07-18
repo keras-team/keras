@@ -25,6 +25,7 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
+from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
 
 
@@ -620,16 +621,10 @@ class Model(Network):
 
         if outputs is None:
             # Obtain symbolic outputs by calling the model.
-            if len(self.inputs) == 1:
-                if self._expects_training_arg:
-                    outputs = self.call(self.inputs[0], training=training)
-                else:
-                    outputs = self.call(self.inputs[0])
+            if self._expects_training_arg:
+                outputs = self.call(unpack_singleton(self.inputs), training=training)
             else:
-                if self._expects_training_arg:
-                    outputs = self.call(self.inputs, training=training)
-                else:
-                    outputs = self.call(self.inputs)
+                outputs = self.call(unpack_singleton(self.inputs))
         if isinstance(outputs, (list, tuple)):
             outputs = list(outputs)
         else:
@@ -1218,9 +1213,7 @@ class Model(Network):
             ins = x + y + sample_weights
         self._make_train_function()
         outputs = self.train_function(ins)
-        if len(outputs) == 1:
-            return outputs[0]
-        return outputs
+        return unpack_singleton(outputs)
 
     def test_on_batch(self, x, y, sample_weight=None):
         """Test the model on a single batch of samples.
@@ -1259,9 +1252,7 @@ class Model(Network):
             ins = x + y + sample_weights
         self._make_test_function()
         outputs = self.test_function(ins)
-        if len(outputs) == 1:
-            return outputs[0]
-        return outputs
+        return unpack_singleton(outputs)
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
@@ -1279,9 +1270,7 @@ class Model(Network):
             ins = x
         self._make_predict_function()
         outputs = self.predict_function(ins)
-        if len(outputs) == 1:
-            return outputs[0]
-        return outputs
+        return unpack_singleton(outputs)
 
     @interfaces.legacy_generator_methods_support
     def fit_generator(self, generator,
