@@ -57,7 +57,7 @@ install:
   - pip install -e .[tests]
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow==1.7
+  - pip install tensorflow==1.9
   
   # install cntk
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
