@@ -8,7 +8,7 @@ from keras.engine import Input, Layer, saving, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
-from keras.utils.test_utils import keras_test
+from keras.utils.test_utils import keras_test, layer_test
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
@@ -779,8 +779,7 @@ def test_multi_output_mask():
             return [K.abs(inputs), K.abs(inputs)]
 
         def compute_output_shape(self, input_shape):
-            out_shape = super(ArbitraryMultiOutputLayer, self).compute_output_shape(input_shape)
-            return [out_shape, out_shape]
+            return [input_shape, input_shape]
 
     class ArbitraryMultiInputLayer(Layer):
         def __init__(self, **kwargs):
@@ -795,6 +794,29 @@ def test_multi_output_mask():
     z = ArbitraryMultiInputLayer()([x, y])
     _ = Model(inputs=input_layer, outputs=z)
     assert K.int_shape(z)[1:] == (16, 16, 3)
+
+
+@pytest.mark.skipif(K.backend() == 'theano',
+                    reason='Theano cannot infer the output'
+                           'shape automatically.')
+@keras_test
+def test_infer_output_shape():
+
+    class ArbitrarySimpleLayer(Layer):
+        def call(self, x, **kwargs):
+            return K.mean(x, axis=-1)
+
+    layer_test(ArbitrarySimpleLayer,
+               input_shape=(4, 3, 2),
+               custom_layer=True)
+
+    class ArbitraryMultiOutputLayer(Layer):
+        def call(self, x, **kwargs):
+            return [K.mean(x, axis=-1), x]
+
+    layer_test(ArbitraryMultiOutputLayer,
+               input_shape=(4, 3, 2),
+               custom_layer=True)
 
 
 if __name__ == '__main__':
