@@ -107,7 +107,7 @@ class _Conv(Layer):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, rank, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, rank, 'dilation_rate')
         self.activation = activations.get(activation)
         self.use_bias = use_bias
@@ -1285,6 +1285,7 @@ class _SeparableConv(_Conv):
             dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
+            bias_initializer=bias_initializer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
             bias_constraint=bias_constraint,
@@ -1933,7 +1934,7 @@ class UpSampling2D(Layer):
     @interfaces.legacy_upsampling2d_support
     def __init__(self, size=(2, 2), data_format=None, **kwargs):
         super(UpSampling2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
         self.input_spec = InputSpec(ndim=4)
 
@@ -2001,7 +2002,7 @@ class UpSampling3D(Layer):
 
     @interfaces.legacy_upsampling3d_support
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.size = conv_utils.normalize_tuple(size, 3, 'size')
         self.input_spec = InputSpec(ndim=5)
         super(UpSampling3D, self).__init__(**kwargs)
@@ -2129,7 +2130,7 @@ class ZeroPadding2D(Layer):
                  data_format=None,
                  **kwargs):
         super(ZeroPadding2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = ((padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
@@ -2233,7 +2234,7 @@ class ZeroPadding3D(Layer):
     @interfaces.legacy_zeropadding3d_support
     def __init__(self, padding=(1, 1, 1), data_format=None, **kwargs):
         super(ZeroPadding3D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         if isinstance(padding, int):
             self.padding = ((padding, padding), (padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
@@ -2412,7 +2413,7 @@ class Cropping2D(Layer):
     def __init__(self, cropping=((0, 0), (0, 0)),
                  data_format=None, **kwargs):
         super(Cropping2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         if isinstance(cropping, int):
             self.cropping = ((cropping, cropping), (cropping, cropping))
         elif hasattr(cropping, '__len__'):
@@ -2540,7 +2541,7 @@ class Cropping3D(Layer):
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)),
                  data_format=None, **kwargs):
         super(Cropping3D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         if isinstance(cropping, int):
             self.cropping = ((cropping, cropping),
                              (cropping, cropping),

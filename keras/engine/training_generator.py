@@ -12,6 +12,7 @@ from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
 from ..utils.data_utils import OrderedEnqueuer
 from ..utils.generic_utils import Progbar
+from ..utils.generic_utils import unpack_singleton
 from .. import callbacks as cbks
 
 
@@ -375,9 +376,7 @@ def evaluate_generator(model, generator,
                                        weights=batch_sizes))
         else:
             averages.append(np.float64(outs_per_batch[-1][i]))
-    if len(averages) == 1:
-        return averages[0]
-    return averages
+    return unpack_singleton(averages)
 
 
 def predict_generator(model, generator,
