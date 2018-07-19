@@ -11,6 +11,7 @@ from .common import set_floatx
 from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
+from .common import normalize_data_format
 
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.
 # Otherwise either ~/.keras or /tmp.
