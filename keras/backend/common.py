@@ -148,10 +148,10 @@ def set_image_data_format(data_format):
 
 
 def normalize_data_format(value):
-    """Check that the value correspond to a valid data format.
+    """Checks that the value correspond to a valid data format.
 
     # Arguments
-        value: string or None. `'channels_first'` or `'channels_last'`.
+        value: String or None. `'channels_first'` or `'channels_last'`.
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`

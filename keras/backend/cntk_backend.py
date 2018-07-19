@@ -4,8 +4,10 @@ from __future__ import print_function
 
 import cntk as C
 import numpy as np
-from .common import floatx, epsilon
-from .common import image_data_format, normalize_data_format
+from .common import floatx
+from .common import epsilon
+from .common import image_data_format
+from .common import normalize_data_format
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings

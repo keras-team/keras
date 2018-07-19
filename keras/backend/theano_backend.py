@@ -20,7 +20,8 @@ except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 
 import numpy as np
-from .common import floatx, epsilon
+from .common import floatx
+from .common import epsilon
 from .common import normalize_data_format
 from ..utils.generic_utils import has_arg
 # Legacy functions

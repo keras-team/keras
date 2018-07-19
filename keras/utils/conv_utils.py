@@ -8,9 +8,6 @@ from six.moves import range
 import numpy as np
 from .. import backend as K
 
-# Legacy import
-from ..backend import normalize_data_format
-
 
 def normalize_tuple(value, n, name):
     """Transforms a single int or iterable of ints into an int tuple.

@@ -17,7 +17,8 @@ from collections import defaultdict
 import numpy as np
 import os
 
-from .common import floatx, epsilon
+from .common import floatx
+from .common import epsilon
 from .common import normalize_data_format
 from ..utils.generic_utils import has_arg
 
