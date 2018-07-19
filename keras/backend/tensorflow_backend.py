@@ -3269,17 +3269,10 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         output = tf.log(output)
 
     output_shape = output.get_shape()
-    targets = cast(flatten(target), 'int64')
-    logits = tf.reshape(output, [-1, int(output_shape[-1])])
-    res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        labels=targets,
-        logits=logits)
-    if len(output_shape) >= 3:
-        # if our output includes timestep dimension
-        # or spatial dimensions we need to reshape
-        return tf.reshape(res, tf.shape(output)[:-1])
-    else:
-        return res
+    targets = cast(target, 'int64')
+
+    return tf.nn.sparse_softmax_cross_entropy_with_logits(labels=targets,
+                                                          logits=output)
 
 
 def binary_crossentropy(target, output, from_logits=False):
