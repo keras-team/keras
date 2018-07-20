@@ -1480,7 +1480,6 @@ def test_dynamic_set_inputs():
     assert preds4.shape == (1, 19)
 
 
-
 @keras_test
 def test_3D_outputs():
     model = Sequential()
