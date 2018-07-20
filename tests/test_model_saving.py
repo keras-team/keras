@@ -644,8 +644,7 @@ def test_saving_recurrent_layer_without_bias():
 
 @keras_test
 def test_saving_constant_initializer_with_numpy():
-    """
-    Test saving and loading model of constant initializer with numpy ndarray as input.
+    """Test saving and loading model of constant initializer with numpy ndarray as input.
     """
     model = Sequential()
     model.add(Dense(2, input_shape=(3,), kernel_initializer=Constant(np.ones((3, 2)))))
