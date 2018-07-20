@@ -1808,17 +1808,18 @@ class TestBackend(object):
     def test_with_3D_outputs(self):
         # Make sparse_categorical_crossentropy work with 3D outputs.
         # GitHub issue: 6351
-        model = keras.Sequential()
-        model.add(keras.layers.Dense(10, input_shape=(5, 6)))
-        model.compile(optimizer='adam',
-                      loss='sparse_categorical_crossentropy')
-        x_data = np.random.random((32, 5, 6))
-        y_data = np.random.randint(0, 9, size=(32,))
-        try:
-            model.fit(x=x_data, y=y_data, batch_size=16, epochs=3)
-            assert True
-        except ValueError:
-            assert False
+        if K.backend() == 'tensorflow':
+            model = keras.Sequential()
+            model.add(keras.layers.Dense(10, input_shape=(5, 6)))
+            model.compile(optimizer='adam',
+                          loss='sparse_categorical_crossentropy')
+            x_data = np.random.random((32, 5, 6))
+            y_data = np.random.randint(0, 9, size=(32,))
+            try:
+                model.fit(x=x_data, y=y_data, batch_size=16, epochs=3)
+                assert True
+            except ValueError:
+                assert False
 
 if __name__ == '__main__':
     pytest.main([__file__])
