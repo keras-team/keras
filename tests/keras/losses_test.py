@@ -39,11 +39,6 @@ def test_objective_shapes_2d():
 
 
 def test_cce_one_hot():
-    y_a = K.variable(np.random.randint(0, 7, (4, 5, 6)))
-    y_b = K.variable(np.random.random((4, 5, 6, 7)))
-    objective_output = losses.sparse_categorical_crossentropy(y_a, y_b)
-    assert K.eval(objective_output).shape == (4, 5, 6)
-
     y_a = K.variable(np.random.randint(0, 7, (5, 6)))
     y_b = K.variable(np.random.random((5, 6, 7)))
     objective_output = losses.sparse_categorical_crossentropy(y_a, y_b)
