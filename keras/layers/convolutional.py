@@ -271,10 +271,10 @@ class Conv1D(_Conv):
             one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, length, channels)`
+            `(batch, steps, channels)`
             (default format for temporal data in Keras)
             while `"channels_first"` corresponds to inputs
-            with shape `(batch, channels, length)`.
+            with shape `(batch, channels, steps)`.
         dilation_rate: an integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -1411,9 +1411,9 @@ class SeparableConv1D(_SeparableConv):
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, length, channels)` while `"channels_first"`
+            `(batch, steps, channels)` while `"channels_first"`
             corresponds to inputs with shape
-            `(batch, channels, length)`.
+            `(batch, channels, steps)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
