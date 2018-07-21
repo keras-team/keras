@@ -1487,7 +1487,7 @@ def test_3D_outputs():
     model.compile(optimizer='adam',
                   loss='sparse_categorical_crossentropy')
     x_data = np.random.random((32, 5, 6))
-    y_data = np.random.randint(0, 9, size=(32,))
+    y_data = np.random.randint(0, 9, size=(32, 5))
 
     model.fit(x=x_data, y=y_data, batch_size=16, epochs=3)
 
