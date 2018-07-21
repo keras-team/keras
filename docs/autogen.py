@@ -666,7 +666,7 @@ if __name__ == '__main__':
 
         for function in functions:
             blocks.append(render_function(function, method=False))
-            
+
         if not blocks:
             raise RuntimeError('Found no content for page ' +
                                page_data['page'])
