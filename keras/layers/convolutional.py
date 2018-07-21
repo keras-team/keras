@@ -1411,9 +1411,9 @@ class SeparableConv1D(_SeparableConv):
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `"channels_first"`
+            `(batch, length, channels)` while `"channels_first"`
             corresponds to inputs with shape
-            `(batch, channels, height, width)`.
+            `(batch, channels, length)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
