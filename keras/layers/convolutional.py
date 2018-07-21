@@ -302,10 +302,10 @@ class Conv1D(_Conv):
             (see [constraints](../constraints.md)).
 
     # Input shape
-        3D tensor with shape: `(batch_size, steps, input_dim)`
+        3D tensor with shape: `(batch, steps, channels)`
 
     # Output shape
-        3D tensor with shape: `(batch_size, new_steps, filters)`
+        3D tensor with shape: `(batch, new_steps, filters)`
         `steps` value might have changed due to padding or strides.
     """
 
@@ -429,18 +429,18 @@ class Conv2D(_Conv):
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)`
+        `(batch, channels, rows, cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)`
+        `(batch, rows, cols, channels)`
         if `data_format` is `"channels_last"`.
 
     # Output shape
         4D tensor with shape:
-        `(samples, filters, new_rows, new_cols)`
+        `(batch, filters, new_rows, new_cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, filters)`
+        `(batch, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
     """
@@ -557,18 +557,18 @@ class Conv3D(_Conv):
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, conv_dim1, conv_dim2, conv_dim3)`
+        `(batch, channels, conv_dim1, conv_dim2, conv_dim3)`
         if `data_format` is `"channels_first"`
         or 5D tensor with shape:
-        `(samples, conv_dim1, conv_dim2, conv_dim3, channels)`
+        `(batch, conv_dim1, conv_dim2, conv_dim3, channels)`
         if `data_format` is `"channels_last"`.
 
     # Output shape
         5D tensor with shape:
-        `(samples, filters, new_conv_dim1, new_conv_dim2, new_conv_dim3)`
+        `(batch, filters, new_conv_dim1, new_conv_dim2, new_conv_dim3)`
         if `data_format` is `"channels_first"`
         or 5D tensor with shape:
-        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, filters)`
+        `(batch, new_conv_dim1, new_conv_dim2, new_conv_dim3, filters)`
         if `data_format` is `"channels_last"`.
         `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
     """
@@ -1720,18 +1720,18 @@ class DepthwiseConv2D(Conv2D):
 
     # Input shape
         4D tensor with shape:
-        `[batch, channels, rows, cols]`
+        `(batch, channels, rows, cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `[batch, rows, cols, channels]`
+        `(batch, rows, cols, channels)`
         if `data_format` is `"channels_last"`.
 
     # Output shape
         4D tensor with shape:
-        `[batch, filters, new_rows, new_cols]`
+        `(batch, filters, new_rows, new_cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `[batch, new_rows, new_cols, filters]`
+        `(batch, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
     """
