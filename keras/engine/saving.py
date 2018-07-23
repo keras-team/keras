@@ -79,8 +79,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         # if obj is any numpy type
         if type(obj).__module__ == np.__name__:
             if isinstance(obj, np.ndarray):
-                return {'type': type(obj),
-                        'value': obj.tolist()}
+                return obj.tolist()
             else:
                 return obj.item()
 

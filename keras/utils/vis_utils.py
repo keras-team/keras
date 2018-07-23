@@ -108,7 +108,6 @@ def model_to_dot(model,
             if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
-                    layer_id = str(id(layer))
                     dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
     return dot
 
