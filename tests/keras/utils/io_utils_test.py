@@ -104,6 +104,16 @@ def test_io_utils(in_tmpdir):
     normalized_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150, normalizer=normalizer)
     assert np.isclose(normalized_X_train[0][0], X_train[0][0] + 1)
 
+    # test resizing normalizer
+    normalizer_rs = lambda x: x[:, ::2]
+    normalized_rs_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150, normalizer=normalizer_rs)
+    assert (normalized_rs_X_train.shape[1] == 5)
+
+    # test dtype changing normalizer
+    normalizer_dtype = lambda x: x.astype(np.uint8)
+    normalized_dtype_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150, normalizer=normalizer_dtype)
+    assert (normalized_dtype_X_train.dtype == np.uint8)
+
     os.remove(h5_path)
 
 
