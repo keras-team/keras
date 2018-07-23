@@ -1872,9 +1872,9 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """
     if ndim(x) == 4:
         # The CPU implementation of FusedBatchNorm only support NHWC
-        if axis == 1:
+        if axis == 1 or axis == -3:
             tf_data_format = 'NCHW'
-        elif axis == 3:
+        elif axis == 3 or axis == -1:
             tf_data_format = 'NHWC'
         else:
             tf_data_format = None
