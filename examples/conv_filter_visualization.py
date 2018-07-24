@@ -88,9 +88,9 @@ for filter_index in range(200):
 
     # we start from a gray image with some random noise
     if K.image_data_format() == 'channels_first':
-        input_img_data = np.random.random((1, 3, img_width, img_height))
+        input_img_data = np.random.random((1, 3, img_height, img_width))
     else:
-        input_img_data = np.random.random((1, img_width, img_height, 3))
+        input_img_data = np.random.random((1, img_height, img_width, 3))
     input_img_data = (input_img_data - 0.5) * 20 + 128
 
     # we run gradient ascent for 20 steps
@@ -123,14 +123,14 @@ kept_filters = kept_filters[:n * n]
 margin = 5
 width = n * img_width + (n - 1) * margin
 height = n * img_height + (n - 1) * margin
-stitched_filters = np.zeros((width, height, 3))
+stitched_filters = np.zeros((height, width, 3))
 
 # fill the picture with our saved filters
 for i in range(n):
     for j in range(n):
         img, loss = kept_filters[i * n + j]
-        stitched_filters[(img_width + margin) * i: (img_width + margin) * i + img_width,
-                         (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
+        stitched_filters[(img_height + margin) * j: (img_height + margin) * j + img_height,
+                         (img_width + margin) * i: (img_width + margin) * i + img_width, :] = img
 
 # save the result to disk
 save_img('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
