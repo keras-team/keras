@@ -456,7 +456,9 @@ class ModelCheckpoint(Callback):
 
 
 class EarlyStopping(Callback):
-    """Stop training when a monitored quantity has stopped improving.
+    """Stop training when a monitored quantity has stopped improving and
+       restore the model weights from the epoch with the best value
+       of the monitored quantity.
 
     # Arguments
         monitor: quantity to be monitored.
@@ -495,6 +497,7 @@ class EarlyStopping(Callback):
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
+        self.good_weights = None
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
@@ -538,11 +541,13 @@ class EarlyStopping(Callback):
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
+            self.good_weights = self.model.get_weights()
         else:
             self.wait += 1
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
                 self.model.stop_training = True
+                self.model.set_weights(self.good_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
