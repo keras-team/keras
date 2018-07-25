@@ -623,8 +623,10 @@ class LearningRateScheduler(Callback):
     def __init__(self, schedule, verbose=0, schedule_args=None):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
-        self.schedule_args = schedule_args
         self.verbose = verbose
+        if schedule_args is None:
+            schedule_args = {}
+        self.schedule_args = schedule_args
 
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, 'lr'):

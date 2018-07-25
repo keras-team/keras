@@ -340,7 +340,7 @@ def test_LearningRateScheduler():
 
 
 @keras_test
-def test_LearningRateScheduler_schedule_args():
+def test_LearningRateScheduler_with_schedule_args():
     def schedule(epoch, lr, beta=0.5, period=1):
         if epoch > 0 and (epoch % period == 0):
             return lr * beta
@@ -362,11 +362,12 @@ def test_LearningRateScheduler_schedule_args():
                   optimizer='sgd',
                   metrics=['accuracy'])
 
+    epochs = 5
     schedule_args = {'beta': 0.8, 'period': 2}
     expected_lr = K.get_value(model.optimizer.lr) * np.power(0.8, 2)
     cbks = [callbacks.LearningRateScheduler(schedule, schedule_args=schedule_args)]
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, epochs=5)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=epochs)
     assert (float(K.get_value(model.optimizer.lr)) - expected_lr) < K.epsilon()
 
 
