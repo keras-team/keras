@@ -23,6 +23,7 @@ from ..utils.layer_utils import get_source_inputs
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import object_list_uid
+from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
 
 try:
@@ -267,10 +268,7 @@ class Network(Layer):
             node = layer._inbound_nodes[node_index]
             mask = node.output_masks[tensor_index]
             masks.append(mask)
-        if len(masks) == 1:
-            mask = masks[0]
-        else:
-            mask = masks
+        mask = unpack_singleton(masks)
         self._output_mask_cache[mask_cache_key] = mask
 
         # Build self.input_names and self.output_names.
@@ -539,9 +537,7 @@ class Network(Layer):
                                     'Found input_spec = ' +
                                     str(layer.input_spec))
                 specs += layer.input_spec
-        if len(specs) == 1:
-            return specs[0]
-        return specs
+        return unpack_singleton(specs)
 
     def call(self, inputs, mask=None):
         """Calls the model on new inputs.
@@ -605,8 +601,8 @@ class Network(Layer):
         cache_key = ', '.join([str(x) for x in input_shapes])
         if cache_key in self._output_shape_cache:
             output_shapes = self._output_shape_cache[cache_key]
-            if isinstance(output_shapes, list) and len(output_shapes) == 1:
-                return output_shapes[0]
+            if isinstance(output_shapes, list):
+                return unpack_singleton(output_shapes)
             return output_shapes
         else:
             # Bad luck, we have to run the graph manually.
@@ -643,10 +639,7 @@ class Network(Layer):
                             input_shape = layers_to_output_shapes[shape_key]
                             input_shapes.append(input_shape)
 
-                        if len(input_shapes) == 1:
-                            output_shape = layer.compute_output_shape(input_shapes[0])
-                        else:
-                            output_shape = layer.compute_output_shape(input_shapes)
+                        output_shape = layer.compute_output_shape(unpack_singleton(input_shapes))
 
                         output_shapes = to_list(output_shape)
                         node_index = layer._inbound_nodes.index(node)
@@ -669,8 +662,8 @@ class Network(Layer):
                 output_shapes.append(layers_to_output_shapes[key])
             # Store in cache.
             self._output_shape_cache[cache_key] = output_shapes
-            if isinstance(output_shapes, list) and len(output_shapes) == 1:
-                return output_shapes[0]
+            if isinstance(output_shapes, list):
+                return unpack_singleton(output_shapes)
             return output_shapes
 
     def run_internal_graph(self, inputs, masks=None):
@@ -781,12 +774,10 @@ class Network(Layer):
 
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):
-                        if len(computed_tensors) == 1:
-                            shapes = to_list(layer.compute_output_shape(computed_tensors[0]._keras_shape))
-                            uses_learning_phase = computed_tensors[0]._uses_learning_phase
-                        else:
-                            shapes = to_list(layer.compute_output_shape([x._keras_shape for x in computed_tensors]))
-                            uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors])
+                        input_shapes = unpack_singleton([x._keras_shape for x in computed_tensors])
+                        shapes = to_list(layer.compute_output_shape(input_shapes))
+                        uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors])
+
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
                             x._uses_learning_phase = getattr(x, '_uses_learning_phase', False) or uses_learning_phase
@@ -814,26 +805,18 @@ class Network(Layer):
         cache_key = object_list_uid(inputs)
         cache_key += '_' + object_list_uid(masks)
 
-        if len(output_tensors) == 1:
-            output_tensors = output_tensors[0]
-            self._output_tensor_cache[cache_key] = output_tensors
-        else:
-            self._output_tensor_cache[cache_key] = output_tensors
+        output_tensors = unpack_singleton(output_tensors)
+        self._output_tensor_cache[cache_key] = output_tensors
 
-        if len(output_masks) == 1:
-            output_masks = output_masks[0]
-            self._output_mask_cache[cache_key] = output_masks
-        else:
-            self._output_mask_cache[cache_key] = output_masks
+        output_masks = unpack_singleton(output_masks)
+        self._output_mask_cache[cache_key] = output_masks
 
         if output_shapes is not None:
             input_shapes = [x._keras_shape for x in inputs]
             cache_key = ', '.join([str(x) for x in input_shapes])
-            if len(output_shapes) == 1:
-                output_shapes = output_shapes[0]
-                self._output_shape_cache[cache_key] = output_shapes
-            else:
-                self._output_shape_cache[cache_key] = output_shapes
+
+            output_shapes = unpack_singleton(output_shapes)
+            self._output_shape_cache[cache_key] = output_shapes
         return output_tensors, output_masks, output_shapes
 
     def get_config(self):
@@ -1000,10 +983,7 @@ class Network(Layer):
             # Call layer on its inputs, thus creating the node
             # and building the layer if needed.
             if input_tensors:
-                if len(input_tensors) == 1:
-                    layer(input_tensors[0], **kwargs)
-                else:
-                    layer(input_tensors, **kwargs)
+                layer(unpack_singleton(input_tensors), **kwargs)
 
         def process_layer(layer_data):
             """Deserializes a layer, then call it on appropriate inputs.
@@ -1213,7 +1193,10 @@ class Network(Layer):
         def get_json_type(obj):
             # If obj is any numpy type
             if type(obj).__module__ == np.__name__:
-                return obj.item()
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                else:
+                    return obj.item()
 
             # If obj is a python 'type'
             if type(obj).__name__ == type.__name__:
