@@ -614,19 +614,26 @@ class LearningRateScheduler(Callback):
             (integer, indexed from 0) and current learning rate
             and returns a new learning rate as output (float).
         verbose: int. 0: quiet, 1: update messages.
+        schedule_args: a dictionary that contains additional
+            keyword arguments that shall be passed to the schedule
+            function (optional).
+
     """
 
-    def __init__(self, schedule, verbose=0):
+    def __init__(self, schedule, verbose=0, schedule_args=None):
         super(LearningRateScheduler, self).__init__()
         self.schedule = schedule
         self.verbose = verbose
+        if schedule_args is None:
+            schedule_args = {}
+        self.schedule_args = schedule_args
 
     def on_epoch_begin(self, epoch, logs=None):
         if not hasattr(self.model.optimizer, 'lr'):
             raise ValueError('Optimizer must have a "lr" attribute.')
         lr = float(K.get_value(self.model.optimizer.lr))
         try:  # new API
-            lr = self.schedule(epoch, lr)
+            lr = self.schedule(epoch, lr, **self.schedule_args)
         except TypeError:  # old API for backward compatibility
             lr = self.schedule(epoch)
         if not isinstance(lr, (float, np.float32, np.float64)):

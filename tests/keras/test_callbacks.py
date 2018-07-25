@@ -17,11 +17,11 @@ from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.utils import np_utils
+
 try:
     from unittest.mock import patch
 except:
     from mock import patch
-
 
 input_dim = 2
 num_hidden = 4
@@ -68,6 +68,7 @@ def test_TerminateOnNaN():
                    y_train[i * batch_size: (i + 1) * batch_size])
             i += 1
             i = i % max_batch_index
+
     history = model.fit_generator(data_generator(),
                                   len(X_train),
                                   validation_data=(X_test, y_test),
@@ -336,6 +337,38 @@ def test_LearningRateScheduler():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5)
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
+
+
+@keras_test
+def test_LearningRateScheduler_with_schedule_args():
+    def schedule(epoch, lr, beta=0.5, period=1):
+        if epoch > 0 and (epoch % period == 0):
+            return lr * beta
+        else:
+            return lr
+
+    np.random.seed(1337)
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_classes)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='sgd',
+                  metrics=['accuracy'])
+
+    epochs = 5
+    schedule_args = {'beta': 0.8, 'period': 2}
+    expected_lr = K.get_value(model.optimizer.lr) * np.power(0.8, 2)
+    cbks = [callbacks.LearningRateScheduler(schedule, schedule_args=schedule_args)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=epochs)
+    assert (float(K.get_value(model.optimizer.lr)) - expected_lr) < K.epsilon()
 
 
 @keras_test
