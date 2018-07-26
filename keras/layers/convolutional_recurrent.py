@@ -169,22 +169,17 @@ class ConvRNN2D(RNN):
                                              stride=cell.strides[1],
                                              dilation=cell.dilation_rate[1])
 
-        if cell.data_format == 'channels_first':
-            output_shape = input_shape[:2] + (cell.filters, rows, cols)
-        elif cell.data_format == 'channels_last':
-            output_shape = input_shape[:2] + (rows, cols, cell.filters)
+        output_shape = input_shape[:2] + (rows, cols, cell.filters)
+        output_shape = K.to_data_format(output_shape, cell.data_format, 2)
 
         if not self.return_sequences:
             output_shape = output_shape[:1] + output_shape[2:]
 
         if self.return_state:
             output_shape = [output_shape]
-            if cell.data_format == 'channels_first':
-                output_shape += [(input_shape[0], cell.filters, rows, cols)
-                                 for _ in range(2)]
-            elif cell.data_format == 'channels_last':
-                output_shape += [(input_shape[0], rows, cols, cell.filters)
-                                 for _ in range(2)]
+            base = (input_shape[0], rows, cols, cell.filters)
+            base = K.to_data_format(base, cell.data_format)
+            output_shape += [base[:] for _ in range(2)]
         return output_shape
 
     def build(self, input_shape):

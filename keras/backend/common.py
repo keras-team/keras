@@ -178,6 +178,49 @@ def normalize_data_format(value):
     return data_format
 
 
+def to_data_format(values, data_format, skip=1):
+    """Converts a tuple or a list to the correct `data_format`.
+
+    It does so by switching the positions of its elements.
+
+    # Arguments
+        values: Tuple or list, often representing shape,
+            corresponding to `'channels_last'`.
+        data_format: A string, either `'channels_first'` or `'channels_last'`.
+        skip: An integer. Correspond to the number of elements to skip
+            before permuting the values. For example, if you pass a shape
+            representing (batch_size, timesteps, rows, cols, channels),
+            then `skip=2` because the first two elements won't change.
+
+    # Returns
+        A tuple or list, with the elements permuted according
+        to `data_format`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.to_data_format((16, 128, 128, 32), 'channels_first')
+        (16, 32, 128, 128)
+        >>> K.to_data_format((16, 128, 128, 32), 'channels_last')
+        (16, 128, 128, 32)
+        >>> K.to_data_format((128, 128, 32), 'channels_first', skip=0)
+        (32, 128, 128)
+    ```
+    """
+    data_format = normalize_data_format(data_format)
+
+    if data_format == 'channels_first':
+        new_values = values[:skip]
+        new_values += (values[-1],)
+        new_values += tuple(values[skip:-1])
+
+        if isinstance(values, list):
+            return list(new_values)
+        return new_values
+
+    return values
+
+
 # Legacy methods
 
 def set_image_dim_ordering(dim_ordering):
