@@ -9,6 +9,7 @@ import numpy as np
 
 from .. import backend as K
 from .. import losses
+from ..utils.generic_utils import to_list
 
 
 def standardize_single_array(x):
@@ -321,8 +322,7 @@ def collect_metrics(metrics, output_names):
         nested_metrics = []
         for name in output_names:
             output_metrics = metrics.get(name, [])
-            if not isinstance(output_metrics, list):
-                output_metrics = [output_metrics]
+            output_metrics = to_list(output_metrics)
             nested_metrics.append(output_metrics)
         return nested_metrics
     else:

@@ -224,8 +224,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                 # Apply model on slice
                 # (creating a model replica on the target device).
                 outputs = model(inputs)
-                if not isinstance(outputs, list):
-                    outputs = [outputs]
+                outputs = to_list(outputs)
 
                 # Save the outputs for merging back together later.
                 for o in range(len(outputs)):

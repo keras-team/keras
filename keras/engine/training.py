@@ -25,6 +25,7 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
+from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
 
@@ -155,8 +156,7 @@ class Model(Network):
         masks = self.compute_mask(self.inputs, mask=None)
         if masks is None:
             masks = [None for _ in self.outputs]
-        if not isinstance(masks, list):
-            masks = [masks]
+        masks = to_list(masks)
 
         # Prepare loss weights.
         if loss_weights is None:
