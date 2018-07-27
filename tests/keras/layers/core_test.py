@@ -358,7 +358,7 @@ def test_sequential_as_downstream_of_masking_layer():
     for i in range(4):
         model_input[i, i:, :] = 0.
     model.fit(model_input,
-        np.random.random((10, 3, 5)), epochs=1, batch_size=6)
+              np.random.random((10, 3, 5)), epochs=1, batch_size=6)
 
     mask_outputs = [model.layers[1].compute_mask(model.layers[1].input)]
     mask_outputs += [model.layers[2].compute_mask(model.layers[2].input, mask_outputs[-1])]
