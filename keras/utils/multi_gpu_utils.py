@@ -9,6 +9,7 @@ from .. import backend as K
 from ..layers.core import Lambda
 from ..engine.training import Model
 from ..models import clone_model
+from ..utils.generic_utils import to_list
 
 
 def _get_available_devices():
