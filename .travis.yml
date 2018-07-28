@@ -111,6 +111,8 @@ script:
       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
     elif [[ "$TEST_MODE" == "DOC" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
+    elif [[ "$KERAS_BACKEND" == "tensorflow" ]]; then
+      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/keras/legacy/layers_test.py --ignore=tests/keras/utils/data_utils_test.py --ignore=tests/test_multiprocessing.py --cov-config .coveragerc --cov=keras tests/;
     else
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
     fi
