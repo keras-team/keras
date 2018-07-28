@@ -532,3 +532,51 @@ def slice_arrays(arrays, start=None, stop=None):
             return arrays[start:stop]
         else:
             return [None]
+
+
+def to_data_format(values, data_format, skip=1):
+    """Converts a tuple or a list to the correct `data_format`.
+
+    It does so by switching the positions of its elements.
+
+    # Arguments
+        values: Tuple or list, often representing shape,
+            corresponding to `'channels_last'`.
+        data_format: A string, either `'channels_first'` or `'channels_last'`.
+        skip: An integer. Correspond to the number of elements to skip
+            before permuting the values. For example, if you pass a shape
+            representing (batch_size, timesteps, rows, cols, channels),
+            then `skip=2` because the first two elements won't change.
+
+    # Returns
+        A tuple or list, with the elements permuted according
+        to `data_format`.
+
+    # Example
+    ```python
+        >>> from keras.utils.generic_utils import to_data_format
+        >>> to_data_format((16, 128, 128, 32), 'channels_first')
+        (16, 32, 128, 128)
+        >>> to_data_format((16, 128, 128, 32), 'channels_last')
+        (16, 128, 128, 32)
+        >>> to_data_format((128, 128, 32), 'channels_first', skip=0)
+        (32, 128, 128)
+    ```
+
+    # Raises
+        ValueError: if `value` or the global `data_format` invalid.
+    """
+    if data_format == 'channels_first':
+        new_values = values[:skip]
+        new_values += (values[-1],)
+        new_values += tuple(values[skip:-1])
+
+        if isinstance(values, list):
+            return list(new_values)
+        return new_values
+    elif data_format == 'channels_last':
+        return values
+    else:
+        raise ValueError('The `data_format` argument must be one of '
+                         '"channels_first", "channels_last". Received: ' +
+                         str(data_format))

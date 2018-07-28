@@ -8,7 +8,7 @@ from .common import floatx
 from .common import epsilon
 from .common import image_data_format
 from .common import normalize_data_format
-from .common import to_data_format
+from ..utils.generic_utils import to_data_format
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
