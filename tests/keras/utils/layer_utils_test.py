@@ -53,7 +53,8 @@ def test_convert_weights():
 
         # Test equivalence of convert_dense_weights_data_format
         out1 = model1.predict(x)
-        layer_utils.convert_dense_weights_data_format(model1.layers[2], prev_shape, target_data_format)
+        layer_utils.convert_dense_weights_data_format(
+            model1.layers[2], prev_shape, target_data_format)
         for (src, dst) in zip(model1.layers, model2.layers):
             dst.set_weights(src.get_weights())
         out2 = model2.predict(transpose(x))
