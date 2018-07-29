@@ -55,8 +55,8 @@ class TestImage(object):
                 vertical_flip=True)
             generator.fit(images, augment=True)
 
-            N = images.shape[0]
-            for x, y in generator.flow(images, np.arange(N),
+            num_samples = images.shape[0]
+            for x, y in generator.flow(images, np.arange(num_samples),
                                        shuffle=False, save_to_dir=str(tmpdir),
                                        batch_size=3):
                 assert x.shape == images[:3].shape
@@ -64,9 +64,9 @@ class TestImage(object):
                 break
 
             # Test with sample weights
-            for x, y, w in generator.flow(images, np.arange(N),
+            for x, y, w in generator.flow(images, np.arange(num_samples),
                                           shuffle=False,
-                                          sample_weight=np.arange(N) + 1,
+                                          sample_weight=np.arange(num_samples) + 1,
                                           save_to_dir=str(tmpdir),
                                           batch_size=3):
                 assert x.shape == images[:3].shape
@@ -75,7 +75,7 @@ class TestImage(object):
                 break
 
             # Test with `shuffle=True`
-            for x, y in generator.flow(images, np.arange(N),
+            for x, y in generator.flow(images, np.arange(num_samples),
                                        shuffle=True, save_to_dir=str(tmpdir),
                                        batch_size=3):
                 assert x.shape == images[:3].shape

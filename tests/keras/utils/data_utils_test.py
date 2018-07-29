@@ -188,8 +188,8 @@ def test_generator_enqueuer_processes():
     acc = []
     for i in range(100):
         acc.append(int(next(gen_output)[0, 0, 0, 0]))
-    assert acc != list(range(100)), (
-        "Order was keep in GeneratorEnqueuer with processes")
+    assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
+                                     'with processes')
     enqueuer.stop()
 
 
@@ -219,8 +219,8 @@ def test_ordered_enqueuer_threads():
     acc = []
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc == list(range(100)), (
-        "Order was not keep in GeneratorEnqueuer with threads")
+    assert acc == list(range(100)), ('Order was not keep in GeneratorEnqueuer '
+                                     'with threads')
     enqueuer.stop()
 
 
@@ -233,8 +233,8 @@ def test_ordered_enqueuer_threads_not_ordered():
     acc = []
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc != list(range(100)), (
-        "Order was not keep in GeneratorEnqueuer with threads")
+    assert acc != list(range(100)), ('Order was not keep in GeneratorEnqueuer '
+                                     'with threads')
     enqueuer.stop()
 
 
@@ -247,8 +247,8 @@ def test_ordered_enqueuer_processes():
     acc = []
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
-    assert acc == list(range(100)), (
-        "Order was not keep in GeneratorEnqueuer with processes")
+    assert acc == list(range(100)), ('Order was not keep in GeneratorEnqueuer '
+                                     'with processes')
     enqueuer.stop()
 
 
@@ -270,7 +270,7 @@ def test_on_epoch_end_processes():
     for i in range(200):
         acc.append(next(gen_output)[0, 0, 0, 0])
     assert acc[100:] == list([k * 5 for k in range(100)]), (
-        "Order was not keep in GeneratorEnqueuer with processes")
+        'Order was not keep in GeneratorEnqueuer with processes')
     enqueuer.stop()
 
 
@@ -319,7 +319,7 @@ def test_on_epoch_end_threads():
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
     assert acc == list([k * 5 for k in range(100)]), (
-        "Order was not keep in GeneratorEnqueuer with processes")
+        'Order was not keep in GeneratorEnqueuer with processes')
     enqueuer.stop()
 
 
@@ -363,8 +363,8 @@ def test_finite_generator_enqueuer_processes():
     acc = []
     for output in gen_output:
         acc.append(int(output[0, 0, 0, 0]))
-    assert acc != list(range(100)), (
-        "Order was keep in GeneratorEnqueuer with processes")
+    assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
+                                     'with processes')
     enqueuer.stop()
 
 
