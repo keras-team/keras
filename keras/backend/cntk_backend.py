@@ -2031,7 +2031,7 @@ def temporal_padding(x, padding=(1, 1)):
     return pad(x, [padding], 'channels_last', num_dynamic_axis)
 
 
-def _padding(x, pattern, axis):
+def _padding(x, pattern, axis):  # pragma: no cover
     base_shape = x.shape
     if b_any([dim < 0 for dim in base_shape]):
         raise ValueError('CNTK Backend: padding input tensor with '
@@ -2062,7 +2062,7 @@ def pad(x, pad_info, data_format, num_dynamic_axis):
         if num_dynamic_axis == 0:
             pattern = [[0, 0]] + pattern
         return C.pad(x, pattern=pattern)
-    else:
+    else:  # pragma: no cover
         for (a, p) in enumerate(pad_info):
             x = _padding(x, p,
                          a + (1 if num_dynamic_axis == 0 else 0) +
