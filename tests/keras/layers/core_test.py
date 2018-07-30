@@ -4,7 +4,8 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras import layers
-from keras.models import Model, Sequential
+from keras.models import Model
+from keras.models import Sequential
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras import regularizers
@@ -346,13 +347,13 @@ def test_activity_regularization():
 @keras_test
 def test_sequential_as_downstream_of_masking_layer():
 
-    input = layers.Input(shape=(3, 4))
-    x = layers.Masking(mask_value=0., input_shape=(3, 4))(input)
+    inputs = layers.Input(shape=(3, 4))
+    x = layers.Masking(mask_value=0., input_shape=(3, 4))(inputs)
     s = Sequential()
     s.add(layers.Dense(5, input_shape=(4,)))
     s.add(layers.Activation('relu'))
     x = layers.wrappers.TimeDistributed(s)(x)
-    model = Model(inputs=input, outputs=x)
+    model = Model(inputs=inputs, outputs=x)
     model.compile(optimizer='rmsprop', loss='mse')
     model_input = np.random.randint(low=1, high=5, size=(10, 3, 4))
     for i in range(4):
