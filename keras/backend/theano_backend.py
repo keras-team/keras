@@ -782,8 +782,8 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 
 # TODO remove this function when Theano without
 # T.nnet.bn.batch_normalization_train is deprecated
-def _old_normalize_batch_in_training(x, gamma, beta,
-                                     reduction_axes, epsilon=1e-3):
+def _old_normalize_batch_in_training(x, gamma, beta, reduction_axes,
+                                     epsilon=1e-3):  # pragma: no cover
     """Computes mean and std for batch then apply batch_normalization on batch.
     """
     if gamma is None:
@@ -830,7 +830,8 @@ def _old_normalize_batch_in_training(x, gamma, beta,
 
 # TODO remove this if statement when Theano without
 # T.nnet.bn.batch_normalization_test is deprecated
-def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def _old_batch_normalization(x, mean, var, beta, gamma,
+                             epsilon=1e-3):  # pragma: no cover
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
     if gamma is None:
