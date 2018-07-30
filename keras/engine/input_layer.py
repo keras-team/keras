@@ -42,6 +42,7 @@ class InputLayer(Layer):
         self.trainable = False
         self.built = True
         self.sparse = sparse
+        self.supports_masking = True
 
         if input_shape and batch_input_shape:
             raise ValueError('Only provide the input_shape OR '
