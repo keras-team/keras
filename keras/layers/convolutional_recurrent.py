@@ -483,10 +483,10 @@ class ConvLSTM2DCell(Layer):
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -793,15 +793,15 @@ class ConvLSTM2D(ConvRNN2D):
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, time, ..., channels)`
-            while `channels_first` corresponds to
+            while `"channels_first"` corresponds to
             inputs with shape `(batch, time, channels, ...)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -877,7 +877,7 @@ class ConvLSTM2D(ConvRNN2D):
                 5D tensor with shape:
                 `(samples, time, output_row, output_col, filters)`
         - else
-            - if data_format ='channels_first'
+            - if data_format='channels_first'
                 4D tensor with shape:
                 `(samples, filters, output_row, output_col)`
             - if data_format='channels_last'
