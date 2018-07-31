@@ -16,6 +16,7 @@ from .. import constraints
 from ..engine.base_layer import Layer
 from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import get_first_element_from_list
 
 # Legacy support.
 from ..legacy.layers import Recurrent
@@ -407,8 +408,7 @@ class RNN(Layer):
         self._states = states
 
     def compute_output_shape(self, input_shape):
-        if isinstance(input_shape, list):
-            input_shape = input_shape[0]
+        input_shape = get_first_element_from_list(input_shape)
 
         if hasattr(self.cell.state_size, '__len__'):
             state_size = self.cell.state_size
@@ -428,8 +428,7 @@ class RNN(Layer):
             return output_shape
 
     def compute_mask(self, inputs, mask):
-        if isinstance(mask, list):
-            mask = mask[0]
+        mask = get_first_element_from_list(mask)
         output_mask = mask if self.return_sequences else None
         if self.return_state:
             state_mask = [None for _ in self.states]
@@ -445,8 +444,7 @@ class RNN(Layer):
         else:
             constants_shape = None
 
-        if isinstance(input_shape, list):
-            input_shape = input_shape[0]
+        input_shape = get_first_element_from_list(input_shape)
 
         batch_size = input_shape[0] if self.stateful else None
         input_dim = input_shape[-1]
@@ -550,8 +548,7 @@ class RNN(Layer):
         # input shape: `(samples, time (padded with zeros), input_dim)`
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
-        if isinstance(inputs, list):
-            inputs = inputs[0]
+        inputs = get_first_element_from_list(inputs)
         if initial_state is not None:
             pass
         elif self.stateful:
@@ -559,8 +556,7 @@ class RNN(Layer):
         else:
             initial_state = self.get_initial_state(inputs)
 
-        if isinstance(mask, list):
-            mask = mask[0]
+        mask = get_first_element_from_list(mask)
 
         if len(initial_state) != len(self.states):
             raise ValueError('Layer has ' + str(len(self.states)) +
