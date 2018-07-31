@@ -12,6 +12,7 @@ from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
 from keras.layers import Conv2D, Flatten
 from keras.layers import Input, InputLayer
+from keras.initializers import Constant
 from keras import optimizers
 from keras import losses
 from keras import metrics
@@ -638,6 +639,21 @@ def test_saving_recurrent_layer_without_bias():
     model.save(fname)
 
     loaded_model = load_model(fname)
+    os.remove(fname)
+
+
+@keras_test
+def test_saving_constant_initializer_with_numpy():
+    """Test saving and loading model of constant initializer with numpy ndarray as input.
+    """
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,), kernel_initializer=Constant(np.ones((3, 2)))))
+    model.add(Dense(3))
+    model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+    model = load_model(fname)
     os.remove(fname)
 
 

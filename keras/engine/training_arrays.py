@@ -14,6 +14,7 @@ from .. import backend as K
 from .. import callbacks as cbks
 from ..utils.generic_utils import Progbar
 from ..utils.generic_utils import slice_arrays
+from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
 
 
@@ -152,8 +153,7 @@ def fit_loop(model, f, ins,
                 callbacks.on_batch_begin(step_index, batch_logs)
                 outs = f(ins)
 
-                if not isinstance(outs, list):
-                    outs = [outs]
+                outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
@@ -165,8 +165,7 @@ def fit_loop(model, f, ins,
                 val_outs = test_loop(model, val_f, val_ins,
                                      steps=validation_steps,
                                      verbose=0)
-                if not isinstance(val_outs, list):
-                    val_outs = [val_outs]
+                val_outs = to_list(val_outs)
                 # Same labels assumed.
                 for l, o in zip(out_labels, val_outs):
                     epoch_logs['val_' + l] = o
@@ -198,8 +197,7 @@ def fit_loop(model, f, ins,
                     ins_batch[i] = ins_batch[i].toarray()
 
                 outs = f(ins_batch)
-                if not isinstance(outs, list):
-                    outs = [outs]
+                outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
@@ -212,8 +210,7 @@ def fit_loop(model, f, ins,
                         val_outs = test_loop(model, val_f, val_ins,
                                              batch_size=batch_size,
                                              verbose=0)
-                        if not isinstance(val_outs, list):
-                            val_outs = [val_outs]
+                        val_outs = to_list(val_outs)
                         # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
@@ -267,8 +264,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         unconcatenated_outs = []
         for step in range(steps):
             batch_outs = f(ins)
-            if not isinstance(batch_outs, list):
-                batch_outs = [batch_outs]
+            batch_outs = to_list(batch_outs)
             if step == 0:
                 for batch_out in batch_outs:
                     unconcatenated_outs.append([])
@@ -296,8 +292,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
                 ins_batch[i] = ins_batch[i].toarray()
 
             batch_outs = f(ins_batch)
-            if not isinstance(batch_outs, list):
-                batch_outs = [batch_outs]
+            batch_outs = to_list(batch_outs)
             if batch_index == 0:
                 # Pre-allocate the results arrays.
                 for batch_out in batch_outs:

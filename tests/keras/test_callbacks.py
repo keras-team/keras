@@ -10,7 +10,7 @@ from keras import optimizers
 from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout, add, dot, Lambda
+from keras.layers import Input, Dense, Dropout, add, dot, Lambda, Layer
 from keras.layers.convolutional import Conv2D
 from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling1D, GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
@@ -500,6 +500,19 @@ def test_TensorBoard(tmpdir):
             i += 1
             i = i % max_batch_index
 
+    class DummyStatefulMetric(Layer):
+
+        def __init__(self, name='dummy_stateful_metric', **kwargs):
+            super(DummyStatefulMetric, self).__init__(name=name, **kwargs)
+            self.stateful = True
+            self.state = K.variable(value=0, dtype='int32')
+
+        def reset_states(self):
+            pass
+
+        def __call__(self, y_true, y_pred):
+            return self.state
+
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
@@ -507,7 +520,7 @@ def test_TensorBoard(tmpdir):
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
-                  metrics=['accuracy'])
+                  metrics=['accuracy', DummyStatefulMetric()])
 
     # we must generate new callbacks for each test, as they aren't stateless
     def callbacks_factory(histogram_freq, embeddings_freq=1):

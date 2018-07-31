@@ -99,6 +99,7 @@ EXCLUDE = {
     'deserialize',
     'get',
     'set_image_dim_ordering',
+    'normalize_data_format',
     'image_dim_ordering',
     'get_variable_shape',
 }
@@ -114,7 +115,7 @@ EXCLUDE = {
 PAGES = [
     {
         'page': 'models/sequential.md',
-        'functions': [
+        'methods': [
             models.Sequential.compile,
             models.Sequential.fit,
             models.Sequential.evaluate,
@@ -130,7 +131,7 @@ PAGES = [
     },
     {
         'page': 'models/model.md',
-        'functions': [
+        'methods': [
             models.Model.compile,
             models.Model.fit,
             models.Model.evaluate,
@@ -369,10 +370,6 @@ def get_function_signature(function, method=True):
         signature = st[:-2] + ')'
     else:
         signature = st + ')'
-
-    if not method:
-        # Prepend the module name.
-        signature = clean_module_name(function.__module__) + '.' + signature
     return post_process_signature(signature)
 
 
@@ -596,9 +593,6 @@ def render_function(function, method=True):
     if method:
         signature = signature.replace(
             clean_module_name(function.__module__) + '.', '')
-    else:
-        signature = signature.replace(
-            clean_module_name(function.__module__) + '.', '', 1)
     subblocks.append('### ' + function.__name__ + '\n')
     subblocks.append(code_snippet(signature))
     docstring = function.__doc__
@@ -608,7 +602,7 @@ def render_function(function, method=True):
 
 
 def read_page_data(page_data, type):
-    assert type in ['classes', 'functions']
+    assert type in ['classes', 'functions', 'methods']
     data = page_data.get(type, [])
     for module in page_data.get('all_module_{}'.format(type), []):
         module_data = []
@@ -662,6 +656,11 @@ if __name__ == '__main__':
                 subblocks.append('\n---\n'.join(
                     [render_function(method, method=True) for method in methods]))
             blocks.append('\n'.join(subblocks))
+
+        methods = read_page_data(page_data, 'methods')
+
+        for method in methods:
+            blocks.append(render_function(method, method=True))
 
         functions = read_page_data(page_data, 'functions')
 
