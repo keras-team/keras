@@ -12,6 +12,7 @@ import keras_applications
 
 keras_applications.set_keras_submodules(
     backend=backend,
+    engine=engine,
     layers=layers,
     models=models,
     utils=utils)
