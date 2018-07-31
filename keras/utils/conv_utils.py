@@ -43,7 +43,7 @@ def normalize_tuple(value, n, name):
             except ValueError:
                 raise ValueError('The `' + name + '` argument must be a tuple of ' +
                                  str(n) + ' integers. Received: ' + str(value) + ' '
-                                 'including element ' + str(single_value) + ' of ' 
+                                 'including element ' + str(single_value) + ' of '
                                  'type ' + str(type(single_value)))
     return value_tuple
 
