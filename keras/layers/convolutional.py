@@ -1680,7 +1680,7 @@ class DepthwiseConv2D(Conv2D):
             all spatial dimensions.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: one of `'valid'` or `'same'` (case-insensitive).
+        padding: one of `"valid"` or `"same"` (case-insensitive).
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
