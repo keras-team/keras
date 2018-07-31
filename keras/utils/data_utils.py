@@ -168,7 +168,7 @@ def get_file(fname,
 
     # Returns
         Path to the downloaded file
-    """
+    """  # noqa
     if cache_dir is None:
         cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
@@ -303,13 +303,14 @@ class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
 
     Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
-    If you want to modify your dataset between epochs you may implement `on_epoch_end`.
-    The method `__getitem__` should return a complete batch.
+    If you want to modify your dataset between epochs you may implement
+    `on_epoch_end`. The method `__getitem__` should return a complete batch.
 
     # Notes
 
-    `Sequence` are a safer way to do multiprocessing. This structure guarantees that the network will only train once
-     on each sample per epoch which is not the case with generators.
+    `Sequence` are a safer way to do multiprocessing. This structure guarantees
+    that the network will only train once on each sample per epoch which is not the
+    case with generators.
 
     # Examples
 
@@ -518,7 +519,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """
         if self.use_multiprocessing:
             self.executor_fn = lambda seqs: multiprocessing.Pool(workers,
-                                                                 initializer=init_pool,
+                                                                 init_pool,
                                                                  initargs=(seqs,))
         else:
             # We do not need the init since it's threads.
@@ -663,7 +664,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                         break
                     except Exception as e:
                         # Can't pickle tracebacks.
-                        # As a compromise, print the traceback and pickle None instead.
+                        # As a compromise, print the traceback and
+                        # pickle None instead.
                         if not hasattr(e, '__traceback__'):
                             setattr(e, '__traceback__', sys.exc_info()[2])
                         self.queue.put((False, e))
@@ -716,7 +718,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = multiprocessing.Process(target=self._data_generator_task)
+                    thread = multiprocessing.Process(
+                        target=self._data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
@@ -780,7 +783,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if value is not None:
                     yield value
             else:
-                all_finished = all([not thread.is_alive() for thread in self._threads])
+                all_finished = all([not thread.is_alive()
+                                    for thread in self._threads])
                 if all_finished and self.queue.empty():
                     raise StopIteration()
                 else:
