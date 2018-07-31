@@ -476,6 +476,7 @@ def unpack_singleton(x):
         return x[0]
     return x
 
+
 def get_first_element_from_list(x):
     """Get the first element from list.
 
@@ -490,6 +491,7 @@ def get_first_element_from_list(x):
     if isinstance(x, list):
         return x[0]
     return x
+
 
 def object_list_uid(object_list):
     object_list = to_list(object_list)
