@@ -21,6 +21,7 @@ from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D
 from .recurrent import RNN
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import transpose_shape
 
 
 class ConvRNN2D(RNN):
@@ -170,7 +171,8 @@ class ConvRNN2D(RNN):
                                              dilation=cell.dilation_rate[1])
 
         output_shape = input_shape[:2] + (rows, cols, cell.filters)
-        output_shape = K.to_data_format(output_shape, cell.data_format, 2)
+        output_shape = transpose_shape(output_shape, cell.data_format,
+                                       spatial_axes=(2, 3))
 
         if not self.return_sequences:
             output_shape = output_shape[:1] + output_shape[2:]
@@ -178,7 +180,7 @@ class ConvRNN2D(RNN):
         if self.return_state:
             output_shape = [output_shape]
             base = (input_shape[0], rows, cols, cell.filters)
-            base = K.to_data_format(base, cell.data_format)
+            base = transpose_shape(base, cell.data_format, spatial_axes=(1, 2))
             output_shape += [base[:] for _ in range(2)]
         return output_shape
 

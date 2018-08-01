@@ -20,7 +20,7 @@ import os
 from .common import floatx
 from .common import epsilon
 from .common import normalize_data_format
-from ..utils.generic_utils import to_data_format
+from ..utils.generic_utils import transpose_shape
 from ..utils.generic_utils import has_arg
 
 # Legacy functions
@@ -2243,7 +2243,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                list(padding[0]),
                list(padding[1]),
                [0, 0]]
-    pattern = to_data_format(pattern, data_format)
+    pattern = transpose_shape(pattern, data_format, spatial_axes=(1, 2))
     return tf.pad(x, pattern)
 
 
