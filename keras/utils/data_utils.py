@@ -4,7 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
-import multiprocessing
+import multiprocessing as mp
 import os
 import random
 import shutil
@@ -483,7 +483,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
             try:
-                _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+                _SEQUENCE_COUNTER = mp.Value('i', 0)
             except OSError:
                 # In this case the OS does not allow us to use
                 # multiprocessing. We resort to an int
@@ -518,9 +518,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            self.executor_fn = lambda seqs: multiprocessing.Pool(workers,
-                                                                 init_pool,
-                                                                 initargs=(seqs,))
+            self.executor_fn = lambda seqs: mp.Pool(workers,
+                                                    initializer=init_pool,
+                                                    initargs=(seqs,))
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
@@ -702,9 +702,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         try:
             self.max_queue_size = max_queue_size
             if self._use_multiprocessing:
-                self._manager = multiprocessing.Manager()
+                self._manager = mp.Manager()
                 self.queue = self._manager.Queue(maxsize=max_queue_size)
-                self._stop_event = multiprocessing.Event()
+                self._stop_event = mp.Event()
             else:
                 # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
                 # `ValueError: generator already executing`
@@ -718,8 +718,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = (multiprocessing.
-                              Process(target=self._data_generator_task))
+                    thread = mp.Process(target=self._data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
