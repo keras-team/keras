@@ -43,8 +43,8 @@ def normalize_tuple(value, n, name):
             except ValueError:
                 raise ValueError('The `' + name + '` argument must be a tuple of ' +
                                  str(n) + ' integers. Received: ' + str(value) + ' '
-                                 'including element ' + str(single_value) + ' of type' +
-                                 ' ' + str(type(single_value)))
+                                 'including element ' + str(single_value) + ' of '
+                                 'type ' + str(type(single_value)))
     return value_tuple
 
 
@@ -54,8 +54,8 @@ def normalize_padding(value):
     if K.backend() == 'theano':
         allowed.add('full')
     if padding not in allowed:
-        raise ValueError('The `padding` argument must be one of `"valid"`, `"same"` (or `"causal"` for Conv1D). '
-                         'Received: ' + str(padding))
+        raise ValueError('The `padding` argument must be one of "valid", "same" '
+                         '(or "causal" for Conv1D). Received: ' + str(padding))
     return padding
 
 
