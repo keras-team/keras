@@ -193,9 +193,14 @@ class TimeDistributed(Wrapper):
             for i, s in enumerate(int_shape):
                 if not s:
                     int_shape[i] = tensor_shape[start_idx + i]
+            return init_tuple + tuple(int_shape)
         else:
-            int_shape = tensor_shape[start_idx:]
-        return init_tuple + tuple(int_shape)
+            if K.backend() == "tensorflow":
+                ts1 = K.stack(list(init_tuple))
+                ts2 = K.slice(tensor_shape, [start_idx], [-1])
+                return K.concatenate([ts1, ts2])
+            else:
+                return init_tuple + tuple(tensor_shape[start_idx:])
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
