@@ -43,7 +43,7 @@ RUN conda install -y python=${python_version} && \
     pip install \
       sklearn_pandas \
       tensorflow-gpu && \
-    pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.5.1-cp36-cp36m-linux_x86_64.whl && \
+    pip install https://cntk.ai/PythonWheel/GPU/cntk_gpu-2.5.1-cp36-cp36m-linux_x86_64.whl && \
     conda install \
       bcolz \
       h5py \
