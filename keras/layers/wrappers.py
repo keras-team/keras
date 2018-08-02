@@ -179,16 +179,22 @@ class TimeDistributed(Wrapper):
             or K.int_shape(tensor), where every `None` is replaced by
             the corresponding dimension from K.shape(tensor)
         """
-        # replace all None in int_shape by K.shape
+        # get int_shape if available
         if int_shape is None:
-            int_shape = K.int_shape(tensor)[start_idx:]
-        if not any(not s for s in int_shape):
+            int_shape = K.int_shape(tensor)
+            if int_shape:
+                int_shape = int_shape[start_idx:]
+        if int_shape and not any(not s for s in int_shape):
             return init_tuple + int_shape
         tensor_shape = K.shape(tensor)
-        int_shape = list(int_shape)
-        for i, s in enumerate(int_shape):
-            if not s:
-                int_shape[i] = tensor_shape[start_idx + i]
+        # replace all None in int_shape by K.shape
+        if int_shape:
+            int_shape = list(int_shape)
+            for i, s in enumerate(int_shape):
+                if not s:
+                    int_shape[i] = tensor_shape[start_idx + i]
+        else:
+            int_shape = tensor_shape[start_idx:]
         return init_tuple + tuple(int_shape)
 
     def build(self, input_shape):
