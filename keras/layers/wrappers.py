@@ -187,14 +187,15 @@ class TimeDistributed(Wrapper):
         if int_shape and not any(not s for s in int_shape):
             return init_tuple + int_shape
         tensor_shape = K.shape(tensor)
-        # replace all None in int_shape by K.shape
         if int_shape:
+            # replace all None in int_shape by K.shape
             int_shape = list(int_shape)
             for i, s in enumerate(int_shape):
                 if not s:
                     int_shape[i] = tensor_shape[start_idx + i]
             return init_tuple + tuple(int_shape)
         else:
+            # fully fall back to use K.shape
             if K.backend() == "tensorflow":
                 ts1 = K.stack(list(init_tuple))
                 ts2 = K.slice(tensor_shape, [start_idx], [-1])
