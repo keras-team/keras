@@ -182,12 +182,12 @@ class TimeDistributed(Wrapper):
         # get int_shape if available
         if int_shape is None:
             int_shape = K.int_shape(tensor)
-            if int_shape:
+            if int_shape is not None:
                 int_shape = int_shape[start_idx:]
-        if int_shape and not any(not s for s in int_shape):
+        if int_shape is not None and not any(not s for s in int_shape):
             return init_tuple + int_shape
         tensor_shape = K.shape(tensor)
-        if int_shape:
+        if int_shape is not None:
             # replace all None in int_shape by K.shape
             int_shape = list(int_shape)
             for i, s in enumerate(int_shape):
