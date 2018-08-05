@@ -417,11 +417,13 @@ def weighted_masked_objective(fn):
             weight_ndim = K.ndim(weights)
             score_array = K.mean(score_array,
                                  axis=list(range(weight_ndim, ndim)))
-            # reduce weight array to same ndim as score_array (needed for sample_weight_mode='element')
-            # by checking that any extra dimensions in weights are size 1, i.e. dummy dimensions
+            # reduce weight array to same ndim as score_array (needed for
+            # sample_weight_mode='element') by checking that any extra
+            # dimensions in weights are size 1, i.e. dummy dimensions
             ndim = K.ndim(score_array)
             if weight_ndim > ndim and np.any(K.shape(weights)[ndim:] == 1):
-                raise ValueError('weights array shape is incompatible with loss function')
+                raise ValueError('weights array shape is incompatible with '
+                                 'loss function')
             weights = K.reshape(weights, K.shape(score_array))
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
@@ -483,13 +485,14 @@ def standardize_weights(y,
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D (sample_weight_mode=None) '
-                             'or the same size as the output arrays (sample_weight_mode="element").')
+                             'or the same size as the output arrays '
+                             '(sample_weight_mode="element").')
     elif sample_weight_mode is 'element':
         if sample_weight is not None and sample_weight.shape != y.shape:
             raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + ' for output with shape ' +
-                             str(y.shape) + '. When sample_weight_mode="element", weights and outputs '
-                             'must have the same size.')
+                             str(y.shape) + '. When sample_weight_mode="element", ' +
+                             'weights and outputs must have the same size.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
