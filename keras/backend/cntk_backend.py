@@ -8,6 +8,7 @@ from .common import floatx
 from .common import epsilon
 from .common import image_data_format
 from .common import normalize_data_format
+from ..utils.generic_utils import transpose_shape
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
@@ -1684,12 +1685,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        shape = list(output_shape)
-        shape[0] = output_shape[3]
-        shape[1] = output_shape[0]
-        shape[2] = output_shape[1]
-        shape[3] = output_shape[2]
-        output_shape = tuple(shape)
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1, 2))
 
     x = C.convolution_transpose(
         kernel,
@@ -2201,11 +2198,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        shape = list(output_shape)
-        shape[0] = output_shape[2]
-        shape[1] = output_shape[0]
-        shape[2] = output_shape[1]
-        output_shape = tuple(shape)
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1))
 
     x = C.convolution_transpose(
         kernel,
