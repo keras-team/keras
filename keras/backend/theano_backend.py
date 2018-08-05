@@ -23,6 +23,7 @@ import numpy as np
 from .common import floatx
 from .common import epsilon
 from .common import normalize_data_format
+from ..utils.generic_utils import transpose_shape
 from ..utils.generic_utils import has_arg
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
@@ -1823,8 +1824,8 @@ def _preprocess_conv2d_image_shape(image_shape, data_format):
             return None
     if data_format == 'channels_last':
         if image_shape:
-            image_shape = (image_shape[0], image_shape[3],
-                           image_shape[1], image_shape[2])
+            image_shape = transpose_shape(image_shape, 'channels_first',
+                                          spatial_axes=(1, 2))
     if image_shape is not None:
         image_shape = tuple(int_or_none(v) for v in image_shape)
     return image_shape
