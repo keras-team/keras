@@ -4355,8 +4355,6 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     output = reshape(output,
                      (output_row, output_col, -1, filters))
 
-    if data_format == 'channels_first':
-        output = permute_dimensions(output, (2, 3, 0, 1))
-    else:
-        output = permute_dimensions(output, (2, 0, 1, 3))
-    return output
+    pattern = (2, 0, 1, 3)
+    pattern = transpose_shape(pattern, data_format, spatial_axes=(1, 2))
+    return permute_dimensions(output, pattern)
