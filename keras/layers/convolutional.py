@@ -2334,13 +2334,9 @@ class Cropping1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        if input_shape[1] is not None:
-            length = input_shape[1] - self.cropping[0] - self.cropping[1]
-        else:
-            length = None
-        return (input_shape[0],
-                length,
-                input_shape[2])
+        return _compute_output_shape_cropping(input_shape,
+                                             'channels_last',
+                                             (self.cropping,))
 
     def call(self, inputs):
         if self.cropping[1] == 0:
@@ -2437,16 +2433,9 @@ class Cropping2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            return (input_shape[0],
-                    input_shape[1],
-                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] else None,
-                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] else None)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0],
-                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
-                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
-                    input_shape[3])
+        return _compute_output_shape_cropping(input_shape,
+                                             self.data_format,
+                                             self.cropping)
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
@@ -2569,42 +2558,9 @@ class Cropping3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
-            else:
-                dim1 = None
-            if input_shape[3] is not None:
-                dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
-            else:
-                dim2 = None
-            if input_shape[4] is not None:
-                dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
-            else:
-                dim1 = None
-            if input_shape[2] is not None:
-                dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
-            else:
-                dim2 = None
-            if input_shape[3] is not None:
-                dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
+        return _compute_output_shape_cropping(input_shape,
+                                             self.data_format,
+                                             self.cropping)
 
     def call(self, inputs):
         if self.data_format == 'channels_first':
@@ -2710,6 +2666,19 @@ class Cropping3D(Layer):
                   'data_format': self.data_format}
         base_config = super(Cropping3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def _compute_output_shape_cropping(input_shape, data_format, cropping):
+    input_shape_list = list(input_shape)
+    if data_format == 'channels_first':
+        start = 2
+    elif data_format == 'channels_last':
+        start = 1
+    spatial_dimensions = list(range(start, start + len(cropping)))
+    for i, dim in enumerate(spatial_dimensions):
+        if input_shape_list[dim] is not None:
+            input_shape_list[dim] -= cropping[i][0] + cropping[i][1]
+    return tuple(input_shape_list)
 
 
 # Aliases
