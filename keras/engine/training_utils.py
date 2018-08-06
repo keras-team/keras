@@ -458,7 +458,7 @@ def standardize_weights(y,
         ValueError: In case of invalid user-provided arguments.
     """
     if sample_weight_mode is not None:
-        if sample_weight_mode != 'temporal' and sample_weight_mode != 'element':
+        if sample_weight_mode not in ('temporal', 'element'):
             raise ValueError('"sample_weight_mode '
                              'should be None, "element" or "temporal". '
                              'Found: ' + str(sample_weight_mode))
