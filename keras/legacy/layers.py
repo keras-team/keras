@@ -8,6 +8,7 @@ import warnings
 from ..engine import Layer, InputSpec
 from .. import backend as K
 from ..utils import conv_utils
+from ..utils.generic_utils import to_list
 from .. import regularizers
 from .. import constraints
 from .. import activations
@@ -521,10 +522,8 @@ class Recurrent(Layer):
             # Compute the full input spec, including state
             input_spec = self.input_spec
             state_spec = self.state_spec
-            if not isinstance(input_spec, list):
-                input_spec = [input_spec]
-            if not isinstance(state_spec, list):
-                state_spec = [state_spec]
+            input_spec = to_list(input_spec)
+            state_spec = to_list(state_spec)
             self.input_spec = input_spec + state_spec
 
             # Compute the full inputs, including state
@@ -748,7 +747,7 @@ class ConvRecurrent2D(Recurrent):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards

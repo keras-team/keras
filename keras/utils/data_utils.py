@@ -4,7 +4,7 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
-import multiprocessing
+import multiprocessing as mp
 import os
 import random
 import shutil
@@ -168,7 +168,7 @@ def get_file(fname,
 
     # Returns
         Path to the downloaded file
-    """
+    """  # noqa
     if cache_dir is None:
         cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
@@ -224,7 +224,7 @@ def get_file(fname,
                 raise Exception(error_msg.format(origin, e.errno, e.reason))
             except HTTPError as e:
                 raise Exception(error_msg.format(origin, e.code, e.msg))
-        except (Exception, KeyboardInterrupt) as e:
+        except (Exception, KeyboardInterrupt):
             if os.path.exists(fpath):
                 os.remove(fpath)
             raise
@@ -303,13 +303,14 @@ class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
 
     Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
-    If you want to modify your dataset between epochs you may implement `on_epoch_end`.
-    The method `__getitem__` should return a complete batch.
+    If you want to modify your dataset between epochs you may implement
+    `on_epoch_end`. The method `__getitem__` should return a complete batch.
 
     # Notes
 
-    `Sequence` are a safer way to do multiprocessing. This structure guarantees that the network will only train once
-     on each sample per epoch which is not the case with generators.
+    `Sequence` are a safer way to do multiprocessing. This structure guarantees
+    that the network will only train once on each sample per epoch which is not
+    the case with generators.
 
     # Examples
 
@@ -482,7 +483,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         global _SEQUENCE_COUNTER
         if _SEQUENCE_COUNTER is None:
             try:
-                _SEQUENCE_COUNTER = multiprocessing.Value('i', 0)
+                _SEQUENCE_COUNTER = mp.Value('i', 0)
             except OSError:
                 # In this case the OS does not allow us to use
                 # multiprocessing. We resort to an int
@@ -517,9 +518,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            self.executor_fn = lambda seqs: multiprocessing.Pool(workers,
-                                                                 initializer=init_pool,
-                                                                 initargs=(seqs,))
+            self.executor_fn = lambda seqs: mp.Pool(workers,
+                                                    initializer=init_pool,
+                                                    initargs=(seqs,))
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
@@ -663,7 +664,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                         break
                     except Exception as e:
                         # Can't pickle tracebacks.
-                        # As a compromise, print the traceback and pickle None instead.
+                        # As a compromise, print the traceback and
+                        # pickle None instead.
                         if not hasattr(e, '__traceback__'):
                             setattr(e, '__traceback__', sys.exc_info()[2])
                         self.queue.put((False, e))
@@ -700,9 +702,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         try:
             self.max_queue_size = max_queue_size
             if self._use_multiprocessing:
-                self._manager = multiprocessing.Manager()
+                self._manager = mp.Manager()
                 self.queue = self._manager.Queue(maxsize=max_queue_size)
-                self._stop_event = multiprocessing.Event()
+                self._stop_event = mp.Event()
             else:
                 # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
                 # `ValueError: generator already executing`
@@ -716,7 +718,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     # Reset random seed else all children processes
                     # share the same seed
                     np.random.seed(self.seed)
-                    thread = multiprocessing.Process(target=self._data_generator_task)
+                    thread = mp.Process(target=self._data_generator_task)
                     thread.daemon = True
                     if self.seed is not None:
                         self.seed += 1
@@ -780,7 +782,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 if value is not None:
                     yield value
             else:
-                all_finished = all([not thread.is_alive() for thread in self._threads])
+                all_finished = all([not thread.is_alive()
+                                    for thread in self._threads])
                 if all_finished and self.queue.empty():
                     raise StopIteration()
                 else:

@@ -209,12 +209,7 @@ class SpatialDropout2D(Dropout):
     @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout2D, self).__init__(rate, **kwargs)
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('`data_format` must be in '
-                             '{`"channels_last"`, `"channels_first"`}')
-        self.data_format = data_format
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def _get_noise_shape(self, inputs):
@@ -262,12 +257,7 @@ class SpatialDropout3D(Dropout):
     @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout3D, self).__init__(rate, **kwargs)
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('`data_format` must be in '
-                             '{`"channels_last"`, `"channels_first"`}')
-        self.data_format = data_format
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def _get_noise_shape(self, inputs):
@@ -485,9 +475,8 @@ class Flatten(Layer):
 
     ```python
         model = Sequential()
-        model.add(Conv2D(64, 3, 3,
-                         padding='same',
-                         input_shape=(3, 32, 32)))
+        model.add(Conv2D(64, (3, 3),
+                         input_shape=(3, 32, 32), padding='same',))
         # now: model.output_shape == (None, 64, 32, 32)
 
         model.add(Flatten())
@@ -498,7 +487,7 @@ class Flatten(Layer):
     def __init__(self, data_format=None, **kwargs):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
 
     def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):
@@ -624,7 +613,7 @@ class Lambda(Layer):
 
     # Output shape
         Specified by `output_shape` argument
-        (or auto-inferred when using TensorFlow).
+        (or auto-inferred when using TensorFlow or CNTK).
     """
 
     @interfaces.legacy_lambda_support
@@ -649,8 +638,8 @@ class Lambda(Layer):
 
     def compute_output_shape(self, input_shape):
         if self._output_shape is None:
-            # With TensorFlow, we can infer the output shape directly:
-            if K.backend() == 'tensorflow':
+            # With TensorFlow or CNTK, we can infer the output shape directly:
+            if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
                     xs = [K.placeholder(shape=shape) for shape in input_shape]
                     x = self.call(xs)

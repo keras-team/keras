@@ -4,7 +4,11 @@ from __future__ import print_function
 
 import cntk as C
 import numpy as np
-from .common import floatx, epsilon, image_dim_ordering, image_data_format
+from .common import floatx
+from .common import epsilon
+from .common import image_data_format
+from .common import normalize_data_format
+from ..utils.generic_utils import transpose_shape
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
@@ -184,10 +188,7 @@ def variable(value, dtype=None, name=None, constraint=None):
 
 
 def bias_add(x, bias, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     dims = len(x.shape)
     if dims > 0 and x.shape[0] == C.InferredDimension:
@@ -270,7 +271,7 @@ def placeholder(
         raise ValueError('CNTK backend: creating placeholder with '
                          '%d dimension is not supported, at least '
                          '%d dimensions are needed.'
-                         % (len(cntk_shape, dynamic_axis_num)))
+                         % (len(cntk_shape), dynamic_axis_num))
 
     if name is None:
         name = ''
@@ -369,27 +370,21 @@ def constant(value, dtype=None, shape=None, name=None):
 
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
-    # use numpy workaround now
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
-        np.random.seed(seed)
     if dtype is None:
         dtype = np.float32
     else:
         dtype = _convert_string_dtype(dtype)
 
-    size = 1
     for _ in shape:
         if _ is None:
             raise ValueError('CNTK Backend: randomness op with '
                              'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
                              'instead of `None`.')
-        size *= _
-
-    binomial = np.random.binomial(1, p, size).astype(dtype).reshape(shape)
-    return variable(value=binomial, dtype=dtype)
+    return C.random.bernoulli(shape=shape, dtype=dtype, mean=p, seed=seed)
 
 
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -400,7 +395,10 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
                              'Please provide fixed dimension '
                              'instead of `None`.')
 
-    return random_uniform_variable(shape, minval, maxval, dtype, seed)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e3)
+    return C.random.uniform(shape=shape, dtype=dtype, low=minval, high=maxval, seed=seed)
 
 
 def random_uniform_variable(shape, low, high,
@@ -450,13 +448,14 @@ def random_normal_variable(
     if name is None:
         name = ''
 
-    return C.parameter(
+    p = C.parameter(
         shape=shape,
         init=C.initializer.normal(
             scale=scale,
             seed=seed),
         dtype=dtype,
         name=name)
+    return variable(value=p.value + mean)
 
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -468,8 +467,10 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
                              'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
                              'instead of `None`.')
-    # how to apply mean and stddev
-    return random_normal_variable(shape=shape, mean=mean, scale=1.0, seed=seed)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e3)
+    return C.random.normal(shape=shape, mean=mean, scale=stddev, seed=seed, dtype=dtype)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -1480,10 +1481,7 @@ def hard_sigmoid(x):
 
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     if padding == 'causal':
         # causal (dilated) convolution:
@@ -1512,10 +1510,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
@@ -1546,10 +1541,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
 
 def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
                      padding='valid', data_format=None, dilation_rate=1):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     if isinstance(strides, int):
         strides = (strides,)
     if isinstance(dilation_rate, int):
@@ -1599,10 +1591,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
@@ -1637,10 +1626,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
@@ -1668,10 +1654,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
@@ -1692,10 +1675,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
                      padding='valid', data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
@@ -1705,12 +1685,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        shape = list(output_shape)
-        shape[0] = output_shape[3]
-        shape[1] = output_shape[0]
-        shape[2] = output_shape[1]
-        shape[3] = output_shape[2]
-        output_shape = tuple(shape)
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1, 2))
 
     x = C.convolution_transpose(
         kernel,
@@ -1728,10 +1704,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
            pool_mode='max'):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     padding = _preprocess_border_mode(padding)
     strides = strides
@@ -1758,10 +1731,7 @@ def pool2d(x, pool_size, strides=(1, 1),
 
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     padding = _preprocess_border_mode(padding)
 
@@ -2058,7 +2028,7 @@ def temporal_padding(x, padding=(1, 1)):
     return pad(x, [padding], 'channels_last', num_dynamic_axis)
 
 
-def _padding(x, pattern, axis):
+def _padding(x, pattern, axis):  # pragma: no cover
     base_shape = x.shape
     if b_any([dim < 0 for dim in base_shape]):
         raise ValueError('CNTK Backend: padding input tensor with '
@@ -2089,7 +2059,7 @@ def pad(x, pad_info, data_format, num_dynamic_axis):
         if num_dynamic_axis == 0:
             pattern = [[0, 0]] + pattern
         return C.pad(x, pattern=pattern)
-    else:
+    else:  # pragma: no cover
         for (a, p) in enumerate(pad_info):
             x = _padding(x, p,
                          a + (1 if num_dynamic_axis == 0 else 0) +
@@ -2101,10 +2071,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     assert len(x.shape) == 4 - (1 if num_dynamic_axis > 0 else 0)
@@ -2116,10 +2083,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
     assert len(padding[2]) == 2
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     assert len(x.shape) == 5 - (1 if num_dynamic_axis > 0 else 0)
@@ -2224,10 +2188,7 @@ def in_top_k(predictions, targets, k):
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                      padding='valid', data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
@@ -2237,11 +2198,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        shape = list(output_shape)
-        shape[0] = output_shape[2]
-        shape[1] = output_shape[0]
-        shape[2] = output_shape[1]
-        output_shape = tuple(shape)
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1))
 
     x = C.convolution_transpose(
         kernel,
@@ -2357,10 +2315,7 @@ def _reshape_sequence(x, time_step):
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride = strides[0]
     kernel_shape = int_shape(kernel)
@@ -2389,10 +2344,7 @@ def local_conv2d(inputs,
                  strides,
                  output_shape,
                  data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride_row, stride_col = strides
     output_row, output_col = output_shape

@@ -272,5 +272,19 @@ def multi_gpu_application_folder_generator_benchmark():
         print('%d gpus training:' % i, total_time)
 
 
+@keras_test
+def test_multi_gpu_with_multi_input_layers():
+    inputs = keras.Input((4, 3))
+    init_state = keras.Input((3,))
+    outputs = keras.layers.SimpleRNN(
+        3, return_sequences=True)(inputs, initial_state=init_state)
+    x = [np.random.randn(2, 4, 3), np.random.randn(2, 3)]
+    y = np.random.randn(2, 4, 3)
+    model = keras.models.Model([inputs, init_state], outputs)
+    parallel_model = multi_gpu_model(model, 2)
+    parallel_model.compile(loss='mean_squared_error', optimizer='adam')
+    parallel_model.train_on_batch(x, y)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

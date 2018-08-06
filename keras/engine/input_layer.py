@@ -8,6 +8,7 @@ from .base_layer import Layer
 from .base_layer import Node
 from .. import backend as K
 from ..legacy import interfaces
+from ..utils.generic_utils import unpack_singleton
 
 
 class InputLayer(Layer):
@@ -41,6 +42,7 @@ class InputLayer(Layer):
         self.trainable = False
         self.built = True
         self.sparse = sparse
+        self.supports_masking = True
 
         if input_shape and batch_input_shape:
             raise ValueError('Only provide the input_shape OR '
@@ -177,7 +179,4 @@ def Input(shape=None, batch_shape=None,
     # Return tensor including _keras_shape and _keras_history.
     # Note that in this case train_output and test_output are the same pointer.
     outputs = input_layer._inbound_nodes[0].output_tensors
-    if len(outputs) == 1:
-        return outputs[0]
-    else:
-        return outputs
+    return unpack_singleton(outputs)
