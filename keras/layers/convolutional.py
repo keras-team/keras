@@ -13,6 +13,7 @@ from .. import constraints
 from ..engine.base_layer import Layer
 from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
+from ..utils.generic_utils import transpose_shape
 from ..legacy import interfaces
 
 # imports for backwards namespace compatibility
@@ -2343,10 +2344,7 @@ class Cropping1D(Layer):
                 input_shape[2])
 
     def call(self, inputs):
-        if self.cropping[1] == 0:
-            return inputs[:, self.cropping[0]:, :]
-        else:
-            return inputs[:, self.cropping[0]: -self.cropping[1], :]
+        return _call_cropping(inputs, 'channels_last', (self.cropping,))
 
     def get_config(self):
         config = {'cropping': self.cropping}
@@ -2449,46 +2447,7 @@ class Cropping2D(Layer):
                     input_shape[3])
 
     def call(self, inputs):
-        if self.data_format == 'channels_first':
-            if self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1]]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:]
-            return inputs[:,
-                          :,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1]]
-        elif self.data_format == 'channels_last':
-            if self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              :]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              :]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              :]
-            return inputs[:,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1],
-                          :]
+        return _call_cropping(inputs, self.data_format, self.cropping)
 
     def get_config(self):
         config = {'cropping': self.cropping,
@@ -2607,109 +2566,29 @@ class Cropping3D(Layer):
                     input_shape[4])
 
     def call(self, inputs):
-        if self.data_format == 'channels_first':
-            if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:]
-            elif self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1]]
-            elif self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:]
-            elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]:]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]: -self.cropping[2][1]]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1]]
-            elif self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]:]
-            return inputs[:,
-                          :,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1],
-                          self.cropping[2][0]: -self.cropping[2][1]]
-
-        elif self.data_format == 'channels_last':
-            if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:,
-                              :]
-            elif self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1],
-                              :]
-            elif self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:,
-                              :]
-            elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:-self.cropping[1][1],
-                              self.cropping[2][0]:,
-                              :]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]: -self.cropping[2][1],
-                              :]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1],
-                              :]
-            elif self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]:,
-                              :]
-            return inputs[:,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1],
-                          self.cropping[2][0]: -self.cropping[2][1],
-                          :]
+        return _call_cropping(inputs, self.data_format, self.cropping)
 
     def get_config(self):
         config = {'cropping': self.cropping,
                   'data_format': self.data_format}
         base_config = super(Cropping3D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def _call_cropping(inputs, data_format, cropping):
+    slices_dims = []
+    for start, end in cropping:
+        if end == 0:
+            end = None
+        else:
+            end = -end
+        slices_dims.append(slice(start, end))
+
+    slices = [slice(None)] + slices_dims + [slice(None)]
+    slices = tuple(slices)
+    spatial_axes = list(range(1, 1 + len(cropping)))
+    slices = transpose_shape(slices, data_format, spatial_axes)
+    return inputs[slices]
 
 
 # Aliases
