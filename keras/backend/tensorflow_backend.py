@@ -2276,22 +2276,15 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     assert len(padding[2]) == 2
     data_format = normalize_data_format(data_format)
 
-    if data_format == 'channels_first':
-        pattern = [
-            [0, 0],
-            [0, 0],
-            [padding[0][0], padding[0][1]],
-            [padding[1][0], padding[1][1]],
-            [padding[2][0], padding[2][1]]
-        ]
-    else:
-        pattern = [
-            [0, 0],
-            [padding[0][0], padding[0][1]],
-            [padding[1][0], padding[1][1]],
-            [padding[2][0], padding[2][1]],
-            [0, 0]
-        ]
+    pattern = [
+        [0, 0],
+        [padding[0][0], padding[0][1]],
+        [padding[1][0], padding[1][1]],
+        [padding[2][0], padding[2][1]],
+        [0, 0]
+    ]
+    pattern = transpose_shape(pattern, data_format, spatial_axes=(1, 2, 3))
+
     return tf.pad(x, pattern)
 
 
