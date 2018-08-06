@@ -3984,16 +3984,12 @@ def bias_add(x, bias, data_format=None):
             else:
                 x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
-        if data_format == 'channels_first':
-            if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1))
-            else:
-                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
-        elif data_format == 'channels_last':
-            if len(bias_shape) == 1:
-                x += reshape(bias, (1, 1, bias_shape[0]))
-            else:
-                x += reshape(bias, (1, ) + bias_shape)
+        if len(bias_shape) == 1:
+            new_shape = (1, 1, bias_shape[0])
+        else:
+            new_shape = (1,) + bias_shape
+        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1,))
+        x += reshape(bias, new_shape)
     else:
         x = tf.nn.bias_add(x, bias)
     return x
