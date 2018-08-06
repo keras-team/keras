@@ -211,7 +211,7 @@ class Model(Network):
                 target_tensors = [target_tensors]
             else:
                 raise TypeError('Expected `target_tensors` to be a tensor, '
-                                'a list or dict, but got:', target_tensors)
+                                'a list of tensors, or dict of tensors, but got:', target_tensors)
 
         for i in range(len(self.outputs)):
             if i in skip_target_indices:
