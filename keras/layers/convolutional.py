@@ -13,6 +13,7 @@ from .. import constraints
 from ..engine.base_layer import Layer
 from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
+from ..utils.generic_utils import transpose_shape
 from ..legacy import interfaces
 
 # imports for backwards namespace compatibility
@@ -821,11 +822,9 @@ class Conv2DTranspose(Conv2D):
                                              stride_w, kernel_w,
                                              self.padding,
                                              out_pad_w)
-        if self.data_format == 'channels_first':
-            output_shape = (batch_size, self.filters, out_height, out_width)
-        else:
-            output_shape = (batch_size, out_height, out_width, self.filters)
-
+        output_shape = (batch_size, out_height, out_width, self.filters)
+        output_shape = transpose_shape(output_shape, self.data_format,
+                                       spatial_axes=(1, 2))
         outputs = K.conv2d_transpose(
             inputs,
             self.kernel,
@@ -1091,12 +1090,9 @@ class Conv3DTranspose(Conv3D):
                                              stride_w, kernel_w,
                                              self.padding,
                                              out_pad_w)
-
-        if self.data_format == 'channels_first':
-            output_shape = (batch_size, self.filters, out_depth, out_height, out_width)
-        else:
-            output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
-
+        output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
+        output_shape = transpose_shape(output_shape, self.data_format,
+                                       spatial_axes=(1, 2, 3))
         outputs = K.conv3d_transpose(inputs,
                                      self.kernel,
                                      output_shape,
@@ -1843,10 +1839,8 @@ class DepthwiseConv2D(Conv2D):
         cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
                                              self.padding,
                                              self.strides[1])
-        if self.data_format == 'channels_first':
-            return (input_shape[0], out_filters, rows, cols)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, out_filters)
+        output_shape = (input_shape[0], rows, cols, out_filters)
+        return transpose_shape(output_shape, self.data_format, spatial_axes=(1, 2))
 
     def get_config(self):
         config = super(DepthwiseConv2D, self).get_config()
