@@ -2334,7 +2334,7 @@ class Cropping1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        return compute_output_shape_cropping(input_shape,
+        return _compute_output_shape_cropping(input_shape,
                                              'channels_last',
                                              (self.cropping,))
 
@@ -2433,7 +2433,7 @@ class Cropping2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
-        return compute_output_shape_cropping(input_shape,
+        return _compute_output_shape_cropping(input_shape,
                                              self.data_format,
                                              self.cropping)
 
@@ -2558,7 +2558,7 @@ class Cropping3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
-        return compute_output_shape_cropping(input_shape,
+        return _compute_output_shape_cropping(input_shape,
                                              self.data_format,
                                              self.cropping)
 
@@ -2668,7 +2668,7 @@ class Cropping3D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-def compute_output_shape_cropping(input_shape, data_format, cropping):
+def _compute_output_shape_cropping(input_shape, data_format, cropping):
     input_shape_list = list(input_shape)
     if data_format == 'channels_first':
         start = 2
