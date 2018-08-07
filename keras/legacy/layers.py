@@ -9,6 +9,7 @@ from ..engine import Layer, InputSpec
 from .. import backend as K
 from ..utils import conv_utils
 from ..utils.generic_utils import to_list
+from ..utils.generic_utils import transpose_shape
 from .. import regularizers
 from .. import constraints
 from .. import activations
@@ -775,23 +776,19 @@ class ConvRecurrent2D(Recurrent):
                                              stride=self.strides[1],
                                              dilation=self.dilation_rate[1])
         if self.return_sequences:
-            if self.data_format == 'channels_first':
-                output_shape = (input_shape[0], input_shape[1],
-                                self.filters, rows, cols)
-            elif self.data_format == 'channels_last':
-                output_shape = (input_shape[0], input_shape[1],
-                                rows, cols, self.filters)
+            output_shape = (input_shape[0], input_shape[1], rows, cols, self.filters)
+            output_shape = transpose_shape(output_shape, self.data_format,
+                                           spatial_axes=(2, 3))
         else:
-            if self.data_format == 'channels_first':
-                output_shape = (input_shape[0], self.filters, rows, cols)
-            elif self.data_format == 'channels_last':
-                output_shape = (input_shape[0], rows, cols, self.filters)
+            output_shape = (input_shape[0], rows, cols, self.filters)
+            output_shape = transpose_shape(output_shape, self.data_format,
+                                           spatial_axes=(1, 2))
 
         if self.return_state:
-            if self.data_format == 'channels_first':
-                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in range(2)]
-            elif self.data_format == 'channels_last':
-                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in range(2)]
+            state_shape = (input_shape[0], rows, cols, self.filters)
+            state_shape = transpose_shape(state_shape, self.data_format,
+                                          spatial_axes=(1, 2))
+            output_shape = [output_shape, state_shape, state_shape]
 
         return output_shape
 
