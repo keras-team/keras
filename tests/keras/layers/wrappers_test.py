@@ -643,5 +643,19 @@ def test_Bidirectional_losses():
     assert len(layer.get_losses_for(x)) == 2
 
 
+@keras_test
+def test_TimeDistributed_with_mask_get_shape_tuple():
+    # TimeDistributed._get_shape_tuple should work well in compute_mask
+    # if it can't get static shape by K.int_shape
+    input1 = Input(shape=(4,))
+    input2 = Input(shape=(4,))
+    x1 = layers.Embedding(10, 3, input_length=4, mask_zero=True)(input1)
+    x2 = layers.Embedding(10, 3, input_length=4, mask_zero=True)(input2)
+    x = layers.concatenate([x1, x2])
+    x = wrappers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
+    model = Model(inputs=[input1, input2], outputs=[x])
+    model.summary()
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

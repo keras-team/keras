@@ -179,17 +179,29 @@ class TimeDistributed(Wrapper):
             or K.int_shape(tensor), where every `None` is replaced by
             the corresponding dimension from K.shape(tensor)
         """
-        # replace all None in int_shape by K.shape
+        # get int_shape if available
         if int_shape is None:
-            int_shape = K.int_shape(tensor)[start_idx:]
-        if not any(not s for s in int_shape):
+            int_shape = K.int_shape(tensor)
+            if int_shape is not None:
+                int_shape = int_shape[start_idx:]
+        if int_shape is not None and not any(not s for s in int_shape):
             return init_tuple + int_shape
         tensor_shape = K.shape(tensor)
-        int_shape = list(int_shape)
-        for i, s in enumerate(int_shape):
-            if not s:
-                int_shape[i] = tensor_shape[start_idx + i]
-        return init_tuple + tuple(int_shape)
+        if int_shape is not None:
+            # replace all None in int_shape by K.shape
+            int_shape = list(int_shape)
+            for i, s in enumerate(int_shape):
+                if not s:
+                    int_shape[i] = tensor_shape[start_idx + i]
+            return init_tuple + tuple(int_shape)
+        else:
+            # fully fall back to use K.shape
+            if K.backend() == "tensorflow":
+                ts1 = K.stack(list(init_tuple))
+                ts2 = K.slice(tensor_shape, [start_idx], [-1])
+                return K.concatenate([ts1, ts2])
+            else:
+                return init_tuple + tuple(tensor_shape[start_idx:])
 
     def build(self, input_shape):
         assert len(input_shape) >= 3
