@@ -2336,8 +2336,8 @@ class Cropping1D(Layer):
 
     def compute_output_shape(self, input_shape):
         return _compute_output_shape_cropping(input_shape,
-                                             'channels_last',
-                                             (self.cropping,))
+                                              'channels_last',
+                                              (self.cropping,))
 
     def call(self, inputs):
         return _call_cropping(inputs, 'channels_last', (self.cropping,))
@@ -2432,8 +2432,8 @@ class Cropping2D(Layer):
 
     def compute_output_shape(self, input_shape):
         return _compute_output_shape_cropping(input_shape,
-                                             self.data_format,
-                                             self.cropping)
+                                              self.data_format,
+                                              self.cropping)
 
     def call(self, inputs):
         return _call_cropping(inputs, self.data_format, self.cropping)
@@ -2518,8 +2518,8 @@ class Cropping3D(Layer):
 
     def compute_output_shape(self, input_shape):
         return _compute_output_shape_cropping(input_shape,
-                                             self.data_format,
-                                             self.cropping)
+                                              self.data_format,
+                                              self.cropping)
 
     def call(self, inputs):
         return _call_cropping(inputs, self.data_format, self.cropping)
@@ -2548,16 +2548,15 @@ def _call_cropping(inputs, data_format, cropping):
 
 
 def _compute_output_shape_cropping(input_shape, data_format, cropping):
-    input_shape_list = list(input_shape)
-    if data_format == 'channels_first':
-        start = 2
-    elif data_format == 'channels_last':
-        start = 1
-    spatial_dimensions = list(range(start, start + len(cropping)))
-    for i, dim in enumerate(spatial_dimensions):
-        if input_shape_list[dim] is not None:
-            input_shape_list[dim] -= cropping[i][0] + cropping[i][1]
-    return tuple(input_shape_list)
+    cropping_all_dims = ((0, 0),) + cropping + ((0, 0),)
+    spatial_axes = list(range(1, 1 + len(cropping)))
+    cropping_all_dims = transpose_shape(cropping_all_dims, data_format, spatial_axes)
+
+    output_shape = list(input_shape)
+    for dim in range(len(output_shape)):
+        if output_shape[dim] is not None:
+            output_shape[dim] -= sum(cropping_all_dims[dim])
+    return tuple(output_shape)
 
 
 # Aliases
