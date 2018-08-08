@@ -2335,13 +2335,9 @@ class Cropping1D(Layer):
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        if input_shape[1] is not None:
-            length = input_shape[1] - self.cropping[0] - self.cropping[1]
-        else:
-            length = None
-        return (input_shape[0],
-                length,
-                input_shape[2])
+        return _compute_output_shape_cropping(input_shape,
+                                              'channels_last',
+                                              (self.cropping,))
 
     def call(self, inputs):
         return _call_cropping(inputs, 'channels_last', (self.cropping,))
@@ -2435,16 +2431,9 @@ class Cropping2D(Layer):
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            return (input_shape[0],
-                    input_shape[1],
-                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] else None,
-                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] else None)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0],
-                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
-                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
-                    input_shape[3])
+        return _compute_output_shape_cropping(input_shape,
+                                              self.data_format,
+                                              self.cropping)
 
     def call(self, inputs):
         return _call_cropping(inputs, self.data_format, self.cropping)
@@ -2528,42 +2517,9 @@ class Cropping3D(Layer):
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
-            else:
-                dim1 = None
-            if input_shape[3] is not None:
-                dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
-            else:
-                dim2 = None
-            if input_shape[4] is not None:
-                dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
-            else:
-                dim1 = None
-            if input_shape[2] is not None:
-                dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
-            else:
-                dim2 = None
-            if input_shape[3] is not None:
-                dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
+        return _compute_output_shape_cropping(input_shape,
+                                              self.data_format,
+                                              self.cropping)
 
     def call(self, inputs):
         return _call_cropping(inputs, self.data_format, self.cropping)
@@ -2589,6 +2545,18 @@ def _call_cropping(inputs, data_format, cropping):
     spatial_axes = list(range(1, 1 + len(cropping)))
     slices = transpose_shape(slices, data_format, spatial_axes)
     return inputs[slices]
+
+
+def _compute_output_shape_cropping(input_shape, data_format, cropping):
+    cropping_all_dims = ((0, 0),) + cropping + ((0, 0),)
+    spatial_axes = list(range(1, 1 + len(cropping)))
+    cropping_all_dims = transpose_shape(cropping_all_dims, data_format, spatial_axes)
+
+    output_shape = list(input_shape)
+    for dim in range(len(output_shape)):
+        if output_shape[dim] is not None:
+            output_shape[dim] -= sum(cropping_all_dims[dim])
+    return tuple(output_shape)
 
 
 # Aliases
