@@ -613,7 +613,26 @@ def any(x, axis=None, keepdims=False):
 def all(x, axis=None, keepdims=False):
     """Bitwise reduction (logical AND).
     """
-    return T.all(x, axis=axis, keepdims=keepdims)
+    y = T.all(x, axis=axis, keepdims=keepdims)
+    if hasattr(x, '_keras_shape'):
+        if axis is None:
+            y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
+        else:
+            if isinstance(axis, int):
+                axis_list = [axis]
+            else:
+                axis_list = list(set(int(a) for a in axis))
+            keras_shape_list = list(x._keras_shape)
+            if keepdims:
+                for a in axis_list:
+                    keras_shape_list[a] = 1
+            else:
+                for a in axis_list[::-1]:
+                    keras_shape_list.pop(a)
+                if not keras_shape_list:
+                    keras_shape_list = (1,)
+            y._keras_shape = tuple(keras_shape_list)
+    return y
 
 
 def argmax(x, axis=-1):
@@ -885,13 +904,25 @@ def concatenate(tensors, axis=-1):
     if py_all([is_sparse(x) for x in tensors]):
         axis = axis % ndim(tensors[0])
         if axis == 0:
-            return th_sparse_module.basic.vstack(tensors, format='csr')
+            output = th_sparse_module.basic.vstack(tensors, format='csr')
         elif axis == 1:
-            return th_sparse_module.basic.hstack(tensors, format='csr')
+            output = th_sparse_module.basic.hstack(tensors, format='csr')
         else:
             raise ValueError('Invalid concat axis for sparse matrix:', axis)
     else:
-        return T.concatenate([to_dense(x) for x in tensors], axis=axis)
+        output = T.concatenate([to_dense(x) for x in tensors], axis=axis)
+
+    if py_all([hasattr(tensor, '_keras_shape') for tensor in tensors]):
+        input_shapes = [tensor._keras_shape for tensor in tensors]
+        output_shape = list(input_shapes[0])
+        for shape in input_shapes[1:]:
+            if output_shape[axis] is None or shape[axis] is None:
+                output_shape[axis] = None
+                break
+            output_shape[axis] += shape[axis]
+        output._keras_shape = tuple(output_shape)
+
+    return output
 
 
 def reshape(x, shape):
