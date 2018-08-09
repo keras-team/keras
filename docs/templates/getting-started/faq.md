@@ -556,21 +556,35 @@ Likewise, cached dataset files, such as those downloaded with [`get_file()`](/ut
 
 ### How can I obtain reproducible results using Keras during development?
 
-During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.  The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment.
+During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.
+
+First, you need to set the `PYTHONHASHSEED` environment variable to `0` before the program starts (not within the program itself). This is necessary in Python 3.2.3 onwards to have reproducible behavior for certain hash-based operations (e.g., the item order in a set or a dict, see [Python's documentation](https://docs.python.org/3.7/using/cmdline.html#envvar-PYTHONHASHSEED) or [issue #2280](https://github.com/keras-team/keras/issues/2280#issuecomment-306959926) for further details). One way to set the environment variable is when starting python like this:
+
+```
+$ cat test_hash.py
+print(hash("keras"))
+$ python3 test_hash.py                  # non-reproducible hash (Python 3.2.3+)
+-8127205062320133199
+$ python3 test_hash.py                  # non-reproducible hash (Python 3.2.3+)
+3204480642156461591
+$ PYTHONHASHSEED=0 python3 test_hash.py # reproducible hash
+4883664951434749476
+$ PYTHONHASHSEED=0 python3 test_hash.py # reproducible hash
+4883664951434749476
+```
+
+Moreover, when using the TensorFlow backend and running on a GPU, some operations have non-deterministic outputs, in particular `tf.reduce_sum()`. This is due to the fact that GPUs run many operations in parallel, so the order of execution is not always guaranteed. Due to the limited precision of floats, even adding several numbers together may give slightly different results depending on the order in which you add them. You can try to avoid the non-deterministic operations, but some may be created automatically by TensorFlow to compute the gradients, so it is much simpler to just run the code on the CPU. For this, you can set the `CUDA_VISIBLE_DEVICES` environment variable to an empty string, for example:
+
+```
+$ CUDA_VISIBLE_DEVICES="" PYTHONHASHSEED=0 python your_program.py
+```
+
+The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment:
 
 ```python
 import numpy as np
 import tensorflow as tf
 import random as rn
-
-# The below is necessary in Python 3.2.3 onwards to
-# have reproducible behavior for certain hash-based operations.
-# See these references for further details:
-# https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
-# https://github.com/keras-team/keras/issues/2280#issuecomment-306959926
-
-import os
-os.environ['PYTHONHASHSEED'] = '0'
 
 # The below is necessary for starting Numpy generated random numbers
 # in a well-defined initial state.
@@ -583,17 +597,18 @@ np.random.seed(42)
 rn.seed(12345)
 
 # Force TensorFlow to use single thread.
-# Multiple threads are a potential source of
-# non-reproducible results.
-# For further details, see: https://stackoverflow.com/questions/42022950/which-seeds-have-to-be-set-where-to-realize-100-reproducibility-of-training-res
+# Multiple threads are a potential source of non-reproducible results.
+# For further details, see: https://stackoverflow.com/questions/42022950/
 
-session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
+                              inter_op_parallelism_threads=1)
 
 from keras import backend as K
 
 # The below tf.set_random_seed() will make random number generation
 # in the TensorFlow backend have a well-defined initial state.
-# For further details, see: https://www.tensorflow.org/api_docs/python/tf/set_random_seed
+# For further details, see:
+# https://www.tensorflow.org/api_docs/python/tf/set_random_seed
 
 tf.set_random_seed(1234)
 
