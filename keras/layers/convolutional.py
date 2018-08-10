@@ -214,7 +214,6 @@ class _Conv(Layer):
 
     def get_config(self):
         config = {
-            'rank': self.rank,
             'filters': self.filters,
             'kernel_size': self.kernel_size,
             'strides': self.strides,
@@ -351,11 +350,6 @@ class Conv1D(_Conv):
             bias_constraint=bias_constraint,
             **kwargs)
 
-    def get_config(self):
-        config = super(Conv1D, self).get_config()
-        config.pop('rank')
-        return config
-
 
 class Conv2D(_Conv):
     """2D convolution layer (e.g. spatial convolution over images).
@@ -482,11 +476,6 @@ class Conv2D(_Conv):
             bias_constraint=bias_constraint,
             **kwargs)
 
-    def get_config(self):
-        config = super(Conv2D, self).get_config()
-        config.pop('rank')
-        return config
-
 
 class Conv3D(_Conv):
     """3D convolution layer (e.g. spatial convolution over volumes).
@@ -609,11 +598,6 @@ class Conv3D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-
-    def get_config(self):
-        config = super(Conv3D, self).get_config()
-        config.pop('rank')
-        return config
 
 
 class Conv2DTranspose(Conv2D):
@@ -1370,7 +1354,6 @@ class _SeparableConv(_Conv):
 
     def get_config(self):
         config = super(_SeparableConv, self).get_config()
-        config.pop('rank')
         config.pop('kernel_initializer')
         config.pop('kernel_regularizer')
         config.pop('kernel_constraint')
