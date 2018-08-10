@@ -1008,6 +1008,11 @@ def test_target_tensors():
                   target_tensors={'dense': target})
     model.train_on_batch(input_val, None)
 
+    # single-output, as tensor
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors=target)
+    model.train_on_batch(input_val, None)
+
     # test invalid arguments
     with pytest.raises(TypeError):
         model.compile(optimizer='rmsprop', loss='mse',
@@ -1043,6 +1048,14 @@ def test_target_tensors():
                   target_tensors={'dense_a': target_a,
                                   'dense_b': target_b})
     model.train_on_batch(input_val, None)
+
+    # multi-output, not enough target tensors when `target_tensors` is not a dict
+    with pytest.raises(ValueError):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=[target_a])
+    with pytest.raises(ValueError):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=target_a)
 
     # test with sample weights
     model.compile(optimizer='rmsprop', loss='mse',

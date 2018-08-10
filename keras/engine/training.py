@@ -208,6 +208,11 @@ class Model(Network):
                     tmp_target_tensors.append(target_tensors.get(name, None))
                 target_tensors = tmp_target_tensors
             elif K.is_tensor(target_tensors):
+                if len(self.outputs) != 1:
+                    raise ValueError('The model has ' + str(len(self.outputs)) +
+                                     ' outputs, but you passed a single tensor as '
+                                     '`target_tensors`. Expected a list or a dict '
+                                     'of tensors.')
                 target_tensors = [target_tensors]
             else:
                 raise TypeError('Expected `target_tensors` to be a tensor, '
