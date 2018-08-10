@@ -1204,7 +1204,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                                   x._keras_shape[1] + padding[0][0] + padding[0][1],
                                   x._keras_shape[2] + padding[1][0] + padding[1][1],
                                   x._keras_shape[3] + padding[2][0] + padding[2][1],
-                                  x._keras_shape[4] )
+                                  x._keras_shape[4])
         y._keras_shape = output_keras_shape
     return y
 

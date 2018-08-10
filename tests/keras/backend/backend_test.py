@@ -92,7 +92,9 @@ def assert_list_with_ref(z_list, ref):
 def assert_list_keras_shape(t_list, z_list):
     for t, z in zip(t_list, z_list):
         if hasattr(t, '_keras_shape') and len(t._keras_shape) > 1:
-            assert t._keras_shape == z.shape
+            for i, s in enumerate(t._keras_shape):
+                if s:
+                    assert t._keras_shape[i] == z.shape[i]
 
 
 @keras_test
