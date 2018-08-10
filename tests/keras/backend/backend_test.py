@@ -45,19 +45,19 @@ def check_dtype(var, dtype):
 def cntk_func_single_tensor(function_name, x_shape, **kwargs):
     xc = KC.placeholder(x_shape)
     output_cntk = getattr(KC, function_name)(xc, **kwargs)
-    return KC.function([xc], [output_cntk])
+    return output_cntk, KC.function([xc], [output_cntk])
 
 
 def cntk_func_two_tensor(function_name, x_shape, y, **kwargs):
     if isinstance(y, (np.generic, np.ndarray)):
         xc = KC.placeholder(x_shape)
         output_cntk = getattr(KC, function_name)(xc, KC.variable(y), **kwargs)
-        return KC.function([xc], [output_cntk])
+        return output_cntk, KC.function([xc], [output_cntk])
     else:
         xc = KC.placeholder(ndim=len(x_shape))
         yc = KC.placeholder(y)
         output_cntk = getattr(KC, function_name)(xc, yc, **kwargs)
-        return KC.function([xc, yc], [output_cntk])
+        return output_cntk, KC.function([xc, yc], [output_cntk])
 
 
 def cntk_func_three_tensor(function_name, x_shape, y, z, **kwargs):
@@ -89,10 +89,10 @@ def assert_list_with_ref(z_list, ref):
         assert_allclose(z, ref, atol=1e-05)
 
 
-def assert_list_keras_shape(z_list):
-    for z in z_list:
-        if hasattr(z, '_keras_shape'):
-            assert z._keras_shape == z.shape
+def assert_list_keras_shape(t_list, z_list):
+    for t, z in zip(t_list, z_list):
+        if hasattr(t, '_keras_shape') and len(t._keras_shape) > 1:
+            assert t._keras_shape == z.shape
 
 
 @keras_test
@@ -106,16 +106,20 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     if shape_or_val:
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
 
+    t_list = []
     z_list = []
     for k in backend_list:
         if shape_or_val:
             if (k == KC) & (cntk_dynamicity):
-                z = cntk_func_single_tensor(function_name, x_shape,
-                                            **kwargs)([x_val])[0]
+                t, f = cntk_func_single_tensor(function_name, x_shape, **kwargs)
+                z = f([x_val])[0]
             else:
-                z = k.eval(getattr(k, function_name)(k.variable(x_val), **kwargs))
+                t = getattr(k, function_name)(k.variable(x_val), **kwargs)
+                z = k.eval(t)
         else:
-            z = k.eval(getattr(k, function_name)(x_shape_or_val, **kwargs))
+            t = getattr(k, function_name)(x_shape_or_val, **kwargs)
+            z = k.eval(t)
+        t_list += [t]
         z_list += [z]
 
     if return_results:
@@ -128,7 +132,7 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
         assert_list_with_ref(z_list, assert_value_with_ref)
     else:
         assert_list_pairwise(z_list, allclose=assert_value_equality)
-    assert_list_keras_shape(z_list)
+    assert_list_keras_shape(t_list, z_list)
 
 
 @keras_test
@@ -144,27 +148,32 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
         y_shape, y_val = parse_shape_or_val(y_shape_or_val)
 
+    t_list = []
     z_list = []
     for k in backend_list:
         if shape_or_val:
             if (k == KC) & (cntk_dynamicity):
-                z = cntk_func_two_tensor(function_name, x_shape,
-                                         y=y_val, **kwargs)([x_val])[0]
+                t, f = cntk_func_two_tensor(function_name, x_shape, y=y_val, **kwargs)
+                z = f([x_val])[0]
             elif (k == KC) & (cntk_two_dynamicity):
-                z = cntk_func_two_tensor(function_name, x_shape,
-                                         y=y_shape, **kwargs)([x_val, y_val])[0]
+                t, f = cntk_func_two_tensor(function_name, x_shape, y=y_shape, **kwargs)
+                z = f([x_val, y_val])[0]
             elif (k == KTH) & (function_name[:4] == 'conv'):
-                z = k.eval(getattr(k, function_name)(
-                    k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs))
+                t = getattr(k, function_name)(
+                    k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs)
+                z = k.eval(t)
             elif concat_args:
-                z = k.eval(getattr(k, function_name)(
-                    [k.variable(x_val), k.variable(y_val)], **kwargs))
+                t = getattr(k, function_name)(
+                    [k.variable(x_val), k.variable(y_val)], **kwargs)
+                z = k.eval(t)
             else:
-                z = k.eval(getattr(k, function_name)(
-                    k.variable(x_val), k.variable(y_val), **kwargs))
+                t = getattr(k, function_name)(
+                    k.variable(x_val), k.variable(y_val), **kwargs)
+                z = k.eval(t)
         else:
-            z = k.eval(getattr(k, function_name)(
-                x_shape_or_val, y_shape_or_val, **kwargs))
+            t = getattr(k, function_name)(x_shape_or_val, y_shape_or_val, **kwargs)
+            z = k.eval(t)
+        t_list += [t]
         z_list += [z]
 
     if return_results:
@@ -174,7 +183,7 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
             return z_list[0]
 
     assert_list_pairwise(z_list)
-    assert_list_keras_shape(z_list)
+    assert_list_keras_shape(t_list, z_list)
 
 
 @keras_test
@@ -333,11 +342,13 @@ class TestBackend(object):
         shape = (10, 2, 3)
         ref = np.arange(np.prod(shape)).reshape(shape)
         inds = [1, 3, 7, 9]
+        t_list = [k.gather(k.variable(ref), k.variable(inds, dtype='int32'))
+                  for k in BACKENDS]
         z_list = [k.eval(k.gather(k.variable(ref), k.variable(inds, dtype='int32')))
                   for k in BACKENDS]
 
         assert_list_pairwise(z_list)
-        assert_list_keras_shape(z_list)
+        assert_list_keras_shape(t_list, z_list)
 
         # test theano shape inference when
         # input shape has None entries
