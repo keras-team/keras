@@ -1144,7 +1144,18 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                    py_slice(left_pad, input_shape[2] + left_pad),
                    py_slice(None))
     y = T.set_subtensor(output[indices], x)
-    y._keras_shape = output_shape
+    if hasattr(x, '_keras_shape'):
+        if data_format == 'channels_first':
+            output_keras_shape = (x._keras_shape[0],
+                                  x._keras_shape[1],
+                                  x._keras_shape[2] + top_pad + bottom_pad,
+                                  x._keras_shape[3] + left_pad + right_pad)
+        else:
+            output_keras_shape = (x._keras_shape[0],
+                                  x._keras_shape[1] + top_pad + bottom_pad,
+                                  x._keras_shape[2] + left_pad + right_pad,
+                                  x._keras_shape[3])
+        y._keras_shape = output_keras_shape
     return y
 
 
@@ -1180,7 +1191,22 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                    py_slice(padding[1][0], input_shape[2] + padding[1][0]),
                    py_slice(padding[2][0], input_shape[3] + padding[2][0]),
                    py_slice(None))
-    return T.set_subtensor(output[indices], x)
+    y = T.set_subtensor(output[indices], x)
+    if hasattr(x, '_keras_shape'):
+        if data_format == 'channels_first':
+            output_keras_shape = (x._keras_shape[0],
+                                  x._keras_shape[1],
+                                  x._keras_shape[2] + padding[0][0] + padding[0][1],
+                                  x._keras_shape[3] + padding[1][0] + padding[1][1],
+                                  x._keras_shape[4] + padding[2][0] + padding[2][1])
+        else:
+            output_keras_shape = (x._keras_shape[0],
+                                  x._keras_shape[1] + padding[0][0] + padding[0][1],
+                                  x._keras_shape[2] + padding[1][0] + padding[1][1],
+                                  x._keras_shape[3] + padding[2][0] + padding[2][1],
+                                  x._keras_shape[4])
+        y._keras_shape = output_keras_shape
+    return y
 
 
 def stack(x, axis=0):
