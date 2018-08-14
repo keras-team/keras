@@ -637,6 +637,10 @@ class LearningRateScheduler(Callback):
             print('\nEpoch %05d: LearningRateScheduler setting learning '
                   'rate to %s.' % (epoch + 1, lr))
 
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
+
 
 class TensorBoard(Callback):
     """TensorBoard basic visualizations.
