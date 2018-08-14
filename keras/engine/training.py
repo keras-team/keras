@@ -207,9 +207,17 @@ class Model(Network):
                 for name in self.output_names:
                     tmp_target_tensors.append(target_tensors.get(name, None))
                 target_tensors = tmp_target_tensors
+            elif K.is_tensor(target_tensors):
+                if len(self.outputs) != 1:
+                    raise ValueError('The model has ' + str(len(self.outputs)) +
+                                     ' outputs, but you passed a single tensor as '
+                                     '`target_tensors`. Expected a list or a dict '
+                                     'of tensors.')
+                target_tensors = [target_tensors]
             else:
-                raise TypeError('Expected `target_tensors` to be '
-                                'a list or dict, but got:', target_tensors)
+                raise TypeError('Expected `target_tensors` to be a tensor, '
+                                'a list of tensors, or dict of tensors, but got:', target_tensors)
+
         for i in range(len(self.outputs)):
             if i in skip_target_indices:
                 self.targets.append(None)

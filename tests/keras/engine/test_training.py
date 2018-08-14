@@ -310,6 +310,7 @@ def test_model_methods():
         def gen_data():
             while True:
                 yield (np.asarray([]), np.asarray([]))
+
         out = model.evaluate_generator(gen_data(), steps=1)
 
     # x is not a list of numpy arrays.
@@ -436,6 +437,7 @@ def test_model_methods():
         def gen_data():
             while True:
                 yield (np.asarray([]), np.asarray([]))
+
         out = model.fit_generator(generator=gen_data(), epochs=5,
                                   initial_epoch=0, validation_data=gen_data(),
                                   callbacks=[tracker_cb])
@@ -448,6 +450,7 @@ def test_model_methods():
             gen_counters[i] += 1
             yield ([np.random.random((1, 3)), np.random.random((1, 3))],
                    [np.random.random((1, 4)), np.random.random((1, 3))])
+
     out = model.fit_generator(generator=gen_data(0), epochs=3,
                               steps_per_epoch=2,
                               validation_data=gen_data(1),
@@ -1008,6 +1011,11 @@ def test_target_tensors():
                   target_tensors={'dense': target})
     model.train_on_batch(input_val, None)
 
+    # single-output, as tensor
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors=target)
+    model.train_on_batch(input_val, None)
+
     # test invalid arguments
     with pytest.raises(TypeError):
         model.compile(optimizer='rmsprop', loss='mse',
@@ -1043,6 +1051,16 @@ def test_target_tensors():
                   target_tensors={'dense_a': target_a,
                                   'dense_b': target_b})
     model.train_on_batch(input_val, None)
+
+    # multi-output, not enough target tensors when `target_tensors` is not a dict
+    with pytest.raises(ValueError, match='When passing a list as `target_tensors`, it should have one entry per model '
+                                         'output. The model has \d outputs, but you passed target_tensors='):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=[target_a])
+    with pytest.raises(ValueError, match='The model has \d outputs, but you passed a single tensor as '
+                                         '`target_tensors`. Expected a list or a dict of tensors.'):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=target_a)
 
     # test with sample weights
     model.compile(optimizer='rmsprop', loss='mse',
@@ -1371,6 +1389,7 @@ def test_model_with_crossentropy_losses_channels_first():
     `channels_first` or `channels_last` image_data_format.
     Tests PR #9715.
     """
+
     def prepare_simple_model(input_tensor, loss_name, target):
         axis = 1 if K.image_data_format() == 'channels_first' else -1
         if loss_name == 'sparse_categorical_crossentropy':
