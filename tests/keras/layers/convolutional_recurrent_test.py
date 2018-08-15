@@ -140,16 +140,16 @@ def test_convolutional_recurrent():
                        input_shape=inputs.shape)
 
             # check state initialization
-            layer = convolutional_recurrent.ConvLSTM2D(filters=filters,
-                                                       kernel_size=(num_row, num_col),
-                                                       data_format=data_format,
-                                                       return_sequences=return_sequences)
+            layer = convolutional_recurrent.ConvLSTM2D(
+                filters=filters, kernel_size=(num_row, num_col),
+                data_format=data_format, return_sequences=return_sequences)
             layer.build(inputs.shape)
             x = Input(batch_shape=inputs.shape)
             initial_state = layer.get_initial_state(x)
             y = layer(x, initial_state=initial_state)
             model = Model(x, y)
-            assert model.predict(inputs).shape == layer.compute_output_shape(inputs.shape)
+            assert (model.predict(inputs).shape ==
+                    layer.compute_output_shape(inputs.shape))
 
 
 if __name__ == '__main__':
