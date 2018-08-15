@@ -7,10 +7,11 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.utils.test_utils import keras_test
 from keras.utils import Sequence
+from keras import backend as K
 
 STEPS_PER_EPOCH = 100
 STEPS = 100
-WORKERS = 4
+WORKERS = 4 if K.backend() != 'tensorflow' else 2
 
 
 class DummySequence(Sequence):
