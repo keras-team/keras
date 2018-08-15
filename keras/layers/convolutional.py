@@ -2079,7 +2079,8 @@ class _ZeroPadding(Layer):
         return tuple(output_shape)
 
     def get_config(self):
-        config = {'padding': self.padding,
+        config = {'rank': self.rank,
+                  'padding': self.padding,
                   'data_format': self.data_format}
         base_config = super(_ZeroPadding, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -2120,6 +2121,7 @@ class ZeroPadding1D(_ZeroPadding):
 
     def get_config(self):
         config = super(ZeroPadding1D, self).get_config()
+        config.pop('rank')
         config.pop('data_format')
         return config
 
@@ -2204,6 +2206,11 @@ class ZeroPadding2D(_ZeroPadding):
                                     padding=self.padding,
                                     data_format=self.data_format)
 
+    def get_config(self):
+        config = super(ZeroPadding2D, self).get_config()
+        config.pop('rank')
+        return config
+
 
 class ZeroPadding3D(_ZeroPadding):
     """Zero-padding layer for 3D data (spatial or spatio-temporal).
@@ -2280,6 +2287,11 @@ class ZeroPadding3D(_ZeroPadding):
         return K.spatial_3d_padding(inputs,
                                     padding=self.padding,
                                     data_format=self.data_format)
+
+    def get_config(self):
+        config = super(ZeroPadding1D, self).get_config()
+        config.pop('rank')
+        return config
 
 
 class Cropping1D(Layer):
