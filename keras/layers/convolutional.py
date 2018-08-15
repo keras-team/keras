@@ -2368,7 +2368,8 @@ class _Cropping(Layer):
         return tuple(output_shape)
 
     def get_config(self):
-        config = {'cropping': self.cropping,
+        config = {'rank': self.rank,
+                  'cropping': self.cropping,
                   'data_format': self.data_format}
         base_config = super(_Cropping, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -2406,6 +2407,7 @@ class Cropping1D(_Cropping):
 
     def get_config(self):
         base_config = super(Cropping1D, self).get_config()
+        base_config.pop('rank')
         base_config.pop('data_format')
         return base_config
 
@@ -2497,6 +2499,11 @@ class Cropping2D(_Cropping):
                                          data_format,
                                          **kwargs)
 
+    def get_config(self):
+        config = super(Cropping2D, self).get_config()
+        config.pop('rank')
+        return config
+
 
 class Cropping3D(_Cropping):
     """Cropping layer for 3D data (e.g. spatial or spatio-temporal).
@@ -2570,6 +2577,11 @@ class Cropping3D(_Cropping):
                                          normalized_cropping,
                                          data_format,
                                          **kwargs)
+
+    def get_config(self):
+        config = super(Cropping3D, self).get_config()
+        config.pop('rank')
+        return config
 
 
 # Aliases
