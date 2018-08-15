@@ -44,14 +44,18 @@ def test_dropout():
                 input_shape = (2,) + shape + (3,)
             else:
                 input_shape = (2, 3) + shape
-            layer_test(layers.SpatialDropout2D if len(shape) == 2 else layers.SpatialDropout3D,
+            if len(shape) == 2:
+                layer = layers.SpatialDropout2D
+            else:
+                layer = layers.SpatialDropout3D
+            layer_test(layer,
                        kwargs={'rate': 0.5,
                                'data_format': data_format},
                        input_shape=input_shape)
 
             # Test invalid use cases
             with pytest.raises(ValueError):
-                layer_test(layers.SpatialDropout2D if len(shape) == 2 else layers.SpatialDropout3D,
+                layer_test(layer,
                            kwargs={'rate': 0.5,
                                    'data_format': 'channels_middle'},
                            input_shape=input_shape)
@@ -362,7 +366,8 @@ def test_sequential_as_downstream_of_masking_layer():
               np.random.random((10, 3, 5)), epochs=1, batch_size=6)
 
     mask_outputs = [model.layers[1].compute_mask(model.layers[1].input)]
-    mask_outputs += [model.layers[2].compute_mask(model.layers[2].input, mask_outputs[-1])]
+    mask_outputs += [model.layers[2].compute_mask(model.layers[2].input,
+                                                  mask_outputs[-1])]
     func = K.function([model.input], mask_outputs)
     mask_outputs_val = func([model_input])
     assert np.array_equal(mask_outputs_val[0], np.any(model_input, axis=-1))
