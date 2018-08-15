@@ -2040,7 +2040,57 @@ class UpSampling3D(Layer):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ZeroPadding1D(Layer):
+class _ZeroPadding(Layer):
+    """Abstract nD ZeroPadding layer (private, used as implementation base).
+
+    # Arguments
+        rank: An integer, the rank of the padding layer,
+            e.g. "2" for 2D padding.
+        padding: Tuple of tuples of two ints. Can be a tuple of ints when
+            rank is 1.
+        data_format: A string,
+            one of `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, ..., channels)` while `"channels_first"` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+    """
+
+    def __init__(self, rank, padding, data_format=None, **kwargs):
+        self.rank = rank
+        self.padding = padding
+        self.data_format = K.normalize_data_format(data_format)
+        self.input_spec = InputSpec(ndim=rank + 2)
+        super(_ZeroPadding, self).__init__(**kwargs)
+
+    def compute_output_shape(self, input_shape):
+        padding_all_dims = ((0, 0),) + self._normalized_padding + ((0, 0),)
+        spatial_axes = list(range(1, 1 + self.rank))
+        padding_all_dims = transpose_shape(padding_all_dims,
+                                           self.data_format,
+                                           spatial_axes)
+        output_shape = list(input_shape)
+        for dim in range(len(output_shape)):
+            if output_shape[dim] is not None:
+                output_shape[dim] += sum(padding_all_dims[dim])
+        return tuple(output_shape)
+
+    def get_config(self):
+        config = {'rank': self.rank,
+                  'padding': self.padding,
+                  'data_format': self.data_format}
+        base_config = super(_ZeroPadding, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+    @property
+    def _normalized_padding(self):
+        return self.padding
+
+
+class ZeroPadding1D(_ZeroPadding):
     """Zero-padding layer for 1D input (e.g. temporal sequence).
 
     # Arguments
@@ -2060,29 +2110,27 @@ class ZeroPadding1D(Layer):
     """
 
     def __init__(self, padding=1, **kwargs):
-        super(ZeroPadding1D, self).__init__(**kwargs)
-        self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
-        self.input_spec = InputSpec(ndim=3)
-
-    def compute_output_shape(self, input_shape):
-        if input_shape[1] is not None:
-            length = input_shape[1] + self.padding[0] + self.padding[1]
-        else:
-            length = None
-        return (input_shape[0],
-                length,
-                input_shape[2])
+        normalize_padding = conv_utils.normalize_tuple(padding, 2, 'padding')
+        super(ZeroPadding1D, self).__init__(1,
+                                            normalize_padding,
+                                            'channels_last',
+                                            **kwargs)
 
     def call(self, inputs):
         return K.temporal_padding(inputs, padding=self.padding)
 
     def get_config(self):
-        config = {'padding': self.padding}
-        base_config = super(ZeroPadding1D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(ZeroPadding1D, self).get_config()
+        config.pop('rank')
+        config.pop('data_format')
+        return config
+
+    @property
+    def _normalized_padding(self):
+            return self.padding,
 
 
-class ZeroPadding2D(Layer):
+class ZeroPadding2D(_ZeroPadding):
     """Zero-padding layer for 2D input (e.g. picture).
 
     This layer can add rows and columns of zeros
@@ -2130,10 +2178,8 @@ class ZeroPadding2D(Layer):
                  padding=(1, 1),
                  data_format=None,
                  **kwargs):
-        super(ZeroPadding2D, self).__init__(**kwargs)
-        self.data_format = K.normalize_data_format(data_format)
         if isinstance(padding, int):
-            self.padding = ((padding, padding), (padding, padding))
+            normalized_padding = ((padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
             if len(padding) != 2:
                 raise ValueError('`padding` should have two elements. '
@@ -2142,7 +2188,7 @@ class ZeroPadding2D(Layer):
                                                         '1st entry of padding')
             width_padding = conv_utils.normalize_tuple(padding[1], 2,
                                                        '2nd entry of padding')
-            self.padding = (height_padding, width_padding)
+            normalized_padding = (height_padding, width_padding)
         else:
             raise ValueError('`padding` should be either an int, '
                              'a tuple of 2 ints '
@@ -2150,35 +2196,10 @@ class ZeroPadding2D(Layer):
                              'or a tuple of 2 tuples of 2 ints '
                              '((top_pad, bottom_pad), (left_pad, right_pad)). '
                              'Found: ' + str(padding))
-        self.input_spec = InputSpec(ndim=4)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                rows = input_shape[2] + self.padding[0][0] + self.padding[0][1]
-            else:
-                rows = None
-            if input_shape[3] is not None:
-                cols = input_shape[3] + self.padding[1][0] + self.padding[1][1]
-            else:
-                cols = None
-            return (input_shape[0],
-                    input_shape[1],
-                    rows,
-                    cols)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                rows = input_shape[1] + self.padding[0][0] + self.padding[0][1]
-            else:
-                rows = None
-            if input_shape[2] is not None:
-                cols = input_shape[2] + self.padding[1][0] + self.padding[1][1]
-            else:
-                cols = None
-            return (input_shape[0],
-                    rows,
-                    cols,
-                    input_shape[3])
+        super(ZeroPadding2D, self).__init__(2,
+                                            normalized_padding,
+                                            data_format,
+                                            **kwargs)
 
     def call(self, inputs):
         return K.spatial_2d_padding(inputs,
@@ -2186,13 +2207,12 @@ class ZeroPadding2D(Layer):
                                     data_format=self.data_format)
 
     def get_config(self):
-        config = {'padding': self.padding,
-                  'data_format': self.data_format}
-        base_config = super(ZeroPadding2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(ZeroPadding2D, self).get_config()
+        config.pop('rank')
+        return config
 
 
-class ZeroPadding3D(Layer):
+class ZeroPadding3D(_ZeroPadding):
     """Zero-padding layer for 3D data (spatial or spatio-temporal).
 
     # Arguments
@@ -2234,10 +2254,10 @@ class ZeroPadding3D(Layer):
 
     @interfaces.legacy_zeropadding3d_support
     def __init__(self, padding=(1, 1, 1), data_format=None, **kwargs):
-        super(ZeroPadding3D, self).__init__(**kwargs)
+
         self.data_format = K.normalize_data_format(data_format)
         if isinstance(padding, int):
-            self.padding = ((padding, padding), (padding, padding), (padding, padding))
+            normalized_padding = ((padding, padding), (padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
             if len(padding) != 3:
                 raise ValueError('`padding` should have 3 elements. '
@@ -2248,7 +2268,7 @@ class ZeroPadding3D(Layer):
                                                       '2nd entry of padding')
             dim3_padding = conv_utils.normalize_tuple(padding[2], 2,
                                                       '3rd entry of padding')
-            self.padding = (dim1_padding, dim2_padding, dim3_padding)
+            normalized_padding = (dim1_padding, dim2_padding, dim3_padding)
         else:
             raise ValueError('`padding` should be either an int, '
                              'a tuple of 3 ints '
@@ -2258,45 +2278,10 @@ class ZeroPadding3D(Layer):
                              ' (left_dim2_pad, right_dim2_pad),'
                              ' (left_dim3_pad, right_dim2_pad)). '
                              'Found: ' + str(padding))
-        self.input_spec = InputSpec(ndim=5)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                dim1 = input_shape[2] + self.padding[0][0] + self.padding[0][1]
-            else:
-                dim1 = None
-            if input_shape[3] is not None:
-                dim2 = input_shape[3] + self.padding[1][0] + self.padding[1][1]
-            else:
-                dim2 = None
-            if input_shape[4] is not None:
-                dim3 = input_shape[4] + self.padding[2][0] + self.padding[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                dim1 = input_shape[1] + self.padding[0][0] + self.padding[0][1]
-            else:
-                dim1 = None
-            if input_shape[2] is not None:
-                dim2 = input_shape[2] + self.padding[1][0] + self.padding[1][1]
-            else:
-                dim2 = None
-            if input_shape[3] is not None:
-                dim3 = input_shape[3] + self.padding[2][0] + self.padding[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
+        super(ZeroPadding3D, self).__init__(3,
+                                            normalized_padding,
+                                            data_format,
+                                            **kwargs)
 
     def call(self, inputs):
         return K.spatial_3d_padding(inputs,
@@ -2304,10 +2289,9 @@ class ZeroPadding3D(Layer):
                                     data_format=self.data_format)
 
     def get_config(self):
-        config = {'padding': self.padding,
-                  'data_format': self.data_format}
-        base_config = super(ZeroPadding3D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(ZeroPadding1D, self).get_config()
+        config.pop('rank')
+        return config
 
 
 class Cropping1D(Layer):
