@@ -462,8 +462,22 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
         `(batch_size, features)`
     """
 
-    def call(self, inputs):
-        return K.mean(inputs, axis=1)
+    def __init__(self, **kwargs):
+        super(GlobalAveragePooling1D, self).__init__(**kwargs)
+        self.supports_masking = True
+
+    def call(self, inputs, mask=None):
+        if mask is not None:
+            mask = K.cast(mask, K.floatx())
+            mask = K.repeat(mask, K.int_shape(inputs)[-1])
+            mask = K.permute_dimensions(mask, [0, 2, 1])
+            inputs *= mask
+            return K.sum(inputs, axis=1) / K.sum(mask, axis=1)
+        else:
+            return K.mean(inputs, axis=1)
+
+    def compute_mask(self, inputs, mask=None):
+        return None
 
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
