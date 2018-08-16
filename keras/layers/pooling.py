@@ -469,8 +469,9 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
     def call(self, inputs, mask=None):
         if mask is not None:
             mask = K.cast(mask, K.floatx())
-            mask = K.repeat(mask, K.int_shape(inputs)[-1])
-            mask = K.permute_dimensions(mask, [0, 2, 1])
+            input_shape = K.shape(inputs)
+            broadcast_shape = [input_shape[0], input_shape[1], 1]
+            mask = K.reshape(mask, broadcast_shape)
             inputs *= mask
             return K.sum(inputs, axis=1) / K.sum(mask, axis=1)
         else:
