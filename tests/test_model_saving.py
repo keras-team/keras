@@ -141,6 +141,13 @@ def test_model_saving_to_pre_created_h5py_file():
         out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
+    with h5py.File(fname, mode='r+') as h5file:
+        g = h5file.create_group('model')
+        save_model(model, g)
+        loaded_model = load_model(g)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
 
 @keras_test
 def test_model_saving_to_binary_stream():
