@@ -7,6 +7,7 @@ from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.layers import convolutional
 from keras.layers import pooling
+from keras.layers import Masking
 from keras.models import Sequential
 
 
@@ -411,6 +412,20 @@ def test_globalpooling_1d():
                input_shape=(3, 4, 5))
     layer_test(pooling.GlobalAveragePooling1D,
                input_shape=(3, 4, 5))
+
+
+@keras_test
+def test_globalpooling_1d_supports_masking():
+    # Test GlobalAveragePooling1D supports masking
+    model = Sequential()
+    model.add(Masking(mask_value=0., input_shape=(3, 4)))
+    model.add(pooling.GlobalAveragePooling1D())
+    model.compile(loss='mae', optimizer='adam')
+
+    model_input = np.random.randint(low=1, high=5, size=(2, 3, 4))
+    model_input[0, 1:, :] = 0
+    output = model.predict(model_input)
+    assert np.array_equal(output[0], model_input[0, 0, :])
 
 
 @keras_test
