@@ -478,8 +478,8 @@ def standardize_weights(y,
                              'sample_weight array is 1D.')
 
     if sample_weight is not None and class_weight is not None:
-        warnings.warn('Found both sample_weight and class_weight - '
-                      'class_weight will be ignored')
+        warnings.warn('Found both `sample_weight` and `class_weight`: '
+                      '`class_weight` argument will be ignored.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
