@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import copy
 import numpy as np
+import warnings
 
 from .. import backend as K
 from .. import losses
@@ -475,6 +476,10 @@ def standardize_weights(y,
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D.')
+
+    if sample_weight is not None and class_weight is not None:
+        warnings.warn('Found both `sample_weight` and `class_weight`: '
+                      '`class_weight` argument will be ignored.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
