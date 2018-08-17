@@ -703,7 +703,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         if self.use_multiprocessing:
             self.executor_fn = lambda gens: mp.Pool(workers,
                                                     initializer=init_pool_generator,
-                                                    initargs=(gens, self.random_seed))
+                                                    initargs=(gens,
+                                                              self.random_seed))
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
