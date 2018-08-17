@@ -180,6 +180,7 @@ def test_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@use_spawn
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
@@ -193,12 +194,23 @@ def test_generator_enqueuer_processes():
     enqueuer.stop()
 
 
+def test_generator_enqueuer_threadsafe():
+    enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
+        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    with pytest.raises(StopIteration) as e:
+        [next(gen_output) for _ in range(10)]
+    assert 'thread-safe' in e.value.message
+    enqueuer.stop()
+
+
 def test_generator_enqueuer_fail_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
         FaultSequence()), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(IndexError):
+    with pytest.raises(StopIteration):
         next(gen_output)
 
 
@@ -207,7 +219,7 @@ def test_generator_enqueuer_fail_processes():
         FaultSequence()), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(IndexError):
+    with pytest.raises(StopIteration):
         next(gen_output)
 
 
@@ -355,6 +367,7 @@ def test_finite_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@use_spawn
 def test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
         DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
