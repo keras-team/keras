@@ -12,7 +12,6 @@ import sys
 import tarfile
 import threading
 import time
-import traceback
 import warnings
 import zipfile
 from abc import abstractmethod
@@ -630,7 +629,7 @@ def next_sample(uid):
     overwrite the training generator.
 
     # Arguments
-        uid: int, Sequence identifier
+        uid: int, generator identifier
 
     # Returns
         The next value of generator `uid`.
@@ -704,7 +703,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         if self.use_multiprocessing:
             self.executor_fn = lambda gens: mp.Pool(workers,
                                                     initializer=init_pool_generator,
-                                                    initargs=(gens,))
+                                                    initargs=(gens, self.random_seed))
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
@@ -715,16 +714,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         self.run_thread.daemon = True
         self.run_thread.start()
 
-    def _wait_queue(self):
-        """Wait for the queue to be empty."""
-        while True:
-            time.sleep(0.1)
-            if self.queue.unfinished_tasks == 0 or self.stop_signal.is_set():
-                return
-
     def _run(self):
         """Submits request to the executor and queue the `Future` objects."""
-        self._send_generator()  # Share the initial sequence
+        self._send_generator()  # Share the initial generator
         with closing(self.executor_fn(_SHARED_GENERATOR)) as executor:
             while True:
                 if self.stop_signal.is_set():
@@ -748,9 +740,21 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                 self.queue.task_done()
                 if inputs is not None:
                     yield inputs
+        except StopIteration:
+            # Special case for finite generators
+            last_ones = []
+            while self.queue.qsize() > 0:
+                last_ones.append(self.queue.get(block=True))
+            # Wait for them to complete
+            list(map(lambda f: f.wait(), last_ones))
+            # Keep the good ones
+            last_ones = [future.get() for future in last_ones if future.successful()]
+            for inputs in last_ones:
+                if inputs is not None:
+                    yield inputs
         except Exception as e:
             self.stop()
-            if 'generator already executing' in e.message:
+            if 'generator already executing' in str(e):
                 raise StopIteration(
                     "Your generator is NOT thread-safe."
                     "Keras requires a thread-safe generator when"
@@ -772,9 +776,11 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             timeout: maximum time to wait on `thread.join()`
         """
         self.stop_signal.set()
+
         with self.queue.mutex:
             self.queue.queue.clear()
             self.queue.unfinished_tasks = 0
             self.queue.not_full.notify()
+
         self.run_thread.join(timeout)
         _SHARED_GENERATOR[self.uid] = None
