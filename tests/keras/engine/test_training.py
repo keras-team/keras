@@ -293,6 +293,7 @@ def test_model_methods():
 
     # test starting from non-zero initial epoch for generator too
     trained_epochs = []
+
     @threadsafe_generator
     def gen_data(batch_sz):
         while True:
