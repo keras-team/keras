@@ -348,6 +348,44 @@ def test_EarlyStopping_final_weights():
 
     losses = [0.2, 0.15, 0.1, 0.11, 0.12]
 
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(losses)):
+        epochs_trained += 1
+        early_stop.model.set_weight_to_epoch(epoch=epoch)
+        early_stop.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    # The best configuration is in the epoch 2 (loss = 0.1000),
+    # so with patience=2 we need to end up at epoch 4
+    assert early_stop.model.get_weights() == 4
+
+
+@keras_test
+def test_EarlyStopping_final_weights_when_restoring_model_weights():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+            self.weights = -1
+
+        def get_weights(self):
+            return self.weights
+
+        def set_weights(self, weights):
+            self.weights = weights
+
+        def set_weight_to_epoch(self, epoch):
+            self.weights = epoch
+
+    early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2,
+                                         restore_best_weights=True)
+    early_stop.model = DummyModel()
+
+    losses = [0.2, 0.15, 0.1, 0.11, 0.12]
+
     # The best configuration is in the epoch 2 (loss = 0.1000).
 
     epochs_trained = 0
@@ -361,7 +399,9 @@ def test_EarlyStopping_final_weights():
         if early_stop.model.stop_training:
             break
 
-    # the weight has to be "2" (we're using the epoch here as weight)
+    # The best configuration is in epoch 2 (loss = 0.1000),
+    # and while patience = 2, we're restoring the best weights,
+    # so we end up at the epoch with the best weights, i.e. epoch 2
     assert early_stop.model.get_weights() == 2
 
 
