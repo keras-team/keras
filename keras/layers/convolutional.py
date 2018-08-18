@@ -2316,8 +2316,7 @@ class _Cropping(Layer):
     # Arguments
         rank: An integer, the rank of the cropping,
             e.g. "2" for Cropping2D.
-        cropping: A tuple of tuples of 2 ints. For Cropping1D,
-            it is just a tuple of two ints.
+        cropping: A tuple of tuples of 2 ints.
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -2342,7 +2341,7 @@ class _Cropping(Layer):
 
     def call(self, inputs):
         slices_dims = []
-        for start, end in self._normalized_cropping:
+        for start, end in self.cropping:
             if end == 0:
                 end = None
             else:
@@ -2356,7 +2355,7 @@ class _Cropping(Layer):
         return inputs[slices]
 
     def compute_output_shape(self, input_shape):
-        cropping_all_dims = ((0, 0),) + self._normalized_cropping + ((0, 0),)
+        cropping_all_dims = ((0, 0),) + self.cropping + ((0, 0),)
         spatial_axes = list(range(1, 1 + self.rank))
         cropping_all_dims = transpose_shape(cropping_all_dims,
                                             self.data_format,
@@ -2373,10 +2372,6 @@ class _Cropping(Layer):
                   'data_format': self.data_format}
         base_config = super(_Cropping, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-    @property
-    def _normalized_cropping(self):
-        return self.cropping
 
 
 class Cropping1D(_Cropping):
@@ -2399,7 +2394,7 @@ class Cropping1D(_Cropping):
     """
 
     def __init__(self, cropping=(1, 1), **kwargs):
-        normalized_cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping')
+        normalized_cropping = (conv_utils.normalize_tuple(cropping, 2, 'cropping'),)
         super(Cropping1D, self).__init__(1,
                                          normalized_cropping,
                                          'channels_last',
@@ -2409,11 +2404,8 @@ class Cropping1D(_Cropping):
         base_config = super(Cropping1D, self).get_config()
         base_config.pop('rank')
         base_config.pop('data_format')
+        base_config['cropping'] = base_config['cropping'][0]
         return base_config
-
-    @property
-    def _normalized_cropping(self):
-        return self.cropping,
 
 
 class Cropping2D(_Cropping):
