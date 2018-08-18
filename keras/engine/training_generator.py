@@ -125,24 +125,7 @@ def fit_generator(model,
             callbacks.on_epoch_begin(epoch)
             batch_index = 0
             while batch_index < steps_per_epoch:
-                generator_output = next(generator)
-
-                if not hasattr(generator_output, '__len__'):
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
-
-                if len(generator_output) == 2:
-                    x, y = generator_output
-                    sample_weight = None
-                elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
-                else:
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
+                x, y, sample_weight = get_batch(generator)
                 # build batch logs
                 batch_logs = {}
                 batch_size = get_batch_size(x)
@@ -260,22 +243,7 @@ def evaluate_generator(model, generator,
 
     try:
         while batch_index < steps:
-            generator_output = next(generator)
-            if not hasattr(generator_output, '__len__'):
-                raise ValueError('Output of generator should be a tuple '
-                                 '(x, y, sample_weight) '
-                                 'or (x, y). Found: ' +
-                                 str(generator_output))
-            if len(generator_output) == 2:
-                x, y = generator_output
-                sample_weight = None
-            elif len(generator_output) == 3:
-                x, y, sample_weight = generator_output
-            else:
-                raise ValueError('Output of generator should be a tuple '
-                                 '(x, y, sample_weight) '
-                                 'or (x, y). Found: ' +
-                                 str(generator_output))
+            x, y, sample_weight = get_batch(generator)
             # build batch logs
             batch_logs = {}
             batch_size = get_batch_size(x)
@@ -361,23 +329,7 @@ def predict_generator(model, generator,
     unconcatenated_outs = []
     try:
         while batch_index < steps:
-            generator_output = next(generator)
-            if isinstance(generator_output, tuple):
-                # Compatibility with the generators
-                # used for training.
-                if len(generator_output) == 2:
-                    x, _ = generator_output
-                elif len(generator_output) == 3:
-                    x, _, _ = generator_output
-                else:
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
-            else:
-                # Assumes a generator that only
-                # yields inputs (not targets and sample weights).
-                x = generator_output
+            x, _, _ = get_batch(generator, require_output=False)
 
             # build batch logs
             batch_logs = {}
@@ -455,6 +407,35 @@ def init_generator(generator, steps,
         else:
             output_generator = generator
     return enqueuer, output_generator, steps
+
+
+def get_batch(generator, require_output=True):
+    # todo: might break generators that (incorrectly) return list / np.array
+    generator_output = next(generator)
+    y = sample_weight = None
+    if isinstance(generator_output, tuple):
+        if len(generator_output) == 2:
+            x, y = generator_output
+        elif len(generator_output) == 3:
+            x, y, sample_weight = generator_output
+        else:
+            raise generator_output_error(generator_output)
+    else:
+        if require_output:
+            raise generator_output_error(generator_output)
+        else:
+            # Assumes a generator that only
+            # yields inputs (not targets and sample weights).
+            x = generator_output
+
+    return x, y, sample_weight
+
+
+def generator_output_error(generator_output):
+    return ValueError('Output of generator should be '
+                      'a tuple `(x, y, sample_weight)` '
+                      'or `(x, y)`. Found: ' +
+                      str(generator_output))
 
 
 def get_batch_size(x):
