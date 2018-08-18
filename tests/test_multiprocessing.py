@@ -11,7 +11,7 @@ from keras import backend as K
 
 STEPS_PER_EPOCH = 100
 STEPS = 100
-WORKERS = 4 if K.backend() != 'tensorflow' else 2
+WORKERS = 4 if K.backend() != 'tensorflow' else 1
 
 
 class DummySequence(Sequence):
