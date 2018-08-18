@@ -9,9 +9,13 @@ from keras.utils.test_utils import keras_test
 from keras.utils import Sequence
 from keras import backend as K
 
+pytestmark = pytest.mark.skipif(
+    K.backend() == 'tensorflow',
+    reason='Temporarily disabled until the use_multiprocessing problem is solved')
+
 STEPS_PER_EPOCH = 100
 STEPS = 100
-WORKERS = 4 if K.backend() != 'tensorflow' else 1
+WORKERS = 4
 
 
 class DummySequence(Sequence):
