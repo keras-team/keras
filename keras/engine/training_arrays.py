@@ -319,9 +319,8 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, callbacks=None, steps=
                 unconcatenated_outs[i].append(batch_out)
             if callback_model.stop_predicting:
                 break
-        if len(unconcatenated_outs) == 1:
-            return np.concatenate(unconcatenated_outs[0], axis=0)
-        return [np.concatenate(out, axis=0) for out in unconcatenated_outs]
+        concatenated_outs = [np.concatenate(out, axis=0) for out in unconcatenated_outs]
+        return unpack_singleton(concatenated_outs)
     else:
         # Sample-based predictions.
         outs = []

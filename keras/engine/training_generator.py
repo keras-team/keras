@@ -518,8 +518,8 @@ def predict_generator(model, generator,
         if enqueuer is not None:
             enqueuer.stop()
 
-    if len(unconcatenated_outs) == 1:
-        return np.concatenate(unconcatenated_outs[0])
+    concatenated_outs = [np.concatenate(out) for out in unconcatenated_outs]
+    return unpack_singleton(concatenated_outs)
 
 
 def get_batch_size(x):
