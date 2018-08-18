@@ -33,40 +33,49 @@ def fit_generator(model,
                   shuffle=True,
                   initial_epoch=0):
     """See docstring for `Model.fit_generator`."""
-    wait_time = 0.01  # in seconds
     epoch = initial_epoch
     do_validation = bool(validation_data)
 
-    is_sequence = isinstance(generator, Sequence)
-    if not is_sequence and use_multiprocessing and workers > 1:
-        warnings.warn(
-            UserWarning('Using a generator with `use_multiprocessing=True`'
-                        ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
-                        ' class.'))
-    if steps_per_epoch is None:
-        if is_sequence:
-            steps_per_epoch = len(generator)
-        else:
-            raise ValueError('`steps_per_epoch=None` is only valid for a'
-                             ' generator based on the '
-                             '`keras.utils.Sequence`'
-                             ' class. Please specify `steps_per_epoch` '
-                             'or use the `keras.utils.Sequence` class.')
+    enqueuer, generator, steps_per_epoch = init_generator(
+        generator, steps_per_epoch,
+        workers, max_queue_size,
+        use_multiprocessing, shuffle, wait_time=0.01,
+        steps_arg='steps_per_epoch')
 
-    # python 2 has 'next', 3 has '__next__'
-    # avoid any explicit version checks
-    val_gen = (hasattr(validation_data, 'next') or
-               hasattr(validation_data, '__next__') or
-               isinstance(validation_data, Sequence))
-    if val_gen and not validation_steps:
-        if isinstance(validation_data, Sequence):
-            validation_steps = len(validation_data)
+    val_enqueuer = None
+    if do_validation:
+        # python 2 has 'next', 3 has '__next__'
+        # avoid any explicit version checks
+        val_gen = (hasattr(validation_data, 'next') or
+                   hasattr(validation_data, '__next__') or
+                   isinstance(validation_data, Sequence))
+
+        if val_gen:
+            # todo: necessary? (repeated in evaluate_generator (with different wait_time)?)
+            val_enqueuer, val_generator, validation_steps = init_generator(
+                validation_data, validation_steps,
+                workers, max_queue_size,
+                use_multiprocessing,
+                steps_arg='validation_steps')
         else:
-            raise ValueError('`validation_steps=None` is only valid for a'
-                             ' generator based on the `keras.utils.Sequence`'
-                             ' class. Please specify `validation_steps` or use'
-                             ' the `keras.utils.Sequence` class.')
+            # todo: share with training_array?
+            # Prepare data for validation
+            if len(validation_data) == 2:
+                val_x, val_y = validation_data
+                val_sample_weight = None
+            elif len(validation_data) == 3:
+                val_x, val_y, val_sample_weight = validation_data
+            else:
+                raise ValueError('`validation_data` should be a tuple '
+                                 '`(val_x, val_y, val_sample_weight)` '
+                                 'or `(val_x, val_y)`. Found: ' +
+                                 str(validation_data))
+            val_x, val_y, val_sample_weights = model._standardize_user_data(
+                val_x, val_y, val_sample_weight)
+            val_data = val_x + val_y + val_sample_weights
+            if model.uses_learning_phase and not isinstance(K.learning_phase(),
+                                                            int):
+                val_data += [0.]
 
     # prepare display labels.
     out_labels = model.metrics_names
@@ -102,71 +111,12 @@ def fit_generator(model,
         'metrics': callback_metrics or [],
     })
     callbacks.on_train_begin()
-
-    enqueuer = None
-    val_enqueuer = None
+    callback_model.stop_training = False
+    if do_validation and not val_gen:
+        for cbk in callbacks:
+            cbk.validation_data = val_data
 
     try:
-        if do_validation:
-            if val_gen and workers > 0:
-                # Create an Enqueuer that can be reused
-                val_data = validation_data
-                if isinstance(val_data, Sequence):
-                    val_enqueuer = OrderedEnqueuer(val_data,
-                                                   use_multiprocessing=use_multiprocessing)
-                else:
-                    val_enqueuer = GeneratorEnqueuer(val_data,
-                                                     use_multiprocessing=use_multiprocessing)
-                val_enqueuer.start(workers=workers,
-                                   max_queue_size=max_queue_size)
-                val_enqueuer_gen = val_enqueuer.get()
-            elif val_gen:
-                val_data = validation_data
-                if isinstance(val_data, Sequence):
-                    val_enqueuer_gen = iter_sequence_infinite(generator)
-                else:
-                    val_enqueuer_gen = val_data
-            else:
-                # Prepare data for validation
-                if len(validation_data) == 2:
-                    val_x, val_y = validation_data
-                    val_sample_weight = None
-                elif len(validation_data) == 3:
-                    val_x, val_y, val_sample_weight = validation_data
-                else:
-                    raise ValueError('`validation_data` should be a tuple '
-                                     '`(val_x, val_y, val_sample_weight)` '
-                                     'or `(val_x, val_y)`. Found: ' +
-                                     str(validation_data))
-                val_x, val_y, val_sample_weights = model._standardize_user_data(
-                    val_x, val_y, val_sample_weight)
-                val_data = val_x + val_y + val_sample_weights
-                if model.uses_learning_phase and not isinstance(K.learning_phase(),
-                                                                int):
-                    val_data += [0.]
-                for cbk in callbacks:
-                    cbk.validation_data = val_data
-
-        if workers > 0:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(
-                    generator,
-                    use_multiprocessing=use_multiprocessing,
-                    shuffle=shuffle)
-            else:
-                enqueuer = GeneratorEnqueuer(
-                    generator,
-                    use_multiprocessing=use_multiprocessing,
-                    wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
-        else:
-            if is_sequence:
-                output_generator = iter_sequence_infinite(generator)
-            else:
-                output_generator = generator
-
-        callback_model.stop_training = False
         # Construct epoch logs.
         epoch_logs = {}
         while epoch < epochs:
@@ -175,7 +125,7 @@ def fit_generator(model,
             callbacks.on_epoch_begin(epoch)
             batch_index = 0
             while batch_index < steps_per_epoch:
-                generator_output = next(output_generator)
+                generator_output = next(generator)
 
                 if not hasattr(generator_output, '__len__'):
                     raise ValueError('Output of generator should be '
@@ -216,7 +166,7 @@ def fit_generator(model,
                 if batch_index >= steps_per_epoch and do_validation:
                     if val_gen:
                         val_outs = model.evaluate_generator(
-                            val_enqueuer_gen,
+                            val_generator,
                             validation_steps,
                             workers=0,
                             callbacks=callbacks_arg)
@@ -274,25 +224,12 @@ def evaluate_generator(model, generator,
         stateful_metric_indices = []
 
     batch_index = 0
-    wait_time = 0.01
     outs_per_batch = []
     batch_sizes = []
-    is_sequence = isinstance(generator, Sequence)
-    if not is_sequence and use_multiprocessing and workers > 1:
-        warnings.warn(
-            UserWarning('Using a generator with `use_multiprocessing=True`'
-                        ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
-                        ' class.'))
-    if steps is None:
-        if is_sequence:
-            steps = len(generator)
-        else:
-            raise ValueError('`steps=None` is only valid for a generator'
-                             ' based on the `keras.utils.Sequence` class.'
-                             ' Please specify `steps` or use the'
-                             ' `keras.utils.Sequence` class.')
-    enqueuer = None
+    enqueuer, generator, steps = init_generator(
+        generator, steps,
+        workers, max_queue_size,
+        use_multiprocessing, wait_time=0.01)
 
     out_labels = ['val_' + n for n in model.metrics_names]
 
@@ -322,26 +259,8 @@ def evaluate_generator(model, generator,
     callback_model.stop_evaluating = False
 
     try:
-        if workers > 0:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(
-                    generator,
-                    use_multiprocessing=use_multiprocessing)
-            else:
-                enqueuer = GeneratorEnqueuer(
-                    generator,
-                    use_multiprocessing=use_multiprocessing,
-                    wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
-        else:
-            if is_sequence:
-                output_generator = iter_sequence_infinite(generator)
-            else:
-                output_generator = generator
-
         while batch_index < steps:
-            generator_output = next(output_generator)
+            generator_output = next(generator)
             if not hasattr(generator_output, '__len__'):
                 raise ValueError('Output of generator should be a tuple '
                                  '(x, y, sample_weight) '
@@ -403,23 +322,11 @@ def predict_generator(model, generator,
     model._make_predict_function()
 
     batch_index = 0
-    wait_time = 0.01
-    is_sequence = isinstance(generator, Sequence)
-    if not is_sequence and use_multiprocessing and workers > 1:
-        warnings.warn(
-            UserWarning('Using a generator with `use_multiprocessing=True`'
-                        ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
-                        ' class.'))
-    if steps is None:
-        if is_sequence:
-            steps = len(generator)
-        else:
-            raise ValueError('`steps=None` is only valid for a generator'
-                             ' based on the `keras.utils.Sequence` class.'
-                             ' Please specify `steps` or use the'
-                             ' `keras.utils.Sequence` class.')
-    enqueuer = None
+    # todo: wait_time?
+    enqueuer, generator, steps = init_generator(
+        generator, steps,
+        workers, max_queue_size,
+        use_multiprocessing, wait_time=0.01)
 
     _callbacks = []
     if verbose == 1:
@@ -453,26 +360,8 @@ def predict_generator(model, generator,
     # and concatenate them upon returning.
     unconcatenated_outs = []
     try:
-        if workers > 0:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(
-                    generator,
-                    use_multiprocessing=use_multiprocessing)
-            else:
-                enqueuer = GeneratorEnqueuer(
-                    generator,
-                    use_multiprocessing=use_multiprocessing,
-                    wait_time=wait_time)
-            enqueuer.start(workers=workers, max_queue_size=max_queue_size)
-            output_generator = enqueuer.get()
-        else:
-            if is_sequence:
-                output_generator = iter_sequence_infinite(generator)
-            else:
-                output_generator = generator
-
         while batch_index < steps:
-            generator_output = next(output_generator)
+            generator_output = next(generator)
             if isinstance(generator_output, tuple):
                 # Compatibility with the generators
                 # used for training.
@@ -522,7 +411,54 @@ def predict_generator(model, generator,
     return unpack_singleton(concatenated_outs)
 
 
+def init_generator(generator, steps,
+                   workers, max_queue_size,
+                   use_multiprocessing, shuffle=False, wait_time=0.05,
+                   steps_arg=None):
+    # todo: defaults repeated from Enqueuers
+    is_sequence = isinstance(generator, Sequence)
+    enqueuer = None
+
+    if not is_sequence and use_multiprocessing and workers > 1:
+        warnings.warn(
+            UserWarning('Using a generator with `use_multiprocessing=True`'
+                        ' and multiple workers may duplicate your data.'
+                        ' Please consider using the`keras.utils.Sequence'
+                        ' class.'))
+    if steps is None:
+        if is_sequence:
+            steps = len(generator)
+        else:
+            raise ValueError('`{0}=None` is only valid for a'
+                             ' generator based on the '
+                             '`keras.utils.Sequence`'
+                             ' class. Please specify `{0}`'
+                             ' or use the `keras.utils.Sequence`'
+                             ' class.'.format(steps_arg or 'steps'))
+    if workers > 0:
+        if is_sequence:
+            enqueuer = OrderedEnqueuer(
+                generator,
+                use_multiprocessing=use_multiprocessing,
+                shuffle=shuffle)
+        else:
+            enqueuer = GeneratorEnqueuer(
+                generator,
+                use_multiprocessing=use_multiprocessing,
+                wait_time=wait_time)
+        enqueuer.start(workers=workers,
+                       max_queue_size=max_queue_size)
+        output_generator = enqueuer.get()
+    else:
+        if is_sequence:
+            output_generator = iter_sequence_infinite(generator)
+        else:
+            output_generator = generator
+    return enqueuer, output_generator, steps
+
+
 def get_batch_size(x):
+    # todo: rename: step_size?
     if x is None or len(x) == 0:
         # Handle data tensors support when no input given
         # step-size = 1 for data tensors
