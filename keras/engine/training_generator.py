@@ -195,20 +195,7 @@ def fit_generator(model,
                                      str(generator_output))
                 # build batch logs
                 batch_logs = {}
-                if x is None or len(x) == 0:
-                    # Handle data tensors support when no input given
-                    # step-size = 1 for data tensors
-                    batch_size = 1
-                elif isinstance(x, list):
-                    batch_size = x[0].shape[0]
-                elif isinstance(x, dict):
-                    batch_size = list(x.values())[0].shape[0]
-                else:
-                    batch_size = x.shape[0]
-                if batch_size == 0:
-                    raise ValueError('Received an empty batch. '
-                                     'Batches should contain '
-                                     'at least one item.')
+                batch_size = get_batch_size(x)
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_fit_batch_begin(batch_index, batch_logs)
@@ -372,20 +359,7 @@ def evaluate_generator(model, generator,
                                  str(generator_output))
             # build batch logs
             batch_logs = {}
-            if x is None or len(x) == 0:
-                # Handle data tensors support when no input given
-                # step-size = 1 for data tensors
-                batch_size = 1
-            elif isinstance(x, list):
-                batch_size = x[0].shape[0]
-            elif isinstance(x, dict):
-                batch_size = list(x.values())[0].shape[0]
-            else:
-                batch_size = x.shape[0]
-            if batch_size == 0:
-                raise ValueError('Received an empty batch. '
-                                 'Batches should contain '
-                                 'at least one item.')
+            batch_size = get_batch_size(x)
             batch_logs['batch'] = batch_index
             batch_logs['size'] = batch_size
             callbacks.on_evaluate_batch_begin(batch_index, batch_logs)
@@ -518,20 +492,7 @@ def predict_generator(model, generator,
 
             # build batch logs
             batch_logs = {}
-            if x is None or len(x) == 0:
-                # Handle data tensors support when no input given
-                # step-size = 1 for data tensors
-                batch_size = 1
-            elif isinstance(x, list):
-                batch_size = x[0].shape[0]
-            elif isinstance(x, dict):
-                batch_size = list(x.values())[0].shape[0]
-            else:
-                batch_size = x.shape[0]
-            if batch_size == 0:
-                raise ValueError('Received an empty batch. '
-                                 'Batches should contain '
-                                 'at least one item.')
+            batch_size = get_batch_size(x)
             batch_logs['batch'] = batch_index
             batch_logs['size'] = batch_size
 
@@ -559,4 +520,21 @@ def predict_generator(model, generator,
 
     if len(unconcatenated_outs) == 1:
         return np.concatenate(unconcatenated_outs[0])
-    return [np.concatenate(out) for out in unconcatenated_outs]
+
+
+def get_batch_size(x):
+    if x is None or len(x) == 0:
+        # Handle data tensors support when no input given
+        # step-size = 1 for data tensors
+        batch_size = 1
+    elif isinstance(x, list):
+        batch_size = x[0].shape[0]
+    elif isinstance(x, dict):
+        batch_size = list(x.values())[0].shape[0]
+    else:
+        batch_size = x.shape[0]
+    if batch_size == 0:
+        raise ValueError('Received an empty batch. '
+                         'Batches should contain '
+                         'at least one item.')
+    return batch_size
