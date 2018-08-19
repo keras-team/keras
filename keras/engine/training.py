@@ -829,6 +829,12 @@ class Model(Network):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
+    def _create_function_input(self, x, y, sample_weights, learning_phase):
+        ins = x + y + sample_weights
+        if self._uses_dynamic_learning_phase():
+            ins += [learning_phase]
+        return ins
+
     def fit(self,
             x=None,
             y=None,
@@ -1002,10 +1008,8 @@ class Model(Network):
             sample_weights, val_sample_weights = (
                 slice_arrays(sample_weights, 0, split_at),
                 slice_arrays(sample_weights, split_at))
-            if self._uses_dynamic_learning_phase():
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+
+            val_ins = self._create_function_input(val_x, val_y, val_sample_weights, 0.)
 
         elif validation_steps:
             do_validation = True
@@ -1013,10 +1017,8 @@ class Model(Network):
                 val_ins = [0.]
 
         # Prepare input arrays and training function.
-        if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
+        ins = self._create_function_input(x, y, sample_weights, learning_phase=1.)
+
         self._make_train_function()
 
         if do_validation:
@@ -1095,16 +1097,11 @@ class Model(Network):
             raise ValueError('If evaluating from data tensors, '
                              'you should specify the `steps` '
                              'argument.')
-        # Validate user data.
-        x, y, sample_weights = self._standardize_user_data(
-            x, y,
-            sample_weight=sample_weight,
-            batch_size=batch_size)
+
         # Prepare inputs, delegate logic to `evaluate_loop`.
-        if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
+        ins = self.prepare_inputs(x, y,
+                                  sample_weight=sample_weight,
+                                  batch_size=batch_size)
         self._make_test_function()
         return training_arrays.evaluate_loop(self, ins,
                                              batch_size=batch_size,
@@ -1149,9 +1146,13 @@ class Model(Network):
             raise ValueError('If predicting from data tensors, '
                              'you should specify the `steps` '
                              'argument.')
+
+        # Prepare inputs, delegate logic to `predict_loop`.
+        ins = self.prepare_inputs(x)
+
         # Validate user data.
-        x, _, _ = self._standardize_user_data(x)
         if self.stateful:
+            x = ins[0]
             if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
                                  'you should only pass inputs with '
@@ -1160,11 +1161,6 @@ class Model(Network):
                                  str(x[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
 
-        # Prepare inputs, delegate logic to `predict_loop`.
-        if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
-        else:
-            ins = x
         self._make_predict_function()
         return training_arrays.predict_loop(self, ins,
                                             batch_size=batch_size,
@@ -1176,10 +1172,7 @@ class Model(Network):
         learning_phase = kwargs.pop('learning_phase', 0.)
         x, y, sample_weights = self._standardize_user_data(
             *args, **kwargs)
-        if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [learning_phase]
-        else:
-            ins = x + y + sample_weights
+        ins = self._create_function_input(x, y, sample_weights, learning_phase)
         return ins
 
     def train_on_batch(self, x, y,
