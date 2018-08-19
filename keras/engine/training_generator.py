@@ -132,11 +132,11 @@ def fit_generator(model,
                 batch_logs['size'] = batch_size
                 callbacks.on_fit_batch_begin(batch_index, batch_logs)
 
-                batch_outs = model.train_on_batch(x, y,
-                                                  sample_weight=sample_weight,
-                                                  class_weight=class_weight)
+                batch_ins = model.prepare_inputs(x, y,
+                                                 sample_weight=sample_weight,
+                                                 class_weight=class_weight)
+                batch_outs = model.train_function(batch_ins)
 
-                batch_outs = to_list(batch_outs)
                 for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
@@ -252,9 +252,10 @@ def evaluate_generator(model, generator,
 
             callbacks.on_evaluate_batch_begin(batch_index, batch_logs)
 
-            batch_outs = model.test_on_batch(x, y, sample_weight=sample_weight)
+            batch_ins = model.prepare_inputs(x, y,
+                                             sample_weight=sample_weight)
+            batch_outs = model.test_function(batch_ins)
 
-            batch_outs = to_list(batch_outs)
             for l, o in zip(out_labels, batch_outs):
                 batch_logs[l] = o
 
@@ -340,8 +341,8 @@ def predict_generator(model, generator,
 
             callbacks.on_predict_batch_begin(batch_index, batch_logs)
 
-            batch_outs = model.predict_on_batch(x)
-            batch_outs = to_list(batch_outs)
+            batch_ins = model.prepare_inputs(x)
+            batch_outs = model.predict_function(batch_ins)
 
             callbacks.on_predict_batch_end(batch_index, batch_logs)
 

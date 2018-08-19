@@ -1170,6 +1170,16 @@ class Model(Network):
                                             callbacks=callbacks,
                                             steps=steps)
 
+    def prepare_inputs(self, *args, **kwargs):
+        learning_phase = kwargs.pop('learning_phase', 0.)
+        x, y, sample_weights = self._standardize_user_data(
+            *args, **kwargs)
+        if self._uses_dynamic_learning_phase():
+            ins = x + y + sample_weights + [learning_phase]
+        else:
+            ins = x + y + sample_weights
+        return ins
+
     def train_on_batch(self, x, y,
                        sample_weight=None,
                        class_weight=None):
@@ -1207,16 +1217,10 @@ class Model(Network):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        x, y, sample_weights = self._standardize_user_data(
-            x, y,
-            sample_weight=sample_weight,
-            class_weight=class_weight)
-        if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [1.]
-        else:
-            ins = x + y + sample_weights
         self._make_train_function()
-        outputs = self.train_function(ins)
+        inputs = self.prepare_inputs(x, y,
+                                     sample_weight, class_weight, learning_phase=1.)
+        outputs = self.train_function(inputs)
         return unpack_singleton(outputs)
 
     def test_on_batch(self, x, y, sample_weight=None):
@@ -1247,15 +1251,9 @@ class Model(Network):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        x, y, sample_weights = self._standardize_user_data(
-            x, y,
-            sample_weight=sample_weight)
-        if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [0.]
-        else:
-            ins = x + y + sample_weights
         self._make_test_function()
-        outputs = self.test_function(ins)
+        inputs = self.prepare_inputs(x, y, sample_weight)
+        outputs = self.test_function(inputs)
         return unpack_singleton(outputs)
 
     def predict_on_batch(self, x):
@@ -1267,13 +1265,9 @@ class Model(Network):
         # Returns
             Numpy array(s) of predictions.
         """
-        x, _, _ = self._standardize_user_data(x)
-        if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
-        else:
-            ins = x
         self._make_predict_function()
-        outputs = self.predict_function(ins)
+        inputs = self.prepare_inputs(x)
+        outputs = self.predict_function(inputs)
         return unpack_singleton(outputs)
 
     @interfaces.legacy_generator_methods_support
