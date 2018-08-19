@@ -30,7 +30,6 @@ def fit_generator(model,
                   shuffle=True,
                   initial_epoch=0):
     """See docstring for `Model.fit_generator`."""
-    epoch = initial_epoch
     do_validation = bool(validation_data)
 
     enqueuer, generator, steps_per_epoch = init_generator(
@@ -99,12 +98,11 @@ def fit_generator(model,
     try:
         # Construct epoch logs.
         epoch_logs = {}
-        while epoch < epochs:
+        for epoch in range(initial_epoch, epochs):
             for m in model.stateful_metric_functions:
                 m.reset_states()
             callbacks.on_epoch_begin(epoch)
-            batch_index = 0
-            while batch_index < steps_per_epoch:
+            for batch_index in range(steps_per_epoch):
                 x, y, sample_weight = next(batch_generator)
                 # build batch logs
                 batch_size = get_batch_size(x)
@@ -123,10 +121,9 @@ def fit_generator(model,
 
                 callbacks.on_fit_batch_end(batch_index, batch_logs)
 
-                batch_index += 1
 
                 # Epoch finished.
-                if batch_index >= steps_per_epoch and do_validation:
+                if (batch_index == steps_per_epoch - 1) and do_validation:
                     if val_gen:
                         val_outs = evaluate_generator(
                             model, val_generator,
@@ -148,7 +145,6 @@ def fit_generator(model,
                     break
 
             callbacks.on_epoch_end(epoch, epoch_logs)
-            epoch += 1
             if callback_model.stop_training:
                 break
 
@@ -181,7 +177,6 @@ def evaluate_generator(model, generator,
     else:
         stateful_metric_indices = []
 
-    batch_index = 0
     outs_per_batch = []
     batch_sizes = []
     enqueuer, generator, steps = init_generator(
@@ -218,7 +213,7 @@ def evaluate_generator(model, generator,
     callback_model.stop_evaluating = False
 
     try:
-        while batch_index < steps:
+        for batch_index in range(steps):
             x, y, sample_weight = next(batch_generator)
 
             # build batch logs
@@ -238,7 +233,6 @@ def evaluate_generator(model, generator,
 
             callbacks.on_evaluate_batch_end(batch_index, batch_logs)
 
-            batch_index += 1
             outs_per_batch.append(batch_outs)
             batch_sizes.append(batch_size)
             if callback_model.stop_evaluating:
@@ -266,7 +260,6 @@ def predict_generator(model, generator,
                       verbose=0,
                       callbacks=None):
     """See docstring for `Model.predict_generator`."""
-    batch_index = 0
     # todo: wait_time?
     enqueuer, generator, steps = init_generator(
         generator, steps,
@@ -306,7 +299,7 @@ def predict_generator(model, generator,
     # and concatenate them upon returning.
     unconcatenated_outs = []
     try:
-        while batch_index < steps:
+        for batch_index in range(steps):
             x, _, _ = next(batch_generator)
 
             # build batch logs
@@ -329,7 +322,6 @@ def predict_generator(model, generator,
             for i, out in enumerate(batch_outs):
                 unconcatenated_outs[i].append(out)
 
-            batch_index += 1
             if callback_model.stop_predicting:
                 break
 
