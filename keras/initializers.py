@@ -278,7 +278,8 @@ class Identity(Initializer):
 
     def __call__(self, shape, dtype=None):
         if len(shape) != 2:
-            raise ValueError('Identity matrix initializer can only be used for 2D matrices.')
+            raise ValueError(
+                'Identity matrix initializer can only be used for 2D matrices.')
 
         if max(shape) % min(shape) != 0:
             raise ValueError('Long side should be multiple of short side.')
