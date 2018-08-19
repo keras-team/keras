@@ -73,8 +73,7 @@ def fit_generator(model,
             val_x, val_y, val_sample_weights = model._standardize_user_data(
                 val_x, val_y, val_sample_weight)
             val_data = val_x + val_y + val_sample_weights
-            if model.uses_learning_phase and not isinstance(K.learning_phase(),
-                                                            int):
+            if model._uses_dynamic_learning_phase():
                 val_data += [0.]
 
     # prepare display labels.
@@ -127,18 +126,18 @@ def fit_generator(model,
             while batch_index < steps_per_epoch:
                 x, y, sample_weight = get_batch(generator)
                 # build batch logs
-                batch_logs = {}
                 batch_size = get_batch_size(x)
+                batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = batch_size
                 callbacks.on_fit_batch_begin(batch_index, batch_logs)
 
-                outs = model.train_on_batch(x, y,
-                                            sample_weight=sample_weight,
-                                            class_weight=class_weight)
+                batch_outs = model.train_on_batch(x, y,
+                                                  sample_weight=sample_weight,
+                                                  class_weight=class_weight)
 
-                outs = to_list(outs)
-                for l, o in zip(out_labels, outs):
+                batch_outs = to_list(batch_outs)
+                for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
                 callbacks.on_fit_batch_end(batch_index, batch_logs)
@@ -246,8 +245,8 @@ def evaluate_generator(model, generator,
             x, y, sample_weight = get_batch(generator)
 
             # build batch logs
-            batch_logs = {}
             batch_size = get_batch_size(x)
+            batch_logs = {}
             batch_logs['batch'] = batch_index
             batch_logs['size'] = batch_size
 
@@ -334,23 +333,23 @@ def predict_generator(model, generator,
             x, _, _ = get_batch(generator, require_output=False)
 
             # build batch logs
-            batch_logs = {}
             batch_size = get_batch_size(x)
+            batch_logs = {}
             batch_logs['batch'] = batch_index
             batch_logs['size'] = batch_size
 
             callbacks.on_predict_batch_begin(batch_index, batch_logs)
 
-            outs = model.predict_on_batch(x)
-            outs = to_list(outs)
+            batch_outs = model.predict_on_batch(x)
+            batch_outs = to_list(batch_outs)
 
             callbacks.on_predict_batch_end(batch_index, batch_logs)
 
             if batch_index == 0:
-                for out in outs:
+                for _ in batch_outs:
                     unconcatenated_outs.append([])
 
-            for i, out in enumerate(outs):
+            for i, out in enumerate(batch_outs):
                 unconcatenated_outs[i].append(out)
 
             batch_index += 1

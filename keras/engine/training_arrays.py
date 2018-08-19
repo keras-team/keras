@@ -145,10 +145,10 @@ def fit_loop(model, ins,
                 batch_logs['size'] = 1
                 callbacks.on_fit_batch_begin(step_index, batch_logs)
 
-                outs = model.train_function(ins)
+                batch_outs = model.train_function(ins)
 
-                outs = to_list(outs)
-                for l, o in zip(out_labels, outs):
+                batch_outs = to_list(batch_outs)
+                for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
                 callbacks.on_fit_batch_end(step_index, batch_logs)
@@ -191,9 +191,9 @@ def fit_loop(model, ins,
                 for i in indices_for_conversion_to_dense:
                     ins_batch[i] = ins_batch[i].toarray()
 
-                outs = model.train_function(ins_batch)
-                outs = to_list(outs)
-                for l, o in zip(out_labels, outs):
+                batch_outs = model.train_function(ins_batch)
+                batch_outs = to_list(batch_outs)
+                for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
                 callbacks.on_fit_batch_end(batch_index, batch_logs)
@@ -301,7 +301,7 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
             callbacks.on_predict_batch_end(step, batch_logs)
 
             if step == 0:
-                for batch_out in batch_outs:
+                for _ in batch_outs:
                     unconcatenated_outs.append([])
             for i, batch_out in enumerate(batch_outs):
                 unconcatenated_outs[i].append(batch_out)
