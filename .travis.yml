@@ -47,13 +47,6 @@ install:
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
-  # install PIL for preprocessing tests
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      conda install pil;
-    else
-      conda install Pillow;
-    fi
-
   - pip install -e .[tests]
 
   # install TensorFlow (CPU version).
