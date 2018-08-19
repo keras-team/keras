@@ -983,7 +983,9 @@ class Model(Network):
             else:
                 val_ins = val_x + val_y + val_sample_weights
 
-        elif validation_split and 0. < validation_split < 1.:
+        elif validation_split:
+            if not (0. < validation_split < 1.):
+                raise ValueError('`validation_split` should be between 0 and 1')
             if any(K.is_tensor(t) for t in x):
                 raise ValueError(
                     'If your data is in the form of symbolic tensors, '
