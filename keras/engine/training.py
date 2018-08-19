@@ -1214,9 +1214,9 @@ class Model(Network):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        self._make_train_function()
         inputs = self.prepare_inputs(x, y,
                                      sample_weight, class_weight, learning_phase=1.)
+        self._make_train_function()
         outputs = self.train_function(inputs)
         return unpack_singleton(outputs)
 
@@ -1248,8 +1248,8 @@ class Model(Network):
             and/or metrics). The attribute `model.metrics_names` will give you
             the display labels for the scalar outputs.
         """
-        self._make_test_function()
         inputs = self.prepare_inputs(x, y, sample_weight)
+        self._make_test_function()
         outputs = self.test_function(inputs)
         return unpack_singleton(outputs)
 
@@ -1262,8 +1262,8 @@ class Model(Network):
         # Returns
             Numpy array(s) of predictions.
         """
-        self._make_predict_function()
         inputs = self.prepare_inputs(x)
+        self._make_predict_function()
         outputs = self.predict_function(inputs)
         return unpack_singleton(outputs)
 
