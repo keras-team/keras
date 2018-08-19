@@ -835,6 +835,13 @@ class Model(Network):
             ins += [learning_phase]
         return ins
 
+    def prepare_inputs(self, *args, **kwargs):
+        learning_phase = kwargs.pop('learning_phase', 0.)
+        x, y, sample_weights = self._standardize_user_data(
+            *args, **kwargs)
+        ins = self._create_function_input(x, y, sample_weights, learning_phase)
+        return ins
+
     def prepare_validation_data(self, validation_data, **kwargs):
         if len(validation_data) == 2:
             val_x, val_y = validation_data
@@ -1169,13 +1176,6 @@ class Model(Network):
                                             callbacks=callbacks,
                                             steps=steps)
         return unpack_singleton(outs)
-
-    def prepare_inputs(self, *args, **kwargs):
-        learning_phase = kwargs.pop('learning_phase', 0.)
-        x, y, sample_weights = self._standardize_user_data(
-            *args, **kwargs)
-        ins = self._create_function_input(x, y, sample_weights, learning_phase)
-        return ins
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
