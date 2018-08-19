@@ -499,7 +499,7 @@ def evaluate_loop(model, f, ins, batch_size=None, verbose=0, steps=None, callbac
             callbacks.on_evaluate_batch_end(batch_index, batch_logs)
 
             if batch_index == 0:
-                for batch_out in enumerate(batch_outs):
+                for _ in enumerate(batch_outs):
                     outs.append(0.)
             for i, batch_out in enumerate(batch_outs):
                 if i in stateful_metric_indices:

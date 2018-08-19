@@ -244,11 +244,13 @@ def evaluate_generator(model, generator,
     try:
         while batch_index < steps:
             x, y, sample_weight = get_batch(generator)
+
             # build batch logs
             batch_logs = {}
             batch_size = get_batch_size(x)
             batch_logs['batch'] = batch_index
             batch_logs['size'] = batch_size
+
             callbacks.on_evaluate_batch_begin(batch_index, batch_logs)
 
             batch_outs = model.test_on_batch(x, y, sample_weight=sample_weight)

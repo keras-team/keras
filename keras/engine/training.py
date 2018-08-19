@@ -537,10 +537,9 @@ class Model(Network):
         if not hasattr(self, 'predict_function'):
             self.predict_function = None
         if self.predict_function is None:
+            inputs = self._feed_inputs[:]
             if self._uses_dynamic_learning_phase():
-                inputs = self._feed_inputs + [K.learning_phase()]
-            else:
-                inputs = self._feed_inputs
+                inputs += [K.learning_phase()]
             # Gets network outputs. Does not update weights.
             # Does update the network states.
             kwargs = getattr(self, '_function_kwargs', {})
@@ -648,11 +647,13 @@ class Model(Network):
                                class_weight=None,
                                check_array_lengths=True,
                                batch_size=None):
+        # todo: check_array_lengths arg?
         all_inputs = []
         if not self.built:
             # We need to use `x` to set the model inputs.
             # We type-check that `x` and `y` are either single arrays
             # or lists of arrays.
+            # todo ...and `y`? (is this if only to support prediction without compilation?)
             if isinstance(x, (list, tuple)):
                 if not all(isinstance(v, np.ndarray) or
                            K.is_tensor(v) for v in x):
