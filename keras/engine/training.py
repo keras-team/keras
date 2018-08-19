@@ -1467,6 +1467,7 @@ class Model(Network):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
+        self._make_test_function()
         return training_generator.evaluate_generator(
             self, generator,
             steps=steps,
@@ -1522,6 +1523,7 @@ class Model(Network):
             ValueError: In case the generator yields
                 data in an invalid format.
         """
+        self._make_predict_function()
         return training_generator.predict_generator(
             self, generator,
             steps=steps,
