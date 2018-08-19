@@ -34,4 +34,34 @@ class MyLayer(Layer):
         return (input_shape[0], self.output_dim)
 ```
 
+It is also possible to define Keras layers which have multiple input tensors and multiple ouput tensors. To do this, you should assume that the inputs and outputs of the methods `build(input_shape)`, `call(x)` and `compute_output_shape(input_shape)` are lists. Here is an example, similar to the one above:
+
+```python
+from keras import backend as K
+from keras.engine.topology import Layer
+import numpy as np
+
+class MyLayer(Layer):
+
+    def __init__(self, output_dim, **kwargs):
+        self.output_dim = output_dim
+        super(MyLayer, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        # Create a trainable weight variable for this layer.
+        self.kernel = self.add_weight(name='kernel',
+                                      shape=(input_shape[0][1], self.output_dim),
+                                      initializer='uniform',
+                                      trainable=True)
+        super(MyLayer, self).build(input_shape)  # Be sure to call this at the end
+
+    def call(self, x):
+        a, b = x
+        return [K.dot(a, self.kernel) + b, K.mean(b, axis=-1)]
+
+    def compute_output_shape(self, input_shape):
+        shape_a, shape_b = input_shape
+        return [(input_a[0], self.output_dim), shape_b[:-1]]
+```
+
 The existing Keras layers provide examples of how to implement almost anything. Never hesitate to read the source code!
