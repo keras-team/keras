@@ -52,6 +52,7 @@ RUN conda install -y python=${python_version} && \
       notebook \
       Pillow \
       pandas \
+      pydot \
       pygpu \
       pyyaml \
       scikit-learn \
