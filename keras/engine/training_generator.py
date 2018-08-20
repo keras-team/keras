@@ -120,7 +120,8 @@ def fit_generator(model,
                     batch_logs[l] = o
 
                 callbacks.on_fit_batch_end(batch_index, batch_logs)
-
+                if callback_model.stop_training:
+                    break
 
                 # Epoch finished.
                 if (batch_index == steps_per_epoch - 1) and do_validation:
@@ -140,9 +141,6 @@ def fit_generator(model,
                     # Same labels assumed.
                     for l, o in zip(out_labels, val_outs):
                         epoch_logs['val_' + l] = o
-
-                if callback_model.stop_training:
-                    break
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             if callback_model.stop_training:
