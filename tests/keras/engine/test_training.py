@@ -23,11 +23,13 @@ class RandomSequence(Sequence):
     def __init__(self, batch_size, sequence_length=12):
         self.batch_size = batch_size
         self.sequence_length = sequence_length
+        self.logs = []  # It will work for use_multiprocessing=False
 
     def __len__(self):
         return self.sequence_length
 
     def __getitem__(self, idx):
+        self.logs.append(idx)
         return ([np.random.random((self.batch_size, 3)),
                  np.random.random((self.batch_size, 3))],
                 [np.random.random((self.batch_size, 4)),
@@ -410,26 +412,31 @@ def test_model_methods():
                   sample_weight_mode=None)
     trained_epochs = []
     trained_batches = []
+    val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               steps_per_epoch=3,
                               epochs=5,
                               initial_epoch=0,
-                              validation_data=RandomSequence(4),
+                              validation_data=val_seq,
                               validation_steps=3,
+                              max_queue_size=1,
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(3)) * 5
+    assert len(val_seq.logs) <= 4 * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
     trained_epochs = []
     trained_batches = []
+    val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
                               initial_epoch=0,
-                              validation_data=RandomSequence(4),
+                              validation_data=val_seq,
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(12)) * 5
+    assert len(val_seq.logs) == 12 * 5
 
     # fit_generator will throw an exception
     # if steps is unspecified for regular generator
