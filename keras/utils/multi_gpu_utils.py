@@ -4,8 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from collections import Counter
-
 from ..layers.merge import concatenate
 from .. import backend as K
 from ..layers.core import Lambda
@@ -234,7 +232,12 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                     all_outputs[o].append(outputs[o])
 
     # Deduplicate output names to handle Siamese networks.
-    occurrences = Counter(model.output_names)
+    occurrences = {}
+    for n in model.output_names:
+        if n not in occurrences:
+            occurrences[n] = 1
+        else:
+            occurrences[n] += 1
     conflict_counter = {n: 0 for n, count in occurrences.items() if count > 1}
     output_names = []
     for n in model.output_names:
