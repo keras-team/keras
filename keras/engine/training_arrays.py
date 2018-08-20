@@ -71,6 +71,9 @@ def fit_loop(model, ins,
                                           steps=steps_per_epoch,
                                           steps_name='steps_per_epoch')
 
+    if num_train_samples is not None:
+        index_array = np.arange(num_train_samples)
+
     # prepare display labels.
     out_labels = model.metrics_names
     callback_metrics = out_labels
@@ -150,7 +153,7 @@ def fit_loop(model, ins,
                 for l, o in zip(out_labels, val_outs):
                     epoch_logs['val_' + l] = o
         else:
-            batch_generator = get_batch_generator(ins, num_train_samples, batch_size,
+            batch_generator = get_batch_generator(ins, index_array, batch_size,
                                                   shuffle=shuffle)
             for batch_index, batch_ins in enumerate(batch_generator):
                 size = get_batch_size(batch_ins)
@@ -283,7 +286,8 @@ def predict_loop(model, ins,
     else:
         # Sample-based predictions.
         outs = []
-        batch_generator = get_batch_generator(ins, num_samples, batch_size)
+        index_array = np.arange(num_samples)
+        batch_generator = get_batch_generator(ins, index_array, batch_size)
         for batch_index, batch_ins in enumerate(batch_generator):
             size = get_batch_size(batch_ins)
             batch_logs = {}
@@ -420,7 +424,8 @@ def evaluate_loop(model, ins,
             if i not in stateful_metric_indices:
                 outs[i] /= steps
     else:
-        batch_generator = get_batch_generator(ins, num_samples, batch_size)
+        index_array = np.arange(num_samples)
+        batch_generator = get_batch_generator(ins, index_array, batch_size)
         for batch_index, batch_ins in enumerate(batch_generator):
             size = get_batch_size(batch_ins)
             batch_logs = {}
@@ -454,14 +459,13 @@ def evaluate_loop(model, ins,
     return outs
 
 
-def get_batch_generator(ins, num_samples, batch_size, shuffle=False):
-    index_array = np.arange(num_samples)
+def get_batch_generator(ins, index_array, batch_size, shuffle=False):
     if shuffle == 'batch':
         index_array = batch_shuffle(index_array, batch_size)
     elif shuffle:
         np.random.shuffle(index_array)
 
-    batches = make_batches(num_samples, batch_size)
+    batches = make_batches(len(index_array), batch_size)
     for batch in batches:
         batch_start, batch_end = batch
         batch_ids = index_array[batch_start:batch_end]
