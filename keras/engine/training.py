@@ -835,6 +835,23 @@ class Model(Network):
             ins += [learning_phase]
         return ins
 
+    def prepare_validation_data(self, validation_data, **kwargs):
+        if len(validation_data) == 2:
+            val_x, val_y = validation_data
+            val_sample_weight = None
+        elif len(validation_data) == 3:
+            val_x, val_y, val_sample_weight = validation_data
+        else:
+            raise ValueError('When passing validation_data, it should be '
+                             'a tuple containing 2 (x_val, y_val) '
+                             'or 3 (x_val, y_val, val_sample_weights) '
+                             'items, however it contains %d items' %
+                             len(validation_data))
+        val_ins = self.prepare_inputs(val_x, val_y,
+                                      sample_weight=val_sample_weight,
+                                      **kwargs)
+        return val_ins
+
     def fit(self,
             x=None,
             y=None,
@@ -963,31 +980,15 @@ class Model(Network):
             sample_weight=sample_weight,
             class_weight=class_weight,
             batch_size=batch_size)
+
         # Prepare validation data.
-        do_validation = False
+        do_validation = bool(validation_data or
+                             validation_split or
+                             validation_steps)
+
         val_ins = None
         if validation_data:
-            do_validation = True
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
-            else:
-                raise ValueError('When passing validation_data, '
-                                 'it must contain 2 (x_val, y_val) '
-                                 'or 3 (x_val, y_val, val_sample_weights) '
-                                 'items, however it contains %d items' %
-                                 len(validation_data))
-
-            val_x, val_y, val_sample_weights = self._standardize_user_data(
-                val_x, val_y,
-                sample_weight=val_sample_weight,
-                batch_size=batch_size)
-            if self._uses_dynamic_learning_phase():
-                val_ins = val_x + val_y + val_sample_weights + [0.]
-            else:
-                val_ins = val_x + val_y + val_sample_weights
+            val_ins = self.prepare_validation_data(validation_data, batch_size=batch_size)
 
         elif validation_split:
             if not (0. < validation_split < 1.):
@@ -996,7 +997,6 @@ class Model(Network):
                 raise ValueError(
                     'If your data is in the form of symbolic tensors, '
                     'you cannot use `validation_split`.')
-            do_validation = True
             if hasattr(x[0], 'shape'):
                 split_at = int(int(x[0].shape[0]) * (1. - validation_split))
             else:
@@ -1012,15 +1012,15 @@ class Model(Network):
             val_ins = self._create_function_input(val_x, val_y, val_sample_weights, 0.)
 
         elif validation_steps:
-            do_validation = True
             if self._uses_dynamic_learning_phase():
                 val_ins = [0.]
+        else:
+            val_ins = []
 
         # Prepare input arrays and training function.
         ins = self._create_function_input(x, y, sample_weights, learning_phase=1.)
 
         self._make_train_function()
-
         if do_validation:
             self._make_test_function()
 

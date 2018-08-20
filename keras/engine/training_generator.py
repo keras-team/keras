@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from .training_utils import iter_sequence_infinite
-from .. import backend as K
+from . import training_arrays
 from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
 from ..utils.data_utils import OrderedEnqueuer
@@ -58,23 +58,7 @@ def fit_generator(model,
                 use_multiprocessing,
                 steps_arg='validation_steps')
         else:
-            # todo: share with training_array?
-            # Prepare data for validation
-            if len(validation_data) == 2:
-                val_x, val_y = validation_data
-                val_sample_weight = None
-            elif len(validation_data) == 3:
-                val_x, val_y, val_sample_weight = validation_data
-            else:
-                raise ValueError('`validation_data` should be a tuple '
-                                 '`(val_x, val_y, val_sample_weight)` '
-                                 'or `(val_x, val_y)`. Found: ' +
-                                 str(validation_data))
-            val_x, val_y, val_sample_weights = model._standardize_user_data(
-                val_x, val_y, val_sample_weight)
-            val_data = val_x + val_y + val_sample_weights
-            if model._uses_dynamic_learning_phase():
-                val_data += [0.]
+            val_ins = model.prepare_validation_data(validation_data)
 
     # prepare display labels.
     out_labels = model.metrics_names
@@ -92,7 +76,6 @@ def fit_generator(model,
                 count_param='steps',
                 stateful_metrics=model.stateful_metric_names))
     _callbacks += (callbacks or []) + [model.history]
-    callbacks_arg = callbacks
     callbacks = cbks.CallbackList(_callbacks)
 
     # it's possible to callback a different model than self:
@@ -113,7 +96,7 @@ def fit_generator(model,
     callback_model.stop_training = False
     if do_validation and not val_gen:
         for cbk in callbacks:
-            cbk.validation_data = val_data
+            cbk.validation_data = val_ins
 
     try:
         # Construct epoch logs.
@@ -151,16 +134,14 @@ def fit_generator(model,
                             val_generator,
                             validation_steps,
                             workers=0,
-                            callbacks=callbacks_arg)
+                            callbacks=callbacks)
                     else:
                         # No need for try/except because
                         # data has already been validated.
-                        val_outs = model.evaluate(
-                            val_x, val_y,
-                            batch_size=batch_size,
-                            sample_weight=val_sample_weights,
-                            verbose=0,
-                            callbacks=callbacks_arg)
+                        val_outs = training_arrays.evaluate_loop(model, val_ins,
+                                                                 batch_size=batch_size,
+                                                                 verbose=0,
+                                                                 callbacks=callbacks)
                     val_outs = to_list(val_outs)
                     # Same labels assumed.
                     for l, o in zip(out_labels, val_outs):
