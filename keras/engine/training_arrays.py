@@ -185,7 +185,11 @@ def fit_loop(model, ins,
     return model.history
 
 
-def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=None):
+def predict_loop(model, ins,
+                 batch_size=32,
+                 verbose=0,
+                 steps=None,
+                 callbacks=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
@@ -273,7 +277,8 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
                 unconcatenated_outs[i].append(batch_out)
             if callback_model.stop_predicting:
                 break
-        concatenated_outs = [np.concatenate(out, axis=0) for out in unconcatenated_outs]
+        concatenated_outs = [np.concatenate(out, axis=0)
+                             for out in unconcatenated_outs]
         return concatenated_outs
     else:
         # Sample-based predictions.
@@ -306,7 +311,11 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
         return outs
 
 
-def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=None):
+def evaluate_loop(model, ins,
+                  batch_size=None,
+                  verbose=0,
+                  steps=None,
+                  callbacks=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
