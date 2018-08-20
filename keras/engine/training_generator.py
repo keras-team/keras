@@ -174,14 +174,14 @@ def evaluate_generator(model, generator,
     else:
         stateful_metric_indices = []
 
-    outs_per_batch = []
-    batch_sizes = []
     enqueuer, generator, steps = init_generator(
         generator, steps,
         workers, max_queue_size,
         use_multiprocessing, wait_time=0.01)
     batch_generator = get_batch_generator(generator)
 
+    num_samples = 0
+    outs = []
     out_labels = ['val_' + n for n in model.metrics_names]
 
     _callbacks = []
@@ -215,6 +215,7 @@ def evaluate_generator(model, generator,
 
             # build batch logs
             batch_size = get_batch_size(x)
+            num_samples += batch_size
             batch_logs = {}
             batch_logs['batch'] = batch_index
             batch_logs['size'] = batch_size
@@ -230,8 +231,14 @@ def evaluate_generator(model, generator,
 
             callbacks.on_evaluate_batch_end(batch_index, batch_logs)
 
-            outs_per_batch.append(batch_outs)
-            batch_sizes.append(batch_size)
+            if batch_index == 0:
+                for _ in batch_outs:
+                    outs.append(0.)
+            for i, batch_out in enumerate(batch_outs):
+                if i in stateful_metric_indices:
+                    outs[i] = batch_out
+                else:
+                    outs[i] += batch_out * batch_size
             if callback_model.stop_evaluating:
                 break
 
@@ -239,14 +246,10 @@ def evaluate_generator(model, generator,
         if enqueuer is not None:
             enqueuer.stop()
 
-    averages = []
     for i in range(len(batch_outs)):
         if i not in stateful_metric_indices:
-            averages.append(np.average([out[i] for out in outs_per_batch],
-                                       weights=batch_sizes))
-        else:
-            averages.append(np.float64(outs_per_batch[-1][i]))
-    return averages
+            outs[i] /= num_samples
+    return outs
 
 
 def predict_generator(model, generator,
@@ -318,7 +321,6 @@ def predict_generator(model, generator,
 
             for i, out in enumerate(batch_outs):
                 unconcatenated_outs[i].append(out)
-
             if callback_model.stop_predicting:
                 break
 

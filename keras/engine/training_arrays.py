@@ -139,6 +139,7 @@ def fit_loop(model, ins,
                 batch_logs = {}
                 batch_logs['batch'] = step_index
                 batch_logs['size'] = 1
+
                 callbacks.on_fit_batch_begin(step_index, batch_logs)
 
                 batch_outs = model.train_function(ins)
@@ -166,6 +167,7 @@ def fit_loop(model, ins,
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
                 batch_logs['size'] = size
+
                 callbacks.on_fit_batch_begin(batch_index, batch_logs)
                 for i in indices_for_conversion_to_dense:
                     batch_ins[i] = batch_ins[i].toarray()
@@ -269,6 +271,7 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
             batch_logs = {}
             batch_logs['batch'] = step
             batch_logs['size'] = 1
+
             callbacks.on_predict_batch_begin(step, batch_logs)
 
             batch_outs = model.predict_function(ins)
@@ -415,7 +418,7 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
             callbacks.on_evaluate_batch_end(step, batch_logs)
 
             if step == 0:
-                for _ in enumerate(batch_outs):
+                for _ in batch_outs:
                     outs.append(0.)
             for i, batch_out in enumerate(batch_outs):
                 if i in stateful_metric_indices:
@@ -447,7 +450,7 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
             callbacks.on_evaluate_batch_end(batch_index, batch_logs)
 
             if batch_index == 0:
-                for _ in enumerate(batch_outs):
+                for _ in batch_outs:
                     outs.append(0.)
             for i, batch_out in enumerate(batch_outs):
                 if i in stateful_metric_indices:
