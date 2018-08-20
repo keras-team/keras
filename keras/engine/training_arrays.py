@@ -195,15 +195,14 @@ def fit_loop(model, ins,
                 if callback_model.stop_training:
                     break
 
-                if batch_index == len(batches) - 1:  # Last batch.
-                    if do_validation:
-                        val_outs = evaluate_loop(model, val_ins,
-                                                 batch_size=batch_size,
-                                                 verbose=0,
-                                                 callbacks=callbacks)
-                        # Same labels assumed.
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+            if do_validation:
+                val_outs = evaluate_loop(model, val_ins,
+                                         batch_size=batch_size,
+                                         verbose=0,
+                                         callbacks=callbacks)
+                # Same labels assumed.
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
         callbacks.on_epoch_end(epoch, epoch_logs)
         if callback_model.stop_training:
             break

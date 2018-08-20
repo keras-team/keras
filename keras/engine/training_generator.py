@@ -123,24 +123,23 @@ def fit_generator(model,
                 if callback_model.stop_training:
                     break
 
-                # Epoch finished.
-                if (batch_index == steps_per_epoch - 1) and do_validation:
-                    if val_gen:
-                        val_outs = evaluate_generator(
-                            model, val_generator,
-                            steps=validation_steps,
-                            workers=0,
-                            callbacks=callbacks)
-                    else:
-                        # No need for try/except because
-                        # data has already been validated.
-                        val_outs = training_arrays.evaluate_loop(model, val_ins,
-                                                                 batch_size=batch_size,
-                                                                 verbose=0,
-                                                                 callbacks=callbacks)
-                    # Same labels assumed.
-                    for l, o in zip(out_labels, val_outs):
-                        epoch_logs['val_' + l] = o
+            if do_validation:
+                if val_gen:
+                    val_outs = evaluate_generator(
+                        model, val_generator,
+                        steps=validation_steps,
+                        workers=0,
+                        callbacks=callbacks)
+                else:
+                    # No need for try/except because
+                    # data has already been validated.
+                    val_outs = training_arrays.evaluate_loop(model, val_ins,
+                                                             batch_size=batch_size,
+                                                             verbose=0,
+                                                             callbacks=callbacks)
+                # Same labels assumed.
+                for l, o in zip(out_labels, val_outs):
+                    epoch_logs['val_' + l] = o
 
             callbacks.on_epoch_end(epoch, epoch_logs)
             if callback_model.stop_training:
