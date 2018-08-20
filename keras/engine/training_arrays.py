@@ -13,8 +13,6 @@ from .training_utils import check_num_samples
 from .. import backend as K
 from .. import callbacks as cbks
 from ..utils.generic_utils import slice_arrays
-from ..utils.generic_utils import to_list
-from ..utils.generic_utils import unpack_singleton
 
 
 def fit_loop(model, ins,
@@ -147,7 +145,6 @@ def fit_loop(model, ins,
 
                 batch_outs = model.train_function(ins)
 
-                batch_outs = to_list(batch_outs)
                 for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
@@ -160,7 +157,6 @@ def fit_loop(model, ins,
                                          steps=validation_steps,
                                          verbose=0,
                                          callbacks=callbacks)
-                val_outs = to_list(val_outs)
                 # Same labels assumed.
                 for l, o in zip(out_labels, val_outs):
                     epoch_logs['val_' + l] = o
@@ -192,7 +188,6 @@ def fit_loop(model, ins,
                     ins_batch[i] = ins_batch[i].toarray()
 
                 batch_outs = model.train_function(ins_batch)
-                batch_outs = to_list(batch_outs)
                 for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
@@ -206,7 +201,6 @@ def fit_loop(model, ins,
                                                  batch_size=batch_size,
                                                  verbose=0,
                                                  callbacks=callbacks)
-                        val_outs = to_list(val_outs)
                         # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
@@ -296,7 +290,6 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
             callbacks.on_predict_batch_begin(step, batch_logs)
 
             batch_outs = model.predict_function(ins)
-            batch_outs = to_list(batch_outs)
 
             callbacks.on_predict_batch_end(step, batch_logs)
 
@@ -308,7 +301,7 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
             if callback_model.stop_predicting:
                 break
         concatenated_outs = [np.concatenate(out, axis=0) for out in unconcatenated_outs]
-        return unpack_singleton(concatenated_outs)
+        return concatenated_outs
     else:
         # Sample-based predictions.
         outs = []
@@ -331,7 +324,6 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
                 ins_batch[i] = ins_batch[i].toarray()
 
             batch_outs = model.predict_function(ins_batch)
-            batch_outs = to_list(batch_outs)
 
             callbacks.on_predict_batch_end(batch_index, batch_logs)
 
@@ -344,7 +336,7 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
                 outs[i][batch_start:batch_end] = batch_out
             if callback_model.stop_predicting:
                 break
-        return unpack_singleton(outs)
+        return outs
 
 
 def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=None):
@@ -441,7 +433,6 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
 
             batch_outs = model.test_function(ins)
 
-            batch_outs = to_list(batch_outs)
             for l, o in zip(out_labels, batch_outs):
                 batch_logs[l] = o
 
@@ -481,7 +472,6 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
 
             batch_outs = model.test_function(ins_batch)
 
-            batch_outs = to_list(batch_outs)
             for l, o in zip(out_labels, batch_outs):
                 batch_logs[l] = o
 
@@ -500,4 +490,4 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
         for i in range(len(outs)):
             if i not in stateful_metric_indices:
                 outs[i] /= num_samples
-    return unpack_singleton(outs)
+    return outs

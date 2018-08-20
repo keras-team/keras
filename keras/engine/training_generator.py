@@ -12,9 +12,6 @@ from . import training_arrays
 from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
 from ..utils.data_utils import OrderedEnqueuer
-from ..utils.generic_utils import Progbar
-from ..utils.generic_utils import to_list
-from ..utils.generic_utils import unpack_singleton
 from .. import callbacks as cbks
 
 
@@ -130,9 +127,9 @@ def fit_generator(model,
                 # Epoch finished.
                 if batch_index >= steps_per_epoch and do_validation:
                     if val_gen:
-                        val_outs = model.evaluate_generator(
-                            val_generator,
-                            validation_steps,
+                        val_outs = evaluate_generator(
+                            model, val_generator,
+                            steps=validation_steps,
                             workers=0,
                             callbacks=callbacks)
                     else:
@@ -142,7 +139,6 @@ def fit_generator(model,
                                                                  batch_size=batch_size,
                                                                  verbose=0,
                                                                  callbacks=callbacks)
-                    val_outs = to_list(val_outs)
                     # Same labels assumed.
                     for l, o in zip(out_labels, val_outs):
                         epoch_logs['val_' + l] = o
@@ -257,7 +253,7 @@ def evaluate_generator(model, generator,
                                        weights=batch_sizes))
         else:
             averages.append(np.float64(outs_per_batch[-1][i]))
-    return unpack_singleton(averages)
+    return averages
 
 
 def predict_generator(model, generator,
@@ -339,7 +335,7 @@ def predict_generator(model, generator,
             enqueuer.stop()
 
     concatenated_outs = [np.concatenate(out) for out in unconcatenated_outs]
-    return unpack_singleton(concatenated_outs)
+    return concatenated_outs
 
 
 def init_generator(generator, steps,

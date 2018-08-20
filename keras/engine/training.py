@@ -1103,11 +1103,12 @@ class Model(Network):
                                   sample_weight=sample_weight,
                                   batch_size=batch_size)
         self._make_test_function()
-        return training_arrays.evaluate_loop(self, ins,
+        outs = training_arrays.evaluate_loop(self, ins,
                                              batch_size=batch_size,
                                              verbose=verbose,
                                              steps=steps,
                                              callbacks=callbacks)
+        return unpack_singleton(outs)
 
     def predict(self, x,
                 batch_size=None,
@@ -1162,11 +1163,12 @@ class Model(Network):
                                  'Batch size: ' + str(batch_size) + '.')
 
         self._make_predict_function()
-        return training_arrays.predict_loop(self, ins,
+        outs = training_arrays.predict_loop(self, ins,
                                             batch_size=batch_size,
                                             verbose=verbose,
                                             callbacks=callbacks,
                                             steps=steps)
+        return unpack_singleton(outs)
 
     def prepare_inputs(self, *args, **kwargs):
         learning_phase = kwargs.pop('learning_phase', 0.)
@@ -1463,7 +1465,7 @@ class Model(Network):
                 data in an invalid format.
         """
         self._make_test_function()
-        return training_generator.evaluate_generator(
+        outs = training_generator.evaluate_generator(
             self, generator,
             steps=steps,
             max_queue_size=max_queue_size,
@@ -1471,6 +1473,7 @@ class Model(Network):
             use_multiprocessing=use_multiprocessing,
             verbose=verbose,
             callbacks=callbacks)
+        return unpack_singleton(outs)
 
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator,
@@ -1519,7 +1522,7 @@ class Model(Network):
                 data in an invalid format.
         """
         self._make_predict_function()
-        return training_generator.predict_generator(
+        outs = training_generator.predict_generator(
             self, generator,
             steps=steps,
             max_queue_size=max_queue_size,
@@ -1527,3 +1530,4 @@ class Model(Network):
             use_multiprocessing=use_multiprocessing,
             verbose=verbose,
             callbacks=callbacks)
+        return unpack_singleton(outs)
