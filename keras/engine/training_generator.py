@@ -97,8 +97,8 @@ def fit_generator(model,
 
     try:
         # Construct epoch logs.
-        epoch_logs = {}
         for epoch in range(initial_epoch, epochs):
+            epoch_logs = {}
             for m in model.stateful_metric_functions:
                 m.reset_states()
             callbacks.on_epoch_begin(epoch)
