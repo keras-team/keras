@@ -265,7 +265,7 @@ def predict_generator(model, generator,
         generator, steps,
         workers, max_queue_size,
         use_multiprocessing, wait_time=0.01)
-    batch_generator = get_batch_generator(generator, require_output=False)
+    batch_generator = get_batch_generator(generator, only_input=True)
 
     _callbacks = []
     if verbose == 1:
@@ -378,7 +378,7 @@ def init_generator(generator, steps,
     return enqueuer, output_generator, steps
 
 
-def get_batch_generator(generator, require_output=True):
+def get_batch_generator(generator, only_input=False):
     # todo: might break generators that (incorrectly) return list / np.array
     for generator_output in generator:
         y = sample_weight = None
@@ -390,12 +390,12 @@ def get_batch_generator(generator, require_output=True):
             else:
                 raise generator_output_error(generator_output)
         else:
-            if require_output:
-                raise generator_output_error(generator_output)
-            else:
+            if only_input:
                 # Assumes a generator that only
                 # yields inputs (not targets and sample weights).
                 x = generator_output
+            else:
+                raise generator_output_error(generator_output)
 
         yield x, y, sample_weight
 
