@@ -17,38 +17,27 @@ from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
 
 
-def fit_loop(model, f, ins,
+def fit_loop(model, ins,
              batch_size=None,
              epochs=100,
              verbose=1,
              callbacks=None,
-             val_f=None,
              val_ins=None,
              shuffle=True,
              initial_epoch=0,
              steps_per_epoch=None,
              validation_steps=None):
-    """Abstract fit function for `f(ins)`.
-
-    Assumes that f returns a list, labeled by out_labels.
+    """Abstract fit function to loop over data in batches and epochs.
 
     # Arguments
         model: Keras model instance.
-        f: Keras function returning a list of tensors
-        ins: List of tensors to be fed to `f`
-        out_labels: List of strings, display names of
-            the outputs of `f`
+        ins: List of tensors to be fed to the train function
         batch_size: Integer batch size or None if unknown.
         epochs: Number of times to iterate over the data
         verbose: Verbosity mode, 0, 1 or 2
         callbacks: List of callbacks to be called during training
-        val_f: Keras function to call for validation
-        val_ins: List of tensors to be fed to `val_f`
+        val_ins: List of tensors to be fed to the test function
         shuffle: Whether to shuffle the data at the beginning of each epoch
-        callback_metrics: List of strings, the display names of the metrics
-            passed to the callbacks. They should be the
-            concatenation of list the display names of the outputs of
-             `f` and the list of display names of the outputs of `f_val`.
         initial_epoch: Epoch at which to start training
             (useful for resuming a previous training run)
         steps_per_epoch: Total number of steps (batches of samples)
@@ -62,7 +51,7 @@ def fit_loop(model, f, ins,
         `History` object.
     """
     do_validation = False
-    if val_f and val_ins:
+    if val_ins:
         do_validation = True
         if (verbose and ins and
            hasattr(ins[0], 'shape') and hasattr(val_ins[0], 'shape')):
@@ -156,7 +145,7 @@ def fit_loop(model, f, ins,
                 batch_logs['size'] = 1
                 callbacks.on_fit_batch_begin(step_index, batch_logs)
 
-                outs = f(ins)
+                outs = model.train_function(ins)
 
                 outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
@@ -167,7 +156,7 @@ def fit_loop(model, f, ins,
                     break
 
             if do_validation:
-                val_outs = evaluate_loop(model, val_f, val_ins,
+                val_outs = evaluate_loop(model, val_ins,
                                          steps=validation_steps,
                                          verbose=0,
                                          callbacks=callbacks)
@@ -202,7 +191,7 @@ def fit_loop(model, f, ins,
                 for i in indices_for_conversion_to_dense:
                     ins_batch[i] = ins_batch[i].toarray()
 
-                outs = f(ins_batch)
+                outs = model.train_function(ins_batch)
                 outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
@@ -213,7 +202,7 @@ def fit_loop(model, f, ins,
 
                 if batch_index == len(batches) - 1:  # Last batch.
                     if do_validation:
-                        val_outs = evaluate_loop(model, val_f, val_ins,
+                        val_outs = evaluate_loop(model, val_ins,
                                                  batch_size=batch_size,
                                                  verbose=0,
                                                  callbacks=callbacks)
@@ -228,13 +217,12 @@ def fit_loop(model, f, ins,
     return model.history
 
 
-def predict_loop(model, f, ins, batch_size=32, verbose=0, callbacks=None, steps=None):
+def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
         model: Keras model instance.
-        f: Keras function returning a list of tensors.
-        ins: list of tensors to be fed to `f`.
+        ins: list of tensors to be fed to the predict function.
         batch_size: integer batch size.
         verbose: verbosity mode.
         steps: Total number of steps (batches of samples)
@@ -307,7 +295,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, callbacks=None, steps=
             batch_logs['size'] = 1
             callbacks.on_predict_batch_begin(step, batch_logs)
 
-            batch_outs = f(ins)
+            batch_outs = model.predict_function(ins)
             batch_outs = to_list(batch_outs)
 
             callbacks.on_predict_batch_end(step, batch_logs)
@@ -342,7 +330,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, callbacks=None, steps=
             for i in indices_for_conversion_to_dense:
                 ins_batch[i] = ins_batch[i].toarray()
 
-            batch_outs = f(ins_batch)
+            batch_outs = model.predict_function(ins_batch)
             batch_outs = to_list(batch_outs)
 
             callbacks.on_predict_batch_end(batch_index, batch_logs)
@@ -359,13 +347,12 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, callbacks=None, steps=
         return unpack_singleton(outs)
 
 
-def evaluate_loop(model, f, ins, batch_size=None, verbose=0, steps=None, callbacks=None):
+def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
         model: Keras model instance.
-        f: Keras function returning a list of tensors.
-        ins: list of tensors to be fed to `f`.
+        ins: list of tensors to be fed to the test function.
         batch_size: integer batch size or `None`.
         verbose: verbosity mode.
         steps: Total number of steps (batches of samples)
@@ -452,7 +439,8 @@ def evaluate_loop(model, f, ins, batch_size=None, verbose=0, steps=None, callbac
 
             callbacks.on_evaluate_batch_begin(step, batch_logs)
 
-            batch_outs = f(ins)
+            batch_outs = model.test_function(ins)
+
             batch_outs = to_list(batch_outs)
             for l, o in zip(out_labels, batch_outs):
                 batch_logs[l] = o
@@ -491,7 +479,8 @@ def evaluate_loop(model, f, ins, batch_size=None, verbose=0, steps=None, callbac
             for i in indices_for_conversion_to_dense:
                 ins_batch[i] = ins_batch[i].toarray()
 
-            batch_outs = f(ins_batch)
+            batch_outs = model.test_function(ins_batch)
+
             batch_outs = to_list(batch_outs)
             for l, o in zip(out_labels, batch_outs):
                 batch_logs[l] = o

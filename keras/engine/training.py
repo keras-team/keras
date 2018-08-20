@@ -959,6 +959,7 @@ class Model(Network):
             batch_size=batch_size)
         # Prepare validation data.
         do_validation = False
+        val_ins = None
         if validation_data:
             do_validation = True
             if len(validation_data) == 2:
@@ -1015,22 +1016,16 @@ class Model(Network):
         else:
             ins = x + y + sample_weights
         self._make_train_function()
-        f = self.train_function
 
         if do_validation:
             self._make_test_function()
-            val_f = self.test_function
-        else:
-            val_f = None
-            val_ins = []
 
         # Delegate logic to `fit_loop`.
-        return training_arrays.fit_loop(self, f, ins,
+        return training_arrays.fit_loop(self, ins,
                                         batch_size=batch_size,
                                         epochs=epochs,
                                         verbose=verbose,
                                         callbacks=callbacks,
-                                        val_f=val_f,
                                         val_ins=val_ins,
                                         shuffle=shuffle,
                                         initial_epoch=initial_epoch,
@@ -1109,8 +1104,7 @@ class Model(Network):
         else:
             ins = x + y + sample_weights
         self._make_test_function()
-        f = self.test_function
-        return training_arrays.evaluate_loop(self, f, ins,
+        return training_arrays.evaluate_loop(self, ins,
                                              batch_size=batch_size,
                                              verbose=verbose,
                                              steps=steps,
@@ -1170,8 +1164,7 @@ class Model(Network):
         else:
             ins = x
         self._make_predict_function()
-        f = self.predict_function
-        return training_arrays.predict_loop(self, f, ins,
+        return training_arrays.predict_loop(self, ins,
                                             batch_size=batch_size,
                                             verbose=verbose,
                                             callbacks=callbacks,
