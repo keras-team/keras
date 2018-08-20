@@ -72,8 +72,6 @@ def fit_loop(model, ins,
                                           batch_size=batch_size,
                                           steps=steps_per_epoch,
                                           steps_name='steps_per_epoch')
-    if num_train_samples is not None:
-        index_array = np.arange(num_train_samples)
 
     # prepare display labels.
     out_labels = model.metrics_names
@@ -161,33 +159,18 @@ def fit_loop(model, ins,
                 for l, o in zip(out_labels, val_outs):
                     epoch_logs['val_' + l] = o
         else:
-            if shuffle == 'batch':
-                index_array = batch_shuffle(index_array, batch_size)
-            elif shuffle:
-                np.random.shuffle(index_array)
-
-            batches = make_batches(num_train_samples, batch_size)
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                try:
-                    if isinstance(ins[-1], float):
-                        # Do not slice the training phase flag.
-                        ins_batch = slice_arrays(
-                            ins[:-1], batch_ids) + [ins[-1]]
-                    else:
-                        ins_batch = slice_arrays(ins, batch_ids)
-                except TypeError:
-                    raise TypeError('TypeError while preparing batch. '
-                                    'If using HDF5 input data, '
-                                    'pass shuffle="batch".')
+            batch_generator = get_batch_generator(ins, num_train_samples, batch_size,
+                                                  shuffle=shuffle)
+            for batch_index, batch_ins in enumerate(batch_generator):
+                size = get_batch_size(batch_ins)
                 batch_logs = {}
                 batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
+                batch_logs['size'] = size
                 callbacks.on_fit_batch_begin(batch_index, batch_logs)
                 for i in indices_for_conversion_to_dense:
-                    ins_batch[i] = ins_batch[i].toarray()
+                    batch_ins[i] = batch_ins[i].toarray()
 
-                batch_outs = model.train_function(ins_batch)
+                batch_outs = model.train_function(batch_ins)
                 for l, o in zip(out_labels, batch_outs):
                     batch_logs[l] = o
 
@@ -304,25 +287,18 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
     else:
         # Sample-based predictions.
         outs = []
-        batches = make_batches(num_samples, batch_size)
-        index_array = np.arange(num_samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            # todo: wrap in try? (see fit_loop)
-            if ins and isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = slice_arrays(ins, batch_ids)
+        batch_generator = get_batch_generator(ins, num_samples, batch_size)
+        for batch_index, batch_ins in enumerate(batch_generator):
+            size = get_batch_size(batch_ins)
             batch_logs = {}
             batch_logs['batch'] = batch_index
-            batch_logs['size'] = len(batch_ids)
+            batch_logs['size'] = size
 
             callbacks.on_predict_batch_begin(batch_index, batch_logs)
             for i in indices_for_conversion_to_dense:
-                ins_batch[i] = ins_batch[i].toarray()
+                batch_ins[i] = batch_ins[i].toarray()
 
-            batch_outs = model.predict_function(ins_batch)
+            batch_outs = model.predict_function(batch_ins)
 
             callbacks.on_predict_batch_end(batch_index, batch_logs)
 
@@ -332,7 +308,8 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
                     shape = (num_samples,) + batch_out.shape[1:]
                     outs.append(np.zeros(shape, dtype=batch_out.dtype))
             for i, batch_out in enumerate(batch_outs):
-                outs[i][batch_start:batch_end] = batch_out
+                start = batch_index * batch_size
+                outs[i][start:start + size] = batch_out
             if callback_model.stop_predicting:
                 break
         return outs
@@ -451,25 +428,18 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
             if i not in stateful_metric_indices:
                 outs[i] /= steps
     else:
-        batches = make_batches(num_samples, batch_size)
-        index_array = np.arange(num_samples)
-        for batch_index, (batch_start, batch_end) in enumerate(batches):
-            batch_ids = index_array[batch_start:batch_end]
-            # todo: wrap in try? (see fit_loop)
-            if isinstance(ins[-1], float):
-                # Do not slice the training phase flag.
-                ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
-            else:
-                ins_batch = slice_arrays(ins, batch_ids)
+        batch_generator = get_batch_generator(ins, num_samples, batch_size)
+        for batch_index, batch_ins in enumerate(batch_generator):
+            size = get_batch_size(batch_ins)
             batch_logs = {}
             batch_logs['batch'] = batch_index
-            batch_logs['size'] = len(batch_ids)
+            batch_logs['size'] = size
 
             callbacks.on_evaluate_batch_begin(batch_index, batch_logs)
             for i in indices_for_conversion_to_dense:
-                ins_batch[i] = ins_batch[i].toarray()
+                batch_ins[i] = batch_ins[i].toarray()
 
-            batch_outs = model.test_function(ins_batch)
+            batch_outs = model.test_function(batch_ins)
 
             for l, o in zip(out_labels, batch_outs):
                 batch_logs[l] = o
@@ -483,10 +453,39 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
                 if i in stateful_metric_indices:
                     outs[i] = batch_out
                 else:
-                    outs[i] += batch_out * len(batch_ids)
+                    outs[i] += batch_out * size
             if callback_model.stop_evaluating:
                 break
         for i in range(len(outs)):
             if i not in stateful_metric_indices:
                 outs[i] /= num_samples
     return outs
+
+
+def get_batch_generator(ins, num_samples, batch_size, shuffle=False):
+    index_array = np.arange(num_samples)
+    if shuffle == 'batch':
+        index_array = batch_shuffle(index_array, batch_size)
+    elif shuffle:
+        np.random.shuffle(index_array)
+
+    batches = make_batches(num_samples, batch_size)
+    for batch in batches:
+        batch_start, batch_end = batch
+        batch_ids = index_array[batch_start:batch_end]
+        try:
+            if isinstance(ins[-1], float):
+                # Do not slice the training phase flag.
+                batch_ins = slice_arrays(
+                    ins[:-1], batch_ids) + [ins[-1]]
+            else:
+                batch_ins = slice_arrays(ins, batch_ids)
+        except TypeError:
+            raise TypeError('TypeError while preparing batch. '
+                            'If using HDF5 input data, '
+                            'pass shuffle="batch".')
+        yield batch_ins
+
+
+def get_batch_size(batch_ins):
+    return batch_ins[0].shape[0]
