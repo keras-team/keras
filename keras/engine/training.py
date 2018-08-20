@@ -7,6 +7,7 @@ from __future__ import print_function
 import warnings
 import copy
 import numpy as np
+from scipy.sparse import issparse
 
 from .network import Network
 from .base_layer import Layer
@@ -858,6 +859,19 @@ class Model(Network):
                                       sample_weight=val_sample_weight,
                                       **kwargs)
         return val_ins
+
+    def get_sparse_conversion_indices(self, ins, only_input=False):
+        # To prevent a slowdown,
+        # we find beforehand the arrays that need conversion.
+        feed = self._feed_inputs[:]
+        if not only_input:
+            feed += (self._feed_targets +
+                     self._feed_sample_weights)
+        indices_for_conversion_to_dense = []
+        for i in range(len(feed)):
+            if issparse(ins[i]) and not K.is_sparse(feed[i]):
+                indices_for_conversion_to_dense.append(i)
+        return indices_for_conversion_to_dense
 
     def fit(self,
             x=None,

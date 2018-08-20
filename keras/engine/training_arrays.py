@@ -5,12 +5,10 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-from scipy.sparse import issparse
 
 from .training_utils import batch_shuffle
 from .training_utils import make_batches
 from .training_utils import check_num_samples
-from .. import backend as K
 from .. import callbacks as cbks
 from ..utils.generic_utils import slice_arrays
 
@@ -118,7 +116,7 @@ def fit_loop(model, ins,
     for cbk in callbacks:
         cbk.validation_data = val_ins
 
-    indices_for_conversion_to_dense = get_sparse_conversion_indices(ins, model)
+    indices_for_conversion_to_dense = model.get_sparse_conversion_indices(ins)
 
     for epoch in range(initial_epoch, epochs):
         # Reset stateful metrics
@@ -246,8 +244,8 @@ def predict_loop(model, ins, batch_size=32, verbose=0, callbacks=None, steps=Non
     for cbk in callbacks:
         cbk.validation_data = ins
 
-    indices_for_conversion_to_dense = get_sparse_conversion_indices(ins, model,
-                                                                    only_input=True)
+    indices_for_conversion_to_dense = model.get_sparse_conversion_indices(
+        ins, only_input=True)
 
     if steps is not None:
         # Step-based predictions.
@@ -382,7 +380,7 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
     for cbk in callbacks:
         cbk.validation_data = ins
 
-    indices_for_conversion_to_dense = get_sparse_conversion_indices(ins, model)
+    indices_for_conversion_to_dense = model.get_sparse_conversion_indices(ins)
 
     if steps is not None:
         for step in range(steps):
@@ -445,20 +443,6 @@ def evaluate_loop(model, ins, batch_size=None, verbose=0, steps=None, callbacks=
             if i not in stateful_metric_indices:
                 outs[i] /= num_samples
     return outs
-
-
-def get_sparse_conversion_indices(ins, model, only_input=False):
-    # To prevent a slowdown,
-    # we find beforehand the arrays that need conversion.
-    feed = model._feed_inputs[:]
-    if not only_input:
-        feed += (model._feed_targets +
-                 model._feed_sample_weights)
-    indices_for_conversion_to_dense = []
-    for i in range(len(feed)):
-        if issparse(ins[i]) and not K.is_sparse(feed[i]):
-            indices_for_conversion_to_dense.append(i)
-    return indices_for_conversion_to_dense
 
 
 def get_batch_generator(ins, num_samples, batch_size, shuffle=False):
