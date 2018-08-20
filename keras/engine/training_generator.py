@@ -378,8 +378,7 @@ def init_generator(generator, steps,
 
 def get_batch_generator(generator, require_output=True):
     # todo: might break generators that (incorrectly) return list / np.array
-    while True:
-        generator_output = next(generator)
+    for generator_output in generator:
         y = sample_weight = None
         if isinstance(generator_output, tuple):
             if len(generator_output) == 2:
