@@ -6,10 +6,10 @@ and 79% after 15 epochs, and overfitting after 20 epochs
 
 With Data Augmentation:
 It gets to 75% validation accuracy in 10 epochs,
-and 79% after 15 epochs, and 83% after 30 epcohs.
-In my test, highest validation accuracy is 83.79% after 50 epcohs.
+and 79% after 15 epochs, and 83% after 30 epochs.
+In my test, highest validation accuracy is 83.79% after 50 epochs.
 
-This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
+This is a fast Implement, just 20s/epoch with a gtx 1070 gpu.
 """
 
 from __future__ import print_function
