@@ -107,7 +107,11 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
         for (k, k1) in zip(range(pool_size[0]), range(-pool_size[0], 0)):
             for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
                 for (m, m1) in zip(range(pool_size[2]), range(-pool_size[2], 0)):
-                    y.append(x[:, :, k:k1:strides[0], l:l1:strides[1], m:m1:strides[2]])
+                    y.append(x[:,
+                               :,
+                               k:k1:strides[0],
+                               l:l1:strides[1],
+                               m:m1:strides[2]])
     y = np.stack(y, axis=-1)
     if pool_mode == 'avg':
         y = np.mean(np.ma.masked_invalid(y), axis=-1).data
