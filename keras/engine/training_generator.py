@@ -111,7 +111,7 @@ def fit_generator(model,
                 if isinstance(val_data, Sequence):
                     val_enqueuer = OrderedEnqueuer(val_data,
                                                    use_multiprocessing=use_multiprocessing)
-                    validation_steps = len(val_data)
+                    validation_steps = validation_steps or len(val_data)
                 else:
                     val_enqueuer = GeneratorEnqueuer(val_data,
                                                      use_multiprocessing=use_multiprocessing)
