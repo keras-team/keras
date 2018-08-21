@@ -7,12 +7,11 @@ from __future__ import print_function
 import warnings
 import numpy as np
 
+from .training_arrays import init_callback_list, evaluate_loop
 from .training_utils import iter_sequence_infinite
-from . import training_arrays
 from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
 from ..utils.data_utils import OrderedEnqueuer
-from .. import callbacks as cbks
 
 
 def fit_generator(model,
@@ -63,24 +62,10 @@ def fit_generator(model,
     if do_validation:
         callback_metrics += ['val_' + n for n in out_labels]
 
-    # prepare callbacks
-    model.history = cbks.History()
-    _callbacks = [cbks.BaseLogger(
-        stateful_metrics=model.stateful_metric_names)]
-    if verbose:
-        _callbacks.append(
-            cbks.ProgbarLogger(
-                count_param='steps',
-                stateful_metrics=model.stateful_metric_names))
-    _callbacks += (callbacks or []) + [model.history]
-    callbacks = cbks.CallbackList(_callbacks)
+    callbacks, callback_model = init_callback_list(model, callbacks,
+                                                   steps_per_epoch, verbose,
+                                                   training=True)
 
-    # it's possible to callback a different model than self:
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
-    callbacks.set_model(callback_model)
     callbacks.set_params({
         'epochs': epochs,
         'steps': steps_per_epoch,
@@ -133,10 +118,10 @@ def fit_generator(model,
                 else:
                     # No need for try/except because
                     # data has already been validated.
-                    val_outs = training_arrays.evaluate_loop(model, val_ins,
-                                                             batch_size=batch_size,
-                                                             verbose=0,
-                                                             callbacks=callbacks)
+                    val_outs = evaluate_loop(model, val_ins,
+                                             batch_size=batch_size,
+                                             verbose=0,
+                                             callbacks=callbacks)
                 # Same labels assumed.
                 for l, o in zip(out_labels, val_outs):
                     epoch_logs['val_' + l] = o
@@ -184,24 +169,10 @@ def evaluate_generator(model, generator,
     outs = []
     out_labels = ['val_' + n for n in model.metrics_names]
 
-    _callbacks = []
-    if verbose == 1:
-        _callbacks.append(
-            cbks.ProgbarLogger(
-                count_param='val_steps',
-                stateful_metrics=model.stateful_metric_names))
+    callbacks, callback_model = init_callback_list(model, callbacks,
+                                                   steps, verbose,
+                                                   param_prefix='val_')
 
-    _callbacks += callbacks or []
-    callbacks = cbks.CallbackList(_callbacks)
-
-    # it's possible to callback a different model than itself
-    # (used by Sequential models)
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
-
-    callbacks.set_model(callback_model)
     callbacks.set_params({
         'val_steps': steps,
         'val_metrics': out_labels,
@@ -267,24 +238,9 @@ def predict_generator(model, generator,
         use_multiprocessing, wait_time=0.01)
     batch_generator = get_batch_generator(generator, only_input=True)
 
-    _callbacks = []
-    if verbose == 1:
-        _callbacks.append(
-            cbks.ProgbarLogger(
-                count_param='pred_steps',
-                stateful_metrics=model.stateful_metric_names))
+    callbacks, callback_model = init_callback_list(model, callbacks, steps, verbose,
+                                                   param_prefix='pred_')
 
-    _callbacks += callbacks or []
-    callbacks = cbks.CallbackList(_callbacks)
-
-    # it's possible to callback a different model than itself
-    # (used by Sequential models)
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
-
-    callbacks.set_model(callback_model)
     callbacks.set_params({
         'pred_steps': steps,
         'verbose': verbose

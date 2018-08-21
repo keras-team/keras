@@ -80,30 +80,10 @@ def fit_loop(model, ins,
     if do_validation:
         callback_metrics += ['val_' + n for n in out_labels]
 
-    # prepare callbacks
-    model.history = cbks.History()
-    _callbacks = [cbks.BaseLogger(
-        stateful_metrics=model.stateful_metric_names)]
-    if verbose:
-        if steps_per_epoch is not None:
-            count_mode = 'steps'
-        else:
-            count_mode = 'samples'
-        _callbacks.append(
-            cbks.ProgbarLogger(
-                count_mode,
-                stateful_metrics=model.stateful_metric_names))
-    _callbacks += (callbacks or []) + [model.history]
-    callbacks = cbks.CallbackList(_callbacks)
+    callbacks, callback_model = init_callback_list(model, callbacks,
+                                                   steps_per_epoch, verbose,
+                                                   training=True)
 
-    # it's possible to callback a different model than itself
-    # (used by Sequential models)
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
-
-    callbacks.set_model(callback_model)
     callbacks.set_params({
         'batch_size': batch_size,
         'epochs': epochs,
@@ -217,29 +197,10 @@ def predict_loop(model, ins,
                                     steps=steps,
                                     steps_name='steps')
 
-    if steps is not None:
-        count_param = 'pred_steps'
-    else:
-        count_param = 'pred_samples'
+    callbacks, callback_model = init_callback_list(model, callbacks,
+                                                   steps, verbose,
+                                                   param_prefix='pred_')
 
-    _callbacks = []
-    if verbose == 1:
-        _callbacks.append(
-            cbks.ProgbarLogger(
-                count_param=count_param,
-                stateful_metrics=model.stateful_metric_names))
-
-    _callbacks += callbacks or []
-    callbacks = cbks.CallbackList(_callbacks)
-
-    # it's possible to callback a different model than itself
-    # (used by Sequential models)
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
-
-    callbacks.set_model(callback_model)
     callbacks.set_params({
         'batch_size': batch_size,
         'pred_steps': steps,
@@ -355,32 +316,13 @@ def evaluate_loop(model, ins,
                                     steps=steps,
                                     steps_name='steps')
 
-    if steps is not None:
-        count_param = 'val_steps'
-    else:
-        count_param = 'val_samples'
-
-    _callbacks = []
-    if verbose == 1:
-        _callbacks.append(
-            cbks.ProgbarLogger(
-                count_param=count_param,
-                stateful_metrics=model.stateful_metric_names))
-
-    _callbacks += callbacks or []
-    callbacks = cbks.CallbackList(_callbacks)
-
-    # it's possible to callback a different model than itself
-    # (used by Sequential models)
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
+    callbacks, callback_model = init_callback_list(model, callbacks,
+                                                   steps, verbose,
+                                                   param_prefix='val_')
 
     outs = []
     out_labels = ['val_' + n for n in model.metrics_names]
 
-    callbacks.set_model(callback_model)
     callbacks.set_params({
         'batch_size': batch_size,
         'val_steps': steps,
@@ -457,6 +399,41 @@ def evaluate_loop(model, ins,
             if i not in stateful_metric_indices:
                 outs[i] /= num_samples
     return outs
+
+
+def init_callback_list(model, callbacks, steps, verbose,
+                       training=False,
+                       param_prefix=''):
+    count_param = param_prefix
+    if steps is not None:
+        count_param += 'steps'
+    else:
+        count_param += 'samples'
+
+    _callbacks = []
+    if training:
+        _callbacks += [cbks.BaseLogger(
+            stateful_metrics=model.stateful_metric_names)]
+    if verbose == 1:
+        _callbacks.append(
+            cbks.ProgbarLogger(
+                count_param=count_param,
+                stateful_metrics=model.stateful_metric_names))
+    _callbacks += callbacks or []
+    if training:
+        model.history = cbks.History()
+        _callbacks += [model.history]
+    callbacks = cbks.CallbackList(_callbacks)
+
+    # it's possible to callback a different model than itself
+    # (used by Sequential models)
+    if hasattr(model, 'callback_model') and model.callback_model:
+        callback_model = model.callback_model
+    else:
+        callback_model = model
+
+    callbacks.set_model(callback_model)
+    return callbacks, callback_model
 
 
 def get_batch_generator(ins, index_array, batch_size, shuffle=False):
