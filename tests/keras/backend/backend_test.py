@@ -207,21 +207,19 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 class TestBackend(object):
 
     def test_is_keras_tensor(self):
-        for k in BACKENDS:
-            np_var = np.array([1, 2])
-            with pytest.raises(ValueError):
-                k.is_keras_tensor(np_var)
+        np_var = np.array([1, 2])
+        with pytest.raises(ValueError):
+            K.is_keras_tensor(np_var)
 
-            keras_var = k.variable(np_var)
-            assert k.is_keras_tensor(keras_var) is False
-            keras_placeholder = k.placeholder(shape=(2, 4, 5))
-            assert k.is_keras_tensor(keras_placeholder) is False
+        keras_var = K.variable(np_var)
+        assert K.is_keras_tensor(keras_var) is False
+        keras_placeholder = K.placeholder(shape=(2, 4, 5))
+        assert K.is_keras_tensor(keras_placeholder) is False
 
     def test_set_learning_phase(self):
         # not supported learning_phase
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.set_learning_phase(2)
+        with pytest.raises(ValueError):
+            K.set_learning_phase(2)
 
     def test_eye(self):
         z_list = [k.eval(k.eye(3)) for k in BACKENDS]
