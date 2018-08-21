@@ -879,11 +879,10 @@ class TestBackend(object):
         '''
         Check if K.logsumexp works properly for values close to one.
         '''
-        for k in BACKENDS:
-            x = k.variable(x_np)
-            assert_allclose(k.eval(k.logsumexp(x, axis=axis, keepdims=keepdims)),
-                            np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
-                            rtol=1e-5)
+        x = K.variable(x_np)
+        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
+                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
+                        rtol=1e-5)
 
     def test_logsumexp_optim(self):
         '''
@@ -936,9 +935,8 @@ class TestBackend(object):
             assert np.abs(z_list[i].mean() - z_list[i + 1].mean()) < 0.05
 
         # Test invalid use cases
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                z = k.dropout(k.variable(val), level=-0.5)
+        with pytest.raises(ValueError):
+            z = K.dropout(K.variable(val), level=-0.5)
 
     def test_nn_operations(self):
         check_single_tensor_operation('relu', (4, 2), BACKENDS, alpha=0.1, max_value=0.5)
@@ -1176,64 +1174,60 @@ class TestBackend(object):
 
     def test_random_normal(self):
         # test standard normal as well as a normal with a different set of parameters
-        for k in BACKENDS:
-            for mean, std in [(0., 1.), (-10., 5.)]:
-                rand = k.eval(k.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
-                assert rand.shape == (300, 200)
-                assert np.abs(np.mean(rand) - mean) < std * 0.015
-                assert np.abs(np.std(rand) - std) < std * 0.015
+        for mean, std in [(0., 1.), (-10., 5.)]:
+            rand = K.eval(K.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
+            assert rand.shape == (300, 200)
+            assert np.abs(np.mean(rand) - mean) < std * 0.015
+            assert np.abs(np.std(rand) - std) < std * 0.015
 
-                # test that random_normal also generates different values when used within a function
-                r = k.random_normal((1,), mean=mean, stddev=std, seed=1337)
-                samples = [k.eval(r) for _ in range(60000)]
-                assert np.abs(np.mean(samples) - mean) < std * 0.015
-                assert np.abs(np.std(samples) - std) < std * 0.015
+            # test that random_normal also generates different values when used within a function
+            r = K.random_normal((1,), mean=mean, stddev=std, seed=1337)
+            samples = [K.eval(r) for _ in range(60000)]
+            assert np.abs(np.mean(samples) - mean) < std * 0.015
+            assert np.abs(np.std(samples) - std) < std * 0.015
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
-        for k in BACKENDS:
-            rand = k.eval(k.random_uniform((200, 100), min_val, max_val))
-            assert rand.shape == (200, 100)
-            assert np.abs(np.mean(rand)) < 0.015
-            assert max_val - 0.015 < np.max(rand) <= max_val
-            assert min_val + 0.015 > np.min(rand) >= min_val
+        rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
+        assert rand.shape == (200, 100)
+        assert np.abs(np.mean(rand)) < 0.015
+        assert max_val - 0.015 < np.max(rand) <= max_val
+        assert min_val + 0.015 > np.min(rand) >= min_val
 
-            r = k.random_uniform((1,), minval=min_val, maxval=max_val)
-            samples = [k.eval(r) for _ in range(20000)]
-            assert np.abs(np.mean(samples)) < 0.015
-            assert max_val - 0.015 < np.max(samples) <= max_val
-            assert min_val + 0.015 > np.min(samples) >= min_val
+        r = K.random_uniform((1,), minval=min_val, maxval=max_val)
+        samples = [K.eval(r) for _ in range(20000)]
+        assert np.abs(np.mean(samples)) < 0.015
+        assert max_val - 0.015 < np.max(samples) <= max_val
+        assert min_val + 0.015 > np.min(samples) >= min_val
 
     def test_random_binomial(self):
         p = 0.5
-        for k in BACKENDS:
-            rand = k.eval(k.random_binomial((200, 100), p))
-            assert rand.shape == (200, 100)
-            assert np.abs(np.mean(rand) - p) < 0.015
-            assert np.max(rand) == 1
-            assert np.min(rand) == 0
+        rand = K.eval(K.random_binomial((200, 100), p))
+        assert rand.shape == (200, 100)
+        assert np.abs(np.mean(rand) - p) < 0.015
+        assert np.max(rand) == 1
+        assert np.min(rand) == 0
 
-            r = k.random_binomial((1,), p)
-            samples = [k.eval(r) for _ in range(20000)]
-            assert np.abs(np.mean(samples) - p) < 0.015
-            assert np.max(samples) == 1
-            assert np.min(samples) == 0
+        r = K.random_binomial((1,), p)
+        samples = [K.eval(r) for _ in range(20000)]
+        assert np.abs(np.mean(samples) - p) < 0.015
+        assert np.max(samples) == 1
+        assert np.min(samples) == 0
 
     def test_truncated_normal(self):
         mean = 0.
         std = 1.
         min_val = -2.
         max_val = 2.
-        for k in BACKENDS:
-            rand = k.eval(k.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
-            assert rand.shape == (300, 200)
-            assert np.abs(np.mean(rand) - mean) < 0.015
-            assert np.max(rand) <= max_val
-            assert np.min(rand) >= min_val
+        rand = K.eval(K.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
+        assert rand.shape == (300, 200)
+        assert np.abs(np.mean(rand) - mean) < 0.015
+        assert np.max(rand) <= max_val
+        assert np.min(rand) >= min_val
 
-            # assumption in initializers.VarianceScaling
-            assert np.abs(np.std(rand) - std * 0.87962) < 0.015
+        # assumption in initializers.VarianceScaling
+        assert np.abs(np.std(rand) - std * 0.87962) < 0.015
 
     def test_conv_invalid_use(self):
         dummy_x_1d = K.variable(np.ones((4, 8, 2)))
@@ -1309,10 +1303,9 @@ class TestBackend(object):
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.resize_images(k.variable(xval), 2, 2,
-                                data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.resize_images(K.variable(xval), 2, 2,
+                            data_format='channels_middle')
 
     def test_resize_volumes(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1330,10 +1323,9 @@ class TestBackend(object):
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.resize_volumes(k.variable(xval), 2, 2, 2,
-                                 data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.resize_volumes(K.variable(xval), 2, 2, 2,
+                             data_format='channels_middle')
 
     def test_temporal_padding(self):
         check_single_tensor_operation('temporal_padding', (4, 3, 3),
@@ -1352,17 +1344,16 @@ class TestBackend(object):
             check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
             # Check handling of dynamic shapes.
-            for k in BACKENDS:
+            for k in [KTF, KTH]:
                 x = k.placeholder(shape=(1, None, None, 1))
                 y = k.spatial_2d_padding(x, padding=padding, data_format='channels_last')
                 assert k.int_shape(y) == (1, None, None, 1)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.spatial_2d_padding(k.variable(xval), padding=padding,
-                                     data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.spatial_2d_padding(K.variable(xval), padding=padding,
+                                 data_format='channels_middle')
 
     def test_spatial_3d_padding(self):
         padding = ((1, 2), (2, 1), (1, 2))
@@ -1375,17 +1366,16 @@ class TestBackend(object):
             check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
             # Check handling of dynamic shapes.
-            for k in BACKENDS:
+            for k in [KTF, KTH]:
                 x = k.placeholder(shape=(1, None, None, None, 1))
                 y = k.spatial_3d_padding(x, padding=padding, data_format='channels_last')
                 assert k.int_shape(y) == (1, None, None, None, 1)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
-        for k in BACKENDS:
-            with pytest.raises(ValueError):
-                k.spatial_3d_padding(k.variable(xval), padding=padding,
-                                     data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.spatial_3d_padding(K.variable(xval), padding=padding,
+                                 data_format='channels_middle')
 
     def test_bias_add(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1408,11 +1398,10 @@ class TestBackend(object):
                                        data_format=data_format)
 
         # Test invalid use cases
-        for k in BACKENDS:
-            x = k.variable(np.random.random(x_shape))
-            b = k.variable(np.random.random(bias_shape))
-            with pytest.raises(ValueError):
-                k.bias_add(x, b, data_format='channels_middle')
+        x = K.variable(np.random.random(x_shape))
+        b = K.variable(np.random.random(bias_shape))
+        with pytest.raises(ValueError):
+            K.bias_add(x, b, data_format='channels_middle')
 
     def test_batchnorm(self):
         shape = (2, 3)
@@ -1620,9 +1609,8 @@ class TestBackend(object):
         batch_size = 30
         indices = np.random.randint(0, num_classes, size=(batch_size, input_length))
         oh = np.eye(num_classes)[indices]
-        for k in BACKENDS:
-            koh = k.eval(k.one_hot(k.variable(indices, dtype='int32'), num_classes))
-            assert np.all(koh == oh)
+        koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
+        assert np.all(koh == oh)
 
     def test_sparse_dot(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)
