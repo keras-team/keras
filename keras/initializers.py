@@ -266,8 +266,9 @@ class Orthogonal(Initializer):
 class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
-    Only use for 2D matrices. If long side of matrix is multiple of short side,
-    identity matrices are concatenated along the long side.
+    Only use for 2D matrices.
+    If the long side of the matrix is a multiple of the short side,
+    multiple identity matrices are concatenated along the long side.
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
