@@ -1177,14 +1177,30 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     y = T.set_subtensor(output[indices], x)
     if hasattr(x, '_keras_shape'):
         if data_format == 'channels_first':
+            if x._keras_shape[2] is not None:
+                h = x._keras_shape[2] + top_pad + bottom_pad
+            else:
+                h = None
+            if x._keras_shape[3] is not None:
+                w = x._keras_shape[3] + left_pad + right_pad
+            else:
+                w = None
             output_keras_shape = (x._keras_shape[0],
                                   x._keras_shape[1],
-                                  x._keras_shape[2] + top_pad + bottom_pad,
-                                  x._keras_shape[3] + left_pad + right_pad)
+                                  h,
+                                  w)
         else:
+            if x._keras_shape[1] is not None:
+                h = x._keras_shape[1] + top_pad + bottom_pad
+            else:
+                h = None
+            if x._keras_shape[2] is not None:
+                w = x._keras_shape[2] + left_pad + right_pad
+            else:
+                w = None
             output_keras_shape = (x._keras_shape[0],
-                                  x._keras_shape[1] + top_pad + bottom_pad,
-                                  x._keras_shape[2] + left_pad + right_pad,
+                                  h,
+                                  w,
                                   x._keras_shape[3])
         y._keras_shape = output_keras_shape
     return y
@@ -1225,16 +1241,40 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     y = T.set_subtensor(output[indices], x)
     if hasattr(x, '_keras_shape'):
         if data_format == 'channels_first':
+            if x._keras_shape[2] is not None:
+                h = x._keras_shape[2] + padding[0][0] + padding[0][1]
+            else:
+                h = None
+            if x._keras_shape[3] is not None:
+                w = x._keras_shape[3] + padding[1][0] + padding[1][1]
+            else:
+                w = None
+            if x._keras_shape[4] is not None:
+                d = x._keras_shape[4] + padding[2][0] + padding[2][1]
+            else:
+                d = None
             output_keras_shape = (x._keras_shape[0],
                                   x._keras_shape[1],
-                                  x._keras_shape[2] + padding[0][0] + padding[0][1],
-                                  x._keras_shape[3] + padding[1][0] + padding[1][1],
-                                  x._keras_shape[4] + padding[2][0] + padding[2][1])
+                                  h,
+                                  w,
+                                  d)
         else:
+            if x._keras_shape[1] is not None:
+                h = x._keras_shape[1] + padding[0][0] + padding[0][1]
+            else:
+                h = None
+            if x._keras_shape[2] is not None:
+                w = x._keras_shape[2] + padding[1][0] + padding[1][1]
+            else:
+                w = None
+            if x._keras_shape[3] is not None:
+                d = x._keras_shape[3] + padding[2][0] + padding[2][1]
+            else:
+                d = None
             output_keras_shape = (x._keras_shape[0],
-                                  x._keras_shape[1] + padding[0][0] + padding[0][1],
-                                  x._keras_shape[2] + padding[1][0] + padding[1][1],
-                                  x._keras_shape[3] + padding[2][0] + padding[2][1],
+                                  h,
+                                  w,
+                                  d,
                                   x._keras_shape[4])
         y._keras_shape = output_keras_shape
     return y
