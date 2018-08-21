@@ -1351,6 +1351,11 @@ class TestBackend(object):
                 x_shape = (1,) + shape + (3,)
             check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
+            # Check handling of dynamic shapes.
+            for k in BACKENDS:
+                x = k.placeholder(shape=(1, None, None, 1))
+                y = k.spatial_2d_padding(x, padding=padding, data_format='channels_last')
+                assert k.int_shape(y) == (1, None, None, 1)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
@@ -1369,6 +1374,11 @@ class TestBackend(object):
                 x_shape = (1,) + shape + (3,)
             check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
+            # Check handling of dynamic shapes.
+            for k in BACKENDS:
+                x = k.placeholder(shape=(1, None, None, None, 1))
+                y = k.spatial_3d_padding(x, padding=padding, data_format='channels_last')
+                assert k.int_shape(y) == (1, None, None, None, 1)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
