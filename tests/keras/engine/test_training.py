@@ -392,9 +392,10 @@ def test_model_methods():
 
     # the rank of weight arrays should be 1.
     with pytest.raises(ValueError):
-        out = model.train_on_batch([input_a_np, input_b_np],
-                                   [output_a_np, output_b_np],
-                                   sample_weight=[None, np.random.random((10, 20, 30))])
+        out = model.train_on_batch(
+            [input_a_np, input_b_np],
+            [output_a_np, output_b_np],
+            sample_weight=[None, np.random.random((10, 20, 30))])
 
     model.compile(optimizer, loss='mse',
                   sample_weight_mode={'dense_1': None, 'dropout': 'temporal'})
@@ -557,7 +558,8 @@ def test_warnings():
                                   steps_per_epoch=4,
                                   use_multiprocessing=True,
                                   workers=2)
-    assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
+    assert all(['Sequence' not in str(w_.message) for w_ in w]), (
+        'A warning was raised for Sequence.')
 
 
 @keras_test
@@ -576,7 +578,8 @@ def test_sparse_inputs_targets():
     model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='sparse operations supported only by TensorFlow')
 @keras_test
 def test_sparse_placeholder_fit():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
@@ -657,7 +660,8 @@ def test_check_bad_shape():
     assert 'targets to have the same shape' in str(exc)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='Requires TensorFlow backend')
 @keras_test
 def test_model_with_input_feed_tensor():
     """We test building a model with a TF variable as input.
@@ -1053,12 +1057,16 @@ def test_target_tensors():
     model.train_on_batch(input_val, None)
 
     # multi-output, not enough target tensors when `target_tensors` is not a dict
-    with pytest.raises(ValueError, match='When passing a list as `target_tensors`, it should have one entry per model '
-                                         'output. The model has \d outputs, but you passed target_tensors='):
+    with pytest.raises(ValueError,
+                       match='When passing a list as `target_tensors`, it should '
+                             'have one entry per model output. The model has \d '
+                             'outputs, but you passed target_tensors='):
         model.compile(optimizer='rmsprop', loss='mse',
                       target_tensors=[target_a])
-    with pytest.raises(ValueError, match='The model has \d outputs, but you passed a single tensor as '
-                                         '`target_tensors`. Expected a list or a dict of tensors.'):
+    with pytest.raises(ValueError,
+                       match='The model has \d outputs, but you passed a single '
+                             'tensor as `target_tensors`. Expected a list or '
+                             'a dict of tensors.'):
         model.compile(optimizer='rmsprop', loss='mse',
                       target_tensors=target_a)
 
@@ -1131,7 +1139,8 @@ def test_model_custom_target_tensors():
                              [output_a_np, output_b_np])
 
 
-@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
+@pytest.mark.skipif(sys.version_info < (3,),
+                    reason='Cannot catch warnings in python 2')
 @keras_test
 def test_trainable_weights_count_consistency():
     """Tests the trainable weights consistency check of Model.
@@ -1157,19 +1166,22 @@ def test_trainable_weights_count_consistency():
     with pytest.warns(UserWarning) as w:
         model2.summary()
     warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
-    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+    assert warning_raised, (
+        'No warning raised when trainable is modified without .compile.')
 
     # And on .fit()
     with pytest.warns(UserWarning) as w:
         model2.fit(x=np.zeros((5, 3)), y=np.zeros((5, 1)))
     warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
-    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+    assert warning_raised, (
+        'No warning raised when trainable is modified without .compile.')
 
     # And shouldn't warn if we recompile
     model2.compile(optimizer='adam', loss='mse')
     with pytest.warns(None) as w:
         model2.summary()
-    assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
+    assert len(w) == 0, (
+        'Warning raised even when .compile() is called after modifying .trainable')
 
 
 @keras_test
