@@ -360,9 +360,6 @@ def evaluate_loop(model, ins,
     else:
         count_param = 'val_samples'
 
-    outs = []
-    out_labels = ['val_' + n for n in model.metrics_names]
-
     _callbacks = []
     if verbose == 1:
         _callbacks.append(
@@ -379,6 +376,9 @@ def evaluate_loop(model, ins,
         callback_model = model.callback_model
     else:
         callback_model = model
+
+    outs = []
+    out_labels = ['val_' + n for n in model.metrics_names]
 
     callbacks.set_model(callback_model)
     callbacks.set_params({
