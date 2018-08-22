@@ -76,7 +76,8 @@ def test_no_grad():
     mod = Model(inp, x)
     mod.compile('sgd', 'mse')
     with pytest.raises(ValueError):
-        mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32), batch_size=10, epochs=10)
+        mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32),
+                batch_size=10, epochs=10)
 
 
 @keras_test
@@ -146,7 +147,8 @@ def test_tfoptimizer():
     from tensorflow import train
     optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
     model = Sequential()
-    model.add(Dense(num_classes, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
+    model.add(Dense(num_classes, input_shape=(3,),
+                    kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
               epochs=1, batch_size=5, verbose=0)
