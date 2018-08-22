@@ -198,7 +198,7 @@ def test_generator_enqueuer_threadsafe():
         DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration) as e:
+    with pytest.raises(RuntimeError) as e:
         [next(gen_output) for _ in range(10)]
     assert 'thread-safe' in str(e.value)
     enqueuer.stop()
@@ -209,7 +209,7 @@ def test_generator_enqueuer_fail_threads():
         FaultSequence()), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration):
+    with pytest.raises(IndexError):
         next(gen_output)
 
 
@@ -218,7 +218,7 @@ def test_generator_enqueuer_fail_processes():
         FaultSequence()), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration):
+    with pytest.raises(IndexError):
         next(gen_output)
 
 
@@ -267,7 +267,7 @@ def test_ordered_enqueuer_fail_threads():
     enqueuer = OrderedEnqueuer(FaultSequence(), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration):
+    with pytest.raises(IndexError):
         next(gen_output)
 
 
@@ -339,7 +339,7 @@ def test_ordered_enqueuer_fail_processes():
     enqueuer = OrderedEnqueuer(FaultSequence(), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with pytest.raises(StopIteration):
+    with pytest.raises(IndexError):
         next(gen_output)
 
 

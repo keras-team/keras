@@ -582,7 +582,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     yield inputs
         except Exception as e:
             self.stop()
-            six.raise_from(StopIteration(e), e)
+            six.reraise(*sys.exc_info())
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
@@ -756,12 +756,12 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         except Exception as e:
             self.stop()
             if 'generator already executing' in str(e):
-                raise StopIteration(
+                raise RuntimeError(
                     "Your generator is NOT thread-safe."
                     "Keras requires a thread-safe generator when"
                     "`use_multiprocessing=False, workers > 1`."
                     "For more information see issue #1638.")
-            six.raise_from(StopIteration(e), e)
+            six.reraise(*sys.exc_info())
 
     def _send_generator(self):
         """Send current generator to all workers."""

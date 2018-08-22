@@ -607,7 +607,7 @@ def test_multiprocessing_fit_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
                                 validation_steps=None,
@@ -615,7 +615,7 @@ def test_multiprocessing_fit_error():
                                 workers=WORKERS,
                                 use_multiprocessing=True)
     else:
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
                                 validation_steps=None,
@@ -626,7 +626,7 @@ def test_multiprocessing_fit_error():
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     #   - Make sure `RuntimeError` exception bubbles up
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.fit_generator(custom_generator(),
                             steps_per_epoch=samples,
                             validation_steps=None,
@@ -641,7 +641,7 @@ def test_multiprocessing_fit_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
                                 validation_steps=None,
@@ -649,7 +649,7 @@ def test_multiprocessing_fit_error():
                                 workers=1,
                                 use_multiprocessing=True)
     else:
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
                                 validation_steps=None,
@@ -660,7 +660,7 @@ def test_multiprocessing_fit_error():
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     #   - Make sure `RuntimeError` exception bubbles up
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.fit_generator(custom_generator(),
                             steps_per_epoch=samples,
                             validation_steps=None,
@@ -725,7 +725,7 @@ def test_multiprocessing_evaluate_error():
                                      workers=WORKERS,
                                      use_multiprocessing=True)
     else:
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
                                      steps=good_batches * WORKERS + 1,
                                      max_queue_size=10,
@@ -735,7 +735,7 @@ def test_multiprocessing_evaluate_error():
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     #   - Make sure `RuntimeError` exception bubbles up
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.evaluate_generator(custom_generator(),
                                  steps=good_batches * WORKERS + 1,
                                  max_queue_size=10,
@@ -749,14 +749,14 @@ def test_multiprocessing_evaluate_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
                                      steps=good_batches + 1,
                                      max_queue_size=10,
                                      workers=1,
                                      use_multiprocessing=True)
     else:
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
                                      steps=good_batches + 1,
                                      max_queue_size=10,
@@ -766,7 +766,7 @@ def test_multiprocessing_evaluate_error():
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     #   - Make sure `RuntimeError` exception bubbles up
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.evaluate_generator(custom_generator(),
                                  steps=good_batches + 1,
                                  max_queue_size=10,
@@ -827,7 +827,7 @@ def test_multiprocessing_predict_error():
                                     workers=WORKERS,
                                     use_multiprocessing=True)
     else:
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
                                     steps=good_batches * WORKERS + 1,
                                     max_queue_size=10,
@@ -837,7 +837,7 @@ def test_multiprocessing_predict_error():
     # - Produce data on 4 worker threads, consume on main thread:
     #   - All worker threads share the SAME generator
     #   - Make sure `RuntimeError` exception bubbles up
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.predict_generator(custom_generator(),
                                 steps=good_batches * WORKERS + 1,
                                 max_queue_size=10,
@@ -851,14 +851,14 @@ def test_multiprocessing_predict_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
                                     steps=good_batches + 1,
                                     max_queue_size=10,
                                     workers=1,
                                     use_multiprocessing=True)
     else:
-        with pytest.raises(StopIteration):
+        with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
                                     steps=good_batches + 1,
                                     max_queue_size=10,
@@ -868,7 +868,7 @@ def test_multiprocessing_predict_error():
     # - Produce data on 1 worker thread, consume on main thread:
     #   - Worker thread is the only thread running the generator
     #   - Make sure `RuntimeError` exception bubbles up
-    with pytest.raises(StopIteration):
+    with pytest.raises(RuntimeError):
         model.predict_generator(custom_generator(),
                                 steps=good_batches + 1,
                                 max_queue_size=10,
