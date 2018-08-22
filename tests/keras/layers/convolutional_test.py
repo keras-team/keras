@@ -117,20 +117,24 @@ def test_conv_1d():
 def test_maxpooling_1d():
     for padding in ['valid', 'same']:
         for stride in [1, 2]:
-            layer_test(convolutional.MaxPooling1D,
-                       kwargs={'strides': stride,
-                               'padding': padding},
-                       input_shape=(3, 5, 4))
+            for data_format in ['channels_first', 'channels_last']:
+                layer_test(convolutional.MaxPooling1D,
+                           kwargs={'strides': stride,
+                                   'padding': padding,
+                                   'data_format': data_format},
+                           input_shape=(3, 5, 4))
 
 
 @keras_test
 def test_averagepooling_1d():
     for padding in ['valid', 'same']:
         for stride in [1, 2]:
-            layer_test(convolutional.AveragePooling1D,
-                       kwargs={'strides': stride,
-                               'padding': padding},
-                       input_shape=(3, 5, 4))
+            for data_format in ['channels_first', 'channels_last']:
+                layer_test(convolutional.AveragePooling1D,
+                           kwargs={'strides': stride,
+                                   'padding': padding,
+                                   'data_format': data_format},
+                           input_shape=(3, 5, 4))
 
 
 @keras_test
@@ -408,10 +412,13 @@ def test_depthwise_conv_2d():
 
 @keras_test
 def test_globalpooling_1d():
-    layer_test(pooling.GlobalMaxPooling1D,
-               input_shape=(3, 4, 5))
-    layer_test(pooling.GlobalAveragePooling1D,
-               input_shape=(3, 4, 5))
+    for data_format in ['channels_first', 'channels_last']:
+        layer_test(pooling.GlobalMaxPooling1D,
+                   kwargs={'data_format': data_format},
+                   input_shape=(3, 4, 5))
+        layer_test(pooling.GlobalAveragePooling1D,
+                   kwargs={'data_format': data_format},
+                   input_shape=(3, 4, 5))
 
 
 @keras_test
