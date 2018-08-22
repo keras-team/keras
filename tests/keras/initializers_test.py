@@ -104,7 +104,8 @@ def test_orthogonal(tensor_shape):
             target_mean=0.)
 
 
-@pytest.mark.parametrize('tensor_shape', [(100, 100), (10, 20), (30, 80), (1, 2, 3, 4)],
+@pytest.mark.parametrize('tensor_shape',
+                         [(100, 100), (10, 20), (30, 80), (1, 2, 3, 4)],
                          ids=['FC', 'RNN', 'RNN_INVALID', 'CONV'])
 def test_identity(tensor_shape):
     if len(tensor_shape) > 2 or max(tensor_shape) % min(tensor_shape) != 0:

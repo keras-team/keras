@@ -112,7 +112,7 @@ def test_3d_to_3d():
 
     model = Sequential()
     model.add(layers.TimeDistributed(
-        layers.Dense(y_train.shape[-1]), input_shape=(x_train.shape[1], x_train.shape[2])))
+        layers.Dense(y_train.shape[-1]), input_shape=x_train.shape[1:3]))
     model.compile(loss='hinge', optimizer='rmsprop')
     history = model.fit(x_train, y_train, epochs=20, batch_size=16,
                         validation_data=(x_test, y_test), verbose=0)
@@ -126,14 +126,18 @@ def test_stacked_lstm_char_prediction():
     Predict the whole alphabet based on the first two letters ('ab' -> 'ab...z')
     See non-toy example in examples/lstm_text_generation.py
     '''
-    # generate alphabet: http://stackoverflow.com/questions/16060899/alphabet-range-python
+    # generate alphabet:
+    # http://stackoverflow.com/questions/16060899/alphabet-range-python
     alphabet = string.ascii_lowercase
     number_of_chars = len(alphabet)
 
-    # generate char sequences of length 'sequence_length' out of alphabet and store the next char as label (e.g. 'ab'->'c')
+    # generate char sequences of length 'sequence_length' out of alphabet and
+    # store the next char as label (e.g. 'ab'->'c')
     sequence_length = 2
-    sentences = [alphabet[i: i + sequence_length] for i in range(len(alphabet) - sequence_length)]
-    next_chars = [alphabet[i + sequence_length] for i in range(len(alphabet) - sequence_length)]
+    sentences = [alphabet[i: i + sequence_length]
+                 for i in range(len(alphabet) - sequence_length)]
+    next_chars = [alphabet[i + sequence_length]
+                  for i in range(len(alphabet) - sequence_length)]
 
     # Transform sequences and labels into 'one-hot' encoding
     x = np.zeros((len(sentences), sequence_length, number_of_chars), dtype=np.bool)
@@ -145,7 +149,8 @@ def test_stacked_lstm_char_prediction():
 
     # learn the alphabet with stacked LSTM
     model = Sequential([
-        layers.LSTM(16, return_sequences=True, input_shape=(sequence_length, number_of_chars)),
+        layers.LSTM(16, return_sequences=True,
+                    input_shape=(sequence_length, number_of_chars)),
         layers.LSTM(16, return_sequences=False),
         layers.Dense(number_of_chars, activation='softmax')
     ])
@@ -206,13 +211,14 @@ def test_masked_temporal():
     assert(np.abs(history.history['loss'][-1] - ground_truth) < 0.06)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TF backend')
 @keras_test
 def test_embedding_with_clipnorm():
     model = Sequential()
     model.add(layers.Embedding(input_dim=1, output_dim=1))
     model.compile(optimizer=optimizers.SGD(clipnorm=0.1), loss='mse')
     model.fit(np.array([[0]]), np.array([[[0.5]]]), epochs=1)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

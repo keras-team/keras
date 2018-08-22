@@ -49,8 +49,9 @@ def assert_doc_style(name, member, doc):
     lines = doc.split("\n")
     first_line = lines[0]
     if len(first_line.strip()) == 0:
-        raise ValueError("{} the documentation should be on the first line.".format(name),
-                         member.__module__)
+        raise ValueError(
+            "{} the documentation should be on the first line.".format(name),
+            member.__module__)
     if first_line.strip()[-1] != '.':
         raise ValueError("{} first line should end with a '.'".format(name),
                          member.__module__)
@@ -118,8 +119,10 @@ def assert_args_presence(args, doc, member, name):
     styles = [arg + ":" not in words for arg in args]
     if any(styles):
         raise ValueError(
-            "{} {} are not style properly 'argument': documentation".format(name, list(
-                compress(args, styles))), member.__module__)
+            "{} {} are not style properly 'argument': documentation".format(
+                name,
+                list(compress(args, styles))),
+            member.__module__)
 
     # Check arguments order
     indexes = [words.index(arg + ":") for arg in args]
