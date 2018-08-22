@@ -1518,5 +1518,17 @@ def test_dynamic_set_inputs():
     assert preds4.shape == (1, 19)
 
 
+@keras_test
+def test_3D_outputs():
+    model = Sequential()
+    model.add(Dense(10, input_shape=(5, 6)))
+    model.compile(optimizer='adam',
+                  loss='sparse_categorical_crossentropy')
+    x_data = np.random.random((32, 5, 6))
+    y_data = np.random.randint(0, 9, size=(32, 5))
+
+    model.fit(x=x_data, y=y_data, batch_size=16, epochs=3)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
