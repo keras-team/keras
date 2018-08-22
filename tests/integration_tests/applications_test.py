@@ -24,15 +24,10 @@ MODEL_LIST = [
     (applications.MobileNetV2, 1280),
     (applications.DenseNet121, 1024),
     (applications.DenseNet169, 1664),
-    (applications.DenseNet201, 1920)
+    (applications.DenseNet201, 1920),
+    # Note that NASNetLarge is too heavy to test on Travis.
+    (applications.NASNetMobile, 1056)
 ]
-
-# TODO: enable Nasnet for Theano and CNTK
-if K.backend() == 'tensorflow':
-    MODEL_LIST.extend([
-        (applications.NASNetMobile, 1056),
-        (applications.NASNetLarge, 4032),
-    ])
 
 
 def _get_output_shape(model_fn):
