@@ -166,3 +166,53 @@ def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=No
         h.append(h_t + h_t1)
 
     return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
+
+
+def basics(function_name, x, **kwargs):
+    if function_name == 'relu':
+        y = x * (x > 0)
+        if kwargs.get('alpha', None):
+            y += kwargs.get('alpha') * x * (x < 0)
+        if kwargs.get('max_value', None):
+            y = np.minimum(y, kwargs.get('max_value'))
+        return y
+    elif function_name == 'softplus':
+        return np.log(1. + np.exp(x))
+    elif function_name == 'elu':
+        y = x * (x > 0)
+        if kwargs.get('alpha', None):
+            y += kwargs.get('alpha') * (np.exp(x) - 1.) * (x < 0)
+        return y
+    elif function_name == 'sigmoid':
+        return 1. / (1. + np.exp(-x))
+    elif function_name == 'hard_sigmoid':
+        y = 0.2 * x + 0.5
+        y = np.minimum(y, 1.)
+        y = np.maximum(y, 0.)
+        return y
+    elif function_name == 'tanh':
+        return np.tanh(x)
+    elif function_name == 'softmax':
+        axis = kwargs.get('axis', -1)
+        y = np.exp(x - np.max(x, axis, keepdims=True))
+        return y / np.sum(y, axis, keepdims=True)
+    elif function_name == 'l2_normalize':
+        axis = kwargs.get('axis', -1)
+        y = np.max(np.sum(x ** 2, axis, keepdims=True), axis, keepdims=True)
+        return x / np.sqrt(y)
+    else:
+        try:
+            np_operation = getattr(np, function_name)
+            if 'axis' not in kwargs:
+                if function_name[:3] == 'arg':  # argmax, argmin
+                    kwargs['axis'] = -1
+                if function_name[:3] == 'cum':  # cumsum, cumprod
+                    kwargs['axis'] = 0
+            y = np_operation(x, **kwargs)
+            if function_name == 'sqrt':
+                y[np.isnan(y)] = 0.
+            return y
+        except:
+            if function_name == 'pow':
+                return np.power(x, kwargs['a'])
+            return None

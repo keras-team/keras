@@ -108,6 +108,15 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     if shape_or_val:
         x_shape, x_val = parse_shape_or_val(x_shape_or_val)
 
+        # If we can take a NumPy output, it is efficient to compare the outputs
+        # from a single backend and NumPy.
+        z_np = reference_operations.basics(function_name, x_val, **kwargs)
+        if z_np is not None:
+            assert_value_with_ref = z_np
+            # Leave only the designated backend from the test list of backends.
+            backend_list = [k for k in backend_list
+                            if K.backend() == k.__name__.split('.')[-1][:-8]]
+
     t_list = []
     z_list = []
     for k in backend_list:
