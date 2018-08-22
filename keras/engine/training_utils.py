@@ -418,13 +418,9 @@ def weighted_masked_objective(fn):
             score_array = K.mean(score_array,
                                  axis=list(range(weight_ndim, ndim)))
             # reduce weight array to same ndim as score_array (needed for
-            # sample_weight_mode='element') by checking that any extra
-            # dimensions in weights are size 1, i.e. dummy dimensions
-            ndim = K.ndim(score_array)
-            if weight_ndim > ndim and np.any(K.shape(weights)[ndim:] == 1):
-                raise ValueError('weights array shape is incompatible with '
-                                 'loss function')
-            weights = K.reshape(weights, K.shape(score_array))
+            # sample_weight_mode='element')
+            if weight_ndim > K.ndim(score_array):
+                weights = K.reshape(weights, K.shape(score_array))
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
@@ -445,7 +441,7 @@ def standardize_weights(y,
         sample_weight: User-provided `sample_weight` argument.
         class_weight: User-provided `class_weight` argument.
         sample_weight_mode: One of `None`, `"element"` or `"temporal"`.
-            `"element"` indicates that we expect n-D weight data with
+            `"element"` indicates that we expect nD weight data with
             the same size as the output. The weights will be applied
             element-wise. `"temporal"` indicates that we expect 2D
             weight data that will be applied to the last 2 dimensions of

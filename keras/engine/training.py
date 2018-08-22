@@ -261,12 +261,10 @@ class Model(Network):
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('temporal')
                     elif sample_weight_mode.get(name) == 'element':
-                        if isinstance(self.output_shape, list):
-                            weight = K.placeholder(ndim=len(self.output_shape[i]),
-                                                   name=name + '_sample_weights')
-                        else:
-                            weight = K.placeholder(ndim=len(self.output_shape),
-                                                   name=name + '_sample_weights')
+                        ndim = len(self.output_shape[i]) if isinstance(self.output_shape, list)\
+                            else len(self.output_shape)
+                        weight = K.placeholder(ndim=ndim,
+                                               name=name + '_sample_weights')
                         sample_weight_modes.append('element')
                     else:
                         weight = K.placeholder(ndim=1,
@@ -293,14 +291,11 @@ class Model(Network):
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('temporal')
                     elif mode == 'element':
-                        if isinstance(self.output_shape, list):
-                            weight = K.placeholder(ndim=len(self.output_shape[i]),
-                                                   name=name + '_sample_weights')
-                        else:
-                            weight = K.placeholder(ndim=len(self.output_shape),
-                                                   name=name + '_sample_weights')
+                        ndim = len(self.output_shape[i]) if isinstance(self.output_shape, list) \
+                            else len(self.output_shape)
+                        weight = K.placeholder(ndim=ndim,
+                                               name=name + '_sample_weights')
                         sample_weight_modes.append('element')
-
                     else:
                         weight = K.placeholder(ndim=1,
                                                name=name + '_sample_weights')
@@ -318,14 +313,11 @@ class Model(Network):
                                           name=name + '_sample_weights'))
                         sample_weight_modes.append('temporal')
                     elif sample_weight_mode == 'element':
-                        if isinstance(self.output_shape, list):
-                            sample_weights.append(
-                                K.placeholder(ndim=len(self.output_shape[i]),
-                                              name=name + '_sample_weights'))
-                        else:
-                            sample_weights.append(
-                                K.placeholder(ndim=len(self.output_shape),
-                                              name=name + '_sample_weights'))
+                        ndim = len(self.output_shape[i]) if isinstance(self.output_shape, list) \
+                            else len(self.output_shape)
+                        sample_weights.append(
+                            K.placeholder(ndim=ndim,
+                                          name=name + '_sample_weights'))
                         sample_weight_modes.append('element')
                     else:
                         sample_weights.append(
