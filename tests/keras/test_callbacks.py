@@ -3,6 +3,7 @@ import multiprocessing
 
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 from csv import reader
 from csv import Sniffer
 import shutil
@@ -12,7 +13,9 @@ from keras import callbacks
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Dropout, add, dot, Lambda, Layer
 from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling1D, GlobalAveragePooling2D
+from keras.layers.pooling import MaxPooling2D
+from keras.layers.pooling import GlobalAveragePooling1D
+from keras.layers.pooling import GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
@@ -104,7 +107,8 @@ def test_stop_training_csv(tmpdir):
         tot = 0
         while 1:
             if tot > 3 * len(X_train):
-                yield np.ones([batch_size, input_dim]) * np.nan, np.ones([batch_size, num_classes]) * np.nan
+                yield (np.ones([batch_size, input_dim]) * np.nan,
+                       np.ones([batch_size, num_classes]) * np.nan)
             else:
                 yield (X_train[i * batch_size: (i + 1) * batch_size],
                        y_train[i * batch_size: (i + 1) * batch_size])
@@ -278,7 +282,8 @@ def test_EarlyStopping_patience():
 
     losses = [0.0860, 0.1096, 0.1040, 0.1019]
 
-    # Should stop after epoch 3, as the loss has not improved after patience=2 epochs.
+    # Should stop after epoch 3,
+    # as the loss has not improved after patience=2 epochs.
     epochs_trained = 0
     early_stop.on_train_begin()
 
@@ -305,7 +310,8 @@ def test_EarlyStopping_baseline():
             pass
 
     def baseline_tester(acc_levels):
-        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75, patience=2)
+        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75,
+                                             patience=2)
         early_stop.model = DummyModel()
         epochs_trained = 0
         early_stop.on_train_begin()
@@ -453,16 +459,18 @@ def test_ReduceLROnPlateau():
     model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=10, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                        min_delta=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
+    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=0, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                        min_delta=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 
 @keras_test
@@ -757,7 +765,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
     inp2 = Input((input_dim, input_dim))
     inp_3d = add([inp1, inp2])
     inp_2d = GlobalAveragePooling1D()(inp_3d)
-    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])  # test a layer with a list of output tensors
+    # test a layer with a list of output tensors
+    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])
     hidden = dot(inp_pair, axes=-1)
     hidden = Dense(num_hidden, activation='relu')(hidden)
     hidden = Dropout(0.1)(hidden)
@@ -910,14 +919,16 @@ def test_LambdaCallback():
                   optimizer='sgd',
                   metrics=['accuracy'])
 
-    # Start an arbitrary process that should run during model training and be terminated after training has completed.
+    # Start an arbitrary process that should run during model training and
+    # be terminated after training has completed.
     def f():
         while True:
             pass
 
     p = multiprocessing.Process(target=f)
     p.start()
-    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
+    cleanup_callback = callbacks.LambdaCallback(
+        on_train_end=lambda logs: p.terminate())
 
     cbks = [cleanup_callback]
     model.fit(X_train, y_train, batch_size=batch_size,

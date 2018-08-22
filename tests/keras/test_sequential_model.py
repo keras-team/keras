@@ -79,9 +79,11 @@ def test_sequential_fit_generator():
         i = 0
         while 1:
             if train:
-                yield (x_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                yield (x_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
             else:
-                yield (x_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+                yield (x_test[i * batch_size: (i + 1) * batch_size],
+                       y_test[i * batch_size: (i + 1) * batch_size])
             i += 1
             i = i % max_batch_index
 
@@ -126,18 +128,24 @@ def test_sequential(in_tmpdir):
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2,
+              validation_split=0.1)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              shuffle=False)
 
     model.train_on_batch(x_train[:32], y_train[:32])
 
     loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_queue_size=2, verbose=1)
-    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1, max_queue_size=2)
-    pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test), K.variable(prediction))))
+    prediction = model.predict_generator(data_generator(x_test, y_test), 1,
+                                         max_queue_size=2, verbose=1)
+    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1,
+                                        max_queue_size=2)
+    pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test),
+                                                     K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))
     assert(np.isclose(gen_loss, loss))
@@ -189,10 +197,13 @@ def test_nested_sequential(in_tmpdir):
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2,
+              validation_split=0.1)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              shuffle=False)
 
     model.train_on_batch(x_train[:32], y_train[:32])
 
