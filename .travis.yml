@@ -48,7 +48,7 @@ install:
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
   # install PIL for preprocessing tests (they are integration tests).
-  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]]; then
+  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]] || [[ "$TEST_MODE" == "PEP8" ]]; then
       if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
         conda install pil;
       else
