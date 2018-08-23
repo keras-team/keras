@@ -12,7 +12,7 @@ import sys
 import tarfile
 import threading
 import time
-import traceback
+import warnings
 import zipfile
 from abc import abstractmethod
 from contextlib import closing
@@ -582,7 +582,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     yield inputs
         except Exception as e:
             self.stop()
-            six.raise_from(StopIteration(e), e)
+            six.reraise(*sys.exc_info())
 
     def _send_sequence(self):
         """Send current Sequence to all workers."""
@@ -606,6 +606,37 @@ class OrderedEnqueuer(SequenceEnqueuer):
         _SHARED_SEQUENCES[self.uid] = None
 
 
+# Global variables to be shared across processes
+_SHARED_GENERATOR = {}
+# We use a Value to provide unique id to different processes.
+_GENERATOR_COUNTER = None
+
+
+def init_pool_generator(gens, random_seed=None):
+    global _SHARED_GENERATOR
+    _SHARED_GENERATOR = gens
+
+    if random_seed is not None:
+        ident = mp.current_process().ident
+        np.random.seed(random_seed + ident)
+
+
+def next_sample(uid):
+    """Get the next value from the generator `uid`.
+
+    To allow multiple generators to be used at the same time, we use `uid` to
+    get a specific one. A single generator would cause the validation to
+    overwrite the training generator.
+
+    # Arguments
+        uid: int, generator identifier
+
+    # Returns
+        The next value of generator `uid`.
+    """
+    return six.next(_SHARED_GENERATOR[uid])
+
+
 class GeneratorEnqueuer(SequenceEnqueuer):
     """Builds a queue out of a data generator.
 
@@ -624,143 +655,75 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
     def __init__(self, generator,
                  use_multiprocessing=False,
-                 wait_time=0.05,
-                 seed=None):
-        self.wait_time = wait_time
-        self._generator = generator
-        if os.name is 'nt' and use_multiprocessing is True:
-            # On Windows, avoid **SYSTEMATIC** error in `multiprocessing`:
-            # `TypeError: can't pickle generator objects`
-            # => Suggest multithreading instead of multiprocessing on Windows
-            raise ValueError('Using a generator with `use_multiprocessing=True`'
-                             ' is not supported on Windows (no marshalling of'
-                             ' generators across process boundaries). Instead,'
-                             ' use single thread/process or multithreading.')
-        else:
-            self._use_multiprocessing = use_multiprocessing
-        self._threads = []
-        self._stop_event = None
-        self._manager = None
-        self.queue = None
-        self.seed = seed
+                 wait_time=None,
+                 random_seed=None):
+        self.generator = generator
+        self.use_multiprocessing = use_multiprocessing
+        self.random_seed = random_seed
+        if wait_time is not None:
+            warnings.warn('`wait_time` is not used anymore.',
+                          DeprecationWarning)
 
-    def _data_generator_task(self):
-        if self._use_multiprocessing is False:
-            while not self._stop_event.is_set():
-                with self.genlock:
-                    try:
-                        if (self.queue is not None and
-                                self.queue.qsize() < self.max_queue_size):
-                            # On all OSes, avoid **SYSTEMATIC** error
-                            # in multithreading mode:
-                            # `ValueError: generator already executing`
-                            # => Serialize calls to
-                            # infinite iterator/generator's next() function
-                            generator_output = next(self._generator)
-                            self.queue.put((True, generator_output))
-                        else:
-                            time.sleep(self.wait_time)
-                    except StopIteration:
-                        break
-                    except Exception as e:
-                        # Can't pickle tracebacks.
-                        # As a compromise, print the traceback and
-                        # pickle None instead.
-                        if not hasattr(e, '__traceback__'):
-                            setattr(e, '__traceback__', sys.exc_info()[2])
-                        self.queue.put((False, e))
-                        self._stop_event.set()
-                        break
+        global _GENERATOR_COUNTER
+        if _GENERATOR_COUNTER is None:
+            try:
+                _GENERATOR_COUNTER = mp.Value('i', 0)
+            except OSError:
+                # In this case the OS does not allow us to use
+                # multiprocessing. We resort to an int
+                # for enqueuer indexing.
+                _GENERATOR_COUNTER = 0
+
+        if isinstance(_GENERATOR_COUNTER, int):
+            self.uid = _GENERATOR_COUNTER
+            _GENERATOR_COUNTER += 1
         else:
-            while not self._stop_event.is_set():
-                try:
-                    if (self.queue is not None and
-                            self.queue.qsize() < self.max_queue_size):
-                        generator_output = next(self._generator)
-                        self.queue.put((True, generator_output))
-                    else:
-                        time.sleep(self.wait_time)
-                except StopIteration:
-                    break
-                except Exception as e:
-                    # Can't pickle tracebacks.
-                    # As a compromise, print the traceback and pickle None instead.
-                    traceback.print_exc()
-                    setattr(e, '__traceback__', None)
-                    self.queue.put((False, e))
-                    self._stop_event.set()
-                    break
+            # Doing Multiprocessing.Value += x is not process-safe.
+            with _GENERATOR_COUNTER.get_lock():
+                self.uid = _GENERATOR_COUNTER.value
+                _GENERATOR_COUNTER.value += 1
+
+        self.workers = 0
+        self.executor_fn = None
+        self.queue = None
+        self.run_thread = None
+        self.stop_signal = None
+
+    def is_running(self):
+        return self.stop_signal is not None and not self.stop_signal.is_set()
 
     def start(self, workers=1, max_queue_size=10):
-        """Kicks off threads which add data from the generator into the queue.
+        """Start the handler's workers.
 
         # Arguments
             workers: number of worker threads
             max_queue_size: queue size
-                (when full, threads could block on `put()`)
+                (when full, workers could block on `put()`)
         """
-        try:
-            self.max_queue_size = max_queue_size
-            if self._use_multiprocessing:
-                self._manager = mp.Manager()
-                self.queue = self._manager.Queue(maxsize=max_queue_size)
-                self._stop_event = mp.Event()
-            else:
-                # On all OSes, avoid **SYSTEMATIC** error in multithreading mode:
-                # `ValueError: generator already executing`
-                # => Serialize calls to infinite iterator/generator's next() function
-                self.genlock = threading.Lock()
-                self.queue = queue.Queue(maxsize=max_queue_size)
-                self._stop_event = threading.Event()
+        if self.use_multiprocessing:
+            self.executor_fn = lambda gens: mp.Pool(workers,
+                                                    initializer=init_pool_generator,
+                                                    initargs=(gens,
+                                                              self.random_seed))
+        else:
+            # We do not need the init since it's threads.
+            self.executor_fn = lambda _: ThreadPool(workers)
+        self.workers = workers
+        self.queue = queue.Queue(max_queue_size)
+        self.stop_signal = threading.Event()
+        self.run_thread = threading.Thread(target=self._run)
+        self.run_thread.daemon = True
+        self.run_thread.start()
 
-            for _ in range(workers):
-                if self._use_multiprocessing:
-                    # Reset random seed else all children processes
-                    # share the same seed
-                    np.random.seed(self.seed)
-                    thread = mp.Process(target=self._data_generator_task)
-                    thread.daemon = True
-                    if self.seed is not None:
-                        self.seed += 1
-                else:
-                    thread = threading.Thread(target=self._data_generator_task)
-                self._threads.append(thread)
-                thread.start()
-        except:
-            self.stop()
-            raise
-
-    def is_running(self):
-        return self._stop_event is not None and not self._stop_event.is_set()
-
-    def stop(self, timeout=None):
-        """Stops running threads and wait for them to exit, if necessary.
-
-        Should be called by the same thread which called `start()`.
-
-        # Arguments
-            timeout: maximum time to wait on `thread.join()`.
-        """
-        if self.is_running():
-            self._stop_event.set()
-
-        for thread in self._threads:
-            if self._use_multiprocessing:
-                if thread.is_alive():
-                    thread.terminate()
-            else:
-                # The thread.is_alive() test is subject to a race condition:
-                # the thread could terminate right after the test and before the
-                # join, rendering this test meaningless -> Call thread.join()
-                # always, which is ok no matter what the status of the thread.
-                thread.join(timeout)
-
-        if self._manager:
-            self._manager.shutdown()
-
-        self._threads = []
-        self._stop_event = None
-        self.queue = None
+    def _run(self):
+        """Submits request to the executor and queue the `Future` objects."""
+        self._send_generator()  # Share the initial generator
+        with closing(self.executor_fn(_SHARED_GENERATOR)) as executor:
+            while True:
+                if self.stop_signal.is_set():
+                    return
+                self.queue.put(
+                    executor.apply_async(next_sample, (self.uid,)), block=True)
 
     def get(self):
         """Creates a generator to extract data from the queue.
@@ -772,25 +735,53 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             `(inputs, targets)` or
             `(inputs, targets, sample_weights)`.
         """
-        while self.is_running():
-            if not self.queue.empty():
-                success, value = self.queue.get()
-                # Rethrow any exceptions found in the queue
-                if not success:
-                    six.reraise(value.__class__, value, value.__traceback__)
-                # Yield regular values
-                if value is not None:
-                    yield value
-            else:
-                all_finished = all([not thread.is_alive()
-                                    for thread in self._threads])
-                if all_finished and self.queue.empty():
-                    raise StopIteration()
-                else:
-                    time.sleep(self.wait_time)
+        try:
+            while self.is_running():
+                inputs = self.queue.get(block=True).get()
+                self.queue.task_done()
+                if inputs is not None:
+                    yield inputs
+        except StopIteration:
+            # Special case for finite generators
+            last_ones = []
+            while self.queue.qsize() > 0:
+                last_ones.append(self.queue.get(block=True))
+            # Wait for them to complete
+            list(map(lambda f: f.wait(), last_ones))
+            # Keep the good ones
+            last_ones = [future.get() for future in last_ones if future.successful()]
+            for inputs in last_ones:
+                if inputs is not None:
+                    yield inputs
+        except Exception as e:
+            self.stop()
+            if 'generator already executing' in str(e):
+                raise RuntimeError(
+                    "Your generator is NOT thread-safe."
+                    "Keras requires a thread-safe generator when"
+                    "`use_multiprocessing=False, workers > 1`."
+                    "For more information see issue #1638.")
+            six.reraise(*sys.exc_info())
 
-        # Make sure to rethrow the first exception in the queue, if any
-        while not self.queue.empty():
-            success, value = self.queue.get()
-            if not success:
-                six.reraise(value.__class__, value, value.__traceback__)
+    def _send_generator(self):
+        """Send current generator to all workers."""
+        # For new processes that may spawn
+        _SHARED_GENERATOR[self.uid] = self.generator
+
+    def stop(self, timeout=None):
+        """Stops running threads and wait for them to exit, if necessary.
+
+        Should be called by the same thread which called `start()`.
+
+        # Arguments
+            timeout: maximum time to wait on `thread.join()`
+        """
+        self.stop_signal.set()
+
+        with self.queue.mutex:
+            self.queue.queue.clear()
+            self.queue.unfinished_tasks = 0
+            self.queue.not_full.notify()
+
+        self.run_thread.join(timeout)
+        _SHARED_GENERATOR[self.uid] = None
