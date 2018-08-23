@@ -21,7 +21,8 @@ from keras.layers import LSTM
 from keras.datasets import imdb
 
 max_features = 20000
-maxlen = 80  # cut texts after this number of words (among top max_features most common words)
+# cut texts after this number of words (among top max_features most common words)
+maxlen = 80
 batch_size = 32
 
 print('Loading data...')
