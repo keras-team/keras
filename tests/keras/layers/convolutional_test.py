@@ -135,7 +135,7 @@ def test_averagepooling_1d():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support dilated conv")
+                    reason="cntk only supports dilated conv on GPU")
 def test_convolution_2d():
     num_samples = 2
     filters = 2
