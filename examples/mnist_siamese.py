@@ -29,7 +29,8 @@ epochs = 20
 
 def euclidean_distance(vects):
     x, y = vects
-    return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
+    return K.sqrt(K.maximum(
+            K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
 
 
 def eucl_dist_output_shape(shapes):
