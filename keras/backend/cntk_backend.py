@@ -1515,27 +1515,17 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     x = _preprocess_conv2d_input(x, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(padding)
-    if dilation_rate == (1, 1):
-        strides = (1,) + strides
-        x = C.convolution(
-            kernel,
-            x,
-            strides,
-            auto_padding=[
-                False,
-                padding,
-                padding])
-    else:
-        assert dilation_rate[0] == dilation_rate[1]
-        assert strides == (1, 1), 'Invalid strides for dilated convolution'
-        x = C.convolution(
-            kernel,
-            x,
-            strides=dilation_rate[0],
-            auto_padding=[
-                False,
-                padding,
-                padding])
+
+    if dev.type() == 0 and dilation_rate != (1, 1):
+        raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. ' +
+                         'Please set dilation_rate with (1, 1).')
+
+    x = C.convolution(kernel,
+                      x,
+                      strides,
+                      auto_padding=[False, padding, padding],
+                      dilation=dilation_rate)
+
     return _postprocess_conv2d_output(x, data_format)
 
 
