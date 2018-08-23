@@ -463,8 +463,7 @@ def train(run_name, start_epoch, stop_epoch, img_w):
         img_w=img_w,
         img_h=img_h,
         downsample_factor=(pool_size ** 2),
-        val_split=words_per_epoch - val_words
-        )
+        val_split=words_per_epoch - val_words)
     act = 'relu'
     input_data = Input(name='the_input', shape=input_shape, dtype='float32')
     inner = Conv2D(conv_filters, kernel_size, padding='same',
