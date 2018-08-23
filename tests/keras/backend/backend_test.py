@@ -463,11 +463,10 @@ class TestBackend(object):
         # It doesn't check the functionality (which is checked at the
         # test_gradient test).
         val = np.random.random((4, 2))
-        for k in BACKENDS:
-            a = k.variable(val)
-            b = k.square(a)
-            c, d = k.stop_gradient([a, b])
-            e = k.stop_gradient(b)
+        a = K.variable(val)
+        b = K.square(a)
+        c, d = K.stop_gradient([a, b])
+        e = K.stop_gradient(b)
 
     # cntk currently not support function in this way, so can't test as this
     def test_function(self):
