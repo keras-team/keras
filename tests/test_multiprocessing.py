@@ -26,6 +26,36 @@ class DummySequence(Sequence):
         return 10
 
 
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    """
+
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.next()
+
+    def next(self):
+        with self.lock:
+            return next(self.it)
+
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    """
+
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+
+    return g
+
+
 @pytest.fixture
 def in_tmpdir(tmpdir):
     """Runs a function in a temporary directory.
@@ -43,6 +73,7 @@ def test_multiprocessing_training():
     arr_labels = np.random.randint(0, 2, 50)
     arr_weights = np.random.random(50)
 
+    @threadsafe_generator
     def custom_generator(use_weights=False):
         batch_size = 10
         n_samples = 50
@@ -206,6 +237,7 @@ def test_multiprocessing_training():
                         use_multiprocessing=False)
 
     # Test invalid use cases
+    @threadsafe_generator
     def invalid_generator():
         while True:
             yield arr_data[:10], arr_data[:10], arr_labels[:10], arr_labels[:10]
@@ -250,6 +282,7 @@ def test_multiprocessing_training_from_file(in_tmpdir):
     arr_labels = np.random.randint(0, 2, 50)
     np.savez('data.npz', **{'data': arr_data, 'labels': arr_labels})
 
+    @threadsafe_generator
     def custom_generator():
 
         batch_size = 10
@@ -368,6 +401,7 @@ def test_multiprocessing_training_from_file(in_tmpdir):
 def test_multiprocessing_predicting():
     arr_data = np.random.randint(0, 256, (50, 2))
 
+    @threadsafe_generator
     def custom_generator():
         batch_size = 10
         n_samples = 50
@@ -457,6 +491,7 @@ def test_multiprocessing_evaluating():
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
 
+    @threadsafe_generator
     def custom_generator():
         batch_size = 10
         n_samples = 50
@@ -551,6 +586,7 @@ def test_multiprocessing_fit_error():
     n_samples = 50
     good_batches = 3
 
+    @threadsafe_generator
     def custom_generator(use_weights=False):
         """Raises an exception after a few good batches"""
         for i in range(good_batches):
@@ -575,7 +611,7 @@ def test_multiprocessing_fit_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
                                 validation_steps=None,
@@ -609,7 +645,7 @@ def test_multiprocessing_fit_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
                                 validation_steps=None,
@@ -663,6 +699,7 @@ def test_multiprocessing_evaluate_error():
     n_samples = 50
     good_batches = 3
 
+    @threadsafe_generator
     def custom_generator():
         """Raises an exception after a few good batches"""
         for i in range(good_batches):
@@ -716,7 +753,7 @@ def test_multiprocessing_evaluate_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
                                      steps=good_batches + 1,
                                      max_queue_size=10,
@@ -762,6 +799,7 @@ def test_multiprocessing_predict_error():
     arr_data = np.random.randint(0, 256, (50, 2))
     good_batches = 3
 
+    @threadsafe_generator
     def custom_generator():
         """Raises an exception after a few good batches"""
         batch_size = 10
@@ -786,7 +824,7 @@ def test_multiprocessing_predict_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(ValueError):
+        with pytest.raises(StopIteration):
             model.predict_generator(custom_generator(),
                                     steps=good_batches * WORKERS + 1,
                                     max_queue_size=10,
@@ -817,7 +855,7 @@ def test_multiprocessing_predict_error():
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
     if os.name is 'nt':
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
                                     steps=good_batches + 1,
                                     max_queue_size=10,
@@ -856,6 +894,7 @@ def test_multiprocessing_predict_error():
                                 max_queue_size=10,
                                 workers=0,
                                 use_multiprocessing=False)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

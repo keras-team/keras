@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 import numpy as np
 import pandas as pd
@@ -37,6 +39,36 @@ class RandomSequence(Sequence):
 
     def on_epoch_end(self):
         pass
+
+
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    """
+
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.next()
+
+    def next(self):
+        with self.lock:
+            return next(self.it)
+
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    """
+
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+
+    return g
 
 
 @keras_test
@@ -264,6 +296,7 @@ def test_model_methods():
     # test starting from non-zero initial epoch for generator too
     trained_epochs = []
 
+    @threadsafe_generator
     def gen_data(batch_sz):
         while True:
             yield ([np.random.random((batch_sz, 3)),
@@ -309,6 +342,7 @@ def test_model_methods():
 
     # empty batch
     with pytest.raises(ValueError):
+        @threadsafe_generator
         def gen_data():
             while True:
                 yield (np.asarray([]), np.asarray([]))
@@ -442,6 +476,7 @@ def test_model_methods():
     # fit_generator will throw an exception
     # if steps is unspecified for regular generator
     with pytest.raises(ValueError):
+        @threadsafe_generator
         def gen_data():
             while True:
                 yield (np.asarray([]), np.asarray([]))
@@ -453,12 +488,12 @@ def test_model_methods():
     # Check if generator is only accessed an expected number of times
     gen_counters = [0, 0]
 
+    @threadsafe_generator
     def gen_data(i):
         while True:
             gen_counters[i] += 1
             yield ([np.random.random((1, 3)), np.random.random((1, 3))],
                    [np.random.random((1, 4)), np.random.random((1, 3))])
-
     out = model.fit_generator(generator=gen_data(0), epochs=3,
                               steps_per_epoch=2,
                               validation_data=gen_data(1),
@@ -468,7 +503,9 @@ def test_model_methods():
 
     # Need range check here as filling
     # of the queue depends on sleep in the enqueuers
-    assert 6 <= gen_counters[0] <= 8
+    max_train = 3 * 2 + 2 * 2
+    min_train = 2 * 3
+    assert min_train <= gen_counters[0] <= max_train
     # 12 = (epoch * workers * validation steps * max_queue_size)
     assert 3 <= gen_counters[1] <= 12
 
@@ -545,6 +582,7 @@ def test_warnings():
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
 
+    @threadsafe_generator
     def gen_data(batch_sz):
         while True:
             yield ([np.random.random((batch_sz, 3)),
@@ -926,6 +964,7 @@ def test_model_with_external_loss():
         out = model.fit(None, None, epochs=1, steps_per_epoch=1)
 
         # define a generator to produce x=None and y=None
+        @threadsafe_generator
         def data_tensors_generator():
             while True:
                 yield (None, None)
