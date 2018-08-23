@@ -286,5 +286,26 @@ def test_multi_gpu_with_multi_input_layers():
     parallel_model.train_on_batch(x, y)
 
 
+@keras_test
+def test_multi_gpu_with_siamese():
+    input_shape = (3,)
+    nested_model = keras.models.Sequential([
+        keras.layers.Dense(32, input_shape=input_shape),
+        keras.layers.Dense(1)
+    ], name='nested')
+
+    input1 = keras.Input(input_shape)
+    input2 = keras.Input(input_shape)
+    score1 = nested_model(input1)
+    score2 = nested_model(input2)
+    score_sum = keras.layers.Add(name='add')([score1, score2])
+
+    siamese = keras.models.Model(inputs=[input1, input2],
+                                 outputs=[score_sum, score1, score2],
+                                 name='siamese')
+    parallel_siamese = multi_gpu_model(siamese, 2)
+    assert parallel_siamese.output_names == ['add', 'nested_1', 'nested_2']
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -266,7 +266,9 @@ class Orthogonal(Initializer):
 class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
-    Only use for square 2D matrices.
+    Only use for 2D matrices.
+    If the long side of the matrix is a multiple of the short side,
+    multiple identity matrices are concatenated along the long side.
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
@@ -276,11 +278,21 @@ class Identity(Initializer):
         self.gain = gain
 
     def __call__(self, shape, dtype=None):
-        if len(shape) != 2 or shape[0] != shape[1]:
-            raise ValueError('Identity matrix initializer can only be used '
-                             'for 2D square matrices.')
-        else:
+        if len(shape) != 2:
+            raise ValueError(
+                'Identity matrix initializer can only be used for 2D matrices.')
+
+        if max(shape) % min(shape) != 0:
+            raise ValueError('Long side should be multiple of short side.')
+
+        if shape[0] == shape[1]:
             return self.gain * np.identity(shape[0])
+        elif shape[0] > shape[1]:
+            return self.gain * np.concatenate(
+                [np.identity(shape[1])] * (shape[0] // shape[1]), axis=0)
+        else:
+            return self.gain * np.concatenate(
+                [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
 
     def get_config(self):
         return {

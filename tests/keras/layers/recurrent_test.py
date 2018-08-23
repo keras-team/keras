@@ -896,5 +896,16 @@ def test_rnn_cell_with_constants_layer_passing_initial_state():
     assert_allclose(y_np, y_np_3, atol=1e-4)
 
 
+@rnn_test
+def test_rnn_cell_identity_initializer(layer_class):
+    inputs = Input(shape=(timesteps, embedding_dim))
+    layer = layer_class(units, recurrent_initializer='identity')
+    layer(inputs)
+    recurrent_kernel = layer.get_weights()[1]
+    num_kernels = recurrent_kernel.shape[1] // recurrent_kernel.shape[0]
+    assert np.array_equal(recurrent_kernel,
+                          np.concatenate([np.identity(units)] * num_kernels, axis=1))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

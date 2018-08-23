@@ -477,6 +477,10 @@ class EarlyStopping(Callback):
         baseline: Baseline value for the monitored quantity to reach.
             Training will stop if the model doesn't show improvement
             over the baseline.
+        restore_best_weights: whether to restore model weights from
+            the epoch with the best value of the monitored quantity.
+            If False, the model weights obtained at the last step of
+            training are used.
     """
 
     def __init__(self,
@@ -485,7 +489,8 @@ class EarlyStopping(Callback):
                  patience=0,
                  verbose=0,
                  mode='auto',
-                 baseline=None):
+                 baseline=None,
+                 restore_best_weights=False):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
@@ -495,6 +500,8 @@ class EarlyStopping(Callback):
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
+        self.restore_best_weights = restore_best_weights
+        self.best_weights = None
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
@@ -538,11 +545,17 @@ class EarlyStopping(Callback):
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
+            if self.restore_best_weights:
+                self.best_weights = self.model.get_weights()
         else:
             self.wait += 1
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
                 self.model.stop_training = True
+                if self.restore_best_weights:
+                    if self.verbose > 0:
+                        print("Restoring model weights from the end of the best epoch")
+                    self.model.set_weights(self.best_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
