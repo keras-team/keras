@@ -166,3 +166,143 @@ def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=No
         h.append(h_t + h_t1)
 
     return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
+
+
+def relu(x, alpha=0., max_value=None):
+    y = x * (x > 0) + alpha * x * (x < 0)
+    if max_value is not None:
+        y = np.minimum(y, max_value)
+    return y
+
+
+def softplus(x):
+    return np.log(1. + np.exp(x))
+
+
+def elu(x, alpha=1.):
+    return x * (x > 0) + alpha * (np.exp(x) - 1.) * (x < 0)
+
+
+def sigmoid(x):
+    return 1. / (1. + np.exp(-x))
+
+
+def hard_sigmoid(x):
+    y = 0.2 * x + 0.5
+    y = np.minimum(y, 1.)
+    y = np.maximum(y, 0.)
+    return y
+
+
+def tanh(x):
+    return np.tanh(x)
+
+
+def softmax(x, axis=-1):
+    y = np.exp(x - np.max(x, axis, keepdims=True))
+    return y / np.sum(y, axis, keepdims=True)
+
+
+def l2_normalize(x, axis=-1):
+    y = np.max(np.sum(x ** 2, axis, keepdims=True), axis, keepdims=True)
+    return x / np.sqrt(y)
+
+
+def max(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.max(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.max(x, axis=axis, keepdims=keepdims)
+
+
+def min(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.min(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.min(x, axis=axis, keepdims=keepdims)
+
+
+def mean(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.mean(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.mean(x, axis=axis, keepdims=keepdims)
+
+
+def std(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.std(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.std(x, axis=axis, keepdims=keepdims)
+
+
+def sum(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.sum(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.sum(x, axis=axis, keepdims=keepdims)
+
+
+def prod(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.prod(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.prod(x, axis=axis, keepdims=keepdims)
+
+
+def cumsum(x, axis=0):
+    return np.cumsum(x, axis=axis)
+
+
+def cumprod(x, axis=0):
+    return np.cumprod(x, axis=axis)
+
+
+def any(x, axis=None, keepdims=False):
+    return np.any(x, axis=axis, keepdims=keepdims)
+
+
+def all(x, axis=None, keepdims=False):
+    return np.all(x, axis=axis, keepdims=keepdims)
+
+
+def argmax(x, axis=-1):
+    return np.argmax(x, axis=axis)
+
+
+def argmin(x, axis=-1):
+    return np.argmin(x, axis=axis)
+
+
+def sqrt(x):
+    y = np.sqrt(x)
+    y[np.isnan(y)] = 0.
+    return y
+
+
+def pow(x, a=1.):
+    return np.power(x, a)
+
+
+def clip(x, min_value, max_value):
+    return np.clip(x, min_value, max_value)
+
+
+square = np.square
+abs = np.abs
+exp = np.exp
+log = np.log
+round = np.round
+sign = np.sign
