@@ -212,8 +212,10 @@ def test_stateful_metrics(metrics_mode):
     # Test correctness of the validation metric computation
     val_preds = model.predict_generator(iter(val_gen), steps=val_samples, workers=0)
     val_outs = model.evaluate_generator(iter(val_gen), steps=val_samples, workers=0)
-    np.testing.assert_allclose(val_outs[2], ref_true_pos(val_y, val_preds), atol=1e-5)
-    np.testing.assert_allclose(val_outs[2], history.history['val_true_positives'][-1],
+    np.testing.assert_allclose(val_outs[2], ref_true_pos(val_y, val_preds),
+                               atol=1e-5)
+    np.testing.assert_allclose(val_outs[2],
+                               history.history['val_true_positives'][-1],
                                atol=1e-5)
 
 
