@@ -219,8 +219,9 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.Y_len = [0] * self.num_words
 
         def _is_length_of_word_valid(word):
-            return max_string_len == -1 or max_string_len is None or \
-                len(word) <= max_string_len
+            return (max_string_len == -1 or
+                    max_string_len is None or
+                    len(word) <= max_string_len)
 
         # monogram file is sorted by frequency in english speech
         with codecs.open(self.monogram_file, mode='r', encoding='utf-8') as f:
@@ -285,11 +286,11 @@ class TextImageGenerator(keras.callbacks.Callback):
                 source_str.append('')
             else:
                 if K.image_data_format() == 'channels_first':
-                    X_data[i, 0, 0:self.img_w, :] = \
-                        self.paint_func(self.X_text[index + i])[0, :, :].T
+                    X_data[i, 0, 0:self.img_w, :] = (
+                        self.paint_func(self.X_text[index + i])[0, :, :].T)
                 else:
-                    X_data[i, 0:self.img_w, :, 0] = \
-                        self.paint_func(self.X_text[index + i])[0, :, :].T
+                    X_data[i, 0:self.img_w, :, 0] = (
+                        self.paint_func(self.X_text[index + i])[0, :, :].T)
                 labels[i, :] = self.Y_data[index + i]
                 input_length[i] = self.img_w // self.downsample_factor - 2
                 label_length[i] = self.Y_len[index + i]
