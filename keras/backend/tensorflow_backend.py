@@ -15,6 +15,7 @@ from tensorflow.core.protobuf import config_pb2
 from collections import defaultdict
 
 import numpy as np
+from distutils.version import StrictVersion
 import os
 
 from .common import floatx
@@ -3400,7 +3401,9 @@ def _preprocess_conv1d_input(x, data_format):
     # Returns
         A tensor.
     """
-    if dtype(x) == 'float64':
+    # tensorflow doesn't support float64 for conv layer before 1.8.0
+    if (dtype(x) == 'float64'
+            and StrictVersion(tf.__version__) < StrictVersion('1.8.0')):
         x = tf.cast(x, 'float32')
     tf_data_format = 'NWC'  # to pass TF Conv2dNative operations
     if data_format == 'channels_first':
@@ -3421,7 +3424,9 @@ def _preprocess_conv2d_input(x, data_format):
     # Returns
         A tensor.
     """
-    if dtype(x) == 'float64':
+    # tensorflow doesn't support float64 for conv layer before 1.8.0
+    if (dtype(x) == 'float64'
+            and StrictVersion(tf.__version__) < StrictVersion('1.8.0')):
         x = tf.cast(x, 'float32')
     tf_data_format = 'NHWC'
     if data_format == 'channels_first':
@@ -3442,7 +3447,9 @@ def _preprocess_conv3d_input(x, data_format):
     # Returns
         A tensor.
     """
-    if dtype(x) == 'float64':
+    # tensorflow doesn't support float64 for conv layer before 1.8.0
+    if (dtype(x) == 'float64'
+            and StrictVersion(tf.__version__) < StrictVersion('1.8.0')):
         x = tf.cast(x, 'float32')
     tf_data_format = 'NDHWC'
     if data_format == 'channels_first':

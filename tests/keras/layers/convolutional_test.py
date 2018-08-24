@@ -1060,5 +1060,28 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=lambda x: x)
 
 
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason="cntk does not work with float64")
+@pytest.mark.parametrize(
+    'input_shape,conv_class',
+    [((2, 4, 2), convolutional.Conv1D),
+     ((2, 4, 4, 2), convolutional.Conv2D),
+     ((2, 4, 4, 4, 2), convolutional.Conv3D)]
+)
+def test_conv_float64(input_shape, conv_class):
+    kernel_size = 3
+    strides = 1
+    filters = 3
+    K.set_floatx('float64')
+    layer_test(conv_class,
+               kwargs={'filters': filters,
+                       'kernel_size': kernel_size,
+                       'padding': 'valid',
+                       'strides': strides},
+               input_shape=input_shape)
+    K.set_floatx('float32')
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
