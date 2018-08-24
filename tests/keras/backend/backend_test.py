@@ -388,55 +388,47 @@ class TestBackend(object):
         check_single_tensor_operation('print_tensor', (1, 2, 3), BACKENDS)
 
     def test_elementwise_operations(self):
-        check_single_tensor_operation('max', (4, 2), BACKENDS)
-        check_single_tensor_operation('max', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('max', (4, 2), WITH_NP)
+        check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
 
-        check_single_tensor_operation('min', (4, 2), BACKENDS)
-        check_single_tensor_operation('min', (4, 2), BACKENDS, axis=1, keepdims=True)
-        check_single_tensor_operation('min', (4, 2, 3), BACKENDS, axis=[1, -1])
+        check_single_tensor_operation('min', (4, 2), WITH_NP)
+        check_single_tensor_operation('min', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('min', (4, 2, 3), WITH_NP, axis=[1, -1])
 
-        check_single_tensor_operation('mean', (4, 2), BACKENDS)
-        check_single_tensor_operation('mean', (4, 2), BACKENDS, axis=1, keepdims=True)
-        check_single_tensor_operation('mean', (4, 2, 3), BACKENDS, axis=-1, keepdims=True)
-        check_single_tensor_operation('mean', (4, 2, 3), BACKENDS, axis=[1, -1])
+        check_single_tensor_operation('mean', (4, 2), WITH_NP)
+        check_single_tensor_operation('mean', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=-1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=[1, -1])
 
-        check_single_tensor_operation('std', (4, 2), BACKENDS)
-        check_single_tensor_operation('std', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('std', (4, 2), WITH_NP)
+        check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
         # check_single_tensor_operation('std', (4, 2, 3), BACKENDS, axis=[1, -1])
 
-        check_single_tensor_operation('prod', (4, 2), BACKENDS)
-        check_single_tensor_operation('prod', (4, 2), BACKENDS, axis=1, keepdims=True)
-        check_single_tensor_operation('prod', (4, 2, 3), BACKENDS, axis=[1, -1])
+        check_single_tensor_operation('prod', (4, 2), WITH_NP)
+        check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
 
-        # cntk does not support cumsum and cumprod yet
-        check_single_tensor_operation('cumsum', (4, 2), [KTF, KTH])
-        check_single_tensor_operation('cumsum', (4, 2), [KTF, KTH], axis=1)
+        check_single_tensor_operation('any', (4, 2), WITH_NP)
+        check_single_tensor_operation('any', (4, 2), WITH_NP, axis=1, keepdims=True)
 
-        check_single_tensor_operation('cumprod', (4, 2), [KTF, KTH])
-        check_single_tensor_operation('cumprod', (4, 2), [KTF, KTH], axis=1)
+        check_single_tensor_operation('all', (4, 2), WITH_NP)
+        check_single_tensor_operation('all', (4, 2), WITH_NP, axis=1, keepdims=True)
 
-        check_single_tensor_operation('any', (4, 2), BACKENDS)
-        check_single_tensor_operation('any', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('argmax', (4, 2), WITH_NP)
+        check_single_tensor_operation('argmax', (4, 2), WITH_NP, axis=1)
 
-        check_single_tensor_operation('all', (4, 2), BACKENDS)
-        check_single_tensor_operation('all', (4, 2), BACKENDS, axis=1, keepdims=True)
+        check_single_tensor_operation('argmin', (4, 2), WITH_NP)
+        check_single_tensor_operation('argmin', (4, 2), WITH_NP, axis=1)
 
-        check_single_tensor_operation('argmax', (4, 2), BACKENDS)
-        check_single_tensor_operation('argmax', (4, 2), BACKENDS, axis=1)
-
-        check_single_tensor_operation('argmin', (4, 2), BACKENDS)
-        check_single_tensor_operation('argmin', (4, 2), BACKENDS, axis=1)
-
-        check_single_tensor_operation('square', (4, 2), BACKENDS)
-        check_single_tensor_operation('abs', (4, 2), BACKENDS)
-        check_single_tensor_operation('sqrt', (4, 2), BACKENDS)
+        check_single_tensor_operation('square', (4, 2), WITH_NP)
+        check_single_tensor_operation('abs', (4, 2), WITH_NP)
+        check_single_tensor_operation('sqrt', (4, 2), WITH_NP)
         check_single_tensor_operation('exp', (4, 2), BACKENDS)
-        # cntk return -85.1 for zero or negative number, not nan, so can't compare with other backend.
-        check_single_tensor_operation('log', (4, 2), [KTH, KTF])
+
         check_single_tensor_operation('round', (4, 2), BACKENDS)
         check_single_tensor_operation('sign', (4, 2), BACKENDS)
-        check_single_tensor_operation('pow', (4, 2), BACKENDS, a=3)
-        check_single_tensor_operation('clip', (4, 2), BACKENDS, min_value=0.4,
+        check_single_tensor_operation('pow', (4, 2), WITH_NP, a=3)
+        check_single_tensor_operation('clip', (4, 2), WITH_NP, min_value=0.4,
                                       max_value=0.6)
 
         # two-tensor ops
@@ -448,6 +440,22 @@ class TestBackend(object):
         check_two_tensor_operation('less_equal', (4, 2), (4, 2), BACKENDS)
         check_two_tensor_operation('maximum', (4, 2), (4, 2), BACKENDS)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), BACKENDS)
+
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
+                                                      'cumsum and cumprod yet')
+    def test_cumsum_cumprod(self):
+        check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
+        check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
+
+        check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
+        check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
+
+    @pytest.mark.skipif(K.backend() == 'cntk',
+                        reason='cntk return -85.1 for zero or '
+                               'negative number, not nan, so can\'t '
+                               'compare with other backend.')
+    def test_log(self):
+        check_single_tensor_operation('log', (4, 2), WITH_NP)
 
     # cntk doesn't support gradient in this way
     def test_gradient(self):
