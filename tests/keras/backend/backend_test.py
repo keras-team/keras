@@ -12,7 +12,7 @@ import reference_operations as KNP
 
 
 BACKENDS = []  # Holds a list of all available back-ends
-BACKEND_AND_NP = [K, KNP]
+WITH_NP = [K, KNP]
 
 try:
     from keras.backend import cntk_backend as KC
@@ -283,7 +283,7 @@ class TestBackend(object):
         check_two_tensor_operation('concatenate', (4, 3), (4, 2), BACKENDS,
                                    axis=-1, concat_args=True)
 
-        check_single_tensor_operation('reshape', (4, 2), BACKEND_AND_NP, shape=(8, 1))
+        check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), BACKENDS,
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), BACKENDS, n=3)
