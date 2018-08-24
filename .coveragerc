@@ -15,6 +15,7 @@ fail_under = 85
 show_missing = True
 omit =
     keras/applications/*
+    keras/preprocessing/*
     keras/datasets/*
     keras/layers/cudnn_recurrent.py
     keras/legacy/*
