@@ -31,11 +31,16 @@ python neural_doodle.py --nlabels 4 --style-image Renoir/style.png \
 
 # References
 
-- [Dmitry Ulyanov's blog on fast-neural-doodle](http://dmitryulyanov.github.io/feed-forward-neural-doodle/)
-- [Torch code for fast-neural-doodle](https://github.com/DmitryUlyanov/fast-neural-doodle)
-- [Torch code for online-neural-doodle](https://github.com/DmitryUlyanov/online-neural-doodle)
-- [Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images](http://arxiv.org/abs/1603.03417)
-- [Discussion on parameter tuning](https://github.com/keras-team/keras/issues/3705)
+- [Dmitry Ulyanov's blog on fast-neural-doodle]
+    (http://dmitryulyanov.github.io/feed-forward-neural-doodle/)
+- [Torch code for fast-neural-doodle]
+    (https://github.com/DmitryUlyanov/fast-neural-doodle)
+- [Torch code for online-neural-doodle]
+    (https://github.com/DmitryUlyanov/online-neural-doodle)
+- [Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images]
+    (http://arxiv.org/abs/1603.03417)
+- [Discussion on parameter tuning]
+    (https://github.com/keras-team/keras/issues/3705)
 
 # Resources
 
@@ -134,7 +139,8 @@ def kmeans(xs, k):
 def load_mask_labels():
     '''Load both target and style masks.
     A mask image (nr x nc) with m labels/colors will be loaded
-    as a 4D boolean tensor: (1, m, nr, nc) for 'channels_first' or (1, nr, nc, m) for 'channels_last'
+    as a 4D boolean tensor:
+        (1, m, nr, nc) for 'channels_first' or (1, nr, nc, m) for 'channels_last'
     '''
     target_mask_img = load_img(target_mask_path,
                                target_size=(img_nrows, img_ncols))
