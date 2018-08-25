@@ -689,8 +689,10 @@ def test_zero_padding_2d():
     input_num_row = 4
     input_num_col = 5
     for data_format in ['channels_first', 'channels_last']:
-        inputs = np.ones((num_samples, input_num_row, input_num_col, stack_size))
-        inputs = np.ones((num_samples, stack_size, input_num_row, input_num_col))
+        if data_format == 'channels_last':
+            inputs = np.ones((num_samples, input_num_row, input_num_col, stack_size))
+        else:
+            inputs = np.ones((num_samples, stack_size, input_num_row, input_num_col))
 
         # basic test
         layer_test(convolutional.ZeroPadding2D,
