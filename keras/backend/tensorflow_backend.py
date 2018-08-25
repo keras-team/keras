@@ -1978,8 +1978,8 @@ def resize_images(x, height_factor, width_factor, data_format, interpolation='ne
     # Raises
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
+    original_shape = int_shape(x)
     if data_format == 'channels_first':
-        original_shape = int_shape(x)
         new_shape = tf.shape(x)[2:]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
         x = permute_dimensions(x, [0, 2, 3, 1])
@@ -1988,16 +1988,22 @@ def resize_images(x, height_factor, width_factor, data_format, interpolation='ne
         elif interpolation == 'bilinear':
             x = tf.image.resize_bilinear(x, new_shape)
         else:
-            raise ValueError('interpolation should be one of "nearest" or "bilinear".')
+            raise ValueError('interpolation should be one '
+                             'of "nearest" or "bilinear".')
         x = permute_dimensions(x, [0, 3, 1, 2])
         x.set_shape((None, None, original_shape[2] * height_factor if original_shape[2] is not None else None,
                      original_shape[3] * width_factor if original_shape[3] is not None else None))
         return x
     elif data_format == 'channels_last':
-        original_shape = int_shape(x)
         new_shape = tf.shape(x)[1:3]
         new_shape *= tf.constant(np.array([height_factor, width_factor]).astype('int32'))
-        x = tf.image.resize_nearest_neighbor(x, new_shape)
+        if interpolation == 'nearest':
+            x = tf.image.resize_nearest_neighbor(x, new_shape)
+        elif interpolation == 'bilinear':
+            x = tf.image.resize_bilinear(x, new_shape)
+        else:
+            raise ValueError('interpolation should be one '
+                             'of "nearest" or "bilinear".')
         x.set_shape((None, original_shape[1] * height_factor if original_shape[1] is not None else None,
                      original_shape[2] * width_factor if original_shape[2] is not None else None, None))
         return x

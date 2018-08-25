@@ -1940,7 +1940,8 @@ class UpSampling2D(Layer):
         self.size = conv_utils.normalize_tuple(size, 2, 'size')
         self.input_spec = InputSpec(ndim=4)
         if interpolation not in ['nearest', 'bilinear']:
-            raise ValueError('interpolation should be one of "nearest" or "bilinear".')
+            raise ValueError('interpolation should be one '
+                             'of "nearest" or "bilinear".')
         self.interpolation = interpolation
 
     def compute_output_shape(self, input_shape):

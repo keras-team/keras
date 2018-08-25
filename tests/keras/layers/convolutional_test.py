@@ -880,7 +880,9 @@ def test_upsampling_2d_bilinear():
 
         # basic test
         layer_test(convolutional.UpSampling2D,
-                   kwargs={'size': (2, 2), 'data_format': data_format, 'interpolation': 'bilinear'},
+                   kwargs={'size': (2, 2),
+                           'data_format': data_format,
+                           'interpolation': 'bilinear'},
                    input_shape=inputs.shape)
 
         for length_row in [2]:
