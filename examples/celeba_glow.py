@@ -57,7 +57,7 @@ class Permute(Layer):
 
     def build(self, input_shape):
         in_dim = input_shape[-1]
-        if self.idxs == None:
+        if self.idxs is None:
             if self.mode == 'reverse':
                 self.idxs = self.add_weight(
                     name='idxs',
@@ -123,7 +123,7 @@ class InvDense(Layer):
         return p, l, u, u_diag_sign, u_diag_abs_log, l_mask, u_mask
 
     def build(self, input_shape):
-        if self.kernel == None:
+        if self.kernel is None:
             (p, l, u, u_diag_sign, u_diag_abs_log, l_mask,
              u_mask) = self.initializer(input_shape)
             self.kernel_p = self.add_weight(
@@ -186,7 +186,7 @@ class Split(Layer):
         super(Split, self).__init__(**kwargs)
 
     def call(self, inputs):
-        if self.pattern == None:
+        if self.pattern is None:
             in_dim = K.int_shape(inputs)[-1]
             self.pattern = [in_dim // 2, in_dim - in_dim // 2]
         partion = [0] + list(np.cumsum(self.pattern))
@@ -268,7 +268,7 @@ class CoupleWrapper:
             layer = self.layer
         else:
             layer = self.layer.inverse()
-        if self.log_scale_model == None:
+        if self.log_scale_model is None:
             return layer([x1, x2, shift])
         else:
             log_scale = self.log_scale_model(x1)
@@ -291,13 +291,13 @@ class Actnorm(Layer):
 
     def build(self, input_shape):
         kernel_shape = (1, ) * (len(input_shape) - 1) + (input_shape[-1], )
-        if self.log_scale == None:
+        if self.log_scale is None:
             self.log_scale = self.add_weight(
                 name='log_scale',
                 shape=kernel_shape,
                 initializer='zeros',
                 trainable=True)
-        if self.shift == None:
+        if self.shift is None:
             self.shift = self.add_weight(
                 name='shift',
                 shape=kernel_shape,
@@ -337,13 +337,13 @@ class CondActnorm(Layer):
 
     def build(self, input_shape):
         in_dim = input_shape[0][-1]
-        if self.kernel == None:
+        if self.kernel is None:
             self.kernel = self.add_weight(
                 name='kernel',
                 shape=(3, 3, in_dim, in_dim * 2),
                 initializer='zeros',
                 trainable=True)
-        if self.bias == None:
+        if self.bias is None:
             self.bias = self.add_weight(
                 name='bias',
                 shape=(in_dim * 2, ),
@@ -383,7 +383,7 @@ class Reshape(Layer):
 
     def call(self, inputs):
         self.in_shape = [i or -1 for i in K.int_shape(inputs)]
-        if self.shape == None:
+        if self.shape is None:
             self.shape = [-1, np.prod(self.in_shape[1:])]
         return K.reshape(inputs, self.shape)
 
