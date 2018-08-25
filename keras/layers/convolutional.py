@@ -1917,6 +1917,8 @@ class UpSampling2D(Layer):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
         interpolation: A string, one of `nearest` or `bilinear`.
+            Note that CNTK does not support yet the `bilinear` upscaling
+            and that with Theano, only `size=(2, 2)` is possible.
 
     # Input shape
         4D tensor with shape:
