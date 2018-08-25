@@ -300,6 +300,17 @@ def clip(x, min_value, max_value):
     return np.clip(x, min_value, max_value)
 
 
+def reshape(x, shape):
+    return np.reshape(x, shape)
+
+
+def variable(value, dtype=None, name=None, constraint=None):
+    if constraint is not None:
+        raise TypeError("Constraint must be None when "
+                        "using the NumPy backend.")
+    return np.array(value, dtype)
+
+
 square = np.square
 abs = np.abs
 exp = np.exp
