@@ -1494,14 +1494,17 @@ def conv1d(x, kernel, strides=1, padding='valid',
         kernel = C.swapaxes(kernel, 0, 2)
 
     padding = _preprocess_border_mode(padding)
-    strides = [strides]
+
+    if dev.type() == 0 and dilation_rate != 1:
+        raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. ' +
+                         'Please set dilation_rate with 1.')
+
     x = C.convolution(
         kernel,
         x,
-        strides=tuple(strides),
-        auto_padding=[
-            False,
-            padding])
+        strides=strides,
+        auto_padding=[False, padding],
+        dilation=dilation_rate)
 
     if data_format == 'channels_last':
         x = C.swapaxes(x, 0, 1)
@@ -1649,17 +1652,18 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(padding)
-    strides = strides + (strides[0],)
+
+    if dev.type() == 0 and dilation_rate != (1, 1, 1):
+        raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. ' +
+                         'Please set dilation_rate with (1, 1, 1).')
 
     x = C.convolution(
         kernel,
         x,
         strides,
-        auto_padding=[
-            False,
-            padding,
-            padding,
-            padding])
+        auto_padding=[False, padding, padding, padding],
+        dilation=dilation_rate)
+
     return _postprocess_conv3d_output(x, data_format)
 
 
