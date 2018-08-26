@@ -863,7 +863,7 @@ def test_upsampling_2d():
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support it yet")
+                    reason='cntk does not support it yet')
 def test_upsampling_2d_bilinear():
     num_samples = 2
     stack_size = 2
