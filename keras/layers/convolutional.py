@@ -2042,7 +2042,8 @@ class UpSampling3D(Layer):
 
 class _ZeroPadding(Layer):
     """Abstract nD ZeroPadding layer (private, used as implementation base).
-     # Arguments
+
+    # Arguments
         padding: Tuple of tuples of two ints. Can be a tuple of ints when
             rank is 1.
         data_format: A string,
@@ -2056,7 +2057,7 @@ class _ZeroPadding(Layer):
             If you never set it, then it will be "channels_last".
     """
     def __init__(self, padding, data_format=None, **kwargs):
-        # self.rank is 1 for ZeroPadding1D, 2 for ZeroPadding2D...
+        # self.rank is 1 for ZeroPadding1D, 2 for ZeroPadding2D.
         self.rank = len(padding)
         self.padding = padding
         self.data_format = K.normalize_data_format(data_format)
