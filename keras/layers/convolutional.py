@@ -2064,6 +2064,9 @@ class _ZeroPadding(Layer):
         self.input_spec = InputSpec(ndim=self.rank + 2)
         super(_ZeroPadding, self).__init__(**kwargs)
 
+    def call(self, inputs):
+        return NotImplementedError
+
     def compute_output_shape(self, input_shape):
         padding_all_dims = ((0, 0),) + self.padding + ((0, 0),)
         spatial_axes = list(range(1, 1 + self.rank))
