@@ -265,9 +265,11 @@ class Conv1D(_Conv):
             `"same"` results in padding the input such that
             the output has the same length as the original input.
             `"causal"` results in causal (dilated) convolutions, e.g. output[t]
-            does not depend on input[t+1:]. Useful when modeling temporal data
-            where the model should not violate the temporal order.
-            See [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
+            does not depend on input[t+1:]. A zero padding is used such that
+            the output has the same length as the original input.
+            Useful when modeling temporal data where the model
+            should not violate the temporal order. See
+            [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
         data_format: A string,
             one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
