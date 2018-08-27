@@ -83,7 +83,7 @@ class Permute(Layer):
         return idxs
 
     def call(self, inputs):
-        num_axis = len(K.int_shape(inputs))
+        num_axis = K.ndim(inputs)
         inputs = K.permute_dimensions(inputs, range(num_axis)[::-1])
         x_outs = K.gather(inputs, self.idxs)
         x_outs = K.permute_dimensions(x_outs, range(num_axis)[::-1])
@@ -164,7 +164,7 @@ class InvDense(Layer):
         else:
             logdet = -K.sum(self.kernel_u_diag_abs_log)
             x_outs = K.dot(inputs, self.kernel)
-        if len(K.int_shape(inputs)) > 2:
+        if K.ndim(inputs) > 2:
             logdet *= K.prod(K.cast(K.shape(inputs)[1:-1], 'float32'))
         if self.add_logdet_to_loss:
             self.add_loss(logdet)
@@ -311,7 +311,7 @@ class Actnorm(Layer):
         else:
             logdet = -K.sum(self.log_scale)
             x_outs = K.exp(self.log_scale) * inputs + self.shift
-        if len(K.int_shape(inputs)) > 2:
+        if K.ndim(inputs) > 2:
             logdet *= K.prod(K.cast(K.shape(inputs)[1:-1], 'float32'))
         if self.add_logdet_to_loss:
             self.add_loss(logdet)
