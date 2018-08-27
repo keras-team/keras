@@ -19,7 +19,7 @@
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
 - [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
-- [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
+- [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras)
 
 ---
 
@@ -149,7 +149,7 @@ You can then use `keras.models.load_model(filepath)` to reinstantiate your model
 `load_model` will also take care of compiling the model using the saved training configuration
 (unless the model was never compiled in the first place).
 
-Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 Example:
 
@@ -210,7 +210,7 @@ If you need to load weights into a *different* architecture (with some layers in
 model.load_weights('my_model_weights.h5', by_name=True)
 ```
 
-Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 For example:
 
@@ -517,7 +517,7 @@ with h5py.File('input/file.hdf5', 'r') as f:
     model.predict(x_data)
 ```
 
-Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras) for instructions on how to install `h5py`.
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 ---
 
