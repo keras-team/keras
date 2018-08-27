@@ -1324,21 +1324,21 @@ class TestBackend(object):
                             data_format='channels_middle')
 
     @staticmethod
-    def _helper_bilinear(height_factor, width_factor):
+    def _helper_bilinear(data_format, height_factor, width_factor):
         x_shape = (2, 3, 4, 5)
-        for data_format in ['channels_first', 'channels_last']:
-            check_single_tensor_operation('resize_images', x_shape,
-                                          [KTF, KTH],
-                                          height_factor=height_factor,
-                                          width_factor=width_factor,
-                                          data_format=data_format,
-                                          interpolation='bilinear')
+        check_single_tensor_operation('resize_images', x_shape,
+                                      [KTF, KTH],
+                                      height_factor=height_factor,
+                                      width_factor=width_factor,
+                                      data_format=data_format,
+                                      interpolation='bilinear')
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
-    def test_resize_images_bilinear(self):
-        self._helper_bilinear(2, 2)
+    @pytest.mark.parametrize('data_format', ['channels_first', 'channels_last'])
+    def test_resize_images_bilinear(self, data_format):
+        self._helper_bilinear(data_format, 2, 2)
         with pytest.raises(NotImplementedError):
-            self._helper_bilinear(4, 4)
+            self._helper_bilinear(data_format, 4, 4)
 
     def test_resize_volumes(self):
         for data_format in ['channels_first', 'channels_last']:
