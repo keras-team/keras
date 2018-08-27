@@ -2065,7 +2065,7 @@ class _ZeroPadding(Layer):
         super(_ZeroPadding, self).__init__(**kwargs)
 
     def call(self, inputs):
-        return NotImplementedError
+        raise NotImplementedError
 
     def compute_output_shape(self, input_shape):
         padding_all_dims = ((0, 0),) + self.padding + ((0, 0),)
