@@ -60,7 +60,6 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         `model` argument, but which distributes its workload on multiple GPUs.
 
     # Example 1 - Training models with weights merge on CPU
-
     ```python
         import tensorflow as tf
         from keras.applications import Xception
@@ -101,7 +100,6 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     ```
 
     # Example 2 - Training models with weights merge on CPU using cpu_relocation
-
     ```python
          ..
          # Not needed to change the device scope for model definition:
@@ -118,7 +116,6 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     ```
 
     # Example 3 - Training models with weights merge on GPU (recommended for NV-link)
-
     ```python
          ..
          # Not needed to change the device scope for model definition:
