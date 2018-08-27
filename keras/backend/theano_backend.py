@@ -19,7 +19,6 @@ try:
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 
-import warnings
 import numpy as np
 from .common import floatx
 from .common import epsilon
