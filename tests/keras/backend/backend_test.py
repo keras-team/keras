@@ -1146,9 +1146,7 @@ class TestBackend(object):
 
             # test that random_normal also generates different values when used within a function
             r = K.random_normal((1,), mean=mean, stddev=std, seed=1337)
-            samples = [K.eval(r) for _ in range(60000)]
-            assert np.abs(np.mean(samples) - mean) < std * 0.015
-            assert np.abs(np.std(samples) - std) < std * 0.015
+            assert abs(K.eval(r)[0] - K.eval(r)[0]) > 0.015 * std
 
     def test_random_uniform(self):
         min_val = -1.
