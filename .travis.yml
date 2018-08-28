@@ -62,11 +62,7 @@ install:
   - pip install tensorflow==1.9
   
   # install cntk
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.5.1-cp27-cp27mu-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.5.1-cp36-cp36m-linux_x86_64.whl;
-    fi
+  - pip install cntk
 
   # install pydot for visualization tests
   - conda install pydot graphviz
