@@ -131,7 +131,6 @@ def test_regression_build_fn():
     assert_regression_works(reg)
 
 
-@pytest.mark.timeout(50)
 def test_regression_class_build_fn():
     class ClassBuildFnReg(object):
 
