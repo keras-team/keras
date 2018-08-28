@@ -1062,7 +1062,7 @@ def test_cropping_3d():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not work with float64")
+                    reason='CNTK does not support float64')
 @pytest.mark.parametrize(
     'input_shape,conv_class',
     [((2, 4, 2), convolutional.Conv1D),
