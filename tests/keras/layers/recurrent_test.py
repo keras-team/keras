@@ -950,7 +950,7 @@ def test_inconsistent_output_state_size():
     assert cell.state_size == state_size
     init_state = layer.get_initial_state(x)
     assert len(init_state) == 1
-    assert init_state[0].get_shape().as_list() == [None, state_size]
+    assert K.int_shape(init_state[0]) == (None, state_size)
 
     model = keras.models.Model(x, y)
     model.compile(optimizer='rmsprop', loss='mse')
