@@ -8,28 +8,28 @@ import scipy.signal as signal
 
 
 def normalize_conv(func):
-    def wrapper(*args):
+    def wrapper(*args, **kwargs):
         x = args[0]
         w = args[1]
         if x.ndim == 3:
             w = np.flipud(w)
             w = np.transpose(w, (1, 2, 0))
-            if args[3] == 'channels_last':
+            if kwargs['data_format'] == 'channels_last':
                 x = np.transpose(x, (0, 2, 1))
         elif x.ndim == 4:
             w = np.fliplr(np.flipud(w))
             w = np.transpose(w, (2, 3, 0, 1))
-            if args[3] == 'channels_last':
+            if kwargs['data_format'] == 'channels_last':
                 x = np.transpose(x, (0, 3, 1, 2))
         else:
             w = np.flip(np.fliplr(np.flipud(w)), axis=2)
             w = np.transpose(w, (3, 4, 0, 1, 2))
-            if args[3] == 'channels_last':
+            if kwargs['data_format'] == 'channels_last':
                 x = np.transpose(x, (0, 4, 1, 2, 3))
 
-        y = func(x, w, args[2], args[3])
+        y = func(x, w, **kwargs)
 
-        if args[3] == 'channels_last':
+        if kwargs['data_format'] == 'channels_last':
             if y.ndim == 3:
                 y = np.transpose(y, (0, 2, 1))
             elif y.ndim == 4:
@@ -73,8 +73,16 @@ def depthwise_conv(x, w, padding, data_format):
 
 
 def separable_conv(x, w1, w2, padding, data_format):
-    x2 = depthwise_conv(x, w1, padding, data_format)
-    return conv(x2, w2, padding, data_format)
+    x2 = depthwise_conv(x, w1, padding=padding, data_format=data_format)
+    return conv(x2, w2, padding=padding, data_format=data_format)
+
+
+conv1d = conv
+conv2d = conv
+conv3d = conv
+depthwise_conv2d = depthwise_conv
+separable_conv1d = separable_conv
+separable_conv2d = separable_conv
 
 
 def pool(x, pool_size, strides, padding, data_format, pool_mode):
@@ -127,6 +135,10 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
             y = np.transpose(y, (0, 2, 3, 4, 1))
 
     return y
+
+
+pool2d = pool
+pool3d = pool
 
 
 def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
@@ -206,6 +218,23 @@ def softmax(x, axis=-1):
 def l2_normalize(x, axis=-1):
     y = np.max(np.sum(x ** 2, axis, keepdims=True), axis, keepdims=True)
     return x / np.sqrt(y)
+
+
+def binary_crossentropy(target, output, from_logits=False):
+    if not from_logits:
+        output = np.clip(output, 1e-7, 1 - 1e-7)
+        output = np.log(output / (1 - output))
+    return (target * -np.log(sigmoid(output)) +
+            (1 - target) * -np.log(1 - sigmoid(output)))
+
+
+def categorical_crossentropy(target, output, from_logits=False):
+    if from_logits:
+        output = softmax(output)
+    else:
+        output /= output.sum(axis=-1, keepdims=True)
+    output = np.clip(output, 1e-7, 1 - 1e-7)
+    return np.sum(target * -np.log(output), axis=-1, keepdims=False)
 
 
 def max(x, axis=None, keepdims=False):
@@ -304,11 +333,51 @@ def reshape(x, shape):
     return np.reshape(x, shape)
 
 
+def repeat_elements(x, rep, axis):
+    return np.repeat(x, rep, axis=axis)
+
+
+def eval(x):
+    return x
+
+
 def variable(value, dtype=None, name=None, constraint=None):
     if constraint is not None:
         raise TypeError("Constraint must be None when "
                         "using the NumPy backend.")
     return np.array(value, dtype)
+
+
+def equal(x, y):
+    return x == y
+
+
+def not_equal(x, y):
+    return x != y
+
+
+def greater(x, y):
+    return x > y
+
+
+def greater_equal(x, y):
+    return x >= y
+
+
+def less(x, y):
+    return x < y
+
+
+def less_equal(x, y):
+    return x <= y
+
+
+def maximum(x, y):
+    return np.maximum(x, y)
+
+
+def minimum(x, y):
+    return np.minimum(x, y)
 
 
 square = np.square
