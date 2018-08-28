@@ -1146,7 +1146,7 @@ class TestBackend(object):
 
             # test that random_normal also generates different values when used within a function
             r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
-            samples = [K.eval(r) for _ in range(100)]
+            samples = [K.eval(r) for _ in range(200)]
             assert np.abs(np.mean(samples) - mean) < std * 0.015
             assert np.abs(np.std(samples) - std) < std * 0.015
 
