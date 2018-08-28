@@ -956,7 +956,10 @@ class TensorBoard(Callback):
                 continue
             summary = tf.Summary()
             summary_value = summary.value.add()
-            summary_value.simple_value = value.item()
+            if isinstance(value, np.ndarray):
+                summary_value.simple_value = value.item()
+            else:
+                summary_value.simple_value = value
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()

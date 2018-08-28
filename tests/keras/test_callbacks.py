@@ -854,6 +854,40 @@ def test_TensorBoard_convnet(tmpdir):
 
 
 @keras_test
+def test_TensorBoard_display_float_from_logs(tmpdir):
+    filepath = str(tmpdir / 'logs')
+
+    input_shape = (3,)
+    (x_train, y_train), _ = get_test_data(num_train=10,
+                                          num_test=0,
+                                          input_shape=input_shape,
+                                          classification=True,
+                                          num_classes=num_classes)
+    y_train = np_utils.to_categorical(y_train)
+
+    model = Sequential([
+        Dense(num_classes, activation='softmax')
+    ])
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop')
+
+    class CustomCallback(callbacks.Callback):
+
+        def on_epoch_end(self, epoch, logs=None):
+            logs['test'] = 0.
+
+    tsb = callbacks.TensorBoard(log_dir=filepath,
+                                batch_size=16)
+    cbks = [CustomCallback(), tsb]
+    model.fit(x_train, y_train, epochs=2, batch_size=16,
+              callbacks=cbks,
+              verbose=0)
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
+
+
+@keras_test
 def test_CallbackValData():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
