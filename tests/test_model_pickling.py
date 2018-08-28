@@ -7,11 +7,9 @@ from numpy.testing import assert_allclose
 from numpy.testing import assert_raises
 
 from keras import backend as K
-from keras.engine.saving import preprocess_weights_for_loading
 from keras.models import Model, Sequential
-from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
-from keras.layers import Conv2D, Flatten
-from keras.layers import Input, InputLayer
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
+from keras.layers import Input
 from keras import optimizers
 from keras import losses
 from keras import metrics
@@ -24,7 +22,8 @@ else:
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
-    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    (K.backend() != 'tensorflow') or
+    (not K.tensorflow_backend._get_available_gpus()),
     reason='Requires TensorFlow backend and a GPU')
 
 
