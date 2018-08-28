@@ -57,15 +57,15 @@ class StackedRNNCells(Layer):
         # reverse_state_order determines whether the state size will be in a
         # reverse order of the cells' state. User might want to set this to True
         # to keep the existing behavior. This is only useful when use
-        # RNN(return_state=True since the state will be returned as the same
+        # RNN(return_state=True) since the state will be returned as the same
         # order of state_size.
         self.reverse_state_order = kwargs.pop('reverse_state_order', False)
         if self.reverse_state_order:
-            warnings.warn('reverse_state_order=True in StackedRNNCells will '
-                          'soon be deprecated. Please update the code to '
+            warnings.warn('`reverse_state_order=True` in `StackedRNNCells` '
+                          'will soon be deprecated. Please update the code to '
                           'work with the natural order of states if you '
                           'reply on the RNN states, '
-                          'eg RNN(return_state=True).')
+                          'eg `RNN(return_state=True)`.')
         super(StackedRNNCells, self).__init__(**kwargs)
 
     @property
