@@ -1521,7 +1521,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
 
     if dev.type() == 0 and dilation_rate != (1, 1):
         raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. '
-                         'Please set `dilation_rate` to (1, 1).'
+                         'Please set `dilation_rate` to (1, 1). '
                          'You passed: %s' % (dilation_rate,))
 
     x = C.convolution(kernel,
@@ -1656,7 +1656,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
 
     if dev.type() == 0 and dilation_rate != (1, 1, 1):
         raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. '
-                         'Please set `dilation_rate` to (1, 1, 1).'
+                         'Please set `dilation_rate` to (1, 1, 1). '
                          'You passed: %s' % (dilation_rate,))
 
     x = C.convolution(
