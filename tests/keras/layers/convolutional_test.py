@@ -20,7 +20,7 @@ else:
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support dilated conv")
+                    reason='cntk only support dilated conv on GPU')
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
@@ -98,12 +98,14 @@ def test_conv_1d():
                        input_shape=(batch_size, steps, input_dim))
 
     # Test dilation
-    layer_test(convolutional.Conv1D,
-               kwargs={'filters': filters,
-                       'kernel_size': kernel_size,
-                       'padding': padding,
-                       'dilation_rate': 2},
-               input_shape=(batch_size, steps, input_dim))
+    if K.backend() != 'cntk':
+        # cntk only support dilated conv on GPU
+        layer_test(convolutional.Conv1D,
+                   kwargs={'filters': filters,
+                           'kernel_size': kernel_size,
+                           'padding': padding,
+                           'dilation_rate': 2},
+                   input_shape=(batch_size, steps, input_dim))
 
     # Test channels_first
     layer_test(convolutional.Conv1D,
@@ -138,8 +140,6 @@ def test_averagepooling_1d():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk only supports dilated conv on GPU")
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -176,12 +176,14 @@ def test_convolution_2d():
                input_shape=(num_samples, num_row, num_col, stack_size))
 
     # Test dilation
-    layer_test(convolutional.Conv2D,
-               kwargs={'filters': filters,
-                       'kernel_size': kernel_size,
-                       'padding': padding,
-                       'dilation_rate': (2, 2)},
-               input_shape=(num_samples, num_row, num_col, stack_size))
+    if K.backend() != 'cntk':
+        # cntk only support dilated conv on GPU
+        layer_test(convolutional.Conv2D,
+                   kwargs={'filters': filters,
+                           'kernel_size': kernel_size,
+                           'padding': padding,
+                           'dilation_rate': (2, 2)},
+                   input_shape=(num_samples, num_row, num_col, stack_size))
 
     # Test invalid use case
     with pytest.raises(ValueError):
