@@ -66,7 +66,8 @@ def test_batchnorm_correctness_1d():
 @keras_test
 def test_batchnorm_correctness_2d():
     model = Sequential()
-    norm = normalization.BatchNormalization(axis=1, input_shape=(10, 6), momentum=0.8)
+    norm = normalization.BatchNormalization(axis=1, input_shape=(10, 6),
+                                            momentum=0.8)
     model.add(norm)
     model.compile(loss='mse', optimizer='rmsprop')
 
@@ -123,7 +124,8 @@ def test_batchnorm_mode_twice():
 @keras_test
 def test_batchnorm_convnet():
     model = Sequential()
-    norm = normalization.BatchNormalization(axis=1, input_shape=(3, 4, 4), momentum=0.8)
+    norm = normalization.BatchNormalization(axis=1, input_shape=(3, 4, 4),
+                                            momentum=0.8)
     model.add(norm)
     model.compile(loss='mse', optimizer='sgd')
 
@@ -242,6 +244,7 @@ def test_batchnorm_trainable():
     model.compile(loss='mse', optimizer='rmsprop')
     out = model.predict(input_4)
     assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

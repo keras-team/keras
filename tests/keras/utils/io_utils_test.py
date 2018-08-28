@@ -47,7 +47,8 @@ def test_io_utils(in_tmpdir):
     h5_path = 'test.h5'
     create_dataset(h5_path)
 
-    # Instantiating HDF5Matrix for the training set, which is a slice of the first 150 elements
+    # Instantiating HDF5Matrix for the training set,
+    # which is a slice of the first 150 elements
     X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150)
     y_train = HDF5Matrix(h5_path, 'my_labels', start=0, end=150)
 
@@ -59,7 +60,8 @@ def test_io_utils(in_tmpdir):
     assert y_train.shape == (150, 1), 'HDF5Matrix shape should match input array'
     # But they do not support negative indices, so don't try print(X_train[-1])
 
-    assert y_train.dtype == np.dtype('i'), 'HDF5Matrix dtype should match input array'
+    assert y_train.dtype == np.dtype('i'), (
+        'HDF5Matrix dtype should match input array')
     assert y_train.ndim == 2, 'HDF5Matrix ndim should match input array'
     assert y_train.size == 150, 'HDF5Matrix ndim should match input array'
 
@@ -71,13 +73,15 @@ def test_io_utils(in_tmpdir):
 
     # Note: you have to use shuffle='batch' or False with HDF5Matrix
     model.fit(X_train, y_train, batch_size=32, shuffle='batch', verbose=False)
-    # test that evalutation and prediction don't crash and return reasonable results
+    # test that evalutation and prediction don't crash and
+    # return reasonable results
     out_pred = model.predict(X_test, batch_size=32, verbose=False)
     out_eval = model.evaluate(X_test, y_test, batch_size=32, verbose=False)
 
     assert out_pred.shape == (50, 1), 'Prediction shape does not match'
     assert out_eval.shape == (), 'Shape of evaluation does not match'
-    assert out_eval > 0, 'Evaluation value does not meet criteria: {}'.format(out_eval)
+    assert out_eval > 0, (
+        'Evaluation value does not meet criteria: {}'.format(out_eval))
 
     # test slicing for shortened array
     assert len(X_train[0:]) == len(X_train), 'Incorrect shape for sliced data'
@@ -101,8 +105,21 @@ def test_io_utils(in_tmpdir):
 
     # test normalizer
     normalizer = lambda x: x + 1
-    normalized_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150, normalizer=normalizer)
+    normalized_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150,
+                                    normalizer=normalizer)
     assert np.isclose(normalized_X_train[0][0], X_train[0][0] + 1)
+
+    # test resizing normalizer
+    normalizer_rs = lambda x: x[:, ::2]
+    normalized_rs_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150,
+                                       normalizer=normalizer_rs)
+    assert (normalized_rs_X_train.shape[1] == 5)
+
+    # test dtype changing normalizer
+    normalizer_dtype = lambda x: x.astype(np.uint8)
+    normalized_dtype_X_train = HDF5Matrix(h5_path, 'my_data', start=0, end=150,
+                                          normalizer=normalizer_dtype)
+    assert (normalized_dtype_X_train.dtype == np.uint8)
 
     os.remove(h5_path)
 

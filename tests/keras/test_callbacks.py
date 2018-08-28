@@ -3,6 +3,7 @@ import multiprocessing
 
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 from csv import reader
 from csv import Sniffer
 import shutil
@@ -10,9 +11,11 @@ from keras import optimizers
 from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout, add, dot, Lambda
+from keras.layers import Input, Dense, Dropout, add, dot, Lambda, Layer
 from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling1D, GlobalAveragePooling2D
+from keras.layers.pooling import MaxPooling2D
+from keras.layers.pooling import GlobalAveragePooling1D
+from keras.layers.pooling import GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
@@ -104,7 +107,8 @@ def test_stop_training_csv(tmpdir):
         tot = 0
         while 1:
             if tot > 3 * len(X_train):
-                yield np.ones([batch_size, input_dim]) * np.nan, np.ones([batch_size, num_classes]) * np.nan
+                yield (np.ones([batch_size, input_dim]) * np.nan,
+                       np.ones([batch_size, num_classes]) * np.nan)
             else:
                 yield (X_train[i * batch_size: (i + 1) * batch_size],
                        y_train[i * batch_size: (i + 1) * batch_size])
@@ -267,12 +271,19 @@ def test_EarlyStopping_patience():
         def __init__(self):
             self.stop_training = False
 
+        def get_weights(self):
+            return []
+
+        def set_weights(self, weights):
+            pass
+
     early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2)
     early_stop.model = DummyModel()
 
     losses = [0.0860, 0.1096, 0.1040, 0.1019]
 
-    # Should stop after epoch 3, as the loss has not improved after patience=2 epochs.
+    # Should stop after epoch 3,
+    # as the loss has not improved after patience=2 epochs.
     epochs_trained = 0
     early_stop.on_train_begin()
 
@@ -292,8 +303,15 @@ def test_EarlyStopping_baseline():
         def __init__(self):
             self.stop_training = False
 
+        def get_weights(self):
+            return []
+
+        def set_weights(self, weights):
+            pass
+
     def baseline_tester(acc_levels):
-        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75, patience=2)
+        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75,
+                                             patience=2)
         early_stop.model = DummyModel()
         epochs_trained = 0
         early_stop.on_train_begin()
@@ -313,6 +331,84 @@ def test_EarlyStopping_baseline():
     assert baseline_met == 4
     # Baseline was not met by second epoch and should stop
     assert baseline_not_met == 2
+
+
+@keras_test
+def test_EarlyStopping_final_weights():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+            self.weights = -1
+
+        def get_weights(self):
+            return self.weights
+
+        def set_weights(self, weights):
+            self.weights = weights
+
+        def set_weight_to_epoch(self, epoch):
+            self.weights = epoch
+
+    early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2)
+    early_stop.model = DummyModel()
+
+    losses = [0.2, 0.15, 0.1, 0.11, 0.12]
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(losses)):
+        epochs_trained += 1
+        early_stop.model.set_weight_to_epoch(epoch=epoch)
+        early_stop.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    # The best configuration is in the epoch 2 (loss = 0.1000),
+    # so with patience=2 we need to end up at epoch 4
+    assert early_stop.model.get_weights() == 4
+
+
+@keras_test
+def test_EarlyStopping_final_weights_when_restoring_model_weights():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+            self.weights = -1
+
+        def get_weights(self):
+            return self.weights
+
+        def set_weights(self, weights):
+            self.weights = weights
+
+        def set_weight_to_epoch(self, epoch):
+            self.weights = epoch
+
+    early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2,
+                                         restore_best_weights=True)
+    early_stop.model = DummyModel()
+
+    losses = [0.2, 0.15, 0.1, 0.11, 0.12]
+
+    # The best configuration is in the epoch 2 (loss = 0.1000).
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(losses)):
+        epochs_trained += 1
+        early_stop.model.set_weight_to_epoch(epoch=epoch)
+        early_stop.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    # The best configuration is in epoch 2 (loss = 0.1000),
+    # and while patience = 2, we're restoring the best weights,
+    # so we end up at the epoch with the best weights, i.e. epoch 2
+    assert early_stop.model.get_weights() == 2
 
 
 @keras_test
@@ -363,16 +459,18 @@ def test_ReduceLROnPlateau():
     model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=10, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                        min_delta=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
+    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, min_delta=0, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                        min_delta=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 
 @keras_test
@@ -500,6 +598,19 @@ def test_TensorBoard(tmpdir):
             i += 1
             i = i % max_batch_index
 
+    class DummyStatefulMetric(Layer):
+
+        def __init__(self, name='dummy_stateful_metric', **kwargs):
+            super(DummyStatefulMetric, self).__init__(name=name, **kwargs)
+            self.stateful = True
+            self.state = K.variable(value=0, dtype='int32')
+
+        def reset_states(self):
+            pass
+
+        def __call__(self, y_true, y_pred):
+            return self.state
+
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
@@ -507,7 +618,7 @@ def test_TensorBoard(tmpdir):
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
-                  metrics=['accuracy'])
+                  metrics=['accuracy', DummyStatefulMetric()])
 
     # we must generate new callbacks for each test, as they aren't stateless
     def callbacks_factory(histogram_freq, embeddings_freq=1):
@@ -654,7 +765,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
     inp2 = Input((input_dim, input_dim))
     inp_3d = add([inp1, inp2])
     inp_2d = GlobalAveragePooling1D()(inp_3d)
-    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])  # test a layer with a list of output tensors
+    # test a layer with a list of output tensors
+    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])
     hidden = dot(inp_pair, axes=-1)
     hidden = Dense(num_hidden, activation='relu')(hidden)
     hidden = Dropout(0.1)(hidden)
@@ -807,14 +919,16 @@ def test_LambdaCallback():
                   optimizer='sgd',
                   metrics=['accuracy'])
 
-    # Start an arbitrary process that should run during model training and be terminated after training has completed.
+    # Start an arbitrary process that should run during model training and
+    # be terminated after training has completed.
     def f():
         while True:
             pass
 
     p = multiprocessing.Process(target=f)
     p.start()
-    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
+    cleanup_callback = callbacks.LambdaCallback(
+        on_train_end=lambda logs: p.terminate())
 
     cbks = [cleanup_callback]
     model.fit(X_train, y_train, batch_size=batch_size,

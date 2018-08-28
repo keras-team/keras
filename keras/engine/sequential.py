@@ -149,8 +149,6 @@ class Sequential(Model):
                     first_layer = layer.layers[0]
                     while isinstance(first_layer, (Model, Sequential)):
                         first_layer = first_layer.layers[0]
-                    batch_shape = first_layer.batch_input_shape
-                    dtype = first_layer.dtype
 
                 if hasattr(first_layer, 'batch_input_shape'):
                     batch_shape = first_layer.batch_input_shape
@@ -165,11 +163,6 @@ class Sequential(Model):
                     # to the input layer we just created.
                     layer(x)
                     set_inputs = True
-                else:
-                    # The layer doesn't know about its expected shape.
-                    # We will have to
-                    # build the model lazily on `fit`/etc.
-                    batch_shape = None
             else:
                 # Corner case where the user passes an InputLayer via `add`.
                 assert len(layer._inbound_nodes[-1].output_tensors) == 1

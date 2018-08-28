@@ -6,9 +6,11 @@ from __future__ import print_function
 
 import copy
 import numpy as np
+import warnings
 
 from .. import backend as K
 from .. import losses
+from ..utils.generic_utils import to_list
 
 
 def standardize_single_array(x):
@@ -321,8 +323,7 @@ def collect_metrics(metrics, output_names):
         nested_metrics = []
         for name in output_names:
             output_metrics = metrics.get(name, [])
-            if not isinstance(output_metrics, list):
-                output_metrics = [output_metrics]
+            output_metrics = to_list(output_metrics)
             nested_metrics.append(output_metrics)
         return nested_metrics
     else:
@@ -475,6 +476,10 @@ def standardize_weights(y,
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D.')
+
+    if sample_weight is not None and class_weight is not None:
+        warnings.warn('Found both `sample_weight` and `class_weight`: '
+                      '`class_weight` argument will be ignored.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):

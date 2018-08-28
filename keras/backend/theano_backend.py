@@ -20,7 +20,10 @@ except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 
 import numpy as np
-from .common import floatx, epsilon, image_data_format
+from .common import floatx
+from .common import epsilon
+from .common import normalize_data_format
+from ..utils.generic_utils import transpose_shape
 from ..utils.generic_utils import has_arg
 # Legacy functions
 from .common import set_image_dim_ordering, image_dim_ordering
@@ -610,7 +613,26 @@ def any(x, axis=None, keepdims=False):
 def all(x, axis=None, keepdims=False):
     """Bitwise reduction (logical AND).
     """
-    return T.all(x, axis=axis, keepdims=keepdims)
+    y = T.all(x, axis=axis, keepdims=keepdims)
+    if hasattr(x, '_keras_shape'):
+        if axis is None:
+            y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
+        else:
+            if isinstance(axis, int):
+                axis_list = [axis]
+            else:
+                axis_list = list(set(int(a) for a in axis))
+            keras_shape_list = list(x._keras_shape)
+            if keepdims:
+                for a in axis_list:
+                    keras_shape_list[a] = 1
+            else:
+                for a in axis_list[::-1]:
+                    keras_shape_list.pop(a)
+                if not keras_shape_list:
+                    keras_shape_list = (1,)
+            y._keras_shape = tuple(keras_shape_list)
+    return y
 
 
 def argmax(x, axis=-1):
@@ -780,8 +802,8 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 
 # TODO remove this function when Theano without
 # T.nnet.bn.batch_normalization_train is deprecated
-def _old_normalize_batch_in_training(x, gamma, beta,
-                                     reduction_axes, epsilon=1e-3):
+def _old_normalize_batch_in_training(x, gamma, beta, reduction_axes,
+                                     epsilon=1e-3):  # pragma: no cover
     """Computes mean and std for batch then apply batch_normalization on batch.
     """
     if gamma is None:
@@ -828,7 +850,8 @@ def _old_normalize_batch_in_training(x, gamma, beta,
 
 # TODO remove this if statement when Theano without
 # T.nnet.bn.batch_normalization_test is deprecated
-def _old_batch_normalization(x, mean, var, beta, gamma, epsilon=1e-3):
+def _old_batch_normalization(x, mean, var, beta, gamma,
+                             epsilon=1e-3):  # pragma: no cover
     """Apply batch normalization on x given mean, var, beta and gamma.
     """
     if gamma is None:
@@ -881,13 +904,25 @@ def concatenate(tensors, axis=-1):
     if py_all([is_sparse(x) for x in tensors]):
         axis = axis % ndim(tensors[0])
         if axis == 0:
-            return th_sparse_module.basic.vstack(tensors, format='csr')
+            output = th_sparse_module.basic.vstack(tensors, format='csr')
         elif axis == 1:
-            return th_sparse_module.basic.hstack(tensors, format='csr')
+            output = th_sparse_module.basic.hstack(tensors, format='csr')
         else:
             raise ValueError('Invalid concat axis for sparse matrix:', axis)
     else:
-        return T.concatenate([to_dense(x) for x in tensors], axis=axis)
+        output = T.concatenate([to_dense(x) for x in tensors], axis=axis)
+
+    if py_all([hasattr(tensor, '_keras_shape') for tensor in tensors]):
+        input_shapes = [tensor._keras_shape for tensor in tensors]
+        output_shape = list(input_shapes[0])
+        for shape in input_shapes[1:]:
+            if output_shape[axis] is None or shape[axis] is None:
+                output_shape[axis] = None
+                break
+            output_shape[axis] += shape[axis]
+        output._keras_shape = tuple(output_shape)
+
+    return output
 
 
 def reshape(x, shape):
@@ -1115,10 +1150,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding[1]) == 2
     top_pad, bottom_pad = padding[0]
     left_pad, right_pad = padding[1]
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     input_shape = x.shape
     if data_format == 'channels_first':
@@ -1143,7 +1175,34 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
                    py_slice(left_pad, input_shape[2] + left_pad),
                    py_slice(None))
     y = T.set_subtensor(output[indices], x)
-    y._keras_shape = output_shape
+    if hasattr(x, '_keras_shape'):
+        if data_format == 'channels_first':
+            if x._keras_shape[2] is not None:
+                h = x._keras_shape[2] + top_pad + bottom_pad
+            else:
+                h = None
+            if x._keras_shape[3] is not None:
+                w = x._keras_shape[3] + left_pad + right_pad
+            else:
+                w = None
+            output_keras_shape = (x._keras_shape[0],
+                                  x._keras_shape[1],
+                                  h,
+                                  w)
+        else:
+            if x._keras_shape[1] is not None:
+                h = x._keras_shape[1] + top_pad + bottom_pad
+            else:
+                h = None
+            if x._keras_shape[2] is not None:
+                w = x._keras_shape[2] + left_pad + right_pad
+            else:
+                w = None
+            output_keras_shape = (x._keras_shape[0],
+                                  h,
+                                  w,
+                                  x._keras_shape[3])
+        y._keras_shape = output_keras_shape
     return y
 
 
@@ -1151,10 +1210,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     """Pad the 2nd, 3rd and 4th dimensions of a 5D tensor
     with "padding[0]", "padding[1]" and "padding[2]" (resp.) zeros left and right.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     input_shape = x.shape
     if data_format == 'channels_first':
@@ -1182,7 +1238,46 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
                    py_slice(padding[1][0], input_shape[2] + padding[1][0]),
                    py_slice(padding[2][0], input_shape[3] + padding[2][0]),
                    py_slice(None))
-    return T.set_subtensor(output[indices], x)
+    y = T.set_subtensor(output[indices], x)
+    if hasattr(x, '_keras_shape'):
+        if data_format == 'channels_first':
+            if x._keras_shape[2] is not None:
+                h = x._keras_shape[2] + padding[0][0] + padding[0][1]
+            else:
+                h = None
+            if x._keras_shape[3] is not None:
+                w = x._keras_shape[3] + padding[1][0] + padding[1][1]
+            else:
+                w = None
+            if x._keras_shape[4] is not None:
+                d = x._keras_shape[4] + padding[2][0] + padding[2][1]
+            else:
+                d = None
+            output_keras_shape = (x._keras_shape[0],
+                                  x._keras_shape[1],
+                                  h,
+                                  w,
+                                  d)
+        else:
+            if x._keras_shape[1] is not None:
+                h = x._keras_shape[1] + padding[0][0] + padding[0][1]
+            else:
+                h = None
+            if x._keras_shape[2] is not None:
+                w = x._keras_shape[2] + padding[1][0] + padding[1][1]
+            else:
+                w = None
+            if x._keras_shape[3] is not None:
+                d = x._keras_shape[3] + padding[2][0] + padding[2][1]
+            else:
+                d = None
+            output_keras_shape = (x._keras_shape[0],
+                                  h,
+                                  w,
+                                  d,
+                                  x._keras_shape[4])
+        y._keras_shape = output_keras_shape
+    return y
 
 
 def stack(x, axis=0):
@@ -1826,8 +1921,8 @@ def _preprocess_conv2d_image_shape(image_shape, data_format):
             return None
     if data_format == 'channels_last':
         if image_shape:
-            image_shape = (image_shape[0], image_shape[3],
-                           image_shape[1], image_shape[2])
+            image_shape = transpose_shape(image_shape, 'channels_first',
+                                          spatial_axes=(1, 2))
     if image_shape is not None:
         image_shape = tuple(int_or_none(v) for v in image_shape)
     return image_shape
@@ -1933,10 +2028,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         data_format: string, one of "channels_last", "channels_first"
         dilation_rate: integer.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ', data_format)
+    data_format = normalize_data_format(data_format)
 
     kernel_shape = int_shape(kernel)
     if padding == 'causal':
@@ -1990,10 +2082,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
             Whether to use Theano or TensorFlow data format
         in inputs/kernels/outputs.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ', data_format)
+    data_format = normalize_data_format(data_format)
 
     image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
     kernel_shape = int_shape(kernel)
@@ -2033,10 +2122,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         ValueError: if using an even kernel size with padding 'same'.
     """
     flip_filters = False
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + data_format)
+    data_format = normalize_data_format(data_format)
 
     if data_format == 'channels_last':
         output_shape = (output_shape[0],
@@ -2089,10 +2175,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     # Raises
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ', data_format)
+    data_format = normalize_data_format(data_format)
     if isinstance(strides, int):
         strides = (strides,)
     if isinstance(dilation_rate, int):
@@ -2163,10 +2246,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     # Raises
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ', data_format)
+    data_format = normalize_data_format(data_format)
 
     image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
     depthwise_kernel_shape = int_shape(depthwise_kernel)
@@ -2221,10 +2301,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     # Raises
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ', data_format)
+    data_format = normalize_data_format(data_format)
 
     image_shape = _preprocess_conv2d_image_shape(int_shape(x), data_format)
     depthwise_kernel_shape = int_shape(depthwise_kernel)
@@ -2261,10 +2338,7 @@ def conv3d(x, kernel, strides=(1, 1, 1),
             Whether to use Theano or TensorFlow data format
         in inputs/kernels/outputs.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format:', data_format)
+    data_format = normalize_data_format(data_format)
 
     volume_shape = _preprocess_conv3d_volume_shape(int_shape(x), data_format)
     kernel_shape = int_shape(kernel)
@@ -2304,10 +2378,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         ValueError: if using an even kernel size with padding 'same'.
     """
     flip_filters = False
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + data_format)
+    data_format = normalize_data_format(data_format)
 
     if data_format == 'channels_last':
         output_shape = (output_shape[0],
@@ -2344,10 +2415,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
 
 def pool2d(x, pool_size, strides=(1, 1), padding='valid',
            data_format=None, pool_mode='max'):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format:', data_format)
+    data_format = normalize_data_format(data_format)
 
     assert pool_size[0] >= 1 and pool_size[1] >= 1
 
@@ -2389,10 +2457,7 @@ def pool2d(x, pool_size, strides=(1, 1), padding='valid',
 
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format:', data_format)
+    data_format = normalize_data_format(data_format)
 
     if padding == 'same':
         w_pad = pool_size[0] - 2 if pool_size[0] % 2 == 1 else pool_size[0] - 1
@@ -2436,10 +2501,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
 
 
 def bias_add(x, bias, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     if ndim(bias) != 1 and ndim(bias) != ndim(x) - 1:
         raise ValueError('Unexpected bias dimensions %d, '
                          'expect to be 1 or %d dimensions'
@@ -2701,10 +2763,7 @@ def foldr(fn, elems, initializer=None, name=None):
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride = strides[0]
     kernel_shape = int_shape(kernel)
@@ -2723,10 +2782,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
 
 def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride_row, stride_col = strides
     output_row, output_col = output_shape

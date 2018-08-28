@@ -9,7 +9,8 @@ import time
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
-    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    (K.backend() != 'tensorflow' or
+     not K.tensorflow_backend._get_available_gpus()),
     reason='Requires TensorFlow backend and a GPU')
 
 

@@ -7,6 +7,7 @@ from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.layers import convolutional
 from keras.layers import pooling
+from keras.layers import Masking
 from keras.models import Sequential
 
 
@@ -60,7 +61,8 @@ def test_causal_dilated_conv():
                    'kernel_initializer': 'ones',
                    'use_bias': False,
                },
-               expected_output=np.float32([[[0], [1], [2], [4], [6], [9], [12], [15], [18], [21]]])
+               expected_output=np.float32(
+                   [[[0], [1], [2], [4], [6], [9], [12], [15], [18], [21]]])
                )
 
 
@@ -115,25 +117,29 @@ def test_conv_1d():
 def test_maxpooling_1d():
     for padding in ['valid', 'same']:
         for stride in [1, 2]:
-            layer_test(convolutional.MaxPooling1D,
-                       kwargs={'strides': stride,
-                               'padding': padding},
-                       input_shape=(3, 5, 4))
+            for data_format in ['channels_first', 'channels_last']:
+                layer_test(convolutional.MaxPooling1D,
+                           kwargs={'strides': stride,
+                                   'padding': padding,
+                                   'data_format': data_format},
+                           input_shape=(3, 5, 4))
 
 
 @keras_test
 def test_averagepooling_1d():
     for padding in ['valid', 'same']:
         for stride in [1, 2]:
-            layer_test(convolutional.AveragePooling1D,
-                       kwargs={'strides': stride,
-                               'padding': padding},
-                       input_shape=(3, 5, 4))
+            for data_format in ['channels_first', 'channels_last']:
+                layer_test(convolutional.AveragePooling1D,
+                           kwargs={'strides': stride,
+                                   'padding': padding,
+                                   'data_format': data_format},
+                           input_shape=(3, 5, 4))
 
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support dilated conv")
+                    reason="cntk only supports dilated conv on GPU")
 def test_convolution_2d():
     num_samples = 2
     filters = 2
@@ -179,10 +185,9 @@ def test_convolution_2d():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv2D(filters=filters,
-                                                 kernel_size=kernel_size,
-                                                 padding=padding,
-                                                 batch_input_shape=(None, None, 5, None))])
+        model = Sequential([convolutional.Conv2D(
+            filters=filters, kernel_size=kernel_size, padding=padding,
+            batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
@@ -194,19 +199,23 @@ def test_conv2d_transpose():
     num_col = 6
 
     for padding in _convolution_paddings:
-        for strides in [(1, 1), (2, 2)]:
-            if padding == 'same' and strides != (1, 1):
-                continue
-            layer_test(convolutional.Deconvolution2D,
-                       kwargs={'filters': filters,
-                               'kernel_size': 3,
-                               'padding': padding,
-                               'strides': strides,
-                               'data_format': 'channels_last'},
-                       input_shape=(num_samples, num_row, num_col, stack_size),
-                       fixed_batch_size=True)
+        for out_padding in [None, (0, 0), (1, 1)]:
+            for strides in [(1, 1), (2, 2)]:
+                if padding == 'same' and strides != (1, 1):
+                    continue
+                if strides == (1, 1) and out_padding == (1, 1):
+                    continue
+                layer_test(convolutional.Conv2DTranspose,
+                           kwargs={'filters': filters,
+                                   'kernel_size': 3,
+                                   'padding': padding,
+                                   'output_padding': out_padding,
+                                   'strides': strides,
+                                   'data_format': 'channels_last'},
+                           input_shape=(num_samples, num_row, num_col, stack_size),
+                           fixed_batch_size=True)
 
-    layer_test(convolutional.Deconvolution2D,
+    layer_test(convolutional.Conv2DTranspose,
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
@@ -223,11 +232,32 @@ def test_conv2d_transpose():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv2DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          use_bias=True,
-                                                          batch_input_shape=(None, None, 5, None))])
+        model = Sequential([convolutional.Conv2DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            use_bias=True,
+            batch_input_shape=(None, None, 5, None))])
+
+    # Test invalid output padding for given stride. Output padding equal
+    # to stride
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(0, 3),
+            strides=(1, 3),
+            batch_input_shape=(None, num_row, num_col, stack_size))])
+    # Output padding greater than stride
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv2DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(2, 2),
+            strides=(1, 3),
+            batch_input_shape=(None, num_row, num_col, stack_size))])
 
 
 @keras_test
@@ -276,10 +306,9 @@ def test_separable_conv_1d():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.SeparableConv1D(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          batch_input_shape=(None, 5, None))])
+        model = Sequential([convolutional.SeparableConv1D(
+            filters=filters, kernel_size=3, padding=padding,
+            batch_input_shape=(None, 5, None))])
 
 
 @keras_test
@@ -298,17 +327,20 @@ def test_separable_conv_2d():
                         continue
                     if dilation_rate != (1, 1) and strides != (1, 1):
                         continue
+                    if dilation_rate != (1, 1) and multiplier == dilation_rate[0]:
+                        continue
                     if dilation_rate != (1, 1) and K.backend() == 'cntk':
                         continue
 
-                    layer_test(convolutional.SeparableConv2D,
-                               kwargs={'filters': filters,
-                                       'kernel_size': (3, 3),
-                                       'padding': padding,
-                                       'strides': strides,
-                                       'depth_multiplier': multiplier,
-                                       'dilation_rate': dilation_rate},
-                               input_shape=(num_samples, num_row, num_col, stack_size))
+                    layer_test(
+                        convolutional.SeparableConv2D,
+                        kwargs={'filters': filters,
+                                'kernel_size': (3, 3),
+                                'padding': padding,
+                                'strides': strides,
+                                'depth_multiplier': multiplier,
+                                'dilation_rate': dilation_rate},
+                        input_shape=(num_samples, num_row, num_col, stack_size))
 
     layer_test(convolutional.SeparableConv2D,
                kwargs={'filters': filters,
@@ -328,10 +360,9 @@ def test_separable_conv_2d():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.SeparableConv2D(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          batch_input_shape=(None, None, 5, None))])
+        model = Sequential([convolutional.SeparableConv2D(
+            filters=filters, kernel_size=3, padding=padding,
+            batch_input_shape=(None, None, 5, None))])
 
 
 @keras_test
@@ -381,10 +412,27 @@ def test_depthwise_conv_2d():
 
 @keras_test
 def test_globalpooling_1d():
-    layer_test(pooling.GlobalMaxPooling1D,
-               input_shape=(3, 4, 5))
-    layer_test(pooling.GlobalAveragePooling1D,
-               input_shape=(3, 4, 5))
+    for data_format in ['channels_first', 'channels_last']:
+        layer_test(pooling.GlobalMaxPooling1D,
+                   kwargs={'data_format': data_format},
+                   input_shape=(3, 4, 5))
+        layer_test(pooling.GlobalAveragePooling1D,
+                   kwargs={'data_format': data_format},
+                   input_shape=(3, 4, 5))
+
+
+@keras_test
+def test_globalpooling_1d_supports_masking():
+    # Test GlobalAveragePooling1D supports masking
+    model = Sequential()
+    model.add(Masking(mask_value=0., input_shape=(3, 4)))
+    model.add(pooling.GlobalAveragePooling1D())
+    model.compile(loss='mae', optimizer='adam')
+
+    model_input = np.random.randint(low=1, high=5, size=(2, 3, 4))
+    model_input[0, 1:, :] = 0
+    output = model.predict(model_input)
+    assert np.array_equal(output[0], model_input[0, 0, :])
 
 
 @keras_test
@@ -500,18 +548,23 @@ def test_conv3d_transpose():
     num_col = 6
 
     for padding in _convolution_paddings:
-        for strides in [(1, 1, 1), (2, 2, 2)]:
-            for data_format in ['channels_first', 'channels_last']:
-                if padding == 'same' and strides != (1, 1, 1):
-                    continue
-                layer_test(convolutional.Conv3DTranspose,
-                           kwargs={'filters': filters,
-                                   'kernel_size': 3,
-                                   'padding': padding,
-                                   'strides': strides,
-                                   'data_format': data_format},
-                           input_shape=(None, num_depth, num_row, num_col, stack_size),
-                           fixed_batch_size=True)
+        for out_padding in [None, (0, 0, 0), (1, 1, 1)]:
+            for strides in [(1, 1, 1), (2, 2, 2)]:
+                for data_format in ['channels_first', 'channels_last']:
+                    if padding == 'same' and strides != (1, 1, 1):
+                        continue
+                    if strides == (1, 1, 1) and out_padding == (1, 1, 1):
+                        continue
+                    layer_test(
+                        convolutional.Conv3DTranspose,
+                        kwargs={'filters': filters,
+                                'kernel_size': 3,
+                                'padding': padding,
+                                'output_padding': out_padding,
+                                'strides': strides,
+                                'data_format': data_format},
+                        input_shape=(None, num_depth, num_row, num_col, stack_size),
+                        fixed_batch_size=True)
 
     layer_test(convolutional.Conv3DTranspose,
                kwargs={'filters': filters,
@@ -531,10 +584,31 @@ def test_conv3d_transpose():
 
     # Test invalid use case
     with pytest.raises(ValueError):
-        model = Sequential([convolutional.Conv3DTranspose(filters=filters,
-                                                          kernel_size=3,
-                                                          padding=padding,
-                                                          batch_input_shape=(None, None, 5, None, None))])
+        model = Sequential([convolutional.Conv3DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            batch_input_shape=(None, None, 5, None, None))])
+
+    # Test invalid output padding for given stride. Output padding equal
+    # to stride
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv3DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(0, 3, 3),
+            strides=(1, 3, 4),
+            batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
+    # Output padding greater than stride
+    with pytest.raises(ValueError):
+        model = Sequential([convolutional.Conv3DTranspose(
+            filters=filters,
+            kernel_size=3,
+            padding=padding,
+            output_padding=(2, 2, 3),
+            strides=(1, 3, 4),
+            batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
 
 
 @keras_test
@@ -615,8 +689,10 @@ def test_zero_padding_2d():
     input_num_row = 4
     input_num_col = 5
     for data_format in ['channels_first', 'channels_last']:
-        inputs = np.ones((num_samples, input_num_row, input_num_col, stack_size))
-        inputs = np.ones((num_samples, stack_size, input_num_row, input_num_col))
+        if data_format == 'channels_last':
+            inputs = np.ones((num_samples, input_num_row, input_num_col, stack_size))
+        else:
+            inputs = np.ones((num_samples, stack_size, input_num_row, input_num_col))
 
         # basic test
         layer_test(convolutional.ZeroPadding2D,
@@ -687,7 +763,8 @@ def test_zero_padding_3d():
                    kwargs={'padding': (2, 2, 2), 'data_format': data_format},
                    input_shape=inputs.shape)
         layer_test(convolutional.ZeroPadding3D,
-                   kwargs={'padding': ((1, 2), (3, 4), (0, 2)), 'data_format': data_format},
+                   kwargs={'padding': ((1, 2), (3, 4), (0, 2)),
+                           'data_format': data_format},
                    input_shape=inputs.shape)
 
         # correctness test
@@ -983,6 +1060,7 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=((1, 1),))
     with pytest.raises(ValueError):
         layer = convolutional.Cropping3D(cropping=lambda x: x)
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

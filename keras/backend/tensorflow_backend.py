@@ -17,8 +17,10 @@ from collections import defaultdict
 import numpy as np
 import os
 
-from .common import floatx, epsilon
-from .common import image_data_format
+from .common import floatx
+from .common import epsilon
+from .common import normalize_data_format
+from ..utils.generic_utils import transpose_shape
 from ..utils.generic_utils import has_arg
 
 # Legacy functions
@@ -1871,18 +1873,28 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """
     if ndim(x) == 4:
         # The CPU implementation of FusedBatchNorm only support NHWC
-        if axis == 1:
+        if axis == 1 or axis == -3:
             tf_data_format = 'NCHW'
-        elif axis == 3:
+        elif axis == 3 or axis == -1:
             tf_data_format = 'NHWC'
         else:
             tf_data_format = None
 
         if tf_data_format == 'NHWC' or tf_data_format == 'NCHW' and _has_nchw_support():
+            # The mean / var / beta / gamma may be processed by broadcast
+            # so it may have extra axes with 1, it is not needed and should be removed
+            if ndim(mean) > 1:
+                mean = tf.squeeze(mean)
+            if ndim(var) > 1:
+                var = tf.squeeze(var)
             if beta is None:
                 beta = zeros_like(mean)
+            elif ndim(beta) > 1:
+                beta = tf.squeeze(beta)
             if gamma is None:
                 gamma = ones_like(mean)
+            elif ndim(gamma) > 1:
+                gamma = tf.squeeze(gamma)
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
@@ -2225,20 +2237,13 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
-    if data_format == 'channels_first':
-        pattern = [[0, 0],
-                   [0, 0],
-                   list(padding[0]),
-                   list(padding[1])]
-    else:
-        pattern = [[0, 0],
-                   list(padding[0]), list(padding[1]),
-                   [0, 0]]
+    pattern = [[0, 0],
+               list(padding[0]),
+               list(padding[1]),
+               [0, 0]]
+    pattern = transpose_shape(pattern, data_format, spatial_axes=(1, 2))
     return tf.pad(x, pattern)
 
 
@@ -2269,27 +2274,17 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
     assert len(padding[2]) == 2
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
-    if data_format == 'channels_first':
-        pattern = [
-            [0, 0],
-            [0, 0],
-            [padding[0][0], padding[0][1]],
-            [padding[1][0], padding[1][1]],
-            [padding[2][0], padding[2][1]]
-        ]
-    else:
-        pattern = [
-            [0, 0],
-            [padding[0][0], padding[0][1]],
-            [padding[1][0], padding[1][1]],
-            [padding[2][0], padding[2][1]],
-            [0, 0]
-        ]
+    pattern = [
+        [0, 0],
+        [padding[0][0], padding[0][1]],
+        [padding[1][0], padding[1][1]],
+        [padding[2][0], padding[2][1]],
+        [0, 0]
+    ]
+    pattern = transpose_shape(pattern, data_format, spatial_axes=(1, 2, 3))
+
     return tf.pad(x, pattern)
 
 
@@ -2611,12 +2606,12 @@ class Function(object):
                 # `callable_fn` only supports exact matches.
                 array_vals.append(
                     np.asarray(value,
-                               dtype=tensor.dtype.base_dtype.name))
+                               dtype=tf.as_dtype(tensor.dtype).as_numpy_dtype))
         if self.feed_dict:
             for key in sorted(self.feed_dict.keys()):
                 array_vals.append(
                     np.asarray(self.feed_dict[key],
-                               dtype=key.dtype.base_dtype.name))
+                               dtype=tf.as_dtype(key.dtype).as_numpy_dtype))
 
         # Refresh callable if anything has changed.
         if (self._callable_fn is None or
@@ -3498,10 +3493,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     kernel_shape = kernel.get_shape().as_list()
     if padding == 'causal':
@@ -3549,10 +3541,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
 
@@ -3591,10 +3580,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
@@ -3643,10 +3629,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     if isinstance(strides, int):
         strides = (strides,)
     if isinstance(dilation_rate, int):
@@ -3704,10 +3687,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3746,10 +3726,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3789,10 +3766,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3829,10 +3803,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
@@ -3882,10 +3853,7 @@ def pool2d(x, pool_size, strides=(1, 1),
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x, tf_data_format = _preprocess_conv2d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3931,10 +3899,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
@@ -3979,25 +3944,18 @@ def bias_add(x, bias, data_format=None):
                        the bias should be either a vector or
                        a tensor with ndim(x) - 1 dimension
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     bias_shape = int_shape(bias)
     if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
         raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
                          % (len(bias_shape), ndim(x)))
     if ndim(x) == 5:
-        if data_format == 'channels_first':
-            if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1, 1, 1))
-            else:
-                x += reshape(bias, (1, bias_shape[3]) + bias_shape[:3])
-        elif data_format == 'channels_last':
-            if len(bias_shape) == 1:
-                x += reshape(bias, (1, 1, 1, bias_shape[0]))
-            else:
-                x += reshape(bias, (1,) + bias_shape)
+        if len(bias_shape) == 1:
+            new_shape = (1, 1, 1, 1, bias_shape[0])
+        else:
+            new_shape = (1,) + bias_shape
+        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1, 2, 3))
+        x += reshape(bias, new_shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
@@ -4015,16 +3973,12 @@ def bias_add(x, bias, data_format=None):
             else:
                 x += reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
-        if data_format == 'channels_first':
-            if len(bias_shape) == 1:
-                x += reshape(bias, (1, bias_shape[0], 1))
-            else:
-                x += reshape(bias, (1, bias_shape[1], bias_shape[0]))
-        elif data_format == 'channels_last':
-            if len(bias_shape) == 1:
-                x += reshape(bias, (1, 1, bias_shape[0]))
-            else:
-                x += reshape(bias, (1, ) + bias_shape)
+        if len(bias_shape) == 1:
+            new_shape = (1, 1, bias_shape[0])
+        else:
+            new_shape = (1,) + bias_shape
+        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1,))
+        x += reshape(bias, new_shape)
     else:
         x = tf.nn.bias_add(x, bias)
     return x
@@ -4311,10 +4265,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
         ValueError: If `data_format` is neither
             `"channels_last"` nor `"channels_first"`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride = strides[0]
     kernel_shape = int_shape(kernel)
@@ -4363,10 +4314,7 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
         ValueError: if `data_format` is neither
                     `channels_last` or `channels_first`.
     """
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride_row, stride_col = strides
     output_row, output_col = output_shape

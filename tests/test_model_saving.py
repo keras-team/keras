@@ -9,9 +9,11 @@ from numpy.testing import assert_raises
 from keras import backend as K
 from keras.engine.saving import preprocess_weights_for_loading
 from keras.models import Model, Sequential
-from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
+from keras.layers import Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
 from keras.layers import Conv2D, Flatten
 from keras.layers import Input, InputLayer
+from keras.initializers import Constant
 from keras import optimizers
 from keras import losses
 from keras import metrics
@@ -20,7 +22,8 @@ from keras.models import save_model, load_model
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
-    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    (K.backend() != 'tensorflow' or
+     not K.tensorflow_backend._get_available_gpus()),
     reason='Requires TensorFlow backend and a GPU')
 
 
@@ -137,6 +140,13 @@ def test_model_saving_to_pre_created_h5py_file():
                    backing_store=False) as h5file:
         save_model(model, h5file)
         loaded_model = load_model(h5file)
+        out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    with h5py.File(fname, mode='r+') as h5file:
+        g = h5file.create_group('model')
+        save_model(model, g)
+        loaded_model = load_model(g)
         out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
@@ -296,7 +306,6 @@ def test_loading_weights_by_name_and_reshape():
         model.load_weights(fname, by_name=False, reshape=False)
     model.load_weights(fname, by_name=False, reshape=True)
     model.load_weights(fname, by_name=True, reshape=True)
-    os.remove(fname)
 
     out2 = model.predict(x)
     assert_allclose(np.squeeze(out), np.squeeze(out2), atol=1e-05)
@@ -306,6 +315,35 @@ def test_loading_weights_by_name_and_reshape():
             # only compare layers that have weights, skipping Flatten()
             if old_weights[i]:
                 assert_allclose(old_weights[i][j], new_weights[j], atol=1e-05)
+
+    # delete and recreate model with `use_bias=False`
+    del(model)
+    model = Sequential()
+    model.add(Conv2D(2, (1, 1), input_shape=(1, 1, 1), use_bias=False, name='rick'))
+    model.add(Flatten())
+    model.add(Dense(3, name='morty'))
+    with pytest.raises(ValueError,
+                       match=r'.* expects [0-9]+ .* but the saved .* [0-9]+ .*'):
+        model.load_weights(fname)
+    with pytest.raises(ValueError,
+                       match=r'.* expects [0-9]+ .* but the saved .* [0-9]+ .*'):
+        model.load_weights(fname, by_name=True)
+    with pytest.warns(UserWarning,
+                      match=r'Skipping loading .* due to mismatch .*'):
+        model.load_weights(fname, by_name=True, skip_mismatch=True)
+
+    # delete and recreate model with `filters=10`
+    del(model)
+    model = Sequential()
+    model.add(Conv2D(10, (1, 1), input_shape=(1, 1, 1), name='rick'))
+    with pytest.raises(ValueError,
+                       match=r'.* has shape .* but the saved .* shape .*'):
+        model.load_weights(fname, by_name=True)
+    with pytest.raises(ValueError,
+                       match=r'.* load .* [0-9]+ layers into .* [0-9]+ layers.'):
+        model.load_weights(fname)
+
+    os.remove(fname)
 
 
 @keras_test
@@ -565,8 +603,9 @@ def test_saving_model_with_long_weights_names():
     # Check that the HDF5 files contains chunked array
     # of weight names.
     with h5py.File(fname, 'r') as h5file:
-        n_weight_names_arrays = len([attr for attr in h5file['model_weights']['nested_model'].attrs
-                                     if attr.startswith('weight_names')])
+        attrs = [attr for attr in h5file['model_weights']['nested_model'].attrs
+                 if attr.startswith('weight_names')]
+        n_weight_names_arrays = len(attrs)
 
     os.remove(fname)
 
@@ -614,15 +653,38 @@ def test_saving_recurrent_layer_without_bias():
 
 
 @keras_test
+def test_saving_constant_initializer_with_numpy():
+    """Test saving and loading model of constant initializer with numpy inputs.
+    """
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,),
+                    kernel_initializer=Constant(np.ones((3, 2)))))
+    model.add(Dense(3))
+    model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+    model = load_model(fname)
+    os.remove(fname)
+
+
+@keras_test
 @pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
-@pytest.mark.parametrize('bidirectional', [False, True], ids=['single', 'bidirectional'])
+@pytest.mark.parametrize('bidirectional',
+                         [False, True],
+                         ids=['single', 'bidirectional'])
 @pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
 @pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
-@pytest.mark.parametrize('model_nest_level', [1, 2], ids=['model_plain', 'model_nested'])
-@pytest.mark.parametrize('model_type', ['func', 'seq'], ids=['model_func', 'model_seq'])
+@pytest.mark.parametrize('model_nest_level',
+                         [1, 2],
+                         ids=['model_plain', 'model_nested'])
+@pytest.mark.parametrize('model_type',
+                         ['func', 'seq'],
+                         ids=['model_func', 'model_seq'])
 @skipif_no_tf_gpu
-def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, implementation,
-                                           model_nest_level, model_type):
+def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional,
+                                           implementation, model_nest_level,
+                                           model_type):
     input_size = 10
     timesteps = 6
     input_shape = (timesteps, input_size)
@@ -653,7 +715,8 @@ def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional, im
         cudnn_layer = Bidirectional(cudnn_layer)
 
     model = _make_nested_model(input_shape, layer, model_nest_level, model_type)
-    cudnn_model = _make_nested_model(input_shape, cudnn_layer, model_nest_level, model_type)
+    cudnn_model = _make_nested_model(input_shape, cudnn_layer,
+                                     model_nest_level, model_type)
 
     if to_cudnn:
         _convert_model_weights(model, cudnn_model)
@@ -756,7 +819,8 @@ def test_preprocess_weights_for_loading_gru_incompatible():
 
     def assert_not_compatible(src, dest, message):
         with pytest.raises(ValueError) as ex:
-            preprocess_weights_for_loading(dest, initialize_weights(src).get_weights())
+            preprocess_weights_for_loading(dest,
+                                           initialize_weights(src).get_weights())
         assert message in ex.value.message
 
     assert_not_compatible(gru(), gru(cudnn=True),
@@ -764,9 +828,11 @@ def test_preprocess_weights_for_loading_gru_incompatible():
     assert_not_compatible(gru(cudnn=True), gru(),
                           'CuDNNGRU is not compatible with GRU(reset_after=False)')
     assert_not_compatible(gru(), gru(reset_after=True),
-                          'GRU(reset_after=False) is not compatible with GRU(reset_after=True)')
+                          'GRU(reset_after=False) is not compatible with '
+                          'GRU(reset_after=True)')
     assert_not_compatible(gru(reset_after=True), gru(),
-                          'GRU(reset_after=True) is not compatible with GRU(reset_after=False)')
+                          'GRU(reset_after=True) is not compatible with '
+                          'GRU(reset_after=False)')
 
 
 if __name__ == '__main__':
