@@ -1167,7 +1167,7 @@ def resize_images(x, height_factor, width_factor, data_format, interpolation='ne
             output = repeat_elements(output, width_factor, axis=2)
             return output
         else:
-            raise ValueError('CNTK Backend: Invalid data_format:', data_format)
+            raise ValueError('CNTK Backend: Invalid data_format: %s' % data_format)
     else:
         raise NotImplementedError('CNTK only supports `nearest` interpolation.')
 
@@ -1184,7 +1184,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise ValueError('CNTK Backend: Invalid data_format:', data_format)
+        raise ValueError('CNTK Backend: Invalid data_format: %s' % data_format)
 
 
 def repeat_elements(x, rep, axis):
