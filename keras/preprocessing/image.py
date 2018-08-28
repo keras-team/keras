@@ -269,6 +269,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
             (Shear angle in counter-clockwise direction in degrees)
         zoom_range: Float or [lower, upper]. Range for random zoom.
             If a float, `[lower, upper] = [1-zoom_range, 1+zoom_range]`.
+        uniform_zoom: Boolean. Apply same zoom amount on both axes.
         channel_shift_range: Float. Range for random channel shifts.
         fill_mode: One of {"constant", "nearest", "reflect" or "wrap"}.
             Default is 'nearest'.
@@ -423,6 +424,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
                  brightness_range=None,
                  shear_range=0.,
                  zoom_range=0.,
+                 uniform_zoom=False,
                  channel_shift_range=0.,
                  fill_mode='nearest',
                  cval=0.,
@@ -454,6 +456,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
             brightness_range=brightness_range,
             shear_range=shear_range,
             zoom_range=zoom_range,
+            uniform_zoom=False,
             channel_shift_range=channel_shift_range,
             fill_mode=fill_mode,
             cval=cval,
