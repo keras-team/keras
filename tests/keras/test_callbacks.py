@@ -567,7 +567,19 @@ def test_CSVLogger(tmpdir):
     assert not tmpdir.listdir()
 
 
+def check_and_reset_logdir(tmpdir, dirpath):
+    assert os.path.isdir(dirpath)
+    log_files = [os.path.join(dirpath, f) for f in os.listdir(dirpath)
+                 if os.path.isfile(os.path.join(dirpath, f))]
+    assert len(log_files) > 0
+    assert all([os.path.getsize(f) > 0 for f in log_files])
+    shutil.rmtree(dirpath)
+    assert not tmpdir.listdir()
+
+
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -634,25 +646,25 @@ def test_TensorBoard(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
               epochs=3)
+    check_and_reset_logdir(tmpdir, filepath)
 
     # fit with validation data and accuracy
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test),
               callbacks=callbacks_factory(histogram_freq=0), epochs=2)
+    check_and_reset_logdir(tmpdir, filepath)
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=callbacks_factory(histogram_freq=0,
                                                     embeddings_freq=0))
+    check_and_reset_logdir(tmpdir, filepath)
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         validation_data=(X_test, y_test),
                         callbacks=callbacks_factory(histogram_freq=1))
-
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
+    check_and_reset_logdir(tmpdir, filepath)
 
 
 @keras_test
@@ -731,6 +743,8 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_multi_input_output(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -792,27 +806,33 @@ def test_TensorBoard_multi_input_output(tmpdir):
               callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
               epochs=3)
 
+    check_and_reset_logdir(tmpdir, filepath)
+
     # fit with validation data and accuracy
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
               validation_data=([X_test] * 2, [y_test] * 2),
               callbacks=callbacks_factory(histogram_freq=1), epochs=2)
+
+    check_and_reset_logdir(tmpdir, filepath)
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         callbacks=callbacks_factory(histogram_freq=0,
                                                     embeddings_freq=0))
 
+    check_and_reset_logdir(tmpdir, filepath)
+
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
                         validation_data=([X_test] * 2, [y_test] * 2),
                         callbacks=callbacks_factory(histogram_freq=1))
 
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
+    check_and_reset_logdir(tmpdir, filepath)
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_convnet(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -848,9 +868,7 @@ def test_TensorBoard_convnet(tmpdir):
                         validation_data=(x_test, y_test),
                         callbacks=cbks,
                         verbose=0)
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
+    check_and_reset_logdir(tmpdir, filepath)
 
 
 @keras_test
@@ -938,6 +956,8 @@ def test_LambdaCallback():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
 def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
     np.random.seed(np.random.randint(1, 1e7))
@@ -970,9 +990,7 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
 
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
+    check_and_reset_logdir(tmpdir, filepath)
 
 
 @keras_test

@@ -751,10 +751,10 @@ class TensorBoard(Callback):
         self.write_graph = write_graph
         self.write_grads = write_grads
         self.write_images = write_images
+        self.batch_size = batch_size
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
-        self.batch_size = batch_size
         self.embeddings_data = embeddings_data
 
     def set_model(self, model):
@@ -875,44 +875,28 @@ class TensorBoard(Callback):
 
             projector.visualize_embeddings(self.writer, config)
 
+    def on_epoch_begin(self, epoch, logs=None):
+        if not self.validation_data and self.histogram_freq:
+            raise ValueError('If printing histograms, validation_data must be '
+                             'provided.')
+        if self.histogram_freq and epoch % self.histogram_freq == 0:
+            if self.merged not in self.model.test_function.fetches:
+                def fetch_callback(summary):
+                    self.writer.add_summary(summary, epoch)
+                self.model.test_function.fetches.append(self.merged)
+                self.model.test_function.fetch_callbacks[self.merged] = fetch_callback
+
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
+        if self.histogram_freq and self.histogram_freq > 1:
+            if self.merged in self.model.test_function.fetches:
+                self.model.test_function.fetches.remove(self.merged)
+            if self.merged in self.model.test_function.fetch_callbacks:
+                self.model.test_function.fetch_callbacks.pop(self.merged)
 
-        if not self.validation_data and self.histogram_freq:
-            raise ValueError("If printing histograms, validation_data must be "
-                             "provided, and cannot be a generator.")
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError("To visualize embeddings, embeddings_data must "
                              "be provided.")
-        if self.validation_data and self.histogram_freq:
-            if epoch % self.histogram_freq == 0:
-
-                val_data = self.validation_data
-                tensors = (self.model.inputs +
-                           self.model.targets +
-                           self.model.sample_weights)
-
-                if self.model.uses_learning_phase:
-                    tensors += [K.learning_phase()]
-
-                assert len(val_data) == len(tensors)
-                val_size = val_data[0].shape[0]
-                i = 0
-                while i < val_size:
-                    step = min(self.batch_size, val_size - i)
-                    if self.model.uses_learning_phase:
-                        # do not slice the learning phase
-                        batch_val = [x[i:i + step] for x in val_data[:-1]]
-                        batch_val.append(val_data[-1])
-                    else:
-                        batch_val = [x[i:i + step] for x in val_data]
-                    assert len(batch_val) == len(tensors)
-                    feed_dict = dict(zip(tensors, batch_val))
-                    result = self.sess.run([self.merged], feed_dict=feed_dict)
-                    summary_str = result[0]
-                    self.writer.add_summary(summary_str, epoch)
-                    i += self.batch_size
-
         if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
                 # We need a second forward-pass here because we're passing
