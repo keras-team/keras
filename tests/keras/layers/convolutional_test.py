@@ -20,7 +20,7 @@ else:
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk only support dilated conv on GPU")
+                    reason='cntk only support dilated conv on GPU')
 def test_causal_dilated_conv():
     # Causal:
     layer_test(convolutional.Conv1D,
