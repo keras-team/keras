@@ -2186,7 +2186,7 @@ def in_top_k(predictions, targets, k):
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
-                     padding='valid', data_format=None):
+                     padding='valid', data_format=None, dilation_rate=(1, 1)):
     data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
@@ -2208,7 +2208,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
             False,
             padding,
             padding],
-        output_shape=output_shape)
+        output_shape=output_shape,
+        dilation=dilation_rate)
     return _postprocess_conv2d_output(x, data_format)
 
 

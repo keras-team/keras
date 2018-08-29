@@ -2134,7 +2134,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
-                     padding='valid', data_format=None):
+                     padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2D deconvolution (transposed convolution).
 
     # Arguments
@@ -2144,7 +2144,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         padding: string, "same" or "valid".
         data_format: "channels_last" or "channels_first".
             Whether to use Theano or TensorFlow data format
-        in inputs/kernels/outputs.
+            in inputs/kernels/outputs.
+        dilation_rate: tuple of 2 integers.
 
     # Raises
         ValueError: if using an even kernel size with padding 'same'.
@@ -2177,7 +2178,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                                                         kshp=kernel_shape,
                                                         subsample=strides,
                                                         border_mode=th_padding,
-                                                        filter_flip=not flip_filters)
+                                                        filter_flip=not flip_filters,
+                                                        filter_dilation=dilation_rate)
     conv_out = op(kernel, x, output_shape[2:])
     conv_out = _postprocess_conv2d_output(conv_out, x, padding,
                                           kernel_shape, strides, data_format)

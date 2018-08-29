@@ -731,6 +731,7 @@ class Conv2DTranspose(Conv2D):
                  padding='valid',
                  output_padding=None,
                  data_format=None,
+                 dilation_rate=(1, 1),
                  activation=None,
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
@@ -747,6 +748,7 @@ class Conv2DTranspose(Conv2D):
             strides=strides,
             padding=padding,
             data_format=data_format,
+            dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
             kernel_initializer=kernel_initializer,
@@ -820,11 +822,13 @@ class Conv2DTranspose(Conv2D):
         out_height = conv_utils.deconv_length(height,
                                               stride_h, kernel_h,
                                               self.padding,
-                                              out_pad_h)
+                                              out_pad_h,
+                                              self.dilation_rate[0])
         out_width = conv_utils.deconv_length(width,
                                              stride_w, kernel_w,
                                              self.padding,
-                                             out_pad_w)
+                                             out_pad_w,
+                                             self.dilation_rate[1])
         if self.data_format == 'channels_first':
             output_shape = (batch_size, self.filters, out_height, out_width)
         else:
@@ -836,7 +840,8 @@ class Conv2DTranspose(Conv2D):
             output_shape,
             self.strides,
             padding=self.padding,
-            data_format=self.data_format)
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate)
 
         if self.use_bias:
             outputs = K.bias_add(
@@ -867,17 +872,18 @@ class Conv2DTranspose(Conv2D):
                                                         stride_h,
                                                         kernel_h,
                                                         self.padding,
-                                                        out_pad_h)
+                                                        out_pad_h,
+                                                        self.dilation_rate[0])
         output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
                                                         stride_w,
                                                         kernel_w,
                                                         self.padding,
-                                                        out_pad_w)
+                                                        out_pad_w,
+                                                        self.dilation_rate[1])
         return tuple(output_shape)
 
     def get_config(self):
         config = super(Conv2DTranspose, self).get_config()
-        config.pop('dilation_rate')
         config['output_padding'] = self.output_padding
         return config
 
