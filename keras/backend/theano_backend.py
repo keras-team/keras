@@ -965,7 +965,7 @@ def repeat_elements(x, rep, axis):
     return y
 
 
-def resize_images(x, height_factor, width_factor, data_format):
+def resize_images(x, height_factor, width_factor, data_format, interpolation='nearest'):
     """Resize the images contained in a 4D tensor of shape
     - [batch, channels, height, width] (for 'channels_first' data_format)
     - [batch, height, width, channels] (for 'channels_last' data_format)
@@ -973,15 +973,33 @@ def resize_images(x, height_factor, width_factor, data_format):
     positive integers.
     """
     if data_format == 'channels_first':
-        output = repeat_elements(x, height_factor, axis=2)
-        output = repeat_elements(output, width_factor, axis=3)
-        return output
+        axis_1 = 2
+        axis_2 = 3
     elif data_format == 'channels_last':
-        output = repeat_elements(x, height_factor, axis=1)
-        output = repeat_elements(output, width_factor, axis=2)
-        return output
+        axis_1 = 1
+        axis_2 = 2
     else:
         raise ValueError('Invalid data_format:', data_format)
+
+    if interpolation == 'nearest':
+        output = repeat_elements(x, height_factor, axis=axis_1)
+        output = repeat_elements(output, width_factor, axis=axis_2)
+    elif interpolation == 'bilinear':
+        ratio = height_factor / width_factor
+        th_padding = _preprocess_padding('same')
+        output = theano.tensor.nnet.abstract_conv.bilinear_upsampling(
+            x, ratio=ratio)
+        if hasattr(x, '_keras_shape'):
+            output._keras_shape = list(x._keras_shape)
+            repeat_dim_1 = x._keras_shape[axis_1]
+            repeat_dim_2 = x._keras_shape[axis_2]
+            output._keras_shape[axis_1] = repeat_dim_1 * rep
+            output._keras_shape[axis_2] = repeat_dim_2 * rep
+            output._keras_shape = tuple(output._keras_shape)
+    else:
+        raise ValueError('interpolation should be one of "nearest" or "bilinear".')
+
+    return output
 
 
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
