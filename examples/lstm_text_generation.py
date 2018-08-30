@@ -1,8 +1,11 @@
 '''Example script to generate text from Nietzsche's writings.
+
 At least 20 epochs are required before the generated text
 starts sounding coherent.
+
 It is recommended to run this script on GPU, as recurrent
 networks are quite computationally intensive.
+
 If you try this script on new data, make sure your corpus
 has at least ~100k characters. ~1M is better.
 '''
@@ -70,7 +73,7 @@ def sample(preds, temperature=1.0):
     return np.argmax(probas)
 
 
-def on_epoch_end(epoch):
+def on_epoch_end(epoch, _):
     # Function invoked at end of each epoch. Prints generated text.
     print()
     print('----- Generating text after Epoch: %d' % epoch)
