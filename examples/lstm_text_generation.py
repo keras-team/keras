@@ -1,11 +1,8 @@
 '''Example script to generate text from Nietzsche's writings.
-
 At least 20 epochs are required before the generated text
 starts sounding coherent.
-
 It is recommended to run this script on GPU, as recurrent
 networks are quite computationally intensive.
-
 If you try this script on new data, make sure your corpus
 has at least ~100k characters. ~1M is better.
 '''
@@ -13,7 +10,7 @@ has at least ~100k characters. ~1M is better.
 from __future__ import print_function
 from keras.callbacks import LambdaCallback
 from keras.models import Sequential
-from keras.layers import Dense, Activation
+from keras.layers import Dense
 from keras.layers import LSTM
 from keras.optimizers import RMSprop
 from keras.utils.data_utils import get_file
@@ -57,8 +54,7 @@ for i, sentence in enumerate(sentences):
 print('Build model...')
 model = Sequential()
 model.add(LSTM(128, input_shape=(maxlen, len(chars))))
-model.add(Dense(len(chars)))
-model.add(Activation('softmax'))
+model.add(Dense(len(chars), activation='softmax'))
 
 optimizer = RMSprop(lr=0.01)
 model.compile(loss='categorical_crossentropy', optimizer=optimizer)
@@ -74,7 +70,7 @@ def sample(preds, temperature=1.0):
     return np.argmax(probas)
 
 
-def on_epoch_end(epoch, logs):
+def on_epoch_end(epoch):
     # Function invoked at end of each epoch. Prints generated text.
     print()
     print('----- Generating text after Epoch: %d' % epoch)
