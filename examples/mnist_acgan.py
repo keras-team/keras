@@ -212,7 +212,8 @@ if __name__ == '__main__':
             # Salimans et al., 2016
             # https://arxiv.org/pdf/1606.03498.pdf (Section 3.4)
             soft_zero, soft_one = 0, 0.95
-            y = np.array([soft_one] * len(image_batch) + [soft_zero] * len(image_batch))
+            y = np.array(
+                [soft_one] * len(image_batch) + [soft_zero] * len(image_batch))
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # we don't want the discriminator to also maximize the classification
