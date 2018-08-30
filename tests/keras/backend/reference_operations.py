@@ -329,6 +329,10 @@ def clip(x, min_value, max_value):
     return np.clip(x, min_value, max_value)
 
 
+def concatenate(tensors, axis=-1):
+    return np.concatenate(tensors, axis)
+
+
 def reshape(x, shape):
     return np.reshape(x, shape)
 
@@ -337,8 +341,25 @@ def repeat_elements(x, rep, axis):
     return np.repeat(x, rep, axis=axis)
 
 
+def flatten(x):
+    return np.reshape(x, (-1,))
+
+
+def batch_flatten(x):
+    return np.reshape(x, (x.shape[0], -1))
+
+
 def eval(x):
     return x
+
+
+def print_tensor(x, message=''):
+    print(x, message)
+    return x
+
+
+def eye(size, dtype=None, name=None):
+    return np.eye(size, dtype=dtype)
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -386,3 +407,5 @@ exp = np.exp
 log = np.log
 round = np.round
 sign = np.sign
+expand_dims = np.expand_dims
+squeeze = np.squeeze
