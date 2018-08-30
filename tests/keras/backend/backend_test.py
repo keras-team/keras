@@ -1146,7 +1146,7 @@ class TestBackend(object):
 
             # test that random_normal also generates different values when used within a function
             r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
-            samples = [K.eval(r) for _ in range(200)]
+            samples = np.array([K.eval(r) for _ in range(200)])
             assert np.abs(np.mean(samples) - mean) < std * 0.015
             assert np.abs(np.std(samples) - std) < std * 0.015
 
@@ -1159,8 +1159,8 @@ class TestBackend(object):
         assert max_val - 0.015 < np.max(rand) <= max_val
         assert min_val + 0.015 > np.min(rand) >= min_val
 
-        r = K.random_uniform((1,), minval=min_val, maxval=max_val)
-        samples = [K.eval(r) for _ in range(20000)]
+        r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
+        samples = np.array([K.eval(r) for _ in range(200)])
         assert np.abs(np.mean(samples)) < 0.015
         assert max_val - 0.015 < np.max(samples) <= max_val
         assert min_val + 0.015 > np.min(samples) >= min_val
@@ -1173,8 +1173,8 @@ class TestBackend(object):
         assert np.max(rand) == 1
         assert np.min(rand) == 0
 
-        r = K.random_binomial((1,), p)
-        samples = [K.eval(r) for _ in range(20000)]
+        r = K.random_binomial((10, 10), p)
+        samples = np.array([K.eval(r) for _ in range(200)])
         assert np.abs(np.mean(samples) - p) < 0.015
         assert np.max(samples) == 1
         assert np.min(samples) == 0
