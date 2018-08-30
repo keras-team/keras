@@ -14,6 +14,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import optimizers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
+from ..utils.h5dict import h5dict
 from ..utils import conv_utils
 
 try:
@@ -23,6 +24,317 @@ except ImportError:
     h5py = None
 
 
+
+def serialize_model(model, f, include_optimizer=True):
+
+    def get_json_type(obj):
+        """Serialize any object to a JSON-serializable structure.
+
+        # Arguments
+            obj: the object to serialize
+
+        # Returns
+            JSON-serializable structure representing `obj`.
+
+        # Raises
+            TypeError: if `obj` cannot be serialized.
+        """
+        # if obj is a serializable Keras class instance
+        # e.g. optimizer, layer
+        if hasattr(obj, 'get_config'):
+            return {'class_name': obj.__class__.__name__,
+                    'config': obj.get_config()}
+
+        # if obj is any numpy type
+        if type(obj).__module__ == np.__name__:
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            else:
+                return obj.item()
+
+        # misc functions (e.g. loss function)
+        if callable(obj):
+            return obj.__name__
+
+        # if obj is a python 'type'
+        if type(obj).__name__ == type.__name__:
+            return obj.__name__
+
+        raise TypeError('Not JSON Serializable:', obj)
+
+    from .. import __version__ as keras_version
+
+    f['keras_version'] = str(keras_version).encode('utf8')
+    f['backend'] = K.backend().encode('utf8')
+    f['model_config'] = json.dumps({
+    'class_name': model.__class__.__name__,
+    'config': model.get_config()
+    }, default=get_json_type).encode('utf8')
+    model_weights_group = f['model_weights']
+    model_layers = model.layers
+    model_weights_group['layer_names'] = [layer.name.encode('utf8') for layer in model_layers]
+    model_weights_group['backend'] = K.backend().encode('utf8')
+    model_weights_group['keras_version'] = str(keras_version).encode('utf8')
+    for layer in model_layers:
+        layer_group = model_weights_group[layer.name]
+        symbolic_weights = layer.weights
+        weight_values = K.batch_get_value(symbolic_weights)
+        weight_names = []
+        for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
+            if hasattr(w, 'name') and w.name:
+                name = str(w.name)
+            else:
+                name = 'param_' + str(i)
+            weight_names.append(name.encode('utf8'))
+        layer_group['weight_names'] = weight_names
+        for name, val in zip(weight_names, weight_values):
+            layer_group[name] = val
+    if include_optimizer and model.optimizer:
+        if isinstance(model.optimizer, optimizers.TFOptimizer):
+            warnings.warn(
+                'TensorFlow optimizers do not '
+                'make it possible to access '
+                'optimizer attributes or optimizer state '
+                'after instantiation. '
+                'As a result, we cannot save the optimizer '
+                'as part of the model save file.'
+                'You will have to compile your model again '
+                'after loading it. '
+                'Prefer using a Keras optimizer instead '
+                '(see keras.io/optimizers).')
+        else:
+            f['training_config'] = json.dumps({
+                'optimizer_config': {
+                    'class_name': model.optimizer.__class__.__name__,
+                    'config': model.optimizer.get_config()
+                },
+                'loss': model.loss,
+                'metrics': model.metrics,
+                'sample_weight_mode': model.sample_weight_mode,
+                'loss_weights': model.loss_weights,
+            }, default=get_json_type).encode('utf8')
+            symbolic_weights = getattr(model.optimizer, 'weights')
+            if symbolic_weights:
+                optimizer_weights_group = f['optimizer_weights']
+                weight_values = K.batch_get_value(symbolic_weights)
+                weight_names = []
+                for i, (w, val) in enumerate(zip(symbolic_weights,
+                                                    weight_values)):
+                    # Default values of symbolic_weights is /variable
+                    # for Theano and CNTK
+                    if K.backend() == 'theano' or K.backend() == 'cntk':
+                        if hasattr(w, 'name'):
+                            if w.name.split('/')[-1] == 'variable':
+                                name = str(w.name) + '_' + str(i)
+                            else:
+                                name = str(w.name)
+                        else:
+                            name = 'param_' + str(i)
+                    else:
+                        if hasattr(w, 'name') and w.name:
+                            name = str(w.name)
+                        else:
+                            name = 'param_' + str(i)
+                    weight_names.append(name.encode('utf8'))
+                optimizer_weights_group['weight_names'] = weight_names
+                for name, val in zip(weight_names, weight_values):
+                    optimizer_weights_group[name] = val
+
+
+
+def deserialize_model(f, custom_objects=None, compile=True):
+    if not custom_objects:
+        custom_objects = {}
+
+    def convert_custom_objects(obj):
+        """Handles custom object lookup.
+
+        # Arguments
+            obj: object, dict, or list.
+
+        # Returns
+            The same structure, where occurrences
+                of a custom object name have been replaced
+                with the custom object.
+        """
+        if isinstance(obj, list):
+            deserialized = []
+            for value in obj:
+                deserialized.append(convert_custom_objects(value))
+            return deserialized
+        if isinstance(obj, dict):
+            deserialized = {}
+            for key, value in obj.items():
+                deserialized[key] = convert_custom_objects(value)
+            return deserialized
+        if obj in custom_objects:
+            return custom_objects[obj]
+        return obj
+
+    model_config = f['model_config']
+    if model_config is None:
+        raise ValueError('No model found in config.')
+    model_config = json.loads(model_config.decode('utf-8'))
+    model = model_from_config(model_config, custom_objects=custom_objects)
+    model_weights_group = f['model_weights']
+
+    if 'keras_version' in model_weights_group:
+        original_keras_version = model_weights_group['keras_version'].decode('utf8')
+    else:
+        original_keras_version = '1'
+    if 'backend' in model_weights_group:
+        original_backend = model_weights_group['backend'].decode('utf8')
+    else:
+        original_backend = None
+
+    layer_names = model_weights_group['layer_names']
+
+    layers = model.layers
+
+    filtered_layers = []
+    for layer in layers:
+        weights = layer.weights
+        if weights:
+            filtered_layers.append(layer)
+    
+    filtered_layer_names = []
+    for name in layer_names:
+        layer_weights = model_weights_group[name]
+        weight_names = layer_weights['weight_names']
+        if weight_names:
+            filtered_layer_names.append(name)
+
+    layer_names = filtered_layer_names
+    if len(layer_names) != len(filtered_layers):
+        raise ValueError('You are trying to load a weight file '
+                         'containing ' + str(len(layer_names)) +
+                         ' layers into a model with ' +
+                         str(len(filtered_layers)) + ' layers.')
+
+    # We batch weight value assignments in a single backend call
+    # which provides a speedup in TensorFlow.
+    weight_value_tuples = []
+    for k, name in enumerate(layer_names):
+        layer_weights = model_weights_group[name]
+        weight_names = layer_weights['weight_names']
+        weight_values = [layer_weights[weight_name] for weight_name in weight_names]
+        layer = filtered_layers[k]
+        symbolic_weights = layer.weights
+        weight_values = preprocess_weights_for_loading(layer,
+                                                       weight_values,
+                                                       original_keras_version,
+                                                       original_backend,
+                                                       reshape=False)
+        if len(weight_values) != len(symbolic_weights):
+            raise ValueError('Layer #' + str(k) +
+                             ' (named "' + layer.name +
+                             '" in the current model) was found to '
+                             'correspond to layer ' + name +
+                             ' in the save file. '
+                             'However the new layer ' + layer.name +
+                             ' expects ' + str(len(symbolic_weights)) +
+                             ' weights, but the saved weights have ' +
+                             str(len(weight_values)) +
+                             ' elements.')
+        weight_value_tuples += zip(symbolic_weights, weight_values)
+    K.batch_set_value(weight_value_tuples)
+
+
+    if compile:
+        training_config = f.get('training_config')
+        if training_config is None:
+            warnings.warn('No training configuration found in save file: '
+                            'the model was *not* compiled. '
+                            'Compile it manually.')
+            return model
+        training_config = json.loads(training_config.decode('utf-8'))
+        optimizer_config = training_config['optimizer_config']
+        optimizer = optimizers.deserialize(optimizer_config,
+                                            custom_objects=custom_objects)
+        
+        # Recover loss functions and metrics.
+        loss = convert_custom_objects(training_config['loss'])
+        metrics = convert_custom_objects(training_config['metrics'])
+        sample_weight_mode = training_config['sample_weight_mode']
+        loss_weights = training_config['loss_weights']
+
+        # Compile model.
+        model.compile(optimizer=optimizer,
+                        loss=loss,
+                        metrics=metrics,
+                        loss_weights=loss_weights,
+                        sample_weight_mode=sample_weight_mode)
+
+        # Set optimizer weights.
+        if 'optimizer_weights' in f:
+            # Build train function (to get weight updates).
+            model._make_train_function()
+            optimizer_weights_group = f['optimizer_weights']
+            optimizer_weight_names = [
+                n.decode('utf8') for n in
+                optimizer_weights_group['weight_names']]
+            optimizer_weight_values = [optimizer_weights_group[n] for n in
+                                        optimizer_weight_names]
+            try:
+                model.optimizer.set_weights(optimizer_weight_values)
+            except ValueError:
+                warnings.warn('Error in loading the saved optimizer '
+                                'state. As a result, your model is '
+                                'starting with a freshly initialized '
+                                'optimizer.')
+
+    return model
+
+
+def save_model(model, filepath, overwrite=True, include_optimizer=True):
+    if h5py is None:
+        raise ImportError('`save_model` requires h5py.')
+
+    if not isinstance(filepath, h5py.Group):
+        # If file exists and should not be overwritten.
+        if not overwrite and os.path.isfile(filepath):
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
+        opened_new_file = True
+
+    f = h5dict(filepath, mode='w')
+    serialize_model(model, f, include_optimizer)
+    f.close()
+    return
+    try:
+        serialize_model(model, f, include_optimizer)
+    finally:
+        if opened_new_file:
+            f.close()
+
+def load_model(filepath, custom_objects=None, compile=True):
+    if h5py is None:
+        raise ImportError('`load_model` requires h5py.')
+    model = None
+    opened_new_file = not isinstance(filepath, h5py.Group)
+    f = h5dict(filepath, 'r')
+    try:
+        model = deserialize_model(f, custom_objects, compile)
+    finally:
+        if opened_new_file:
+            f.close()
+    return model
+
+
+def pickle_model(model):
+    d = {}
+    f = h5dict(d)
+    serialize_model(model, f)
+    return d
+
+
+def unpickle_model(state):
+    f = h5dict(state, mode='r')
+    return deserialize_model(f)
+
+
+'''
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
@@ -310,7 +622,7 @@ def load_model(filepath, custom_objects=None, compile=True):
             f.close()
     return model
 
-
+'''
 def model_from_config(config, custom_objects=None):
     """Instantiates a Keras model from its config.
 
