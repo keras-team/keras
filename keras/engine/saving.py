@@ -27,7 +27,7 @@ except ImportError:
 def _serialize_model(model, f, include_optimizer=True):
     """Model serialization logic.
 
-    This method used for both writing to HDF5 file/group,
+    This method is used for both writing to HDF5 file/group,
     as well as pickling. This is achieved via a
     keras.utils.hdf5_utls.H5Dict object, which can wrap HDF5
     files, groups and dicts with a common API.
