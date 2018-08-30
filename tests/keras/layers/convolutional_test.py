@@ -875,6 +875,46 @@ def test_upsampling_2d():
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='cntk does not support it yet')
+@pytest.mark.parametrize('data_format',
+                         ['channels_first', 'channels_last'])
+def test_upsampling_2d_bilinear(data_format):
+    num_samples = 2
+    stack_size = 2
+    input_num_row = 11
+    input_num_col = 12
+
+    if data_format == 'channels_first':
+        inputs = np.random.rand(num_samples, stack_size, input_num_row,
+                                input_num_col)
+    else:  # tf
+        inputs = np.random.rand(num_samples, input_num_row, input_num_col,
+                                stack_size)
+
+    # basic test
+    layer_test(convolutional.UpSampling2D,
+               kwargs={'size': (2, 2),
+                       'data_format': data_format,
+                       'interpolation': 'bilinear'},
+               input_shape=inputs.shape)
+
+    for length_row in [2]:
+        for length_col in [2, 3]:
+            layer = convolutional.UpSampling2D(
+                size=(length_row, length_col),
+                data_format=data_format)
+            layer.build(inputs.shape)
+            outputs = layer(K.variable(inputs))
+            np_output = K.eval(outputs)
+            if data_format == 'channels_first':
+                assert np_output.shape[2] == length_row * input_num_row
+                assert np_output.shape[3] == length_col * input_num_col
+            else:  # tf
+                assert np_output.shape[1] == length_row * input_num_row
+                assert np_output.shape[2] == length_col * input_num_col
+
+
+@pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support it yet")
 def test_upsampling_3d():
     num_samples = 2
