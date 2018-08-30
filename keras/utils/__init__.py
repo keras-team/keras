@@ -24,3 +24,4 @@ from .vis_utils import plot_model
 from .np_utils import to_categorical
 from .np_utils import normalize
 from .multi_gpu_utils import multi_gpu_model
+from .hdf5_utils import h5dict

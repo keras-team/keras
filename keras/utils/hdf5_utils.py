@@ -1,3 +1,4 @@
+"""HDF5 related utilities."""
 import numpy as np
 import sys
 
@@ -16,10 +17,20 @@ else:
 
 
 #FLAGS
-is_boxed = '_is_dict_boxed'
+_is_boxed = '_is_dict_boxed'
 
 
 class H5Dict(object):
+    """ A dict-like wrapper around h5py groups (or dicts).
+
+    This allows us to have a single serialization logic
+    for both pickling and saving to disk.
+
+    Note: This is not intended to be a generic wrapper.
+    There are lot of edge cases which have been hardcoded,
+    and makes sense only in the context of model serialization / 
+    deserialization.
+    """
 
     def __init__(self, path, mode='a'):
         if isinstance(path, h5py.Group):
@@ -31,7 +42,7 @@ class H5Dict(object):
         elif type(path) is dict:
             self.data = path
             self._is_file = False
-            self.data[is_boxed] = True
+            self.data[_is_boxed] = True
         else:
             raise Exception('Required Group, str or dict. Received {}.'.format(type(path)))
         self.read_only = mode == 'r'
@@ -96,7 +107,7 @@ class H5Dict(object):
                 attr = attr.decode('utf-8')
             if attr in self.data:
                 val = self.data[attr]
-                if type(val) is dict and val.get(is_boxed):
+                if type(val) is dict and val.get(_is_boxed):
                     val =  H5Dict(val)
                 elif '_{}_pickled'.format(attr) in self.data:
                     val = pickle.loads(val)
@@ -104,7 +115,7 @@ class H5Dict(object):
             else:
                 if self.read_only:
                     raise Exception('Can not create group in read only mode.')
-                val = {is_boxed : True}
+                val = {_is_boxed : True}
                 self.data[attr] = val
                 return H5Dict(val)
         if attr in self.data.attrs:

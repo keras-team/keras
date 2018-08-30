@@ -14,7 +14,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import optimizers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
-from ..utils.h5dict import h5dict
+from ..utils.hdf5_utils import h5dict
 from ..utils import conv_utils
 
 try:
@@ -25,8 +25,20 @@ except ImportError:
 
 
 
-def serialize_model(model, f, include_optimizer=True):
+def _serialize_model(model, f, include_optimizer=True):
+    """Model serialization logic.
 
+    This method used for both writing to HDF5 file/group,
+    as well as pickling. This is achieved via a 
+    keras.utils.hdf5_utls.H5Dict object, which can wrap HDF5
+    files, groups and dicts with a common API.
+
+    # Arguments
+        model: Keras model instance to be serialized.
+        f: keras.utils.hdf5.HD5Dict instance.
+        include_optimizer: If True, serialize optimizer's state together.
+
+    """
     def get_json_type(obj):
         """Serialize any object to a JSON-serializable structure.
 
@@ -142,7 +154,25 @@ def serialize_model(model, f, include_optimizer=True):
 
 
 
-def deserialize_model(f, custom_objects=None, compile=True):
+def _deserialize_model(f, custom_objects=None, compile=True):
+    """De-serializes a model a serialized via _serialize_model
+
+    # Arguments
+        f: keras.utils.hdf5_utils.HFDict instance.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+        compile: Boolean, whether to compile the model
+            after loading.
+    
+    # Returns
+        A Keras model instance. If an optimizer was found
+        as part of the saved model, the model is already
+        compiled. Otherwise, the model is uncompiled and
+        a warning will be displayed. When `compile` is set
+        to False, the compilation is omitted without any
+        warning.
+    """
     if not custom_objects:
         custom_objects = {}
 
@@ -287,55 +317,6 @@ def deserialize_model(f, custom_objects=None, compile=True):
 
 
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
-    if h5py is None:
-        raise ImportError('`save_model` requires h5py.')
-
-    if not isinstance(filepath, h5py.Group):
-        # If file exists and should not be overwritten.
-        if not overwrite and os.path.isfile(filepath):
-            proceed = ask_to_proceed_with_overwrite(filepath)
-            if not proceed:
-                return
-        opened_new_file = True
-
-    f = h5dict(filepath, mode='w')
-    serialize_model(model, f, include_optimizer)
-    f.close()
-    return
-    try:
-        serialize_model(model, f, include_optimizer)
-    finally:
-        if opened_new_file:
-            f.close()
-
-def load_model(filepath, custom_objects=None, compile=True):
-    if h5py is None:
-        raise ImportError('`load_model` requires h5py.')
-    model = None
-    opened_new_file = not isinstance(filepath, h5py.Group)
-    f = h5dict(filepath, 'r')
-    try:
-        model = deserialize_model(f, custom_objects, compile)
-    finally:
-        if opened_new_file:
-            f.close()
-    return model
-
-
-def pickle_model(model):
-    d = {}
-    f = h5dict(d)
-    serialize_model(model, f)
-    return d
-
-
-def unpickle_model(state):
-    f = h5dict(state, mode='r')
-    return deserialize_model(f)
-
-
-'''
-def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
     Note: Please also see
@@ -366,6 +347,78 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     # Raises
         ImportError: if h5py is not available.
     """
+    if h5py is None:
+        raise ImportError('`save_model` requires h5py.')
+
+    if not isinstance(filepath, h5py.Group):
+        # If file exists and should not be overwritten.
+        if not overwrite and os.path.isfile(filepath):
+            proceed = ask_to_proceed_with_overwrite(filepath)
+            if not proceed:
+                return
+        opened_new_file = True
+
+    f = h5dict(filepath, mode='w')
+
+    try:
+        _serialize_model(model, f, include_optimizer)
+    finally:
+        if opened_new_file:
+            f.close()
+
+def load_model(filepath, custom_objects=None, compile=True):
+    """Loads a model saved via `save_model`.
+
+    # Arguments
+        filepath: one of the following:
+            - string, path to the saved model, or
+            - h5py.File or h5py.Group object from which to load the model
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+        compile: Boolean, whether to compile the model
+            after loading.
+
+    # Returns
+        A Keras model instance. If an optimizer was found
+        as part of the saved model, the model is already
+        compiled. Otherwise, the model is uncompiled and
+        a warning will be displayed. When `compile` is set
+        to False, the compilation is omitted without any
+        warning.
+
+    # Raises
+        ImportError: if h5py is not available.
+        ValueError: In case of an invalid savefile.
+    """
+    if h5py is None:
+        raise ImportError('`load_model` requires h5py.')
+    model = None
+    opened_new_file = not isinstance(filepath, h5py.Group)
+    f = h5dict(filepath, 'r')
+    try:
+        model = _deserialize_model(f, custom_objects, compile)
+    finally:
+        if opened_new_file:
+            f.close()
+    return model
+
+
+def pickle_model(model):
+    d = {}
+    f = h5dict(d)
+    _serialize_model(model, f)
+    return d
+
+
+def unpickle_model(state):
+    f = h5dict(state, mode='r')
+    return _deserialize_model(f)
+
+
+'''
+def save_model(model, filepath, overwrite=True, include_optimizer=True):
+
 
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
