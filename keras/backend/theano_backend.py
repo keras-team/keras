@@ -965,7 +965,11 @@ def repeat_elements(x, rep, axis):
     return y
 
 
-def resize_images(x, height_factor, width_factor, data_format):
+def resize_images(x,
+                  height_factor,
+                  width_factor,
+                  data_format,
+                  interpolation='nearest'):
     """Resize the images contained in a 4D tensor of shape
     - [batch, channels, height, width] (for 'channels_first' data_format)
     - [batch, height, width, channels] (for 'channels_last' data_format)
@@ -973,15 +977,39 @@ def resize_images(x, height_factor, width_factor, data_format):
     positive integers.
     """
     if data_format == 'channels_first':
-        output = repeat_elements(x, height_factor, axis=2)
-        output = repeat_elements(output, width_factor, axis=3)
-        return output
+        axis_1 = 2
+        axis_2 = 3
     elif data_format == 'channels_last':
-        output = repeat_elements(x, height_factor, axis=1)
-        output = repeat_elements(output, width_factor, axis=2)
-        return output
+        axis_1 = 1
+        axis_2 = 2
     else:
         raise ValueError('Invalid data_format:', data_format)
+
+    if interpolation == 'nearest':
+        output = repeat_elements(x, height_factor, axis=axis_1)
+        output = repeat_elements(output, width_factor, axis=axis_2)
+    elif interpolation == 'bilinear':
+        if not (height_factor == width_factor == 2):
+            raise NotImplementedError(
+                'Bilinear upscaling with factors other than (2, 2)'
+                'is not available when using the Theano backend.')
+        if data_format == 'channels_last':
+            output = permute_dimensions(x, [0, 3, 1, 2])
+        else:
+            output = x
+        output = T.nnet.abstract_conv.bilinear_upsampling(output,
+                                                          ratio=height_factor)
+        if data_format == 'channels_last':
+            output = permute_dimensions(output, [0, 2, 3, 1])
+        if hasattr(x, '_keras_shape'):
+            output._keras_shape = list(x._keras_shape)
+            output._keras_shape[axis_1] *= height_factor
+            output._keras_shape[axis_2] *= width_factor
+            output._keras_shape = tuple(output._keras_shape)
+    else:
+        raise ValueError('interpolation should be one of "nearest" or "bilinear".')
+
+    return output
 
 
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
