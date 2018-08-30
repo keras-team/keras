@@ -354,6 +354,8 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             if not proceed:
                 return
         opened_new_file = True
+    else:
+        opened_new_file = False
 
     f = h5dict(filepath, mode='w')
 
