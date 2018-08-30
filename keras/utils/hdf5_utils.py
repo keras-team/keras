@@ -16,7 +16,7 @@ else:
     import cPickle as pickle
 
 
-#FLAGS
+# FLAGS
 _is_boxed = '_is_dict_boxed'
 
 
@@ -28,7 +28,7 @@ class H5Dict(object):
 
     Note: This is not intended to be a generic wrapper.
     There are lot of edge cases which have been hardcoded,
-    and makes sense only in the context of model serialization / 
+    and makes sense only in the context of model serialization/
     deserialization.
     """
 
@@ -44,7 +44,8 @@ class H5Dict(object):
             self._is_file = False
             self.data[_is_boxed] = True
         else:
-            raise Exception('Required Group, str or dict. Received {}.'.format(type(path)))
+            raise Exception('Required Group, str or dict.'
+                            ' Received {}.'.format(type(path)))
         self.read_only = mode == 'r'
 
     def __setitem__(self, attr, val):
@@ -62,7 +63,8 @@ class H5Dict(object):
                 self.data[attr] = val
             return
         if attr in self:
-            raise Exception('Can not set attribute. Group with name {} exists.'.format(attr))
+            raise Exception('Can not set attribute.'
+                            ' Group with name {} exists.'.format(attr))
         if is_np:
             dataset = self.data.create_dataset(attr, val.shape, dtype=val.dtype)
             if not val.shape:
@@ -79,9 +81,9 @@ class H5Dict(object):
             # Expecting this to never be true.
             if len(bad_attributes) > 0:
                 raise RuntimeError('The following attributes cannot be saved to HDF5 '
-                                'file because they are larger than %d bytes: %s'
-                                % (HDF5_OBJECT_HEADER_LIMIT,
-                                    ', '.join([x for x in bad_attributes])))
+                                   'file because they are larger than %d bytes: %s'
+                                   % (HDF5_OBJECT_HEADER_LIMIT,
+                                      ', '.join([x for x in bad_attributes])))
 
             data_npy = np.asarray(val)
 
@@ -108,14 +110,14 @@ class H5Dict(object):
             if attr in self.data:
                 val = self.data[attr]
                 if type(val) is dict and val.get(_is_boxed):
-                    val =  H5Dict(val)
+                    val = H5Dict(val)
                 elif '_{}_pickled'.format(attr) in self.data:
                     val = pickle.loads(val)
                 return val
             else:
                 if self.read_only:
                     raise Exception('Can not create group in read only mode.')
-                val = {_is_boxed : True}
+                val = {_is_boxed: True}
                 self.data[attr] = val
                 return H5Dict(val)
         if attr in self.data.attrs:
@@ -130,9 +132,9 @@ class H5Dict(object):
             else:
                 val = H5Dict(val)
         else:
-            #could be chunked
+            # could be chunked
             chunk_attr = '%s%d' % (attr, 0)
-            is_chunked =  chunk_attr in self.data.attrs
+            is_chunked = chunk_attr in self.data.attrs
             if is_chunked:
                 val = []
                 chunk_id = 0

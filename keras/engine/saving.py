@@ -24,12 +24,11 @@ except ImportError:
     h5py = None
 
 
-
 def _serialize_model(model, f, include_optimizer=True):
     """Model serialization logic.
 
     This method used for both writing to HDF5 file/group,
-    as well as pickling. This is achieved via a 
+    as well as pickling. This is achieved via a
     keras.utils.hdf5_utls.H5Dict object, which can wrap HDF5
     files, groups and dicts with a common API.
 
@@ -79,9 +78,9 @@ def _serialize_model(model, f, include_optimizer=True):
     f['keras_version'] = str(keras_version).encode('utf8')
     f['backend'] = K.backend().encode('utf8')
     f['model_config'] = json.dumps({
-    'class_name': model.__class__.__name__,
-    'config': model.get_config()
-    }, default=get_json_type).encode('utf8')
+        'class_name': model.__class__.__name__,
+        'config': model.get_config()
+        }, default=get_json_type).encode('utf8')
     model_weights_group = f['model_weights']
     model_layers = model.layers
     model_weights_group['layer_names'] = [layer.name.encode('utf8') for layer in model_layers]
@@ -131,7 +130,7 @@ def _serialize_model(model, f, include_optimizer=True):
                 weight_values = K.batch_get_value(symbolic_weights)
                 weight_names = []
                 for i, (w, val) in enumerate(zip(symbolic_weights,
-                                                    weight_values)):
+                                                 weight_values)):
                     # Default values of symbolic_weights is /variable
                     # for Theano and CNTK
                     if K.backend() == 'theano' or K.backend() == 'cntk':
@@ -153,7 +152,6 @@ def _serialize_model(model, f, include_optimizer=True):
                     optimizer_weights_group[name] = val
 
 
-
 def _deserialize_model(f, custom_objects=None, compile=True):
     """De-serializes a model a serialized via _serialize_model
 
@@ -164,7 +162,7 @@ def _deserialize_model(f, custom_objects=None, compile=True):
             considered during deserialization.
         compile: Boolean, whether to compile the model
             after loading.
-    
+
     # Returns
         A Keras model instance. If an optimizer was found
         as part of the saved model, the model is already
@@ -226,7 +224,7 @@ def _deserialize_model(f, custom_objects=None, compile=True):
         weights = layer.weights
         if weights:
             filtered_layers.append(layer)
-    
+
     filtered_layer_names = []
     for name in layer_names:
         layer_weights = model_weights_group[name]
@@ -269,19 +267,18 @@ def _deserialize_model(f, custom_objects=None, compile=True):
         weight_value_tuples += zip(symbolic_weights, weight_values)
     K.batch_set_value(weight_value_tuples)
 
-
     if compile:
         training_config = f.get('training_config')
         if training_config is None:
             warnings.warn('No training configuration found in save file: '
-                            'the model was *not* compiled. '
-                            'Compile it manually.')
+                          'the model was *not* compiled. '
+                          'Compile it manually.')
             return model
         training_config = json.loads(training_config.decode('utf-8'))
         optimizer_config = training_config['optimizer_config']
         optimizer = optimizers.deserialize(optimizer_config,
-                                            custom_objects=custom_objects)
-        
+                                           custom_objects=custom_objects)
+
         # Recover loss functions and metrics.
         loss = convert_custom_objects(training_config['loss'])
         metrics = convert_custom_objects(training_config['metrics'])
@@ -290,10 +287,10 @@ def _deserialize_model(f, custom_objects=None, compile=True):
 
         # Compile model.
         model.compile(optimizer=optimizer,
-                        loss=loss,
-                        metrics=metrics,
-                        loss_weights=loss_weights,
-                        sample_weight_mode=sample_weight_mode)
+                      loss=loss,
+                      metrics=metrics,
+                      loss_weights=loss_weights,
+                      sample_weight_mode=sample_weight_mode)
 
         # Set optimizer weights.
         if 'optimizer_weights' in f:
@@ -304,14 +301,14 @@ def _deserialize_model(f, custom_objects=None, compile=True):
                 n.decode('utf8') for n in
                 optimizer_weights_group['weight_names']]
             optimizer_weight_values = [optimizer_weights_group[n] for n in
-                                        optimizer_weight_names]
+                                       optimizer_weight_names]
             try:
                 model.optimizer.set_weights(optimizer_weight_values)
             except ValueError:
                 warnings.warn('Error in loading the saved optimizer '
-                                'state. As a result, your model is '
-                                'starting with a freshly initialized '
-                                'optimizer.')
+                              'state. As a result, your model is '
+                              'starting with a freshly initialized '
+                              'optimizer.')
 
     return model
 
@@ -365,6 +362,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     finally:
         if opened_new_file:
             f.close()
+
 
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.

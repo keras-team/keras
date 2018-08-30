@@ -1451,4 +1451,3 @@ def _map_graph_network(inputs, outputs):
                              ' times in the model. '
                              'All layer names should be unique.')
     return network_nodes, nodes_by_depth, layers, layers_by_depth
-
