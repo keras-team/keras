@@ -575,3 +575,17 @@ def check_num_samples(ins,
     if hasattr(ins[0], 'shape'):
         return int(ins[0].shape[0])
     return None  # Edge case where ins == [static_learning_phase]
+
+
+def iter_sequence_infinite(seq):
+    """Iterate indefinitely over a Sequence.
+
+    # Arguments
+        seq: Sequence object
+
+    # Returns
+        Generator yielding batches.
+    """
+    while True:
+        for item in seq:
+            yield item
