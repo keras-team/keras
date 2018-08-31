@@ -50,6 +50,7 @@ def model_to_dot(model,
         A `pydot.Dot` instance representing the Keras model.
     """
     from ..layers.wrappers import Wrapper
+    from ..layers.core import Dense
     from ..models import Sequential
 
     _check_pydot()
@@ -66,7 +67,6 @@ def model_to_dot(model,
     # Create graph nodes.
     for layer in layers:
         layer_id = str(id(layer))
-
         # Append a wrapped layer's label to node's label, if it exists.
         layer_name = layer.name
         class_name = layer.__class__.__name__
@@ -75,6 +75,8 @@ def model_to_dot(model,
             child_class_name = layer.layer.__class__.__name__
             class_name = '{}({})'.format(class_name, child_class_name)
 
+        if isinstance(layer, Dense):
+            class_name += "({})".format(layer.activation.func_name)
         # Create node's label.
         if show_layer_names:
             label = '{}: {}'.format(layer_name, class_name)
