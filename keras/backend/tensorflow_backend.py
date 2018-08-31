@@ -3433,12 +3433,14 @@ def _preprocess_conv1d_input(x, data_format):
     return x, tf_data_format
 
 
-def _preprocess_conv2d_input(x, data_format):
+def _preprocess_conv2d_input(x, data_format, force_transpose=False):
     """Transpose and cast the input before the conv2d.
 
     # Arguments
         x: input tensor.
         data_format: string, `"channels_last"` or `"channels_first"`.
+        force_transpose: boolean, whether force to transpose input from NCHW to NHWC
+                        if the `data_format` is `"channels_first"`.
 
     # Returns
         A tensor.
@@ -3449,7 +3451,7 @@ def _preprocess_conv2d_input(x, data_format):
         x = tf.cast(x, 'float32')
     tf_data_format = 'NHWC'
     if data_format == 'channels_first':
-        if not _has_nchw_support():
+        if not _has_nchw_support() or force_transpose:
             x = tf.transpose(x, (0, 2, 3, 1))  # NCHW -> NHWC
         else:
             tf_data_format = 'NCHW'
@@ -3586,7 +3588,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
-                     padding='valid', data_format=None):
+                     padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2D deconvolution (i.e. transposed convolution).
 
     # Arguments
@@ -3598,6 +3600,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
         data_format: string, `"channels_last"` or `"channels_first"`.
             Whether to use Theano or TensorFlow/CNTK data format
             for inputs/kernels/outputs.
+        dilation_rate: tuple of 2 integers.
 
     # Returns
         A tensor, result of transposed 2D convolution.
@@ -3610,7 +3613,13 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if isinstance(output_shape, (tuple, list)):
         output_shape = tf.stack(output_shape)
 
-    x, tf_data_format = _preprocess_conv2d_input(x, data_format)
+    # tf.nn.atrous_conv2d_transpose input only supports NHWC format
+    if data_format == 'channels_first' and dilation_rate != (1, 1):
+        force_transpose = True
+    else:
+        force_transpose = False
+
+    x, tf_data_format = _preprocess_conv2d_input(x, data_format, force_transpose)
 
     if data_format == 'channels_first' and tf_data_format == 'NHWC':
         output_shape = (output_shape[0],
@@ -3627,9 +3636,15 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     else:
         strides = (1, 1) + strides
 
-    x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
-                               padding=padding,
-                               data_format=tf_data_format)
+    if dilation_rate == (1, 1):
+        x = tf.nn.conv2d_transpose(x, kernel, output_shape, strides,
+                                   padding=padding,
+                                   data_format=tf_data_format)
+    else:
+        assert dilation_rate[0] == dilation_rate[1]
+        x = tf.nn.atrous_conv2d_transpose(
+            x, kernel, output_shape, dilation_rate[0], padding)
+
     if data_format == 'channels_first' and tf_data_format == 'NHWC':
         x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
     return x
