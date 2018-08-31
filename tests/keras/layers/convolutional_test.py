@@ -164,7 +164,7 @@ def test_convolution_2d_channels_last():
 
 @keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk only supports dilated conv on GPU")
+                    reason='cntk only supports dilated conv on GPU')
 def test_convolution_2d_dilation():
     num_samples = 2
     filters = 2
@@ -223,6 +223,37 @@ def test_conv2d_transpose(padding, out_padding, strides):
                        'data_format': 'channels_last'},
                input_shape=(num_samples, num_row, num_col, stack_size),
                fixed_batch_size=True)
+
+
+@keras_test
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='cntk only supports dilated conv transpose on GPU')
+def test_conv2d_transpose_dilation():
+
+    layer_test(convolutional.Conv2DTranspose,
+               kwargs={'filters': 2,
+                       'kernel_size': 3,
+                       'padding': 'same',
+                       'data_format': 'channels_last',
+                       'dilation_rate': (2, 2)},
+               input_shape=(2, 5, 6, 3))
+
+    # Check dilated conv transpose returns expected output
+    input_data = np.arange(48).reshape((1, 4, 4, 3)).astype(np.float32)
+    expected_output = np.float32([[192, 228, 192, 228],
+                                  [336, 372, 336, 372],
+                                  [192, 228, 192, 228],
+                                  [336, 372, 336, 372]]).reshape((1, 4, 4, 1))
+
+    layer_test(convolutional.Conv2DTranspose,
+               input_data=input_data,
+               kwargs={'filters': 1,
+                       'kernel_size': 3,
+                       'padding': 'same',
+                       'data_format': 'channels_last',
+                       'dilation_rate': (2, 2),
+                       'kernel_initializer': 'ones'},
+               expected_output=expected_output)
 
 
 @keras_test
