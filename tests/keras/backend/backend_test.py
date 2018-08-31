@@ -195,7 +195,7 @@ class TestBackend(object):
             K.set_learning_phase(2)
 
     def test_eye(self):
-        z_list = [k.eval(k.eye(3)) for k in BACKENDS]
+        z_list = [k.eval(k.eye(3)) for k in WITH_NP]
         assert_list_pairwise(z_list)
 
     def test_linear_operations(self):
@@ -242,23 +242,23 @@ class TestBackend(object):
         assert_allclose(K.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
 
     def test_shape_operations(self):
-        check_two_tensor_operation('concatenate', (4, 3), (4, 2), BACKENDS,
+        check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
                                    axis=-1, concat_args=True)
 
         check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), BACKENDS,
                                       pattern=(2, 0, 1))
-        check_single_tensor_operation('repeat', (4, 1), BACKENDS, n=3)
-        check_single_tensor_operation('flatten', (4, 1), BACKENDS)
-        check_single_tensor_operation('batch_flatten', (20, 2, 5), BACKENDS,
+        check_single_tensor_operation('repeat', (4, 1), WITH_NP, n=3)
+        check_single_tensor_operation('flatten', (4, 1), WITH_NP)
+        check_single_tensor_operation('batch_flatten', (20, 2, 5), WITH_NP,
                                       cntk_dynamicity=True)
-        check_single_tensor_operation('expand_dims', (4, 3), BACKENDS, axis=-1)
-        check_single_tensor_operation('expand_dims', (4, 3, 2), BACKENDS, axis=1)
-        check_single_tensor_operation('squeeze', (4, 3, 1), BACKENDS, axis=2)
-        check_single_tensor_operation('squeeze', (4, 1, 1), BACKENDS, axis=1)
+        check_single_tensor_operation('expand_dims', (4, 3), WITH_NP, axis=-1)
+        check_single_tensor_operation('expand_dims', (4, 3, 2), WITH_NP, axis=1)
+        check_single_tensor_operation('squeeze', (4, 3, 1), WITH_NP, axis=2)
+        check_single_tensor_operation('squeeze', (4, 1, 1), WITH_NP, axis=1)
         check_composed_tensor_operations('reshape', {'shape': (4, 3, 1, 1)},
                                          'squeeze', {'axis': 2},
-                                         (4, 3, 1, 1), BACKENDS)
+                                         (4, 3, 1, 1), WITH_NP)
 
     def test_none_shape_operations(self):
         # Test shape inference when input
@@ -342,10 +342,10 @@ class TestBackend(object):
                 assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
 
         # print_tensor
-        check_single_tensor_operation('print_tensor', (), BACKENDS)
-        check_single_tensor_operation('print_tensor', (2,), BACKENDS)
-        check_single_tensor_operation('print_tensor', (4, 3), BACKENDS)
-        check_single_tensor_operation('print_tensor', (1, 2, 3), BACKENDS)
+        check_single_tensor_operation('print_tensor', (), WITH_NP)
+        check_single_tensor_operation('print_tensor', (2,), WITH_NP)
+        check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
+        check_single_tensor_operation('print_tensor', (1, 2, 3), WITH_NP)
 
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2), WITH_NP)
