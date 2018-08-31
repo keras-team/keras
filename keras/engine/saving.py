@@ -77,10 +77,14 @@ def _serialize_model(model, f, include_optimizer=True):
 
     f['keras_version'] = str(keras_version).encode('utf8')
     f['backend'] = K.backend().encode('utf8')
-    f['model_config'] = json.dumps({
-        'class_name': model.__class__.__name__,
-        'config': model.get_config()
-                                  }, default=get_json_type).encode('utf8')
+
+    model_config = {}
+    model_config['class_name'] = model.__class__.__name__
+    model_config['config'] = model.get_config()
+    model_config = json.dumps(model_config, default=get_json_type)
+    model_config = model_config.encode('utf-8')
+    f['model_config'] = model_config
+
     model_weights_group = f['model_weights']
     model_layers = model.layers
     model_weights_group['layer_names'] = [layer.name.encode('utf8') for layer in model_layers]

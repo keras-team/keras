@@ -227,9 +227,9 @@ class H5Dict(object):
             # Expecting this to never be true.
             if len(bad_attributes) > 0:
                 raise RuntimeError('The following attributes cannot be saved to '
-                                   'HDF5 file because they are larger than %d bytes: %s'
-                                   % (HDF5_OBJECT_HEADER_LIMIT,
-                                      ', '.join([x for x in bad_attributes])))
+                                   'HDF5 file because they are larger than '
+                                   '%d bytes: %s' % (HDF5_OBJECT_HEADER_LIMIT,
+                                                ', '.join(bad_attributes)))
 
             if val and sys.version_info[0] == 3 and isinstance(val[0], str):
                 # convert to bytes
@@ -241,7 +241,8 @@ class H5Dict(object):
             chunked_data = np.array_split(data_npy, num_chunks)
 
             # This will never loop forever thanks to the test above.
-            while any(map(lambda x: x.nbytes > HDF5_OBJECT_HEADER_LIMIT, chunked_data)):
+            is_too_big = lambda x: x.nbytes > HDF5_OBJECT_HEADER_LIMIT
+            while any(map(is_too_big, chunked_data)):
                 num_chunks += 1
                 chunked_data = np.array_split(data_npy, num_chunks)
 
