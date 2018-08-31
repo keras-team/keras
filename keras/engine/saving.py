@@ -14,7 +14,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import optimizers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
-from ..utils.hdf5_utils import h5dict
+from ..utils.io_utils import h5dict
 from ..utils import conv_utils
 
 try:
@@ -29,7 +29,7 @@ def _serialize_model(model, f, include_optimizer=True):
 
     This method is used for both writing to HDF5 file/group,
     as well as pickling. This is achieved via a
-    keras.utils.hdf5_utls.H5Dict object, which can wrap HDF5
+    `keras.utils.hdf5_utls.H5Dict` object, which can wrap HDF5
     files, groups and dicts with a common API.
 
     # Arguments
@@ -80,7 +80,7 @@ def _serialize_model(model, f, include_optimizer=True):
     f['model_config'] = json.dumps({
         'class_name': model.__class__.__name__,
         'config': model.get_config()
-        }, default=get_json_type).encode('utf8')
+                                  }, default=get_json_type).encode('utf8')
     model_weights_group = f['model_weights']
     model_layers = model.layers
     model_weights_group['layer_names'] = [layer.name.encode('utf8') for layer in model_layers]
@@ -153,10 +153,10 @@ def _serialize_model(model, f, include_optimizer=True):
 
 
 def _deserialize_model(f, custom_objects=None, compile=True):
-    """De-serializes a model a serialized via _serialize_model
+    """De-serializes a model serialized via _serialize_model
 
     # Arguments
-        f: keras.utils.hdf5_utils.HFDict instance.
+        f: `keras.utils.hdf5_utils.HFDict` instance.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.

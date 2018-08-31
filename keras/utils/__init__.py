@@ -7,6 +7,7 @@ from . import conv_utils
 
 # Globally-importable utils.
 from .io_utils import HDF5Matrix
+from .io_utils import h5dict
 from .data_utils import get_file
 from .data_utils import Sequence
 from .data_utils import GeneratorEnqueuer
@@ -24,4 +25,3 @@ from .vis_utils import plot_model
 from .np_utils import to_categorical
 from .np_utils import normalize
 from .multi_gpu_utils import multi_gpu_model
-from .hdf5_utils import h5dict
