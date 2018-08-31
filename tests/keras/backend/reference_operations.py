@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.signal as signal
+from keras.backend import floatx
 
 
 def normalize_conv(func):
@@ -347,6 +348,10 @@ def repeat(x, n):
     return y
 
 
+def arange(start, stop=None, step=1, dtype='int32'):
+    return np.arange(start, stop, step, dtype)
+
+
 def flatten(x):
     return np.reshape(x, (-1,))
 
@@ -357,6 +362,20 @@ def batch_flatten(x):
 
 def eval(x):
     return x
+
+
+def dtype(x):
+    return x.dtype.name
+
+
+def constant(value, dtype=None, shape=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+    if shape is None:
+        shape = ()
+    np_value = value * np.ones(shape)
+    np_value.astype(dtype)
+    return np_value
 
 
 def print_tensor(x, message=''):
