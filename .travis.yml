@@ -1,6 +1,9 @@
 sudo: required
 dist: trusty
 language: python
+cache:
+  directories:
+    - $HOME/.theano
 matrix:
     include:
         - python: 2.7
