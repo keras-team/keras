@@ -1571,10 +1571,10 @@ class TestBackend(object):
         top_paths = 2
 
         decode_pred_tf, log_prob_pred_tf = K.ctc_decode(inputs,
-                                                          input_length,
-                                                          greedy=False,
-                                                          beam_width=beam_width,
-                                                          top_paths=top_paths)
+                                                        input_length,
+                                                        greedy=False,
+                                                        beam_width=beam_width,
+                                                        top_paths=top_paths)
 
         assert len(decode_pred_tf) == top_paths
 
