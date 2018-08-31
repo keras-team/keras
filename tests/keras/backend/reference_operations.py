@@ -341,6 +341,12 @@ def repeat_elements(x, rep, axis):
     return np.repeat(x, rep, axis=axis)
 
 
+def repeat(x, n):
+    y = np.expand_dims(x, 1)
+    y = np.repeat(y, n, axis=1)
+    return y
+
+
 def flatten(x):
     return np.reshape(x, (-1,))
 
