@@ -142,6 +142,18 @@ pool2d = pool
 pool3d = pool
 
 
+def bias_add(x, y, data_format):
+    if data_format == 'channels_first':
+        if y.ndim > 1:
+            y = np.reshape(y, y.shape[::-1])
+        for _ in range(x.ndim - y.ndim - 1):
+            y = np.expand_dims(y, -1)
+    else:
+        for _ in range(x.ndim - y.ndim - 1):
+            y = np.expand_dims(y, 0)
+    return x + y
+
+
 def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
     w_i, w_h, w_o = w
     h = []
@@ -334,6 +346,10 @@ def concatenate(tensors, axis=-1):
     return np.concatenate(tensors, axis)
 
 
+def permute_dimensions(x, pattern):
+    return np.transpose(x, pattern)
+
+
 def reshape(x, shape):
     return np.reshape(x, shape)
 
@@ -387,6 +403,22 @@ def eye(size, dtype=None, name=None):
     return np.eye(size, dtype=dtype)
 
 
+def dot(x, y):
+    return np.dot(x, y)
+
+
+def transpose(x):
+    return np.transpose(x)
+
+
+def reverse(x, axes):
+    if isinstance(axes, int):
+        axes = [axes]
+    for a in axes:
+        x = np.flip(x, a)
+    return x
+
+
 def variable(value, dtype=None, name=None, constraint=None):
     if constraint is not None:
         raise TypeError("Constraint must be None when "
@@ -424,6 +456,36 @@ def maximum(x, y):
 
 def minimum(x, y):
     return np.minimum(x, y)
+
+
+def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
+    return (high - low) * np.random.random(shape).astype(dtype) + low
+
+
+def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
+    return scale * np.random.randn(*shape).astype(dtype) + mean
+
+
+def resize_images(x, height_factor, width_factor, data_format):
+    if data_format == 'channels_first':
+        x = repeat_elements(x, height_factor, axis=2)
+        x = repeat_elements(x, width_factor, axis=3)
+    elif data_format == 'channels_last':
+        x = repeat_elements(x, height_factor, axis=1)
+        x = repeat_elements(x, width_factor, axis=2)
+    return x
+
+
+def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
+    if data_format == 'channels_first':
+        x = repeat_elements(x, depth_factor, axis=2)
+        x = repeat_elements(x, height_factor, axis=3)
+        x = repeat_elements(x, width_factor, axis=4)
+    elif data_format == 'channels_last':
+        x = repeat_elements(x, depth_factor, axis=1)
+        x = repeat_elements(x, height_factor, axis=2)
+        x = repeat_elements(x, width_factor, axis=3)
+    return x
 
 
 square = np.square
