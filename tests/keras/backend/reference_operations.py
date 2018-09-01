@@ -413,8 +413,7 @@ def transpose(x):
 
 def reverse(x, axes):
     if isinstance(axes, int):
-        axes = (axes,)
-    axes = list(axes)
+        axes = [axes]
     for a in axes:
         x = np.flip(x, a)
     return x
@@ -460,7 +459,7 @@ def minimum(x, y):
 
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
-    return np.random.random(shape).astype(dtype)
+    return (high - low) * np.random.random(shape).astype(dtype) + low
 
 
 def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
