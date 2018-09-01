@@ -229,7 +229,7 @@ class H5Dict(object):
                 raise RuntimeError('The following attributes cannot be saved to '
                                    'HDF5 file because they are larger than '
                                    '%d bytes: %s' % (HDF5_OBJECT_HEADER_LIMIT,
-                                                ', '.join(bad_attributes)))
+                                                     ', '.join(bad_attributes)))
 
             if val and sys.version_info[0] == 3 and isinstance(val[0], str):
                 # convert to bytes
