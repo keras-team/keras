@@ -195,12 +195,11 @@ class TestBackend(object):
             K.set_learning_phase(2)
 
     def test_eye(self):
-        z_list = [k.eval(k.eye(3)) for k in WITH_NP]
-        assert_list_pairwise(z_list)
+        check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
 
     def test_linear_operations(self):
-        check_two_tensor_operation('dot', (4, 2), (2, 4), BACKENDS)
-        check_two_tensor_operation('dot', (4, 2), (5, 2, 3), BACKENDS)
+        check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
+        check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
                                    BACKENDS, cntk_two_dynamicity=True, axes=(2, 2))
@@ -213,15 +212,16 @@ class TestBackend(object):
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
                                    BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
 
-        check_single_tensor_operation('transpose', (4, 2), BACKENDS)
-        check_single_tensor_operation('reverse', (4, 3, 2), BACKENDS, axes=1)
-        check_single_tensor_operation('reverse', (4, 3, 2), [KTH, KTF], axes=(1, 2))
+        check_single_tensor_operation('transpose', (4, 2), WITH_NP)
+        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
+        if K.backend() != 'cntk':
+            check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
 
     def test_random_variables(self):
-        check_single_tensor_operation('random_uniform_variable', (2, 3), BACKENDS,
+        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
                                       low=0., high=1.,
                                       shape_or_val=False, assert_value_equality=False)
-        check_single_tensor_operation('random_normal_variable', (2, 3), BACKENDS,
+        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
                                       mean=0., scale=1.,
                                       shape_or_val=False, assert_value_equality=False)
 
@@ -246,7 +246,7 @@ class TestBackend(object):
                                    axis=-1, concat_args=True)
 
         check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
-        check_single_tensor_operation('permute_dimensions', (4, 2, 3), BACKENDS,
+        check_single_tensor_operation('permute_dimensions', (4, 2, 3), WITH_NP,
                                       pattern=(2, 0, 1))
         check_single_tensor_operation('repeat', (4, 1), WITH_NP, n=3)
         check_single_tensor_operation('flatten', (4, 1), WITH_NP)
@@ -1260,7 +1260,7 @@ class TestBackend(object):
             elif data_format == 'channels_last':
                 x_shape = (2,) + shape + (3,)
             check_single_tensor_operation('resize_images', x_shape,
-                                          BACKENDS, cntk_dynamicity=True,
+                                          WITH_NP, cntk_dynamicity=True,
                                           height_factor=2,
                                           width_factor=2,
                                           data_format=data_format)
@@ -1296,7 +1296,7 @@ class TestBackend(object):
             elif data_format == 'channels_last':
                 x_shape = (2,) + shape + (3,)
             check_single_tensor_operation('resize_volumes', x_shape,
-                                          BACKENDS, cntk_dynamicity=True,
+                                          WITH_NP, cntk_dynamicity=True,
                                           depth_factor=2,
                                           height_factor=2,
                                           width_factor=2,
@@ -1367,7 +1367,7 @@ class TestBackend(object):
                     x_shape = (1,) + shape + (4,)
                 bias_shape = (4,)
                 check_two_tensor_operation('bias_add', x_shape, bias_shape,
-                                           BACKENDS, cntk_dynamicity=True,
+                                           WITH_NP, cntk_dynamicity=True,
                                            data_format=data_format)
 
             if data_format == 'channels_first':
@@ -1375,7 +1375,7 @@ class TestBackend(object):
             else:
                 x_shape = (20, 10, 6)
             check_two_tensor_operation('bias_add', x_shape, (10, 6),
-                                       BACKENDS, cntk_dynamicity=True,
+                                       WITH_NP, cntk_dynamicity=True,
                                        data_format=data_format)
 
         # Test invalid use cases
