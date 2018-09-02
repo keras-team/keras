@@ -24,7 +24,8 @@ else:
     [
         # Causal
         ({'filters': 1, 'kernel_size': 2, 'dilation_rate': 1, 'padding': 'causal',
-          'kernel_initializer': 'ones', 'use_bias': False},
+          'kernel_initializer': 'ones', 'data_format': 'channels_last',
+          'use_bias': False},
          4, [[[0], [1], [3], [5]]]),
         # Non-causal
         ({'filters': 1, 'kernel_size': 2, 'dilation_rate': 1, 'padding': 'valid',
@@ -32,7 +33,8 @@ else:
          4, [[[1], [3], [5]]]),
         # Causal dilated with larger kernel size
         ({'filters': 1, 'kernel_size': 3, 'dilation_rate': 2, 'padding': 'causal',
-          'kernel_initializer': 'ones', 'use_bias': False},
+          'kernel_initializer': 'ones',  'data_format': 'channels_last',
+          'use_bias': False},
          10, np.float32([[[0], [1], [2], [4], [6], [9], [12], [15], [18], [21]]])),
     ]
 )
