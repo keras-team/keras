@@ -272,13 +272,15 @@ class Conv1D(_Conv):
             should not violate the temporal order. See
             [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
         data_format: A string,
-            one of `"channels_last"` (default) or `"channels_first"`.
+            one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
             `(batch, steps, channels)`
-            (default format for temporal data in Keras)
             while `"channels_first"` corresponds to inputs
             with shape `(batch, channels, steps)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
         dilation_rate: an integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -318,7 +320,7 @@ class Conv1D(_Conv):
                  kernel_size,
                  strides=1,
                  padding='valid',
-                 data_format='channels_last',
+                 data_format=None,
                  dilation_rate=1,
                  activation=None,
                  use_bias=True,
@@ -331,7 +333,7 @@ class Conv1D(_Conv):
                  bias_constraint=None,
                  **kwargs):
         if padding == 'causal':
-            if data_format != 'channels_last':
+            if K.normalize_data_format(data_format) != 'channels_last':
                 raise ValueError('When using causal padding in `Conv1D`, '
                                  '`data_format` must be "channels_last" '
                                  '(temporal data).')
