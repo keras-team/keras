@@ -545,6 +545,7 @@ def dot(x, y):
     else:
         return C.times(x, y)
 
+
 def batch_dot(x, y, axes=None):
     """Batchwise dot product.
 
@@ -606,8 +607,8 @@ def batch_dot(x, y, axes=None):
     if x_ndim < 2 or y_ndim < 2:
         raise ValueError('Can not do batch_dot on inputs '
                          'with rank < 2. '
-                         'Received inputs with shapes '
-                         + str(x_shape) + ' and ' + 
+                         'Received inputs with shapes ' +
+                         str(x_shape) + ' and ' +
                          str(y_shape) + '.')
 
     x_batch_size = x_shape[0]
@@ -619,10 +620,10 @@ def batch_dot(x, y, axes=None):
         dynamic_batch_size = False
         if x_batch_size != y_batch_size:
             raise ValueError('Can not do batch_dot on inputs '
-                                'with different batch sizes. '
-                                'Received inputs with shapes '
-                                + str(x_shape) + ' and ' + 
-                                str(y_shape) + '.')
+                             'with different batch sizes. '
+                             'Received inputs with shapes ' +
+                             str(x_shape) + ' and ' +
+                             str(y_shape) + '.')
     else:
         raise ValueError('Can not mix inputs with and without dynamic batch size.')
 
@@ -634,8 +635,8 @@ def batch_dot(x, y, axes=None):
 
     if b_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
-                        'Expected: None, int, (int, int), ' +
-                        'Provided: ' + str(axes))
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
 
     # if tuple, convert to list
     axes = list(axes)
@@ -650,8 +651,8 @@ def batch_dot(x, y, axes=None):
     d2 = y_shape[axes[1]]
 
     if d1 != d2:
-        raise ValueError('Can not do batch_dot on inputs with shapes '
-                         + str(x_shape) + ' and ' + str(y_shape) + 
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x_shape) + ' and ' + str(y_shape) +
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
                          'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
 
@@ -717,50 +718,6 @@ def batch_dot(x, y, axes=None):
         return expand_dims(result)
     print(int_shape(result))
     return result
-
-        
-def _batch_dot(x, y, axes=None):
-    x_shape = int_shape(x)
-    y_shape = int_shape(y)
-
-    if isinstance(axes, int):
-        axes = (axes, axes)
-    if axes is None:
-        # behaves like tf.batch_matmul as default
-        axes = [len(x_shape) - 1, len(y_shape) - 2]
-    if b_any([isinstance(a, (list, tuple)) for a in axes]):
-        raise ValueError('Multiple target dimensions are not supported. ' +
-                         'Expected: None, int, (int, int), ' +
-                         'Provided: ' + str(axes))
-
-    if len(x_shape) == 2 and len(y_shape) == 2:
-        if axes[0] == axes[1]:
-            result = sum(x * y, axis=axes[0], keepdims=True)
-            return result if axes[0] == 1 else transpose(result)
-        else:
-            return sum(x * transpose(y), axis=axes[0], keepdims=True)
-    else:
-        if len(y_shape) == 2:
-            y = expand_dims(y)
-
-        normalized_axis = []
-        normalized_axis.append(_normalize_axis(axes[0], x)[0])
-        normalized_axis.append(_normalize_axis(axes[1], y)[0])
-        # transpose
-        i = normalized_axis[0]
-        while i < len(x.shape) - 1:
-            x = C.swapaxes(x, i, i + 1)
-            i += 1
-        i = normalized_axis[1]
-        while i > 0:
-            y = C.swapaxes(y, i, i - 1)
-            i -= 1
-
-        result = C.times(x, y, output_rank=(len(y.shape) - 2)
-                         if len(y.shape) > 1 else 1)
-        if len(y_shape) == 2:
-            result = squeeze(result, -1)
-        return result
 
 
 def transpose(x):
@@ -1274,7 +1231,7 @@ def concatenate(tensors, axis=-1):
 
 def stack(tensors, axis=0):
     tensors = [expand_dims(t, axis) for t in tensors]
-    return concatenate(tensors, axis)    
+    return concatenate(tensors, axis)
 
 
 def flatten(x):
