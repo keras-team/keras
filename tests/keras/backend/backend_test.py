@@ -225,21 +225,55 @@ class TestBackend(object):
                                       mean=0., scale=1.,
                                       shape_or_val=False, assert_value_equality=False)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Not supported.')
     def test_batch_dot_shape(self):
-        x_batch = K.ones(shape=(32, 20))
-        y_batch = K.ones(shape=(32, 20))
-        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=1)
-        assert_allclose(K.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
-        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=0)
-        assert_allclose(K.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
-        # making sure swapping axes when ndim == 2 works
-        x_batch = K.ones(shape=(32, 20))
-        y_batch = K.ones(shape=(20, 32))
-        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(0, 1))
-        assert_allclose(K.eval(xy_batch_dot), np.ones((20, 1)) * 32, atol=1e-05)
-        xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(1, 0))
-        assert_allclose(K.eval(xy_batch_dot), np.ones((32, 1)) * 20, atol=1e-05)
+        # Note : batch_dot behavior is different for
+        # placeholders and variables in CNTK backend
+
+        test_cases = []
+        test_cases.append([(None, 3, 4, 5), (None, 2, 3, 4), (2, 3), (None, 3, 5, 2, 3)])
+        test_cases.append([(None, 3, 4, 5), (None, 2, 4), 2, (None, 3, 5, 2)])
+        test_cases.append([(None, 3, 4), (None, 2, 3, 4), (2, 3), (None, 3, 2, 3)])
+        test_cases.append([(None, 4), (None, 3, 4), (1, 2), (None, 3)])
+        test_cases.append([(None, 4), (None, 4), None, (None, 1)])
+
+        batch_size = 7
+
+        def batch_shape(shape):
+            return (batch_size, ) + shape[1:]
+
+        def ones(shape):
+            return np.ones(batch_shape(shape))
+
+        for tc in test_cases:
+            x_np = ones(tc[0])
+            y_np = ones(tc[1])
+            z_np = ones(tc[3]) * 4
+
+            # test with placeholder
+            x = K.placeholder(shape=tc[0])
+            y = K.placeholder(shape=tc[1])
+            z = K.batch_dot(x, y, tc[2])
+
+            z_shape = K.int_shape(z)
+            if z_shape is not None:
+                assert z_shape == tc[3]
+
+            f = K.function([x, y], [z])
+
+            print(tc)
+            assert_allclose(f([x_np, y_np])[0], z_np, atol=1e-05)
+
+            # test with variable
+            x = K.variable(x_np)
+            y = K.variable(y_np)
+            z = K.batch_dot(x, y, tc[2])
+
+            z_shape = K.int_shape(z)
+            if z_shape is not None:
+                assert z_shape == batch_shape(tc[3])
+
+            z = K.eval(z)
+            assert_allclose(z, z_np, atol=1e-05)
 
     def test_shape_operations(self):
         check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
