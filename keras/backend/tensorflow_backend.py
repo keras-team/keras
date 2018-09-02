@@ -1142,11 +1142,8 @@ def batch_dot(x, y, axes=None):
     x_ndim = ndim(x)
     y_ndim = ndim(y)
     if axes is None:
-        if y_ndim == 2:
-            axes = [x_ndim - 1, 1]
-        else:
-            # behaves like tf.batch_matmul as default
-            axes = [x_ndim - 1, y_ndim - 2]
+        # behaves like tf.batch_matmul as default
+        axes = [x_ndim - 1, 1]
     if py_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
