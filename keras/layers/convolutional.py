@@ -1424,9 +1424,6 @@ class SeparableConv1D(_SeparableConv):
             `(batch, steps, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, steps)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
         dilation_rate: An integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -1488,7 +1485,7 @@ class SeparableConv1D(_SeparableConv):
                  kernel_size,
                  strides=1,
                  padding='valid',
-                 data_format=None,
+                 data_format='channels_last',
                  dilation_rate=1,
                  depth_multiplier=1,
                  activation=None,
