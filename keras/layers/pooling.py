@@ -17,7 +17,7 @@ class _Pooling1D(Layer):
     """
 
     def __init__(self, pool_size=2, strides=None,
-                 padding='valid', data_format=None, **kwargs):
+                 padding='valid', data_format='channels_last', **kwargs):
         super(_Pooling1D, self).__init__(**kwargs)
         if strides is None:
             strides = pool_size
@@ -82,9 +82,6 @@ class MaxPooling1D(_Pooling1D):
             `(batch, steps, features)` while `channels_first`
             corresponds to inputs with shape
             `(batch, features, steps)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -105,7 +102,7 @@ class MaxPooling1D(_Pooling1D):
 
     @interfaces.legacy_pooling1d_support
     def __init__(self, pool_size=2, strides=None,
-                 padding='valid', data_format=None, **kwargs):
+                 padding='valid', data_format='channels_last', **kwargs):
         super(MaxPooling1D, self).__init__(pool_size, strides,
                                            padding, data_format,
                                            **kwargs)
@@ -133,9 +130,6 @@ class AveragePooling1D(_Pooling1D):
             `(batch, steps, features)` while `channels_first`
             corresponds to inputs with shape
             `(batch, features, steps)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -156,7 +150,7 @@ class AveragePooling1D(_Pooling1D):
 
     @interfaces.legacy_pooling1d_support
     def __init__(self, pool_size=2, strides=None,
-                 padding='valid', data_format=None, **kwargs):
+                 padding='valid', data_format='channels_last', **kwargs):
         super(AveragePooling1D, self).__init__(pool_size, strides,
                                                padding, data_format,
                                                **kwargs)
@@ -494,7 +488,7 @@ class _GlobalPooling1D(Layer):
     """Abstract class for different global pooling 1D layers.
     """
 
-    def __init__(self, data_format=None, **kwargs):
+    def __init__(self, data_format='channels_last', **kwargs):
         super(_GlobalPooling1D, self).__init__(**kwargs)
         self.input_spec = InputSpec(ndim=3)
         self.data_format = K.normalize_data_format(data_format)
@@ -525,9 +519,6 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
             `(batch, steps, features)` while `channels_first`
             corresponds to inputs with shape
             `(batch, features, steps)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -542,7 +533,7 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
         `(batch_size, features)`
     """
 
-    def __init__(self, data_format=None, **kwargs):
+    def __init__(self, data_format='channels_last', **kwargs):
         super(GlobalAveragePooling1D, self).__init__(data_format,
                                                      **kwargs)
         self.supports_masking = True
@@ -574,9 +565,6 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
             `(batch, steps, features)` while `channels_first`
             corresponds to inputs with shape
             `(batch, features, steps)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
 
     # Input shape
         - If `data_format='channels_last'`:
