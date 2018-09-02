@@ -200,6 +200,13 @@ def relu(x, alpha=0., max_value=None):
     return y
 
 
+def switch(condition, then_expression, else_expression):
+    cond_float = condition.astype(floatx())
+    while cond_float.ndim < then_expression.ndim:
+        cond_float = cond_float[..., None]
+    return cond_float * then_expression + (1 - cond_float) * else_expression
+
+
 def softplus(x):
     return np.log(1. + np.exp(x))
 

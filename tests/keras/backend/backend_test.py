@@ -885,7 +885,7 @@ class TestBackend(object):
         # scalar
         val = np.random.random()
         z_list = []
-        for k in BACKENDS:
+        for k in WITH_NP:
             x = k.variable(val)
             x = k.switch(k.greater_equal(x, 0.5), x * 0.1, x * 0.2)
             z_list.append(k.eval(x))
@@ -898,7 +898,7 @@ class TestBackend(object):
         for s in shapes:
             z_list = []
             arrays = list(map(np.random.random, s))
-            for k in BACKENDS:
+            for k in WITH_NP:
                 x, then_expr, else_expr = map(k.variable, arrays)
                 cond = k.greater_equal(x, 0.5)
                 z_list.append(k.eval(k.switch(cond, then_expr, else_expr)))
