@@ -249,7 +249,7 @@ class TestBackend(object):
             y_np = ones(tc[1])
             z_np = ones(tc[3]) * 4
 
-            # test with placeholder
+            # test with placeholders
             x = K.placeholder(shape=tc[0])
             y = K.placeholder(shape=tc[1])
             z = K.batch_dot(x, y, tc[2])
@@ -260,10 +260,9 @@ class TestBackend(object):
 
             f = K.function([x, y], [z])
 
-            print(tc)
             assert_allclose(f([x_np, y_np])[0], z_np, atol=1e-05)
 
-            # test with variable
+            # test with variables
             x = K.variable(x_np)
             y = K.variable(y_np)
             z = K.batch_dot(x, y, tc[2])
