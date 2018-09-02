@@ -550,7 +550,7 @@ def batch_dot(x, y, axes=None):
     """Batchwise dot product.
 
     `batch_dot` is used to compute dot product of `x` and `y` when
-    `x` and `y` are data in batch, i.e. in a shape of
+    `x` and `y` are data in batches, i.e. in a shape of
     `(batch_size, :)`.
     `batch_dot` results in a tensor or variable with less dimensions
     than the input. If the number of dimensions is reduced to 1,
@@ -559,8 +559,8 @@ def batch_dot(x, y, axes=None):
     # Arguments
         x: Keras tensor or variable with `ndim >= 2`.
         y: Keras tensor or variable with `ndim >= 2`.
-        axes: list of (or single) int with target dimensions.
-            The lengths of `axes[0]` and `axes[1]` should be the same.
+        axes: int or tupe(int, int). Target dimensions to be reduced.
+              Defaults to [ndim(x) - 1, 1]
 
     # Returns
         A tensor with shape equal to the concatenation of `x`'s shape
@@ -573,6 +573,14 @@ def batch_dot(x, y, axes=None):
         `batch_dot(x, y, axes=1) = [[17], [53]]` which is the main diagonal
         of `x.dot(y.T)`, although we never have to calculate the off-diagonal
         elements.
+
+        Pseudocode:
+        ```
+        inner_products = []
+        for xi, yi in zip(x, y):
+            inner_products.append(xi.dot(yi))
+        result = stack(inner_prodcuts)
+        ```
 
         Shape inference:
         Let `x`'s shape be `(100, 20)` and `y`'s shape be `(100, 30, 20)`.
@@ -592,12 +600,11 @@ def batch_dot(x, y, axes=None):
     ```python
         >>> x_batch = K.ones(shape=(32, 20, 1))
         >>> y_batch = K.ones(shape=(32, 30, 20))
-        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=[1, 2])
+        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(1, 2))
         >>> K.int_shape(xy_batch_dot)
         (32, 1, 30)
     ```
     """
-
     x_shape = int_shape(x)
     y_shape = int_shape(y)
 
@@ -650,11 +657,11 @@ def batch_dot(x, y, axes=None):
     if 0 in axes:
         raise ValueError('Can not perform batch_dot over axis 0. If your inputs are not batched,'
                          ' add a dummy batch dimension to your inputs using K.expand_dims(x, 0)')
-    
+
     d1 = x_shape[axes[0]]
     d2 = y_shape[axes[1]]
 
-    if d1 != None and d2 !=None and d1 != d2:
+    if d1 is not None and d2 is not None and d1 != d2:
         raise ValueError('Can not do batch_dot on inputs with shapes ' +
                          str(x_shape) + ' and ' + str(y_shape) +
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
