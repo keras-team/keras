@@ -647,10 +647,14 @@ def batch_dot(x, y, axes=None):
     if axes[1] < 0:
         axes[1] += y_ndim
 
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0. If your inputs are not batched,'
+                         ' add a dummy batch dimension to your inputs using K.expand_dims(x, 0)')
+    
     d1 = x_shape[axes[0]]
     d2 = y_shape[axes[1]]
 
-    if d1 != d2:
+    if d1 != None and d2 !=None and d1 != d2:
         raise ValueError('Can not do batch_dot on inputs with shapes ' +
                          str(x_shape) + ' and ' + str(y_shape) +
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
@@ -693,10 +697,7 @@ def batch_dot(x, y, axes=None):
         y_expanded = False
 
     if dynamic_batch_size:
-        print(int_shape(x))
-        print(int_shape(y))
         result = C.times(x, y, output_rank=y_ndim - 2 + int(y_expanded))
-        print(int_shape(result))
     else:
         result = []
 
@@ -716,7 +717,6 @@ def batch_dot(x, y, axes=None):
 
     if ndim(result) == 1:
         return expand_dims(result)
-    print(int_shape(result))
     return result
 
 

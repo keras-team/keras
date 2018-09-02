@@ -1087,6 +1087,99 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
+    x_shape = int_shape(x)
+    y_shape = int_shape(y)
+
+    x_ndim = len(x_shape)
+    y_ndim = len(y_shape)
+
+    if x_ndim < 2 or y_ndim < 2:
+        raise ValueError('Can not do batch_dot on inputs '
+                         'with rank < 2. '
+                         'Received inputs with shapes ' +
+                         str(x_shape) + ' and ' +
+                         str(y_shape) + '.')
+
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is not None and y_batch_size is not None:
+        if x_batch_size != y_batch_size:
+            raise ValueError('Can not do batch_dot on inputs '
+                             'with different batch sizes. '
+                             'Received inputs with shapes ' +
+                             str(x_shape) + ' and ' +
+                             str(y_shape) + '.')
+
+    if isinstance(axes, int):
+        axes = [axes, axes]
+
+    if axes is None:
+        axes = [x_ndim - 1, 1]
+
+    if py_any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
+
+    # if tuple, convert to list
+    axes = list(axes)
+
+    # convert negative indices
+    if axes[0] < 0:
+        axes[0] += x_ndim
+    if axes[1] < 0:
+        axes[1] += y_ndim
+
+    # sanity checks
+
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0. If your inputs are not batched,'
+                         ' add a dummy batch dimension to your inputs using K.expand_dims(x, 0)')
+
+    a0, a1 = axes
+    d1 = x_shape[a0]
+    d2 = y_shape[a1]
+
+    if d1 != None and d2 != None and d1 != d2:
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x_shape) + ' and ' + str(y_shape) +
+                         ' with axes=' + str(axes) + '. x.shape[%d] != '
+                         'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
+
+    # bring the dimensions to be reduced to axis 0
+    if a0 != 1:
+        pattern = list(range(x_ndim))
+        for i in range(a0, 1, -1):
+            pattern[i] = pattern[i - 1]
+        pattern[1] = a0
+        x = permute_dimensions(x, pattern)
+    if a1 != 1:
+        pattern = list(range(y_ndim))
+        for i in range(a1, 1, -1):
+            pattern[i] = pattern[i - 1]
+        pattern[1] = a1
+        y = permute_dimensions(y, pattern)
+
+    # reshape to closest broadcastable shape
+    x_shape = tf.shape(x)
+    y_shape = tf.shape(y)
+
+    new_x_shape = tf.concat([x_shape, tf.ones_like(y_shape[2:])], 0)
+    new_y_shape = tf.concat([y_shape[:2], tf.ones_like(x_shape[2:]), y_shape[2:]], 0)
+
+    x = reshape(x, new_x_shape)
+    y = reshape(y, new_y_shape)
+
+    result = tf.reduce_sum(x * y, 1)
+
+    if ndim(result) == 1:
+        result = tf.expand_dims(result, -1)
+
+    return result
+
+
+def _batch_dot(x, y, axes=None):
     """Batchwise dot product.
 
     `batch_dot` is used to compute dot product of `x` and `y` when
