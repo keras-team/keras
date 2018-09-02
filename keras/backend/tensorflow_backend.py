@@ -1140,7 +1140,7 @@ def batch_dot(x, y, axes=None):
     ```python
         >>> x_batch = K.ones(shape=(32, 20, 1))
         >>> y_batch = K.ones(shape=(32, 30, 20))
-        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=[1, 2])
+        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(1, 2))
         >>> K.int_shape(xy_batch_dot)
         (32, 1, 30)
     ```
@@ -1204,7 +1204,7 @@ def batch_dot(x, y, axes=None):
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
                          'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
 
-    # bring the dimensions to be reduced to axis 0
+    # bring the dimensions to be reduced to axis 1
     if a0 != 1:
         pattern = list(range(x_ndim))
         for i in range(a0, 1, -1):
