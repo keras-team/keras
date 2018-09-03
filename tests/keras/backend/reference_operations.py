@@ -193,6 +193,38 @@ def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=No
     return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
 
 
+_LEARNING_PHASE = True
+
+
+def learning_phase():
+    return _LEARNING_PHASE
+
+
+def set_learning_phase(value):
+    global _LEARNING_PHASE
+    _LEARNING_PHASE = value
+
+
+def in_train_phase(x, alt, training=None):
+    if training is None:
+        training = learning_phase()
+
+    if training is 1 or training is True:
+        if callable(x):
+            return x()
+        else:
+            return x
+    else:
+        if callable(alt):
+            return alt()
+        else:
+            return alt
+
+
+def in_test_phase(x, alt, training=None):
+    return in_train_phase(alt, x, training=training)
+
+
 def relu(x, alpha=0., max_value=None):
     y = x * (x > 0) + alpha * x * (x < 0)
     if max_value is not None:
