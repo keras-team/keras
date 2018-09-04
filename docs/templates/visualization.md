@@ -23,3 +23,32 @@ from keras.utils.vis_utils import model_to_dot
 
 SVG(model_to_dot(model).create(prog='dot', format='svg'))
 ```
+
+## Training history visualization
+
+The `keras.model.fit` method returns a `History` object. The `History.history` attribute is a record of training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable). Using the `matplotlib` library, this `history` attribute can be plotted. For example:
+
+```python
+history = model.fit(X, y, validation_split=0.25, epochs=50, batch_size=16, verbose=1)
+
+import matplotlib.pyplot as plt
+
+# Plot history for accuracy
+plt.plot(history.history['acc'])
+plt.plot(history.history['val_acc'])
+plt.title('Model accuracy')
+plt.ylabel('Accuracy')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+# Plot history for loss
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model loss')
+plt.ylabel('Loss')
+plt.xlabel('Epoch')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
+```
