@@ -540,7 +540,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         shuffle: whether to shuffle the data at the beginning of each epoch
     """
     def __init__(self, sequence, use_multiprocessing=False, shuffle=False):
-        super(OrderedEnqueuer).__init__(sequence, use_multiprocessing)
+        super(OrderedEnqueuer, self).__init__(sequence, use_multiprocessing)
         self.shuffle = shuffle
 
     def get_executor_init(self):
@@ -651,7 +651,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
     def __init__(self, sequence, use_multiprocessing=False, wait_time=None,
                  random_seed=None):
-        super(GeneratorEnqueuer).__init__(sequence, use_multiprocessing)
+        super(GeneratorEnqueuer, self).__init__(sequence, use_multiprocessing)
         self.random_seed = random_seed
         if wait_time is not None:
             warnings.warn('`wait_time` is not used anymore.',
