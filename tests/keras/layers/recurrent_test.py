@@ -921,7 +921,7 @@ def test_rnn_cell_identity_initializer(layer_class):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() in ['cntk']), reason='Not supported.')
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
 def test_inconsistent_output_state_size():
 
     class PlusOneRNNCell(keras.layers.Layer):

@@ -57,7 +57,7 @@ class StackedRNNCells(Layer):
         # reverse_state_order determines whether the state size will be in a
         # reverse order of the cells' state. User might want to set this to True
         # to keep the existing behavior. This is only useful when use
-        # RNN(return_state=True) since the state will be returned as the same
+        # `RNN(return_state=True)` since the state will be returned as the same
         # order of state_size.
         self.reverse_state_order = kwargs.pop('reverse_state_order', False)
         if self.reverse_state_order:
@@ -74,7 +74,7 @@ class StackedRNNCells(Layer):
         # e.g. states of a 2-layer LSTM would be `[h1, c1, h2, c2]`.
         # (assuming one LSTM has states [h, c])
         # In the case of reverse_state_order=True, the state_size will be
-        # [h2, c2, h1, c1].
+        # `[h2, c2, h1, c1]`.
         state_size = []
         for cell in self.cells[::-1] if self.reverse_state_order else self.cells:
             if hasattr(cell.state_size, '__len__'):
