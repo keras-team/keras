@@ -921,6 +921,7 @@ def test_rnn_cell_identity_initializer(layer_class):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() in ['cntk']), reason='Not supported.')
 def test_inconsistent_output_state_size():
 
     class PlusOneRNNCell(keras.layers.Layer):
@@ -950,7 +951,9 @@ def test_inconsistent_output_state_size():
     assert cell.state_size == state_size
     init_state = layer.get_initial_state(x)
     assert len(init_state) == 1
-    assert K.int_shape(init_state[0]) == (None, state_size)
+    if K.backend() != 'theano':
+        # theano does not support static shape inference.
+        assert K.int_shape(init_state[0]) == (None, state_size)
 
     model = keras.models.Model(x, y)
     model.compile(optimizer='rmsprop', loss='mse')
