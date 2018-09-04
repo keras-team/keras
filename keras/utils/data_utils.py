@@ -464,7 +464,7 @@ class SequenceEnqueuer(object):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            self.executor_fn = self.get_executor_init(workers)
+            self.executor_fn = self._get_executor_init(workers)
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
@@ -502,7 +502,7 @@ class SequenceEnqueuer(object):
         raise NotImplementedError
 
     @abstractmethod
-    def get_executor_init(self, workers):
+    def _get_executor_init(self, workers):
         """Get the Pool initializer for multiprocessing.
 
         # Returns
@@ -537,7 +537,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
         super(OrderedEnqueuer, self).__init__(sequence, use_multiprocessing)
         self.shuffle = shuffle
 
-    def get_executor_init(self, workers):
+    def _get_executor_init(self, workers):
         """Get the Pool initializer for multiprocessing.
 
         # Returns
@@ -650,7 +650,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             warnings.warn('`wait_time` is not used anymore.',
                           DeprecationWarning)
 
-    def get_executor_init(self, workers):
+    def _get_executor_init(self, workers):
         """Get the Pool initializer for multiprocessing.
 
         # Returns
