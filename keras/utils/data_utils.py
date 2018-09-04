@@ -464,10 +464,7 @@ class SequenceEnqueuer(object):
                 (when full, workers could block on `put()`)
         """
         if self.use_multiprocessing:
-            init_fn, args = self.get_executor_init()
-            self.executor_fn = lambda seqs: mp.Pool(workers,
-                                                    initializer=init_fn,
-                                                    initargs=(seqs,) + tuple(args))
+            self.executor_fn = self.get_executor_init(workers)
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
@@ -505,14 +502,11 @@ class SequenceEnqueuer(object):
         raise NotImplementedError
 
     @abstractmethod
-    def get_executor_init(self):
-        """Get the Pool initializer for multiprocessing
+    def get_executor_init(self, workers):
+        """Get the Pool initializer for multiprocessing.
 
         # Returns
             Function, a Function to initialize the pool
-                with signature ({id:Iterable}, *args)
-            List, list of additional arguments beside the Sequences.
-
         """
         raise NotImplementedError
 
@@ -543,16 +537,15 @@ class OrderedEnqueuer(SequenceEnqueuer):
         super(OrderedEnqueuer, self).__init__(sequence, use_multiprocessing)
         self.shuffle = shuffle
 
-    def get_executor_init(self):
+    def get_executor_init(self, workers):
         """Get the Pool initializer for multiprocessing.
 
         # Returns
             Function, a Function to initialize the pool
-                with signature ({uid:Iterable}, *args).
-            List, list of additional arguments.
-
         """
-        return init_pool, []
+        return lambda seqs: mp.Pool(workers,
+                                    initializer=init_pool,
+                                    initargs=(seqs,))
 
     def _wait_queue(self):
         """Wait for the queue to be empty."""
@@ -657,16 +650,15 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             warnings.warn('`wait_time` is not used anymore.',
                           DeprecationWarning)
 
-    def get_executor_init(self):
-        """Get the Pool initializer for multiprocessing
+    def get_executor_init(self, workers):
+        """Get the Pool initializer for multiprocessing.
 
         # Returns
             Function, a Function to initialize the pool
-                with signature ({id:Iterable}, *args)
-            List, list of additional arguments beside the Sequences.
-
         """
-        return init_pool_generator, [self.random_seed]
+        return lambda seqs: mp.Pool(workers,
+                                    initializer=init_pool_generator,
+                                    initargs=(seqs, self.random_seed))
 
     def _run(self):
         """Submits request to the executor and queue the `Future` objects."""
