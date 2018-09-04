@@ -467,7 +467,7 @@ class SequenceEnqueuer(object):
             init_fn, args = self.get_executor_init()
             self.executor_fn = lambda seqs: mp.Pool(workers,
                                                     initializer=init_fn,
-                                                    initargs=(seqs, *args))
+                                                    initargs=(seqs,) + tuple(args))
         else:
             # We do not need the init since it's threads.
             self.executor_fn = lambda _: ThreadPool(workers)
