@@ -102,9 +102,11 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
             _output = recovered_model.predict(input_data)
             assert_allclose(_output, actual_output, rtol=1e-3)
 
-        # test training mode (e.g. useful for dropout tests)
-        model.compile('rmsprop', 'mse')
-        model.train_on_batch(input_data, actual_output)
+        # test training mode (e.g. useful when the layer has a
+        # different behavior at training and testing time).
+        if has_arg(layer.call, 'training'):
+            model.compile('rmsprop', 'mse')
+            model.train_on_batch(input_data, actual_output)
         return actual_output
 
     # test in functional API
