@@ -172,17 +172,19 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 
 | Model | Size | Top-1 Accuracy | Top-5 Accuracy | Parameters | Depth |
 | ----- | ----: | --------------: | --------------: | ----------: | -----: |
-| [Xception](#xception) | 88 MB | 0.790 | 0.945| 22,910,480 | 126 |
-| [VGG16](#vgg16) | 528 MB| 0.715 | 0.901 | 138,357,544 | 23
-| [VGG19](#vgg19) | 549 MB | 0.727 | 0.910 | 143,667,240 | 26
-| [ResNet50](#resnet50) | 99 MB | 0.759 | 0.929 | 25,636,712 | 168
-| [InceptionV3](#inceptionv3) | 92 MB | 0.788 | 0.944 | 23,851,784 | 159 |
-| [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.804 | 0.953 | 55,873,736 | 572 |
-| [MobileNet](#mobilenet) | 17 MB | 0.665 | 0.871 | 4,253,864 | 88
-| [DenseNet121](#densenet) | 33 MB | 0.745 | 0.918 | 8,062,504 | 121
-| [DenseNet169](#densenet) | 57 MB | 0.759 | 0.928 | 14,307,880 | 169
-| [DenseNet201](#densenet) | 80 MB | 0.770 | 0.933 | 20,242,984 | 201
-
+| [Xception](#xception) | 88 MB | 0.790 | 0.945 | 22,910,480 | 126 |
+| [VGG16](#vgg16) | 528 MB | 0.713 | 0.901 | 138,357,544 | 23 |
+| [VGG19](#vgg19) | 549 MB | 0.713 | 0.900 | 143,667,240 | 26 |
+| [ResNet50](#resnet50) | 99 MB | 0.749 | 0.921 | 25,636,712 | 168 |
+| [InceptionV3](#inceptionv3) | 92 MB | 0.779 | 0.937 | 23,851,784 | 159 |
+| [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.803 | 0.953 | 55,873,736 | 572 |
+| [MobileNet](#mobilenet) | 16 MB | 0.704 | 0.895 | 4,253,864 | 88 |
+| [MobileNetV2](#mobilenetv2) | 14 MB | 0.713 | 0.901 | 3,538,984 | 88 |
+| [DenseNet121](#densenet) | 33 MB | 0.750 | 0.923 | 8,062,504 | 121 |
+| [DenseNet169](#densenet) | 57 MB | 0.762 | 0.932 | 14,307,880 | 169 |
+| [DenseNet201](#densenet) | 80 MB | 0.773 | 0.936 | 20,242,984 | 201 |
+| [NASNetMobile](#nasnet) | 23 MB | 0.744 | 0.919 | 5,326,716 | - |
+| [NASNetLarge](#nasnet) | 343 MB | 0.825 | 0.960 | 88,949,818 | - |
 
 The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
 
