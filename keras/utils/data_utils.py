@@ -422,30 +422,91 @@ class SequenceEnqueuer(object):
     The `enqueuer.get()` should be an infinite stream of datas.
 
     """
+    def __init__(self, sequence,
+                 use_multiprocessing=False):
+        self.sequence = sequence
+        self.use_multiprocessing = use_multiprocessing
 
-    @abstractmethod
+        global _SEQUENCE_COUNTER
+        if _SEQUENCE_COUNTER is None:
+            try:
+                _SEQUENCE_COUNTER = mp.Value('i', 0)
+            except OSError:
+                # In this case the OS does not allow us to use
+                # multiprocessing. We resort to an int
+                # for enqueuer indexing.
+                _SEQUENCE_COUNTER = 0
+
+        if isinstance(_SEQUENCE_COUNTER, int):
+            self.uid = _SEQUENCE_COUNTER
+            _SEQUENCE_COUNTER += 1
+        else:
+            # Doing Multiprocessing.Value += x is not process-safe.
+            with _SEQUENCE_COUNTER.get_lock():
+                self.uid = _SEQUENCE_COUNTER.value
+                _SEQUENCE_COUNTER.value += 1
+
+        self.workers = 0
+        self.executor_fn = None
+        self.queue = None
+        self.run_thread = None
+        self.stop_signal = None
+
     def is_running(self):
-        raise NotImplementedError
+        return self.stop_signal is not None and not self.stop_signal.is_set()
 
-    @abstractmethod
     def start(self, workers=1, max_queue_size=10):
-        """Starts the handler's workers.
+        """Start the handler's workers.
 
         # Arguments
             workers: number of worker threads
             max_queue_size: queue size
-                (when full, threads could block on `put()`).
+                (when full, workers could block on `put()`)
         """
+        if self.use_multiprocessing:
+            self.executor_fn = self._get_executor_init(workers)
+        else:
+            # We do not need the init since it's threads.
+            self.executor_fn = lambda _: ThreadPool(workers)
+        self.workers = workers
+        self.queue = queue.Queue(max_queue_size)
+        self.stop_signal = threading.Event()
+        self.run_thread = threading.Thread(target=self._run)
+        self.run_thread.daemon = True
+        self.run_thread.start()
+
+    def _send_sequence(self):
+        """Send current Iterable to all workers."""
+        # For new processes that may spawn
+        _SHARED_SEQUENCES[self.uid] = self.sequence
+
+    def stop(self, timeout=None):
+        """Stops running threads and wait for them to exit, if necessary.
+
+        Should be called by the same thread which called `start()`.
+
+        # Arguments
+            timeout: maximum time to wait on `thread.join()`
+        """
+        self.stop_signal.set()
+        with self.queue.mutex:
+            self.queue.queue.clear()
+            self.queue.unfinished_tasks = 0
+            self.queue.not_full.notify()
+        self.run_thread.join(timeout)
+        _SHARED_SEQUENCES[self.uid] = None
+
+    @abstractmethod
+    def _run(self):
+        """Submits request to the executor and queue the `Future` objects."""
         raise NotImplementedError
 
     @abstractmethod
-    def stop(self, timeout=None):
-        """Stop running threads and wait for them to exit, if necessary.
+    def _get_executor_init(self, workers):
+        """Get the Pool initializer for multiprocessing.
 
-        Should be called by the same thread which called start().
-
-        # Arguments
-            timeout: maximum time to wait on thread.join()
+        # Returns
+            Function, a Function to initialize the pool
         """
         raise NotImplementedError
 
@@ -472,63 +533,19 @@ class OrderedEnqueuer(SequenceEnqueuer):
         use_multiprocessing: use multiprocessing if True, otherwise threading
         shuffle: whether to shuffle the data at the beginning of each epoch
     """
-
-    def __init__(self, sequence,
-                 use_multiprocessing=False,
-                 shuffle=False):
-        self.sequence = sequence
-        self.use_multiprocessing = use_multiprocessing
-
-        global _SEQUENCE_COUNTER
-        if _SEQUENCE_COUNTER is None:
-            try:
-                _SEQUENCE_COUNTER = mp.Value('i', 0)
-            except OSError:
-                # In this case the OS does not allow us to use
-                # multiprocessing. We resort to an int
-                # for enqueuer indexing.
-                _SEQUENCE_COUNTER = 0
-
-        if isinstance(_SEQUENCE_COUNTER, int):
-            self.uid = _SEQUENCE_COUNTER
-            _SEQUENCE_COUNTER += 1
-        else:
-            # Doing Multiprocessing.Value += x is not process-safe.
-            with _SEQUENCE_COUNTER.get_lock():
-                self.uid = _SEQUENCE_COUNTER.value
-                _SEQUENCE_COUNTER.value += 1
-
+    def __init__(self, sequence, use_multiprocessing=False, shuffle=False):
+        super(OrderedEnqueuer, self).__init__(sequence, use_multiprocessing)
         self.shuffle = shuffle
-        self.workers = 0
-        self.executor_fn = None
-        self.queue = None
-        self.run_thread = None
-        self.stop_signal = None
 
-    def is_running(self):
-        return self.stop_signal is not None and not self.stop_signal.is_set()
+    def _get_executor_init(self, workers):
+        """Get the Pool initializer for multiprocessing.
 
-    def start(self, workers=1, max_queue_size=10):
-        """Start the handler's workers.
-
-        # Arguments
-            workers: number of worker threads
-            max_queue_size: queue size
-                (when full, workers could block on `put()`)
+        # Returns
+            Function, a Function to initialize the pool
         """
-        if self.use_multiprocessing:
-            self.executor_fn = lambda seqs: mp.Pool(workers,
-                                                    initializer=init_pool,
-                                                    initargs=(seqs,))
-        else:
-            # We do not need the init since it's threads.
-            self.executor_fn = lambda _: ThreadPool(workers)
-        self.workers = workers
-        self.queue = queue.Queue(max_queue_size)
-        self.stop_signal = threading.Event()
-        self.run_thread = threading.Thread(target=self._run)
-        self.run_thread.daemon = True
-        self.run_thread.start()
+        return lambda seqs: mp.Pool(workers,
+                                    initializer=init_pool,
+                                    initargs=(seqs,))
 
     def _wait_queue(self):
         """Wait for the queue to be empty."""
@@ -583,37 +600,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
             self.stop()
             six.reraise(*sys.exc_info())
 
-    def _send_sequence(self):
-        """Send current Sequence to all workers."""
-        # For new processes that may spawn
-        _SHARED_SEQUENCES[self.uid] = self.sequence
-
-    def stop(self, timeout=None):
-        """Stops running threads and wait for them to exit, if necessary.
-
-        Should be called by the same thread which called `start()`.
-
-        # Arguments
-            timeout: maximum time to wait on `thread.join()`
-        """
-        self.stop_signal.set()
-        with self.queue.mutex:
-            self.queue.queue.clear()
-            self.queue.unfinished_tasks = 0
-            self.queue.not_full.notify()
-        self.run_thread.join(timeout)
-        _SHARED_SEQUENCES[self.uid] = None
-
-
-# Global variables to be shared across processes
-_SHARED_GENERATOR = {}
-# We use a Value to provide unique id to different processes.
-_GENERATOR_COUNTER = None
-
 
 def init_pool_generator(gens, random_seed=None):
-    global _SHARED_GENERATOR
-    _SHARED_GENERATOR = gens
+    global _SHARED_SEQUENCES
+    _SHARED_SEQUENCES = gens
 
     if random_seed is not None:
         ident = mp.current_process().ident
@@ -633,7 +623,7 @@ def next_sample(uid):
     # Returns
         The next value of generator `uid`.
     """
-    return six.next(_SHARED_GENERATOR[uid])
+    return six.next(_SHARED_SEQUENCES[uid])
 
 
 class GeneratorEnqueuer(SequenceEnqueuer):
@@ -652,72 +642,28 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             will be incremented by one for each worker.
     """
 
-    def __init__(self, generator,
-                 use_multiprocessing=False,
-                 wait_time=None,
+    def __init__(self, sequence, use_multiprocessing=False, wait_time=None,
                  random_seed=None):
-        self.generator = generator
-        self.use_multiprocessing = use_multiprocessing
+        super(GeneratorEnqueuer, self).__init__(sequence, use_multiprocessing)
         self.random_seed = random_seed
         if wait_time is not None:
             warnings.warn('`wait_time` is not used anymore.',
                           DeprecationWarning)
 
-        global _GENERATOR_COUNTER
-        if _GENERATOR_COUNTER is None:
-            try:
-                _GENERATOR_COUNTER = mp.Value('i', 0)
-            except OSError:
-                # In this case the OS does not allow us to use
-                # multiprocessing. We resort to an int
-                # for enqueuer indexing.
-                _GENERATOR_COUNTER = 0
+    def _get_executor_init(self, workers):
+        """Get the Pool initializer for multiprocessing.
 
-        if isinstance(_GENERATOR_COUNTER, int):
-            self.uid = _GENERATOR_COUNTER
-            _GENERATOR_COUNTER += 1
-        else:
-            # Doing Multiprocessing.Value += x is not process-safe.
-            with _GENERATOR_COUNTER.get_lock():
-                self.uid = _GENERATOR_COUNTER.value
-                _GENERATOR_COUNTER.value += 1
-
-        self.workers = 0
-        self.executor_fn = None
-        self.queue = None
-        self.run_thread = None
-        self.stop_signal = None
-
-    def is_running(self):
-        return self.stop_signal is not None and not self.stop_signal.is_set()
-
-    def start(self, workers=1, max_queue_size=10):
-        """Start the handler's workers.
-
-        # Arguments
-            workers: number of worker threads
-            max_queue_size: queue size
-                (when full, workers could block on `put()`)
+        # Returns
+            Function, a Function to initialize the pool
         """
-        if self.use_multiprocessing:
-            self.executor_fn = lambda gens: mp.Pool(workers,
-                                                    initializer=init_pool_generator,
-                                                    initargs=(gens,
-                                                              self.random_seed))
-        else:
-            # We do not need the init since it's threads.
-            self.executor_fn = lambda _: ThreadPool(workers)
-        self.workers = workers
-        self.queue = queue.Queue(max_queue_size)
-        self.stop_signal = threading.Event()
-        self.run_thread = threading.Thread(target=self._run)
-        self.run_thread.daemon = True
-        self.run_thread.start()
+        return lambda seqs: mp.Pool(workers,
+                                    initializer=init_pool_generator,
+                                    initargs=(seqs, self.random_seed))
 
     def _run(self):
         """Submits request to the executor and queue the `Future` objects."""
-        self._send_generator()  # Share the initial generator
-        with closing(self.executor_fn(_SHARED_GENERATOR)) as executor:
+        self._send_sequence()  # Share the initial generator
+        with closing(self.executor_fn(_SHARED_SEQUENCES)) as executor:
             while True:
                 if self.stop_signal.is_set():
                     return
@@ -761,26 +707,3 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     "`use_multiprocessing=False, workers > 1`."
                     "For more information see issue #1638.")
             six.reraise(*sys.exc_info())
-
-    def _send_generator(self):
-        """Send current generator to all workers."""
-        # For new processes that may spawn
-        _SHARED_GENERATOR[self.uid] = self.generator
-
-    def stop(self, timeout=None):
-        """Stops running threads and wait for them to exit, if necessary.
-
-        Should be called by the same thread which called `start()`.
-
-        # Arguments
-            timeout: maximum time to wait on `thread.join()`
-        """
-        self.stop_signal.set()
-
-        with self.queue.mutex:
-            self.queue.queue.clear()
-            self.queue.unfinished_tasks = 0
-            self.queue.not_full.notify()
-
-        self.run_thread.join(timeout)
-        _SHARED_GENERATOR[self.uid] = None
