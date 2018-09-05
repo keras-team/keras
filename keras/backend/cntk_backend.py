@@ -1439,7 +1439,7 @@ def rnn(step_function, inputs, initial_states,
             for o, p in zip(new_states, place_holders):
                 n_s.append(o.replace_placeholders({p: o.output}))
             if len(n_s) > 0:
-                new_output = n_s[0]
+                new_output = n_s[-1]
             return new_output, n_s
 
         final_output, final_states = _recurrence(rnn_inputs, states, mask)

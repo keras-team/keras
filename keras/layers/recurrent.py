@@ -54,36 +54,56 @@ class StackedRNNCells(Layer):
                                  '`state_size` attribute. '
                                  'received cells:', cells)
         self.cells = cells
+        # reverse_state_order determines whether the state size will be in a
+        # reverse order of the cells' state. User might want to set this to True
+        # to keep the existing behavior. This is only useful when use
+        # `RNN(return_state=True)` since the state will be returned as the same
+        # order of state_size.
+        self.reverse_state_order = kwargs.pop('reverse_state_order', False)
+        if self.reverse_state_order:
+            warnings.warn('`reverse_state_order=True` in `StackedRNNCells` '
+                          'will soon be deprecated. Please update the code to '
+                          'work with the natural order of states if you '
+                          'reply on the RNN states, '
+                          'eg `RNN(return_state=True)`.')
         super(StackedRNNCells, self).__init__(**kwargs)
 
     @property
     def state_size(self):
-        # States are a flat list
-        # in reverse order of the cell stack.
-        # This allows to preserve the requirement
-        # `stack.state_size[0] == output_dim`.
-        # e.g. states of a 2-layer LSTM would be
-        # `[h2, c2, h1, c1]`
+        # States are a flat list of the individual cell state size.
+        # e.g. states of a 2-layer LSTM would be `[h1, c1, h2, c2]`.
         # (assuming one LSTM has states [h, c])
+        # In the case of reverse_state_order=True, the state_size will be
+        # `[h2, c2, h1, c1]`.
         state_size = []
-        for cell in self.cells[::-1]:
+        for cell in self.cells[::-1] if self.reverse_state_order else self.cells:
             if hasattr(cell.state_size, '__len__'):
                 state_size += list(cell.state_size)
             else:
                 state_size.append(cell.state_size)
         return tuple(state_size)
 
+    @property
+    def output_size(self):
+        if getattr(self.cells[-1], 'output_size', None) is not None:
+            return self.cells[-1].output_size
+        if hasattr(self.cells[-1].state_size, '__len__'):
+            return self.cells[-1].state_size[0]
+        else:
+            return self.cells[-1].state_size
+
     def call(self, inputs, states, constants=None, **kwargs):
         # Recover per-cell states.
         nested_states = []
-        for cell in self.cells[::-1]:
+        for cell in self.cells[::-1] if self.reverse_state_order else self.cells:
             if hasattr(cell.state_size, '__len__'):
                 nested_states.append(states[:len(cell.state_size)])
                 states = states[len(cell.state_size):]
             else:
                 nested_states.append([states[0]])
                 states = states[1:]
-        nested_states = nested_states[::-1]
+        if self.reverse_state_order:
+            nested_states = nested_states[::-1]
 
         # Call the cells in order and store the returned states.
         new_nested_states = []
@@ -98,10 +118,12 @@ class StackedRNNCells(Layer):
 
         # Format the new states as a flat list
         # in reverse cell order.
-        states = []
-        for cell_states in new_nested_states[::-1]:
-            states += cell_states
-        return inputs, states
+        new_states = []
+        if self.reverse_state_order:
+            new_nested_states = new_nested_states[::-1]
+        for cell_states in new_nested_states:
+            new_states += cell_states
+        return inputs, new_states
 
     def build(self, input_shape):
         if isinstance(input_shape, list):
@@ -113,7 +135,9 @@ class StackedRNNCells(Layer):
                     cell.build([input_shape] + constants_shape)
                 else:
                     cell.build(input_shape)
-            if hasattr(cell.state_size, '__len__'):
+            if getattr(cell, 'output_size', None) is not None:
+                output_dim = cell.output_size
+            elif hasattr(cell.state_size, '__len__'):
                 output_dim = cell.state_size[0]
             else:
                 output_dim = cell.state_size
@@ -223,9 +247,12 @@ class RNN(Layer):
                 the size of the recurrent state
                 (which should be the same as the size of the cell output).
                 This can also be a list/tuple of integers
-                (one size per state). In this case, the first entry
-                (`state_size[0]`) should be the same as
-                the size of the cell output.
+                (one size per state).
+            - a `output_size` attribute. This can be a single integer or a
+                TensorShape, which represent the shape of the output. For
+                backward compatible reason, if this attribute is not available
+                for the cell, the value will be inferred by the first element
+                of the `state_size`.
             It is also possible for `cell` to be a list of RNN cell instances,
             in which cases the cells get stacked on after the other in the RNN,
             implementing an efficient stacked RNN.
@@ -414,7 +441,11 @@ class RNN(Layer):
             state_size = self.cell.state_size
         else:
             state_size = [self.cell.state_size]
-        output_dim = state_size[0]
+
+        if getattr(self.cell, 'output_size', None) is not None:
+            output_dim = self.cell.output_size
+        else:
+            output_dim = state_size[0]
 
         if self.return_sequences:
             output_shape = (input_shape[0], input_shape[1], output_dim)
@@ -827,6 +858,7 @@ class SimpleRNNCell(Layer):
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.state_size = self.units
+        self.output_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
 
@@ -1220,6 +1252,7 @@ class GRUCell(Layer):
         self.implementation = implementation
         self.reset_after = reset_after
         self.state_size = self.units
+        self.output_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
 
@@ -1795,6 +1828,7 @@ class LSTMCell(Layer):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.implementation = implementation
         self.state_size = (self.units, self.units)
+        self.output_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
 
