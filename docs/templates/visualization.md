@@ -26,7 +26,7 @@ SVG(model_to_dot(model).create(prog='dot', format='svg'))
 
 ## Training history visualization
 
-The `keras.model.fit` method returns a `History` object. The `History.history` attribute is a record of training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable). Here is a simple example using `matplotlib` to generate loss & accuracy plots for training & validation:
+The `fit()` method on a Keras `Model` returns a `History` object. The `History.history` attribute is a dictionary recording training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable). Here is a simple example using `matplotlib` to generate loss & accuracy plots for training & validation:
 
 ```python
 import matplotlib.pyplot as plt
