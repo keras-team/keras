@@ -26,14 +26,14 @@ SVG(model_to_dot(model).create(prog='dot', format='svg'))
 
 ## Training history visualization
 
-The `keras.model.fit` method returns a `History` object. The `History.history` attribute is a record of training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable). Using the `matplotlib` library, this `history` attribute can be plotted. For example:
+The `keras.model.fit` method returns a `History` object. The `History.history` attribute is a record of training loss values and metrics values at successive epochs, as well as validation loss values and validation metrics values (if applicable). Here is a simple example using `matplotlib` to generate loss & accuracy plots for training & validation:
 
 ```python
-history = model.fit(X, y, validation_split=0.25, epochs=50, batch_size=16, verbose=1)
-
 import matplotlib.pyplot as plt
 
-# Plot history for accuracy
+history = model.fit(x, y, validation_split=0.25, epochs=50, batch_size=16, verbose=1)
+
+# Plot training & validation accuracy values
 plt.plot(history.history['acc'])
 plt.plot(history.history['val_acc'])
 plt.title('Model accuracy')
@@ -42,7 +42,7 @@ plt.xlabel('Epoch')
 plt.legend(['Train', 'Test'], loc='upper left')
 plt.show()
 
-# Plot history for loss
+# Plot training & validation loss values
 plt.plot(history.history['loss'])
 plt.plot(history.history['val_loss'])
 plt.title('Model loss')
@@ -50,5 +50,4 @@ plt.ylabel('Loss')
 plt.xlabel('Epoch')
 plt.legend(['Train', 'Test'], loc='upper left')
 plt.show()
-
 ```
