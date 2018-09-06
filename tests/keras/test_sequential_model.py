@@ -8,9 +8,21 @@ from numpy.testing import assert_allclose
 from keras import backend as K
 import keras
 from keras.models import Sequential
-from keras.layers import Dense, Activation
+from keras.layers import Dense
+from keras.layers import Activation
+from keras.layers import BatchNormalization
+from keras.layers import Conv2D
+from keras.layers import Conv3D
+from keras.layers import Dropout
+from keras.layers import ReLU
+from keras.layers import UpSampling3D
+from keras.layers import Lambda
+from keras.layers import SimpleRNN
+from keras.layers import Softmax
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test
+from keras.utils.test_utils import helper_test_simple_model
+from keras.utils.test_utils import generate_input_data
 from keras.models import model_from_json, model_from_yaml
 from keras import losses
 from keras.engine.training_utils import make_batches
@@ -471,6 +483,53 @@ def test_nested_sequential_deferred_build():
     assert new_inner_model.built is True
     assert len(new_inner_model.layers) == 2
     assert len(new_inner_model.weights) == 4
+
+
+@keras_test
+def test_sequential_1D():
+    input_shape = (4, 3, 5)
+    model = Sequential()
+    model.add(Dense(3, input_shape=input_shape[1:]))
+    model.add(Dropout(0.2))
+    model.add(ReLU())
+
+    input_data, _ = generate_input_data(input_shape)
+    helper_test_simple_model(model, input_data)
+
+
+@keras_test
+def test_sequential_2D():
+    input_shape = (4, 3, 5, 2)
+    model = Sequential()
+    model.add(Conv2D(2, (1, 3), padding='valid', input_shape=input_shape[1:]))
+    model.add(BatchNormalization())
+    model.add(Softmax())
+
+    input_data, _ = generate_input_data(input_shape)
+    helper_test_simple_model(model, input_data)
+
+
+@keras_test
+def test_sequential_3D():
+    input_shape = (4, 3, 5, 3, 2)
+    model = Sequential()
+    model.add(Conv3D(3, (1, 3, 2), padding='same', input_shape=input_shape[1:]))
+    model.add(UpSampling3D())
+    model.add(Lambda(lambda x: x * 2))
+
+    input_data, _ = generate_input_data(input_shape)
+    helper_test_simple_model(model, input_data)
+
+
+@keras_test
+def test_sequential_RNN():
+    input_shape = (4, 3, 5)
+    model = Sequential()
+    model.add(SimpleRNN(2, return_sequences=True, input_shape=input_shape[1:]))
+    model.add(SimpleRNN(3))
+
+    input_data, _ = generate_input_data(input_shape)
+    helper_test_simple_model(model, input_data)
 
 
 if __name__ == '__main__':
