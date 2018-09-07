@@ -32,9 +32,8 @@ def categorical_accuracy(y_true, y_pred):
                           K.argmax(y_pred, axis=-1)),
                   K.floatx())
 
-
 def sparse_categorical_accuracy(y_true, y_pred):
-    return K.cast(K.equal(K.max(y_true, axis=-1),
+    return K.cast(K.equal(y_true,
                           K.cast(K.argmax(y_pred, axis=-1), K.floatx())),
                   K.floatx())
 
