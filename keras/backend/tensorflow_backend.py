@@ -699,10 +699,7 @@ def zeros(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    v = tf.zeros(shape=shape, dtype=tf_dtype, name=name)
-    if py_all(v.get_shape().as_list()):
-        return variable(v, dtype=dtype, name=name)
-    return v
+    return tf.zeros(shape=shape, dtype=tf_dtype, name=name)
 
 
 def ones(shape, dtype=None, name=None):
@@ -731,10 +728,7 @@ def ones(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    v = tf.ones(shape=shape, dtype=tf_dtype, name=name)
-    if py_all(v.get_shape().as_list()):
-        return variable(v, dtype=dtype, name=name)
-    return v
+    return tf.ones(shape=shape, dtype=tf_dtype, name=name)
 
 
 def eye(size, dtype=None, name=None):
