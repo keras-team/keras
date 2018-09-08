@@ -529,6 +529,31 @@ class TestBackend(object):
         assert K.get_session().run(fetches=[x, y]) == [30., 40.]
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='Uses the `options` and `run_metadata` arguments.')
+    def test_function_tf_run_options_with_run_metadata(self):
+        from tensorflow.core.protobuf import config_pb2
+        x_placeholder = K.placeholder(shape=())
+        y_placeholder = K.placeholder(shape=())
+
+        run_options = config_pb2.RunOptions(output_partition_graphs=True)
+        run_metadata = config_pb2.RunMetadata()
+        # enable run_options.
+        f = K.function(inputs=[x_placeholder, y_placeholder],
+                       outputs=[x_placeholder + y_placeholder],
+                       options=run_options,
+                       run_metadata=run_metadata)
+        output = f([10., 20.])
+        assert output == [30.]
+        assert len(run_metadata.partition_graphs) > 0
+        # disable run_options.
+        f = K.function(inputs=[x_placeholder, y_placeholder],
+                       outputs=[x_placeholder + y_placeholder],
+                       run_metadata=run_metadata)
+        output = f([10., 20.])
+        assert output == [30.]
+        assert len(run_metadata.partition_graphs) == 0
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Uses the `string` type for a tensor.')
     def test_function_tf_string_input(self):
         # Test functions with string inputs.
