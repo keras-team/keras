@@ -45,28 +45,20 @@ def check_dtype(var, dtype):
         assert var.dtype.name == '%s_ref' % dtype
 
 
-def cntk_func_single_tensor(function_name, x_shape, **kwargs):
-    xc = KC.placeholder(x_shape)
-    output_cntk = getattr(KC, function_name)(xc, **kwargs)
-    return output_cntk, KC.function([xc], [output_cntk])
+def cntk_func_tensors(function_name, shapes_or_vals, **kwargs):
+    placeholders = []
+    variables = []
+    for shape_or_val in shapes_or_vals:
+        if isinstance(shape_or_val, tuple):
+            shape = shape_or_val
+            placeholders.append(KC.placeholder(shape))
+        else:
+            value = shape_or_val
+            variables.append(KC.variable(value))
 
-
-def cntk_func_two_tensor(function_name, x_shape, y, **kwargs):
-    if isinstance(y, (np.generic, np.ndarray)):
-        xc = KC.placeholder(x_shape)
-        output_cntk = getattr(KC, function_name)(xc, KC.variable(y), **kwargs)
-        return output_cntk, KC.function([xc], [output_cntk])
-    else:
-        xc = KC.placeholder(ndim=len(x_shape))
-        yc = KC.placeholder(y)
-        output_cntk = getattr(KC, function_name)(xc, yc, **kwargs)
-        return output_cntk, KC.function([xc, yc], [output_cntk])
-
-
-def cntk_func_three_tensor(function_name, x_shape, y, z, **kwargs):
-    xc = KC.placeholder(x_shape)
-    output_cntk = getattr(KC, function_name)(xc, KC.variable(y), KC.variable(z), **kwargs)
-    return KC.function([xc], [output_cntk])
+    output_cntk = getattr(KC, function_name)(*(placeholders + variables), **kwargs)
+    cntk_func = KC.function(placeholders, [output_cntk])
+    return output_cntk, cntk_func
 
 
 def parse_shape_or_val(shape_or_val):
@@ -108,7 +100,7 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     for k in backend_list:
         if shape_or_val:
             if (k == KC) & (cntk_dynamicity):
-                t, f = cntk_func_single_tensor(function_name, x_shape, **kwargs)
+                t, f = cntk_func_tensors(function_name, [x_shape], **kwargs)
                 z = f([x_val])[0]
             else:
                 t = getattr(k, function_name)(k.variable(x_val), **kwargs)
@@ -137,10 +129,10 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
     z_list = []
     for k in backend_list:
         if (k == KC) & (cntk_dynamicity):
-            t, f = cntk_func_two_tensor(function_name, x_shape, y=y_val, **kwargs)
+            t, f = cntk_func_tensors(function_name, [x_shape, y_val], **kwargs)
             z = f([x_val])[0]
         elif (k == KC) & (cntk_two_dynamicity):
-            t, f = cntk_func_two_tensor(function_name, x_shape, y=y_shape, **kwargs)
+            t, f = cntk_func_tensors(function_name, [x_shape, y_shape], **kwargs)
             z = f([x_val, y_val])[0]
         elif (k == KTH) & (function_name[:4] == 'conv'):
             t = getattr(k, function_name)(
@@ -1119,10 +1111,10 @@ class TestBackend(object):
         y1 = KNP.separable_conv(x, depthwise, pointwise,
                                 padding=padding, data_format=data_format)
         if K.backend() == 'cntk':
-            y2 = cntk_func_three_tensor(
-                op, input_shape,
-                depthwise, pointwise,
-                padding=padding, data_format=data_format)([x])[0]
+            _, cntk_func = cntk_func_tensors(
+                op, [input_shape, depthwise, pointwise],
+                padding=padding, data_format=data_format)
+            y2 = cntk_func([x])[0]
         else:
             y2 = K.eval(getattr(K, op)(
                 K.variable(x),
