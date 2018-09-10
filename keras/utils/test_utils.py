@@ -9,8 +9,6 @@ import six
 
 from .generic_utils import has_arg
 from ..engine import Model, Input
-from ..models import Sequential
-from ..models import model_from_json
 from .. import backend as K
 
 
@@ -42,6 +40,51 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
     return (X[:num_train], y[:num_train]), (X[num_train:], y[num_train:])
 
 
+def generate_input_data(input_shape, input_dtype=None):
+    assert input_shape
+    if not input_dtype:
+        input_dtype = K.floatx()
+    input_data_shape = list(input_shape)
+    for i, e in enumerate(input_data_shape):
+        if e is None:
+            input_data_shape[i] = np.random.randint(1, 4)
+    input_data = (10 * np.random.random(input_data_shape))
+    return input_data.astype(input_dtype), input_dtype
+
+
+def helper_test_simple_model(model,
+                             input_data,
+                             expected_output_shape=None,
+                             expected_output=None,
+                             train_on_batch=True):
+    actual_output = model.predict(input_data)
+    actual_output_shape = actual_output.shape
+    if expected_output_shape is None:
+        expected_output_shape = model.compute_output_shape(input_data.shape)
+    for expected_dim, actual_dim in zip(expected_output_shape,
+                                        actual_output_shape):
+        if expected_dim is not None:
+            assert expected_dim == actual_dim
+    if expected_output is not None:
+        assert_allclose(actual_output, expected_output, rtol=1e-3)
+
+    # test serialization, weight setting at model level
+    model_config = model.get_config()
+    recovered_model = model.__class__.from_config(model_config)
+    if model.weights:
+        weights = model.get_weights()
+        recovered_model.set_weights(weights)
+        _output = recovered_model.predict(input_data)
+        assert_allclose(_output, actual_output, rtol=1e-3)
+
+    # test training mode (e.g. useful when the layer has a
+    # different behavior at training and testing time).
+    if train_on_batch:
+        model.compile('rmsprop', 'mse')
+        model.train_on_batch(input_data, actual_output)
+    return actual_output
+
+
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                input_data=None, expected_output=None,
                expected_output_dtype=None, fixed_batch_size=False):
@@ -50,15 +93,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     """
     # generate input data
     if input_data is None:
-        assert input_shape
-        if not input_dtype:
-            input_dtype = K.floatx()
-        input_data_shape = list(input_shape)
-        for i, e in enumerate(input_data_shape):
-            if e is None:
-                input_data_shape[i] = np.random.randint(1, 4)
-        input_data = (10 * np.random.random(input_data_shape))
-        input_data = input_data.astype(input_dtype)
+        input_data, input_dtype = generate_input_data(input_shape, input_dtype)
     else:
         if input_shape is None:
             input_shape = input_data.shape
@@ -83,32 +118,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     expected_output_shape = layer.compute_output_shape(input_shape)
 
-    def _layer_in_model_test(model):
-        actual_output = model.predict(input_data)
-        actual_output_shape = actual_output.shape
-        for expected_dim, actual_dim in zip(expected_output_shape,
-                                            actual_output_shape):
-            if expected_dim is not None:
-                assert expected_dim == actual_dim
-        if expected_output is not None:
-            assert_allclose(actual_output, expected_output, rtol=1e-3)
-
-        # test serialization, weight setting at model level
-        model_config = model.get_config()
-        recovered_model = model.__class__.from_config(model_config)
-        if model.weights:
-            weights = model.get_weights()
-            recovered_model.set_weights(weights)
-            _output = recovered_model.predict(input_data)
-            assert_allclose(_output, actual_output, rtol=1e-3)
-
-        # test training mode (e.g. useful when the layer has a
-        # different behavior at training and testing time).
-        if has_arg(layer.call, 'training'):
-            model.compile('rmsprop', 'mse')
-            model.train_on_batch(input_data, actual_output)
-        return actual_output
-
     # test in functional API
     if fixed_batch_size:
         x = Input(batch_shape=input_shape, dtype=input_dtype)
@@ -119,17 +128,17 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # check with the functional API
     model = Model(x, y)
-    _layer_in_model_test(model)
+    actual_output = helper_test_simple_model(
+        model,
+        input_data,
+        expected_output_shape,
+        expected_output,
+        train_on_batch=has_arg(layer.call, 'training'))
 
-    # test as first layer in Sequential API
+    # test layer serialization
     layer_config = layer.get_config()
     layer_config['batch_input_shape'] = input_shape
     layer = layer.__class__.from_config(layer_config)
-
-    # check with the sequential API
-    model = Sequential()
-    model.add(layer)
-    actual_output = _layer_in_model_test(model)
 
     # for further checks in the caller function
     return actual_output
