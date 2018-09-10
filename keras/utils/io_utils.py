@@ -188,6 +188,7 @@ class H5Dict(object):
         elif isinstance(path, dict):
             self.data = path
             self._is_file = False
+            # Flag to check if a dict is user defined data or a sub group:
             self.data['_is_group'] = True
         else:
             raise TypeError('Required Group, str or dict.'
@@ -304,10 +305,10 @@ class H5Dict(object):
         return len(self.data)
 
     def __iter__(self):
-        return iter(list(self.data))
+        return iter(self.data)
 
     def iter(self):
-        return list(self.data)
+        return iter(self.data)
 
     def __getattr__(self, attr):
 

@@ -100,6 +100,13 @@ def _serialize_model(model, f, include_optimizer=True):
                 name = str(w.name)
             else:
                 name = 'param_' + str(i)
+            if name in weight_names:
+                idx = 2
+                unique_name = name + '_1'
+                while unique_name in weight_names:
+                    unique_name = name + '_' + str(idx)
+                    idx += 1
+                name = unique_name
             weight_names.append(name.encode('utf8'))
         layer_group['weight_names'] = weight_names
         for name, val in zip(weight_names, weight_values):
@@ -150,6 +157,13 @@ def _serialize_model(model, f, include_optimizer=True):
                             name = str(w.name)
                         else:
                             name = 'param_' + str(i)
+                    if name in weight_names:
+                        idx = 2
+                        unique_name = name + '_1'
+                        while unique_name in weight_names:
+                            unique_name = name + '_' + str(idx)
+                            idx += 1
+                        name = unique_name
                     weight_names.append(name.encode('utf8'))
                 optimizer_weights_group['weight_names'] = weight_names
                 for name, val in zip(weight_names, weight_values):
@@ -238,10 +252,10 @@ def _deserialize_model(f, custom_objects=None, compile=True):
 
     layer_names = filtered_layer_names
     if len(layer_names) != len(filtered_layers):
-        raise ValueError('You are trying to load a weight file '
-                         'containing ' + str(len(layer_names)) +
-                         ' layers into a model with ' +
-                         str(len(filtered_layers)) + ' layers.')
+        raise ValueError('You are trying to load a weight file'
+                         ' containing {} layers into a model with {} layers'
+                         .format(len(layer_names), len(filtered_layers))
+                         )
 
     # We batch weight value assignments in a single backend call
     # which provides a speedup in TensorFlow.
