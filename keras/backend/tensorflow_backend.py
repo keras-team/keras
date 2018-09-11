@@ -1437,9 +1437,7 @@ def argmax(x, axis=-1):
 
     # Arguments
         x: Tensor or variable.
-        axis: An integer or list of integers in [-rank(x), rank(x)),
-            the axes to compute the argmax. If `None` (default), computes
-            the argmax over all dimensions.
+        axis: axis along which to perform the reduction.
 
     # Returns
         A tensor.
@@ -1452,9 +1450,7 @@ def argmin(x, axis=-1):
 
     # Arguments
         x: Tensor or variable.
-        axis: An integer or list of integers in [-rank(x), rank(x)),
-            the axes to compute the argmin. If `None` (default), computes
-            the argmin over all dimensions.
+        axis: axis along which to perform the reduction.
 
     # Returns
         A tensor.

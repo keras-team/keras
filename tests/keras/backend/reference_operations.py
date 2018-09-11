@@ -290,52 +290,45 @@ def categorical_crossentropy(target, output, from_logits=False):
 
 
 def max(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.max(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.max(x, axis=axis, keepdims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.min(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.min(x, axis=axis, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.mean(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.mean(x, axis=axis, keepdims=keepdims)
 
 
 def var(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.var(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.var(x, axis=axis, keepdims=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.std(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.std(x, axis=axis, keepdims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.sum(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.sum(x, axis=axis, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.prod(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.prod(x, axis=axis, keepdims=keepdims)
 
 
 def cumsum(x, axis=0):
@@ -347,17 +340,15 @@ def cumprod(x, axis=0):
 
 
 def any(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.any(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.any(x, axis=axis, keepdims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
-    a = axis
-    if isinstance(a, list):
-        a = tuple(a)
-    return np.all(x, axis=a, keepdims=keepdims)
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return np.all(x, axis=axis, keepdims=keepdims)
 
 
 def argmax(x, axis=-1):
