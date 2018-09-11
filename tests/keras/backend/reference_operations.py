@@ -316,6 +316,15 @@ def mean(x, axis=None, keepdims=False):
         return np.mean(x, axis=axis, keepdims=keepdims)
 
 
+def var(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        for a in axis:
+            x = np.var(x, axis=a, keepdims=keepdims)
+        return x
+    else:
+        return np.var(x, axis=axis, keepdims=keepdims)
+
+
 def std(x, axis=None, keepdims=False):
     if isinstance(axis, list):
         for a in axis:
@@ -352,11 +361,17 @@ def cumprod(x, axis=0):
 
 
 def any(x, axis=None, keepdims=False):
-    return np.any(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.any(x, axis=a, keepdims=keepdims)
 
 
 def all(x, axis=None, keepdims=False):
-    return np.all(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.all(x, axis=a, keepdims=keepdims)
 
 
 def argmax(x, axis=-1):

@@ -352,6 +352,7 @@ class TestBackend(object):
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2), WITH_NP)
         check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('max', (4, 2, 3), WITH_NP, axis=[1, -1])
 
         check_single_tensor_operation('min', (4, 2), WITH_NP)
         check_single_tensor_operation('min', (4, 2), WITH_NP, axis=1, keepdims=True)
@@ -362,8 +363,13 @@ class TestBackend(object):
         check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=-1, keepdims=True)
         check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=[1, -1])
 
+        check_single_tensor_operation('var', (4, 2), WITH_NP)
+        check_single_tensor_operation('var', (4, 2), WITH_NP, axis=1, keepdims=True)
+        # check_single_tensor_operation('var', (4, 2, 3), WITH_NP, axis=[1, -1])
+
         check_single_tensor_operation('std', (4, 2), WITH_NP)
         check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
+        # check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
         # check_single_tensor_operation('std', (4, 2, 3), BACKENDS, axis=[1, -1])
 
         check_single_tensor_operation('prod', (4, 2), WITH_NP)
@@ -372,9 +378,11 @@ class TestBackend(object):
 
         check_single_tensor_operation('any', (4, 2), WITH_NP)
         check_single_tensor_operation('any', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('any', (4, 2, 3), WITH_NP, axis=[1, -1])
 
         check_single_tensor_operation('all', (4, 2), WITH_NP)
         check_single_tensor_operation('all', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('all', (4, 2, 3), WITH_NP, axis=[1, -1])
 
         check_single_tensor_operation('argmax', (4, 2), WITH_NP)
         check_single_tensor_operation('argmax', (4, 2), WITH_NP, axis=1)
