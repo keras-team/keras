@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import numpy as np
 import scipy.signal as signal
+import scipy as sp
 from keras.backend import floatx
 
 
@@ -317,6 +318,12 @@ def std(x, axis=None, keepdims=False):
     if isinstance(axis, list):
         axis = tuple(axis)
     return np.std(x, axis=axis, keepdims=keepdims)
+
+
+def logsumexp(x, axis=None, keepdims=False):
+    if isinstance(axis, list):
+        axis = tuple(axis)
+    return sp.misc.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):

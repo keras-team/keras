@@ -372,6 +372,10 @@ class TestBackend(object):
         check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
         # check_single_tensor_operation('std', (4, 2, 3), BACKENDS, axis=[1, -1])
 
+        check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
+        check_single_tensor_operation('logsumexp', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
+
         check_single_tensor_operation('prod', (4, 2), WITH_NP)
         check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
         check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
