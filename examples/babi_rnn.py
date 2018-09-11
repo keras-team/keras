@@ -35,8 +35,8 @@ https://research.facebook.com/researchers/1543934539189348
 # Notes
 
 - With default word, sentence, and query vector sizes, the GRU model achieves:
-  - 100% test accuracy on QA1 in 20 epochs (2 seconds per epoch on CPU)
-  - 50% test accuracy on QA2 in 20 epochs (16 seconds per epoch on CPU)
+  - 60% test accuracy on QA1 at 77 epochs
+  - 54% test accuracy on QA2 at 25 epochs 
 In comparison, the Facebook paper achieves 50% and 20% for the LSTM baseline.
 
 - The task does not traditionally parse the question separately. This likely
@@ -149,7 +149,7 @@ EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
-EPOCHS = 40
+EPOCHS = 100
 print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
                                                            EMBED_HIDDEN_SIZE,
                                                            SENT_HIDDEN_SIZE,
@@ -210,7 +210,7 @@ encoded_question = layers.Dropout(0.3)(encoded_question)
 encoded_question = RNN(EMBED_HIDDEN_SIZE)(encoded_question)
 encoded_question = layers.RepeatVector(story_maxlen)(encoded_question)
 
-merged = layers.add([encoded_sentence, encoded_question])
+merged = layers.multiply([encoded_sentence, encoded_question])
 merged = RNN(EMBED_HIDDEN_SIZE)(merged)
 merged = layers.Dropout(0.3)(merged)
 preds = layers.Dense(vocab_size, activation='softmax')(merged)
