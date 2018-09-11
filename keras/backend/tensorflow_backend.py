@@ -1236,7 +1236,9 @@ def max(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to find maximum values.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to find maximum values. If `None` (default), finds the
+            maximum over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`,
@@ -1253,7 +1255,9 @@ def min(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to find minimum values.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to find minimum values. If `None` (default), finds the
+            minimum over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`,
@@ -1270,7 +1274,9 @@ def sum(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to sum over.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to sum over. If `None` (default), sums over all
+            dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`,
@@ -1287,7 +1293,9 @@ def prod(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to compute the product.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the product. If `None` (default), computes
+            the product over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`,
@@ -1330,7 +1338,9 @@ def var(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to compute the variance.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the variance. If `None` (default), computes
+            the variance over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`,
@@ -1353,7 +1363,9 @@ def std(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to compute the standard deviation.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the standard deviation. If `None` (default),
+            computes the standard deviation over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`,
@@ -1370,7 +1382,9 @@ def mean(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: A list of integer. Axes to compute the mean.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the mean. If `None` (default), computes
+            the mean over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1 for each entry in `axis`. If `keepdims` is `True`,
@@ -1389,7 +1403,9 @@ def any(x, axis=None, keepdims=False):
 
     # Arguments
         x: Tensor or variable.
-        axis: axis along which to perform the reduction.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the logical or. If `None` (default), computes
+            the logical or over all dimensions.
         keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
@@ -1404,7 +1420,9 @@ def all(x, axis=None, keepdims=False):
 
     # Arguments
         x: Tensor or variable.
-        axis: axis along which to perform the reduction.
+        axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the logical and. If `None` (default), computes
+            the logical and over all dimensions.
         keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
@@ -1512,7 +1530,9 @@ def logsumexp(x, axis=None, keepdims=False):
 
     # Arguments
         x: A tensor or variable.
-        axis: An integer, the axis to reduce over.
+        axis: axis: An integer or list of integers in [-rank(x), rank(x)),
+            the axes to compute the logsumexp. If `None` (default), computes
+            the logsumexp over all dimensions.
         keepdims: A boolean, whether to keep the dimensions or not.
             If `keepdims` is `False`, the rank of the tensor is reduced
             by 1. If `keepdims` is `True`, the reduced dimension is
