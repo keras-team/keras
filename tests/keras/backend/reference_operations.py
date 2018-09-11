@@ -290,66 +290,52 @@ def categorical_crossentropy(target, output, from_logits=False):
 
 
 def max(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.max(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.max(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.max(x, axis=a, keepdims=keepdims)
 
 
 def min(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.min(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.min(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.min(x, axis=a, keepdims=keepdims)
 
 
 def mean(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.mean(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.mean(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.mean(x, axis=a, keepdims=keepdims)
 
 
 def var(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.var(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.var(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.var(x, axis=a, keepdims=keepdims)
 
 
 def std(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.std(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.std(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.std(x, axis=a, keepdims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.sum(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.sum(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.sum(x, axis=a, keepdims=keepdims)
 
 
 def prod(x, axis=None, keepdims=False):
-    if isinstance(axis, list):
-        for a in axis:
-            x = np.prod(x, axis=a, keepdims=keepdims)
-        return x
-    else:
-        return np.prod(x, axis=axis, keepdims=keepdims)
+    a = axis
+    if isinstance(a, list):
+        a = tuple(a)
+    return np.prod(x, axis=a, keepdims=keepdims)
 
 
 def cumsum(x, axis=0):
