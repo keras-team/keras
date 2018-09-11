@@ -1255,6 +1255,13 @@ class Network(Layer):
                                    positions=positions,
                                    print_fn=print_fn)
 
+    def __getstate__(self):
+        return saving.pickle_model(self)
+
+    def __setstate__(self, state):
+        model = saving.unpickle_model(state)
+        self.__dict__.update(model.__dict__)
+
 
 def _make_node_key(layer_name, node_index):
     return layer_name + '_ib-' + str(node_index)
