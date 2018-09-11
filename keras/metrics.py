@@ -34,6 +34,7 @@ def categorical_accuracy(y_true, y_pred):
 
 
 def sparse_categorical_accuracy(y_true, y_pred):
+    # flatten y_true in case it's in shape (num_samples, 1) instead of (num_samples,)
     return K.cast(K.equal(K.flatten(y_true),
                           K.cast(K.argmax(y_pred, axis=-1), K.floatx())),
                   K.floatx())
