@@ -119,17 +119,12 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # check with the functional API
     model = Model(x, y)
-    _layer_in_model_test(model)
+    actual_output = _layer_in_model_test(model)
 
-    # test as first layer in Sequential API
+    # test instantiation from layer config
     layer_config = layer.get_config()
     layer_config['batch_input_shape'] = input_shape
     layer = layer.__class__.from_config(layer_config)
-
-    # check with the sequential API
-    model = Sequential()
-    model.add(layer)
-    actual_output = _layer_in_model_test(model)
 
     # for further checks in the caller function
     return actual_output
