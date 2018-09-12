@@ -28,7 +28,7 @@ def test_basic_batchnorm():
                kwargs={'momentum': 0.9,
                        'epsilon': 0.1,
                        'axis': 1},
-               input_shape=(3, 4, 2))
+               input_shape=(1, 4, 1))
     layer_test(normalization.BatchNormalization,
                kwargs={'gamma_initializer': 'ones',
                        'beta_initializer': 'ones',
