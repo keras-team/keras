@@ -12,6 +12,7 @@ import numpy as np
 import time
 import json
 import warnings
+import io
 
 from collections import deque
 from collections import OrderedDict
@@ -1126,14 +1127,13 @@ class CSVLogger(Callback):
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs=None):
-        newline = '\n' if os.name == 'nt' else None
         if self.append:
             if os.path.exists(self.filename):
                 with open(self.filename, 'r' + self.file_flags) as f:
                     self.append_header = not bool(len(f.readline()))
-            self.csv_file = open(self.filename, 'a' + self.file_flags, newline=newline)
+            self.csv_file = io.open(self.filename, 'a' + self.file_flags, newline='\n')
         else:
-            self.csv_file = open(self.filename, 'w' + self.file_flags, newline=newline)
+            self.csv_file = io.open(self.filename, 'w' + self.file_flags, newline='\n')
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}

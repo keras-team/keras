@@ -556,11 +556,15 @@ def test_CSVLogger(tmpdir):
 
     # case 3, reuse of CSVLogger object
     model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=2)
 
     import re
     with open(filepath) as csvfile:
-        output = " ".join(csvfile.readlines())
+        list_lines = csvfile.readlines()
+        for line in list_lines:
+            assert line.count(sep) == 4
+        assert len(list_lines) == 5
+        output = " ".join(list_lines)
         assert len(re.findall('epoch', output)) == 1
 
     os.remove(filepath)
