@@ -1840,6 +1840,14 @@ class TestBackend(object):
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
 
+    def test_clip_with_tensors(self):
+        # Create tensors
+        x_placeholder = K.placeholder(ndim=0)
+        y_placeholder = K.placeholder(shape=())
+        # Check correct values
+        clip_ = K.clip(y_placeholder, x_placeholder + 1.0, x_placeholder - 1.0)
+        assert isinstance(clip_, type(x_placeholder))
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
