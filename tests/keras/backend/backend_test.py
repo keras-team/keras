@@ -1041,6 +1041,8 @@ class TestBackend(object):
             padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
+    @pytest.mark.skipif((KC is not None and KC.dev.type() == 0),
+                        reason='cntk only supports dilated conv on GPU')
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format,dilation_rate', [
         ('conv1d', (2, 8, 3), (4, 3, 2), 'valid', 'channels_last', 2),
         ('conv1d', (2, 3, 8), (4, 3, 2), 'valid', 'channels_first', 2),
@@ -1055,6 +1057,8 @@ class TestBackend(object):
             op, input_shape, kernel_shape, BACKENDS, padding=padding, data_format=data_format,
             dilation_rate=dilation_rate, cntk_dynamicity=True)
 
+    @pytest.mark.skipif((KC is not None and KC.dev.type() == 0),
+                        reason='cntk only supports dilated conv transpose on GPU')
     @pytest.mark.parametrize(
         'op,input_shape,kernel_shape,output_shape,padding,data_format,dilation_rate', [
             ('conv2d_transpose', (2, 5, 6, 3), (3, 3, 2, 3), (2, 5, 6, 2),
