@@ -589,7 +589,7 @@ def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
     """
     y = T.any(x, axis=axis, keepdims=keepdims)
-    y = _set_keras_shape_any_all(x, y, axis, keepdims)
+    y = _set_keras_shape_for_reduction(x, y, axis, keepdims)
     return y
 
 
@@ -597,11 +597,11 @@ def all(x, axis=None, keepdims=False):
     """Bitwise reduction (logical AND).
     """
     y = T.all(x, axis=axis, keepdims=keepdims)
-    y = _set_keras_shape_any_all(x, y, axis, keepdims)
+    y = _set_keras_shape_for_reduction(x, y, axis, keepdims)
     return y
 
 
-def _set_keras_shape_any_all(x, y, axis, keepdims):
+def _set_keras_shape_for_reduction(x, y, axis, keepdims):
     if hasattr(x, '_keras_shape'):
         if axis is None:
             y._keras_shape = (1,) * len(x._keras_shape) if keepdims else (1,)
