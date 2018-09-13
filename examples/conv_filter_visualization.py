@@ -6,9 +6,9 @@ Results example: http://i.imgur.com/4nj4KjN.jpg
 '''
 from __future__ import print_function
 
-from scipy.misc import imsave
 import numpy as np
 import time
+from keras.preprocessing.image import save_img
 from keras.applications import vgg16
 from keras import backend as K
 
@@ -39,6 +39,7 @@ def deprocess_image(x):
         x = x.transpose((1, 2, 0))
     x = np.clip(x, 0, 255).astype('uint8')
     return x
+
 
 # build the VGG16 network with ImageNet weights
 model = vgg16.VGG16(weights='imagenet', include_top=False)
@@ -128,8 +129,11 @@ stitched_filters = np.zeros((width, height, 3))
 for i in range(n):
     for j in range(n):
         img, loss = kept_filters[i * n + j]
-        stitched_filters[(img_width + margin) * i: (img_width + margin) * i + img_width,
-                         (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
+        width_margin = (img_width + margin) * i
+        height_margin = (img_height + margin) * j
+        stitched_filters[
+            width_margin: width_margin + img_width,
+            height_margin: height_margin + img_height, :] = img
 
 # save the result to disk
-imsave('stitched_filters_%dx%d.png' % (n, n), stitched_filters)
+save_img('stitched_filters_%dx%d.png' % (n, n), stitched_filters)

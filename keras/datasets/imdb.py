@@ -103,7 +103,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
 
 
 def get_word_index(path='imdb_word_index.json'):
-    """Retrieves the dictionary mapping word indices back to words.
+    """Retrieves the dictionary mapping words to word indices.
 
     # Arguments
         path: where to cache the data (relative to `~/.keras/dataset`).

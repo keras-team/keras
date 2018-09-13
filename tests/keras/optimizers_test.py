@@ -65,21 +65,25 @@ def _test_optimizer(optimizer, target=0.75):
 
 
 @keras_test
-def _test_no_grad(optimizer):
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason="Only Tensorflow raises a "
+                           "ValueError if the gradient is null.")
+def test_no_grad():
     inp = Input([3])
     x = Dense(10)(inp)
-    x = Lambda(lambda l: 1.0 * K.reshape(K.cast(K.argmax(l), 'float32'), [-1, 1]))(x)
+    x = Lambda(lambda l: 1.0 * K.reshape(K.cast(K.argmax(l), 'float32'), [-1, 1]),
+               output_shape=lambda x: [x[0], 1])(x)
     mod = Model(inp, x)
-    mod.compile(optimizer, 'mse')
+    mod.compile('sgd', 'mse')
     with pytest.raises(ValueError):
-        mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32), batch_size=10, epochs=10)
+        mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32),
+                batch_size=10, epochs=10)
 
 
 @keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
-    _test_no_grad(sgd)
 
 
 @keras_test
@@ -143,7 +147,8 @@ def test_tfoptimizer():
     from tensorflow import train
     optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
     model = Sequential()
-    model.add(Dense(num_classes, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
+    model.add(Dense(num_classes, input_shape=(3,),
+                    kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
               epochs=1, batch_size=5, verbose=0)

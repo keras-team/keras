@@ -1,6 +1,9 @@
 sudo: required
 dist: trusty
 language: python
+cache:
+  directories:
+    - $HOME/.theano
 matrix:
     include:
         - python: 2.7
@@ -38,32 +41,31 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest pandas
+  - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest pandas
   - source activate test-environment
-  - pip install --only-binary=numpy,scipy numpy nose scipy matplotlib h5py theano
+  - travis_retry pip install --only-binary=numpy,scipy numpy nose scipy matplotlib h5py theano
+  - pip install keras_applications keras_preprocessing
   - conda install mkl mkl-service
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
-  # install PIL for preprocessing tests
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      conda install pil;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      conda install Pillow;
+  # install PIL for preprocessing tests (they are integration tests).
+  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]] || [[ "$TEST_MODE" == "PEP8" ]]; then
+      if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        conda install pil;
+      else
+        conda install Pillow;
+      fi
     fi
 
   - pip install -e .[tests]
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow
+  - pip install tensorflow==1.9
   
   # install cntk
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp36-cp36m-linux_x86_64.whl;
-    fi
+  - pip install cntk
 
   # install pydot for visualization tests
   - conda install pydot graphviz

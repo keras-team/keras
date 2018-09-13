@@ -89,7 +89,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
 
 
 def get_word_index(path='reuters_word_index.json'):
-    """Retrieves the dictionary mapping word indices back to words.
+    """Retrieves the dictionary mapping words to word indices.
 
     # Arguments
         path: where to cache the data (relative to `~/.keras/dataset`).

@@ -15,12 +15,13 @@ from .recurrent import _standardize_args
 
 import numpy as np
 import warnings
-from ..engine import InputSpec, Layer
+from ..engine.base_layer import InputSpec, Layer
 from ..utils import conv_utils
 from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D
 from .recurrent import RNN
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import transpose_shape
 
 
 class ConvRNN2D(RNN):
@@ -169,22 +170,18 @@ class ConvRNN2D(RNN):
                                              stride=cell.strides[1],
                                              dilation=cell.dilation_rate[1])
 
-        if cell.data_format == 'channels_first':
-            output_shape = input_shape[:2] + (cell.filters, rows, cols)
-        elif cell.data_format == 'channels_last':
-            output_shape = input_shape[:2] + (rows, cols, cell.filters)
+        output_shape = input_shape[:2] + (rows, cols, cell.filters)
+        output_shape = transpose_shape(output_shape, cell.data_format,
+                                       spatial_axes=(2, 3))
 
         if not self.return_sequences:
             output_shape = output_shape[:1] + output_shape[2:]
 
         if self.return_state:
             output_shape = [output_shape]
-            if cell.data_format == 'channels_first':
-                output_shape += [(input_shape[0], cell.filters, rows, cols)
-                                 for _ in range(2)]
-            elif cell.data_format == 'channels_last':
-                output_shape += [(input_shape[0], rows, cols, cell.filters)
-                                 for _ in range(2)]
+            base = (input_shape[0], rows, cols, cell.filters)
+            base = transpose_shape(base, cell.data_format, spatial_axes=(1, 2))
+            output_shape += [base[:] for _ in range(2)]
         return output_shape
 
     def build(self, input_shape):
@@ -483,10 +480,10 @@ class ConvLSTM2DCell(Layer):
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -563,7 +560,7 @@ class ConvLSTM2DCell(Layer):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
@@ -622,15 +619,20 @@ class ConvLSTM2DCell(Layer):
             regularizer=self.recurrent_regularizer,
             constraint=self.recurrent_constraint)
         if self.use_bias:
+            if self.unit_forget_bias:
+                def bias_initializer(_, *args, **kwargs):
+                    return K.concatenate([
+                        self.bias_initializer((self.filters,), *args, **kwargs),
+                        initializers.Ones()((self.filters,), *args, **kwargs),
+                        self.bias_initializer((self.filters * 2,), *args, **kwargs),
+                    ])
+            else:
+                bias_initializer = self.bias_initializer
             self.bias = self.add_weight(shape=(self.filters * 4,),
-                                        initializer=self.bias_initializer,
                                         name='bias',
+                                        initializer=bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
-            if self.unit_forget_bias:
-                bias_value = np.zeros((self.filters * 4,))
-                bias_value[self.filters: self.filters * 2] = 1.
-                K.set_value(self.bias, bias_value)
         else:
             self.bias = None
 
@@ -788,15 +790,15 @@ class ConvLSTM2D(ConvRNN2D):
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, time, ..., channels)`
-            while `channels_first` corresponds to
+            while `"channels_first"` corresponds to
             inputs with shape `(batch, time, channels, ...)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -863,7 +865,7 @@ class ConvLSTM2D(ConvRNN2D):
             5D tensor with shape:
             `(samples, time, rows, cols, channels)`
 
-     # Output shape
+    # Output shape
         - if `return_sequences`
              - if data_format='channels_first'
                 5D tensor with shape:
@@ -872,7 +874,7 @@ class ConvLSTM2D(ConvRNN2D):
                 5D tensor with shape:
                 `(samples, time, output_row, output_col, filters)`
         - else
-            - if data_format ='channels_first'
+            - if data_format='channels_first'
                 4D tensor with shape:
                 `(samples, filters, output_row, output_col)`
             - if data_format='channels_last'

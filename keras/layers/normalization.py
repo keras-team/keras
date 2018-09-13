@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..engine import Layer, InputSpec
+from ..engine.base_layer import Layer, InputSpec
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -161,6 +161,7 @@ class BatchNormalization(Layer):
                     broadcast_moving_variance,
                     broadcast_beta,
                     broadcast_gamma,
+                    axis=self.axis,
                     epsilon=self.epsilon)
             else:
                 return K.batch_normalization(
@@ -169,6 +170,7 @@ class BatchNormalization(Layer):
                     self.moving_variance,
                     self.beta,
                     self.gamma,
+                    axis=self.axis,
                     epsilon=self.epsilon)
 
         # If the learning phase is *static* and set to inference:

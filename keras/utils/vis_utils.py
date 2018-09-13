@@ -61,7 +61,6 @@ def model_to_dot(model,
     if isinstance(model, Sequential):
         if not model.built:
             model.build()
-        model = model.model
     layers = model.layers
 
     # Create graph nodes.
@@ -106,10 +105,9 @@ def model_to_dot(model,
         layer_id = str(id(layer))
         for i, node in enumerate(layer._inbound_nodes):
             node_key = layer.name + '_ib-' + str(i)
-            if node_key in model._container_nodes:
+            if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
-                    layer_id = str(id(layer))
                     dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
     return dot
 

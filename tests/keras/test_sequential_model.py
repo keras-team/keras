@@ -13,7 +13,7 @@ from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test
 from keras.models import model_from_json, model_from_yaml
 from keras import losses
-from keras.engine.training import _make_batches
+from keras.engine.training_utils import make_batches
 
 
 input_dim = 16
@@ -79,9 +79,11 @@ def test_sequential_fit_generator():
         i = 0
         while 1:
             if train:
-                yield (x_train[i * batch_size: (i + 1) * batch_size], y_train[i * batch_size: (i + 1) * batch_size])
+                yield (x_train[i * batch_size: (i + 1) * batch_size],
+                       y_train[i * batch_size: (i + 1) * batch_size])
             else:
-                yield (x_test[i * batch_size: (i + 1) * batch_size], y_test[i * batch_size: (i + 1) * batch_size])
+                yield (x_test[i * batch_size: (i + 1) * batch_size],
+                       y_test[i * batch_size: (i + 1) * batch_size])
             i += 1
             i = i % max_batch_index
 
@@ -112,7 +114,7 @@ def test_sequential(in_tmpdir):
     def data_generator(x, y, batch_size=50):
         index_array = np.arange(len(x))
         while 1:
-            batches = _make_batches(len(x_test), batch_size)
+            batches = make_batches(len(x_test), batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 x_batch = x[batch_ids]
@@ -126,18 +128,24 @@ def test_sequential(in_tmpdir):
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2,
+              validation_split=0.1)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              shuffle=False)
 
     model.train_on_batch(x_train[:32], y_train[:32])
 
     loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), 1, max_queue_size=2, verbose=1)
-    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1, max_queue_size=2)
-    pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test), K.variable(prediction))))
+    prediction = model.predict_generator(data_generator(x_test, y_test), 1,
+                                         max_queue_size=2, verbose=1)
+    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1,
+                                        max_queue_size=2)
+    pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test),
+                                                     K.variable(prediction))))
 
     assert(np.isclose(pred_loss, loss))
     assert(np.isclose(gen_loss, loss))
@@ -189,10 +197,13 @@ def test_nested_sequential(in_tmpdir):
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_test, y_test))
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2, validation_split=0.1)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              validation_data=(x_test, y_test))
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=2,
+              validation_split=0.1)
     model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=0)
-    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, shuffle=False)
+    model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1,
+              shuffle=False)
 
     model.train_on_batch(x_train[:32], y_train[:32])
 
@@ -382,7 +393,6 @@ def test_sequential_update_disabling():
 
     model.compile('sgd', 'mse')
     assert not model.updates
-    assert not model.model.updates
 
     x1 = model.predict(val_a)
     model.train_on_batch(val_a, val_out)
@@ -392,11 +402,75 @@ def test_sequential_update_disabling():
     model.trainable = True
     model.compile('sgd', 'mse')
     assert model.updates
-    assert model.model.updates
 
     model.train_on_batch(val_a, val_out)
     x2 = model.predict(val_a)
     assert np.abs(np.sum(x1 - x2)) > 1e-5
+
+
+@keras_test
+def test_sequential_deferred_build():
+    model = keras.models.Sequential()
+    model.add(keras.layers.Dense(3))
+    model.add(keras.layers.Dense(3))
+    model.compile('sgd', 'mse')
+
+    assert model.built is False
+    assert len(model.layers) == 2
+    assert len(model.weights) == 0
+
+    model.train_on_batch(
+        np.random.random((2, 4)), np.random.random((2, 3)))
+
+    assert model.built is True
+    assert len(model.layers) == 2
+    assert len(model.weights) == 4
+
+    config = model.get_config()
+    new_model = keras.models.Sequential.from_config(config)
+    assert new_model.built is True
+    assert len(new_model.layers) == 2
+    assert len(new_model.weights) == 4
+
+
+@keras_test
+def test_nested_sequential_deferred_build():
+    inner_model = keras.models.Sequential()
+    inner_model.add(keras.layers.Dense(3))
+    inner_model.add(keras.layers.Dense(3))
+
+    model = keras.models.Sequential()
+    model.add(inner_model)
+    model.add(keras.layers.Dense(5))
+    model.compile('sgd', 'mse')
+
+    assert inner_model.built is False
+    assert len(inner_model.layers) == 2
+    assert len(inner_model.weights) == 0
+    assert model.built is False
+    assert len(model.layers) == 2
+    assert len(model.weights) == 0
+
+    model.train_on_batch(
+        np.random.random((2, 4)), np.random.random((2, 5)))
+
+    assert inner_model.built is True
+    assert len(inner_model.layers) == 2
+    assert len(inner_model.weights) == 4
+    assert model.built is True
+    assert len(model.layers) == 2
+    assert len(model.weights) == 6
+
+    config = model.get_config()
+    new_model = keras.models.Sequential.from_config(config)
+    assert new_model.built is True
+    assert len(new_model.layers) == 2
+    assert len(new_model.weights) == 6
+
+    new_inner_model = new_model.layers[0]
+    assert new_inner_model.built is True
+    assert len(new_inner_model.layers) == 2
+    assert len(new_inner_model.weights) == 4
 
 
 if __name__ == '__main__':

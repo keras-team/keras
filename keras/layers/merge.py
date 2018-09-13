@@ -4,7 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..engine.topology import Layer
+from ..engine.base_layer import Layer
 from .. import backend as K
 
 
@@ -408,7 +408,7 @@ class Concatenate(_Merge):
 class Dot(_Merge):
     """Layer that computes a dot product between samples in two tensors.
 
-    E.g. if applied to two tensors `a` and `b` of shape `(batch_size, n)`,
+    E.g. if applied to a list of two tensors `a` and `b` of shape `(batch_size, n)`,
     the output will be a tensor of shape `(batch_size, 1)`
     where each entry `i` will be the dot product between
     `a[i]` and `b[i]`.

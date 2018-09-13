@@ -18,7 +18,7 @@ from collections import OrderedDict
 from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
-from .engine.topology import Layer
+from .engine.training_utils import standardize_input_data
 
 try:
     import requests
@@ -250,9 +250,6 @@ class TerminateOnNaN(Callback):
     """Callback that terminates training when a NaN loss is encountered.
     """
 
-    def __init__(self):
-        super(TerminateOnNaN, self).__init__()
-
     def on_batch_end(self, batch, logs=None):
         logs = logs or {}
         loss = logs.get('loss')
@@ -477,18 +474,34 @@ class EarlyStopping(Callback):
             monitored has stopped increasing; in `auto`
             mode, the direction is automatically inferred
             from the name of the monitored quantity.
+        baseline: Baseline value for the monitored quantity to reach.
+            Training will stop if the model doesn't show improvement
+            over the baseline.
+        restore_best_weights: whether to restore model weights from
+            the epoch with the best value of the monitored quantity.
+            If False, the model weights obtained at the last step of
+            training are used.
     """
 
-    def __init__(self, monitor='val_loss',
-                 min_delta=0, patience=0, verbose=0, mode='auto'):
+    def __init__(self,
+                 monitor='val_loss',
+                 min_delta=0,
+                 patience=0,
+                 verbose=0,
+                 mode='auto',
+                 baseline=None,
+                 restore_best_weights=False):
         super(EarlyStopping, self).__init__()
 
         self.monitor = monitor
+        self.baseline = baseline
         self.patience = patience
         self.verbose = verbose
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
+        self.restore_best_weights = restore_best_weights
+        self.best_weights = None
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
@@ -515,29 +528,44 @@ class EarlyStopping(Callback):
         # Allow instances to be re-used
         self.wait = 0
         self.stopped_epoch = 0
-        self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+        if self.baseline is not None:
+            self.best = self.baseline
+        else:
+            self.best = np.Inf if self.monitor_op == np.less else -np.Inf
 
     def on_epoch_end(self, epoch, logs=None):
-        current = logs.get(self.monitor)
+        current = self.get_monitor_value(logs)
         if current is None:
-            warnings.warn(
-                'Early stopping conditioned on metric `%s` '
-                'which is not available. Available metrics are: %s' %
-                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
-            )
             return
+
         if self.monitor_op(current - self.min_delta, self.best):
             self.best = current
             self.wait = 0
+            if self.restore_best_weights:
+                self.best_weights = self.model.get_weights()
         else:
             self.wait += 1
             if self.wait >= self.patience:
                 self.stopped_epoch = epoch
                 self.model.stop_training = True
+                if self.restore_best_weights:
+                    if self.verbose > 0:
+                        print("Restoring model weights from the end of the best epoch")
+                    self.model.set_weights(self.best_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
+
+    def get_monitor_value(self, logs):
+        monitor_value = logs.get(self.monitor)
+        if monitor_value is None:
+            warnings.warn(
+                'Early stopping conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
+        return monitor_value
 
 
 class RemoteMonitor(Callback):
@@ -617,7 +645,7 @@ class LearningRateScheduler(Callback):
             raise ValueError('Optimizer must have a "lr" attribute.')
         lr = float(K.get_value(self.model.optimizer.lr))
         try:  # new API
-            lr = self.schedule(epoch, lr=lr)
+            lr = self.schedule(epoch, lr)
         except TypeError:  # old API for backward compatibility
             lr = self.schedule(epoch)
         if not isinstance(lr, (float, np.float32, np.float64)):
@@ -625,8 +653,12 @@ class LearningRateScheduler(Callback):
                              'should be float.')
         K.set_value(self.model.optimizer.lr, lr)
         if self.verbose > 0:
-            print('\nEpoch %05d: LearningRateScheduler reducing learning '
+            print('\nEpoch %05d: LearningRateScheduler setting learning '
                   'rate to %s.' % (epoch + 1, lr))
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        logs['lr'] = K.get_value(self.model.optimizer.lr)
 
 
 class TensorBoard(Callback):
@@ -667,7 +699,9 @@ class TensorBoard(Callback):
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
-            layers will be saved.
+            layers will be saved. If set to 0, embeddings won't be computed.
+            Data to be visualized in TensorBoard's Embedding tab must be passed
+            as `embeddings_data`.
         embeddings_layer_names: a list of names of layers to keep eye on. If
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
@@ -675,6 +709,10 @@ class TensorBoard(Callback):
             [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
+        embeddings_data: data to be embedded at layers specified in
+            `embeddings_layer_names`. Numpy array (if the model has a single
+            input) or list of Numpy arrays (if the model has multiple inputs).
+            Learn [more about embeddings](https://www.tensorflow.org/programmers_guide/embedding)
     """
 
     def __init__(self, log_dir='./logs',
@@ -685,7 +723,8 @@ class TensorBoard(Callback):
                  write_images=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
-                 embeddings_metadata=None):
+                 embeddings_metadata=None,
+                 embeddings_data=None):
         super(TensorBoard, self).__init__()
         global tf, projector
         try:
@@ -722,6 +761,7 @@ class TensorBoard(Callback):
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
+        self.embeddings_data = embeddings_data
 
     def set_model(self, model):
         self.model = model
@@ -778,8 +818,12 @@ class TensorBoard(Callback):
                         tf.summary.image(mapped_weight_name, w_img)
 
                 if hasattr(layer, 'output'):
-                    tf.summary.histogram('{}_out'.format(layer.name),
-                                         layer.output)
+                    if isinstance(layer.output, list):
+                        for i, output in enumerate(layer.output):
+                            tf.summary.histogram('{}_out_{}'.format(layer.name, i), output)
+                    else:
+                        tf.summary.histogram('{}_out'.format(layer.name),
+                                             layer.output)
         self.merged = tf.summary.merge_all()
 
         if self.write_graph:
@@ -788,18 +832,35 @@ class TensorBoard(Callback):
         else:
             self.writer = tf.summary.FileWriter(self.log_dir)
 
-        if self.embeddings_freq:
+        if self.embeddings_freq and self.embeddings_data is not None:
+            self.embeddings_data = standardize_input_data(self.embeddings_data, model.input_names)
+
             embeddings_layer_names = self.embeddings_layer_names
 
             if not embeddings_layer_names:
                 embeddings_layer_names = [layer.name for layer in self.model.layers
                                           if type(layer).__name__ == 'Embedding']
+            self.assign_embeddings = []
+            embeddings_vars = {}
 
-            embeddings = {layer.name: layer.weights[0]
-                          for layer in self.model.layers
-                          if layer.name in embeddings_layer_names}
+            self.batch_id = batch_id = tf.placeholder(tf.int32)
+            self.step = step = tf.placeholder(tf.int32)
 
-            self.saver = tf.train.Saver(list(embeddings.values()))
+            for layer in self.model.layers:
+                if layer.name in embeddings_layer_names:
+                    embedding_input = self.model.get_layer(layer.name).output
+                    embedding_size = np.prod(embedding_input.shape[1:])
+                    embedding_input = tf.reshape(embedding_input,
+                                                 (step, int(embedding_size)))
+                    shape = (self.embeddings_data[0].shape[0], int(embedding_size))
+                    embedding = tf.Variable(tf.zeros(shape),
+                                            name=layer.name + '_embedding')
+                    embeddings_vars[layer.name] = embedding
+                    batch = tf.assign(embedding[batch_id:batch_id + step],
+                                      embedding_input)
+                    self.assign_embeddings.append(batch)
+
+            self.saver = tf.train.Saver(list(embeddings_vars.values()))
 
             embeddings_metadata = {}
 
@@ -807,13 +868,11 @@ class TensorBoard(Callback):
                 embeddings_metadata = self.embeddings_metadata
             else:
                 embeddings_metadata = {layer_name: self.embeddings_metadata
-                                       for layer_name in embeddings.keys()}
+                                       for layer_name in embeddings_vars.keys()}
 
             config = projector.ProjectorConfig()
-            self.embeddings_ckpt_path = os.path.join(self.log_dir,
-                                                     'keras_embedding.ckpt')
 
-            for layer_name, tensor in embeddings.items():
+            for layer_name, tensor in embeddings_vars.items():
                 embedding = config.embeddings.add()
                 embedding.tensor_name = tensor.name
 
@@ -826,8 +885,11 @@ class TensorBoard(Callback):
         logs = logs or {}
 
         if not self.validation_data and self.histogram_freq:
-            raise ValueError('If printing histograms, validation_data must be '
-                             'provided, and cannot be a generator.')
+            raise ValueError("If printing histograms, validation_data must be "
+                             "provided, and cannot be a generator.")
+        if self.embeddings_data is None and self.embeddings_freq:
+            raise ValueError("To visualize embeddings, embeddings_data must "
+                             "be provided.")
         if self.validation_data and self.histogram_freq:
             if epoch % self.histogram_freq == 0:
 
@@ -857,18 +919,53 @@ class TensorBoard(Callback):
                     self.writer.add_summary(summary_str, epoch)
                     i += self.batch_size
 
-        if self.embeddings_freq and self.embeddings_ckpt_path:
+        if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
-                self.saver.save(self.sess,
-                                self.embeddings_ckpt_path,
-                                epoch)
+                # We need a second forward-pass here because we're passing
+                # the `embeddings_data` explicitly. This design allows to pass
+                # arbitrary data as `embeddings_data` and results from the fact
+                # that we need to know the size of the `tf.Variable`s which
+                # hold the embeddings in `set_model`. At this point, however,
+                # the `validation_data` is not yet set.
+
+                # More details in this discussion:
+                # https://github.com/keras-team/keras/pull/7766#issuecomment-329195622
+
+                embeddings_data = self.embeddings_data
+                n_samples = embeddings_data[0].shape[0]
+
+                i = 0
+                while i < n_samples:
+                    step = min(self.batch_size, n_samples - i)
+                    batch = slice(i, i + step)
+
+                    if type(self.model.input) == list:
+                        feed_dict = {model_input: embeddings_data[idx][batch]
+                                     for idx, model_input in enumerate(self.model.input)}
+                    else:
+                        feed_dict = {self.model.input: embeddings_data[0][batch]}
+
+                    feed_dict.update({self.batch_id: i, self.step: step})
+
+                    if self.model.uses_learning_phase:
+                        feed_dict[K.learning_phase()] = False
+
+                    self.sess.run(self.assign_embeddings, feed_dict=feed_dict)
+                    self.saver.save(self.sess,
+                                    os.path.join(self.log_dir, 'keras_embedding.ckpt'),
+                                    epoch)
+
+                    i += self.batch_size
 
         for name, value in logs.items():
             if name in ['batch', 'size']:
                 continue
             summary = tf.Summary()
             summary_value = summary.value.add()
-            summary_value.simple_value = value.item()
+            if isinstance(value, np.ndarray):
+                summary_value.simple_value = value.item()
+            else:
+                summary_value.simple_value = value
             summary_value.tag = name
             self.writer.add_summary(summary, epoch)
         self.writer.flush()
@@ -926,7 +1023,7 @@ class ReduceLROnPlateau(Callback):
         if 'epsilon' in kwargs:
             min_delta = kwargs.pop('epsilon')
             warnings.warn('`epsilon` argument is deprecated and '
-                          'will be removed, use `min_delta` insted.')
+                          'will be removed, use `min_delta` instead.')
         self.factor = factor
         self.min_lr = min_lr
         self.min_delta = min_delta

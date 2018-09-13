@@ -5,6 +5,7 @@ from numpy.testing import assert_allclose
 from keras import backend as K
 from keras import layers
 from keras.models import Model
+from keras.models import Sequential
 from keras.utils.test_utils import layer_test
 from keras.utils.test_utils import keras_test
 from keras import regularizers
@@ -43,14 +44,18 @@ def test_dropout():
                 input_shape = (2,) + shape + (3,)
             else:
                 input_shape = (2, 3) + shape
-            layer_test(layers.SpatialDropout2D if len(shape) == 2 else layers.SpatialDropout3D,
+            if len(shape) == 2:
+                layer = layers.SpatialDropout2D
+            else:
+                layer = layers.SpatialDropout3D
+            layer_test(layer,
                        kwargs={'rate': 0.5,
                                'data_format': data_format},
                        input_shape=input_shape)
 
             # Test invalid use cases
             with pytest.raises(ValueError):
-                layer_test(layers.SpatialDropout2D if len(shape) == 2 else layers.SpatialDropout3D,
+                layer_test(layer,
                            kwargs={'rate': 0.5,
                                    'data_format': 'channels_middle'},
                            input_shape=input_shape)
@@ -281,6 +286,16 @@ def test_lambda():
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() == 'theano'),
+                    reason="theano cannot compute "
+                           "the output shape automatically.")
+def test_lambda_output_shape():
+    layer_test(layers.Lambda,
+               kwargs={'function': lambda x: K.mean(x, axis=-1)},
+               input_shape=(3, 2, 4))
+
+
+@keras_test
 def test_dense():
     layer_test(layers.Dense,
                kwargs={'units': 3},
@@ -331,6 +346,32 @@ def test_activity_regularization():
     model_config = model.get_config()
     model = Model.from_config(model_config)
     model.compile('rmsprop', 'mse')
+
+
+@keras_test
+def test_sequential_as_downstream_of_masking_layer():
+
+    inputs = layers.Input(shape=(3, 4))
+    x = layers.Masking(mask_value=0., input_shape=(3, 4))(inputs)
+    s = Sequential()
+    s.add(layers.Dense(5, input_shape=(4,)))
+    s.add(layers.Activation('relu'))
+    x = layers.wrappers.TimeDistributed(s)(x)
+    model = Model(inputs=inputs, outputs=x)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model_input = np.random.randint(low=1, high=5, size=(10, 3, 4))
+    for i in range(4):
+        model_input[i, i:, :] = 0.
+    model.fit(model_input,
+              np.random.random((10, 3, 5)), epochs=1, batch_size=6)
+
+    mask_outputs = [model.layers[1].compute_mask(model.layers[1].input)]
+    mask_outputs += [model.layers[2].compute_mask(model.layers[2].input,
+                                                  mask_outputs[-1])]
+    func = K.function([model.input], mask_outputs)
+    mask_outputs_val = func([model_input])
+    assert np.array_equal(mask_outputs_val[0], np.any(model_input, axis=-1))
+    assert np.array_equal(mask_outputs_val[1], np.any(model_input, axis=-1))
 
 
 if __name__ == '__main__':

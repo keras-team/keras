@@ -75,7 +75,8 @@ def test_classify_inherit_class_build_fn():
 
 
 def assert_classification_works(clf):
-    clf.fit(X_train, y_train, sample_weight=np.ones(X_train.shape[0]), batch_size=batch_size, epochs=epochs)
+    clf.fit(X_train, y_train, sample_weight=np.ones(X_train.shape[0]),
+            batch_size=batch_size, epochs=epochs)
 
     score = clf.score(X_train, y_train, batch_size=batch_size)
     assert np.isscalar(score) and np.isfinite(score)
@@ -171,11 +172,15 @@ if __name__ == '__main__':
 
 # Usage of sklearn's grid_search
 # from sklearn import grid_search
-# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128], epochs=[2], verbose=[0])
+# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128],
+#                   epochs=[2], verbose=[0])
 # classifier = Inherit_class_build_fn_clf()
 # clf = grid_search.GridSearchCV(classifier, parameters)
 # clf.fit(X_train, y_train)
-# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128], epochs=[2], verbose=[0])
+# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128],
+#                   epochs=[2], verbose=[0])
 # regressor = Inherit_class_build_fn_reg()
-# reg = grid_search.GridSearchCV(regressor, parameters, scoring='mean_squared_error', n_jobs=1, cv=2, verbose=2)
+# reg = grid_search.GridSearchCV(regressor, parameters,
+#                                scoring='mean_squared_error',
+#                                n_jobs=1, cv=2, verbose=2)
 # reg.fit(X_train_reg, y_train_reg)

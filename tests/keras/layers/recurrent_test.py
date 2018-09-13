@@ -9,8 +9,8 @@ from keras.layers import recurrent
 from keras.layers import embeddings
 from keras.models import Sequential
 from keras.models import Model
-from keras.engine.topology import Input
-from keras.layers.core import Masking
+from keras.engine import Input
+from keras.layers import Masking
 from keras import regularizers
 from keras import backend as K
 
@@ -499,7 +499,7 @@ def test_minimal_rnn_cell_non_layer_multiple_states():
              MinimalRNNCell(16, 8),
              MinimalRNNCell(32, 16)]
     layer = recurrent.RNN(cells)
-    assert layer.cell.state_size == (32, 32, 16, 16, 8, 8)
+    assert layer.cell.state_size == (8, 8, 16, 16, 32, 32)
     y = layer(x)
     model = keras.models.Model(x, y)
     model.compile(optimizer='rmsprop', loss='mse')
@@ -677,6 +677,19 @@ def test_stacked_rnn_compute_output_shape():
     cells = [recurrent.LSTMCell(3),
              recurrent.LSTMCell(6)]
     layer = recurrent.RNN(cells, return_state=True, return_sequences=True)
+    output_shape = layer.compute_output_shape((None, timesteps, embedding_dim))
+    expected_output_shape = [(None, timesteps, 6),
+                             (None, 3),
+                             (None, 3),
+                             (None, 6),
+                             (None, 6)]
+    assert output_shape == expected_output_shape
+
+    # Test reverse_state_order = True for stacked cell.
+    stacked_cell = recurrent.StackedRNNCells(
+        cells, reverse_state_order=True)
+    layer = recurrent.RNN(
+        stacked_cell, return_state=True, return_sequences=True)
     output_shape = layer.compute_output_shape((None, timesteps, embedding_dim))
     expected_output_shape = [(None, timesteps, 6),
                              (None, 6),
@@ -894,6 +907,60 @@ def test_rnn_cell_with_constants_layer_passing_initial_state():
     model.set_weights(weights)
     y_np_3 = model.predict([x_np, s_np, c_np])
     assert_allclose(y_np, y_np_3, atol=1e-4)
+
+
+@rnn_test
+def test_rnn_cell_identity_initializer(layer_class):
+    inputs = Input(shape=(timesteps, embedding_dim))
+    layer = layer_class(units, recurrent_initializer='identity')
+    layer(inputs)
+    recurrent_kernel = layer.get_weights()[1]
+    num_kernels = recurrent_kernel.shape[1] // recurrent_kernel.shape[0]
+    assert np.array_equal(recurrent_kernel,
+                          np.concatenate([np.identity(units)] * num_kernels, axis=1))
+
+
+@keras_test
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+def test_inconsistent_output_state_size():
+
+    class PlusOneRNNCell(keras.layers.Layer):
+        """Add one to the input and state.
+
+        This cell is used for testing state_size and output_size."""
+
+        def __init__(self, num_unit, **kwargs):
+            self.state_size = num_unit
+            super(PlusOneRNNCell, self).__init__(**kwargs)
+
+        def build(self, input_shape):
+            self.output_size = input_shape[-1]
+
+        def call(self, inputs, states):
+            return inputs + 1, [states[0] + 1]
+
+    batch = 32
+    time_step = 4
+    state_size = 5
+    input_size = 6
+    cell = PlusOneRNNCell(state_size)
+    x = keras.Input((None, input_size))
+    layer = recurrent.RNN(cell)
+    y = layer(x)
+
+    assert cell.state_size == state_size
+    init_state = layer.get_initial_state(x)
+    assert len(init_state) == 1
+    if K.backend() != 'theano':
+        # theano does not support static shape inference.
+        assert K.int_shape(init_state[0]) == (None, state_size)
+
+    model = keras.models.Model(x, y)
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        np.zeros((batch, time_step, input_size)),
+        np.zeros((batch, input_size)))
+    assert model.output_shape == (None, input_size)
 
 
 if __name__ == '__main__':

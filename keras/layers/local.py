@@ -10,8 +10,8 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -101,7 +101,7 @@ class LocallyConnected1D(Layer):
         if self.padding != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected1D '
                              '(only "valid" is supported): ' + padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -283,7 +283,7 @@ class LocallyConnected2D(Layer):
         if self.padding != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected2D '
                              '(only "valid" is supported): ' + padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
