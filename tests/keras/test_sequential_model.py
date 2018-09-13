@@ -168,9 +168,11 @@ def test_sequential(in_tmpdir):
     nloss = model.evaluate(x_test, y_test, verbose=0)
     assert(loss == nloss)
 
-    # test serialization
+    # Test serialization
     config = model.get_config()
-    Sequential.from_config(config)
+    assert 'name' in config
+    new_model = Sequential.from_config(config)
+    assert new_model.weights  # Model should be built.
 
     model.summary()
     json_str = model.to_json()
@@ -234,7 +236,7 @@ def test_nested_sequential(in_tmpdir):
     nloss = model.evaluate(x_test, y_test, verbose=0)
     assert(loss == nloss)
 
-    # test serialization
+    # Test serialization
     config = model.get_config()
     Sequential.from_config(config)
 
@@ -426,8 +428,10 @@ def test_sequential_deferred_build():
     assert len(model.layers) == 2
     assert len(model.weights) == 4
 
+    # Test serialization
     config = model.get_config()
-    new_model = keras.models.Sequential.from_config(config)
+    assert 'name' in config
+    new_model = Sequential.from_config(config)
     assert new_model.built is True
     assert len(new_model.layers) == 2
     assert len(new_model.weights) == 4
