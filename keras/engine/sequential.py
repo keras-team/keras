@@ -85,6 +85,7 @@ class Sequential(Model):
 
     def __init__(self, layers=None, name=None):
         super(Sequential, self).__init__(name=name)
+        self._build_input_shape = None
 
         # Add to the model any layers passed to the constructor.
         if layers:
@@ -219,8 +220,7 @@ class Sequential(Model):
             for layer in self._layers:
                 x = layer(x)
             self.outputs = [x]
-            if self._layers:
-                self._layers[0].batch_input_shape = batch_shape
+            self._build_input_shape = input_shape
 
         if self.inputs:
             self._init_graph_network(self.inputs,
@@ -271,19 +271,31 @@ class Sequential(Model):
             return (proba > 0.5).astype('int32')
 
     def get_config(self):
-        config = []
+        layer_configs = []
         for layer in self.layers:
-            config.append({
+            layer_configs.append({
                 'class_name': layer.__class__.__name__,
                 'config': layer.get_config()
             })
-        return copy.deepcopy(config)
+        config = {
+            'name': self.name,
+            'layers': copy.deepcopy(layer_configs)
+        }
+        if self._build_input_shape:
+            config['build_input_shape'] = self._build_input_shape
+        return config
 
     @classmethod
     def from_config(cls, config, custom_objects=None):
-        model = cls()
-        for conf in config:
+        if 'name' in config:
+            name = config['name']
+            build_input_shape = config.get('build_input_shape')
+            layer_configs = config['layers']
+        model = cls(name=name)
+        for conf in layer_configs:
             layer = layer_module.deserialize(conf,
                                              custom_objects=custom_objects)
             model.add(layer)
+        if not model.inputs and build_input_shape:
+            model.build(build_input_shape)
         return model
