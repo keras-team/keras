@@ -771,36 +771,7 @@ class Conv2DTranspose(Conv2D):
                                      str(self.output_padding))
 
     def build(self, input_shape):
-        if len(input_shape) != 4:
-            raise ValueError('Inputs should have rank ' +
-                             str(4) +
-                             '; Received input shape:', str(input_shape))
-        if self.data_format == 'channels_first':
-            channel_axis = 1
-        else:
-            channel_axis = -1
-        if input_shape[channel_axis] is None:
-            raise ValueError('The channel dimension of the inputs '
-                             'should be defined. Found `None`.')
-        input_dim = input_shape[channel_axis]
-        kernel_shape = self.kernel_size + (self.filters, input_dim)
-
-        self.kernel = self.add_weight(shape=kernel_shape,
-                                      initializer=self.kernel_initializer,
-                                      name='kernel',
-                                      regularizer=self.kernel_regularizer,
-                                      constraint=self.kernel_constraint)
-        if self.use_bias:
-            self.bias = self.add_weight(shape=(self.filters,),
-                                        initializer=self.bias_initializer,
-                                        name='bias',
-                                        regularizer=self.bias_regularizer,
-                                        constraint=self.bias_constraint)
-        else:
-            self.bias = None
-        # Set input spec.
-        self.input_spec = InputSpec(ndim=4, axes={channel_axis: input_dim})
-        self.built = True
+        _build_conv_transpose(self, input_shape, 4)
 
     def call(self, inputs):
         input_shape = K.shape(inputs)
@@ -1038,36 +1009,7 @@ class Conv3DTranspose(Conv3D):
                                      str(self.output_padding))
 
     def build(self, input_shape):
-        if len(input_shape) != 5:
-            raise ValueError('Inputs should have rank ' +
-                             str(5) +
-                             '; Received input shape:', str(input_shape))
-        if self.data_format == 'channels_first':
-            channel_axis = 1
-        else:
-            channel_axis = -1
-        if input_shape[channel_axis] is None:
-            raise ValueError('The channel dimension of the inputs '
-                             'should be defined. Found `None`.')
-        input_dim = input_shape[channel_axis]
-        kernel_shape = self.kernel_size + (self.filters, input_dim)
-
-        self.kernel = self.add_weight(shape=kernel_shape,
-                                      initializer=self.kernel_initializer,
-                                      name='kernel',
-                                      regularizer=self.kernel_regularizer,
-                                      constraint=self.kernel_constraint)
-        if self.use_bias:
-            self.bias = self.add_weight(shape=(self.filters,),
-                                        initializer=self.bias_initializer,
-                                        name='bias',
-                                        regularizer=self.bias_regularizer,
-                                        constraint=self.bias_constraint)
-        else:
-            self.bias = None
-        # Set input spec.
-        self.input_spec = InputSpec(ndim=5, axes={channel_axis: input_dim})
-        self.built = True
+        _build_conv_transpose(self, input_shape, 5)
 
     def call(self, inputs):
         input_shape = K.shape(inputs)
@@ -1162,6 +1104,39 @@ class Conv3DTranspose(Conv3D):
         config.pop('dilation_rate')
         config['output_padding'] = self.output_padding
         return config
+
+
+def _build_conv_transpose(layer, input_shape, ndim):
+    if len(input_shape) != ndim:
+        raise ValueError('Inputs should have rank ' +
+                         str(ndim) +
+                         '; Received input shape:', str(input_shape))
+    if layer.data_format == 'channels_first':
+        channel_axis = 1
+    else:
+        channel_axis = -1
+    if input_shape[channel_axis] is None:
+        raise ValueError('The channel dimension of the inputs '
+                         'should be defined. Found `None`.')
+    input_dim = input_shape[channel_axis]
+    kernel_shape = layer.kernel_size + (layer.filters, input_dim)
+
+    layer.kernel = layer.add_weight(shape=kernel_shape,
+                                    initializer=layer.kernel_initializer,
+                                    name='kernel',
+                                    regularizer=layer.kernel_regularizer,
+                                    constraint=layer.kernel_constraint)
+    if layer.use_bias:
+        layer.bias = layer.add_weight(shape=(layer.filters,),
+                                      initializer=layer.bias_initializer,
+                                      name='bias',
+                                      regularizer=layer.bias_regularizer,
+                                      constraint=layer.bias_constraint)
+    else:
+        layer.bias = None
+    # Set input spec.
+    layer.input_spec = InputSpec(ndim=ndim, axes={channel_axis: input_dim})
+    layer.built = True
 
 
 class _SeparableConv(_Conv):
