@@ -10,7 +10,6 @@ from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from numpy.testing import assert_allclose
 import numpy as np
 import six
-import warnings
 import h5py
 import tempfile
 try:
@@ -163,6 +162,7 @@ def test_h5dict_attrs():
         assert_allclose(f['z'], array)
 
         f.close()
+    os.remove(h5_path)
 
 
 def test_h5dict_groups():
@@ -206,6 +206,7 @@ def test_h5dict_groups():
         assert_allclose(group4['z'], array)
 
         f.close()
+    os.remove(h5_path)
 
 
 if __name__ == '__main__':
