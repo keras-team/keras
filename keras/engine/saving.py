@@ -71,7 +71,7 @@ def _serialize_model(model, f, include_optimizer=True):
         if type(obj).__name__ == type.__name__:
             return obj.__name__
 
-        raise TypeError('Not JSON Serializable:', obj)
+        raise TypeError('Not JSON Serializable: %s' % (obj,))
 
     from .. import __version__ as keras_version
 

@@ -191,13 +191,13 @@ class H5Dict(object):
             # Flag to check if a dict is user defined data or a sub group:
             self.data['_is_group'] = True
         else:
-            raise TypeError('Required Group, str or dict.'
-                            ' Received {}.'.format(type(path)))
+            raise TypeError('Required Group, str or dict. '
+                            'Received: {}.'.format(type(path)))
         self.read_only = mode == 'r'
 
     def __setitem__(self, attr, val):
         if self.read_only:
-            raise ValueError('Can not set item in read only mode.')
+            raise ValueError('Cannot set item in read only mode.')
         is_np = type(val).__module__ == np.__name__
         if isinstance(self.data, dict):
             if isinstance(attr, bytes):
@@ -210,8 +210,8 @@ class H5Dict(object):
                 self.data[attr] = val
             return
         if attr in self:
-            raise KeyError('Can not set attribute.'
-                           ' Group with name {} exists.'.format(attr))
+            raise KeyError('Cannot set attribute. '
+                           'Group with name "{}" exists.'.format(attr))
         if is_np:
             dataset = self.data.create_dataset(attr, val.shape, dtype=val.dtype)
             if not val.shape:
@@ -268,7 +268,7 @@ class H5Dict(object):
                 return val
             else:
                 if self.read_only:
-                    raise ValueError('Can not create group in read only mode.')
+                    raise ValueError('Cannot create group in read only mode.')
                 val = {'_is_group': True}
                 self.data[attr] = val
                 return H5Dict(val)
@@ -297,7 +297,7 @@ class H5Dict(object):
                     chunk_attr = '%s%d' % (attr, chunk_id)
             else:
                 if self.read_only:
-                    raise ValueError('Can not create group in read only mode.')
+                    raise ValueError('Cannot create group in read only mode.')
                 val = H5Dict(self.data.create_group(attr))
         return val
 
