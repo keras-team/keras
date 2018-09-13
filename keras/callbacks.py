@@ -1124,7 +1124,7 @@ class CSVLogger(Callback):
         self.writer = None
         self.keys = None
         self.append_header = True
-        self.file_flags = 'b' if six.PY2 and os.name == 'nt' else ''
+        self.file_flags = 'b' if six.PY2 else ''
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs=None):
@@ -1135,14 +1135,9 @@ class CSVLogger(Callback):
             mode = 'a'
         else:
             mode = 'w'
-
-        if sys.version_info[0] < 3:
-            self.csv_file = io.open(self.filename,
-                                    mode + 'b' + self.file_flags)
-        else:
-            self.csv_file = io.open(self.filename,
-                                    mode + self.file_flags,
-                                    newline='\n')
+        self.csv_file = io.open(self.filename,
+                                mode + self.file_flags,
+                                newline='\n')
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -1167,7 +1162,7 @@ class CSVLogger(Callback):
             class CustomDialect(csv.excel):
                 delimiter = self.sep
             fieldnames = ['epoch'] + self.keys
-            if sys.version_info[0] < 3:
+            if six.PY2:
                 fieldnames = [unicode(x) for x in fieldnames]
             self.writer = csv.DictWriter(self.csv_file,
                                          fieldnames=fieldnames,
