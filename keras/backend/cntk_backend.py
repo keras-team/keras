@@ -1495,6 +1495,10 @@ def conv1d(x, kernel, strides=1, padding='valid',
     if data_format == 'channels_last':
         x = C.swapaxes(x, 0, 1)
 
+    # As of Keras 2.0.0, all kernels are normalized
+    # on the format `(steps, input_depth, depth)`,
+    # independently of `data_format`.
+    # CNTK expects `(depth, input_depth, steps)`.
     kernel = C.swapaxes(kernel, 0, 2)
 
     padding = _preprocess_border_mode(padding)
