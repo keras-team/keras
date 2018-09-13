@@ -13,6 +13,7 @@ import time
 import json
 import warnings
 import io
+import sys
 
 from collections import deque
 from collections import OrderedDict
@@ -1131,9 +1132,10 @@ class CSVLogger(Callback):
             if os.path.exists(self.filename):
                 with open(self.filename, 'r' + self.file_flags) as f:
                     self.append_header = not bool(len(f.readline()))
-            self.csv_file = io.open(self.filename, 'a' + self.file_flags, newline='\n')
+            mode = 'a'
         else:
-            self.csv_file = io.open(self.filename, 'w' + self.file_flags, newline='\n')
+            mode = 'w'
+        self.csv_file = io.open(self.filename, mode + self.file_flags, newline='\n')
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -1157,9 +1159,12 @@ class CSVLogger(Callback):
         if not self.writer:
             class CustomDialect(csv.excel):
                 delimiter = self.sep
-
+            fieldnames = ['epoch'] + self.keys
+            if sys.version_info[0] < 3:
+                fieldnames = [unicode(x) for x in fieldnames]
             self.writer = csv.DictWriter(self.csv_file,
-                                         fieldnames=['epoch'] + self.keys, dialect=CustomDialect)
+                                         fieldnames=fieldnames,
+                                         dialect=CustomDialect)
             if self.append_header:
                 self.writer.writeheader()
 
