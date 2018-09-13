@@ -1135,7 +1135,14 @@ class CSVLogger(Callback):
             mode = 'a'
         else:
             mode = 'w'
-        self.csv_file = io.open(self.filename, mode + self.file_flags, newline='\n')
+
+        if sys.version_info[0] < 3:
+            self.csv_file = io.open(self.filename,
+                                    mode + 'b' + self.file_flags)
+        else:
+            self.csv_file = io.open(self.filename,
+                                    mode + self.file_flags,
+                                    newline='\n')
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
