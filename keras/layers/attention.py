@@ -5,6 +5,7 @@ from ..engine import InputSpec
 from ..engine import Layer
 from ..layers import concatenate
 from ..layers import has_arg
+from ..utils.generic_utils import to_list
 
 
 class _RNNAttentionCell(Layer):
@@ -140,9 +141,7 @@ class _RNNAttentionCell(Layer):
                 after `attention_h`, i.e. `attention_states[0]` should always
                 be `attention_h`.
         """
-        raise NotImplementedError(
-            '`attention_call` must be implemented by extensions of `{}`'.format(
-                self.__class__.__name__))
+        raise NotImplementedError
 
     def attention_build(self, input_shape, cell_state_size, attended_shape):
         """Build the attention mechanism.
@@ -162,9 +161,7 @@ class _RNNAttentionCell(Layer):
             `cell.state_size` is an integer, `cell_state_size` will be a list
             of this one element.
         """
-        raise NotImplementedError(
-            '`attention_build` must be implemented by extensions of `{}`'.format(
-                self.__class__.__name__))
+        raise NotImplementedError
 
     @property
     def attention_size(self):
@@ -199,13 +196,8 @@ class _RNNAttentionCell(Layer):
         cell states are first as the first state of any RNN cell should be same
         as the cell's output.
         """
-        state_size_s = []
-        for state_size in [self.cell.state_size, self.attention_state_size]:
-            if hasattr(state_size, '__len__'):
-                state_size_s += list(state_size)
-            else:
-                state_size_s.append(state_size)
-
+        state_size_s = to_list(self.cell.state_size, allow_tuple=True)
+        state_size_s += to_list(self.attention_state_size, allow_tuple=True)
         return tuple(state_size_s)
 
     def call(self, inputs, states, constants, training=None):
@@ -284,20 +276,13 @@ class _RNNAttentionCell(Layer):
 
         return output, new_cell_states, new_attention_states
 
-    @staticmethod
-    def _num_elements(x):
-        if hasattr(x, '__len__'):
-            return len(x)
-        else:
-            return 1
-
     @property
     def _num_wrapped_states(self):
-        return self._num_elements(self.cell.state_size)
+        return _num_elements(self.cell.state_size)
 
     @property
     def _num_attention_states(self):
-        return self._num_elements(self.attention_state_size)
+        return _num_elements(self.attention_state_size)
 
     def build(self, input_shape):
         """Builds attention mechanism and wrapped cell (if keras layer).
@@ -334,22 +319,18 @@ class _RNNAttentionCell(Layer):
         self.built = True
 
     def compute_output_shape(self, input_shape):
-        if hasattr(self.cell.state_size, '__len__'):
-            cell_output_dim = self.cell.state_size[0]
-        else:
-            cell_output_dim = self.cell.state_size
-
+        cell_output_dim = to_list(self.cell.state_size, allow_tuple=True)[0]
         return input_shape[0], cell_output_dim
 
     @property
     def trainable_weights(self):
-        return super(_RNNAttentionCell, self).trainable_weights + \
-               self.cell.trainable_weights
+        layer_weights = super(_RNNAttentionCell, self).trainable_weights
+        return layer_weights + self.cell.trainable_weights
 
     @property
     def non_trainable_weights(self):
-        return super(_RNNAttentionCell, self).non_trainable_weights + \
-               self.cell.non_trainable_weights
+        layer_weights = super(_RNNAttentionCell, self).non_trainable_weights
+        return layer_weights + self.cell.non_trainable_weights
 
     def get_config(self):
         config = {'attend_after': self.attend_after,
@@ -360,3 +341,7 @@ class _RNNAttentionCell(Layer):
                           'config': cell_config}
         base_config = super(_RNNAttentionCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+def _num_elements(x):
+    return len(to_list(x, allow_tuple=True))
