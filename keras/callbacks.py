@@ -12,6 +12,8 @@ import numpy as np
 import time
 import json
 import warnings
+import io
+import sys
 
 from collections import deque
 from collections import OrderedDict
@@ -1122,7 +1124,12 @@ class CSVLogger(Callback):
         self.writer = None
         self.keys = None
         self.append_header = True
-        self.file_flags = 'b' if six.PY2 and os.name == 'nt' else ''
+        if six.PY2:
+            self.file_flags = 'b'
+            self._open_args = {}
+        else:
+            self.file_flags = ''
+            self._open_args = {'newline': '\n'}
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs=None):
@@ -1130,9 +1137,12 @@ class CSVLogger(Callback):
             if os.path.exists(self.filename):
                 with open(self.filename, 'r' + self.file_flags) as f:
                     self.append_header = not bool(len(f.readline()))
-            self.csv_file = open(self.filename, 'a' + self.file_flags)
+            mode = 'a'
         else:
-            self.csv_file = open(self.filename, 'w' + self.file_flags)
+            mode = 'w'
+        self.csv_file = io.open(self.filename,
+                                mode + self.file_flags,
+                                **self._open_args)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -1156,9 +1166,12 @@ class CSVLogger(Callback):
         if not self.writer:
             class CustomDialect(csv.excel):
                 delimiter = self.sep
-
+            fieldnames = ['epoch'] + self.keys
+            if six.PY2:
+                fieldnames = [unicode(x) for x in fieldnames]
             self.writer = csv.DictWriter(self.csv_file,
-                                         fieldnames=['epoch'] + self.keys, dialect=CustomDialect)
+                                         fieldnames=fieldnames,
+                                         dialect=CustomDialect)
             if self.append_header:
                 self.writer.writeheader()
 
