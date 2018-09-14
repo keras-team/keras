@@ -278,11 +278,11 @@ class _RNNAttentionCell(Layer):
 
     @property
     def _num_wrapped_states(self):
-        return _num_elements(self.cell.state_size)
+        return len(to_list(self.cell.state_size, allow_tuple=True))
 
     @property
     def _num_attention_states(self):
-        return _num_elements(self.attention_state_size)
+        return len(to_list(self.attention_state_size, allow_tuple=True))
 
     def build(self, input_shape):
         """Builds attention mechanism and wrapped cell (if keras layer).
@@ -339,7 +339,3 @@ class _RNNAttentionCell(Layer):
                           'config': cell.get_config()}
         base_config = super(_RNNAttentionCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
-
-
-def _num_elements(x):
-    return len(to_list(x, allow_tuple=True))
