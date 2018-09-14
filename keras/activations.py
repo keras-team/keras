@@ -152,6 +152,12 @@ def hard_sigmoid(x):
     return K.hard_sigmoid(x)
 
 
+def exponential(x):
+    """Exponential (base e) activation function.
+    """
+    return K.exp(x)
+
+
 def linear(x):
     """Linear (i.e. identity) activation function.
     """
