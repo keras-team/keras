@@ -139,14 +139,8 @@ class Network(Layer):
     def _init_graph_network(self, inputs, outputs, name=None):
         self._uses_inputs_arg = True
         # Normalize and set self.inputs, self.outputs.
-        if isinstance(inputs, (list, tuple)):
-            self.inputs = list(inputs)  # Tensor or list of tensors.
-        else:
-            self.inputs = [inputs]
-        if isinstance(outputs, (list, tuple)):
-            self.outputs = list(outputs)
-        else:
-            self.outputs = [outputs]
+        self.inputs = to_list(inputs, allow_tuple=True)
+        self.outputs = to_list(outputs, allow_tuple=True)
 
         # User-provided argument validation.
         # Check for redundancy in inputs.

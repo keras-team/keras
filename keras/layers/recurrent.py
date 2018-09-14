@@ -16,6 +16,7 @@ from .. import constraints
 from ..engine.base_layer import Layer
 from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import to_list
 
 # Legacy support.
 from ..legacy.layers import Recurrent
@@ -664,10 +665,7 @@ class RNN(Layer):
                 state._uses_learning_phase = True
 
         if self.return_state:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
-            else:
-                states = list(states)
+            states = to_list(states, allow_tuple=True)
             return [output] + states
         else:
             return output
@@ -702,8 +700,7 @@ class RNN(Layer):
                 K.set_value(self.states[0],
                             np.zeros((batch_size, self.cell.state_size)))
         else:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
+            states = to_list(states, allow_tuple=True)
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
                                  str(len(self.states)) + ' states, '
