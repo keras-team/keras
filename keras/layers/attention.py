@@ -307,10 +307,11 @@ class _RNNAttentionCell(Layer):
         )
 
         if isinstance(self.cell, Layer):
-            cell_input_shape = (input_shape[0],
-                                self.attention_size +
-                                input_shape[-1] if self.concatenate_input
-                                else self._attention_size)
+            if self.concatenate_input:
+                second_dim_size = self.attention_size + input_shape[-1]
+            else:
+                second_dim_size = self._attention_size
+            cell_input_shape = (input_shape[0], second_dim_size)
             self.cell.build(cell_input_shape)
 
         self.built = True
@@ -333,9 +334,9 @@ class _RNNAttentionCell(Layer):
         config = {'attend_after': self.attend_after,
                   'concatenate_input': self.concatenate_input}
 
-        cell_config = self.cell.get_config()
-        config['cell'] = {'class_name': self.cell.__class__.__name__,
-                          'config': cell_config}
+        cell = self.cell
+        config['cell'] = {'class_name': cell.__class__.__name__,
+                          'config': cell.get_config()}
         base_config = super(_RNNAttentionCell, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
