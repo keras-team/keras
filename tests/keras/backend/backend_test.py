@@ -38,6 +38,21 @@ except ImportError:
 WITH_NP = [KTH if K.backend() == 'theano' else KC if K.backend() == 'cntk' else KTF, KNP]
 
 
+# CNTK only supports dilated convolution on GPU
+def get_dilated_conv_backends():
+    backend_list = []
+    if KTF is not None:
+        backend_list.append(KTF)
+    if KTH is not None:
+        backend_list.append(KTH)
+    if KC is not None and KC.dev.type() == 1:
+        backend_list.append(KC)
+    return backend_list
+
+
+DILATED_CONV_BACKENDS = get_dilated_conv_backends()
+
+
 def check_dtype(var, dtype):
     if K._BACKEND == 'theano':
         assert var.dtype == dtype
@@ -1041,7 +1056,7 @@ class TestBackend(object):
             padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
-    @pytest.mark.skipif((KC is not None and KC.dev.type() == 0),
+    @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                         reason='cntk only supports dilated conv on GPU')
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format,dilation_rate', [
         ('conv1d', (2, 8, 3), (4, 3, 2), 'valid', 'channels_last', 2),
@@ -1054,10 +1069,10 @@ class TestBackend(object):
     def test_conv_dilation(self, op, input_shape, kernel_shape, padding,
                            data_format, dilation_rate):
         check_two_tensor_operation(
-            op, input_shape, kernel_shape, BACKENDS, padding=padding, data_format=data_format,
-            dilation_rate=dilation_rate, cntk_dynamicity=True)
+            op, input_shape, kernel_shape, DILATED_CONV_BACKENDS, padding=padding,
+            data_format=data_format, dilation_rate=dilation_rate, cntk_dynamicity=True)
 
-    @pytest.mark.skipif((KC is not None and KC.dev.type() == 0),
+    @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                         reason='cntk only supports dilated conv transpose on GPU')
     @pytest.mark.parametrize(
         'op,input_shape,kernel_shape,output_shape,padding,data_format,dilation_rate', [
@@ -1069,8 +1084,9 @@ class TestBackend(object):
     def test_conv_transpose_dilation(self, op, input_shape, kernel_shape, output_shape,
                                      padding, data_format, dilation_rate):
         check_two_tensor_operation(
-            op, input_shape, kernel_shape, BACKENDS, output_shape=output_shape, padding=padding,
-            data_format=data_format, dilation_rate=dilation_rate, cntk_dynamicity=True)
+            op, input_shape, kernel_shape, DILATED_CONV_BACKENDS, output_shape=output_shape,
+            padding=padding, data_format=data_format, dilation_rate=dilation_rate,
+            cntk_dynamicity=True)
 
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [
         ('depthwise_conv2d', (2, 3, 4, 5), (3, 3, 3, 2), 'same', 'channels_first'),
