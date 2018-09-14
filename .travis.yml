@@ -4,48 +4,72 @@ language: python
 cache:
   directories:
     - $HOME/.theano
+    - $HOME/.cache/pip
+    - $HOME/download
+    - $HOME/miniconda
+before_cache:
+  - rm -f $HOME/.cache/pip/log/debug.log
+  - rm -rf $HOME/miniconda/locks $HOME/miniconda/pkgs $HOME/miniconda/var $HOME/miniconda/conda-meta/history
+  - pip uninstall -y keras keras_applications keras_preprocessing
 matrix:
     include:
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 3.6
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 2.7
-          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.6
-          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
-install:
-  # code below is taken from http://conda.pydata.org/docs/travis.html
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+before_install:
+  # code below is taken from
+  # https://github.com/theochem/qcgrids/blob/master/.travis.yml
+  - if test -e $HOME/miniconda/bin; then
+      echo "miniconda already installed.";
+      export USE_CACHE=True;
     else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      echo "Installing miniconda.";
+      rm -rf $HOME/miniconda;
+      mkdir -p $HOME/download;
+      if [[ -d $HOME/download/miniconda.sh ]]; then rm -rf $HOME/download/miniconda.sh; fi;
+      if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
+      else
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O $HOME/download/miniconda.sh;
+      fi;
+      bash $HOME/download/miniconda.sh -b -p $HOME/miniconda;
+      export USE_CACHE=False;
     fi
-  - bash miniconda.sh -b -p $HOME/miniconda
+
   - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
   - conda config --set always_yes yes --set changeps1 no
+  - if [[ "$USE_CACHE" == "False" ]]; then
+      conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest pandas;
+      conda install mkl mkl-service;
+      # install pydot for visualization tests
+      conda install pydot graphviz;
+    fi
+install:
+  - case "${TRAVIS_JOB_NUMBER:(-1)}" in
+      "1") export KERAS_BACKEND="tensorflow"; export TEST_MODE="PEP8";;
+      "2") export KERAS_BACKEND="tensorflow"; export TEST_MODE="INTEGRATION_TESTS";;
+      "3") export KERAS_BACKEND="tensorflow"; export TEST_MODE="DOC";;
+      "4") export KERAS_BACKEND="tensorflow";;
+      "5") export KERAS_BACKEND="tensorflow";;
+      "6") export KERAS_BACKEND="theano"; export THEANO_FLAGS="optimizer=fast_compile";;
+      "7") export KERAS_BACKEND="theano"; export THEANO_FLAGS="optimizer=fast_compile";;
+      "8") export KERAS_BACKEND="cntk"; export PYTHONWARNINGS="ignore";;
+      "9") export KERAS_BACKEND="cntk"; export PYTHONWARNINGS="ignore";;
+    esac
+  - hash -r
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest pandas
   - source activate test-environment
   - travis_retry pip install --only-binary=numpy,scipy numpy nose scipy matplotlib h5py theano
   - pip install keras_applications keras_preprocessing
-  - conda install mkl mkl-service
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
@@ -66,9 +90,6 @@ install:
   
   # install cntk
   - pip install cntk
-
-  # install pydot for visualization tests
-  - conda install pydot graphviz
 
   # exclude different backends to measure a coverage for the designated backend only
   - if [[ "$KERAS_BACKEND" != "tensorflow" ]]; then
