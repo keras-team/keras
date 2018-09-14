@@ -10,6 +10,7 @@ from .. import regularizers
 from .. import constraints
 from ..engine.base_layer import Layer
 from ..legacy import interfaces
+from ..utils.generic_utils import to_list
 
 
 class Embedding(Layer):
@@ -117,10 +118,7 @@ class Embedding(Layer):
             return input_shape + (self.output_dim,)
         else:
             # input_length can be tuple if input is 3D or higher
-            if isinstance(self.input_length, (list, tuple)):
-                in_lens = list(self.input_length)
-            else:
-                in_lens = [self.input_length]
+            in_lens = to_list(self.input_length, allow_tuple=True)
             if len(in_lens) != len(input_shape) - 1:
                 raise ValueError('"input_length" is %s, but received input has shape %s' %
                                  (str(self.input_length), str(input_shape)))

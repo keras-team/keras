@@ -444,7 +444,7 @@ class Progbar(object):
         self.update(self._seen_so_far + n, values)
 
 
-def to_list(x):
+def to_list(x, allow_tuple=False):
     """Normalizes a list/tensor into a list.
 
     If a tensor is passed, we return
@@ -452,12 +452,18 @@ def to_list(x):
 
     # Arguments
         x: target object to be normalized.
+        allow_tuple: If False and x is a tuple,
+            it will be converted into a list
+            with a single element (the tuple).
+            Else converts the tuple to a list.
 
     # Returns
         A list.
     """
     if isinstance(x, list):
         return x
+    if allow_tuple and isinstance(x, tuple):
+        return list(x)
     return [x]
 
 
@@ -483,10 +489,7 @@ def object_list_uid(object_list):
 
 
 def is_all_none(iterable_or_element):
-    if not isinstance(iterable_or_element, (list, tuple)):
-        iterable = [iterable_or_element]
-    else:
-        iterable = iterable_or_element
+    iterable = to_list(iterable_or_element, allow_tuple=True)
     for element in iterable:
         if element is not None:
             return False

@@ -596,10 +596,7 @@ class Model(Network):
         self._feed_inputs = []
         self._feed_input_names = []
         self._feed_input_shapes = []
-        if isinstance(inputs, (list, tuple)):
-            inputs = list(inputs)
-        else:
-            inputs = [inputs]
+        inputs = to_list(inputs, allow_tuple=True)
 
         for i, v in enumerate(inputs):
             name = 'input_%d' % (i + 1)
@@ -633,10 +630,7 @@ class Model(Network):
                 outputs = self.call(unpack_singleton(self.inputs), training=training)
             else:
                 outputs = self.call(unpack_singleton(self.inputs))
-        if isinstance(outputs, (list, tuple)):
-            outputs = list(outputs)
-        else:
-            outputs = [outputs]
+        outputs = to_list(outputs, allow_tuple=True)
         self.outputs = outputs
         self.output_names = [
             'output_%d' % (i + 1) for i in range(len(self.outputs))]
@@ -704,10 +698,7 @@ class Model(Network):
                                          'You passed: y=' + str(y))
                 # Typecheck that all inputs are *either* value *or* symbolic.
                 if y is not None:
-                    if isinstance(y, (list, tuple)):
-                        all_inputs += list(y)
-                    else:
-                        all_inputs.append(y)
+                    all_inputs += to_list(y, allow_tuple=True)
                 if any(K.is_tensor(v) for v in all_inputs):
                     if not all(K.is_tensor(v) for v in all_inputs):
                         raise ValueError('Do not pass inputs that mix Numpy '
@@ -716,8 +707,7 @@ class Model(Network):
                                          '; y=' + str(y))
 
                 # Handle target tensors if any passed.
-                if not isinstance(y, (list, tuple)):
-                    y = [y]
+                y = to_list(y, allow_tuple=True)
                 target_tensors = [v for v in y if K.is_tensor(v)]
                 if not target_tensors:
                     target_tensors = None
