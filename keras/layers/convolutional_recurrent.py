@@ -21,6 +21,7 @@ from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D
 from .recurrent import RNN
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import to_list
 from ..utils.generic_utils import transpose_shape
 
 
@@ -387,10 +388,7 @@ class ConvRNN2D(RNN):
             output._uses_learning_phase = True
 
         if self.return_state:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
-            else:
-                states = list(states)
+            states = to_list(states, allow_tuple=True)
             return [output] + states
         else:
             return output
@@ -443,8 +441,7 @@ class ConvRNN2D(RNN):
                 K.set_value(self.states[0],
                             np.zeros(get_tuple_shape(self.cell.state_size)))
         else:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
+            states = to_list(states, allow_tuple=True)
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
                                  str(len(self.states)) + ' states, '
