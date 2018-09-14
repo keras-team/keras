@@ -508,8 +508,7 @@ class Recurrent(Layer):
         if initial_state is None:
             return super(Recurrent, self).__call__(inputs, **kwargs)
 
-        if not isinstance(initial_state, (list, tuple)):
-            initial_state = [initial_state]
+        initial_state = to_list(initial_state, allow_tuple=True)
 
         is_keras_tensor = hasattr(initial_state[0], '_keras_history')
         for tensor in initial_state:
@@ -602,10 +601,7 @@ class Recurrent(Layer):
             output = last_output
 
         if self.return_state:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
-            else:
-                states = list(states)
+            states = to_list(states, allow_tuple=True)
             return [output] + states
         else:
             return output
@@ -633,8 +629,7 @@ class Recurrent(Layer):
             for state in self.states:
                 K.set_value(state, np.zeros((batch_size, self.units)))
         else:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
+            states = to_list(states, allow_tuple=True)
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
                                  str(len(self.states)) + ' states, '

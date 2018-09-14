@@ -13,6 +13,7 @@ from ..engine.base_layer import Layer
 from ..engine.base_layer import InputSpec
 from .. import backend as K
 from ..legacy import interfaces
+from ..utils.generic_utils import to_list
 
 
 class LeakyReLU(Layer):
@@ -100,10 +101,8 @@ class PReLU(Layer):
         self.alpha_constraint = constraints.get(alpha_constraint)
         if shared_axes is None:
             self.shared_axes = None
-        elif not isinstance(shared_axes, (list, tuple)):
-            self.shared_axes = [shared_axes]
         else:
-            self.shared_axes = list(shared_axes)
+            self.shared_axes = to_list(shared_axes, allow_tuple=True)
 
     def build(self, input_shape):
         param_shape = list(input_shape[1:])
