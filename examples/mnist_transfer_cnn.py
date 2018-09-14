@@ -71,7 +71,7 @@ def train_model(model, train, test, num_classes):
     print('Test accuracy:', score[1])
 
 
-# the data, shuffled and split between train and test sets
+# the data, split between train and test sets
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 # create two datasets one with digits below 5 and one with 5 and above

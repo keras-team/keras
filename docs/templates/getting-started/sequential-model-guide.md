@@ -134,7 +134,7 @@ model.fit(data, one_hot_labels, epochs=10, batch_size=32)
 
 Here are a few examples to get you started!
 
-In the [examples folder](https://github.com/fchollet/keras/tree/master/examples), you will also find example models for real datasets:
+In the [examples folder](https://github.com/keras-team/keras/tree/master/examples), you will also find example models for real datasets:
 
 - CIFAR10 small images classification: Convolutional Neural Network (CNN) with realtime data augmentation
 - IMDB movie review sentiment classification: LSTM over sequences of words
@@ -263,6 +263,8 @@ from keras.layers import Dense, Dropout
 from keras.layers import Embedding
 from keras.layers import LSTM
 
+max_features = 1024
+
 model = Sequential()
 model.add(Embedding(max_features, output_dim=256))
 model.add(LSTM(128))
@@ -284,6 +286,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.layers import Embedding
 from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D
+
+seq_length = 64
 
 model = Sequential()
 model.add(Conv1D(64, 3, activation='relu', input_shape=(seq_length, 100)))

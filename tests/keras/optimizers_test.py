@@ -4,9 +4,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
-from keras import optimizers
-from keras.models import Sequential
-from keras.layers.core import Dense, Activation
+from keras import optimizers, Input
+from keras.models import Sequential, Model
+from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.test_utils import keras_test
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
@@ -65,6 +65,22 @@ def _test_optimizer(optimizer, target=0.75):
 
 
 @keras_test
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason="Only Tensorflow raises a "
+                           "ValueError if the gradient is null.")
+def test_no_grad():
+    inp = Input([3])
+    x = Dense(10)(inp)
+    x = Lambda(lambda l: 1.0 * K.reshape(K.cast(K.argmax(l), 'float32'), [-1, 1]),
+               output_shape=lambda x: [x[0], 1])(x)
+    mod = Model(inp, x)
+    mod.compile('sgd', 'mse')
+    with pytest.raises(ValueError):
+        mod.fit(np.zeros([10, 3]), np.zeros([10, 1], np.float32),
+                batch_size=10, epochs=10)
+
+
+@keras_test
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
@@ -106,6 +122,12 @@ def test_nadam():
 
 
 @keras_test
+def test_adam_amsgrad():
+    _test_optimizer(optimizers.Adam(amsgrad=True))
+    _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
+
+
+@keras_test
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
@@ -125,7 +147,8 @@ def test_tfoptimizer():
     from tensorflow import train
     optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
     model = Sequential()
-    model.add(Dense(num_classes, input_shape=(3,), kernel_constraint=constraints.MaxNorm(1)))
+    model.add(Dense(num_classes, input_shape=(3,),
+                    kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
               epochs=1, batch_size=5, verbose=0)

@@ -3,7 +3,7 @@ Please make sure that the boxes below are checked before you submit your issue. 
 Thank you!
 
 - [ ] Check that you are up-to-date with the master branch of Keras. You can update with:
-pip install git+git://github.com/fchollet/keras.git --upgrade --no-deps
+pip install git+git://github.com/keras-team/keras.git --upgrade --no-deps
 
 - [ ] If running on TensorFlow, check that you are up-to-date with the latest version. The installation instructions can be found [here](https://www.tensorflow.org/get_started/os_setup).
 

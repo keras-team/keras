@@ -11,10 +11,9 @@ from keras.models import Sequential
 from keras.utils import vis_utils
 
 
-@pytest.mark.skipif(sys.version_info > (3, 0), reason='pydot-ng currently supports python 3.4')
 def test_plot_model():
     model = Sequential()
-    model.add(Conv2D(filters=2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
+    model.add(Conv2D(2, kernel_size=(2, 3), input_shape=(3, 5, 5), name='conv'))
     model.add(Flatten(name='flat'))
     model.add(Dense(5, name='dense1'))
     vis_utils.plot_model(model, to_file='model1.png', show_layer_names=False)

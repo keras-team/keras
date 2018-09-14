@@ -1,4 +1,9 @@
+"""IMDB sentiment classification dataset.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 from ..utils.data_utils import get_file
 from ..preprocessing.sequence import _remove_long_seq
 import numpy as np
@@ -18,7 +23,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
             the most frequent words are kept
         skip_top: skip the top N most frequently occurring words
             (which may not be informative).
-        maxlen: truncate sequences after this length.
+        maxlen: sequences longer than this will be filtered out.
         seed: random seed for sample shuffling.
         start_char: The start of a sequence will be marked with this character.
             Set to 1 because 0 is usually the padding character.
@@ -88,7 +93,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     if oov_char is not None:
         xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
     else:
-        xs = [[w for w in x if (skip_top <= w < num_words)] for x in xs]
+        xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = len(x_train)
     x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
@@ -98,7 +103,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
 
 
 def get_word_index(path='imdb_word_index.json'):
-    """Retrieves the dictionary mapping word indices back to words.
+    """Retrieves the dictionary mapping words to word indices.
 
     # Arguments
         path: where to cache the data (relative to `~/.keras/dataset`).
@@ -109,7 +114,5 @@ def get_word_index(path='imdb_word_index.json'):
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
                     file_hash='bfafd718b763782e994055a2d397834f')
-    f = open(path)
-    data = json.load(f)
-    f.close()
-    return data
+    with open(path) as f:
+        return json.load(f)

@@ -75,8 +75,6 @@ def test_merge_subtract():
         subtract_layer([i1, i2, i3])
     with pytest.raises(ValueError):
         subtract_layer([i1])
-    with pytest.raises(ValueError):
-        subtract_layer([i1, i4])
 
 
 @keras_test
@@ -206,6 +204,8 @@ def test_merge_concatenate():
         concat_layer.compute_mask(i1, [None, None])
     with pytest.raises(ValueError):
         concat_layer.compute_mask([i1, i2], [None])
+    with pytest.raises(ValueError):
+        concat_layer([i1])
 
 
 @keras_test
@@ -286,6 +286,17 @@ def test_merge_broadcast():
             out = model.predict([x1, x2])
             assert out.shape == (2, 4, 5)
         K.ndim = k_ndim
+
+
+@keras_test
+def test_masking_concatenate():
+    input1 = layers.Input(shape=(6,))
+    input2 = layers.Input(shape=(6,))
+    x1 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input1)
+    x2 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input2)
+    x = layers.concatenate([x1, x2])
+    x = layers.wrappers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
+    models.Model(inputs=[input1, input2], outputs=[x])
 
 
 if __name__ == '__main__':

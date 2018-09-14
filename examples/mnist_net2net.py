@@ -123,8 +123,9 @@ def wider2net_conv2d(teacher_w1, teacher_b1, teacher_w2, new_width, init):
     if init == 'random-pad':
         new_w1 = np.random.normal(0, 0.1, size=teacher_w1.shape[:3] + (n,))
         new_b1 = np.ones(n) * 0.1
-        new_w2 = np.random.normal(0, 0.1,
-                                  size=teacher_w2.shape[:2] + (n, teacher_w2.shape[3]))
+        new_w2 = np.random.normal(
+            0, 0.1,
+            size=teacher_w2.shape[:2] + (n, teacher_w2.shape[3]))
     elif init == 'net2wider':
         index = np.random.randint(teacher_w1.shape[3], size=n)
         factors = np.bincount(index)[index] + 1.
@@ -208,7 +209,7 @@ def deeper2net_conv2d(teacher_w):
     kh, kw, num_channel, filters = teacher_w.shape
     student_w = np.zeros_like(teacher_w)
     for i in range(filters):
-        student_w[(kh - 1) / 2, (kw - 1) / 2, i, i] = 1.
+        student_w[(kh - 1) // 2, (kw - 1) // 2, i, i] = 1.
     student_b = np.zeros(filters)
     return student_w, student_b
 

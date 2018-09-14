@@ -1,11 +1,15 @@
+"""Built-in loss functions.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import six
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
 from .utils.generic_utils import serialize_keras_object
 
 
-# noinspection SpellCheckingInspection
 def mean_squared_error(y_true, y_pred):
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
@@ -47,13 +51,18 @@ def logcosh(y_true, y_pred):
     `log(cosh(x))` is approximately equal to `(x ** 2) / 2` for small `x` and
     to `abs(x) - log(2)` for large `x`. This means that 'logcosh' works mostly
     like the mean squared error, but will not be so strongly affected by the
-    occasional wildly incorrect prediction. However, it may return NaNs if the
-    intermediate value `cosh(y_pred - y_true)` is too large to be represented
-    in the chosen precision.
+    occasional wildly incorrect prediction.
+
+    # Arguments
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+
+    # Returns
+        Tensor with one scalar loss entry per sample.
     """
-    def cosh(x):
-        return (K.exp(x) + K.exp(-x)) / 2
-    return K.mean(K.log(cosh(y_pred - y_true)), axis=-1)
+    def _logcosh(x):
+        return x + K.softplus(-2. * x) - K.log(2.)
+    return K.mean(_logcosh(y_pred - y_true), axis=-1)
 
 
 def categorical_crossentropy(y_true, y_pred):
@@ -106,6 +115,17 @@ def deserialize(name, custom_objects=None):
 
 
 def get(identifier):
+    """Get the `identifier` loss function.
+
+    # Arguments
+        identifier: None or str, name of the function.
+
+    # Returns
+        The loss function or None if `identifier` is None.
+
+    # Raises
+        ValueError if unknown identifier.
+    """
     if identifier is None:
         return None
     if isinstance(identifier, six.string_types):

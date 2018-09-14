@@ -6,7 +6,11 @@ from itertools import compress
 
 import pytest
 
-modules = ['keras.layers', 'keras.models', 'keras', 'keras.backend.tensorflow_backend']
+modules = ['keras.layers', 'keras.models', 'keras',
+           'keras.backend.tensorflow_backend', 'keras.engine',
+           'keras.wrappers', 'keras.utils',
+           'keras.callbacks', 'keras.activations',
+           'keras.losses', 'keras.models', 'keras.optimizers']
 accepted_name = ['from_config']
 accepted_module = ['keras.legacy.layers', 'keras.utils.generic_utils']
 
@@ -27,12 +31,14 @@ def handle_class(name, member):
 
 
 def handle_function(name, member):
-    if is_accepted(name, member):
+    if is_accepted(name, member) or member_too_small(member):
+        # We don't need to check this one.
         return
     doc = member.__doc__
-    if doc is None and not member_too_small(member):
+    if doc is None:
         raise ValueError("{} function doesn't have any documentation".format(name),
                          member.__module__, inspect.getmodule(member).__file__)
+
     args = list(inspect.signature(member).parameters.keys())
     assert_args_presence(args, doc, member, name)
     assert_function_style(name, member, doc, args)
@@ -43,8 +49,9 @@ def assert_doc_style(name, member, doc):
     lines = doc.split("\n")
     first_line = lines[0]
     if len(first_line.strip()) == 0:
-        raise ValueError("{} the documentation should be on the first line.".format(name),
-                         member.__module__)
+        raise ValueError(
+            "{} the documentation should be on the first line.".format(name),
+            member.__module__)
     if first_line.strip()[-1] != '.':
         raise ValueError("{} first line should end with a '.'".format(name),
                          member.__module__)
@@ -112,8 +119,10 @@ def assert_args_presence(args, doc, member, name):
     styles = [arg + ":" not in words for arg in args]
     if any(styles):
         raise ValueError(
-            "{} {} are not style properly 'argument': documentation".format(name, list(
-                compress(args, styles))), member.__module__)
+            "{} {} are not style properly 'argument': documentation".format(
+                name,
+                list(compress(args, styles))),
+            member.__module__)
 
     # Check arguments order
     indexes = [words.index(arg + ":") for arg in args]

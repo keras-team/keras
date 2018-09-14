@@ -41,7 +41,7 @@ def test_normal(tensor_shape):
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_truncated_normal(tensor_shape):
     _runner(initializers.TruncatedNormal(mean=0, stddev=1), tensor_shape,
-            target_mean=0., target_std=None, target_max=2)
+            target_mean=0., target_max=2, target_min=-2)
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
@@ -53,49 +53,49 @@ def test_constant(tensor_shape):
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_lecun_uniform(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
-    scale = np.sqrt(3. / fan_in)
+    std = np.sqrt(1. / fan_in)
     _runner(initializers.lecun_uniform(), tensor_shape,
-            target_mean=0., target_max=scale, target_min=-scale)
+            target_mean=0., target_std=std)
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_glorot_uniform(tensor_shape):
     fan_in, fan_out = initializers._compute_fans(tensor_shape)
-    scale = np.sqrt(6. / (fan_in + fan_out))
+    std = np.sqrt(2. / (fan_in + fan_out))
     _runner(initializers.glorot_uniform(), tensor_shape,
-            target_mean=0., target_max=scale, target_min=-scale)
+            target_mean=0., target_std=std)
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_he_uniform(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
-    scale = np.sqrt(6. / fan_in)
+    std = np.sqrt(2. / fan_in)
     _runner(initializers.he_uniform(), tensor_shape,
-            target_mean=0., target_max=scale, target_min=-scale)
-
-
-@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
-def test_glorot_normal(tensor_shape):
-    fan_in, fan_out = initializers._compute_fans(tensor_shape)
-    scale = np.sqrt(2. / (fan_in + fan_out))
-    _runner(initializers.glorot_normal(), tensor_shape,
-            target_mean=0., target_std=None, target_max=2 * scale)
-
-
-@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
-def test_he_normal(tensor_shape):
-    fan_in, _ = initializers._compute_fans(tensor_shape)
-    scale = np.sqrt(2. / fan_in)
-    _runner(initializers.he_normal(), tensor_shape,
-            target_mean=0., target_std=None, target_max=2 * scale)
+            target_mean=0., target_std=std)
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
 def test_lecun_normal(tensor_shape):
     fan_in, _ = initializers._compute_fans(tensor_shape)
-    scale = np.sqrt(1. / fan_in)
+    std = np.sqrt(1. / fan_in)
     _runner(initializers.lecun_normal(), tensor_shape,
-            target_mean=0., target_std=scale)
+            target_mean=0., target_std=std)
+
+
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_glorot_normal(tensor_shape):
+    fan_in, fan_out = initializers._compute_fans(tensor_shape)
+    std = np.sqrt(2. / (fan_in + fan_out))
+    _runner(initializers.glorot_normal(), tensor_shape,
+            target_mean=0., target_std=std)
+
+
+@pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
+def test_he_normal(tensor_shape):
+    fan_in, _ = initializers._compute_fans(tensor_shape)
+    std = np.sqrt(2. / fan_in)
+    _runner(initializers.he_normal(), tensor_shape,
+            target_mean=0., target_std=std)
 
 
 @pytest.mark.parametrize('tensor_shape', [FC_SHAPE, CONV_SHAPE], ids=['FC', 'CONV'])
@@ -104,9 +104,11 @@ def test_orthogonal(tensor_shape):
             target_mean=0.)
 
 
-@pytest.mark.parametrize('tensor_shape', [(100, 100), (1, 2, 3, 4)], ids=['FC', 'CONV'])
+@pytest.mark.parametrize('tensor_shape',
+                         [(100, 100), (10, 20), (30, 80), (1, 2, 3, 4)],
+                         ids=['FC', 'RNN', 'RNN_INVALID', 'CONV'])
 def test_identity(tensor_shape):
-    if len(tensor_shape) > 2:
+    if len(tensor_shape) > 2 or max(tensor_shape) % min(tensor_shape) != 0:
         with pytest.raises(ValueError):
             _runner(initializers.identity(), tensor_shape,
                     target_mean=1. / tensor_shape[0], target_max=1.)

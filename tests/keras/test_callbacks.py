@@ -3,6 +3,7 @@ import multiprocessing
 
 import numpy as np
 import pytest
+from numpy.testing import assert_allclose
 from csv import reader
 from csv import Sniffer
 import shutil
@@ -10,13 +11,20 @@ from keras import optimizers
 from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
-from keras.layers import Input, Dense, Dropout, add
+from keras.layers import Input, Dense, Dropout, add, dot, Lambda, Layer
 from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D, GlobalAveragePooling2D
+from keras.layers.pooling import MaxPooling2D
+from keras.layers.pooling import GlobalAveragePooling1D
+from keras.layers.pooling import GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
 from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.utils import np_utils
+try:
+    from unittest.mock import patch
+except:
+    from mock import patch
+
 
 input_dim = 2
 num_hidden = 4
@@ -99,7 +107,8 @@ def test_stop_training_csv(tmpdir):
         tot = 0
         while 1:
             if tot > 3 * len(X_train):
-                yield np.ones([batch_size, input_dim]) * np.nan, np.ones([batch_size, num_classes]) * np.nan
+                yield (np.ones([batch_size, input_dim]) * np.nan,
+                       np.ones([batch_size, num_classes]) * np.nan)
             else:
                 yield (X_train[i * batch_size: (i + 1) * batch_size],
                        y_train[i * batch_size: (i + 1) * batch_size])
@@ -262,12 +271,19 @@ def test_EarlyStopping_patience():
         def __init__(self):
             self.stop_training = False
 
+        def get_weights(self):
+            return []
+
+        def set_weights(self, weights):
+            pass
+
     early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2)
     early_stop.model = DummyModel()
 
     losses = [0.0860, 0.1096, 0.1040, 0.1019]
 
-    # Should stop after epoch 3, as the loss has not improved after patience=2 epochs.
+    # Should stop after epoch 3,
+    # as the loss has not improved after patience=2 epochs.
     epochs_trained = 0
     early_stop.on_train_begin()
 
@@ -279,6 +295,120 @@ def test_EarlyStopping_patience():
             break
 
     assert epochs_trained == 3
+
+
+@keras_test
+def test_EarlyStopping_baseline():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+
+        def get_weights(self):
+            return []
+
+        def set_weights(self, weights):
+            pass
+
+    def baseline_tester(acc_levels):
+        early_stop = callbacks.EarlyStopping(monitor='val_acc', baseline=0.75,
+                                             patience=2)
+        early_stop.model = DummyModel()
+        epochs_trained = 0
+        early_stop.on_train_begin()
+        for epoch in range(len(acc_levels)):
+            epochs_trained += 1
+            early_stop.on_epoch_end(epoch, logs={'val_acc': acc_levels[epoch]})
+            if early_stop.model.stop_training:
+                break
+        return epochs_trained
+
+    acc_levels = [0.55, 0.76, 0.81, 0.81]
+    baseline_met = baseline_tester(acc_levels)
+    acc_levels = [0.55, 0.74, 0.81, 0.81]
+    baseline_not_met = baseline_tester(acc_levels)
+
+    # All epochs should run because baseline was met in second epoch
+    assert baseline_met == 4
+    # Baseline was not met by second epoch and should stop
+    assert baseline_not_met == 2
+
+
+@keras_test
+def test_EarlyStopping_final_weights():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+            self.weights = -1
+
+        def get_weights(self):
+            return self.weights
+
+        def set_weights(self, weights):
+            self.weights = weights
+
+        def set_weight_to_epoch(self, epoch):
+            self.weights = epoch
+
+    early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2)
+    early_stop.model = DummyModel()
+
+    losses = [0.2, 0.15, 0.1, 0.11, 0.12]
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(losses)):
+        epochs_trained += 1
+        early_stop.model.set_weight_to_epoch(epoch=epoch)
+        early_stop.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    # The best configuration is in the epoch 2 (loss = 0.1000),
+    # so with patience=2 we need to end up at epoch 4
+    assert early_stop.model.get_weights() == 4
+
+
+@keras_test
+def test_EarlyStopping_final_weights_when_restoring_model_weights():
+    class DummyModel(object):
+        def __init__(self):
+            self.stop_training = False
+            self.weights = -1
+
+        def get_weights(self):
+            return self.weights
+
+        def set_weights(self, weights):
+            self.weights = weights
+
+        def set_weight_to_epoch(self, epoch):
+            self.weights = epoch
+
+    early_stop = callbacks.EarlyStopping(monitor='val_loss', patience=2,
+                                         restore_best_weights=True)
+    early_stop.model = DummyModel()
+
+    losses = [0.2, 0.15, 0.1, 0.11, 0.12]
+
+    # The best configuration is in the epoch 2 (loss = 0.1000).
+
+    epochs_trained = 0
+    early_stop.on_train_begin()
+
+    for epoch in range(len(losses)):
+        epochs_trained += 1
+        early_stop.model.set_weight_to_epoch(epoch=epoch)
+        early_stop.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+
+        if early_stop.model.stop_training:
+            break
+
+    # The best configuration is in epoch 2 (loss = 0.1000),
+    # and while patience = 2, we're restoring the best weights,
+    # so we end up at the epoch with the best weights, i.e. epoch 2
+    assert early_stop.model.get_weights() == 2
 
 
 @keras_test
@@ -329,16 +459,56 @@ def test_ReduceLROnPlateau():
     model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=10, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                        min_delta=10, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
+    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1, epsilon=0, patience=1, cooldown=5)]
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
+                                        min_delta=0, patience=1, cooldown=5)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert np.allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+
+
+@keras_test
+def test_ReduceLROnPlateau_patience():
+    class DummyOptimizer(object):
+        def __init__(self):
+            self.lr = K.variable(1.0)
+
+    class DummyModel(object):
+        def __init__(self):
+            self.optimizer = DummyOptimizer()
+
+    reduce_on_plateau = callbacks.ReduceLROnPlateau(monitor='val_loss',
+                                                    patience=2)
+    reduce_on_plateau.model = DummyModel()
+
+    losses = [0.0860, 0.1096, 0.1040]
+    lrs = []
+
+    for epoch in range(len(losses)):
+        reduce_on_plateau.on_epoch_end(epoch, logs={'val_loss': losses[epoch]})
+        lrs.append(K.get_value(reduce_on_plateau.model.optimizer.lr))
+
+    # The learning rates should be 1.0 except the last one
+    assert all([lr == 1.0 for lr in lrs[:-1]]) and lrs[-1] < 1.0
+
+
+@keras_test
+def test_ReduceLROnPlateau_backwards_compatibility():
+    import warnings
+    with warnings.catch_warnings(record=True) as ws:
+        reduce_on_plateau = callbacks.ReduceLROnPlateau(epsilon=1e-13)
+        # Check if warnings are disabled
+        if os.environ.get("PYTHONWARNINGS") != "ignore":
+            assert "`epsilon` argument is deprecated" in str(ws[0].message)
+    assert not hasattr(reduce_on_plateau, 'epsilon')
+    assert hasattr(reduce_on_plateau, 'min_delta')
+    assert reduce_on_plateau.min_delta == 1e-13
 
 
 @keras_test
@@ -398,8 +568,6 @@ def test_CSVLogger(tmpdir):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
 def test_TensorBoard(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -430,6 +598,19 @@ def test_TensorBoard(tmpdir):
             i += 1
             i = i % max_batch_index
 
+    class DummyStatefulMetric(Layer):
+
+        def __init__(self, name='dummy_stateful_metric', **kwargs):
+            super(DummyStatefulMetric, self).__init__(name=name, **kwargs)
+            self.stateful = True
+            self.state = K.variable(value=0, dtype='int32')
+
+        def reset_states(self):
+            pass
+
+        def __call__(self, y_true, y_pred):
+            return self.state
+
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
@@ -437,20 +618,22 @@ def test_TensorBoard(tmpdir):
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
-                  metrics=['accuracy'])
+                  metrics=['accuracy', DummyStatefulMetric()])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq):
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      embeddings_freq=1,
+                                      embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
+                                      embeddings_data=X_test,
                                       batch_size=5)]
 
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,
-              callbacks=callbacks_factory(histogram_freq=0), epochs=3)
+              callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
+              epochs=3)
 
     # fit with validation data and accuracy
     model.fit(X_train, y_train, batch_size=batch_size,
@@ -459,7 +642,8 @@ def test_TensorBoard(tmpdir):
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        callbacks=callbacks_factory(histogram_freq=0))
+                        callbacks=callbacks_factory(histogram_freq=0,
+                                                    embeddings_freq=0))
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
@@ -514,12 +698,13 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq):
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      embeddings_freq=1,
+                                      embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
+                                      embeddings_data=X_test,
                                       batch_size=5)]
 
     # fit without validation data should raise ValueError if histogram_freq > 0
@@ -546,8 +731,6 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
 def test_TensorBoard_multi_input_output(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -555,7 +738,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
     (X_train, y_train), (X_test, y_test) = get_test_data(
         num_train=train_samples,
         num_test=test_samples,
-        input_shape=(input_dim,),
+        input_shape=(input_dim, input_dim),
         classification=True,
         num_classes=num_classes)
     y_test = np_utils.to_categorical(y_test)
@@ -578,10 +761,14 @@ def test_TensorBoard_multi_input_output(tmpdir):
             i += 1
             i = i % max_batch_index
 
-    inp1 = Input((input_dim,))
-    inp2 = Input((input_dim,))
-    inp = add([inp1, inp2])
-    hidden = Dense(num_hidden, activation='relu')(inp)
+    inp1 = Input((input_dim, input_dim))
+    inp2 = Input((input_dim, input_dim))
+    inp_3d = add([inp1, inp2])
+    inp_2d = GlobalAveragePooling1D()(inp_3d)
+    # test a layer with a list of output tensors
+    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])
+    hidden = dot(inp_pair, axes=-1)
+    hidden = Dense(num_hidden, activation='relu')(hidden)
     hidden = Dropout(0.1)(hidden)
     output1 = Dense(num_classes, activation='softmax')(hidden)
     output2 = Dense(num_classes, activation='softmax')(hidden)
@@ -591,17 +778,19 @@ def test_TensorBoard_multi_input_output(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq):
+    def callbacks_factory(histogram_freq, embeddings_freq=1):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      embeddings_freq=1,
+                                      embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
+                                      embeddings_data=[X_test] * 2,
                                       batch_size=5)]
 
     # fit without validation data
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
-              callbacks=callbacks_factory(histogram_freq=0), epochs=3)
+              callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
+              epochs=3)
 
     # fit with validation data and accuracy
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
@@ -610,7 +799,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
     # fit generator without validation data
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                        callbacks=callbacks_factory(histogram_freq=0))
+                        callbacks=callbacks_factory(histogram_freq=0,
+                                                    embeddings_freq=0))
 
     # fit generator with validation data and accuracy
     model.fit_generator(data_generator(True), len(X_train), epochs=2,
@@ -623,8 +813,6 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
 def test_TensorBoard_convnet(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
@@ -660,6 +848,40 @@ def test_TensorBoard_convnet(tmpdir):
                         validation_data=(x_test, y_test),
                         callbacks=cbks,
                         verbose=0)
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
+
+
+@keras_test
+def test_TensorBoard_display_float_from_logs(tmpdir):
+    filepath = str(tmpdir / 'logs')
+
+    input_shape = (3,)
+    (x_train, y_train), _ = get_test_data(num_train=10,
+                                          num_test=0,
+                                          input_shape=input_shape,
+                                          classification=True,
+                                          num_classes=num_classes)
+    y_train = np_utils.to_categorical(y_train)
+
+    model = Sequential([
+        Dense(num_classes, activation='softmax')
+    ])
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop')
+
+    class CustomCallback(callbacks.Callback):
+
+        def on_epoch_end(self, epoch, logs=None):
+            logs['test'] = 0.
+
+    tsb = callbacks.TensorBoard(log_dir=filepath,
+                                batch_size=16)
+    cbks = [CustomCallback(), tsb]
+    model.fit(x_train, y_train, epochs=2, batch_size=16,
+              callbacks=cbks,
+              verbose=0)
     assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
     assert not tmpdir.listdir()
@@ -731,14 +953,16 @@ def test_LambdaCallback():
                   optimizer='sgd',
                   metrics=['accuracy'])
 
-    # Start an arbitrary process that should run during model training and be terminated after training has completed.
+    # Start an arbitrary process that should run during model training and
+    # be terminated after training has completed.
     def f():
         while True:
             pass
 
     p = multiprocessing.Process(target=f)
     p.start()
-    cleanup_callback = callbacks.LambdaCallback(on_train_end=lambda logs: p.terminate())
+    cleanup_callback = callbacks.LambdaCallback(
+        on_train_end=lambda logs: p.terminate())
 
     cbks = [cleanup_callback]
     model.fit(X_train, y_train, batch_size=batch_size,
@@ -748,8 +972,6 @@ def test_LambdaCallback():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="Requires TensorFlow backend")
 def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
     np.random.seed(np.random.randint(1, 1e7))
@@ -785,6 +1007,50 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
     assert not tmpdir.listdir()
+
+
+@keras_test
+def tests_RemoteMonitor():
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_classes)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+    cbks = [callbacks.RemoteMonitor()]
+
+    with patch('requests.post'):
+        model.fit(X_train, y_train, batch_size=batch_size,
+                  validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
+
+
+@keras_test
+def tests_RemoteMonitorWithJsonPayload():
+    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
+                                                         num_test=test_samples,
+                                                         input_shape=(input_dim,),
+                                                         classification=True,
+                                                         num_classes=num_classes)
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+    cbks = [callbacks.RemoteMonitor(send_as_json=True)]
+
+    with patch('requests.post'):
+        model.fit(X_train, y_train, batch_size=batch_size,
+                  validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
 
 if __name__ == '__main__':

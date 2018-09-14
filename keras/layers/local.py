@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
+"""Locally-connected layers.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 from .. import backend as K
 from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
 from ..legacy import interfaces
 
@@ -34,7 +38,7 @@ class LocallyConnected1D(Layer):
 
     # Arguments
         filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
+            (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of a single integer,
             specifying the length of the 1D convolution window.
         strides: An integer or tuple/list of a single integer,
@@ -97,7 +101,7 @@ class LocallyConnected1D(Layer):
         if self.padding != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected1D '
                              '(only "valid" is supported): ' + padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -147,8 +151,6 @@ class LocallyConnected1D(Layer):
         return (input_shape[0], length, self.filters)
 
     def call(self, inputs):
-        output_length, _, filters = self.kernel_shape
-
         output = K.local_conv1d(inputs, self.kernel, self.kernel_size, self.strides)
         if self.use_bias:
             output = K.bias_add(output, self.bias)
@@ -200,7 +202,7 @@ class LocallyConnected2D(Layer):
 
     # Arguments
         filters: Integer, the dimensionality of the output space
-            (i.e. the number output of filters in the convolution).
+            (i.e. the number of output filters in the convolution).
         kernel_size: An integer or tuple/list of 2 integers, specifying the
             width and height of the 2D convolution window.
             Can be a single integer to specify the same value for
@@ -281,7 +283,7 @@ class LocallyConnected2D(Layer):
         if self.padding != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected2D '
                              '(only "valid" is supported): ' + padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -352,8 +354,6 @@ class LocallyConnected2D(Layer):
             return (input_shape[0], rows, cols, self.filters)
 
     def call(self, inputs):
-        _, _, filters = self.kernel_shape
-
         output = K.local_conv2d(inputs,
                                 self.kernel,
                                 self.kernel_size,
@@ -362,8 +362,7 @@ class LocallyConnected2D(Layer):
                                 self.data_format)
 
         if self.use_bias:
-            if self.data_format == 'channels_first' or self.data_format == 'channels_last':
-                output = K.bias_add(output, self.bias, data_format=self.data_format)
+            output = K.bias_add(output, self.bias, data_format=self.data_format)
 
         output = self.activation(output)
         return output

@@ -19,6 +19,7 @@
 - [How can I use HDF5 inputs with Keras?](#how-can-i-use-hdf5-inputs-with-keras)
 - [Where is the Keras configuration file stored?](#where-is-the-keras-configuration-file-stored)
 - [How can I obtain reproducible results using Keras during development?](#how-can-i-obtain-reproducible-results-using-keras-during-development)
+- [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras)
 
 ---
 
@@ -31,8 +32,7 @@ Please cite Keras in your publications if it helps your research. Here is an exa
   title={Keras},
   author={Chollet, Fran\c{c}ois and others},
   year={2015},
-  publisher={GitHub},
-  howpublished={\url{https://github.com/fchollet/keras}},
+  howpublished={\url{https://keras.io}},
 }
 ```
 
@@ -125,7 +125,7 @@ Below are some common definitions that are necessary to know and understand to c
   - *Example:* one image is a **sample** in a convolutional network
   - *Example:* one audio file is a **sample** for a speech recognition model
 - **Batch**: a set of *N* samples. The samples in a **batch** are processed independently, in parallel. If training, a batch results in only one update to the model.
-  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to processes and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to process and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
 - **Epoch**: an arbitrary cutoff, generally defined as "one pass over the entire dataset", used to separate training into distinct phases, which is useful for logging and periodic evaluation.
   - When using `evaluation_data` or `evaluation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
   - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model checkpointing (saving).
@@ -148,6 +148,8 @@ You can use `model.save(filepath)` to save a Keras model into a single HDF5 file
 You can then use `keras.models.load_model(filepath)` to reinstantiate your model.
 `load_model` will also take care of compiling the model using the saved training configuration
 (unless the model was never compiled in the first place).
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 Example:
 
@@ -192,8 +194,6 @@ model = model_from_yaml(yaml_string)
 
 If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
 
-Note that you will first need to install HDF5 and the Python library h5py, which do not come bundled with Keras.
-
 ```python
 model.save_weights('my_model_weights.h5')
 ```
@@ -209,6 +209,8 @@ If you need to load weights into a *different* architecture (with some layers in
 ```python
 model.load_weights('my_model_weights.h5', by_name=True)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 For example:
 
@@ -318,7 +320,7 @@ You can do batch training using `model.train_on_batch(x, y)` and `model.test_on_
 
 Alternatively, you can write a generator that yields batches of training data and use the method `model.fit_generator(data_generator, steps_per_epoch, epochs)`.
 
-You can see batch training in action in our [CIFAR10 example](https://github.com/fchollet/keras/blob/master/examples/cifar10_cnn.py).
+You can see batch training in action in our [CIFAR10 example](https://github.com/keras-team/keras/blob/master/examples/cifar10_cnn.py).
 
 ---
 
@@ -421,7 +423,6 @@ To reset the states accumulated:
 Example:
 
 ```python
-
 x  # this is our input data, of shape (32, 21, 16)
 # we will feed it to our model in sequences of length 10
 
@@ -444,7 +445,7 @@ model.reset_states()
 model.layers[0].reset_states()
 ```
 
-Notes that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
+Note that the methods `predict`, `fit`, `train_on_batch`, `predict_classes`, etc. will *all* update the states of the stateful layers in a model. This allows you to do not only stateful training, but also stateful prediction.
 
 ---
 
@@ -497,9 +498,9 @@ For a detailed example of how to use such a pre-trained model for feature extrac
 
 The VGG16 model is also the basis for several Keras example scripts:
 
-- [Style transfer](https://github.com/fchollet/keras/blob/master/examples/neural_style_transfer.py)
-- [Feature visualization](https://github.com/fchollet/keras/blob/master/examples/conv_filter_visualization.py)
-- [Deep dream](https://github.com/fchollet/keras/blob/master/examples/deep_dream.py)
+- [Style transfer](https://github.com/keras-team/keras/blob/master/examples/neural_style_transfer.py)
+- [Feature visualization](https://github.com/keras-team/keras/blob/master/examples/conv_filter_visualization.py)
+- [Deep dream](https://github.com/keras-team/keras/blob/master/examples/deep_dream.py)
 
 ---
 
@@ -515,6 +516,8 @@ with h5py.File('input/file.hdf5', 'r') as f:
     x_data = f['x_data']
     model.predict(x_data)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 ---
 
@@ -553,21 +556,35 @@ Likewise, cached dataset files, such as those downloaded with [`get_file()`](/ut
 
 ### How can I obtain reproducible results using Keras during development?
 
-During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.  The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment.
+During development of a model, sometimes it is useful to be able to obtain reproducible results from run to run in order to determine if a change in performance is due to an actual model or data modification, or merely a result of a new random sample.
+
+First, you need to set the `PYTHONHASHSEED` environment variable to `0` before the program starts (not within the program itself). This is necessary in Python 3.2.3 onwards to have reproducible behavior for certain hash-based operations (e.g., the item order in a set or a dict, see [Python's documentation](https://docs.python.org/3.7/using/cmdline.html#envvar-PYTHONHASHSEED) or [issue #2280](https://github.com/keras-team/keras/issues/2280#issuecomment-306959926) for further details). One way to set the environment variable is when starting python like this:
+
+```
+$ cat test_hash.py
+print(hash("keras"))
+$ python3 test_hash.py                  # non-reproducible hash (Python 3.2.3+)
+-8127205062320133199
+$ python3 test_hash.py                  # non-reproducible hash (Python 3.2.3+)
+3204480642156461591
+$ PYTHONHASHSEED=0 python3 test_hash.py # reproducible hash
+4883664951434749476
+$ PYTHONHASHSEED=0 python3 test_hash.py # reproducible hash
+4883664951434749476
+```
+
+Moreover, when using the TensorFlow backend and running on a GPU, some operations have non-deterministic outputs, in particular `tf.reduce_sum()`. This is due to the fact that GPUs run many operations in parallel, so the order of execution is not always guaranteed. Due to the limited precision of floats, even adding several numbers together may give slightly different results depending on the order in which you add them. You can try to avoid the non-deterministic operations, but some may be created automatically by TensorFlow to compute the gradients, so it is much simpler to just run the code on the CPU. For this, you can set the `CUDA_VISIBLE_DEVICES` environment variable to an empty string, for example:
+
+```
+$ CUDA_VISIBLE_DEVICES="" PYTHONHASHSEED=0 python your_program.py
+```
+
+The below snippet of code provides an example of how to obtain reproducible results - this is geared towards a TensorFlow backend for a Python 3 environment:
 
 ```python
 import numpy as np
 import tensorflow as tf
 import random as rn
-
-# The below is necessary in Python 3.2.3 onwards to
-# have reproducible behavior for certain hash-based operations.
-# See these references for further details:
-# https://docs.python.org/3.4/using/cmdline.html#envvar-PYTHONHASHSEED
-# https://github.com/fchollet/keras/issues/2280#issuecomment-306959926
-
-import os
-os.environ['PYTHONHASHSEED'] = '0'
 
 # The below is necessary for starting Numpy generated random numbers
 # in a well-defined initial state.
@@ -580,17 +597,18 @@ np.random.seed(42)
 rn.seed(12345)
 
 # Force TensorFlow to use single thread.
-# Multiple threads are a potential source of
-# non-reproducible results.
-# For further details, see: https://stackoverflow.com/questions/42022950/which-seeds-have-to-be-set-where-to-realize-100-reproducibility-of-training-res
+# Multiple threads are a potential source of non-reproducible results.
+# For further details, see: https://stackoverflow.com/questions/42022950/
 
-session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+session_conf = tf.ConfigProto(intra_op_parallelism_threads=1,
+                              inter_op_parallelism_threads=1)
 
 from keras import backend as K
 
 # The below tf.set_random_seed() will make random number generation
 # in the TensorFlow backend have a well-defined initial state.
-# For further details, see: https://www.tensorflow.org/api_docs/python/tf/set_random_seed
+# For further details, see:
+# https://www.tensorflow.org/api_docs/python/tf/set_random_seed
 
 tf.set_random_seed(1234)
 
@@ -599,3 +617,26 @@ K.set_session(sess)
 
 # Rest of code follows ...
 ```
+
+---
+
+### How can I install HDF5 or h5py to save my models in Keras?
+
+In order to save your Keras models as HDF5 files, e.g. via
+`keras.callbacks.ModelCheckpoint`, Keras uses the h5py Python package. It is
+ a dependency of Keras and should be installed by default. On Debian-based
+ distributions, you will have to additionally install `libhdf5`:
+
+```
+sudo apt-get install libhdf5-serial-dev
+```
+
+If you are unsure if h5py is installed you can open a Python shell and load the
+module via
+
+```
+import h5py
+```
+
+If it imports without error it is installed otherwise you can find detailed
+installation instructions here: http://docs.h5py.org/en/latest/build.html

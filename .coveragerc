@@ -1,0 +1,22 @@
+[report]
+# Regexes for lines to exclude from consideration
+exclude_lines =
+    pragma: no cover
+    os.remove
+    except ImportError
+    # Don't complain if tests don't hit defensive assertion code:
+    raise ImportError
+    raise NotImplementedError
+
+    # Don't complain if legacy support codes are not performed:
+    if original_keras_version == '1':
+
+fail_under = 85
+show_missing = True
+omit =
+    keras/applications/*
+    keras/preprocessing/*
+    keras/datasets/*
+    keras/layers/cudnn_recurrent.py
+    keras/legacy/*
+    keras/utils/multi_gpu_utils.py

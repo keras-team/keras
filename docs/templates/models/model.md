@@ -16,16 +16,11 @@ This model will include all layers required in the computation of `b` given `a`.
 In the case of multi-input or multi-output models, you can use lists as well:
 
 ```python
-model = Model(inputs=[a1, a2], outputs=[b1, b3, b3])
+model = Model(inputs=[a1, a2], outputs=[b1, b2, b3])
 ```
 
 For a detailed introduction of what `Model` can do, read [this guide to the Keras functional API](/getting-started/functional-api-guide).
 
-## Useful attributes of Model
-
-- `model.layers` is a flattened list of the layers comprising the model graph.
-- `model.inputs` is the list of input tensors.
-- `model.outputs` is the list of output tensors.
 
 ## Methods
 

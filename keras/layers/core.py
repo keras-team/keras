@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+"""Core Keras layers.
+"""
 from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
 
 import numpy as np
 
@@ -13,12 +16,13 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import InputSpec
-from ..engine import Layer
+from ..engine.base_layer import InputSpec
+from ..engine.base_layer import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
 from ..utils.generic_utils import has_arg
+from ..utils import conv_utils
 from ..legacy import interfaces
 
 
@@ -56,7 +60,8 @@ class Masking(Layer):
         self.mask_value = mask_value
 
     def compute_mask(self, inputs, mask=None):
-        return K.any(K.not_equal(inputs, self.mask_value), axis=-1)
+        output_mask = K.any(K.not_equal(inputs, self.mask_value), axis=-1)
+        return output_mask
 
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
@@ -67,6 +72,9 @@ class Masking(Layer):
         config = {'mask_value': self.mask_value}
         base_config = super(Masking, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class Dropout(Layer):
@@ -123,6 +131,9 @@ class Dropout(Layer):
                   'seed': self.seed}
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class SpatialDropout1D(Dropout):
@@ -198,12 +209,7 @@ class SpatialDropout2D(Dropout):
     @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout2D, self).__init__(rate, **kwargs)
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('`data_format` must be in '
-                             '{`"channels_last"`, `"channels_first"`}')
-        self.data_format = data_format
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def _get_noise_shape(self, inputs):
@@ -251,12 +257,7 @@ class SpatialDropout3D(Dropout):
     @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout3D, self).__init__(rate, **kwargs)
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('`data_format` must be in '
-                             '{`"channels_last"`, `"channels_first"`}')
-        self.data_format = data_format
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def _get_noise_shape(self, inputs):
@@ -297,6 +298,9 @@ class Activation(Layer):
         config = {'activation': activations.serialize(self.activation)}
         base_config = super(Activation, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape
 
 
 class Reshape(Layer):
@@ -453,13 +457,26 @@ class Permute(Layer):
 class Flatten(Layer):
     """Flattens the input. Does not affect the batch size.
 
+    # Arguments
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            The purpose of this argument is to preserve weight
+            ordering when switching a model from one data format
+            to another.
+            `channels_last` corresponds to inputs with shape
+            `(batch, ..., channels)` while `channels_first` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+
     # Example
 
     ```python
         model = Sequential()
-        model.add(Conv2D(64, 3, 3,
-                         border_mode='same',
-                         input_shape=(3, 32, 32)))
+        model.add(Conv2D(64, (3, 3),
+                         input_shape=(3, 32, 32), padding='same',))
         # now: model.output_shape == (None, 64, 32, 32)
 
         model.add(Flatten())
@@ -467,9 +484,10 @@ class Flatten(Layer):
     ```
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, data_format=None, **kwargs):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
+        self.data_format = K.normalize_data_format(data_format)
 
     def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):
@@ -482,7 +500,20 @@ class Flatten(Layer):
         return (input_shape[0], np.prod(input_shape[1:]))
 
     def call(self, inputs):
+        if self.data_format == 'channels_first':
+            # Ensure works for any dim
+            permutation = [0]
+            permutation.extend([i for i in
+                                range(2, K.ndim(inputs))])
+            permutation.append(1)
+            inputs = K.permute_dimensions(inputs, permutation)
+
         return K.batch_flatten(inputs)
+
+    def get_config(self):
+        config = {'data_format': self.data_format}
+        base_config = super(Flatten, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class RepeatVector(Layer):
@@ -582,7 +613,7 @@ class Lambda(Layer):
 
     # Output shape
         Specified by `output_shape` argument
-        (or auto-inferred when using TensorFlow).
+        (or auto-inferred when using TensorFlow or CNTK).
     """
 
     @interfaces.legacy_lambda_support
@@ -607,8 +638,8 @@ class Lambda(Layer):
 
     def compute_output_shape(self, input_shape):
         if self._output_shape is None:
-            # With TensorFlow, we can infer the output shape directly:
-            if K.backend() == 'tensorflow':
+            # With TensorFlow or CNTK, we can infer the output shape directly:
+            if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
                     xs = [K.placeholder(shape=shape) for shape in input_shape]
                     x = self.call(xs)
@@ -842,7 +873,7 @@ class Dense(Layer):
     def call(self, inputs):
         output = K.dot(inputs, self.kernel)
         if self.use_bias:
-            output = K.bias_add(output, self.bias)
+            output = K.bias_add(output, self.bias, data_format='channels_last')
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -899,3 +930,6 @@ class ActivityRegularization(Layer):
                   'l2': self.l2}
         base_config = super(ActivityRegularization, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+    def compute_output_shape(self, input_shape):
+        return input_shape

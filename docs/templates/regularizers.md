@@ -25,7 +25,7 @@ model.add(Dense(64, input_dim=64,
 ```python
 keras.regularizers.l1(0.)
 keras.regularizers.l2(0.)
-keras.regularizers.l1_l2(0.)
+keras.regularizers.l1_l2(l1=0.01, l2=0.01)
 ```
 
 ## Developing new regularizers
@@ -43,4 +43,4 @@ model.add(Dense(64, input_dim=64,
 ```
 
 Alternatively, you can write your regularizers in an object-oriented way;
-see the [keras/regularizers.py](https://github.com/fchollet/keras/blob/master/keras/regularizers.py) module for examples.
+see the [keras/regularizers.py](https://github.com/keras-team/keras/blob/master/keras/regularizers.py) module for examples.

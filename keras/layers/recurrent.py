@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
+"""Recurrent layers and their base classes.
+"""
 from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+
 import numpy as np
 import warnings
 
@@ -8,8 +13,8 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import Layer
-from ..engine import InputSpec
+from ..engine.base_layer import Layer
+from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
 
 # Legacy support.
@@ -49,59 +54,94 @@ class StackedRNNCells(Layer):
                                  '`state_size` attribute. '
                                  'received cells:', cells)
         self.cells = cells
+        # reverse_state_order determines whether the state size will be in a
+        # reverse order of the cells' state. User might want to set this to True
+        # to keep the existing behavior. This is only useful when use
+        # `RNN(return_state=True)` since the state will be returned as the same
+        # order of state_size.
+        self.reverse_state_order = kwargs.pop('reverse_state_order', False)
+        if self.reverse_state_order:
+            warnings.warn('`reverse_state_order=True` in `StackedRNNCells` '
+                          'will soon be deprecated. Please update the code to '
+                          'work with the natural order of states if you '
+                          'reply on the RNN states, '
+                          'eg `RNN(return_state=True)`.')
         super(StackedRNNCells, self).__init__(**kwargs)
 
     @property
     def state_size(self):
-        # States are a flat list
-        # in reverse order of the cell stack.
-        # This allows to preserve the requirement
-        # `stack.state_size[0] == output_dim`.
-        # e.g. states of a 2-layer LSTM would be
-        # `[h2, c2, h1, c1]`
+        # States are a flat list of the individual cell state size.
+        # e.g. states of a 2-layer LSTM would be `[h1, c1, h2, c2]`.
         # (assuming one LSTM has states [h, c])
+        # In the case of reverse_state_order=True, the state_size will be
+        # `[h2, c2, h1, c1]`.
         state_size = []
-        for cell in self.cells[::-1]:
+        for cell in self.cells[::-1] if self.reverse_state_order else self.cells:
             if hasattr(cell.state_size, '__len__'):
                 state_size += list(cell.state_size)
             else:
                 state_size.append(cell.state_size)
         return tuple(state_size)
 
-    def call(self, inputs, states, **kwargs):
+    @property
+    def output_size(self):
+        if getattr(self.cells[-1], 'output_size', None) is not None:
+            return self.cells[-1].output_size
+        if hasattr(self.cells[-1].state_size, '__len__'):
+            return self.cells[-1].state_size[0]
+        else:
+            return self.cells[-1].state_size
+
+    def call(self, inputs, states, constants=None, **kwargs):
         # Recover per-cell states.
         nested_states = []
-        for cell in self.cells[::-1]:
+        for cell in self.cells[::-1] if self.reverse_state_order else self.cells:
             if hasattr(cell.state_size, '__len__'):
                 nested_states.append(states[:len(cell.state_size)])
                 states = states[len(cell.state_size):]
             else:
                 nested_states.append([states[0]])
                 states = states[1:]
-        nested_states = nested_states[::-1]
+        if self.reverse_state_order:
+            nested_states = nested_states[::-1]
 
         # Call the cells in order and store the returned states.
         new_nested_states = []
         for cell, states in zip(self.cells, nested_states):
-            inputs, states = cell.call(inputs, states, **kwargs)
+            if has_arg(cell.call, 'constants'):
+                inputs, states = cell.call(inputs, states,
+                                           constants=constants,
+                                           **kwargs)
+            else:
+                inputs, states = cell.call(inputs, states, **kwargs)
             new_nested_states.append(states)
 
         # Format the new states as a flat list
         # in reverse cell order.
-        states = []
-        for cell_states in new_nested_states[::-1]:
-            states += cell_states
-        return inputs, states
+        new_states = []
+        if self.reverse_state_order:
+            new_nested_states = new_nested_states[::-1]
+        for cell_states in new_nested_states:
+            new_states += cell_states
+        return inputs, new_states
 
     def build(self, input_shape):
+        if isinstance(input_shape, list):
+            constants_shape = input_shape[1:]
+            input_shape = input_shape[0]
         for cell in self.cells:
             if isinstance(cell, Layer):
-                cell.build(input_shape)
-            if hasattr(cell.state_size, '__len__'):
+                if has_arg(cell.call, 'constants'):
+                    cell.build([input_shape] + constants_shape)
+                else:
+                    cell.build(input_shape)
+            if getattr(cell, 'output_size', None) is not None:
+                output_dim = cell.output_size
+            elif hasattr(cell.state_size, '__len__'):
                 output_dim = cell.state_size[0]
             else:
                 output_dim = cell.state_size
-            input_shape = (input_shape[0], input_shape[1], output_dim)
+            input_shape = (input_shape[0], output_dim)
         self.built = True
 
     def get_config(self):
@@ -207,13 +247,16 @@ class RNN(Layer):
                 the size of the recurrent state
                 (which should be the same as the size of the cell output).
                 This can also be a list/tuple of integers
-                (one size per state). In this case, the first entry
-                (`state_size[0]`) should be the same as
-                the size of the cell output.
+                (one size per state).
+            - a `output_size` attribute. This can be a single integer or a
+                TensorShape, which represent the shape of the output. For
+                backward compatible reason, if this attribute is not available
+                for the cell, the value will be inferred by the first element
+                of the `state_size`.
             It is also possible for `cell` to be a list of RNN cell instances,
             in which cases the cells get stacked on after the other in the RNN,
             implementing an efficient stacked RNN.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -395,9 +438,14 @@ class RNN(Layer):
             input_shape = input_shape[0]
 
         if hasattr(self.cell.state_size, '__len__'):
-            output_dim = self.cell.state_size[0]
+            state_size = self.cell.state_size
         else:
-            output_dim = self.cell.state_size
+            state_size = [self.cell.state_size]
+
+        if getattr(self.cell, 'output_size', None) is not None:
+            output_dim = self.cell.output_size
+        else:
+            output_dim = state_size[0]
 
         if self.return_sequences:
             output_shape = (input_shape[0], input_shape[1], output_dim)
@@ -405,7 +453,7 @@ class RNN(Layer):
             output_shape = (input_shape[0], output_dim)
 
         if self.return_state:
-            state_shape = [(input_shape[0], output_dim) for _ in self.states]
+            state_shape = [(input_shape[0], dim) for dim in state_size]
             return [output_shape] + state_shape
         else:
             return output_shape
@@ -451,17 +499,18 @@ class RNN(Layer):
 
         if self.state_spec is not None:
             # initial_state was passed in call, check compatibility
-            if not [spec.shape[-1] for spec in self.state_spec] == state_size:
+            if [spec.shape[-1] for spec in self.state_spec] != state_size:
                 raise ValueError(
-                    'An initial_state was passed that is not compatible with '
+                    'An `initial_state` was passed that is not compatible with '
                     '`cell.state_size`. Received `state_spec`={}; '
-                    'However `cell.state_size` is '
+                    'however `cell.state_size` is '
                     '{}'.format(self.state_spec, self.cell.state_size))
         else:
             self.state_spec = [InputSpec(shape=(None, dim))
                                for dim in state_size]
         if self.stateful:
             self.reset_states()
+        self.built = True
 
     def get_initial_state(self, inputs):
         # build an all-zero tensor of shape (samples, output_dim)
@@ -475,8 +524,8 @@ class RNN(Layer):
             return [K.tile(initial_state, [1, self.cell.state_size])]
 
     def __call__(self, inputs, initial_state=None, constants=None, **kwargs):
-        inputs, initial_state, constants = self._standardize_args(
-            inputs, initial_state, constants)
+        inputs, initial_state, constants = _standardize_args(
+            inputs, initial_state, constants, self._num_constants)
 
         if initial_state is None and constants is None:
             return super(RNN, self).__call__(inputs, **kwargs)
@@ -501,12 +550,14 @@ class RNN(Layer):
             self._num_constants = len(constants)
             additional_specs += self.constants_spec
         # at this point additional_inputs cannot be empty
-        is_keras_tensor = hasattr(additional_inputs[0], '_keras_history')
+        is_keras_tensor = K.is_keras_tensor(additional_inputs[0])
         for tensor in additional_inputs:
-            if hasattr(tensor, '_keras_history') != is_keras_tensor:
+            if K.is_keras_tensor(tensor) != is_keras_tensor:
                 raise ValueError('The initial state or constants of an RNN'
                                  ' layer cannot be specified with a mix of'
-                                 ' Keras tensors and non-Keras tensors')
+                                 ' Keras tensors and non-Keras tensors'
+                                 ' (a "Keras tensor" is a tensor that was'
+                                 ' returned by a Keras layer, or by `Input`)')
 
         if is_keras_tensor:
             # Compute the full input spec, including state and constants
@@ -531,6 +582,14 @@ class RNN(Layer):
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
         if isinstance(inputs, list):
+            # get initial_state from full input spec
+            # as they could be copied to multiple GPU.
+            if self._num_constants is None:
+                initial_state = inputs[1:]
+            else:
+                initial_state = inputs[1:-self._num_constants]
+            if len(initial_state) == 0:
+                initial_state = None
             inputs = inputs[0]
         if initial_state is not None:
             pass
@@ -601,6 +660,8 @@ class RNN(Layer):
         # Properly set learning phase
         if getattr(last_output, '_uses_learning_phase', False):
             output._uses_learning_phase = True
+            for state in states:
+                state._uses_learning_phase = True
 
         if self.return_state:
             if not isinstance(states, (list, tuple)):
@@ -610,47 +671,6 @@ class RNN(Layer):
             return [output] + states
         else:
             return output
-
-    def _standardize_args(self, inputs, initial_state, constants):
-        """Brings the arguments of `__call__` that can contain input tensors to
-        standard format.
-
-        When running a model loaded from file, the input tensors
-        `initial_state` and `constants` can be passed to `RNN.__call__` as part
-        of `inputs` instead of by the dedicated keyword arguments. This method
-        makes sure the arguments are separated and that `initial_state` and
-        `constants` are lists of tensors (or None).
-
-        # Arguments
-            inputs: tensor or list/tuple of tensors
-            initial_state: tensor or list of tensors or None
-            constants: tensor or list of tensors or None
-
-        # Returns
-            inputs: tensor
-            initial_state: list of tensors or None
-            constants: list of tensors or None
-        """
-        if isinstance(inputs, list):
-            assert initial_state is None and constants is None
-            if self._num_constants is not None:
-                constants = inputs[-self._num_constants:]
-                inputs = inputs[:-self._num_constants]
-            if len(inputs) > 1:
-                initial_state = inputs[1:]
-            inputs = inputs[0]
-
-        def to_list_or_none(x):
-            if x is None or isinstance(x, list):
-                return x
-            if isinstance(x, tuple):
-                return list(x)
-            return [x]
-
-        initial_state = to_list_or_none(initial_state)
-        constants = to_list_or_none(constants)
-
-        return inputs, initial_state, constants
 
     def reset_states(self, states=None):
         if not self.stateful:
@@ -665,7 +685,7 @@ class RNN(Layer):
                              'a `batch_input_shape` '
                              'argument to your first layer.\n'
                              '- If using the functional API, specify '
-                             'the time dimension by passing a '
+                             'the batch size by passing a '
                              '`batch_shape` argument to your Input layer.')
         # initialize state if None
         if self.states[0] is None:
@@ -747,9 +767,10 @@ class RNN(Layer):
 
     @property
     def losses(self):
+        layer_losses = super(RNN, self).losses
         if isinstance(self.cell, Layer):
-            return self.cell.losses
-        return []
+            return self.cell.losses + layer_losses
+        return layer_losses
 
     def get_losses_for(self, inputs=None):
         if isinstance(self.cell, Layer):
@@ -765,15 +786,16 @@ class SimpleRNNCell(Layer):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -836,6 +858,7 @@ class SimpleRNNCell(Layer):
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.state_size = self.units
+        self.output_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
 
@@ -861,37 +884,20 @@ class SimpleRNNCell(Layer):
             self.bias = None
         self.built = True
 
-    def _generate_dropout_mask(self, inputs, training=None):
-        if 0 < self.dropout < 1:
-            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._dropout_mask = K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-        else:
-            self._dropout_mask = None
-
-    def _generate_recurrent_dropout_mask(self, inputs, training=None):
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._recurrent_dropout_mask = K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-        else:
-            self._recurrent_dropout_mask = None
-
     def call(self, inputs, states, training=None):
         prev_output = states[0]
+        if 0 < self.dropout < 1 and self._dropout_mask is None:
+            self._dropout_mask = _generate_dropout_mask(
+                K.ones_like(inputs),
+                self.dropout,
+                training=training)
+        if (0 < self.recurrent_dropout < 1 and
+                self._recurrent_dropout_mask is None):
+            self._recurrent_dropout_mask = _generate_dropout_mask(
+                K.ones_like(prev_output),
+                self.recurrent_dropout,
+                training=training)
+
         dp_mask = self._dropout_mask
         rec_dp_mask = self._recurrent_dropout_mask
 
@@ -914,6 +920,24 @@ class SimpleRNNCell(Layer):
                 output._uses_learning_phase = True
         return output, [output]
 
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout}
+        base_config = super(SimpleRNNCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class SimpleRNN(RNN):
     """Fully-connected RNN where the output is to be fed back to input.
@@ -922,15 +946,16 @@ class SimpleRNN(RNN):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -959,7 +984,7 @@ class SimpleRNN(RNN):
         recurrent_dropout: Float between 0 and 1.
             Fraction of the units to drop for
             the linear transformation of the recurrent state.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -1004,16 +1029,14 @@ class SimpleRNN(RNN):
             warnings.warn('The `implementation` argument '
                           'in `SimpleRNN` has been deprecated. '
                           'Please remove it from your layer call.')
-        if K.backend() == 'cntk':
-            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
-                warnings.warn(
-                    'RNN dropout is not supported with the CNTK backend '
-                    'when using dynamic RNNs (i.e. non-unrolled). '
-                    'You can either set `unroll=True`, '
-                    'set `dropout` and `recurrent_dropout` to 0, '
-                    'or use a different backend.')
-                dropout = 0.
-                recurrent_dropout = 0.
+        if K.backend() == 'theano' and (dropout or recurrent_dropout):
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
 
         cell = SimpleRNNCell(units,
                              activation=activation,
@@ -1039,8 +1062,8 @@ class SimpleRNN(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        self.cell._generate_dropout_mask(inputs, training=training)
-        self.cell._generate_recurrent_dropout_mask(inputs, training=training)
+        self.cell._dropout_mask = None
+        self.cell._recurrent_dropout_mask = None
         return super(SimpleRNN, self).call(inputs,
                                            mask=mask,
                                            training=training,
@@ -1136,18 +1159,22 @@ class GRUCell(Layer):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
+            Default: hard sigmoid (`hard_sigmoid`).
+            If you pass `None`, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -1179,6 +1206,9 @@ class GRUCell(Layer):
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
             for different applications.
+        reset_after: GRU convention (whether to apply reset gate after or
+            before matrix multiplication). False = "before" (default),
+            True = "after" (CuDNN compatible).
     """
 
     def __init__(self, units,
@@ -1197,6 +1227,7 @@ class GRUCell(Layer):
                  dropout=0.,
                  recurrent_dropout=0.,
                  implementation=1,
+                 reset_after=False,
                  **kwargs):
         super(GRUCell, self).__init__(**kwargs)
         self.units = units
@@ -1219,7 +1250,9 @@ class GRUCell(Layer):
         self.dropout = min(1., max(0., dropout))
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.implementation = implementation
+        self.reset_after = reset_after
         self.state_size = self.units
+        self.output_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
 
@@ -1238,66 +1271,76 @@ class GRUCell(Layer):
             constraint=self.recurrent_constraint)
 
         if self.use_bias:
-            self.bias = self.add_weight(shape=(self.units * 3,),
+            if not self.reset_after:
+                bias_shape = (3 * self.units,)
+            else:
+                # separate biases for input and recurrent kernels
+                # Note: the shape is intentionally different from CuDNNGRU biases
+                # `(2 * 3 * self.units,)`, so that we can distinguish the classes
+                # when loading and converting saved weights.
+                bias_shape = (2, 3 * self.units)
+            self.bias = self.add_weight(shape=bias_shape,
                                         name='bias',
                                         initializer=self.bias_initializer,
                                         regularizer=self.bias_regularizer,
                                         constraint=self.bias_constraint)
+            if not self.reset_after:
+                self.input_bias, self.recurrent_bias = self.bias, None
+            else:
+                # NOTE: need to flatten, since slicing in CNTK gives 2D array
+                self.input_bias = K.flatten(self.bias[0])
+                self.recurrent_bias = K.flatten(self.bias[1])
         else:
             self.bias = None
 
+        # update gate
         self.kernel_z = self.kernel[:, :self.units]
         self.recurrent_kernel_z = self.recurrent_kernel[:, :self.units]
+        # reset gate
         self.kernel_r = self.kernel[:, self.units: self.units * 2]
         self.recurrent_kernel_r = self.recurrent_kernel[:,
                                                         self.units:
                                                         self.units * 2]
+        # new gate
         self.kernel_h = self.kernel[:, self.units * 2:]
         self.recurrent_kernel_h = self.recurrent_kernel[:, self.units * 2:]
 
         if self.use_bias:
-            self.bias_z = self.bias[:self.units]
-            self.bias_r = self.bias[self.units: self.units * 2]
-            self.bias_h = self.bias[self.units * 2:]
+            # bias for inputs
+            self.input_bias_z = self.input_bias[:self.units]
+            self.input_bias_r = self.input_bias[self.units: self.units * 2]
+            self.input_bias_h = self.input_bias[self.units * 2:]
+            # bias for hidden state - just for compatibility with CuDNN
+            if self.reset_after:
+                self.recurrent_bias_z = self.recurrent_bias[:self.units]
+                self.recurrent_bias_r = self.recurrent_bias[self.units: self.units * 2]
+                self.recurrent_bias_h = self.recurrent_bias[self.units * 2:]
         else:
-            self.bias_z = None
-            self.bias_r = None
-            self.bias_h = None
+            self.input_bias_z = None
+            self.input_bias_r = None
+            self.input_bias_h = None
+            if self.reset_after:
+                self.recurrent_bias_z = None
+                self.recurrent_bias_r = None
+                self.recurrent_bias_h = None
         self.built = True
-
-    def _generate_dropout_mask(self, inputs, training=None):
-        if 0 < self.dropout < 1:
-            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._dropout_mask = [K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-                for _ in range(3)]
-        else:
-            self._dropout_mask = None
-
-    def _generate_recurrent_dropout_mask(self, inputs, training=None):
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._recurrent_dropout_mask = [K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-                for _ in range(3)]
-        else:
-            self._recurrent_dropout_mask = None
 
     def call(self, inputs, states, training=None):
         h_tm1 = states[0]  # previous memory
+
+        if 0 < self.dropout < 1 and self._dropout_mask is None:
+            self._dropout_mask = _generate_dropout_mask(
+                K.ones_like(inputs),
+                self.dropout,
+                training=training,
+                count=3)
+        if (0 < self.recurrent_dropout < 1 and
+                self._recurrent_dropout_mask is None):
+            self._recurrent_dropout_mask = _generate_dropout_mask(
+                K.ones_like(h_tm1),
+                self.recurrent_dropout,
+                training=training,
+                count=3)
 
         # dropout matrices for input units
         dp_mask = self._dropout_mask
@@ -1313,13 +1356,14 @@ class GRUCell(Layer):
                 inputs_z = inputs
                 inputs_r = inputs
                 inputs_h = inputs
+
             x_z = K.dot(inputs_z, self.kernel_z)
             x_r = K.dot(inputs_r, self.kernel_r)
             x_h = K.dot(inputs_h, self.kernel_h)
             if self.use_bias:
-                x_z = K.bias_add(x_z, self.bias_z)
-                x_r = K.bias_add(x_r, self.bias_r)
-                x_h = K.bias_add(x_h, self.bias_h)
+                x_z = K.bias_add(x_z, self.input_bias_z)
+                x_r = K.bias_add(x_r, self.input_bias_r)
+                x_h = K.bias_add(x_h, self.input_bias_h)
 
             if 0. < self.recurrent_dropout < 1.:
                 h_tm1_z = h_tm1 * rec_dp_mask[0]
@@ -1329,62 +1373,129 @@ class GRUCell(Layer):
                 h_tm1_z = h_tm1
                 h_tm1_r = h_tm1
                 h_tm1_h = h_tm1
-            z = self.recurrent_activation(x_z + K.dot(h_tm1_z,
-                                                      self.recurrent_kernel_z))
-            r = self.recurrent_activation(x_r + K.dot(h_tm1_r,
-                                                      self.recurrent_kernel_r))
 
-            hh = self.activation(x_h + K.dot(r * h_tm1_h,
-                                             self.recurrent_kernel_h))
+            recurrent_z = K.dot(h_tm1_z, self.recurrent_kernel_z)
+            recurrent_r = K.dot(h_tm1_r, self.recurrent_kernel_r)
+            if self.reset_after and self.use_bias:
+                recurrent_z = K.bias_add(recurrent_z, self.recurrent_bias_z)
+                recurrent_r = K.bias_add(recurrent_r, self.recurrent_bias_r)
+
+            z = self.recurrent_activation(x_z + recurrent_z)
+            r = self.recurrent_activation(x_r + recurrent_r)
+
+            # reset gate applied after/before matrix multiplication
+            if self.reset_after:
+                recurrent_h = K.dot(h_tm1_h, self.recurrent_kernel_h)
+                if self.use_bias:
+                    recurrent_h = K.bias_add(recurrent_h, self.recurrent_bias_h)
+                recurrent_h = r * recurrent_h
+            else:
+                recurrent_h = K.dot(r * h_tm1_h, self.recurrent_kernel_h)
+
+            hh = self.activation(x_h + recurrent_h)
         else:
             if 0. < self.dropout < 1.:
                 inputs *= dp_mask[0]
+
+            # inputs projected by all gate matrices at once
             matrix_x = K.dot(inputs, self.kernel)
             if self.use_bias:
-                matrix_x = K.bias_add(matrix_x, self.bias)
-            if 0. < self.recurrent_dropout < 1.:
-                h_tm1 *= rec_dp_mask[0]
-            matrix_inner = K.dot(h_tm1,
-                                 self.recurrent_kernel[:, :2 * self.units])
-
+                # biases: bias_z_i, bias_r_i, bias_h_i
+                matrix_x = K.bias_add(matrix_x, self.input_bias)
             x_z = matrix_x[:, :self.units]
             x_r = matrix_x[:, self.units: 2 * self.units]
+            x_h = matrix_x[:, 2 * self.units:]
+
+            if 0. < self.recurrent_dropout < 1.:
+                h_tm1 *= rec_dp_mask[0]
+
+            if self.reset_after:
+                # hidden state projected by all gate matrices at once
+                matrix_inner = K.dot(h_tm1, self.recurrent_kernel)
+                if self.use_bias:
+                    matrix_inner = K.bias_add(matrix_inner, self.recurrent_bias)
+            else:
+                # hidden state projected separately for update/reset and new
+                matrix_inner = K.dot(h_tm1,
+                                     self.recurrent_kernel[:, :2 * self.units])
+
             recurrent_z = matrix_inner[:, :self.units]
             recurrent_r = matrix_inner[:, self.units: 2 * self.units]
 
             z = self.recurrent_activation(x_z + recurrent_z)
             r = self.recurrent_activation(x_r + recurrent_r)
 
-            x_h = matrix_x[:, 2 * self.units:]
-            recurrent_h = K.dot(r * h_tm1,
-                                self.recurrent_kernel[:, 2 * self.units:])
+            if self.reset_after:
+                recurrent_h = r * matrix_inner[:, 2 * self.units:]
+            else:
+                recurrent_h = K.dot(r * h_tm1,
+                                    self.recurrent_kernel[:, 2 * self.units:])
+
             hh = self.activation(x_h + recurrent_h)
+
+        # previous and candidate state mixed by update gate
         h = z * h_tm1 + (1 - z) * hh
+
         if 0 < self.dropout + self.recurrent_dropout:
             if training is None:
                 h._uses_learning_phase = True
+
         return h, [h]
+
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'implementation': self.implementation,
+                  'reset_after': self.reset_after}
+        base_config = super(GRUCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class GRU(RNN):
     """Gated Recurrent Unit - Cho et al. 2014.
 
+    There are two variants. The default one is based on 1406.1078v3 and
+    has reset gate applied to hidden state before matrix multiplication. The
+    other one is based on original 1406.1078v1 and has the order reversed.
+
+    The second variant is compatible with CuDNNGRU (GPU-only) and allows
+    inference on CPU. Thus it has separate biases for `kernel` and
+    `recurrent_kernel`. Use `'reset_after'=True` and
+    `recurrent_activation='sigmoid'`.
+
     # Arguments
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
+            Default: hard sigmoid (`hard_sigmoid`).
+            If you pass `None`, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -1419,7 +1530,7 @@ class GRU(RNN):
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
             for different applications.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -1435,8 +1546,12 @@ class GRU(RNN):
             Unrolling can speed-up a RNN,
             although it tends to be more memory-intensive.
             Unrolling is only suitable for short sequences.
+        reset_after: GRU convention (whether to apply reset gate after or
+            before matrix multiplication). False = "before" (default),
+            True = "after" (CuDNN compatible).
 
     # References
+        - [Learning Phrase Representations using RNN Encoder-Decoder for Statistical Machine Translation](https://arxiv.org/abs/1406.1078)
         - [On the Properties of Neural Machine Translation: Encoder-Decoder Approaches](https://arxiv.org/abs/1409.1259)
         - [Empirical Evaluation of Gated Recurrent Neural Networks on Sequence Modeling](http://arxiv.org/abs/1412.3555v1)
         - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
@@ -1465,21 +1580,20 @@ class GRU(RNN):
                  go_backwards=False,
                  stateful=False,
                  unroll=False,
+                 reset_after=False,
                  **kwargs):
         if implementation == 0:
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
-        if K.backend() == 'cntk':
-            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
-                warnings.warn(
-                    'RNN dropout is not supported with the CNTK backend '
-                    'when using dynamic RNNs (i.e. non-unrolled). '
-                    'You can either set `unroll=True`, '
-                    'set `dropout` and `recurrent_dropout` to 0, '
-                    'or use a different backend.')
-                dropout = 0.
-                recurrent_dropout = 0.
+        if K.backend() == 'theano' and (dropout or recurrent_dropout):
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
 
         cell = GRUCell(units,
                        activation=activation,
@@ -1496,7 +1610,8 @@ class GRU(RNN):
                        bias_constraint=bias_constraint,
                        dropout=dropout,
                        recurrent_dropout=recurrent_dropout,
-                       implementation=implementation)
+                       implementation=implementation,
+                       reset_after=reset_after)
         super(GRU, self).__init__(cell,
                                   return_sequences=return_sequences,
                                   return_state=return_state,
@@ -1507,8 +1622,8 @@ class GRU(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        self.cell._generate_dropout_mask(inputs, training=training)
-        self.cell._generate_recurrent_dropout_mask(inputs, training=training)
+        self.cell._dropout_mask = None
+        self.cell._recurrent_dropout_mask = None
         return super(GRU, self).call(inputs,
                                      mask=mask,
                                      training=training,
@@ -1578,6 +1693,10 @@ class GRU(RNN):
     def implementation(self):
         return self.cell.implementation
 
+    @property
+    def reset_after(self):
+        return self.cell.reset_after
+
     def get_config(self):
         config = {'units': self.units,
                   'activation': activations.serialize(self.activation),
@@ -1595,7 +1714,8 @@ class GRU(RNN):
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout,
-                  'implementation': self.implementation}
+                  'implementation': self.implementation,
+                  'reset_after': self.reset_after}
         base_config = super(GRU, self).get_config()
         del base_config['cell']
         return dict(list(base_config.items()) + list(config.items()))
@@ -1614,18 +1734,22 @@ class LSTMCell(Layer):
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
+            Default: hard sigmoid (`hard_sigmoid`).
+            If you pass `None`, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).x
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
-            used for the linear transformation of the inputs.
+            used for the linear transformation of the inputs
             (see [initializers](../initializers.md)).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
-            used for the linear transformation of the recurrent state.
+            used for the linear transformation of the recurrent state
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for the bias vector
             (see [initializers](../initializers.md)).
@@ -1704,6 +1828,7 @@ class LSTMCell(Layer):
         self.recurrent_dropout = min(1., max(0., recurrent_dropout))
         self.implementation = implementation
         self.state_size = (self.units, self.units)
+        self.output_size = self.units
         self._dropout_mask = None
         self._recurrent_dropout_mask = None
 
@@ -1723,7 +1848,7 @@ class LSTMCell(Layer):
 
         if self.use_bias:
             if self.unit_forget_bias:
-                def bias_initializer(shape, *args, **kwargs):
+                def bias_initializer(_, *args, **kwargs):
                     return K.concatenate([
                         self.bias_initializer((self.units,), *args, **kwargs),
                         initializers.Ones()((self.units,), *args, **kwargs),
@@ -1761,38 +1886,21 @@ class LSTMCell(Layer):
             self.bias_o = None
         self.built = True
 
-    def _generate_dropout_mask(self, inputs, training=None):
-        if 0 < self.dropout < 1:
-            ones = K.ones_like(K.squeeze(inputs[:, 0:1, :], axis=1))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._dropout_mask = [K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-                for _ in range(4)]
-        else:
-            self._dropout_mask = None
-
-    def _generate_recurrent_dropout_mask(self, inputs, training=None):
-        if 0 < self.recurrent_dropout < 1:
-            ones = K.ones_like(K.reshape(inputs[:, 0, 0], (-1, 1)))
-            ones = K.tile(ones, (1, self.units))
-
-            def dropped_inputs():
-                return K.dropout(ones, self.dropout)
-
-            self._recurrent_dropout_mask = [K.in_train_phase(
-                dropped_inputs,
-                ones,
-                training=training)
-                for _ in range(4)]
-        else:
-            self._recurrent_dropout_mask = None
-
     def call(self, inputs, states, training=None):
+        if 0 < self.dropout < 1 and self._dropout_mask is None:
+            self._dropout_mask = _generate_dropout_mask(
+                K.ones_like(inputs),
+                self.dropout,
+                training=training,
+                count=4)
+        if (0 < self.recurrent_dropout < 1 and
+                self._recurrent_dropout_mask is None):
+            self._recurrent_dropout_mask = _generate_dropout_mask(
+                K.ones_like(states[0]),
+                self.recurrent_dropout,
+                training=training,
+                count=4)
+
         # dropout matrices for input units
         dp_mask = self._dropout_mask
         # dropout matrices for recurrent units
@@ -1866,19 +1974,44 @@ class LSTMCell(Layer):
                 h._uses_learning_phase = True
         return h, [h, c]
 
+    def get_config(self):
+        config = {'units': self.units,
+                  'activation': activations.serialize(self.activation),
+                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'use_bias': self.use_bias,
+                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'bias_initializer': initializers.serialize(self.bias_initializer),
+                  'unit_forget_bias': self.unit_forget_bias,
+                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'bias_constraint': constraints.serialize(self.bias_constraint),
+                  'dropout': self.dropout,
+                  'recurrent_dropout': self.recurrent_dropout,
+                  'implementation': self.implementation}
+        base_config = super(LSTMCell, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 
 class LSTM(RNN):
-    """Long-Short Term Memory layer - Hochreiter 1997.
+    """Long Short-Term Memory layer - Hochreiter 1997.
 
     # Arguments
         units: Positive integer, dimensionality of the output space.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you pass None, no activation is applied
+            Default: hyperbolic tangent (`tanh`).
+            If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
+            Default: hard sigmoid (`hard_sigmoid`).
+            If you pass `None`, no activation is applied
+            (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix,
             used for the linear transformation of the inputs.
@@ -1924,7 +2057,7 @@ class LSTM(RNN):
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
             for different applications.
-        return_sequences: Boolean. Whether to return the last output.
+        return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
             in addition to the output.
@@ -1977,16 +2110,14 @@ class LSTM(RNN):
             warnings.warn('`implementation=0` has been deprecated, '
                           'and now defaults to `implementation=1`.'
                           'Please update your layer call.')
-        if K.backend() == 'cntk':
-            if not kwargs.get('unroll') and (dropout > 0 or recurrent_dropout > 0):
-                warnings.warn(
-                    'RNN dropout is not supported with the CNTK backend '
-                    'when using dynamic RNNs (i.e. non-unrolled). '
-                    'You can either set `unroll=True`, '
-                    'set `dropout` and `recurrent_dropout` to 0, '
-                    'or use a different backend.')
-                dropout = 0.
-                recurrent_dropout = 0.
+        if K.backend() == 'theano' and (dropout or recurrent_dropout):
+            warnings.warn(
+                'RNN dropout is no longer supported with the Theano backend '
+                'due to technical limitations. '
+                'You can either set `dropout` and `recurrent_dropout` to 0, '
+                'or use the TensorFlow backend.')
+            dropout = 0.
+            recurrent_dropout = 0.
 
         cell = LSTMCell(units,
                         activation=activation,
@@ -2015,8 +2146,8 @@ class LSTM(RNN):
         self.activity_regularizer = regularizers.get(activity_regularizer)
 
     def call(self, inputs, mask=None, training=None, initial_state=None):
-        self.cell._generate_dropout_mask(inputs, training=training)
-        self.cell._generate_recurrent_dropout_mask(inputs, training=training)
+        self.cell._dropout_mask = None
+        self.cell._recurrent_dropout_mask = None
         return super(LSTM, self).call(inputs,
                                       mask=mask,
                                       training=training,
@@ -2118,3 +2249,59 @@ class LSTM(RNN):
         if 'implementation' in config and config['implementation'] == 0:
             config['implementation'] = 1
         return cls(**config)
+
+
+def _generate_dropout_mask(ones, rate, training=None, count=1):
+    def dropped_inputs():
+        return K.dropout(ones, rate)
+
+    if count > 1:
+        return [K.in_train_phase(
+            dropped_inputs,
+            ones,
+            training=training) for _ in range(count)]
+    return K.in_train_phase(
+        dropped_inputs,
+        ones,
+        training=training)
+
+
+def _standardize_args(inputs, initial_state, constants, num_constants):
+    """Standardize `__call__` to a single list of tensor inputs.
+
+    When running a model loaded from file, the input tensors
+    `initial_state` and `constants` can be passed to `RNN.__call__` as part
+    of `inputs` instead of by the dedicated keyword arguments. This method
+    makes sure the arguments are separated and that `initial_state` and
+    `constants` are lists of tensors (or None).
+
+    # Arguments
+        inputs: tensor or list/tuple of tensors
+        initial_state: tensor or list of tensors or None
+        constants: tensor or list of tensors or None
+
+    # Returns
+        inputs: tensor
+        initial_state: list of tensors or None
+        constants: list of tensors or None
+    """
+    if isinstance(inputs, list):
+        assert initial_state is None and constants is None
+        if num_constants is not None:
+            constants = inputs[-num_constants:]
+            inputs = inputs[:-num_constants]
+        if len(inputs) > 1:
+            initial_state = inputs[1:]
+        inputs = inputs[0]
+
+    def to_list_or_none(x):
+        if x is None or isinstance(x, list):
+            return x
+        if isinstance(x, tuple):
+            return list(x)
+        return [x]
+
+    initial_state = to_list_or_none(initial_state)
+    constants = to_list_or_none(constants)
+
+    return inputs, initial_state, constants

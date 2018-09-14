@@ -5,7 +5,7 @@ Input: "535+61"
 Output: "596"
 Padding is handled by using a repeated sentinel character (space)
 
-Input may optionally be inverted, shown to increase performance in many tasks in:
+Input may optionally be reversed, shown to increase performance in many tasks in:
 "Learning to Execute"
 http://arxiv.org/abs/1410.4615
 and
@@ -13,18 +13,18 @@ and
 http://papers.nips.cc/paper/5346-sequence-to-sequence-learning-with-neural-networks.pdf
 Theoretically it introduces shorter term dependencies between source and target.
 
-Two digits inverted:
+Two digits reversed:
 + One layer LSTM (128 HN), 5k training examples = 99% train/test accuracy in 55 epochs
 
-Three digits inverted:
+Three digits reversed:
 + One layer LSTM (128 HN), 50k training examples = 99% train/test accuracy in 100 epochs
 
-Four digits inverted:
+Four digits reversed:
 + One layer LSTM (128 HN), 400k training examples = 99% train/test accuracy in 20 epochs
 
-Five digits inverted:
+Five digits reversed:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
-'''
+'''  # noqa
 
 from __future__ import print_function
 from keras.models import Sequential
@@ -75,7 +75,7 @@ class colors:
 # Parameters for the model and dataset.
 TRAINING_SIZE = 50000
 DIGITS = 3
-INVERT = True
+REVERSE = True
 
 # Maximum length of input is 'int + int' (e.g., '345+678'). Maximum length of
 # int is DIGITS.
@@ -105,7 +105,7 @@ while len(questions) < TRAINING_SIZE:
     ans = str(a + b)
     # Answers can be of maximum size DIGITS + 1.
     ans += ' ' * (DIGITS + 1 - len(ans))
-    if INVERT:
+    if REVERSE:
         # Reverse the query, e.g., '12+345  ' becomes '  543+21'. (Note the
         # space used for padding.)
         query = query[::-1]
@@ -193,7 +193,7 @@ for iteration in range(1, 200):
         q = ctable.decode(rowx[0])
         correct = ctable.decode(rowy[0])
         guess = ctable.decode(preds[0], calc_argmax=False)
-        print('Q', q[::-1] if INVERT else q, end=' ')
+        print('Q', q[::-1] if REVERSE else q, end=' ')
         print('T', correct, end=' ')
         if correct == guess:
             print(colors.ok + '☑' + colors.close, end=' ')
