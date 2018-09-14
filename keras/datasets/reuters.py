@@ -54,13 +54,12 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
                     origin='https://s3.amazonaws.com/text-datasets/reuters.npz',
                     file_hash='87aedbeb0cb229e378797a632c1997b6')
     with np.load(path) as f:
-        xs, labels = f['x'], f['y']
+        xs, ys = f['x'], f['y']
 
     np.random.seed(seed)
     indices = np.arange(len(xs))
     np.random.shuffle(indices)
-    xs = xs[indices]
-    labels = labels[indices]
+    xs, ys = xs[indices], ys[indices]
 
     if start_char is not None:
         xs = [[start_char] + [w + index_from for w in x] for x in xs]
@@ -68,7 +67,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         xs = [[w + index_from for w in x] for x in xs]
 
     if maxlen:
-        xs, labels = _remove_long_seq(maxlen, xs, labels)
+        xs, ys = _remove_long_seq(maxlen, xs, ys)
 
     if not num_words:
         num_words = max([max(x) for x in xs])
@@ -82,8 +81,8 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
         xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = int(len(xs) * (1 - test_split))
-    x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
-    x_test, y_test = np.array(xs[idx:]), np.array(labels[idx:])
+    x_train, y_train = np.array(xs[:idx]), np.array(ys[:idx])
+    x_test, y_test = np.array(xs[idx:]), np.array(ys[idx:])
 
     return (x_train, y_train), (x_test, y_test)
 

@@ -25,19 +25,15 @@ def load_data(path='boston_housing.npz', test_split=0.2, seed=113):
     path = get_file(path,
                     origin='https://s3.amazonaws.com/keras-datasets/boston_housing.npz',
                     file_hash='f553886a1f8d56431e820c5b82552d9d95cfcb96d1e678153f8839538947dff5')
-    f = np.load(path)
-    x = f['x']
-    y = f['y']
-    f.close()
+    with np.load(path) as f:
+        x, y = f['x'], f['y']
 
     np.random.seed(seed)
     indices = np.arange(len(x))
     np.random.shuffle(indices)
-    x = x[indices]
-    y = y[indices]
+    x, y = x[indices], y[indices]
 
-    x_train = np.array(x[:int(len(x) * (1 - test_split))])
-    y_train = np.array(y[:int(len(x) * (1 - test_split))])
-    x_test = np.array(x[int(len(x) * (1 - test_split)):])
-    y_test = np.array(y[int(len(x) * (1 - test_split)):])
+    idx = int(len(x) * (1 - test_split))
+    x_train, y_train = np.array(x[:idx]), np.array(y[:idx])
+    x_test, y_test = np.array(x[idx:]), np.array(y[idx:])
     return (x_train, y_train), (x_test, y_test)

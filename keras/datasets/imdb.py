@@ -56,22 +56,20 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
                     origin='https://s3.amazonaws.com/text-datasets/imdb.npz',
                     file_hash='599dadb1135973df5b59232a0e9a887c')
     with np.load(path) as f:
-        x_train, labels_train = f['x_train'], f['y_train']
-        x_test, labels_test = f['x_test'], f['y_test']
+        x_train, y_train = f['x_train'], f['y_train']
+        x_test, y_test = f['x_test'], f['y_test']
 
     np.random.seed(seed)
     indices = np.arange(len(x_train))
     np.random.shuffle(indices)
-    x_train = x_train[indices]
-    labels_train = labels_train[indices]
+    x_train, y_train = x_train[indices], y_train[indices]
 
     indices = np.arange(len(x_test))
     np.random.shuffle(indices)
-    x_test = x_test[indices]
-    labels_test = labels_test[indices]
+    x_test, y_test = x_test[indices], y_test[indices]
 
     xs = np.concatenate([x_train, x_test])
-    labels = np.concatenate([labels_train, labels_test])
+    ys = np.concatenate([y_train, y_test])
 
     if start_char is not None:
         xs = [[start_char] + [w + index_from for w in x] for x in xs]
@@ -79,7 +77,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         xs = [[w + index_from for w in x] for x in xs]
 
     if maxlen:
-        xs, labels = _remove_long_seq(maxlen, xs, labels)
+        xs, ys = _remove_long_seq(maxlen, xs, ys)
         if not xs:
             raise ValueError('After filtering for sequences shorter than maxlen=' +
                              str(maxlen) + ', no sequence was kept. '
@@ -96,8 +94,8 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
         xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
 
     idx = len(x_train)
-    x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
-    x_test, y_test = np.array(xs[idx:]), np.array(labels[idx:])
+    x_train, y_train = np.array(xs[:idx]), np.array(ys[:idx])
+    x_test, y_test = np.array(xs[idx:]), np.array(ys[idx:])
 
     return (x_train, y_train), (x_test, y_test)
 
