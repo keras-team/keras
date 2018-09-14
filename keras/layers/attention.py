@@ -299,10 +299,7 @@ class _RNNAttentionCell(Layer):
         attended_shape = input_shape[1:]
         input_shape = input_shape[0]
         self.attended_spec = [InputSpec(shape=shape) for shape in attended_shape]
-        if isinstance(self.cell.state_size, int):
-            cell_state_size = [self.cell.state_size]
-        else:
-            cell_state_size = list(self.cell.state_size)
+        cell_state_size = to_list(self.cell.state_size, allow_tuple=True)
         self.attention_build(
             input_shape=input_shape,
             cell_state_size=cell_state_size,
