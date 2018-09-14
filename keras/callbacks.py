@@ -1124,7 +1124,12 @@ class CSVLogger(Callback):
         self.writer = None
         self.keys = None
         self.append_header = True
-        self.file_flags = 'b' if six.PY2 else ''
+        if six.PY2:
+            self.file_flags = 'b'
+            self._open_args = {}
+        else:
+            self.file_flags = ''
+            self._open_args = {'newline': '\n'}
         super(CSVLogger, self).__init__()
 
     def on_train_begin(self, logs=None):
@@ -1137,7 +1142,7 @@ class CSVLogger(Callback):
             mode = 'w'
         self.csv_file = io.open(self.filename,
                                 mode + self.file_flags,
-                                newline='\n')
+                                **self._open_args)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
