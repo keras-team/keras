@@ -20,6 +20,9 @@ def softmax(x, axis=-1):
 
     # Returns
         Tensor, output of softmax transformation.
+
+    # Raises
+        ValueError: In case `dim(x) == 1`.
     """
     ndim = K.ndim(x)
     if ndim == 1:
