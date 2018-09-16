@@ -8,7 +8,7 @@ from keras.layers.core import Dense, Activation
 from keras.wrappers.scikit_learn import KerasClassifier, KerasRegressor
 
 input_dim = 5
-hidden_dims = 5
+hidden_dims = 4
 num_train = 100
 num_test = 50
 num_classes = 3
@@ -26,9 +26,7 @@ np.random.seed(42)
 
 def build_fn_clf(hidden_dims):
     model = Sequential()
-    model.add(Dense(input_dim, input_shape=(input_dim,)))
-    model.add(Activation('relu'))
-    model.add(Dense(hidden_dims))
+    model.add(Dense(hidden_dims, input_shape=(input_dim,)))
     model.add(Activation('relu'))
     model.add(Dense(num_classes))
     model.add(Activation('softmax'))
@@ -110,11 +108,9 @@ def assert_string_classification_works(clf):
     assert np.allclose(np.sum(proba, axis=1), np.ones(num_test))
 
 
-def build_fn_reg(hidden_dims=50):
+def build_fn_reg(hidden_dims):
     model = Sequential()
-    model.add(Dense(input_dim, input_shape=(input_dim,)))
-    model.add(Activation('relu'))
-    model.add(Dense(hidden_dims))
+    model.add(Dense(hidden_dims, input_shape=(input_dim,)))
     model.add(Activation('relu'))
     model.add(Dense(1))
     model.add(Activation('linear'))
