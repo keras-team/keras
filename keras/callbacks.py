@@ -974,7 +974,10 @@ class TensorBoard(Callback):
                     i += self.batch_size
 
         if self.write_after == 'epoch':
-            self._write_logs(logs, epoch)
+            index = epoch
+        else:
+            index = self.samples_seen
+        self._write_logs(logs, index)
 
     def _write_logs(self, logs, index):
         for name, value in logs.items():
