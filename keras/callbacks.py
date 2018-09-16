@@ -1006,6 +1006,7 @@ class TensorBoard(Callback):
             samples_seen_since = self.samples_seen - self.samples_seen_at_last_write
             if samples_seen_since >= self.write_after:
                 self._write_logs(logs, self.samples_seen)
+                self.samples_seen_at_last_write = self.samples_seen
 
 
 class ReduceLROnPlateau(Callback):
