@@ -757,7 +757,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
               validation_data=([X_test] * 2, [y_test] * 2),
               callbacks=callbacks_factory(histogram_freq=1), epochs=2)
 
-    train_generator = data_generator(X_train, y_train, batch_size)
+    train_generator = data_generator(X_train, y_train, batch_size,
+                                     multiple_inputs=True)
 
     # fit generator without validation data
     model.fit_generator(train_generator, len(X_train), epochs=2,

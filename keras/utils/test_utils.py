@@ -42,12 +42,16 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
     return (X[:num_train], y[:num_train]), (X[num_train:], y[num_train:])
 
 
-def data_generator(x, y, batch_size):
+def data_generator(x, y, batch_size, multiple_inputs=False):
     max_batch_index = len(x) // batch_size
     i = 0
     while 1:
-        yield (x[i * batch_size: (i + 1) * batch_size],
-               y[i * batch_size: (i + 1) * batch_size])
+        x_batch = x[i * batch_size: (i + 1) * batch_size]
+        y_batch = y[i * batch_size: (i + 1) * batch_size]
+        if multiple_inputs:
+            yield [x_batch, x_batch], [y_batch, y_batch]
+        else:
+            yield x_batch, y_batch
         i += 1
         i = i % max_batch_index
 
