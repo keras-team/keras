@@ -998,11 +998,7 @@ class TensorBoard(Callback):
 
     def on_batch_end(self, batch, logs=None):
         if self.write_after != 'epoch':
-            try:
-                self.samples_seen += logs['size']
-            except KeyError:
-                raise KeyError('You cannot use write_step=\'batch\' if '
-                               'the batch size is not available.')
+            self.samples_seen += logs['size']
             samples_seen_since = self.samples_seen - self.samples_seen_at_last_write
             if samples_seen_since >= self.write_after:
                 self._write_logs(logs, self.samples_seen)
