@@ -47,16 +47,12 @@ def normalize_conv(func):
 @normalize_conv
 def conv(x, w, padding, data_format):
     y = []
-    for i in range(x.shape[0]):
+    for i in range(w.shape[1]):
         _y = []
-        for j in range(w.shape[1]):
-            __y = []
-            for k in range(w.shape[0]):
-                __y.append(signal.convolve(x[i, k], w[k, j], mode=padding))
-            _y.append(np.sum(np.stack(__y, axis=-1), axis=-1))
-        y.append(_y)
-    y = np.array(y)
-    return y
+        for j in range(w.shape[0]):
+            _y.append(signal.convolve(x[:, j], w[None, j, i], mode=padding))
+        y.append(np.sum(_y, axis=0))
+    return np.stack(y, axis=1)
 
 
 @normalize_conv
