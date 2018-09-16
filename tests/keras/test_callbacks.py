@@ -629,6 +629,7 @@ def test_TensorBoard(tmpdir):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
+                                      write_batch_performance=True,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
                                       embeddings_data=X_test,

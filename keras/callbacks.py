@@ -700,6 +700,8 @@ class TensorBoard(Callback):
             for histograms computation.
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
+        write_batch_performance: whether to write training metrics on batch
+            completion
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved. If set to 0, embeddings won't be computed.
             Data to be visualized in TensorBoard's Embedding tab must be passed
@@ -723,6 +725,7 @@ class TensorBoard(Callback):
                  write_graph=True,
                  write_grads=False,
                  write_images=False,
+                 write_batch_performance=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
@@ -759,11 +762,13 @@ class TensorBoard(Callback):
         self.write_graph = write_graph
         self.write_grads = write_grads
         self.write_images = write_images
+        self.write_batch_performance = write_batch_performance
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
         self.embeddings_data = embeddings_data
+        self.seen = 0
 
     def set_model(self, model):
         self.model = model
@@ -918,7 +923,7 @@ class TensorBoard(Callback):
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
-                    self.writer.add_summary(summary_str, epoch)
+                    self.writer.add_summary(summary_str, self.seen)
                     i += self.batch_size
 
         if self.embeddings_freq and self.embeddings_data is not None:
@@ -969,11 +974,30 @@ class TensorBoard(Callback):
             else:
                 summary_value.simple_value = value
             summary_value.tag = name
-            self.writer.add_summary(summary, epoch)
+            self.writer.add_summary(summary, self.seen)
         self.writer.flush()
+        self.seen += self.batch_size
 
     def on_train_end(self, _):
         self.writer.close()
+
+    def on_batch_end(self, batch, logs=None):
+        logs = logs or {}
+
+        if self.write_batch_performance:
+            for name, value in logs.items():
+                if name in ['batch', 'size']:
+                    continue
+                summary = tf.Summary()
+                summary_value = summary.value.add()
+                summary_value.simple_value = value.item()
+                summary_value.tag = name
+                self.writer.add_summary(summary, self.seen)
+            self.writer.flush()
+
+        self.seen += self.batch_size
+    # @todo write some unit tests for this
+    # ensure everything is working on the dev version (of tf & theano)
 
 
 class ReduceLROnPlateau(Callback):
