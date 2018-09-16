@@ -11,6 +11,7 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation
 from keras.utils import np_utils
 from keras.utils.test_utils import get_test_data, keras_test
+from keras.utils.test_utils import data_generator
 from keras.models import model_from_json, model_from_yaml
 from keras import losses
 from keras.engine.training_utils import make_batches
@@ -71,22 +72,6 @@ def _get_test_data():
 def test_sequential_fit_generator():
     (x_train, y_train), (x_test, y_test) = _get_test_data()
 
-    def data_generator(train):
-        if train:
-            max_batch_index = len(x_train) // batch_size
-        else:
-            max_batch_index = len(x_test) // batch_size
-        i = 0
-        while 1:
-            if train:
-                yield (x_train[i * batch_size: (i + 1) * batch_size],
-                       y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (x_test[i * batch_size: (i + 1) * batch_size],
-                       y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
-
     model = Sequential()
     model.add(Dense(num_hidden, input_shape=(input_dim,)))
     model.add(Activation('relu'))
@@ -96,30 +81,21 @@ def test_sequential_fit_generator():
     model.add(Activation('softmax'))
     model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-    model.fit_generator(data_generator(True), 5, epochs)
-    model.fit_generator(data_generator(True), 5, epochs,
+    train_generator = data_generator(x_train, y_train, batch_size)
+    validation_generator = data_generator(x_test, y_test, batch_size)
+    model.fit_generator(train_generator, 5, epochs)
+    model.fit_generator(train_generator, 5, epochs,
                         validation_data=(x_test, y_test))
-    model.fit_generator(data_generator(True), 5, epochs,
-                        validation_data=data_generator(False),
+    model.fit_generator(train_generator, 5, epochs,
+                        validation_data=validation_generator,
                         validation_steps=3)
-    model.fit_generator(data_generator(True), 5, epochs, max_queue_size=2)
+    model.fit_generator(train_generator, 5, epochs, max_queue_size=2)
     model.evaluate(x_train, y_train)
 
 
 @keras_test
 def test_sequential(in_tmpdir):
     (x_train, y_train), (x_test, y_test) = _get_test_data()
-
-    # TODO: factor out
-    def data_generator(x, y, batch_size=50):
-        index_array = np.arange(len(x))
-        while 1:
-            batches = make_batches(len(x_test), batch_size)
-            for batch_index, (batch_start, batch_end) in enumerate(batches):
-                batch_ids = index_array[batch_start:batch_end]
-                x_batch = x[batch_ids]
-                y_batch = y[batch_ids]
-                yield (x_batch, y_batch)
 
     model = Sequential()
     model.add(Dense(num_hidden, input_shape=(input_dim,)))
@@ -140,9 +116,10 @@ def test_sequential(in_tmpdir):
 
     loss = model.evaluate(x_test, y_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), 1,
+    eval_generator = data_generator(x_test, y_test, 50)
+    prediction = model.predict_generator(eval_generator, 1,
                                          max_queue_size=2, verbose=1)
-    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1,
+    gen_loss = model.evaluate_generator(eval_generator, 1,
                                         max_queue_size=2)
     pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test),
                                                      K.variable(prediction))))

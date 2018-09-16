@@ -42,6 +42,16 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
     return (X[:num_train], y[:num_train]), (X[num_train:], y[num_train:])
 
 
+def data_generator(x, y, batch_size):
+    max_batch_index = len(x) // batch_size
+    i = 0
+    while 1:
+        yield (x[i * batch_size: (i + 1) * batch_size],
+               y[i * batch_size: (i + 1) * batch_size])
+        i += 1
+        i = i % max_batch_index
+
+
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                input_data=None, expected_output=None,
                expected_output_dtype=None, fixed_batch_size=False):
