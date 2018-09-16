@@ -572,7 +572,8 @@ def test_CSVLogger(tmpdir):
 
 
 @keras_test
-def test_TensorBoard(tmpdir):
+@pytest.mark.parametrize('write_after', ['batch', 'epoch', 9])
+def test_TensorBoard(tmpdir, write_after):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
@@ -629,11 +630,11 @@ def test_TensorBoard(tmpdir):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
                                       write_images=True, write_grads=True,
-                                      write_batch_performance=True,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
                                       embeddings_data=X_test,
-                                      batch_size=5)]
+                                      batch_size=5,
+                                      write_after=write_after)]
 
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,

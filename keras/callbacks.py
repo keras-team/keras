@@ -700,8 +700,6 @@ class TensorBoard(Callback):
             for histograms computation.
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
-        write_batch_performance: whether to write training metrics on batch
-            completion
         embeddings_freq: frequency (in epochs) at which selected embedding
             layers will be saved. If set to 0, embeddings won't be computed.
             Data to be visualized in TensorBoard's Embedding tab must be passed
@@ -717,6 +715,12 @@ class TensorBoard(Callback):
             `embeddings_layer_names`. Numpy array (if the model has a single
             input) or list of Numpy arrays (if the model has multiple inputs).
             Learn [more about embeddings](https://www.tensorflow.org/programmers_guide/embedding)
+        write_step: `'batch'` or `'epoch'` or integer. When using `'batch'`, writes
+            the losses and metrics to TensorBoard after each batch. The same
+            applies for `'epoch'`. If using an integer, let's say `10000`,
+            the callback will write the metrics and losses to TensorBoard every
+            10000 samples. Note that writing too frequently to TensorBoard
+            can slow down your training.
     """
 
     def __init__(self, log_dir='./logs',
@@ -729,7 +733,7 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
                  embeddings_data=None,
-                 write_batch_performance=False,):
+                 write_after='epoch'):
         super(TensorBoard, self).__init__()
         global tf, projector
         try:
@@ -767,8 +771,13 @@ class TensorBoard(Callback):
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
         self.embeddings_data = embeddings_data
-        self.write_batch_performance = write_batch_performance
-        self.seen = 0
+        if write_after == 'batch':
+            # It is the same as writing as frequently as possible.
+            self.write_after = 1
+        else:
+            self.write_after = write_after
+        self.samples_seen = 0
+        self.samples_seen_at_last_write = 0
 
     def set_model(self, model):
         self.model = model
@@ -923,7 +932,7 @@ class TensorBoard(Callback):
                     feed_dict = dict(zip(tensors, batch_val))
                     result = self.sess.run([self.merged], feed_dict=feed_dict)
                     summary_str = result[0]
-                    self.writer.add_summary(summary_str, self.seen)
+                    self.writer.add_summary(summary_str, epoch)
                     i += self.batch_size
 
         if self.embeddings_freq and self.embeddings_data is not None:
@@ -964,6 +973,10 @@ class TensorBoard(Callback):
 
                     i += self.batch_size
 
+        if self.write_after == 'epoch':
+            self._write_logs(logs, epoch)
+
+    def _write_logs(self, logs, index):
         for name, value in logs.items():
             if name in ['batch', 'size']:
                 continue
@@ -974,30 +987,22 @@ class TensorBoard(Callback):
             else:
                 summary_value.simple_value = value
             summary_value.tag = name
-            self.writer.add_summary(summary, self.seen)
+            self.writer.add_summary(summary, index)
         self.writer.flush()
-        self.seen += self.batch_size
 
     def on_train_end(self, _):
         self.writer.close()
 
     def on_batch_end(self, batch, logs=None):
-        logs = logs or {}
-
-        if self.write_batch_performance:
-            for name, value in logs.items():
-                if name in ['batch', 'size']:
-                    continue
-                summary = tf.Summary()
-                summary_value = summary.value.add()
-                summary_value.simple_value = value.item()
-                summary_value.tag = name
-                self.writer.add_summary(summary, self.seen)
-            self.writer.flush()
-
-        self.seen += self.batch_size
-    # @todo write some unit tests for this
-    # ensure everything is working on the dev version (of tf & theano)
+        if self.write_after != 'epoch':
+            try:
+                self.samples_seen += logs['size']
+            except KeyError:
+                raise KeyError('You cannot use write_step=\'batch\' if '
+                               'the batch size is not available.')
+            samples_seen_since = self.samples_seen - self.samples_seen_at_last_write
+            if samples_seen_since >= self.write_after:
+                self._write_logs(logs, self.samples_seen)
 
 
 class ReduceLROnPlateau(Callback):
