@@ -725,11 +725,11 @@ class TensorBoard(Callback):
                  write_graph=True,
                  write_grads=False,
                  write_images=False,
-                 write_batch_performance=False,
                  embeddings_freq=0,
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
-                 embeddings_data=None):
+                 embeddings_data=None,
+                 write_batch_performance=False,):
         super(TensorBoard, self).__init__()
         global tf, projector
         try:
@@ -762,12 +762,12 @@ class TensorBoard(Callback):
         self.write_graph = write_graph
         self.write_grads = write_grads
         self.write_images = write_images
-        self.write_batch_performance = write_batch_performance
         self.embeddings_freq = embeddings_freq
         self.embeddings_layer_names = embeddings_layer_names
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
         self.embeddings_data = embeddings_data
+        self.write_batch_performance = write_batch_performance
         self.seen = 0
 
     def set_model(self, model):
