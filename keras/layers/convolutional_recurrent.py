@@ -31,17 +31,15 @@ class ConvRNN2D(RNN):
     # Arguments
         cell: A RNN cell instance. A RNN cell is a class that has:
             - a `call(input_at_t, states_at_t)` method, returning
-                `(output_at_t, states_at_t_plus_1)`. The call method of the
-                cell can also take the optional argument `constants`, see
-                section "Note on passing external constants" below.
-            - a `state_size` attribute. This can be a single integer
-                (single state) in which case it is
-                the number of channels of the recurrent state
-                (which should be the same as the number of channels of the cell output).
-                This can also be a list/tuple of integers
-                (one size per state). In this case, the first entry
-                (`state_size[0]`) should be the same as
-                the size of the cell output.
+              `(output_at_t, states_at_t_plus_1)`. The call method of the
+              cell can also take the optional argument `constants`, see
+              section "Note on passing external constants" below.
+            - a `state_size` attribute. This can be a single integer (single state)
+              in which case it is the number of channels of the recurrent state
+              (which should be the same as the number of channels of the cell
+              output). This can also be a list/tuple of integers
+              (one size per state). In this case, the first entry (`state_size[0]`)
+              should be the same as the size of the cell output.
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -65,14 +63,18 @@ class ConvRNN2D(RNN):
         - if `return_state`: a list of tensors. The first tensor is
             the output. The remaining tensors are the last states,
             each 5D tensor with shape:
-            `(samples, timesteps, filters, new_rows, new_cols)` if data_format='channels_first'
+            `(samples, timesteps,
+              filters, new_rows, new_cols)` if data_format='channels_first'
             or 5D tensor with shape:
-            `(samples, timesteps, new_rows, new_cols, filters)` if data_format='channels_last'.
+            `(samples, timesteps,
+              new_rows, new_cols, filters)` if data_format='channels_last'.
             `rows` and `cols` values might have changed due to padding.
         - if `return_sequences`: 5D tensor with shape:
-            `(samples, timesteps, filters, new_rows, new_cols)` if data_format='channels_first'
+            `(samples, timesteps,
+              filters, new_rows, new_cols)` if data_format='channels_first'
             or 5D tensor with shape:
-            `(samples, timesteps, new_rows, new_cols, filters)` if data_format='channels_last'.
+            `(samples, timesteps,
+              new_rows, new_cols, filters)` if data_format='channels_last'.
         - else, 4D tensor with shape:
             `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
             or 4D tensor with shape:
@@ -224,7 +226,8 @@ class ConvRNN2D(RNN):
                     'An initial_state was passed that is not compatible with '
                     '`cell.state_size`. Received `state_spec`={}; '
                     'However `cell.state_size` is '
-                    '{}'.format([spec.shape for spec in self.state_spec], self.cell.state_size))
+                    '{}'.format([spec.shape for spec in self.state_spec],
+                                self.cell.state_size))
         else:
             if self.cell.data_format == 'channels_first':
                 self.state_spec = [InputSpec(shape=(None, dim, None, None))
@@ -413,7 +416,8 @@ class ConvRNN2D(RNN):
                              '- If using the functional API, specify '
                              'the time dimension by passing a '
                              '`batch_shape` argument to your Input layer.\n'
-                             'The same thing goes for the number of rows and columns.')
+                             'The same thing goes for the number of rows '
+                             'and columns.')
 
         # helper function
         def get_tuple_shape(nb_channels):
@@ -445,7 +449,7 @@ class ConvRNN2D(RNN):
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
                                  str(len(self.states)) + ' states, '
-                                                         'but it received ' + str(len(states)) +
+                                 'but it received ' + str(len(states)) +
                                  ' state values. Input received: ' +
                                  str(states))
             for index, (value, state) in enumerate(zip(states, self.states)):
@@ -505,7 +509,8 @@ class ConvLSTM2DCell(Layer):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Use in combination with `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            This is recommended in [Jozefowicz et al.]
+            (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
             (see [regularizer](../regularizers.md)).
@@ -558,7 +563,8 @@ class ConvLSTM2DCell(Layer):
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = K.normalize_data_format(data_format)
-        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2,
+                                                        'dilation_rate')
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
         self.use_bias = use_bias
@@ -636,9 +642,11 @@ class ConvLSTM2DCell(Layer):
         self.kernel_i = self.kernel[:, :, :, :self.filters]
         self.recurrent_kernel_i = self.recurrent_kernel[:, :, :, :self.filters]
         self.kernel_f = self.kernel[:, :, :, self.filters: self.filters * 2]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, :, :, self.filters: self.filters * 2]
+        self.recurrent_kernel_f = (
+            self.recurrent_kernel[:, :, :, self.filters: self.filters * 2])
         self.kernel_c = self.kernel[:, :, :, self.filters * 2: self.filters * 3]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, :, :, self.filters * 2: self.filters * 3]
+        self.recurrent_kernel_c = (
+            self.recurrent_kernel[:, :, :, self.filters * 2: self.filters * 3])
         self.kernel_o = self.kernel[:, :, :, self.filters * 3:]
         self.recurrent_kernel_o = self.recurrent_kernel[:, :, :, self.filters * 3:]
 
@@ -752,17 +760,24 @@ class ConvLSTM2DCell(Layer):
                   'data_format': self.data_format,
                   'dilation_rate': self.dilation_rate,
                   'activation': activations.serialize(self.activation),
-                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'recurrent_activation':
+                      activations.serialize(self.recurrent_activation),
                   'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'kernel_initializer':
+                      initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer':
+                      initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
                   'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'kernel_regularizer':
+                      regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer':
+                      regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'kernel_constraint':
+                      constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint':
+                      constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout}
@@ -820,7 +835,8 @@ class ConvLSTM2D(ConvRNN2D):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Use in combination with `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            This is recommended in [Jozefowicz et al.]
+            (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
             (see [regularizer](../regularizers.md)).
@@ -1043,18 +1059,26 @@ class ConvLSTM2D(ConvRNN2D):
                   'data_format': self.data_format,
                   'dilation_rate': self.dilation_rate,
                   'activation': activations.serialize(self.activation),
-                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'recurrent_activation':
+                      activations.serialize(self.recurrent_activation),
                   'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'kernel_initializer':
+                      initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer':
+                      initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
                   'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'kernel_regularizer':
+                      regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer':
+                      regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'activity_regularizer':
+                      regularizers.serialize(self.activity_regularizer),
+                  'kernel_constraint':
+                      constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint':
+                      constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout}
