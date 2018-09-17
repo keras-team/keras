@@ -34,14 +34,23 @@ train_samples = 20
 test_samples = 20
 
 
+# Changing the default arguments of get_test_data.
+def get_data_callbacks(num_train=train_samples,
+                       num_test=test_samples,
+                       input_shape=(input_dim,),
+                       classification=True,
+                       num_classes=num_classes):
+    return get_test_data(num_train=num_train,
+                         num_test=num_test,
+                         input_shape=input_shape,
+                         classification=classification,
+                         num_classes=num_classes)
+
+
 @keras_test
 def test_TerminateOnNaN():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -85,11 +94,7 @@ def test_TerminateOnNaN():
 def test_stop_training_csv(tmpdir):
     np.random.seed(1337)
     fp = str(tmpdir / 'test.csv')
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -138,11 +143,7 @@ def test_stop_training_csv(tmpdir):
 def test_ModelCheckpoint(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'checkpoint.h5')
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     # case 1
@@ -214,11 +215,7 @@ def test_ModelCheckpoint(tmpdir):
 @keras_test
 def test_EarlyStopping():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -414,11 +411,7 @@ def test_EarlyStopping_final_weights_when_restoring_model_weights():
 @keras_test
 def test_LearningRateScheduler():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -437,11 +430,7 @@ def test_LearningRateScheduler():
 @keras_test
 def test_ReduceLROnPlateau():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -516,11 +505,7 @@ def test_CSVLogger(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'log.tsv')
     sep = '\t'
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -576,12 +561,7 @@ def test_TensorBoard(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(
-        num_train=train_samples,
-        num_test=test_samples,
-        input_shape=(input_dim,),
-        classification=True,
-        num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -666,12 +646,7 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(
-        num_train=train_samples,
-        num_test=test_samples,
-        input_shape=(input_dim,),
-        classification=True,
-        num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -739,12 +714,9 @@ def test_TensorBoard_multi_input_output(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(
-        num_train=train_samples,
-        num_test=test_samples,
-        input_shape=(input_dim, input_dim),
-        classification=True,
-        num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks(
+        input_shape=(input_dim, input_dim))
+
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -822,11 +794,10 @@ def test_TensorBoard_convnet(tmpdir):
     filepath = str(tmpdir / 'logs')
 
     input_shape = (16, 16, 3)
-    (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
-                                                         num_test=200,
-                                                         input_shape=input_shape,
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (x_train, y_train), (x_test, y_test) = get_data_callbacks(
+        num_train=500,
+        num_test=200,
+        input_shape=input_shape)
     y_train = np_utils.to_categorical(y_train)
     y_test = np_utils.to_categorical(y_test)
 
@@ -862,11 +833,9 @@ def test_TensorBoard_display_float_from_logs(tmpdir):
     filepath = str(tmpdir / 'logs')
 
     input_shape = (3,)
-    (x_train, y_train), _ = get_test_data(num_train=10,
-                                          num_test=0,
-                                          input_shape=input_shape,
-                                          classification=True,
-                                          num_classes=num_classes)
+    (x_train, y_train), _ = get_data_callbacks(num_train=10,
+                                               num_test=0,
+                                               input_shape=input_shape)
     y_train = np_utils.to_categorical(y_train)
 
     model = Sequential([
@@ -894,11 +863,7 @@ def test_TensorBoard_display_float_from_logs(tmpdir):
 @keras_test
 def test_CallbackValData():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -943,11 +908,7 @@ def test_CallbackValData():
 @keras_test
 def test_LambdaCallback():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -981,11 +942,7 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -1015,11 +972,7 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
 
 @keras_test
 def tests_RemoteMonitor():
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -1037,11 +990,7 @@ def tests_RemoteMonitor():
 
 @keras_test
 def tests_RemoteMonitorWithJsonPayload():
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
