@@ -68,6 +68,9 @@ install:
   - pip install keras_applications keras_preprocessing
   - conda install mkl mkl-service
 
+  # run theano to let the cache have common binary files of theano
+  - python -c "import theano"
+
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
