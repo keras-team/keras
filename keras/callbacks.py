@@ -715,7 +715,7 @@ class TensorBoard(Callback):
             `embeddings_layer_names`. Numpy array (if the model has a single
             input) or list of Numpy arrays (if the model has multiple inputs).
             Learn [more about embeddings](https://www.tensorflow.org/programmers_guide/embedding)
-        write_step: `'batch'` or `'epoch'` or integer. When using `'batch'`, writes
+        update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`, writes
             the losses and metrics to TensorBoard after each batch. The same
             applies for `'epoch'`. If using an integer, let's say `10000`,
             the callback will write the metrics and losses to TensorBoard every
@@ -733,7 +733,7 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
                  embeddings_data=None,
-                 write_after='epoch'):
+                 update_freq='epoch'):
         super(TensorBoard, self).__init__()
         global tf, projector
         try:
@@ -771,11 +771,11 @@ class TensorBoard(Callback):
         self.embeddings_metadata = embeddings_metadata or {}
         self.batch_size = batch_size
         self.embeddings_data = embeddings_data
-        if write_after == 'batch':
+        if update_freq == 'batch':
             # It is the same as writing as frequently as possible.
-            self.write_after = 1
+            self.update_freq = 1
         else:
-            self.write_after = write_after
+            self.update_freq = update_freq
         self.samples_seen = 0
         self.samples_seen_at_last_write = 0
 
@@ -973,7 +973,7 @@ class TensorBoard(Callback):
 
                     i += self.batch_size
 
-        if self.write_after == 'epoch':
+        if self.update_freq == 'epoch':
             index = epoch
         else:
             index = self.samples_seen
@@ -997,10 +997,10 @@ class TensorBoard(Callback):
         self.writer.close()
 
     def on_batch_end(self, batch, logs=None):
-        if self.write_after != 'epoch':
+        if self.update_freq != 'epoch':
             self.samples_seen += logs['size']
             samples_seen_since = self.samples_seen - self.samples_seen_at_last_write
-            if samples_seen_since >= self.write_after:
+            if samples_seen_since >= self.update_freq:
                 self._write_logs(logs, self.samples_seen)
                 self.samples_seen_at_last_write = self.samples_seen
 
