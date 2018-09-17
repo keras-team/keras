@@ -45,7 +45,6 @@ install:
   - source activate test-environment
   - travis_retry pip install --only-binary=numpy,scipy numpy nose scipy matplotlib h5py theano
   - pip install keras_applications keras_preprocessing
-  - conda install mkl mkl-service
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
@@ -53,11 +52,14 @@ install:
   # install PIL for preprocessing tests (they are integration tests).
   - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]] || [[ "$TEST_MODE" == "PEP8" ]]; then
       if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-        conda install pil;
+        export PIL=Pil;
       else
-        conda install Pillow;
+        export PIL=Pillow;
       fi
     fi
+
+    # install pydot for visualization tests
+  - conda install mkl mkl-service pydot graphviz $PIL
 
   - pip install -e .[tests]
 
@@ -66,9 +68,6 @@ install:
   
   # install cntk
   - pip install cntk
-
-  # install pydot for visualization tests
-  - conda install pydot graphviz
 
   # exclude different backends to measure a coverage for the designated backend only
   - if [[ "$KERAS_BACKEND" != "tensorflow" ]]; then
