@@ -47,6 +47,7 @@ def test_basic_batchnorm():
 
 @keras_test
 def test_batchnorm_correctness_1d():
+    np.random.seed(1337)
     model = Sequential()
     norm = normalization.BatchNormalization(input_shape=(10,), momentum=0.8)
     model.add(norm)
@@ -65,6 +66,7 @@ def test_batchnorm_correctness_1d():
 
 @keras_test
 def test_batchnorm_correctness_2d():
+    np.random.seed(1337)
     model = Sequential()
     norm = normalization.BatchNormalization(axis=1, input_shape=(10, 6),
                                             momentum=0.8)
@@ -84,13 +86,13 @@ def test_batchnorm_correctness_2d():
 
 @keras_test
 def test_batchnorm_training_argument():
+    np.random.seed(1337)
     bn1 = normalization.BatchNormalization(input_shape=(10,))
     x1 = Input(shape=(10,))
     y1 = bn1(x1, training=True)
     assert bn1.updates
 
     model1 = Model(x1, y1)
-    np.random.seed(123)
     x = np.random.normal(loc=5.0, scale=10.0, size=(20, 10))
     output_a = model1.predict(x)
 
@@ -123,6 +125,7 @@ def test_batchnorm_mode_twice():
 
 @keras_test
 def test_batchnorm_convnet():
+    np.random.seed(1337)
     model = Sequential()
     norm = normalization.BatchNormalization(axis=1, input_shape=(3, 4, 4),
                                             momentum=0.8)
@@ -144,6 +147,7 @@ def test_batchnorm_convnet():
 @pytest.mark.skipif((K.backend() == 'theano'),
                     reason='Bug with theano backend')
 def test_batchnorm_convnet_no_center_no_scale():
+    np.random.seed(1337)
     model = Sequential()
     norm = normalization.BatchNormalization(axis=-1, center=False, scale=False,
                                             input_shape=(3, 4, 4), momentum=0.8)
