@@ -87,7 +87,8 @@ class _Merge(Layer):
                 shape = None
             else:
                 shape = input_shape[i][1:]
-            output_shape = self._compute_elemwise_op_output_shape(output_shape, shape)
+            output_shape = self._compute_elemwise_op_output_shape(output_shape,
+                                                                  shape)
         # If the inputs have different ranks, we have to reshape them
         # to make them broadcastable.
         if None not in input_shape and len(set(map(len, input_shape))) == 1:
@@ -122,8 +123,10 @@ class _Merge(Layer):
                     if x_ndim is None:
                         x_shape = K.shape(x)
                         batch_size = x_shape[0]
-                        new_shape = K.concatenate([x_shape[1:], K.expand_dims(batch_size)])
-                        x_transposed = K.reshape(x, K.stack([batch_size, K.prod(x_shape[1:])]))
+                        new_shape = K.concatenate([x_shape[1:],
+                                                   K.expand_dims(batch_size)])
+                        x_transposed = K.reshape(x, K.stack([batch_size,
+                                                             K.prod(x_shape[1:])]))
                         x_transposed = K.permute_dimensions(x_transposed, (1, 0))
                         x_transposed = K.reshape(x_transposed, new_shape)
                         reshaped_inputs.append(x_transposed)
@@ -133,17 +136,20 @@ class _Merge(Layer):
                         reshaped_inputs.append(K.permute_dimensions(x, dims))
                         transposed = True
                     else:
-                        # We don't transpose inputs if they are 1D vectors or scalars.
+                        # We don't transpose inputs if they are
+                        # 1D vectors or scalars.
                         reshaped_inputs.append(x)
                 y = self._merge_function(reshaped_inputs)
                 y_ndim = K.ndim(y)
                 if transposed:
-                    # If inputs have been transposed, we have to transpose the output too.
+                    # If inputs have been transposed,
+                    # we have to transpose the output too.
                     if y_ndim is None:
                         y_shape = K.shape(y)
                         y_ndim = K.shape(y_shape)[0]
                         batch_size = y_shape[y_ndim - 1]
-                        new_shape = K.concatenate([K.expand_dims(batch_size), y_shape[:y_ndim - 1]])
+                        new_shape = K.concatenate([K.expand_dims(batch_size),
+                                                   y_shape[:y_ndim - 1]])
                         y = K.reshape(y, (-1, batch_size))
                         y = K.permute_dimensions(y, (1, 0))
                         y = K.reshape(y, new_shape)
@@ -164,7 +170,8 @@ class _Merge(Layer):
                 shape = None
             else:
                 shape = input_shape[i][1:]
-            output_shape = self._compute_elemwise_op_output_shape(output_shape, shape)
+            output_shape = self._compute_elemwise_op_output_shape(output_shape,
+                                                                  shape)
         batch_sizes = [s[0] for s in input_shape if s is not None]
         batch_sizes = set(batch_sizes)
         batch_sizes -= set([None])
@@ -206,7 +213,8 @@ class Add(_Merge):
         x1 = keras.layers.Dense(8, activation='relu')(input1)
         input2 = keras.layers.Input(shape=(32,))
         x2 = keras.layers.Dense(8, activation='relu')(input2)
-        added = keras.layers.Add()([x1, x2])  # equivalent to added = keras.layers.add([x1, x2])
+        # equivalent to added = keras.layers.add([x1, x2])
+        added = keras.layers.Add()([x1, x2])
 
         out = keras.layers.Dense(4)(added)
         model = keras.models.Model(inputs=[input1, input2], outputs=out)
