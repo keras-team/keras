@@ -17,7 +17,7 @@ else:
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
+@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only support dilated conv on GPU')
 @pytest.mark.parametrize(
     'layer_kwargs,input_length,expected_output',
@@ -79,7 +79,7 @@ def test_conv_1d(padding, strides):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
+@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only support dilated conv on GPU')
 def test_conv_1d_dilation():
     batch_size = 2
@@ -163,7 +163,7 @@ def test_convolution_2d_channels_last():
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
+@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only supports dilated conv on GPU')
 def test_convolution_2d_dilation():
     num_samples = 2
@@ -174,15 +174,12 @@ def test_convolution_2d_dilation():
     num_col = 6
     padding = 'valid'
 
-    # Test dilation
-    if K.backend() != 'cntk':
-        # cntk only support dilated conv on GPU
-        layer_test(convolutional.Conv2D,
-                   kwargs={'filters': filters,
-                           'kernel_size': kernel_size,
-                           'padding': padding,
-                           'dilation_rate': (2, 2)},
-                   input_shape=(num_samples, num_row, num_col, stack_size))
+    layer_test(convolutional.Conv2D,
+               kwargs={'filters': filters,
+                       'kernel_size': kernel_size,
+                       'padding': padding,
+                       'dilation_rate': (2, 2)},
+               input_shape=(num_samples, num_row, num_col, stack_size))
 
 
 @keras_test
@@ -226,7 +223,7 @@ def test_conv2d_transpose(padding, out_padding, strides):
 
 
 @keras_test
-@pytest.mark.skipif((K.backend() == 'cntk'),
+@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only supports dilated conv transpose on GPU')
 def test_conv2d_transpose_dilation():
 
