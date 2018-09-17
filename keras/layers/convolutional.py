@@ -105,11 +105,13 @@ class _Conv(Layer):
         super(_Conv, self).__init__(**kwargs)
         self.rank = rank
         self.filters = filters
-        self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank, 'kernel_size')
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank,
+                                                      'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, rank, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = K.normalize_data_format(data_format)
-        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, rank, 'dilation_rate')
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, rank,
+                                                        'dilation_rate')
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -227,7 +229,8 @@ class _Conv(Layer):
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
@@ -270,7 +273,8 @@ class Conv1D(_Conv):
             the output has the same length as the original input.
             Useful when modeling temporal data where the model
             should not violate the temporal order. See
-            [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
+            [WaveNet: A Generative Model for Raw Audio, section 2.1]
+            (https://arxiv.org/abs/1609.03499).
         data_format: A string,
             one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -574,7 +578,8 @@ class Conv3D(_Conv):
         or 5D tensor with shape:
         `(batch, new_conv_dim1, new_conv_dim2, new_conv_dim3, filters)`
         if `data_format` is `"channels_last"`.
-        `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
+        `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have
+        changed due to padding.
     """
 
     @interfaces.legacy_conv3d_support
@@ -715,13 +720,17 @@ class Conv2DTranspose(Conv2D):
         If `output_padding` is specified:
 
         ```
-        new_rows = (rows - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]
-        new_cols = (cols - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]
+        new_rows = ((rows - 1) * strides[0] + kernel_size[0]
+                    - 2 * padding[0] + output_padding[0])
+        new_cols = ((cols - 1) * strides[1] + kernel_size[1]
+                    - 2 * padding[1] + output_padding[1])
         ```
 
     # References
-        - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
-        - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+        - [A guide to convolution arithmetic for deep learning]
+          (https://arxiv.org/abs/1603.07285v1)
+        - [Deconvolutional Networks]
+          (http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
     @interfaces.legacy_deconv2d_support
@@ -984,14 +993,19 @@ class Conv3DTranspose(Conv3D):
         If `output_padding` is specified::
 
         ```
-        new_depth = (depth - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]
-        new_rows = (rows - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]
-        new_cols = (cols - 1) * strides[2] + kernel_size[2] - 2 * padding[2] + output_padding[2]
+        new_depth = ((depth - 1) * strides[0] + kernel_size[0]
+                     - 2 * padding[0] + output_padding[0])
+        new_rows = ((rows - 1) * strides[1] + kernel_size[1]
+                    - 2 * padding[1] + output_padding[1])
+        new_cols = ((cols - 1) * strides[2] + kernel_size[2]
+                    - 2 * padding[2] + output_padding[2])
         ```
 
     # References
-        - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
-        - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+        - [A guide to convolution arithmetic for deep learning]
+          (https://arxiv.org/abs/1603.07285v1)
+        - [Deconvolutional Networks]
+          (http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
     def __init__(self, filters,
@@ -1103,9 +1117,11 @@ class Conv3DTranspose(Conv3D):
                                              out_pad_w)
 
         if self.data_format == 'channels_first':
-            output_shape = (batch_size, self.filters, out_depth, out_height, out_width)
+            output_shape = (batch_size, self.filters,
+                            out_depth, out_height, out_width)
         else:
-            output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
+            output_shape = (batch_size, out_depth,
+                            out_height, out_width, self.filters)
 
         outputs = K.conv3d_transpose(inputs,
                                      self.kernel,
@@ -1318,8 +1334,10 @@ class _SeparableConv(_Conv):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = int(input_shape[channel_axis])
-        depthwise_kernel_shape = self.kernel_size + (input_dim, self.depth_multiplier)
-        pointwise_kernel_shape = (1,) * self.rank + (self.depth_multiplier * input_dim, self.filters)
+        depthwise_kernel_shape = (input_dim, self.depth_multiplier)
+        depthwise_kernel_shape = self.kernel_size + depthwise_kernel_shape
+        pointwise_kernel_shape = (self.depth_multiplier * input_dim, self.filters)
+        pointwise_kernel_shape = (1,) * self.rank + pointwise_kernel_shape
 
         self.depthwise_kernel = self.add_weight(
             shape=depthwise_kernel_shape,
@@ -1384,12 +1402,18 @@ class _SeparableConv(_Conv):
         config.pop('kernel_regularizer')
         config.pop('kernel_constraint')
         config['depth_multiplier'] = self.depth_multiplier
-        config['depthwise_initializer'] = initializers.serialize(self.depthwise_initializer)
-        config['pointwise_initializer'] = initializers.serialize(self.pointwise_initializer)
-        config['depthwise_regularizer'] = regularizers.serialize(self.depthwise_regularizer)
-        config['pointwise_regularizer'] = regularizers.serialize(self.pointwise_regularizer)
-        config['depthwise_constraint'] = constraints.serialize(self.depthwise_constraint)
-        config['pointwise_constraint'] = constraints.serialize(self.pointwise_constraint)
+        config['depthwise_initializer'] = (
+            initializers.serialize(self.depthwise_initializer))
+        config['pointwise_initializer'] = (
+            initializers.serialize(self.pointwise_initializer))
+        config['depthwise_regularizer'] = (
+            regularizers.serialize(self.depthwise_regularizer))
+        config['pointwise_regularizer'] = (
+            regularizers.serialize(self.pointwise_regularizer))
+        config['depthwise_constraint'] = (
+            constraints.serialize(self.depthwise_constraint))
+        config['pointwise_constraint'] = (
+            constraints.serialize(self.pointwise_constraint))
         return config
 
 
@@ -1862,9 +1886,12 @@ class DepthwiseConv2D(Conv2D):
         config.pop('kernel_regularizer')
         config.pop('kernel_constraint')
         config['depth_multiplier'] = self.depth_multiplier
-        config['depthwise_initializer'] = initializers.serialize(self.depthwise_initializer)
-        config['depthwise_regularizer'] = regularizers.serialize(self.depthwise_regularizer)
-        config['depthwise_constraint'] = constraints.serialize(self.depthwise_constraint)
+        config['depthwise_initializer'] = (
+            initializers.serialize(self.depthwise_initializer))
+        config['depthwise_regularizer'] = (
+            regularizers.serialize(self.depthwise_regularizer))
+        config['depthwise_constraint'] = (
+            constraints.serialize(self.depthwise_constraint))
         return config
 
 
@@ -1982,7 +2009,8 @@ class UpSampling2D(_UpSampling):
     """
 
     @interfaces.legacy_upsampling2d_support
-    def __init__(self, size=(2, 2), data_format=None, interpolation='nearest', **kwargs):
+    def __init__(self, size=(2, 2), data_format=None, interpolation='nearest',
+                 **kwargs):
         normalized_size = conv_utils.normalize_tuple(size, 2, 'size')
         super(UpSampling2D, self).__init__(normalized_size, data_format, **kwargs)
         if interpolation not in ['nearest', 'bilinear']:
@@ -2216,7 +2244,9 @@ class ZeroPadding3D(_ZeroPadding):
                 `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
-                `((left_dim1_pad, right_dim1_pad), (left_dim2_pad, right_dim2_pad), (left_dim3_pad, right_dim3_pad))`
+                `((left_dim1_pad, right_dim1_pad),
+                  (left_dim2_pad, right_dim2_pad),
+                  (left_dim3_pad, right_dim3_pad))`
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -2231,22 +2261,26 @@ class ZeroPadding3D(_ZeroPadding):
     # Input shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad, depth)`
+            `(batch, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad)`
+            `(batch, depth,
+              first_axis_to_pad, second_axis_to_pad, third_axis_to_pad)`
 
     # Output shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_padded_axis, second_padded_axis, third_axis_to_pad, depth)`
+            `(batch, first_padded_axis, second_padded_axis, third_axis_to_pad,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)`
+            `(batch, depth,
+              first_padded_axis, second_padded_axis, third_axis_to_pad)`
     """
 
     @interfaces.legacy_zeropadding3d_support
     def __init__(self, padding=(1, 1, 1), data_format=None, **kwargs):
         if isinstance(padding, int):
-            normalized_padding = ((padding, padding), (padding, padding), (padding, padding))
+            normalized_padding = 3 * ((padding, padding),)
         elif hasattr(padding, '__len__'):
             if len(padding) != 3:
                 raise ValueError('`padding` should have 3 elements. '
@@ -2259,14 +2293,14 @@ class ZeroPadding3D(_ZeroPadding):
                                                       '3rd entry of padding')
             normalized_padding = (dim1_padding, dim2_padding, dim3_padding)
         else:
-            raise ValueError('`padding` should be either an int, '
-                             'a tuple of 3 ints '
-                             '(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad), '
-                             'or a tuple of 3 tuples of 2 ints '
-                             '((left_dim1_pad, right_dim1_pad),'
-                             ' (left_dim2_pad, right_dim2_pad),'
-                             ' (left_dim3_pad, right_dim2_pad)). '
-                             'Found: ' + str(padding))
+            raise ValueError(
+                '`padding` should be either an int, a tuple of 3 ints '
+                '(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad), '
+                'or a tuple of 3 tuples of 2 ints '
+                '((left_dim1_pad, right_dim1_pad),'
+                ' (left_dim2_pad, right_dim2_pad),'
+                ' (left_dim3_pad, right_dim2_pad)). '
+                'Found: ' + str(padding))
         super(ZeroPadding3D, self).__init__(normalized_padding,
                                             data_format,
                                             **kwargs)
@@ -2466,7 +2500,9 @@ class Cropping3D(_Cropping):
                 `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
-                `((left_dim1_crop, right_dim1_crop), (left_dim2_crop, right_dim2_crop), (left_dim3_crop, right_dim3_crop))`
+                `((left_dim1_crop, right_dim1_crop),
+                  (left_dim2_crop, right_dim2_crop),
+                  (left_dim3_crop, right_dim3_crop))`
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -2481,16 +2517,20 @@ class Cropping3D(_Cropping):
     # Input shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop, depth)`
+            `(batch, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop)`
+            `(batch, depth,
+              first_axis_to_crop, second_axis_to_crop, third_axis_to_crop)`
 
     # Output shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_cropped_axis, second_cropped_axis, third_cropped_axis, depth)`
+            `(batch, first_cropped_axis, second_cropped_axis, third_cropped_axis,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)`
+            `(batch, depth,
+              first_cropped_axis, second_cropped_axis, third_cropped_axis)`
     """
 
     @interfaces.legacy_cropping3d_support
@@ -2513,14 +2553,14 @@ class Cropping3D(_Cropping):
                                                        '3rd entry of cropping')
             normalized_cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
         else:
-            raise ValueError('`cropping` should be either an int, '
-                             'a tuple of 3 ints '
-                             '(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop), '
-                             'or a tuple of 3 tuples of 2 ints '
-                             '((left_dim1_crop, right_dim1_crop),'
-                             ' (left_dim2_crop, right_dim2_crop),'
-                             ' (left_dim3_crop, right_dim2_crop)). '
-                             'Found: ' + str(cropping))
+            raise ValueError(
+                '`cropping` should be either an int, a tuple of 3 ints '
+                '(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop), '
+                'or a tuple of 3 tuples of 2 ints '
+                '((left_dim1_crop, right_dim1_crop),'
+                ' (left_dim2_crop, right_dim2_crop),'
+                ' (left_dim3_crop, right_dim2_crop)). '
+                'Found: ' + str(cropping))
         super(Cropping3D, self).__init__(normalized_cropping,
                                          data_format,
                                          **kwargs)
