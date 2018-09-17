@@ -4,11 +4,9 @@ language: python
 cache:
   directories:
     - $HOME/.theano
-    - $HOME/.cache/pip
     - $HOME/download
     - $HOME/miniconda
 before_cache:
-  - rm -f $HOME/.cache/pip/log/debug.log
   - rm -rf $HOME/miniconda/locks $HOME/miniconda/pkgs $HOME/miniconda/var $HOME/miniconda/conda-meta/history
   - pip uninstall -y keras keras_applications keras_preprocessing
 matrix:
