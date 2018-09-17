@@ -10,6 +10,7 @@ from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
 from theano.tensor.signal import pool
 from theano.printing import Print
 from theano.ifelse import ifelse
+from theano.gof import graph
 try:
     import theano.sparse as th_sparse_module
 except ImportError:
@@ -2840,3 +2841,13 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
                          (output_row, output_col, -1, filters))
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+def get_reachable_from_inputs(inputs, targets=None):
+    if targets is None:
+        raise NotImplementedError('It is not possible to use '
+                                  '`get_reachable_from_inputs` with the Theano'
+                                  ' backend without specifying target tensors to'
+                                  ' reach.')
+
+    return graph.variables(inputs, targets) + graph.list_of_nodes(inputs, targets)

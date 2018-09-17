@@ -4,11 +4,13 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.framework import ops as tf_ops
+from tensorflow.python.framework import tensor_util
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
+from tensorflow.python.ops import variables
 from tensorflow.python.client import device_lib
 from tensorflow.core.protobuf import config_pb2
 
@@ -4425,3 +4427,43 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
     else:
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+def get_reachable_from_inputs(inputs, targets=None):
+    """Returns the set of tensors/ops reachable from `inputs`.
+
+    Stops if all targets have been found (target is optional).
+    Only valid in Symbolic mode, not Eager mode.
+
+    # Arguments
+        inputs: List of tensors.
+        targets: List of tensors.
+
+    # Returns
+        A set of tensors reachable from the inputs (includes the inputs themselves).
+    """
+    reachable = set(inputs)
+    if targets is not None:
+        targets = set(targets)
+    queue = inputs[:]
+
+    while queue:
+        x = queue.pop()
+        if isinstance(x, tf_ops.Operation):
+            outputs = x.outputs[:] or []
+            #outputs += x._control_outputs  # pylint: disable=protected-access
+        elif isinstance(x, variables.Variable):
+            outputs = [x.op]
+        elif tensor_util.is_tensor(x):
+            outputs = x.consumers()
+        else:
+            raise TypeError('Expected Operation, Variable, or Tensor, got ' + str(x))
+
+        for y in outputs:
+            if y not in reachable:
+                reachable.add(y)
+                queue.insert(0, y)
+
+        if targets is not None and targets.issubset(reachable):
+            return reachable
+    return reachable

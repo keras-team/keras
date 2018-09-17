@@ -184,6 +184,27 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
     assert_list_pairwise(z_list)
 
 
+def get_dummy_graph():
+    a = K.placeholder((3,))
+    a_1 = a * 10
+    a_2 = K.log(a_1)
+
+    b = K.zeros((3,))
+    b_1 = b * 10
+    b_2 = K.log(b_1)
+
+    c = a_2 + b_2
+    c_1 = K.exp(c)
+
+    d = a_2 - b_2
+    d_1 = K.exp(d)
+
+    return ([a, a_1, a_2],
+            [b, b_1, b_2],
+            [c, c_1],
+            [d, d_1])
+
+
 class TestBackend(object):
 
     def test_is_keras_tensor(self):
@@ -1887,6 +1908,44 @@ class TestBackend(object):
             assert K.dtype(K.variable(False, dtype='bool')) == 'bool'
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
+
+    @keras_test
+    @pytest.mark.skipif((K.backend() != 'tensorflow'),
+                        reason='Only Tensorflow exposes pointers to '
+                               'the next nodes and operations.')
+    def test_get_reachable_from_inputs_no_outputs(self):
+        branches = get_dummy_graph()
+        branch_a, branch_b = branches[:2]
+
+        nodes = K.get_reachable_from_inputs([branch_a[0], branch_b[0]])
+        for branch in branches:
+            for tensor in branch:
+                assert tensor in nodes
+
+    @keras_test
+    def test_get_reachable_from_inputs_1(self):
+        branches = get_dummy_graph()
+        branch_a, branch_b = branches[:2]
+        branch_c, branch_d = branches[2:]
+
+        nodes = K.get_reachable_from_inputs([branch_a[0]],
+                                            [branch_c[-1], branch_d[-1]])
+
+        for tensor in branch_b:
+            assert tensor not in nodes
+
+    @keras_test
+    def test_get_reachable_from_inputs_2(self):
+        branches = get_dummy_graph()
+        branch_a, branch_b = branches[:2]
+        branch_c, branch_d = branches[2:]
+
+        nodes = K.get_reachable_from_inputs([branch_a[0], branch_b[0]],
+                                            [branch_c[-1]])
+
+        for branch in (branch_a, branch_b, branch_c):
+            for tensor in branch:
+                assert tensor in nodes
 
 
 if __name__ == '__main__':
