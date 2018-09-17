@@ -7,10 +7,8 @@ from keras.layers import Dense
 from keras.layers import Flatten
 from keras.models import Sequential
 from keras.utils import layer_utils
-from keras.utils.test_utils import keras_test
 
 
-@keras_test
 def test_convert_weights():
     def get_model(shape, data_format):
         model = Sequential()
