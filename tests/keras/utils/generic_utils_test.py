@@ -7,12 +7,10 @@ from keras.utils.generic_utils import has_arg
 from keras.utils.generic_utils import Progbar
 from keras.utils.generic_utils import func_dump
 from keras.utils.generic_utils import func_load
-from keras.utils.test_utils import keras_test
 from keras import activations
 from keras import regularizers
 
 
-@keras_test
 def test_progbar():
     values_s = [None,
                 [['key1', 1], ['key2', 1e-4]],
