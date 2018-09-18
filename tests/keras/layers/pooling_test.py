@@ -1,14 +1,13 @@
 import numpy as np
 import pytest
 
-from keras.utils.test_utils import keras_test, layer_test
+from keras.utils.test_utils import layer_test
 from keras.layers import pooling
 from keras.layers import Masking
 from keras.layers import convolutional
 from keras.models import Sequential
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,stride,data_format',
     [(padding, stride, data_format)
@@ -24,7 +23,6 @@ def test_maxpooling_1d(padding, stride, data_format):
                input_shape=(3, 5, 4))
 
 
-@keras_test
 @pytest.mark.parametrize(
     'strides',
     [(1, 1), (2, 3)]
@@ -38,7 +36,6 @@ def test_maxpooling_2d(strides):
                input_shape=(3, 5, 6, 4))
 
 
-@keras_test
 @pytest.mark.parametrize(
     'strides,data_format,input_shape',
     [(2, None, (3, 11, 12, 10, 4)),
@@ -54,7 +51,6 @@ def test_maxpooling_3d(strides, data_format, input_shape):
                input_shape=input_shape)
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,stride,data_format',
     [(padding, stride, data_format)
@@ -70,7 +66,6 @@ def test_averagepooling_1d(padding, stride, data_format):
                input_shape=(3, 5, 4))
 
 
-@keras_test
 @pytest.mark.parametrize(
     'strides,padding,data_format,input_shape',
     [((2, 2), 'same', None, (3, 5, 6, 4)),
@@ -86,7 +81,6 @@ def test_averagepooling_2d(strides, padding, data_format, input_shape):
                input_shape=input_shape)
 
 
-@keras_test
 @pytest.mark.parametrize(
     'strides,data_format,input_shape',
     [(2, None, (3, 11, 12, 10, 4)),
@@ -103,7 +97,6 @@ def test_averagepooling_3d(strides, data_format, input_shape):
                input_shape=input_shape)
 
 
-@keras_test
 @pytest.mark.parametrize(
     'data_format,pooling_class',
     [(data_format, pooling_class)
@@ -117,7 +110,6 @@ def test_globalpooling_1d(data_format, pooling_class):
                input_shape=(3, 4, 5))
 
 
-@keras_test
 def test_globalpooling_1d_supports_masking():
     # Test GlobalAveragePooling1D supports masking
     model = Sequential()
@@ -131,7 +123,6 @@ def test_globalpooling_1d_supports_masking():
     assert np.array_equal(output[0], model_input[0, 0, :])
 
 
-@keras_test
 @pytest.mark.parametrize(
     'data_format,pooling_class',
     [(data_format, pooling_class)
@@ -145,7 +136,6 @@ def test_globalpooling_2d(data_format, pooling_class):
                input_shape=(3, 4, 5, 6))
 
 
-@keras_test
 @pytest.mark.parametrize(
     'data_format,pooling_class',
     [(data_format, pooling_class)
