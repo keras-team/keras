@@ -17,7 +17,6 @@ from keras.initializers import Constant
 from keras import optimizers
 from keras import losses
 from keras import metrics
-from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
 
 
@@ -27,7 +26,6 @@ skipif_no_tf_gpu = pytest.mark.skipif(
     reason='Requires TensorFlow backend and a GPU')
 
 
-@keras_test
 def test_sequential_model_saving():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
@@ -61,7 +59,6 @@ def test_sequential_model_saving():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_sequential_model_saving_2():
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
@@ -88,7 +85,6 @@ def test_sequential_model_saving_2():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_functional_model_saving():
     inputs = Input(shape=(3,))
     x = Dense(2)(inputs)
@@ -113,7 +109,6 @@ def test_functional_model_saving():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_model_saving_to_pre_created_h5py_file():
     inputs = Input(shape=(3,))
     x = Dense(2)(inputs)
@@ -151,7 +146,6 @@ def test_model_saving_to_pre_created_h5py_file():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_model_saving_to_binary_stream():
     inputs = Input(shape=(3,))
     x = Dense(2)(inputs)
@@ -193,7 +187,6 @@ def test_model_saving_to_binary_stream():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_multiple_metrics_outputs():
     inputs = Input(shape=(5,))
     x = Dense(5)(inputs)
@@ -222,7 +215,6 @@ def test_saving_multiple_metrics_outputs():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_without_compilation():
     """Test saving model without compiling.
     """
@@ -236,7 +228,6 @@ def test_saving_without_compilation():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_right_after_compilation():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
@@ -250,7 +241,6 @@ def test_saving_right_after_compilation():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_unused_layers_is_ok():
     a = Input(shape=(256, 512, 6))
     b = Input(shape=(256, 512, 1))
@@ -264,7 +254,6 @@ def test_saving_unused_layers_is_ok():
     os.remove(fname)
 
 
-@keras_test
 def test_loading_weights_by_name_and_reshape():
     """
     test loading model weights by name on:
@@ -346,7 +335,6 @@ def test_loading_weights_by_name_and_reshape():
     os.remove(fname)
 
 
-@keras_test
 def test_loading_weights_by_name_2():
     """
     test loading model weights by name on:
@@ -405,7 +393,6 @@ def test_loading_weights_by_name_2():
     assert_allclose(np.zeros_like(jessica[1]), jessica[1])  # biases init to 0
 
 
-@keras_test
 def test_loading_weights_by_name_skip_mismatch():
     """
     test skipping layers while loading model weights by name on:
@@ -458,7 +445,6 @@ def square_fn(x):
     return x * x
 
 
-@keras_test
 def test_saving_lambda_custom_objects():
     inputs = Input(shape=(3,))
     x = Lambda(lambda x: square_fn(x), output_shape=(3,))(inputs)
@@ -483,7 +469,6 @@ def test_saving_lambda_custom_objects():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_lambda_numpy_array_arguments():
     mean = np.random.random((4, 2, 3))
     std = np.abs(np.random.random((4, 2, 3))) + 1e-5
@@ -503,7 +488,6 @@ def test_saving_lambda_numpy_array_arguments():
     assert_allclose(std, model.layers[1].arguments['std'])
 
 
-@keras_test
 def test_saving_custom_activation_function():
     x = Input(shape=(3,))
     output = Dense(3, activation=K.cos)(x)
@@ -527,7 +511,6 @@ def test_saving_custom_activation_function():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_model_with_long_layer_names():
     # This layer name will make the `layers_name` HDF5 attribute blow
     # out of proportion. Note that it fits into the internal HDF5
@@ -570,7 +553,6 @@ def test_saving_model_with_long_layer_names():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_model_with_long_weights_names():
     x = Input(shape=(2,), name='nested_model_input')
     f = x
@@ -616,7 +598,6 @@ def test_saving_model_with_long_weights_names():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_recurrent_layer_with_init_state():
     vector_size = 8
     input_length = 20
@@ -636,7 +617,6 @@ def test_saving_recurrent_layer_with_init_state():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_recurrent_layer_without_bias():
     vector_size = 8
     input_length = 20
@@ -652,7 +632,6 @@ def test_saving_recurrent_layer_without_bias():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_constant_initializer_with_numpy():
     """Test saving and loading model of constant initializer with numpy inputs.
     """
@@ -668,7 +647,6 @@ def test_saving_constant_initializer_with_numpy():
     os.remove(fname)
 
 
-@keras_test
 @pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
 @pytest.mark.parametrize('bidirectional',
                          [False, True],
@@ -756,7 +734,6 @@ def _convert_model_weights(source_model, target_model):
     os.remove(fname)
 
 
-@keras_test
 @pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
 @pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
 @skipif_no_tf_gpu

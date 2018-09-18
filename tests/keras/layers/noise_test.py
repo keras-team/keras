@@ -1,11 +1,9 @@
 import pytest
 from keras.utils.test_utils import layer_test
-from keras.utils.test_utils import keras_test
 from keras.layers import noise
 from keras import backend as K
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support it yet")
 def test_GaussianNoise():
@@ -14,7 +12,6 @@ def test_GaussianNoise():
                input_shape=(3, 2, 3))
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support it yet")
 def test_GaussianDropout():
@@ -23,7 +20,6 @@ def test_GaussianDropout():
                input_shape=(3, 2, 3))
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support it yet")
 def test_AlphaDropout():

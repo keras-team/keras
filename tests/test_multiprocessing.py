@@ -5,7 +5,6 @@ import pytest
 import numpy as np
 from keras.models import Sequential
 from keras.layers.core import Dense
-from keras.utils.test_utils import keras_test
 from keras.utils import Sequence
 from keras import backend as K
 
@@ -67,7 +66,6 @@ def in_tmpdir(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 def test_multiprocessing_training():
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
@@ -276,7 +274,6 @@ def test_multiprocessing_training():
                             use_multiprocessing=False)
 
 
-@keras_test
 def test_multiprocessing_training_from_file(in_tmpdir):
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
@@ -397,7 +394,6 @@ def test_multiprocessing_training_from_file(in_tmpdir):
     os.remove('data.npz')
 
 
-@keras_test
 def test_multiprocessing_predicting():
     arr_data = np.random.randint(0, 256, (50, 2))
 
@@ -486,7 +482,6 @@ def test_multiprocessing_predicting():
                             use_multiprocessing=False)
 
 
-@keras_test
 def test_multiprocessing_evaluating():
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
@@ -578,7 +573,6 @@ def test_multiprocessing_evaluating():
                              use_multiprocessing=False)
 
 
-@keras_test
 def test_multiprocessing_fit_error():
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
@@ -691,7 +685,6 @@ def test_multiprocessing_fit_error():
                             use_multiprocessing=False)
 
 
-@keras_test
 def test_multiprocessing_evaluate_error():
     arr_data = np.random.randint(0, 256, (50, 2))
     arr_labels = np.random.randint(0, 2, 50)
@@ -794,7 +787,6 @@ def test_multiprocessing_evaluate_error():
                                  use_multiprocessing=False)
 
 
-@keras_test
 def test_multiprocessing_predict_error():
     arr_data = np.random.randint(0, 256, (50, 2))
     good_batches = 3
