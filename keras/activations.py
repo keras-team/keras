@@ -164,6 +164,10 @@ def linear(x):
     return x
 
 
+def exponential(x):
+    return K.exp(x)
+
+
 def serialize(activation):
     return activation.__name__
 
