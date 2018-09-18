@@ -1,11 +1,9 @@
 import pytest
 import json
-from keras.utils.test_utils import keras_test
 import keras
 import numpy as np
 
 
-@keras_test
 def test_dense_legacy_interface():
     old_layer = keras.layers.Dense(input_dim=3, output_dim=2, name='d')
     new_layer = keras.layers.Dense(2, input_shape=(3,), name='d')
@@ -29,7 +27,6 @@ def test_dense_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_dropout_legacy_interface():
     old_layer = keras.layers.Dropout(p=3, name='drop')
     new_layer1 = keras.layers.Dropout(rate=3, name='drop')
@@ -38,7 +35,6 @@ def test_dropout_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer2.get_config())
 
 
-@keras_test
 def test_embedding_legacy_interface():
     old_layer = keras.layers.Embedding(4, 2, name='d')
     new_layer = keras.layers.Embedding(output_dim=2, input_dim=4, name='d')
@@ -59,7 +55,6 @@ def test_embedding_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_maxpooling1d_legacy_interface():
     old_layer = keras.layers.MaxPool1D(pool_length=2,
                                        border_mode='valid',
@@ -76,7 +71,6 @@ def test_maxpooling1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_avgpooling1d_legacy_interface():
     old_layer = keras.layers.AvgPool1D(pool_length=2,
                                        border_mode='valid',
@@ -89,21 +83,18 @@ def test_avgpooling1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_prelu_legacy_interface():
     old_layer = keras.layers.PReLU(init='zero', name='p')
     new_layer = keras.layers.PReLU('zero', name='p')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_gaussiannoise_legacy_interface():
     old_layer = keras.layers.GaussianNoise(sigma=0.5, name='gn')
     new_layer = keras.layers.GaussianNoise(stddev=0.5, name='gn')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_lstm_legacy_interface():
     old_layer = keras.layers.LSTM(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.LSTM(2, input_shape=[3, 5], name='d')
@@ -179,7 +170,6 @@ def test_lstm_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_simplernn_legacy_interface():
     old_layer = keras.layers.SimpleRNN(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.SimpleRNN(2, input_shape=[3, 5], name='d')
@@ -204,7 +194,6 @@ def test_simplernn_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_gru_legacy_interface():
     old_layer = keras.layers.GRU(input_shape=[3, 5], output_dim=2, name='d')
     new_layer = keras.layers.GRU(2, input_shape=[3, 5], name='d')
@@ -231,7 +220,6 @@ def test_gru_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_gaussiandropout_legacy_interface():
     old_layer = keras.layers.GaussianDropout(p=0.6, name='drop')
     new_layer1 = keras.layers.GaussianDropout(rate=0.6, name='drop')
@@ -240,7 +228,6 @@ def test_gaussiandropout_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer2.get_config())
 
 
-@keras_test
 def test_maxpooling2d_legacy_interface():
     old_layer = keras.layers.MaxPooling2D(
         pool_size=(2, 2), border_mode='valid', name='maxpool2d')
@@ -273,7 +260,6 @@ def test_maxpooling2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_avgpooling2d_legacy_interface():
     old_layer = keras.layers.AveragePooling2D(
         pool_size=(2, 2), border_mode='valid', name='avgpooling2d')
@@ -308,7 +294,6 @@ def test_avgpooling2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_maxpooling3d_legacy_interface():
     old_layer = keras.layers.MaxPooling3D(
         pool_size=(2, 2, 2), border_mode='valid', name='maxpool3d')
@@ -343,7 +328,6 @@ def test_maxpooling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_avgpooling3d_legacy_interface():
     old_layer = keras.layers.AveragePooling3D(
         pool_size=(2, 2, 2), border_mode='valid', name='avgpooling3d')
@@ -379,7 +363,6 @@ def test_avgpooling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_global_maxpooling2d_legacy_interface():
     old_layer = keras.layers.GlobalMaxPooling2D(dim_ordering='tf',
                                                 name='global_maxpool2d')
@@ -399,7 +382,6 @@ def test_global_maxpooling2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_global_avgpooling2d_legacy_interface():
     old_layer = keras.layers.GlobalAveragePooling2D(dim_ordering='tf',
                                                     name='global_avgpool2d')
@@ -419,7 +401,6 @@ def test_global_avgpooling2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_global_maxpooling3d_legacy_interface():
     old_layer = keras.layers.GlobalMaxPooling3D(dim_ordering='tf',
                                                 name='global_maxpool3d')
@@ -439,7 +420,6 @@ def test_global_maxpooling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_global_avgpooling3d_legacy_interface():
     old_layer = keras.layers.GlobalAveragePooling3D(dim_ordering='tf',
                                                     name='global_avgpool3d')
@@ -459,7 +439,6 @@ def test_global_avgpooling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_upsampling1d_legacy_interface():
     old_layer = keras.layers.UpSampling1D(length=3, name='us1d')
     new_layer_1 = keras.layers.UpSampling1D(size=3, name='us1d')
@@ -468,7 +447,6 @@ def test_upsampling1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 
-@keras_test
 def test_upsampling2d_legacy_interface():
     old_layer = keras.layers.UpSampling2D((2, 2), dim_ordering='tf', name='us2d')
     new_layer = keras.layers.UpSampling2D((2, 2), data_format='channels_last',
@@ -476,7 +454,6 @@ def test_upsampling2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_upsampling3d_legacy_interface():
     old_layer = keras.layers.UpSampling3D((2, 2, 2),
                                           dim_ordering='tf',
@@ -487,7 +464,6 @@ def test_upsampling3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_conv2d_legacy_interface():
     old_layer = keras.layers.Convolution2D(5, 3, 3, name='conv')
     new_layer = keras.layers.Conv2D(5, (3, 3), name='conv')
@@ -524,7 +500,6 @@ def test_conv2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_deconv2d_legacy_interface():
     old_layer = keras.layers.Deconvolution2D(5, 3, 3, (6, 7, 5), name='deconv')
     new_layer = keras.layers.Conv2DTranspose(5, (3, 3), name='deconv')
@@ -570,7 +545,6 @@ def test_deconv2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_conv1d_legacy_interface():
     old_layer = keras.layers.Convolution1D(5,
                                            filter_length=3,
@@ -601,7 +575,6 @@ def test_conv1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_separable_conv2d_legacy_interface():
     old_layer = keras.layers.SeparableConv2D(5, 3, 3, name='conv')
     new_layer = keras.layers.SeparableConv2D(5, (3, 3), name='conv')
@@ -641,7 +614,6 @@ def test_separable_conv2d_legacy_interface():
     assert old_config == new_config
 
 
-@keras_test
 def test_conv3d_legacy_interface():
     old_layer = keras.layers.Convolution3D(5, 3, 3, 4, name='conv')
     new_layer = keras.layers.Conv3D(5, (3, 3, 4), name='conv')
@@ -689,7 +661,6 @@ def test_conv3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_convlstm2d_legacy_interface():
     old_layer = keras.layers.ConvLSTM2D(5, 3, 3, name='conv')
     new_layer = keras.layers.ConvLSTM2D(5, (3, 3), name='conv')
@@ -734,7 +705,6 @@ def test_convlstm2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_batchnorm_legacy_interface():
     old_layer = keras.layers.BatchNormalization(mode=0, name='bn')
     new_layer = keras.layers.BatchNormalization(name='bn')
@@ -750,7 +720,6 @@ def test_batchnorm_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_atrousconv1d_legacy_interface():
     old_layer = keras.layers.AtrousConvolution1D(5, 3,
                                                  init='normal',
@@ -775,7 +744,6 @@ def test_atrousconv1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_atrousconv2d_legacy_interface():
     old_layer = keras.layers.AtrousConvolution2D(
         5, 3, 3,
@@ -803,7 +771,6 @@ def test_atrousconv2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_zeropadding2d_legacy_interface():
     old_layer = keras.layers.ZeroPadding2D(padding={'right_pad': 4,
                                                     'bottom_pad': 2,
@@ -817,7 +784,6 @@ def test_zeropadding2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_zeropadding3d_legacy_interface():
     old_layer = keras.layers.ZeroPadding3D((2, 2, 2),
                                            dim_ordering='tf',
@@ -828,21 +794,18 @@ def test_zeropadding3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_cropping2d_legacy_interface():
     old_layer = keras.layers.Cropping2D(dim_ordering='tf', name='c2d')
     new_layer = keras.layers.Cropping2D(data_format='channels_last', name='c2d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_cropping3d_legacy_interface():
     old_layer = keras.layers.Cropping3D(dim_ordering='tf', name='c3d')
     new_layer = keras.layers.Cropping3D(data_format='channels_last', name='c3d')
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@keras_test
 def test_generator_methods_interface():
     def train_generator():
         x = np.random.randn(2, 2)
@@ -890,7 +853,6 @@ def test_spatialdropout1d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 
-@keras_test
 def test_spatialdropout2d_legacy_interface():
     old_layer = keras.layers.SpatialDropout2D(p=0.5,
                                               dim_ordering='tf',
@@ -905,7 +867,6 @@ def test_spatialdropout2d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 
-@keras_test
 def test_spatialdropout3d_legacy_interface():
     old_layer = keras.layers.SpatialDropout3D(p=0.5,
                                               dim_ordering='tf',
@@ -920,7 +881,6 @@ def test_spatialdropout3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer_2.get_config())
 
 
-@keras_test
 def test_optimizer_get_updates_legacy_interface():
     for optimizer_cls in [keras.optimizers.RMSprop,
                           keras.optimizers.SGD,

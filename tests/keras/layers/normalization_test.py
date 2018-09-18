@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 from keras.layers import Input
 from keras import regularizers
-from keras.utils.test_utils import layer_test, keras_test
+from keras.utils.test_utils import layer_test
 from keras.layers import normalization
 from keras.models import Sequential, Model
 from keras import backend as K
@@ -16,7 +16,6 @@ input_4 = np.expand_dims(np.arange(10.), axis=1)
 input_shapes = [np.ones((10, 10)), np.ones((10, 10, 10))]
 
 
-@keras_test
 def test_basic_batchnorm():
     layer_test(normalization.BatchNormalization,
                kwargs={'momentum': 0.9,
@@ -45,7 +44,6 @@ def test_basic_batchnorm():
                    input_shape=(3, 4, 2, 4))
 
 
-@keras_test
 def test_batchnorm_correctness_1d():
     np.random.seed(1337)
     model = Sequential()
@@ -64,7 +62,6 @@ def test_batchnorm_correctness_1d():
     assert_allclose(out.std(), 1.0, atol=1e-1)
 
 
-@keras_test
 def test_batchnorm_correctness_2d():
     np.random.seed(1337)
     model = Sequential()
@@ -84,7 +81,6 @@ def test_batchnorm_correctness_2d():
     assert_allclose(out.std(axis=(0, 2)), 1.0, atol=1.1e-1)
 
 
-@keras_test
 def test_batchnorm_training_argument():
     np.random.seed(1337)
     bn1 = normalization.BatchNormalization(input_shape=(10,))
@@ -109,7 +105,6 @@ def test_batchnorm_training_argument():
     assert not bn2.updates
 
 
-@keras_test
 def test_batchnorm_mode_twice():
     # This is a regression test for issue #4881 with the old
     # batch normalization functions in the Theano backend.
@@ -123,7 +118,6 @@ def test_batchnorm_mode_twice():
     model.predict(x)
 
 
-@keras_test
 def test_batchnorm_convnet():
     np.random.seed(1337)
     model = Sequential()
@@ -143,7 +137,6 @@ def test_batchnorm_convnet():
     assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'theano'),
                     reason='Bug with theano backend')
 def test_batchnorm_convnet_no_center_no_scale():
@@ -163,7 +156,6 @@ def test_batchnorm_convnet_no_center_no_scale():
     assert_allclose(np.std(out, axis=(0, 2, 3)), 1.0, atol=1e-1)
 
 
-@keras_test
 def test_shared_batchnorm():
     '''Test that a BN layer can be shared
     across different data streams.
@@ -191,7 +183,6 @@ def test_shared_batchnorm():
     new_model.train_on_batch(x, x)
 
 
-@keras_test
 def test_that_trainable_disables_updates():
     val_a = np.random.random((10, 4))
     val_out = np.random.random((10, 4))
@@ -230,7 +221,6 @@ def test_that_trainable_disables_updates():
     assert_allclose(x1, x2, atol=1e-7)
 
 
-@keras_test
 def test_batchnorm_trainable():
     bn_mean = 0.5
     bn_std = 10.

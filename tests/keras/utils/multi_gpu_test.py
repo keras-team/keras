@@ -11,7 +11,6 @@ import pytest
 import time
 import tempfile
 import tensorflow as tf
-from keras.utils.test_utils import keras_test
 from keras.preprocessing.image import ImageDataGenerator
 
 
@@ -25,7 +24,6 @@ if K.backend() == 'tensorflow':
                                     reason='Requires 8 GPUs.')
 
 
-@keras_test
 def test_multi_gpu_simple_model():
     print('####### test simple model')
     num_samples = 1000
@@ -52,7 +50,6 @@ def test_multi_gpu_simple_model():
     parallel_model.fit(x, y, epochs=epochs)
 
 
-@keras_test
 def test_multi_gpu_multi_io_model():
     print('####### test multi-io model')
     num_samples = 1000
@@ -88,7 +85,6 @@ def test_multi_gpu_multi_io_model():
     parallel_model.fit([a_x, b_x], [a_y, b_y], epochs=epochs)
 
 
-@keras_test
 def test_multi_gpu_invalid_devices():
     input_shape = (1000, 10)
     model = keras.models.Sequential()
@@ -120,7 +116,6 @@ def test_multi_gpu_invalid_devices():
         parallel_model.fit(x, y, epochs=2)
 
 
-@keras_test
 def test_serialization():
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(3,
@@ -272,7 +267,6 @@ def multi_gpu_application_folder_generator_benchmark():
         print('%d gpus training:' % i, total_time)
 
 
-@keras_test
 def test_multi_gpu_with_multi_input_layers():
     inputs = keras.Input((4, 3))
     init_state = keras.Input((3,))
@@ -286,7 +280,6 @@ def test_multi_gpu_with_multi_input_layers():
     parallel_model.train_on_batch(x, y)
 
 
-@keras_test
 def test_multi_gpu_with_siamese():
     input_shape = (3,)
     nested_model = keras.models.Sequential([
