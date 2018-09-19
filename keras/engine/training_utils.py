@@ -412,15 +412,12 @@ def weighted_masked_objective(fn):
 
         # apply sample weighting
         if weights is not None:
-            # reduce score_array to same ndim as weight array
+            # reduce score_array to same ndim as weight array, for the cases of
+            # one weight per sample and 2D weights for temporal data
             ndim = K.ndim(score_array)
             weight_ndim = K.ndim(weights)
             score_array = K.mean(score_array,
                                  axis=list(range(weight_ndim, ndim)))
-            # reduce weight array to same ndim as score_array (needed for
-            # sample_weight_mode='element')
-            if weight_ndim > K.ndim(score_array):
-                weights = K.reshape(weights, K.shape(score_array))
             score_array *= weights
             score_array /= K.mean(K.cast(K.not_equal(weights, 0), K.floatx()))
         return K.mean(score_array)
@@ -442,8 +439,9 @@ def standardize_weights(y,
         class_weight: User-provided `class_weight` argument.
         sample_weight_mode: One of `None`, `"element"` or `"temporal"`.
             `"element"` indicates that we expect nD weight data with
-            the same size as the output. The weights will be applied
-            element-wise. `"temporal"` indicates that we expect 2D
+            the same size as the `score_array` that results from the loss
+            function. The weights will be applied element-wise.
+            `"temporal"` indicates that we expect 2D
             weight data that will be applied to the last 2 dimensions of
             the targets (i.e. we are weighting timesteps, not samples).
 
@@ -481,14 +479,18 @@ def standardize_weights(y,
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D (sample_weight_mode=None) '
-                             'or the same size as the output arrays '
+                             'or the same size as the `score_array` '
                              '(sample_weight_mode="element").')
     elif sample_weight_mode is 'element':
-        if sample_weight is not None and sample_weight.shape != y.shape:
-            raise ValueError('Found a sample_weight array with shape ' +
-                             str(sample_weight.shape) + ' for output with shape ' +
-                             str(y.shape) + '. When sample_weight_mode="element", ' +
-                             'weights and outputs must have the same size.')
+        if sample_weight is not None:
+            score_array_shape = list(y.shape)
+            score_array_shape.pop(1) if K.image_data_format() == 'channels_first' else \
+                score_array_shape.pop(-1)
+            if sample_weight.shape != tuple(score_array_shape):
+                raise ValueError('Found a sample_weight array with shape ' +
+                                 str(sample_weight.shape) + ' for output with shape ' +
+                                 str(y.shape) + '. When sample_weight_mode="element", ' +
+                                 'weights and score_array must have the same size.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
@@ -532,7 +534,10 @@ def standardize_weights(y,
         if sample_weight_mode is None:
             return np.ones((y.shape[0],), dtype=K.floatx())
         elif sample_weight_mode == 'element':
-            return np.ones(y.shape, dtype=K.floatx())
+            score_array_shape = list(y.shape)
+            score_array_shape.pop(1) if K.image_data_format() == 'channels_first' else \
+                score_array_shape.pop(-1)
+            return np.ones(score_array_shape, dtype=K.floatx())
         else:
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 

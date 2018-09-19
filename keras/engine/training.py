@@ -261,8 +261,8 @@ class Model(Network):
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('temporal')
                     elif sample_weight_mode.get(name) == 'element':
-                        ndim = len(self.output_shape[i]) if isinstance(self.output_shape, list)\
-                            else len(self.output_shape)
+                        ndim = len(self.output_shape[i])-1 if isinstance(self.output_shape, list)\
+                            else len(self.output_shape)-1
                         weight = K.placeholder(ndim=ndim,
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('element')
@@ -291,8 +291,8 @@ class Model(Network):
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('temporal')
                     elif mode == 'element':
-                        ndim = len(self.output_shape[i]) if isinstance(self.output_shape, list) \
-                            else len(self.output_shape)
+                        ndim = len(self.output_shape[i])-1 if isinstance(self.output_shape, list) \
+                            else len(self.output_shape)-1
                         weight = K.placeholder(ndim=ndim,
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('element')
@@ -313,8 +313,8 @@ class Model(Network):
                                           name=name + '_sample_weights'))
                         sample_weight_modes.append('temporal')
                     elif sample_weight_mode == 'element':
-                        ndim = len(self.output_shape[i]) if isinstance(self.output_shape, list) \
-                            else len(self.output_shape)
+                        ndim = len(self.output_shape[i])-1 if isinstance(self.output_shape, list) \
+                            else len(self.output_shape)-1
                         sample_weights.append(
                             K.placeholder(ndim=ndim,
                                           name=name + '_sample_weights'))
@@ -921,13 +921,18 @@ class Model(Network):
                 the training samples, used for weighting the loss function
                 (during training only). You can either pass a flat (1D)
                 Numpy array with the same length as the input samples
-                (1:1 mapping between weights and samples),
-                or in the case of temporal data,
+                (1:1 mapping between weights and samples).
+                Or in the case of temporal data,
                 you can pass a 2D array with shape
                 `(samples, sequence_length)`,
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 `sample_weight_mode="temporal"` in `compile()`.
+                Or for element-wise weighting of the loss function, you can
+                pass an array with shape `(samples, nx, ny)` for 2D samples,
+                `(samples, nx, ny, nz)` for 3D samples, etc.
+                In this case you should make sure to specify
+                `sample_weight_mode="element"` in `compile()`.
             initial_epoch: Integer.
                 Epoch at which to start training
                 (useful for resuming a previous training run).
