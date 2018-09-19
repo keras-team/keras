@@ -17,6 +17,8 @@ from keras.layers.pooling import MaxPooling2D
 from keras.layers.pooling import GlobalAveragePooling1D
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
+from keras.utils.generic_utils import to_list
+from keras.utils.generic_utils import unpack_singleton
 from keras import backend as K
 from keras.utils import np_utils
 try:
@@ -31,6 +33,22 @@ num_classes = 2
 batch_size = 5
 train_samples = 20
 test_samples = 20
+
+
+def data_generator(x, y, batch_size):
+    x = to_list(x)
+    y = to_list(y)
+    max_batch_index = len(x[0]) // batch_size
+    i = 0
+    while 1:
+        x_batch = [array[i * batch_size: (i + 1) * batch_size] for array in x]
+        x_batch = unpack_singleton(x_batch)
+
+        y_batch = [array[i * batch_size: (i + 1) * batch_size] for array in y]
+        y_batch = unpack_singleton(y_batch)
+        yield x_batch, y_batch
+        i += 1
+        i = i % max_batch_index
 
 
 # Changing the default arguments of get_test_data.
@@ -69,16 +87,7 @@ def test_TerminateOnNaN():
     assert len(loss) == 1
     assert loss[0] == np.inf
 
-    # case 2 fit_generator
-    def data_generator():
-        max_batch_index = len(X_train) // batch_size
-        i = 0
-        while 1:
-            yield (X_train[i * batch_size: (i + 1) * batch_size],
-                   y_train[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
-    history = model.fit_generator(data_generator(),
+    history = model.fit_generator(data_generator(X_train, y_train, batch_size),
                                   len(X_train),
                                   validation_data=(X_test, y_test),
                                   callbacks=cbks,
@@ -710,8 +719,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
               validation_data=([X_test] * 2, [y_test] * 2),
               callbacks=callbacks_factory(histogram_freq=1), epochs=2)
 
-    train_generator = data_generator(X_train, y_train, batch_size,
-                                     multiple_inputs=True)
+    train_generator = data_generator([X_train] * 2, [y_train] * 2, batch_size)
 
     # fit generator without validation data
     model.fit_generator(train_generator, len(X_train), epochs=2,
