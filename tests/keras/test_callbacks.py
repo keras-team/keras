@@ -17,7 +17,6 @@ from keras.layers.pooling import MaxPooling2D
 from keras.layers.pooling import GlobalAveragePooling1D
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
-from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.utils import np_utils
 try:
@@ -34,14 +33,22 @@ train_samples = 20
 test_samples = 20
 
 
-@keras_test
+# Changing the default arguments of get_test_data.
+def get_data_callbacks(num_train=train_samples,
+                       num_test=test_samples,
+                       input_shape=(input_dim,),
+                       classification=True,
+                       num_classes=num_classes):
+    return get_test_data(num_train=num_train,
+                         num_test=num_test,
+                         input_shape=input_shape,
+                         classification=classification,
+                         num_classes=num_classes)
+
+
 def test_TerminateOnNaN():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -81,15 +88,10 @@ def test_TerminateOnNaN():
     assert loss[0] == np.inf or np.isnan(loss[0])
 
 
-@keras_test
 def test_stop_training_csv(tmpdir):
     np.random.seed(1337)
     fp = str(tmpdir / 'test.csv')
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -134,15 +136,10 @@ def test_stop_training_csv(tmpdir):
     os.remove(fp)
 
 
-@keras_test
 def test_ModelCheckpoint(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'checkpoint.h5')
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     # case 1
@@ -211,14 +208,9 @@ def test_ModelCheckpoint(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 def test_EarlyStopping():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -242,7 +234,6 @@ def test_EarlyStopping():
                         validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
 
 
-@keras_test
 def test_EarlyStopping_reuse():
     np.random.seed(1337)
     patience = 3
@@ -265,7 +256,6 @@ def test_EarlyStopping_reuse():
     assert len(hist.epoch) >= patience
 
 
-@keras_test
 def test_EarlyStopping_patience():
     class DummyModel(object):
         def __init__(self):
@@ -297,7 +287,6 @@ def test_EarlyStopping_patience():
     assert epochs_trained == 3
 
 
-@keras_test
 def test_EarlyStopping_baseline():
     class DummyModel(object):
         def __init__(self):
@@ -333,7 +322,6 @@ def test_EarlyStopping_baseline():
     assert baseline_not_met == 2
 
 
-@keras_test
 def test_EarlyStopping_final_weights():
     class DummyModel(object):
         def __init__(self):
@@ -370,7 +358,6 @@ def test_EarlyStopping_final_weights():
     assert early_stop.model.get_weights() == 4
 
 
-@keras_test
 def test_EarlyStopping_final_weights_when_restoring_model_weights():
     class DummyModel(object):
         def __init__(self):
@@ -411,14 +398,9 @@ def test_EarlyStopping_final_weights_when_restoring_model_weights():
     assert early_stop.model.get_weights() == 2
 
 
-@keras_test
 def test_LearningRateScheduler():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -434,14 +416,9 @@ def test_LearningRateScheduler():
     assert (float(K.get_value(model.optimizer.lr)) - 0.2) < K.epsilon()
 
 
-@keras_test
 def test_ReduceLROnPlateau():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -473,7 +450,6 @@ def test_ReduceLROnPlateau():
     assert_allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 
-@keras_test
 def test_ReduceLROnPlateau_patience():
     class DummyOptimizer(object):
         def __init__(self):
@@ -498,7 +474,6 @@ def test_ReduceLROnPlateau_patience():
     assert all([lr == 1.0 for lr in lrs[:-1]]) and lrs[-1] < 1.0
 
 
-@keras_test
 def test_ReduceLROnPlateau_backwards_compatibility():
     import warnings
     with warnings.catch_warnings(record=True) as ws:
@@ -511,16 +486,11 @@ def test_ReduceLROnPlateau_backwards_compatibility():
     assert reduce_on_plateau.min_delta == 1e-13
 
 
-@keras_test
 def test_CSVLogger(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'log.tsv')
     sep = '\t'
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -571,18 +541,12 @@ def test_CSVLogger(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 @pytest.mark.parametrize('update_freq', ['batch', 'epoch', 9])
 def test_TensorBoard(tmpdir, update_freq):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(
-        num_train=train_samples,
-        num_test=test_samples,
-        input_shape=(input_dim,),
-        classification=True,
-        num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -661,19 +625,13 @@ def test_TensorBoard(tmpdir, update_freq):
     assert not tmpdir.listdir()
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
 def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(
-        num_train=train_samples,
-        num_test=test_samples,
-        input_shape=(input_dim,),
-        classification=True,
-        num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -736,17 +694,13 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     assert 'validation_data must be provided' in str(raised_exception.value)
 
 
-@keras_test
 def test_TensorBoard_multi_input_output(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(
-        num_train=train_samples,
-        num_test=test_samples,
-        input_shape=(input_dim, input_dim),
-        classification=True,
-        num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks(
+        input_shape=(input_dim, input_dim))
+
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -818,17 +772,15 @@ def test_TensorBoard_multi_input_output(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 def test_TensorBoard_convnet(tmpdir):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
     input_shape = (16, 16, 3)
-    (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
-                                                         num_test=200,
-                                                         input_shape=input_shape,
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (x_train, y_train), (x_test, y_test) = get_data_callbacks(
+        num_train=500,
+        num_test=200,
+        input_shape=input_shape)
     y_train = np_utils.to_categorical(y_train)
     y_test = np_utils.to_categorical(y_test)
 
@@ -859,16 +811,13 @@ def test_TensorBoard_convnet(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 def test_TensorBoard_display_float_from_logs(tmpdir):
     filepath = str(tmpdir / 'logs')
 
     input_shape = (3,)
-    (x_train, y_train), _ = get_test_data(num_train=10,
-                                          num_test=0,
-                                          input_shape=input_shape,
-                                          classification=True,
-                                          num_classes=num_classes)
+    (x_train, y_train), _ = get_data_callbacks(num_train=10,
+                                               num_test=0,
+                                               input_shape=input_shape)
     y_train = np_utils.to_categorical(y_train)
 
     model = Sequential([
@@ -893,14 +842,9 @@ def test_TensorBoard_display_float_from_logs(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 def test_CallbackValData():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -942,14 +886,9 @@ def test_CallbackValData():
     assert cbk.validation_data[2].shape == cbk2.validation_data[2].shape
 
 
-@keras_test
 def test_LambdaCallback():
     np.random.seed(1337)
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -977,17 +916,12 @@ def test_LambdaCallback():
     assert not p.is_alive()
 
 
-@keras_test
 def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
@@ -1015,13 +949,8 @@ def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     assert not tmpdir.listdir()
 
 
-@keras_test
 def tests_RemoteMonitor():
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
@@ -1037,13 +966,8 @@ def tests_RemoteMonitor():
                   validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
 
 
-@keras_test
 def tests_RemoteMonitorWithJsonPayload():
-    (X_train, y_train), (X_test, y_test) = get_test_data(num_train=train_samples,
-                                                         num_test=test_samples,
-                                                         input_shape=(input_dim,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
     model = Sequential()
