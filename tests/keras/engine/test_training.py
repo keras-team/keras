@@ -17,7 +17,6 @@ from keras.utils.generic_utils import slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
-from keras.utils.test_utils import keras_test
 from keras.callbacks import LambdaCallback
 
 
@@ -71,7 +70,6 @@ def threadsafe_generator(f):
     return g
 
 
-@keras_test
 def test_check_array_length_consistency():
     training_utils.check_array_length_consistency(None, None, None)
     a_np = np.random.random((4, 3, 3))
@@ -93,7 +91,6 @@ def test_check_array_length_consistency():
         training_utils.check_array_length_consistency([a_np], None, [b_np])
 
 
-@keras_test
 def testslice_arrays():
     input_a = np.random.random((10, 3))
     slice_arrays(None)
@@ -114,7 +111,6 @@ def testslice_arrays():
     slice_arrays(input_a, stop=2)
 
 
-@keras_test
 def test_weighted_masked_objective():
     a = Input(shape=(3,), name='input_a')
 
@@ -127,7 +123,6 @@ def test_weighted_masked_objective():
     weighted_function(a, a, None)
 
 
-@keras_test
 def test_model_methods():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -565,7 +560,6 @@ def test_model_methods():
 
 @pytest.mark.skipif(sys.version_info < (3,),
                     reason='Cannot catch warnings in python 2')
-@keras_test
 def test_warnings():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -607,7 +601,6 @@ def test_warnings():
         'A warning was raised for Sequence.')
 
 
-@keras_test
 def test_sparse_inputs_targets():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
@@ -625,7 +618,6 @@ def test_sparse_inputs_targets():
 
 @pytest.mark.skipif(K.backend() != 'tensorflow',
                     reason='sparse operations supported only by TensorFlow')
-@keras_test
 def test_sparse_placeholder_fit():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
@@ -641,7 +633,6 @@ def test_sparse_placeholder_fit():
     model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
-@keras_test
 def test_trainable_argument():
     x = np.random.random((5, 3))
     y = np.random.random((5, 2))
@@ -665,7 +656,6 @@ def test_trainable_argument():
     assert_allclose(out, out_2)
 
 
-@keras_test
 def test_with_list_as_targets():
     model = Sequential()
     model.add(Dense(1, input_dim=3, trainable=False))
@@ -676,7 +666,6 @@ def test_with_list_as_targets():
     model.train_on_batch(x, y)
 
 
-@keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
     training_utils.check_loss_and_target_compatibility(
@@ -685,7 +674,6 @@ def test_check_not_failing():
         [a], [losses.categorical_crossentropy], [(2, None, 3)])
 
 
-@keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
@@ -695,7 +683,6 @@ def test_check_last_is_one():
     assert 'You are passing a target array' in str(exc)
 
 
-@keras_test
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
@@ -707,7 +694,6 @@ def test_check_bad_shape():
 
 @pytest.mark.skipif(K.backend() != 'tensorflow',
                     reason='Requires TensorFlow backend')
-@keras_test
 def test_model_with_input_feed_tensor():
     """We test building a model with a TF variable as input.
     We should be able to call fit, evaluate, predict,
@@ -849,7 +835,6 @@ def test_model_with_input_feed_tensor():
     assert out.shape == (10 * 3, 4)
 
 
-@keras_test
 def test_model_with_partial_loss():
     a = Input(shape=(3,), name='input_a')
     a_2 = Dense(4, name='dense_1')(a)
@@ -891,7 +876,6 @@ def test_model_with_partial_loss():
     out = model.evaluate(input_a_np, [output_a_np])
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='cntk does not support external loss yet')
 def test_model_with_external_loss():
@@ -1045,7 +1029,6 @@ def test_model_with_external_loss():
         assert out[1].shape == (10 * 3, 4)
 
 
-@keras_test
 def test_target_tensors():
     # single-output, as list
     model = keras.models.Sequential()
@@ -1123,7 +1106,6 @@ def test_target_tensors():
                          sample_weight={'dense_a': np.random.random((10,))})
 
 
-@keras_test
 def test_model_custom_target_tensors():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -1187,7 +1169,6 @@ def test_model_custom_target_tensors():
 
 @pytest.mark.skipif(sys.version_info < (3,),
                     reason='Cannot catch warnings in python 2')
-@keras_test
 def test_trainable_weights_count_consistency():
     """Tests the trainable weights consistency check of Model.
 
@@ -1230,7 +1211,6 @@ def test_trainable_weights_count_consistency():
         'Warning raised even when .compile() is called after modifying .trainable')
 
 
-@keras_test
 def test_pandas_dataframe():
     input_a = Input(shape=(3,), name='input_a')
     input_b = Input(shape=(3,), name='input_b')
@@ -1310,7 +1290,6 @@ def test_pandas_dataframe():
                           [output_a_df, output_b_df])
 
 
-@keras_test
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
 @pytest.mark.skipif((K.backend() == 'tensorflow' and
                      not hasattr(K.get_session(),
@@ -1339,7 +1318,6 @@ def test_training_and_eval_methods_on_symbolic_tensors_single_io():
               validation_data=(inputs, targets), validation_steps=2)
 
 
-@keras_test
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
 @pytest.mark.skipif((K.backend() == 'tensorflow' and
                      not hasattr(K.get_session(),
@@ -1437,7 +1415,6 @@ def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
     model.test_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
 
 
-@keras_test
 def test_model_with_crossentropy_losses_channels_first():
     """Tests use of all crossentropy losses with `channels_first`.
 
@@ -1520,7 +1497,6 @@ def test_model_with_crossentropy_losses_channels_first():
                                           'channels_first and channels_last.'))
 
 
-@keras_test
 def test_dynamic_set_inputs():
     model = Sequential()
     model.add(Dense(16, input_dim=32))

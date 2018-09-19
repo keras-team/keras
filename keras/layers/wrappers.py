@@ -276,7 +276,8 @@ class TimeDistributed(Wrapper):
         If the output mask at each time step is not `None`:
         (E.g., inner layer is Masking or RNN)
         Concatenate all of them and return the concatenation.
-        If the output mask at each time step is `None` and the input mask is not `None`:
+        If the output mask at each time step is `None` and
+        the input mask is not `None`:
         (E.g., inner layer is Dense)
         Reduce the input_mask to 2 dimensions and return it.
         Otherwise (both the output mask and the input mask are `None`):

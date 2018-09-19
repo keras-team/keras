@@ -1,13 +1,11 @@
 import pytest
 
-from keras.utils.test_utils import keras_test
 from keras.utils.test_utils import layer_test
 from keras.legacy import layers as legacy_layers
 from keras import regularizers
 from keras import constraints
 
 
-@keras_test
 def test_highway():
     layer_test(legacy_layers.Highway,
                kwargs={},
@@ -22,7 +20,6 @@ def test_highway():
                input_shape=(3, 2))
 
 
-@keras_test
 def test_maxout_dense():
     layer_test(legacy_layers.MaxoutDense,
                kwargs={'output_dim': 3},

@@ -8,7 +8,6 @@ from keras.engine import Input, Layer, saving, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
 from keras.models import model_from_json, model_from_yaml
-from keras.utils.test_utils import keras_test
 from keras.initializers import Constant
 
 
@@ -18,7 +17,6 @@ skipif_no_tf_gpu = pytest.mark.skipif(
     reason='Requires TensorFlow backend and a GPU')
 
 
-@keras_test
 def test_get_updates_for():
     a = Input(shape=(2,))
     dense_layer = Dense(1)
@@ -29,7 +27,6 @@ def test_get_updates_for():
     assert dense_layer.get_updates_for(None) == [1]
 
 
-@keras_test
 def test_get_losses_for():
     a = Input(shape=(2,))
     dense_layer = Dense(1)
@@ -40,7 +37,6 @@ def test_get_losses_for():
     assert dense_layer.get_losses_for(None) == [1]
 
 
-@keras_test
 def test_trainable_weights():
     a = Input(shape=(2,))
     b = Dense(1)(a)
@@ -153,7 +149,6 @@ def test_learning_phase():
     assert fn_outputs_no_dp[1].sum() != fn_outputs_dp[1].sum()
 
 
-@keras_test
 def test_layer_call_arguments():
     # Test the ability to pass and serialize arguments to `call`.
     inp = layers.Input(shape=(2,))
@@ -173,7 +168,6 @@ def test_layer_call_arguments():
     assert not model.uses_learning_phase
 
 
-@keras_test
 def test_node_construction():
     ####################################################
     # test basics
@@ -256,7 +250,6 @@ def test_node_construction():
     assert dense.get_output_mask_at(1) is None
 
 
-@keras_test
 def test_multi_input_layer():
     ####################################################
     # test multi-input layer
@@ -323,7 +316,6 @@ def test_multi_input_layer():
     assert [x.shape for x in fn_outputs] == [(10, 64), (10, 5)]
 
 
-@keras_test
 def test_recursion():
     ####################################################
     # test recursion
@@ -503,7 +495,6 @@ def test_recursion():
         Dense(2)(x)
 
 
-@keras_test
 def test_load_layers():
     from keras.layers import ConvLSTM2D, TimeDistributed
     from keras.layers import Bidirectional, Conv2D, Input
@@ -583,7 +574,6 @@ def convert_weights(layer, weights):
     return weights
 
 
-@keras_test
 @pytest.mark.parametrize("layer", [
     layers.GRU(2, input_shape=[3, 5]),
     layers.LSTM(2, input_shape=[3, 5]),
@@ -602,7 +592,6 @@ def test_preprocess_weights_for_loading(layer):
                 for (x, y) in zip(weights1, weights2)])
 
 
-@keras_test
 @pytest.mark.parametrize("layer", [
     layers.Conv2D(2, (3, 3), input_shape=[5, 5, 3]),
     layers.Conv2DTranspose(2, (5, 5),
@@ -619,7 +608,6 @@ def test_preprocess_weights_for_loading_for_model(layer):
                 for (x, y) in zip(weights1, weights2)])
 
 
-@keras_test
 @pytest.mark.parametrize('layer_class,args', [
     (layers.GRU, {'units': 2, 'input_shape': [3, 5]}),
     (layers.GRU, {'units': 2, 'input_shape': [3, 5], 'reset_after': True}),
@@ -638,7 +626,6 @@ def test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, ar
     assert all([np.allclose(x, y, 1e-5) for (x, y) in zip(weights1, weights2)])
 
 
-@keras_test
 @pytest.mark.parametrize('layer_class,args', [
     (layers.CuDNNGRU, {'units': 2, 'input_shape': [3, 5]}),
     (layers.CuDNNLSTM, {'units': 2, 'input_shape': [3, 5]}),
@@ -649,7 +636,6 @@ def test_preprocess_weights_for_loading_cudnn_rnn_should_be_idempotent(layer_cla
     test_preprocess_weights_for_loading_rnn_should_be_idempotent(layer_class, args)
 
 
-@keras_test
 def test_recursion_with_bn_and_loss():
     model1 = Sequential([
         layers.Dense(5, input_dim=5, activity_regularizer='l1'),
@@ -676,7 +662,6 @@ def test_recursion_with_bn_and_loss():
     model2.fit(x, y, verbose=0, epochs=1)
 
 
-@keras_test
 def test_activity_regularization_with_model_composition():
 
     def reg(x):
@@ -699,7 +684,6 @@ def test_activity_regularization_with_model_composition():
     assert loss == 4
 
 
-@keras_test
 def test_shared_layer_depth_is_correct():
     # Basic outline here: we have a shared embedding layer, and two inputs that
     # go through different depths of computation in the graph before
@@ -728,7 +712,6 @@ def test_shared_layer_depth_is_correct():
     assert input1_depth == input2_depth
 
 
-@keras_test
 def test_layer_sharing_at_heterogeneous_depth():
     x_val = np.random.random((10, 5))
 
@@ -750,7 +733,6 @@ def test_layer_sharing_at_heterogeneous_depth():
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
 
 
-@keras_test
 def test_layer_sharing_at_heterogeneous_depth_with_concat():
     input_shape = (16, 9, 3)
     input_layer = Input(shape=input_shape)
@@ -778,7 +760,6 @@ def test_layer_sharing_at_heterogeneous_depth_with_concat():
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
 
 
-@keras_test
 def test_multi_output_mask():
     """Fixes #7589"""
     class TestMultiOutputLayer(Layer):
@@ -808,7 +789,6 @@ def test_multi_output_mask():
     assert K.int_shape(z)[1:] == (16, 16, 3)
 
 
-@keras_test
 def test_constant_initializer_with_numpy():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,),

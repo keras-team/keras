@@ -1494,13 +1494,20 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     if data_format == 'channels_last':
         x = C.swapaxes(x, 0, 1)
-        kernel = C.swapaxes(kernel, 0, 2)
+
+    # As of Keras 2.0.0, all kernels are normalized
+    # on the format `(steps, input_depth, depth)`,
+    # independently of `data_format`.
+    # CNTK expects `(depth, input_depth, steps)`.
+    kernel = C.swapaxes(kernel, 0, 2)
 
     padding = _preprocess_border_mode(padding)
 
     if dev.type() == 0 and dilation_rate != 1:
         raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. '
                          'Please set `dilation_rate` to 1. You passed: %s' % (dilation_rate,))
+
+    dilation_rate = (1, dilation_rate)
 
     x = C.convolution(
         kernel,
@@ -1526,6 +1533,8 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. '
                          'Please set `dilation_rate` to (1, 1). '
                          'You passed: %s' % (dilation_rate,))
+
+    dilation_rate = (1,) + dilation_rate
 
     x = C.convolution(kernel,
                       x,
@@ -1661,6 +1670,8 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
         raise ValueError('Dilated convolution on CPU is not supported by CNTK backend. '
                          'Please set `dilation_rate` to (1, 1, 1). '
                          'You passed: %s' % (dilation_rate,))
+
+    dilation_rate = (1,) + dilation_rate
 
     x = C.convolution(
         kernel,
@@ -2199,6 +2210,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     if data_format == 'channels_last':
         output_shape = transpose_shape(output_shape, 'channels_first',
                                        spatial_axes=(0, 1))
+
+    dilation_rate = (1,) + dilation_rate
 
     x = C.convolution_transpose(
         kernel,

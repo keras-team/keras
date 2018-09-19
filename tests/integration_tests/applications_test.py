@@ -2,7 +2,6 @@ import pytest
 import random
 import os
 from multiprocessing import Process, Queue
-from keras.utils.test_utils import keras_test
 from keras import applications
 from keras import backend as K
 
@@ -57,13 +56,11 @@ def _get_output_shape(model_fn):
         return model.output_shape
 
 
-@keras_test
 def _test_application_basic(app, last_dim=1000):
     output_shape = _get_output_shape(lambda: app(weights=None))
     assert output_shape == (None, last_dim)
 
 
-@keras_test
 def _test_application_notop(app, last_dim):
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False))
