@@ -484,8 +484,12 @@ def standardize_weights(y,
     elif sample_weight_mode is 'element':
         if sample_weight is not None:
             score_array_shape = list(y.shape)
-            score_array_shape.pop(1) if K.image_data_format() == 'channels_first' \
-                else score_array_shape.pop(-1)
+            if K.image_data_format() == 'channels_first':
+                score_array_shape.pop(1)
+            elif K.image_data_format() == 'channels_last':
+                score_array_shape.pop(-1)
+            else:
+                raise ValueError('Data format is neither channels_first nor channels_last')
             if sample_weight.shape != tuple(score_array_shape):
                 raise ValueError('Found a sample_weight array with shape ' +
                                  str(sample_weight.shape) +
@@ -537,8 +541,12 @@ def standardize_weights(y,
             return np.ones((y.shape[0],), dtype=K.floatx())
         elif sample_weight_mode == 'element':
             score_array_shape = list(y.shape)
-            score_array_shape.pop(1) if K.image_data_format() == 'channels_first' \
-                else score_array_shape.pop(-1)
+            if K.image_data_format() == 'channels_first':
+                score_array_shape.pop(1)
+            elif K.image_data_format() == 'channels_last':
+                score_array_shape.pop(-1)
+            else:
+                raise ValueError('Data format is neither channels_first nor channels_last')
             return np.ones(score_array_shape, dtype=K.floatx())
         else:
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
