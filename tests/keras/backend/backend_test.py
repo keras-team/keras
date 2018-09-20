@@ -33,8 +33,12 @@ except ImportError:
     KTH = None
     warnings.warn('Could not import the Theano backend')
 
-
-WITH_NP = [KTH if K.backend() == 'theano' else KC if K.backend() == 'cntk' else KTF, KNP]
+if K.backend() == 'theano':
+    WITH_NP = [KTH, KNP]
+elif K.backend() == 'cntk':
+    WITH_NP = [KC, KNP]
+else:
+    WITH_NP = [KTF, KNP]
 
 
 # CNTK only supports dilated convolution on GPU
@@ -344,7 +348,8 @@ class TestBackend(object):
             if function_name == 'get_value':
                 assert_list_pairwise(v_list)
             else:
-                assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
+                assert_list_pairwise(v_list, shape=False,
+                                     allclose=False, itself=True)
 
         # print_tensor
         check_single_tensor_operation('print_tensor', (), WITH_NP)
@@ -352,45 +357,17 @@ class TestBackend(object):
         check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
         check_single_tensor_operation('print_tensor', (1, 2, 3), WITH_NP)
 
-    def test_elementwise_operations(self):
-        check_single_tensor_operation('max', (4, 2), WITH_NP)
-        check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('max', (4, 2, 3), WITH_NP, axis=[1, -1])
+    @pytest.mark.parametrize('op', [
+        'max', 'min', 'mean', 'var', 'std', 'logsumexp', 'prod', 'any', 'all'])
+    @pytest.mark.parametrize('shape, kwargs', [
+        ((4, 2), {}),
+        ((4, 2), {'axis': 1, 'keepdims': True}),
+        ((4, 2, 3), {'axis': [1, -1]})
+    ])
+    def test_elementwise_operations1(self, op, shape, kwargs):
+        check_single_tensor_operation(op, shape, WITH_NP, **kwargs)
 
-        check_single_tensor_operation('min', (4, 2), WITH_NP)
-        check_single_tensor_operation('min', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('min', (4, 2, 3), WITH_NP, axis=[1, -1])
-
-        check_single_tensor_operation('mean', (4, 2), WITH_NP)
-        check_single_tensor_operation('mean', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=-1, keepdims=True)
-        check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=[1, -1])
-
-        check_single_tensor_operation('var', (4, 2), WITH_NP)
-        check_single_tensor_operation('var', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('var', (4, 2, 3), WITH_NP, axis=[1, -1])
-
-        check_single_tensor_operation('std', (4, 2), WITH_NP)
-        check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
-        # check_single_tensor_operation('std', (4, 2, 3), BACKENDS, axis=[1, -1])
-
-        check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
-        check_single_tensor_operation('logsumexp', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
-
-        check_single_tensor_operation('prod', (4, 2), WITH_NP)
-        check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
-
-        check_single_tensor_operation('any', (4, 2), WITH_NP)
-        check_single_tensor_operation('any', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('any', (4, 2, 3), WITH_NP, axis=[1, -1])
-
-        check_single_tensor_operation('all', (4, 2), WITH_NP)
-        check_single_tensor_operation('all', (4, 2), WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('all', (4, 2, 3), WITH_NP, axis=[1, -1])
-
+    def test_elementwise_operations2(self):
         check_single_tensor_operation('argmax', (4, 2), WITH_NP)
         check_single_tensor_operation('argmax', (4, 2), WITH_NP, axis=1)
 
@@ -580,6 +557,21 @@ class TestBackend(object):
         output = f([b'test'])
         assert output == [b'test']
 
+    @staticmethod
+    def get_kwargs_rnn(timesteps, mask):
+        kwargs_list = [
+            {'go_backwards': False, 'mask': None},
+            {'go_backwards': False, 'mask': None, 'unroll': True,
+             'input_length': timesteps},
+            {'go_backwards': True, 'mask': None},
+            {'go_backwards': True, 'mask': None, 'unroll': True,
+             'input_length': timesteps},
+            {'go_backwards': False, 'mask': mask},
+            {'go_backwards': False, 'mask': mask, 'unroll': True,
+             'input_length': timesteps},
+        ]
+        return kwargs_list
+
     def test_rnn(self):
         # implement a simple RNN
         num_samples = 4
@@ -609,14 +601,7 @@ class TestBackend(object):
         outputs_list = []
         state_list = []
 
-        kwargs_list = [
-            {'go_backwards': False, 'mask': None},
-            {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
-            {'go_backwards': True, 'mask': None},
-            {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
-            {'go_backwards': False, 'mask': mask_k},
-            {'go_backwards': False, 'mask': mask_k, 'unroll': True, 'input_length': timesteps},
-        ]
+        kwargs_list = self.get_kwargs_rnn(timesteps, mask)
 
         for (i, kwargs) in enumerate(kwargs_list):
             last_y1, y1, h1 = KNP.rnn(x, [wi, wh, None], h0, **kwargs)
@@ -645,7 +630,9 @@ class TestBackend(object):
                 assert_allclose(y1, y2, atol=1e-05)
                 assert_allclose(h1, h2, atol=1e-05)
             else:
-                assert_allclose(last_output_list[i - 1], last_output_list[i], atol=1e-05)
+                assert_allclose(last_output_list[i - 1],
+                                last_output_list[i],
+                                atol=1e-05)
                 assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
                 assert_allclose(state_list[i - 1], state_list[i], atol=1e-05)
 
@@ -679,14 +666,7 @@ class TestBackend(object):
         outputs_list = []
         state_list = []
 
-        kwargs_list = [
-            {'go_backwards': False, 'mask': None},
-            {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
-            {'go_backwards': True, 'mask': None},
-            {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
-            {'go_backwards': False, 'mask': mask_k},
-            {'go_backwards': False, 'mask': mask_k, 'unroll': True, 'input_length': timesteps},
-        ]
+        kwargs_list = self.get_kwargs_rnn(timesteps, mask)
 
         for (i, kwargs) in enumerate(kwargs_list):
             last_y1, y1, h1 = KNP.rnn(x, [wi, wh, None], h0, **kwargs)
@@ -720,7 +700,9 @@ class TestBackend(object):
                 assert_allclose(h11, h21, atol=1e-05)
                 assert_allclose(h12, h22, atol=1e-05)
             else:
-                assert_allclose(last_output_list[i - 1], last_output_list[i], atol=1e-05)
+                assert_allclose(last_output_list[i - 1],
+                                last_output_list[i],
+                                atol=1e-05)
                 assert_allclose(outputs_list[i - 1], outputs_list[i], atol=1e-05)
                 assert_allclose(state_list[i - 1][0], state_list[i][0], atol=1e-05)
                 assert_allclose(state_list[i - 1][1], state_list[i][1], atol=1e-05)
@@ -761,9 +743,15 @@ class TestBackend(object):
         output_dim = 3
         timesteps = 6
 
-        input_val = np.random.random((num_samples, timesteps, input_dim)).astype(np.float32)
-        init_state_val = np.random.random((num_samples, output_dim)).astype(np.float32)
-        W_i_val = np.random.random((input_dim, output_dim)).astype(np.float32)
+        input_val = np.random.random((num_samples, timesteps, input_dim))
+        input_val = input_val.astype(np.float32)
+
+        init_state_val = np.random.random((num_samples, output_dim))
+        init_state_val = init_state_val.astype(np.float32)
+
+        W_i_val = np.random.random((input_dim, output_dim))
+        W_i_val = W_i_val.astype(np.float32)
+
         W_o_val = np.random.random((output_dim, output_dim)).astype(np.float32)
         np_mask = np.random.randint(2, size=(num_samples, timesteps))
 
@@ -790,14 +778,7 @@ class TestBackend(object):
             initial_states = [k.variable(init_state_val)]
             mask = k.variable(np_mask)
 
-            kwargs_list = [
-                {'go_backwards': False, 'mask': None},
-                {'go_backwards': False, 'mask': None, 'unroll': True, 'input_length': timesteps},
-                {'go_backwards': True, 'mask': None},
-                {'go_backwards': True, 'mask': None, 'unroll': True, 'input_length': timesteps},
-                {'go_backwards': False, 'mask': mask},
-                {'go_backwards': False, 'mask': mask, 'unroll': True, 'input_length': timesteps},
-            ]
+            kwargs_list = self.get_kwargs_rnn(timesteps, mask)
 
             for (i, kwargs) in enumerate(kwargs_list):
                 last_output, outputs, new_states = k.rnn(rnn_fn, inputs,
@@ -1088,20 +1069,30 @@ class TestBackend(object):
             padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
-    @pytest.mark.parametrize('op,input_shape,pool_size,strides,padding,data_format,pool_mode', [
-        ('pool2d', (2, 3, 7, 7), (3, 3), (1, 1), 'same', 'channels_first', 'avg'),
-        ('pool2d', (3, 3, 8, 5), (2, 3), (1, 1), 'valid', 'channels_first', 'max'),
-        ('pool2d', (2, 9, 5, 3), (3, 2), (1, 1), 'valid', 'channels_last', 'avg'),
-        ('pool2d', (3, 6, 7, 3), (3, 3), (1, 1), 'same', 'channels_last', 'max'),
-        ('pool3d', (2, 3, 7, 7, 7), (3, 3, 3), (1, 1, 1), 'same', 'channels_first', 'avg'),
-        ('pool3d', (3, 3, 8, 5, 9), (2, 3, 2), (1, 1, 1), 'valid', 'channels_first', 'max'),
-        ('pool3d', (2, 8, 9, 5, 3), (3, 2, 3), (1, 1, 1), 'valid', 'channels_last', 'avg'),
-        ('pool3d', (3, 5, 6, 7, 3), (3, 3, 3), (1, 1, 1), 'same', 'channels_last', 'max'),
+    @pytest.mark.parametrize('input_shape,pool_size,padding,data_format,pool_mode', [
+        ((2, 3, 7, 7), (3, 3), 'same', 'channels_first', 'avg'),
+        ((3, 3, 8, 5), (2, 3), 'valid', 'channels_first', 'max'),
+        ((2, 9, 5, 3), (3, 2), 'valid', 'channels_last', 'avg'),
+        ((3, 6, 7, 3), (3, 3), 'same', 'channels_last', 'max'),
     ])
-    def test_pool(self, op, input_shape, pool_size, strides, padding, data_format, pool_mode):
+    def test_pool2d(self, input_shape, pool_size, padding, data_format, pool_mode):
         check_single_tensor_operation(
-            op, input_shape, WITH_NP,
-            pool_size=pool_size, strides=strides,
+            'pool2d',
+            input_shape, WITH_NP,
+            pool_size=pool_size, strides=(1, 1),
+            padding=padding, data_format=data_format, pool_mode=pool_mode,
+            cntk_dynamicity=True)
+
+    @pytest.mark.parametrize('input_shape,pool_size,padding,data_format,pool_mode', [
+        ((2, 3, 7, 7, 7), (3, 3, 3), 'same', 'channels_first', 'avg'),
+        ((3, 3, 8, 5, 9), (2, 3, 2), 'valid', 'channels_first', 'max'),
+        ((2, 8, 9, 5, 3), (3, 2, 3), 'valid', 'channels_last', 'avg'),
+        ((3, 5, 6, 7, 3), (3, 3, 3), 'same', 'channels_last', 'max'),
+    ])
+    def test_pool3d(self, input_shape, pool_size, padding, data_format, pool_mode):
+        check_single_tensor_operation(
+            'pool3d', input_shape, WITH_NP,
+            pool_size=pool_size, strides=(1, 1, 1),
             padding=padding, data_format=data_format, pool_mode=pool_mode,
             cntk_dynamicity=True)
 
@@ -1178,57 +1169,41 @@ class TestBackend(object):
                 padding=padding, data_format=data_format))
         assert_allclose(y1, y2, atol=1e-05)
 
-    def legacy_test_pool2d(self):
-        check_single_tensor_operation('pool2d', (5, 10, 12, 3),
+    @pytest.mark.parametrize('shape,pool_size, kwargs', [
+        ((5, 10, 12, 3), (2, 2), {}),
+        ((5, 9, 11, 3), (2, 2), {}),
+        ((5, 9, 11, 3), (2, 2), {'pool_mode': 'avg'}),
+        ((5, 9, 11, 3), (2, 3), {}),
+        ((2, 7, 7, 5), (3, 3), {'padding': 'same', 'pool_mode': 'avg'})
+    ])
+    def legacy_test_pool2d(self, shape, pool_size, kwargs):
+        check_single_tensor_operation('pool2d', shape,
                                       BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 2), strides=(1, 1), padding='valid')
+                                      pool_size=pool_size, **kwargs)
 
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3),
+    @pytest.mark.parametrize('shape,pool_size, kwargs', [
+        ((5, 10, 12, 5, 3), (2, 2, 1), {}),
+        ((5, 9, 11, 5, 3), (2, 2, 2), {}),
+        ((5, 9, 11, 5, 3), (2, 2, 2), {'pool_mode': 'avg'}),
+        ((5, 9, 11, 5, 3), (2, 3, 2), {}),
+        ((2, 6, 6, 6, 3), (3, 3, 3), {'padding': 'same', 'pool_mode': 'avg'})
+    ])
+    def legacy_test_pool3d(self, shape, pool_size, kwargs):
+        check_single_tensor_operation('pool3d', shape,
                                       BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 2), strides=(1, 1), padding='valid')
-
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 2), strides=(1, 1), pool_mode='avg')
-
-        check_single_tensor_operation('pool2d', (5, 9, 11, 3),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 3), strides=(1, 1), padding='valid')
-
-        check_single_tensor_operation('pool2d', (2, 7, 7, 5),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(3, 3), strides=(1, 1),
-                                      padding='same', pool_mode='avg')
-
-    def legacy_test_pool3d(self):
-        check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
-
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
-
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 2, 2), strides=(1, 1, 1), pool_mode='avg')
-
-        check_single_tensor_operation('pool3d', (5, 9, 11, 5, 3),
-                                      BACKENDS, cntk_dynamicity=True,
-                                      pool_size=(2, 3, 2), strides=(1, 1, 1), padding='valid')
-
-        check_single_tensor_operation('pool3d', (2, 6, 6, 6, 3), [KTH, KTF], pool_size=(3, 3, 3),
-                                      strides=(1, 1, 1), padding='same', pool_mode='avg')
+                                      pool_size=pool_size, padding='valid', **kwargs)
 
     def test_random_normal(self):
         # test standard normal as well as a normal with a different set of parameters
         for mean, std in [(0., 1.), (-10., 5.)]:
-            rand = K.eval(K.random_normal((300, 200), mean=mean, stddev=std, seed=1337))
+            rand = K.random_normal((300, 200), mean=mean, stddev=std, seed=1337)
+            rand = K.eval(rand)
             assert rand.shape == (300, 200)
             assert np.abs(np.mean(rand) - mean) < std * 0.015
             assert np.abs(np.std(rand) - std) < std * 0.015
 
-            # test that random_normal also generates different values when used within a function
+            # test that random_normal also generates
+            # different values when used within a function
             r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
             samples = np.array([K.eval(r) for _ in range(200)])
             assert np.abs(np.mean(samples) - mean) < std * 0.015
@@ -1268,7 +1243,8 @@ class TestBackend(object):
         std = 1.
         min_val = -2.
         max_val = 2.
-        rand = K.eval(K.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337))
+        rand = K.truncated_normal((300, 200), mean=mean, stddev=std, seed=1337)
+        rand = K.eval(rand)
         assert rand.shape == (300, 200)
         assert np.abs(np.mean(rand) - mean) < 0.015
         assert np.max(rand) <= max_val
@@ -1318,23 +1294,25 @@ class TestBackend(object):
                 K.depthwise_conv2d(dummy_x_2d, dummy_w_2d,
                                    strides=(2, 2), dilation_rate=(1, 2))
 
-    def test_pooling_invalid_use(self):
-        for (input_shape, pool_size) in zip([(5, 10, 12, 3), (5, 10, 12, 6, 3)], [(2, 2), (2, 2, 2)]):
-            x = K.variable(np.random.random(input_shape))
-            if len(pool_size) == 2:
-                with pytest.raises(ValueError):
-                    K.pool2d(x, pool_size=pool_size, data_format='channels_middle')
-                with pytest.raises(ValueError):
-                    K.pool2d(x, pool_size=pool_size, padding='twice')
-                with pytest.raises(ValueError):
-                    K.pool2d(x, pool_size=pool_size, pool_mode='median')
-            else:
-                with pytest.raises(ValueError):
-                    K.pool3d(x, pool_size=pool_size, data_format='channels_middle')
-                with pytest.raises(ValueError):
-                    K.pool3d(x, pool_size=pool_size, padding='twice')
-                with pytest.raises(ValueError):
-                    K.pool3d(x, pool_size=pool_size, pool_mode='median')
+    @pytest.mark.parametrize('input_shape, pool_size', [
+        ((5, 10, 12, 3), (2, 2)),
+        ((5, 10, 12, 6, 3), (2, 2, 2))])
+    def test_pooling_invalid_use(self, input_shape, pool_size):
+        x = K.variable(np.random.random(input_shape))
+        if len(pool_size) == 2:
+            with pytest.raises(ValueError):
+                K.pool2d(x, pool_size=pool_size, data_format='channels_middle')
+            with pytest.raises(ValueError):
+                K.pool2d(x, pool_size=pool_size, padding='twice')
+            with pytest.raises(ValueError):
+                K.pool2d(x, pool_size=pool_size, pool_mode='median')
+        else:
+            with pytest.raises(ValueError):
+                K.pool3d(x, pool_size=pool_size, data_format='channels_middle')
+            with pytest.raises(ValueError):
+                K.pool3d(x, pool_size=pool_size, padding='twice')
+            with pytest.raises(ValueError):
+                K.pool3d(x, pool_size=pool_size, pool_mode='median')
 
     def test_resize_images(self):
         for data_format in ['channels_first', 'channels_last']:
@@ -1411,7 +1389,8 @@ class TestBackend(object):
             # Check handling of dynamic shapes.
             for k in [KTF, KTH]:
                 x = k.placeholder(shape=(1, None, None, 1))
-                y = k.spatial_2d_padding(x, padding=padding, data_format='channels_last')
+                y = k.spatial_2d_padding(x, padding=padding,
+                                         data_format='channels_last')
                 assert k.int_shape(y) == (1, None, None, 1)
 
         # Test invalid use cases
@@ -1433,7 +1412,8 @@ class TestBackend(object):
             # Check handling of dynamic shapes.
             for k in [KTF, KTH]:
                 x = k.placeholder(shape=(1, None, None, None, 1))
-                y = k.spatial_3d_padding(x, padding=padding, data_format='channels_last')
+                y = k.spatial_3d_padding(x, padding=padding,
+                                         data_format='channels_last')
                 assert k.int_shape(y) == (1, None, None, None, 1)
 
         # Test invalid use cases
@@ -1479,8 +1459,8 @@ class TestBackend(object):
             xth = KTH.variable(x_val)
             xtf = KTF.variable(x_val)
             xc = KC.placeholder(x_shape)
-            zth, _, _ = KTH.normalize_batch_in_training(xth, None, None,
-                                                        reduction_axes='per-activation')
+            zth, _, _ = KTH.normalize_batch_in_training(
+                xth, None, None, reduction_axes='per-activation')
             ztf, _, _ = KTF.normalize_batch_in_training(xtf, None, None,
                                                         reduction_axes=[0, 1, 2, 3])
             zc, _, _ = KC.normalize_batch_in_training(xc, None, None,
@@ -1525,8 +1505,12 @@ class TestBackend(object):
         k_inputs = K.variable(inputs, dtype="float32")
         k_input_lens = K.variable(input_lens, dtype="int32")
         k_label_lens = K.variable(label_lens, dtype="int32")
-        res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
-        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
+        ctc = K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens)
+        res = K.eval(ctc)
+        if K.backend() == 'theano':
+            assert_allclose(res[0, :], ref, atol=1e-05)
+        else:
+            assert_allclose(res[:, 0], ref, atol=1e-05)
 
         # test when batch_size = 1, that is, one sample only
         # get only first sample from above test case
@@ -1551,8 +1535,12 @@ class TestBackend(object):
         k_inputs = K.variable(inputs, dtype="float32")
         k_input_lens = K.variable(input_lens, dtype="int32")
         k_label_lens = K.variable(label_lens, dtype="int32")
-        res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens))
-        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref, atol=1e-05)
+        ctc = K.ctc_batch_cost(k_labels, k_inputs, k_input_lens, k_label_lens)
+        res = K.eval(ctc)
+        if K.backend() == 'theano':
+            assert_allclose(res[0, :], ref, atol=1e-05)
+        else:
+            assert_allclose(res[:, 0], ref, atol=1e-05)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Test adapted from tensorflow.')
@@ -1730,7 +1718,8 @@ class TestBackend(object):
 
             k_s_d = k.eval(k_s)
 
-            k_d = k.eval(k.concatenate([k.variable(x_dense_1), k.variable(x_dense_2)]))
+            to_concatenate = [k.variable(x_dense_1), k.variable(x_dense_2)]
+            k_d = k.eval(k.concatenate(to_concatenate))
 
             assert k_s_d.shape == k_d.shape
             assert_allclose(k_s_d, k_d, atol=1e-05)
