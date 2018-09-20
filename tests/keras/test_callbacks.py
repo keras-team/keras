@@ -17,6 +17,8 @@ from keras.layers.pooling import MaxPooling2D
 from keras.layers.pooling import GlobalAveragePooling1D
 from keras.layers.pooling import GlobalAveragePooling2D
 from keras.utils.test_utils import get_test_data
+from keras.utils.generic_utils import to_list
+from keras.utils.generic_utils import unpack_singleton
 from keras import backend as K
 from keras.utils import np_utils
 try:
@@ -31,6 +33,22 @@ num_classes = 2
 batch_size = 5
 train_samples = 20
 test_samples = 20
+
+
+def data_generator(x, y, batch_size):
+    x = to_list(x)
+    y = to_list(y)
+    max_batch_index = len(x[0]) // batch_size
+    i = 0
+    while 1:
+        x_batch = [array[i * batch_size: (i + 1) * batch_size] for array in x]
+        x_batch = unpack_singleton(x_batch)
+
+        y_batch = [array[i * batch_size: (i + 1) * batch_size] for array in y]
+        y_batch = unpack_singleton(y_batch)
+        yield x_batch, y_batch
+        i += 1
+        i = i % max_batch_index
 
 
 # Changing the default arguments of get_test_data.
@@ -69,16 +87,7 @@ def test_TerminateOnNaN():
     assert len(loss) == 1
     assert loss[0] == np.inf
 
-    # case 2 fit_generator
-    def data_generator():
-        max_batch_index = len(X_train) // batch_size
-        i = 0
-        while 1:
-            yield (X_train[i * batch_size: (i + 1) * batch_size],
-                   y_train[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
-    history = model.fit_generator(data_generator(),
+    history = model.fit_generator(data_generator(X_train, y_train, batch_size),
                                   len(X_train),
                                   validation_data=(X_test, y_test),
                                   callbacks=cbks,
@@ -549,23 +558,6 @@ def test_TensorBoard(tmpdir):
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
 
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
-            if train:
-                # simulate multi-input/output models
-                yield (X_train[i * batch_size: (i + 1) * batch_size],
-                       y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size],
-                       y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
-
     class DummyStatefulMetric(Layer):
 
         def __init__(self, name='dummy_stateful_metric', **kwargs):
@@ -609,12 +601,14 @@ def test_TensorBoard(tmpdir):
               callbacks=callbacks_factory(histogram_freq=0), epochs=2)
 
     # fit generator without validation data
-    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+    train_generator = data_generator(X_train, y_train, batch_size)
+    model.fit_generator(train_generator, len(X_train), epochs=2,
                         callbacks=callbacks_factory(histogram_freq=0,
                                                     embeddings_freq=0))
 
     # fit generator with validation data and accuracy
-    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+    train_generator = data_generator(X_train, y_train, batch_size)
+    model.fit_generator(train_generator, len(X_train), epochs=2,
                         validation_data=(X_test, y_test),
                         callbacks=callbacks_factory(histogram_freq=1))
 
@@ -632,23 +626,6 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
-
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
-            if train:
-                # simulate multi-input/output models
-                yield (X_train[i * batch_size: (i + 1) * batch_size],
-                       y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size],
-                       y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
 
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
@@ -675,18 +652,22 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
                   callbacks=callbacks_factory(histogram_freq=1), epochs=3)
     assert 'validation_data must be provided' in str(raised_exception.value)
 
+    train_generator = data_generator(X_train, y_train, batch_size)
+    validation_generator = data_generator(X_test, y_test, batch_size)
+
     # fit generator without validation data should raise ValueError if
     # histogram_freq > 0
     with pytest.raises(ValueError) as raised_exception:
-        model.fit_generator(data_generator(True), len(X_train), epochs=2,
+        model.fit_generator(train_generator,
+                            len(X_train), epochs=2,
                             callbacks=callbacks_factory(histogram_freq=1))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
     # fit generator with validation data generator should raise ValueError if
     # histogram_freq > 0
     with pytest.raises(ValueError) as raised_exception:
-        model.fit_generator(data_generator(True), len(X_train), epochs=2,
-                            validation_data=data_generator(False),
+        model.fit_generator(train_generator, len(X_train), epochs=2,
+                            validation_data=validation_generator,
                             validation_steps=1,
                             callbacks=callbacks_factory(histogram_freq=1))
     assert 'validation_data must be provided' in str(raised_exception.value)
@@ -701,23 +682,6 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
-
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
-            if train:
-                # simulate multi-input/output models
-                yield ([X_train[i * batch_size: (i + 1) * batch_size]] * 2,
-                       [y_train[i * batch_size: (i + 1) * batch_size]] * 2)
-            else:
-                yield ([X_test[i * batch_size: (i + 1) * batch_size]] * 2,
-                       [y_test[i * batch_size: (i + 1) * batch_size]] * 2)
-            i += 1
-            i = i % max_batch_index
 
     inp1 = Input((input_dim, input_dim))
     inp2 = Input((input_dim, input_dim))
@@ -755,13 +719,15 @@ def test_TensorBoard_multi_input_output(tmpdir):
               validation_data=([X_test] * 2, [y_test] * 2),
               callbacks=callbacks_factory(histogram_freq=1), epochs=2)
 
+    train_generator = data_generator([X_train] * 2, [y_train] * 2, batch_size)
+
     # fit generator without validation data
-    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+    model.fit_generator(train_generator, len(X_train), epochs=2,
                         callbacks=callbacks_factory(histogram_freq=0,
                                                     embeddings_freq=0))
 
     # fit generator with validation data and accuracy
-    model.fit_generator(data_generator(True), len(X_train), epochs=2,
+    model.fit_generator(train_generator, len(X_train), epochs=2,
                         validation_data=([X_test] * 2, [y_test] * 2),
                         callbacks=callbacks_factory(histogram_freq=1))
 
@@ -856,24 +822,9 @@ def test_CallbackValData():
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=[cbk], epochs=1)
 
-    def data_generator(train):
-        if train:
-            max_batch_index = len(X_train) // batch_size
-        else:
-            max_batch_index = len(X_test) // batch_size
-        i = 0
-        while 1:
-            if train:
-                yield (X_train[i * batch_size: (i + 1) * batch_size],
-                       y_train[i * batch_size: (i + 1) * batch_size])
-            else:
-                yield (X_test[i * batch_size: (i + 1) * batch_size],
-                       y_test[i * batch_size: (i + 1) * batch_size])
-            i += 1
-            i = i % max_batch_index
-
     cbk2 = callbacks.LambdaCallback(on_train_end=lambda x: 1)
-    model.fit_generator(data_generator(True), len(X_train), epochs=1,
+    train_generator = data_generator(X_train, y_train, batch_size)
+    model.fit_generator(train_generator, len(X_train), epochs=1,
                         validation_data=(X_test, y_test),
                         callbacks=[cbk2])
 
