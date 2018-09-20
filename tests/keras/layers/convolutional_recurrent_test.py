@@ -6,7 +6,6 @@ from keras import backend as K
 from keras.models import Sequential, Model
 from keras.layers import convolutional_recurrent, Input
 from keras.utils.test_utils import layer_test
-from keras.utils.test_utils import keras_test
 from keras import regularizers
 
 num_row = 3
@@ -19,7 +18,6 @@ input_num_col = 5
 sequence_len = 2
 
 
-@keras_test
 def test_convolutional_recurrent():
 
     for data_format in ['channels_first', 'channels_last']:
@@ -64,7 +62,6 @@ def test_convolutional_recurrent():
                                 input_shape=inputs.shape)
 
 
-@keras_test
 def test_convolutional_recurrent_statefulness():
 
     data_format = 'channels_last'
