@@ -128,21 +128,3 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # for further checks in the caller function
     return actual_output
-
-
-def keras_test(func):
-    """Function wrapper to clean up after TensorFlow tests.
-
-    # Arguments
-        func: test function to clean up after.
-
-    # Returns
-        A function wrapping the input function.
-    """
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        output = func(*args, **kwargs)
-        if K.backend() == 'tensorflow' or K.backend() == 'cntk':
-            K.clear_session()
-        return output
-    return wrapper
