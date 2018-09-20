@@ -4,7 +4,6 @@ from numpy.testing import assert_allclose
 
 import keras
 from keras.utils.test_utils import layer_test
-from keras.utils.test_utils import keras_test
 from keras.layers import recurrent
 from keras.layers import embeddings
 from keras.models import Sequential
@@ -18,26 +17,16 @@ num_samples, timesteps, embedding_dim, units = 2, 5, 4, 3
 embedding_num = 12
 
 
-def rnn_test(f):
-    """
-    All the recurrent layers share the same interface,
-    so we can run through them with a single function.
-    """
-    f = keras_test(f)
-    return pytest.mark.parametrize('layer_class', [
-        recurrent.SimpleRNN,
-        recurrent.GRU,
-        recurrent.LSTM
-    ])(f)
+rnn_test = pytest.mark.parametrize('layer_class',
+                                   [recurrent.SimpleRNN,
+                                    recurrent.GRU,
+                                    recurrent.LSTM])
 
 
-def rnn_cell_test(f):
-    f = keras_test(f)
-    return pytest.mark.parametrize('cell_class', [
-        recurrent.SimpleRNNCell,
-        recurrent.GRUCell,
-        recurrent.LSTMCell
-    ])(f)
+rnn_cell_test = pytest.mark.parametrize('cell_class',
+                                        [recurrent.SimpleRNNCell,
+                                         recurrent.GRUCell,
+                                         recurrent.LSTMCell])
 
 
 @rnn_test
