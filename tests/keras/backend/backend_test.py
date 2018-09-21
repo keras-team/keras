@@ -601,7 +601,7 @@ class TestBackend(object):
         outputs_list = []
         state_list = []
 
-        kwargs_list = self.get_kwargs_rnn(timesteps, mask)
+        kwargs_list = self.get_kwargs_rnn(timesteps, mask_k)
 
         for (i, kwargs) in enumerate(kwargs_list):
             last_y1, y1, h1 = KNP.rnn(x, [wi, wh, None], h0, **kwargs)
@@ -666,7 +666,7 @@ class TestBackend(object):
         outputs_list = []
         state_list = []
 
-        kwargs_list = self.get_kwargs_rnn(timesteps, mask)
+        kwargs_list = self.get_kwargs_rnn(timesteps, mask_k)
 
         for (i, kwargs) in enumerate(kwargs_list):
             last_y1, y1, h1 = KNP.rnn(x, [wi, wh, None], h0, **kwargs)
