@@ -3,7 +3,6 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 from keras.utils.test_utils import layer_test
-from keras.utils.test_utils import keras_test
 from keras import backend as K
 from keras.layers import convolutional
 from keras.models import Sequential
@@ -16,7 +15,6 @@ else:
     _convolution_paddings = ['valid', 'same']
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only support dilated conv on GPU')
 @pytest.mark.parametrize(
@@ -43,7 +41,6 @@ def test_causal_dilated_conv(layer_kwargs, input_length, expected_output):
                kwargs=layer_kwargs, expected_output=expected_output)
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,strides',
     [(padding, strides)
@@ -78,7 +75,6 @@ def test_conv_1d(padding, strides):
                input_shape=(batch_size, steps, input_dim))
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only support dilated conv on GPU')
 def test_conv_1d_dilation():
@@ -97,7 +93,6 @@ def test_conv_1d_dilation():
                input_shape=(batch_size, steps, input_dim))
 
 
-@keras_test
 def test_conv_1d_channels_first():
     batch_size = 2
     steps = 8
@@ -112,7 +107,6 @@ def test_conv_1d_channels_first():
                input_shape=(batch_size, input_dim, steps))
 
 
-@keras_test
 @pytest.mark.parametrize(
     'strides,padding',
     [(strides, padding)
@@ -137,7 +131,6 @@ def test_convolution_2d(strides, padding):
                input_shape=(num_samples, stack_size, num_row, num_col))
 
 
-@keras_test
 def test_convolution_2d_channels_last():
     num_samples = 2
     filters = 2
@@ -162,7 +155,6 @@ def test_convolution_2d_channels_last():
                input_shape=(num_samples, num_row, num_col, stack_size))
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only supports dilated conv on GPU')
 def test_convolution_2d_dilation():
@@ -182,7 +174,6 @@ def test_convolution_2d_dilation():
                input_shape=(num_samples, num_row, num_col, stack_size))
 
 
-@keras_test
 def test_convolution_2d_invalid():
     filters = 2
     padding = _convolution_paddings[-1]
@@ -194,7 +185,6 @@ def test_convolution_2d_invalid():
             batch_input_shape=(None, None, 5, None))])
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,out_padding,strides',
     [(padding, out_padding, strides)
@@ -222,7 +212,6 @@ def test_conv2d_transpose(padding, out_padding, strides):
                fixed_batch_size=True)
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                     reason='cntk only supports dilated conv transpose on GPU')
 def test_conv2d_transpose_dilation():
@@ -253,7 +242,6 @@ def test_conv2d_transpose_dilation():
                expected_output=expected_output)
 
 
-@keras_test
 def test_conv2d_transpose_channels_first():
     num_samples = 2
     filters = 2
@@ -279,7 +267,6 @@ def test_conv2d_transpose_channels_first():
                fixed_batch_size=True)
 
 
-@keras_test
 def test_conv2d_transpose_invalid():
     filters = 2
     stack_size = 3
@@ -316,7 +303,6 @@ def test_conv2d_transpose_invalid():
             batch_input_shape=(None, num_row, num_col, stack_size))])
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,strides,multiplier,dilation_rate',
     [(padding, strides, multiplier, dilation_rate)
@@ -344,7 +330,6 @@ def test_separable_conv_1d(padding, strides, multiplier, dilation_rate):
                input_shape=(num_samples, num_step, stack_size))
 
 
-@keras_test
 def test_separable_conv_1d_additional_args():
     num_samples = 2
     filters = 6
@@ -371,7 +356,6 @@ def test_separable_conv_1d_additional_args():
                input_shape=(num_samples, stack_size, num_step))
 
 
-@keras_test
 def test_separable_conv_1d_invalid():
     filters = 6
     padding = 'valid'
@@ -381,7 +365,6 @@ def test_separable_conv_1d_invalid():
             batch_input_shape=(None, 5, None))])
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,strides,multiplier,dilation_rate',
     [(padding, strides, multiplier, dilation_rate)
@@ -412,7 +395,6 @@ def test_separable_conv_2d(padding, strides, multiplier, dilation_rate):
         input_shape=(num_samples, num_row, num_col, stack_size))
 
 
-@keras_test
 def test_separable_conv_2d_additional_args():
     num_samples = 2
     filters = 6
@@ -440,7 +422,6 @@ def test_separable_conv_2d_additional_args():
                input_shape=(num_samples, stack_size, num_row, num_col))
 
 
-@keras_test
 def test_separable_conv_2d_invalid():
     filters = 6
     padding = 'valid'
@@ -450,7 +431,6 @@ def test_separable_conv_2d_invalid():
             batch_input_shape=(None, None, 5, None))])
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,strides,multiplier',
     [(padding, strides, multiplier)
@@ -476,7 +456,6 @@ def test_depthwise_conv_2d(padding, strides, multiplier):
                             stack_size))
 
 
-@keras_test
 def test_depthwise_conv_2d_additional_args():
     num_samples = 2
     stack_size = 3
@@ -501,7 +480,6 @@ def test_depthwise_conv_2d_additional_args():
                input_shape=(num_samples, stack_size, num_row, num_col))
 
 
-@keras_test
 def test_depthwise_conv_2d_invalid():
     padding = 'valid'
     with pytest.raises(ValueError):
@@ -511,7 +489,6 @@ def test_depthwise_conv_2d_invalid():
             batch_input_shape=(None, None, 5, None))])
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,strides',
     [(padding, strides)
@@ -538,7 +515,6 @@ def test_convolution_3d(padding, strides):
                             stack_size))
 
 
-@keras_test
 def test_convolution_3d_additional_args():
     num_samples = 2
     filters = 2
@@ -566,7 +542,6 @@ def test_convolution_3d_additional_args():
                             stack_size))
 
 
-@keras_test
 @pytest.mark.parametrize(
     'padding,out_padding,strides,data_format',
     [(padding, out_padding, strides, data_format)
@@ -596,7 +571,6 @@ def test_conv3d_transpose(padding, out_padding, strides, data_format):
         fixed_batch_size=True)
 
 
-@keras_test
 def test_conv3d_transpose_additional_args():
     filters = 2
     stack_size = 3
@@ -623,7 +597,6 @@ def test_conv3d_transpose_additional_args():
                fixed_batch_size=True)
 
 
-@keras_test
 def test_conv3d_transpose_invalid():
     filters = 2
     stack_size = 3
@@ -662,7 +635,6 @@ def test_conv3d_transpose_invalid():
             batch_input_shape=(None, num_depth, num_row, num_col, stack_size))])
 
 
-@keras_test
 def test_zero_padding_1d():
     num_samples = 2
     input_dim = 2
@@ -699,7 +671,6 @@ def test_zero_padding_1d():
     layer.get_config()
 
 
-@keras_test
 @pytest.mark.parametrize(
     'data_format,padding',
     [(data_format, padding)
@@ -722,7 +693,6 @@ def test_zero_padding_2d(data_format, padding):
                input_shape=inputs.shape)
 
 
-@keras_test
 def test_zero_padding_2d_correctness():
     num_samples = 2
     stack_size = 2
@@ -774,7 +744,6 @@ def test_zero_padding_2d_correctness():
             assert_allclose(np_output[:, :, 1:-2, 3:-4], 1.)
 
 
-@keras_test
 @pytest.mark.parametrize(
     'data_format,padding',
     [(data_format, padding)
@@ -796,7 +765,6 @@ def test_zero_padding_3d(data_format, padding):
                input_shape=inputs.shape)
 
 
-@keras_test
 def test_zero_padding_3d_correctness():
     num_samples = 2
     stack_size = 2
@@ -849,14 +817,12 @@ def test_zero_padding_3d_correctness():
             assert_allclose(np_output[:, :, 1:-2, 3:-4, 0:-2], 1.)
 
 
-@keras_test
 def test_upsampling_1d():
     layer_test(convolutional.UpSampling1D,
                kwargs={'size': 2},
                input_shape=(3, 5, 4))
 
 
-@keras_test
 def test_upsampling_2d():
     num_samples = 2
     stack_size = 2
@@ -997,7 +963,6 @@ def test_upsampling_3d():
                     assert_allclose(np_output, expected_out)
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support slice to 0 dimension")
 def test_cropping_1d():
@@ -1142,7 +1107,6 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=lambda x: x)
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='CNTK does not support float64')
 @pytest.mark.parametrize(
