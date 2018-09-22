@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 
 import cntk as C
-from cntk.logging.graph import depth_first_search
 import numpy as np
 from .common import floatx
 from .common import epsilon
@@ -2420,35 +2419,6 @@ def _reshape_batch(x, shape):
         return C.user_function(ReshapeBatch(x, shape[1:]))
 
 
-def get_ancestor(x):
-    raise NotImplementedError
-
-
-def visitor(x):
-    try:
-        assert x._keras_done
-        return False
-    except:
-        for ancestor in get_ancestor(x):
-            if hasattr(ancestor, '_keras_forward_ptrs'):
-                ancestor._keras_forward_ptrs.add(x)
-            else:
-                ancestor._keras_forward_ptrs = {x}
-
-        x._keras_done = True
-        return False
-
-
-def get_reachable_from_inputs(inputs, targets=None):
-    if targets is None:
-        raise NotImplementedError('It is not possible to use '
-                                  '`get_reachable_from_inputs` with the CNTK'
-                                  ' backend without specifying target tensors to'
-                                  ' reach.')
-    for target in targets:
-        depth_first_search(target, visitor)
-
-
 def _get_cntk_version():
     version = C.__version__
     if version.endswith('+'):
@@ -2581,3 +2551,32 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         return root_gradients
+
+
+def get_ancestor(x):
+    raise NotImplementedError
+
+
+def visitor(x):
+    try:
+        assert x._keras_done
+        return False
+    except:
+        for ancestor in get_ancestor(x):
+            if hasattr(ancestor, '_keras_forward_ptrs'):
+                ancestor._keras_forward_ptrs.add(x)
+            else:
+                ancestor._keras_forward_ptrs = {x}
+
+        x._keras_done = True
+        return False
+
+
+def get_reachable_from_inputs(inputs, targets=None):
+    if targets is None:
+        raise NotImplementedError('It is not possible to use '
+                                  '`get_reachable_from_inputs` with the CNTK'
+                                  ' backend without specifying target tensors to'
+                                  ' reach.')
+    for target in targets:
+        depth_first_search(target, visitor)

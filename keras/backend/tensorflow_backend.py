@@ -4441,6 +4441,9 @@ def get_reachable_from_inputs(inputs, targets=None):
 
     # Returns
         A set of tensors reachable from the inputs (includes the inputs themselves).
+
+    # Raises
+        TypeError: If one of the nodes in the graph isn't known.
     """
     reachable = set(inputs)
     if targets is not None:
@@ -4451,7 +4454,6 @@ def get_reachable_from_inputs(inputs, targets=None):
         x = queue.pop()
         if isinstance(x, tf_ops.Operation):
             outputs = x.outputs[:] or []
-            #outputs += x._control_outputs  # pylint: disable=protected-access
         elif isinstance(x, variables.Variable):
             outputs = [x.op]
         elif tensor_util.is_tensor(x):
