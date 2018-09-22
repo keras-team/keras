@@ -2855,11 +2855,6 @@ def get_reachable_from_inputs(inputs, targets=None):
 
 
 def backward_pass(outputs):
-    if outputs is None:
-        raise NotImplementedError(
-            'It is not possible to give no'
-            'outputs to `get_reachable_from_inputs` when using '
-            'the Theano backend.')
     queue = outputs[:]
     while queue:
         x = queue.pop()

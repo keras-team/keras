@@ -2565,11 +2565,6 @@ def get_reachable_from_inputs(inputs, targets=None):
 
 
 def backward_pass(outputs):
-    if outputs is None:
-        raise NotImplementedError(
-            'It is not possible to give no'
-            'outputs to `get_reachable_from_inputs` when using '
-            'the CNTK backend.')
     queue = outputs[:]
     while queue:
         x = queue.pop()
@@ -2606,7 +2601,7 @@ def get_children(node):
         return node.inputs  # Wrong way to do it.
     elif isinstance(node, Variable):
         if node.is_output:
-            return [node.owner] # Ok but only special case.
+            return [node.owner]  # Ok but only special case.
         else:
             return []
     raise NotImplementedError
