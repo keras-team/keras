@@ -2553,30 +2553,10 @@ class LambdaFunc(C.ops.functions.UserFunction):
         return root_gradients
 
 
-def get_ancestor(x):
-    raise NotImplementedError
-
-
-def visitor(x):
-    try:
-        assert x._keras_done
-        return False
-    except:
-        for ancestor in get_ancestor(x):
-            if hasattr(ancestor, '_keras_forward_ptrs'):
-                ancestor._keras_forward_ptrs.add(x)
-            else:
-                ancestor._keras_forward_ptrs = {x}
-
-        x._keras_done = True
-        return False
-
-
 def get_reachable_from_inputs(inputs, targets=None):
     if targets is None:
         raise NotImplementedError('It is not possible to use '
                                   '`get_reachable_from_inputs` with the CNTK'
                                   ' backend without specifying target tensors to'
                                   ' reach.')
-    for target in targets:
-        depth_first_search(target, visitor)
+    raise NotImplementedError

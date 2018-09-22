@@ -2850,4 +2850,4 @@ def get_reachable_from_inputs(inputs, targets=None):
                                   ' backend without specifying target tensors to'
                                   ' reach.')
 
-    return graph.variables(inputs, targets) + graph.list_of_nodes(inputs, targets)
+    raise NotImplementedError
