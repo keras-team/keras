@@ -11,6 +11,7 @@ from theano.tensor.signal import pool
 from theano.printing import Print
 from theano.ifelse import ifelse
 from theano.gof import graph
+from theano.gof.graph import Variable, Apply
 try:
     import theano.sparse as th_sparse_module
 except ImportError:
@@ -2864,14 +2865,11 @@ def backward_pass(outputs):
 
 
 def link_to_inputs(node):
-    try:
-        assert node._keras_done
+    if hasattr(node, '_keras_done'):
         return []
-    except AttributeError:
+    else:
         children = get_children(node)
         for child in children:
-            if child is None:
-                raise IndexError
             add_link(child, node)
         node._keras_done = True
         return children
@@ -2885,7 +2883,6 @@ def add_link(from_tensor, to_tensor):
 
 
 def get_children(node):
-    from theano.gof.graph import Variable, Apply
     if isinstance(node, Variable):
         if node.owner is None:
             # Placeholder

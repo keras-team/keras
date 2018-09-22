@@ -2574,14 +2574,11 @@ def backward_pass(outputs):
 
 
 def link_to_inputs(node):
-    try:
-        assert node._keras_done
+    if hasattr(node, '_keras_done'):
         return []
-    except AttributeError:
+    else:
         children = get_children(node)
         for child in children:
-            if child is None:
-                raise IndexError
             add_link(child, node)
         node._keras_done = True
         return children
@@ -2595,11 +2592,9 @@ def add_link(from_tensor, to_tensor):
 
 
 def get_children(node):
-    from cntk.ops.functions import Function
-    from cntk.variables import Variable
-    if isinstance(node, Function):
+    if isinstance(node, C.ops.functions.Function):
         return node.inputs  # Wrong way to do it.
-    elif isinstance(node, Variable):
+    elif isinstance(node, C.variables.Variable):
         if node.is_output:
             return [node.owner]  # Ok but only special case.
         else:
