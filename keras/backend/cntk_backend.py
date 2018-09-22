@@ -2559,4 +2559,73 @@ def get_reachable_from_inputs(inputs, targets=None):
                                   '`get_reachable_from_inputs` with the CNTK'
                                   ' backend without specifying target tensors to'
                                   ' reach.')
+
+    backward_pass(targets)
+    return get_reachable_from_inputs_with_ptrs(inputs, targets)
+
+
+def backward_pass(outputs):
+    if outputs is None:
+        raise NotImplementedError(
+            'It is not possible to give no'
+            'outputs to `get_reachable_from_inputs` when using '
+            'the CNTK backend.')
+    queue = outputs[:]
+    while queue:
+        x = queue.pop()
+        inputs = link_to_inputs(x)
+        for input_ in inputs:
+            queue.insert(0, input_)
+
+
+def link_to_inputs(node):
+    try:
+        assert node._keras_done
+        return []
+    except AttributeError:
+        children = get_children(node)
+        for child in children:
+            if child is None:
+                raise IndexError
+            add_link(child, node)
+        node._keras_done = True
+        return children
+
+
+def add_link(from_tensor, to_tensor):
+    if hasattr(from_tensor, '_keras_forward_ptrs'):
+        from_tensor._keras_forward_ptrs.add(to_tensor)
+    else:
+        from_tensor._keras_forward_ptrs = {to_tensor}
+
+
+def get_children(node):
+    from cntk.ops.functions import Function
+    from cntk.variables import Variable
+    if isinstance(node, Function):
+        return node.inputs  # Wrong way to do it.
+    elif isinstance(node, Variable):
+        if node.is_output:
+            return [node.owner] # Ok but only special case.
+        else:
+            return []
     raise NotImplementedError
+
+
+def get_reachable_from_inputs_with_ptrs(inputs, targets=None):
+    reachable = set(inputs)
+    if targets:
+        targets = set(targets)
+    queue = inputs[:]
+
+    while queue:
+        x = queue.pop()
+        outputs = x._keras_forward_ptrs
+        for y in outputs:
+            if y not in reachable:
+                reachable.add(y)
+                queue.insert(0, y)
+
+        if targets and targets.issubset(reachable):
+            return reachable
+    return reachable
