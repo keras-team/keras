@@ -1905,7 +1905,6 @@ class TestBackend(object):
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
 
-    @keras_test
     @pytest.mark.skipif((K.backend() != 'tensorflow'),
                         reason='Only Tensorflow exposes pointers to '
                                'the next nodes and operations.')
@@ -1918,7 +1917,6 @@ class TestBackend(object):
             for tensor in branch:
                 assert tensor in nodes
 
-    @keras_test
     def test_get_reachable_from_inputs_1(self):
         branches = get_dummy_graph()
         branch_a, branch_b = branches[:2]
@@ -1930,7 +1928,6 @@ class TestBackend(object):
         for tensor in branch_b:
             assert tensor not in nodes
 
-    @keras_test
     def test_get_reachable_from_inputs_2(self):
         branches = get_dummy_graph()
         branch_a, branch_b = branches[:2]
