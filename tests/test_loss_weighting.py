@@ -8,7 +8,6 @@ from keras.utils.test_utils import get_test_data
 from keras.models import Sequential, Model
 from keras.layers import Dense, Activation, GRU, TimeDistributed, Input
 from keras.utils import np_utils
-from keras.utils.test_utils import keras_test
 from numpy.testing import assert_almost_equal, assert_array_almost_equal
 
 num_classes = 10
@@ -73,7 +72,6 @@ def create_temporal_sequential_model():
     return model
 
 
-@keras_test
 def test_sequential_class_weights():
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop')
@@ -99,7 +97,6 @@ def test_sequential_class_weights():
     assert(score < standard_score_sequential)
 
 
-@keras_test
 def test_sequential_sample_weights():
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop')
@@ -123,7 +120,6 @@ def test_sequential_sample_weights():
     assert(score < standard_score_sequential)
 
 
-@keras_test
 def test_sequential_temporal_sample_weights():
     ((x_train, y_train), (x_test, y_test),
      (sample_weight, class_weight, test_ids)) = _get_test_data()
@@ -162,7 +158,6 @@ def test_sequential_temporal_sample_weights():
     assert(score < standard_score_sequential)
 
 
-@keras_test
 def test_weighted_metrics_with_sample_weight():
     decimal = decimal_precision[K.backend()]
 
@@ -207,7 +202,6 @@ def test_weighted_metrics_with_sample_weight():
     assert_almost_equal(loss_score, weighted_metric_score, decimal=decimal)
 
 
-@keras_test
 def test_weighted_metrics_with_no_sample_weight():
     decimal = decimal_precision[K.backend()]
 
@@ -244,7 +238,6 @@ def test_weighted_metrics_with_no_sample_weight():
     assert_almost_equal(loss_score, weighted_metric_score, decimal=decimal)
 
 
-@keras_test
 def test_weighted_metrics_with_weighted_accuracy_metric():
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop',
@@ -259,7 +252,6 @@ def test_weighted_metrics_with_weighted_accuracy_metric():
     assert history.history['acc'] != history.history['weighted_acc']
 
 
-@keras_test
 def test_weighted_metrics_with_multiple_outputs():
     decimal = decimal_precision[K.backend()]
 
@@ -289,7 +281,6 @@ def test_weighted_metrics_with_multiple_outputs():
     assert_almost_equal(unweighted_metric * weight, weighted_metric, decimal=decimal)
 
 
-@keras_test
 def test_class_weight_wrong_classes():
     model = create_sequential_model()
     model.compile(loss=loss, optimizer='rmsprop')

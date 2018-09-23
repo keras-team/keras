@@ -13,7 +13,6 @@ from keras.layers import Input
 from keras import optimizers
 from keras import losses
 from keras import metrics
-from keras.utils.test_utils import keras_test
 
 if sys.version_info[0] == 3:
     import pickle
@@ -27,7 +26,6 @@ skipif_no_tf_gpu = pytest.mark.skipif(
     reason='Requires TensorFlow backend and a GPU')
 
 
-@keras_test
 def test_sequential_model_pickling():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
@@ -60,7 +58,6 @@ def test_sequential_model_pickling():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_sequential_model_pickling_2():
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
@@ -83,7 +80,6 @@ def test_sequential_model_pickling_2():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_functional_model_pickling():
     inputs = Input(shape=(3,))
     x = Dense(2)(inputs)
@@ -106,7 +102,6 @@ def test_functional_model_pickling():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_pickling_multiple_metrics_outputs():
     inputs = Input(shape=(5,))
     x = Dense(5)(inputs)
@@ -132,7 +127,6 @@ def test_pickling_multiple_metrics_outputs():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_pickling_without_compilation():
     """Test pickling model without compiling.
     """
@@ -143,7 +137,6 @@ def test_pickling_without_compilation():
     model = pickle.loads(pickle.dumps(model))
 
 
-@keras_test
 def test_pickling_right_after_compilation():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
@@ -154,7 +147,6 @@ def test_pickling_right_after_compilation():
     model = pickle.loads(pickle.dumps(model))
 
 
-@keras_test
 def test_pickling_unused_layers_is_ok():
     a = Input(shape=(256, 512, 6))
     b = Input(shape=(256, 512, 1))

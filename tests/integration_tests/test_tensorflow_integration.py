@@ -6,12 +6,10 @@ import pytest
 import keras
 from keras import layers
 from keras.utils.test_utils import get_test_data
-from keras.utils.test_utils import keras_test
 
 
 @pytest.mark.skipif(keras.backend.backend() != 'tensorflow',
                     reason='Requires TF backend')
-@keras_test
 def test_tf_optimizer():
     import tensorflow as tf
 

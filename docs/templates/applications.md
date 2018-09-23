@@ -271,7 +271,7 @@ The default input size for this model is 224x224.
     has to be `(224, 224, 3)` (with `'channels_last'` data format)
     or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
-    and width and height should be no smaller than 48.
+    and width and height should be no smaller than 32.
     E.g. `(200, 200, 3)` would be one valid value.
 - pooling: Optional pooling mode for feature extraction
     when `include_top` is `False`.
@@ -326,7 +326,7 @@ The default input size for this model is 224x224.
     has to be `(224, 224, 3)` (with `'channels_last'` data format)
     or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
-    and width and height should be no smaller than 48.
+    and width and height should be no smaller than 32.
     E.g. `(200, 200, 3)` would be one valid value.
 - pooling: Optional pooling mode for feature extraction
     when `include_top` is `False`.
@@ -383,7 +383,7 @@ The default input size for this model is 224x224.
     has to be `(224, 224, 3)` (with `'channels_last'` data format)
     or `(3, 224, 224)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
-    and width and height should be no smaller than 197.
+    and width and height should be no smaller than 32.
     E.g. `(200, 200, 3)` would be one valid value.
 - pooling: Optional pooling mode for feature extraction
     when `include_top` is `False`.
@@ -438,7 +438,7 @@ The default input size for this model is 299x299.
     has to be `(299, 299, 3)` (with `'channels_last'` data format)
     or `(3, 299, 299)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
-    and width and height should be no smaller than 139.
+    and width and height should be no smaller than 75.
     E.g. `(150, 150, 3)` would be one valid value.
 - pooling: Optional pooling mode for feature extraction
     when `include_top` is `False`.
@@ -493,7 +493,7 @@ The default input size for this model is 299x299.
     has to be `(299, 299, 3)` (with `'channels_last'` data format)
     or `(3, 299, 299)` (with `'channels_first'` data format).
     It should have exactly 3 inputs channels,
-    and width and height should be no smaller than 139.
+    and width and height should be no smaller than 75.
     E.g. `(150, 150, 3)` would be one valid value.
 - pooling: Optional pooling mode for feature extraction
     when `include_top` is `False`.
@@ -620,9 +620,11 @@ The default input size for this model is 224x224.
     to use as image input for the model.
 - input_shape: optional shape tuple, only to be specified
     if `include_top` is False (otherwise the input shape
-    has to be `(224, 224, 3)` (with `channels_last` data format)
-    or `(3, 224, 224)` (with `channels_first` data format).
-    It should have exactly 3 inputs channels.
+    has to be `(224, 224, 3)` (with `'channels_last'` data format)
+    or `(3, 224, 224)` (with `'channels_first'` data format).
+    It should have exactly 3 inputs channels,
+    and width and height should be no smaller than 32.
+    E.g. `(200, 200, 3)` would be one valid value.
 - pooling: optional pooling mode for feature extraction
     when `include_top` is `False`.
     - `None` means that the output of the model will be
