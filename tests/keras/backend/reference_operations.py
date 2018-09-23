@@ -402,6 +402,10 @@ def repeat(x, n):
     return y
 
 
+def tile(x, n):
+    return np.tile(x, n)
+
+
 def arange(start, stop=None, step=1, dtype='int32'):
     return np.arange(start, stop, step, dtype)
 
