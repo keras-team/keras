@@ -7,8 +7,8 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 
-from keras.backend import normalize_data_format
-from keras.backend import floatx
+from keras.backend.common import normalize_data_format
+from keras.backend.common import floatx
 
 
 def normalize_conv(func):
@@ -120,10 +120,10 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
             for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
                 for (m, m1) in zip(range(pool_size[2]), range(-pool_size[2], 0)):
                     y.append(x[:,
-                               :,
-                               k:k1:strides[0],
-                               l:l1:strides[1],
-                               m:m1:strides[2]])
+                             :,
+                             k:k1:strides[0],
+                             l:l1:strides[1],
+                             m:m1:strides[2]])
     y = np.stack(y, axis=-1)
     if pool_mode == 'avg':
         y = np.mean(np.ma.masked_invalid(y), axis=-1).data
@@ -533,7 +533,10 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def ndim(x):
-    return x.ndim
+    dims = x.shape
+    if dims is not None:
+        return len(dims)
+    return None
 
 
 def batch_dot(x, y, axes=None):
@@ -550,54 +553,129 @@ def batch_dot(x, y, axes=None):
                          'Provided: ' + str(axes))
     if x_ndim > y_ndim:
         diff = x_ndim - y_ndim
-        y = np.reshape(y, np.concatenate([np.shape(y), [1] * (diff)], axis=0))
+        y = np.reshape(y, np.concat([np.shape(y), [1] * (diff)], axis=0))
+    elif y_ndim > x_ndim:
+        diff = y_ndim - x_ndim
+        x = np.reshape(x, np.concat([np.shape(x), [1] * (diff)], axis=0))
     else:
         diff = 0
-
     if ndim(x) == 2 and ndim(y) == 2:
         if axes[0] == axes[1]:
-            out = np.sum(np.multiply(x, y), axes[0])
+            out = np.reduce_sum(np.multiply(x, y), axes[0])
         else:
-            out = np.sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
+            out = np.reduce_sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
     else:
-        out = np.tensordot(x, y, axes=axes)
-        for axis in [axes[0]]:
-            axis_list = np.arange(len(out.shape) - 1).tolist()
-            axis_list.insert(0, axis_list.pop(axis))
-            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis),
-                               tuple(axis_list))
+        if axes is not None:
+            adj_x = None if axes[0] == ndim(x) - 1 else True
+            adj_y = True if axes[1] == ndim(y) - 1 else None
+        else:
+            adj_x = None
+            adj_y = None
+        out = np.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
     if diff:
         if x_ndim > y_ndim:
             idx = x_ndim + y_ndim - 3
         else:
             idx = x_ndim - 1
-        out = np.squeeze(out, tuple(range(idx, idx + diff)))
+        out = np.squeeze(out, list(range(idx, idx + diff)))
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
 
 
+def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
+    data_format = normalize_data_format(data_format)
+
+    stride = strides[0]
+    kernel_shape = int_shape(kernel)
+    output_length, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_length):
+        slice_length = py_slice(i * stride,
+                                i * stride + kernel_size[0])
+        xs.append(reshape(inputs[:, slice_length, :],
+                          (1, -1, feature_dim)))
+    x_aggregate = concatenate(xs, axis=0)
+    # Shape: `(output_length, batch_size, filters)`.
+    output = batch_dot(x_aggregate, kernel)
+    return permute_dimensions(output, (1, 0, 2))
+
+
 def int_shape(x):
-    return x.shape
+    dims = x.shape
+    if dims is not None:
+        return dims
+    return None
+
+
+def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+    data_format = normalize_data_format(data_format)
+
+    stride_row, stride_col = strides
+    output_row, output_col = output_shape
+    kernel_shape = int_shape(kernel)
+    _, feature_dim, filters = kernel_shape
+
+    xs = []
+    for i in range(output_row):
+        for j in range(output_col):
+            slice_row = py_slice(i * stride_row,
+                                 i * stride_row + kernel_size[0])
+            slice_col = py_slice(j * stride_col,
+                                 j * stride_col + kernel_size[1])
+            if data_format == 'channels_first':
+                xs.append(reshape(inputs[:, :, slice_row, slice_col],
+                                  (1, -1, feature_dim)))
+            else:
+                xs.append(reshape(inputs[:, slice_row, slice_col, :],
+                                  (1, -1, feature_dim)))
+
+    x_aggregate = concatenate(xs, axis=0)
+    output = batch_dot(x_aggregate, kernel)
+    output = reshape(output,
+                     (output_row, output_col, -1, filters))
+
+    if data_format == 'channels_first':
+        output = permute_dimensions(output, (2, 3, 0, 1))
+    else:
+        output = permute_dimensions(output, (2, 0, 1, 3))
+    return output
+
+
+def tile(x, n):
+    if isinstance(n, int):
+        n = [n]
+    return np.tile(x, n)
 
 
 def cast(x, dtype):
     return x.astype(dtype)
 
 
-def zeros(shape, dtype=floatx(), name=None):
-    return np.zeros(shape=shape, dtype=dtype)
+def zeros(shape, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+    v = np.zeros(shape=shape, dtype=dtype)
+    if py_all(list(v.shape)):
+        return variable(v, dtype=dtype, name=name)
+    return v
 
 
-def ones(shape, dtype=floatx(), name=None):
-    return np.ones(shape=shape, dtype=dtype)
+def ones(shape, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
+    v = np.ones(shape=shape, dtype=dtype)
+    if py_all(list(v.shape)):
+        return variable(v, dtype=dtype, name=name)
+    return v
 
 
-def zeros_like(x, dtype=floatx(), name=None):
+def zeros_like(x, dtype=None, name=None):
     return np.zeros_like(x, dtype=dtype)
 
 
-def ones_like(x, dtype=floatx(), name=None):
+def ones_like(x, dtype=None, name=None):
     return np.ones_like(x, dtype=dtype)
 
 
