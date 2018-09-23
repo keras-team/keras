@@ -96,26 +96,15 @@ def test_top_k_categorical_accuracy():
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='CNTK backend does not support top_k yet')
-def test_sparse_top_k_categorical_accuracy():
+@pytest.mark.parametrize('y_pred, y_true', [
     # Test correctness if the shape of y_true is (num_samples, 1)
-    y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
-    y_true = K.variable(np.array([[1], [0]]))
-    success_result = K.eval(
-        metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=3))
-
-    assert success_result == 1
-    partial_result = K.eval(
-        metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=2))
-
-    assert partial_result == 0.5
-    failure_result = K.eval(
-        metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=1))
-
-    assert failure_result == 0
-
+    (np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]), np.array([[1], [0]])),
     # Test correctness if the shape of y_true is (num_samples,)
-    y_pred = K.variable(np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]))
-    y_true = K.variable(np.array([1, 0]))
+    (np.array([[0.3, 0.2, 0.1], [0.1, 0.2, 0.7]]), np.array([1, 0])),
+])
+def test_sparse_top_k_categorical_accuracy(y_pred, y_true):
+    y_pred = K.variable(y_pred)
+    y_true = K.variable(y_true)
     success_result = K.eval(
         metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=3))
 
