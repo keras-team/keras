@@ -789,11 +789,10 @@ class ConvRecurrent2D(Recurrent):
 
         if self.return_state:
             if self.data_format == 'channels_first':
-                output_shape = [output_shape] + [(input_shape[0], self.filters,
-                                                  rows, cols) for _ in range(2)]
+                state_shape = (input_shape[0], self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                output_shape = [output_shape] + [(input_shape[0], rows, cols,
-                                                  self.filters) for _ in range(2)]
+                state_shape = (input_shape[0], rows, cols, self.filters)
+            output_shape = [output_shape, state_shape, state_shape]
 
         return output_shape
 

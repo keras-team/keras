@@ -585,8 +585,8 @@ class RemoteMonitor(Callback):
         root: String; root url of the target server.
         path: String; path relative to `root` to which the events will be sent.
         field: String; JSON field under which the data will be stored.
-            The field is used only if the payload is sent
-        within a form (i.e. send_as_json is set to False).
+            The field is used only if the payload is sent within a form
+            (i.e. send_as_json is set to False).
         headers: Dictionary; optional custom HTTP headers.
         send_as_json: Boolean; whether the request should be send as
             application/json.
@@ -1170,8 +1170,7 @@ class CSVLogger(Callback):
 
         if self.model.stop_training:
             # We set NA so that csv parsers do not fail for this last epoch.
-            logs = dict([(k, logs[k]) if k in logs else (k, 'NA')
-                         for k in self.keys])
+            logs = dict([(k, logs[k] if k in logs else 'NA') for k in self.keys])
 
         if not self.writer:
             class CustomDialect(csv.excel):
