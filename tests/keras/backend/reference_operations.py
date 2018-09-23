@@ -7,8 +7,8 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 
-from keras.backend.common import normalize_data_format
-from keras.backend.common import floatx
+from keras.backend import normalize_data_format
+from keras.backend import floatx
 
 
 def normalize_conv(func):
