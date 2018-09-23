@@ -205,15 +205,15 @@ class TestBackend(object):
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
 
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
-                                   BACKENDS, cntk_two_dynamicity=True, axes=(2, 2))
+                                   WITH_NP, cntk_two_dynamicity=True, axes=(2, 2))
         check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 3),
-                                   BACKENDS, cntk_two_dynamicity=True, axes=(2, 1))
+                                   WITH_NP, cntk_two_dynamicity=True, axes=(2, 1))
         check_two_tensor_operation('batch_dot', (4, 2), (4, 2, 3),
-                                   BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
+                                   WITH_NP, cntk_two_dynamicity=True, axes=(1, 1))
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
-                                   BACKENDS, cntk_two_dynamicity=True, axes=1)
+                                   WITH_NP, cntk_two_dynamicity=True, axes=1)
         check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
-                                   BACKENDS, cntk_two_dynamicity=True, axes=(1, 1))
+                                   WITH_NP, cntk_two_dynamicity=True, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), WITH_NP)
         check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
@@ -300,8 +300,8 @@ class TestBackend(object):
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
-        check_single_tensor_operation('tile', arr, BACKENDS, n=[2, 1])
-        check_single_tensor_operation('tile', (2, 5), BACKENDS, n=[5, 2])
+        check_single_tensor_operation('tile', arr, WITH_NP, n=[2, 1])
+        check_single_tensor_operation('tile', (2, 5), WITH_NP, n=[5, 2])
 
         # test theano shape inference when
         # input shape has None entries
