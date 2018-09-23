@@ -120,10 +120,10 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
             for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
                 for (m, m1) in zip(range(pool_size[2]), range(-pool_size[2], 0)):
                     y.append(x[:,
-                               :,
-                               k:k1:strides[0],
-                               l:l1:strides[1],
-                               m:m1:strides[2]])
+                             :,
+                             k:k1:strides[0],
+                             l:l1:strides[1],
+                             m:m1:strides[2]])
     y = np.stack(y, axis=-1)
     if pool_mode == 'avg':
         y = np.mean(np.ma.masked_invalid(y), axis=-1).data
@@ -533,26 +533,6 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def ndim(x):
-    """Returns the number of axes in a tensor, as an integer.
-
-    # Arguments
-        x: Tensor or variable.
-
-    # Returns
-        Integer (scalar), number of axes.
-
-    # Examples
-    ```python
-        >>> from keras import backend as K
-        >>> inputs = K.placeholder(shape=(2, 4, 5))
-        >>> val = np.array([[1, 2], [3, 4]])
-        >>> kvar = K.variable(value=val)
-        >>> K.ndim(inputs)
-        3
-        >>> K.ndim(kvar)
-        2
-    ```
-    """
     dims = x.shape
     if dims is not None:
         return len(dims)
@@ -560,56 +540,6 @@ def ndim(x):
 
 
 def batch_dot(x, y, axes=None):
-    """Batchwise dot product.
-
-    `batch_dot` is used to compute dot product of `x` and `y` when
-    `x` and `y` are data in batch, i.e. in a shape of
-    `(batch_size, :)`.
-    `batch_dot` results in a tensor or variable with less dimensions
-    than the input. If the number of dimensions is reduced to 1,
-    we use `expand_dims` to make sure that ndim is at least 2.
-
-    # Arguments
-        x: Keras tensor or variable with `ndim >= 2`.
-        y: Keras tensor or variable with `ndim >= 2`.
-        axes: list of (or single) int with target dimensions.
-            The lengths of `axes[0]` and `axes[1]` should be the same.
-
-    # Returns
-        A tensor with shape equal to the concatenation of `x`'s shape
-        (less the dimension that was summed over) and `y`'s shape
-        (less the batch dimension and the dimension that was summed over).
-        If the final rank is 1, we reshape it to `(batch_size, 1)`.
-
-    # Examples
-        Assume `x = [[1, 2], [3, 4]]` and `y = [[5, 6], [7, 8]]`
-        `batch_dot(x, y, axes=1) = [[17], [53]]` which is the main diagonal
-        of `x.dot(y.T)`, although we never have to calculate the off-diagonal
-        elements.
-
-        Shape inference:
-        Let `x`'s shape be `(100, 20)` and `y`'s shape be `(100, 30, 20)`.
-        If `axes` is (1, 2), to find the output shape of resultant tensor,
-            loop through each dimension in `x`'s shape and `y`'s shape:
-
-        * `x.shape[0]` : 100 : append to output shape
-        * `x.shape[1]` : 20 : do not append to output shape,
-            dimension 1 of `x` has been summed over. (`dot_axes[0]` = 1)
-        * `y.shape[0]` : 100 : do not append to output shape,
-            always ignore first dimension of `y`
-        * `y.shape[1]` : 30 : append to output shape
-        * `y.shape[2]` : 20 : do not append to output shape,
-            dimension 2 of `y` has been summed over. (`dot_axes[1]` = 2)
-        `output_shape` = `(100, 30)`
-
-    ```python
-        >>> x_batch = K.ones(shape=(32, 20, 1))
-        >>> y_batch = K.ones(shape=(32, 30, 20))
-        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=[1, 2])
-        >>> K.int_shape(xy_batch_dot)
-        (32, 1, 30)
-    ```
-    """
     if isinstance(axes, int):
         axes = (axes, axes)
     x_ndim = ndim(x)
@@ -654,25 +584,6 @@ def batch_dot(x, y, axes=None):
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
-    """Apply 1D conv with un-shared weights.
-
-    # Arguments
-        inputs: 3D tensor with shape: (batch_size, steps, input_dim)
-        kernel: the unshared weight for convolution,
-                with shape (output_length, feature_dim, filters)
-        kernel_size: a tuple of a single integer,
-                     specifying the length of the 1D convolution window
-        strides: a tuple of a single integer,
-                 specifying the stride length of the convolution
-        data_format: the data format, channels_first or channels_last
-
-    # Returns
-        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_length, filters)
-
-    # Raises
-        ValueError: If `data_format` is neither
-            `"channels_last"` nor `"channels_first"`.
-    """
     data_format = normalize_data_format(data_format)
 
     stride = strides[0]
@@ -692,26 +603,6 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
 
 
 def int_shape(x):
-    """Returns the shape of tensor or variable as a tuple of int or None entries.
-
-    # Arguments
-        x: Tensor or variable.
-
-    # Returns
-        A tuple of integers (or None entries).
-
-    # Examples
-    ```python
-        >>> from keras import backend as K
-        >>> inputs = K.placeholder(shape=(2, 4, 5))
-        >>> K.int_shape(inputs)
-        (2, 4, 5)
-        >>> val = np.array([[1, 2], [3, 4]])
-        >>> kvar = K.variable(value=val)
-        >>> K.int_shape(kvar)
-        (2, 2)
-    ```
-    """
     dims = x.shape
     if dims is not None:
         return dims
@@ -719,36 +610,6 @@ def int_shape(x):
 
 
 def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
-    """Apply 2D conv with un-shared weights.
-
-    # Arguments
-        inputs: 4D tensor with shape:
-                (batch_size, filters, new_rows, new_cols)
-                if data_format='channels_first'
-                or 4D tensor with shape:
-                (batch_size, new_rows, new_cols, filters)
-                if data_format='channels_last'.
-        kernel: the unshared weight for convolution,
-                with shape (output_items, feature_dim, filters)
-        kernel_size: a tuple of 2 integers, specifying the
-                     width and height of the 2D convolution window.
-        strides: a tuple of 2 integers, specifying the strides
-                 of the convolution along the width and height.
-        output_shape: a tuple with (output_row, output_col)
-        data_format: the data format, channels_first or channels_last
-
-    # Returns
-        A 4d tensor with shape:
-        (batch_size, filters, new_rows, new_cols)
-        if data_format='channels_first'
-        or 4D tensor with shape:
-        (batch_size, new_rows, new_cols, filters)
-        if data_format='channels_last'.
-
-    # Raises
-        ValueError: if `data_format` is neither
-                    `channels_last` or `channels_first`.
-    """
     data_format = normalize_data_format(data_format)
 
     stride_row, stride_col = strides
@@ -783,75 +644,16 @@ def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format
 
 
 def tile(x, n):
-    """Creates a tensor by tiling `x` by `n`.
-
-    # Arguments
-        x: A tensor or variable
-        n: A list of integer. The length must be the same as the number of
-            dimensions in `x`.
-
-    # Returns
-        A tiled tensor.
-    """
     if isinstance(n, int):
         n = [n]
     return np.tile(x, n)
 
 
 def cast(x, dtype):
-    """Casts a tensor to a different dtype and returns it.
-
-    You can cast a Keras variable but it still returns a Keras tensor.
-
-    # Arguments
-        x: Keras tensor (or variable).
-        dtype: String, either (`'float16'`, `'float32'`, or `'float64'`).
-
-    # Returns
-        Keras tensor with dtype `dtype`.
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> input = K.placeholder((2, 3), dtype='float32')
-        >>> input
-        <tf.Tensor 'Placeholder_2:0' shape=(2, 3) dtype=float32>
-        # It doesn't work in-place as below.
-        >>> K.cast(input, dtype='float16')
-        <tf.Tensor 'Cast_1:0' shape=(2, 3) dtype=float16>
-        >>> input
-        <tf.Tensor 'Placeholder_2:0' shape=(2, 3) dtype=float32>
-        # you need to assign it.
-        >>> input = K.cast(input, dtype='float16')
-        >>> input
-        <tf.Tensor 'Cast_2:0' shape=(2, 3) dtype=float16>
-    ```
-    """
     return x.astype(dtype)
 
+
 def zeros(shape, dtype=None, name=None):
-    """Instantiates an all-zeros variable and returns it.
-
-    # Arguments
-        shape: Tuple of integers, shape of returned Keras variable
-        dtype: String, data type of returned Keras variable
-        name: String, name of returned Keras variable
-
-    # Returns
-        A variable (including Keras metadata), filled with `0.0`.
-        Note that if `shape` was symbolic, we cannot return a variable,
-        and will return a dynamically-shaped tensor instead.
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> kvar = K.zeros((3,4))
-        >>> K.eval(kvar)
-        array([[ 0.,  0.,  0.,  0.],
-               [ 0.,  0.,  0.,  0.],
-               [ 0.,  0.,  0.,  0.]], dtype=float32)
-    ```
-    """
     if dtype is None:
         dtype = floatx()
     v = np.zeros(shape=shape, dtype=dtype)
@@ -859,29 +661,8 @@ def zeros(shape, dtype=None, name=None):
         return variable(v, dtype=dtype, name=name)
     return v
 
+
 def ones(shape, dtype=None, name=None):
-    """Instantiates an all-ones variable and returns it.
-
-    # Arguments
-        shape: Tuple of integers, shape of returned Keras variable.
-        dtype: String, data type of returned Keras variable.
-        name: String, name of returned Keras variable.
-
-    # Returns
-        A Keras variable, filled with `1.0`.
-        Note that if `shape` was symbolic, we cannot return a variable,
-        and will return a dynamically-shaped tensor instead.
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> kvar = K.ones((3,4))
-        >>> K.eval(kvar)
-        array([[ 1.,  1.,  1.,  1.],
-               [ 1.,  1.,  1.,  1.],
-               [ 1.,  1.,  1.,  1.]], dtype=float32)
-    ```
-    """
     if dtype is None:
         dtype = floatx()
     v = np.ones(shape=shape, dtype=dtype)
@@ -889,96 +670,22 @@ def ones(shape, dtype=None, name=None):
         return variable(v, dtype=dtype, name=name)
     return v
 
+
 def zeros_like(x, dtype=None, name=None):
-    """Instantiates an all-zeros variable of the same shape as another tensor.
-
-    # Arguments
-        x: Keras variable or Keras tensor.
-        dtype: String, dtype of returned Keras variable.
-             None uses the dtype of x.
-        name: String, name for the variable to create.
-
-    # Returns
-        A Keras variable with the shape of x filled with zeros.
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> kvar = K.variable(np.random.random((2,3)))
-        >>> kvar_zeros = K.zeros_like(kvar)
-        >>> K.eval(kvar_zeros)
-        array([[ 0.,  0.,  0.],
-               [ 0.,  0.,  0.]], dtype=float32)
-    ```
-    """
     return np.zeros_like(x, dtype=dtype)
 
 
 def ones_like(x, dtype=None, name=None):
-    """Instantiates an all-ones variable of the same shape as another tensor.
-
-    # Arguments
-        x: Keras variable or tensor.
-        dtype: String, dtype of returned Keras variable.
-             None uses the dtype of x.
-        name: String, name for the variable to create.
-
-    # Returns
-        A Keras variable with the shape of x filled with ones.
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> kvar = K.variable(np.random.random((2,3)))
-        >>> kvar_ones = K.ones_like(kvar)
-        >>> K.eval(kvar_ones)
-        array([[ 1.,  1.,  1.],
-               [ 1.,  1.,  1.]], dtype=float32)
-    ```
-    """
     return np.ones_like(x, dtype=dtype)
 
+
 def identity(x, name=None):
-    """Returns a tensor with the same content as the input tensor.
-
-    # Arguments
-        x: The input tensor.
-        name: String, name for the variable to create.
-
-    # Returns
-        A tensor of the same shape, type and content.
-    """
     return np.identity(x)
 
+
 def shape(x):
-    """Returns the symbolic shape of a tensor or variable.
-
-    # Arguments
-        x: A tensor or variable.
-
-    # Returns
-        A symbolic shape (which is itself a tensor).
-
-    # Examples
-    ```python
-        # TensorFlow example
-        >>> from keras import backend as K
-        >>> tf_session = K.get_session()
-        >>> val = np.array([[1, 2], [3, 4]])
-        >>> kvar = K.variable(value=val)
-        >>> inputs = keras.backend.placeholder(shape=(2, 4, 5))
-        >>> K.shape(kvar)
-        <tf.Tensor 'Shape_8:0' shape=(2,) dtype=int32>
-        >>> K.shape(inputs)
-        <tf.Tensor 'Shape_9:0' shape=(3,) dtype=int32>
-        # To get integer shape (Instead, you can use K.int_shape(x))
-        >>> K.shape(kvar).eval(session=tf_session)
-        array([2, 2], dtype=int32)
-        >>> K.shape(inputs).eval(session=tf_session)
-        array([2, 4, 5], dtype=int32)
-    ```
-    """
     return np.array(np.shape(x), dtype='int32')
+
 
 py_all = all
 py_any = any
