@@ -67,8 +67,8 @@ def _clone_functional_model(model, input_tensors=None):
             # Cache newly created input layer.
             newly_created_input_layer = input_tensor._keras_history[0]
             layer_map[layer] = newly_created_input_layer
-        for original_input_layer, cloned_input_layer in zip(model._input_layers, input_layers):
-            layer_map[original_input_layer] = cloned_input_layer
+        for _original, _cloned in zip(model._input_layers, input_layers):
+            layer_map[_original] = _cloned
     else:
         # Make sure that all input tensors come from a Keras layer.
         # If tensor comes from an input layer: cache the input layer.
