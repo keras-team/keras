@@ -45,7 +45,8 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 
 
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
-    return K.mean(K.in_top_k(y_pred, K.cast(K.max(y_true, axis=-1), 'int32'), k),
+    # If the shape of y_true is (num_samples, 1), flatten to (num_samples,)
+    return K.mean(K.in_top_k(y_pred, K.cast(K.flatten(y_true), 'int32'), k),
                   axis=-1)
 
 
