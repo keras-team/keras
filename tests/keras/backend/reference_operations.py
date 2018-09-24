@@ -573,7 +573,7 @@ def batch_dot(x, y, axes=None):
             idx = x_ndim + y_ndim - 3
         else:
             idx = x_ndim - 1
-        out = np.squeeze(out, list(range(idx, idx + diff)))
+        out = np.squeeze(out, tuple(range(idx, idx + diff)))
     if ndim(out) == 1:
         out = expand_dims(out, 1)
     return out
