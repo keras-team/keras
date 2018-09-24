@@ -7,10 +7,8 @@ from keras.models import Sequential
 from keras.layers.core import Dense
 from keras.utils import Sequence
 from keras import backend as K
+from multiprocessing import set_start_method
 
-pytestmark = pytest.mark.skipif(
-    K.backend() == 'tensorflow',
-    reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
 STEPS_PER_EPOCH = 100
 STEPS = 100
@@ -889,4 +887,5 @@ def test_multiprocessing_predict_error():
 
 
 if __name__ == '__main__':
+    set_start_method('spawn', force=True)
     pytest.main([__file__])
