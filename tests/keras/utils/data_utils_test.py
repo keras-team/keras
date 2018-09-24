@@ -10,6 +10,7 @@ import multiprocessing as mp
 import numpy as np
 import pytest
 import six
+from multiprocessing import set_start_method
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
 
@@ -21,9 +22,6 @@ from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
 from keras import backend as K
 
-pytestmark = pytest.mark.skipif(
-    K.backend() == 'tensorflow',
-    reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
 if sys.version_info < (3,):
     def next(x):
@@ -385,4 +383,5 @@ def test_finite_generator_enqueuer_processes():
 
 
 if __name__ == '__main__':
+    set_start_method('spawn', force=True)
     pytest.main([__file__])
