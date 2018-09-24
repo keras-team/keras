@@ -565,9 +565,10 @@ def batch_dot(x, y, axes=None):
     else:
         out = np.tensordot(x, y, axes=axes)
         for axis in [axes[0]]:
-            axis_list = np.arange(len(out.shape)-1).tolist()
+            axis_list = np.arange(len(out.shape) - 1).tolist()
             axis_list.insert(0, axis_list.pop(axis))
-            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis), tuple(axis_list))
+            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis),
+                               tuple(axis_list))
     if diff:
         if x_ndim > y_ndim:
             idx = x_ndim + y_ndim - 3
@@ -605,7 +606,8 @@ def int_shape(x):
     return None
 
 
-def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+def local_conv2d(inputs, kernel, kernel_size, strides,
+                 output_shape, data_format=None):
     data_format = normalize_data_format(data_format)
 
     stride_row, stride_col = strides
