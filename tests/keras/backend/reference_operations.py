@@ -549,25 +549,21 @@ def batch_dot(x, y, axes=None):
                          'Provided: ' + str(axes))
     if x_ndim > y_ndim:
         diff = x_ndim - y_ndim
-        y = np.reshape(y, np.concat([np.shape(y), [1] * (diff)], axis=0))
-    elif y_ndim > x_ndim:
-        diff = y_ndim - x_ndim
-        x = np.reshape(x, np.concat([np.shape(x), [1] * (diff)], axis=0))
+        y = np.reshape(y, np.concatenate([np.shape(y), [1] * (diff)], axis=0))
     else:
         diff = 0
+
     if ndim(x) == 2 and ndim(y) == 2:
         if axes[0] == axes[1]:
-            out = np.reduce_sum(np.multiply(x, y), axes[0])
+            out = np.sum(np.multiply(x, y), axes[0])
         else:
-            out = np.reduce_sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
+            out = np.sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
     else:
-        if axes is not None:
-            adj_x = None if axes[0] == ndim(x) - 1 else True
-            adj_y = True if axes[1] == ndim(y) - 1 else None
-        else:
-            adj_x = None
-            adj_y = None
-        out = np.matmul(x, y, adjoint_a=adj_x, adjoint_b=adj_y)
+        out = np.tensordot(x, y, axes=axes)
+        for axis in [axes[0]]:
+            axis_list = np.arange(len(out.shape)-1).tolist()
+            axis_list.insert(0, axis_list.pop(axis))
+            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis), tuple(axis_list))
     if diff:
         if x_ndim > y_ndim:
             idx = x_ndim + y_ndim - 3
