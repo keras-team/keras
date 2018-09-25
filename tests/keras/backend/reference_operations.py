@@ -120,10 +120,10 @@ def pool(x, pool_size, strides, padding, data_format, pool_mode):
             for (l, l1) in zip(range(pool_size[1]), range(-pool_size[1], 0)):
                 for (m, m1) in zip(range(pool_size[2]), range(-pool_size[2], 0)):
                     y.append(x[:,
-                             :,
-                             k:k1:strides[0],
-                             l:l1:strides[1],
-                             m:m1:strides[2]])
+                               :,
+                               k:k1:strides[0],
+                               l:l1:strides[1],
+                               m:m1:strides[2]])
     y = np.stack(y, axis=-1)
     if pool_mode == 'avg':
         y = np.mean(np.ma.masked_invalid(y), axis=-1).data
@@ -533,10 +533,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def ndim(x):
-    dims = x.shape
-    if dims is not None:
-        return len(dims)
-    return None
+    return x.ndim
 
 
 def batch_dot(x, y, axes=None):
