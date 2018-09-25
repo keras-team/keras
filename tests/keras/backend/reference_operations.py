@@ -575,73 +575,8 @@ def batch_dot(x, y, axes=None):
         out = expand_dims(out, 1)
     return out
 
-
-def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
-    data_format = normalize_data_format(data_format)
-
-    stride = strides[0]
-    kernel_shape = int_shape(kernel)
-    output_length, feature_dim, filters = kernel_shape
-
-    xs = []
-    for i in range(output_length):
-        slice_length = py_slice(i * stride,
-                                i * stride + kernel_size[0])
-        xs.append(reshape(inputs[:, slice_length, :],
-                          (1, -1, feature_dim)))
-    x_aggregate = concatenate(xs, axis=0)
-    # Shape: `(output_length, batch_size, filters)`.
-    output = batch_dot(x_aggregate, kernel)
-    return permute_dimensions(output, (1, 0, 2))
-
-
 def int_shape(x):
-    dims = x.shape
-    if dims is not None:
-        return dims
-    return None
-
-
-def local_conv2d(inputs, kernel, kernel_size, strides,
-                 output_shape, data_format=None):
-    data_format = normalize_data_format(data_format)
-
-    stride_row, stride_col = strides
-    output_row, output_col = output_shape
-    kernel_shape = int_shape(kernel)
-    _, feature_dim, filters = kernel_shape
-
-    xs = []
-    for i in range(output_row):
-        for j in range(output_col):
-            slice_row = py_slice(i * stride_row,
-                                 i * stride_row + kernel_size[0])
-            slice_col = py_slice(j * stride_col,
-                                 j * stride_col + kernel_size[1])
-            if data_format == 'channels_first':
-                xs.append(reshape(inputs[:, :, slice_row, slice_col],
-                                  (1, -1, feature_dim)))
-            else:
-                xs.append(reshape(inputs[:, slice_row, slice_col, :],
-                                  (1, -1, feature_dim)))
-
-    x_aggregate = concatenate(xs, axis=0)
-    output = batch_dot(x_aggregate, kernel)
-    output = reshape(output,
-                     (output_row, output_col, -1, filters))
-
-    if data_format == 'channels_first':
-        output = permute_dimensions(output, (2, 3, 0, 1))
-    else:
-        output = permute_dimensions(output, (2, 0, 1, 3))
-    return output
-
-
-def tile(x, n):
-    if isinstance(n, int):
-        n = [n]
-    return np.tile(x, n)
-
+    return x.shape
 
 def cast(x, dtype):
     return x.astype(dtype)
