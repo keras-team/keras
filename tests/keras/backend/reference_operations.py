@@ -575,8 +575,10 @@ def batch_dot(x, y, axes=None):
         out = expand_dims(out, 1)
     return out
 
+
 def int_shape(x):
     return x.shape
+
 
 def cast(x, dtype):
     return x.astype(dtype)
