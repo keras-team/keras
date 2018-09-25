@@ -300,8 +300,8 @@ class TestBackend(object):
     def test_tile(self):
         shape = (3, 4)
         arr = np.arange(np.prod(shape)).reshape(shape)
-        check_single_tensor_operation('tile', arr, BACKENDS, n=[2, 1])
-        check_single_tensor_operation('tile', (2, 5), BACKENDS, n=[5, 2])
+        check_single_tensor_operation('tile', arr, WITH_NP, n=[2, 1])
+        check_single_tensor_operation('tile', (2, 5), WITH_NP, n=[5, 2])
 
         # test theano shape inference when
         # input shape has None entries
