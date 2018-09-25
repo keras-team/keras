@@ -1240,10 +1240,10 @@ class Network(Layer):
         """
         if not self.built:
             raise ValueError(
-                'This model has never been called, thus its weights '
-                'have not yet been created, so no summary can be displayed. '
-                'Build the model first '
-                '(e.g. by calling it on some test data).')
+                'This model has not yet been built. '
+                'Build the model first by calling build() or calling fit() with some data. '
+                'Or specify input_shape or batch_input_shape in the first layer for automatic build. '
+                )
         return print_layer_summary(self,
                                    line_length=line_length,
                                    positions=positions,
