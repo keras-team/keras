@@ -270,7 +270,7 @@ def conv2d_args_preprocessor(args, kwargs):
     converted = []
     if len(args) > 4:
         raise TypeError('Layer can receive at most 3 positional arguments.')
-    if len(args) == 4:
+    elif len(args) == 4:
         if isinstance(args[2], int) and isinstance(args[3], int):
             new_keywords = ['padding', 'strides', 'data_format']
             for kwd in new_keywords:
