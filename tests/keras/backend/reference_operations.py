@@ -585,23 +585,19 @@ def cast(x, dtype):
     return x.astype(dtype)
 
 
-def zeros(shape, dtype=None, name=None):
-    if dtype is None:
-        dtype = floatx()
+def zeros(shape, dtype=floatx(), name=None):
     return np.zeros(shape=shape, dtype=dtype)
 
 
-def ones(shape, dtype=None, name=None):
-    if dtype is None:
-        dtype = floatx()
+def ones(shape, dtype=floatx(), name=None):
     return np.ones(shape=shape, dtype=dtype)
 
 
-def zeros_like(x, dtype=None, name=None):
+def zeros_like(x, dtype=floatx(), name=None):
     return np.zeros_like(x, dtype=dtype)
 
 
-def ones_like(x, dtype=None, name=None):
+def ones_like(x, dtype=floatx(), name=None):
     return np.ones_like(x, dtype=dtype)
 
 
