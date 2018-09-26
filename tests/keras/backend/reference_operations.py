@@ -533,7 +533,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def ndim(x):
-    return x.ndim 
+    return x.ndim
 
 
 def batch_dot(x, y, axes=None):
@@ -588,19 +588,13 @@ def cast(x, dtype):
 def zeros(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
-    v = np.zeros(shape=shape, dtype=dtype)
-    if py_all(list(v.shape)):
-        return variable(v, dtype=dtype, name=name)
-    return v
+    return np.zeros(shape=shape, dtype=dtype)
 
 
 def ones(shape, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
-    v = np.ones(shape=shape, dtype=dtype)
-    if py_all(list(v.shape)):
-        return variable(v, dtype=dtype, name=name)
-    return v
+    return np.ones(shape=shape, dtype=dtype)
 
 
 def zeros_like(x, dtype=None, name=None):
