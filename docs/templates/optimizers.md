@@ -23,6 +23,27 @@ model.compile(loss='mean_squared_error', optimizer='sgd')
 
 ---
 
+## Usage of Tensorflow Optimizers
+
+Apart from using optimizers implemented in Keras, you can also use optimizers shipped with Tensorflow:
+
+```python
+import tensorflow as tf
+
+ADoptimizer = tf.train.AdadeltaOptimizer(learning_rate=1., rho=0.95, epsilon=1e-08)
+model.compile(loss='mean_squared_error', optimizer=ADoptimizer)
+```
+
+This functionality also allows you to use optimizers from tf.contrib:
+
+```python
+adamwoptimizer = tf.contrib.opt.AdamWOptimizer(weight_decay=0.000001,learning_rate=0.01)
+```
+
+Note: Tensorflow optimizers do not have the same parameters as Keras optimizers, for details on Tensorflow optimizers and their parameters, please consult the [Tensorflow documentation](https://www.tensorflow.org/api_guides/python/train#Optimizers).
+
+---
+
 ## Parameters common to all Keras optimizers
 
 The parameters `clipnorm` and `clipvalue` can be used with all optimizers to control gradient clipping:
