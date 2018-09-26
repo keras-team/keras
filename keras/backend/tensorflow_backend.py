@@ -3161,6 +3161,9 @@ def relu(x, alpha=0., max_value=None):
     # Returns
         A tensor.
     """
+    if alpha == 0 and max_value == 6:
+        return tf.nn.relu6(x)
+
     if alpha != 0.:
         x = tf.nn.leaky_relu(x, alpha)
     else:
