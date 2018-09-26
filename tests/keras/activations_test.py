@@ -168,13 +168,11 @@ def test_relu():
     f = K.function([x], [activations.relu(x, max_value=1.)])
     result = f([test_values])[0]
     assert np.max(result) <= 1.
-
-    # Test max_value == 6.
+     # Test max_value == 6.
     test_values = [0.5, 6.]
     f = K.function([x], [activations.relu(x, max_value=1.)])
     result = f([test_values])[0]
     assert np.max(result) <= 6.
-
 
 
 def test_elu():
