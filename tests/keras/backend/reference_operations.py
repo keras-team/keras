@@ -533,7 +533,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def ndim(x):
-    return x.ndim 
+    return x.ndim
 
 
 def batch_dot(x, y, axes=None):
