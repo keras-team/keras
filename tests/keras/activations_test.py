@@ -164,17 +164,16 @@ def test_relu():
     assert_allclose(result, test_values, rtol=1e-05)
 
     # Test max_value
-    test_values = [0.5, 1.5]
+    test_values = np.array([[0.5, 1.5]], dtype=K.floatx())
     f = K.function([x], [activations.relu(x, max_value=1.)])
     result = f([test_values])[0]
     assert np.max(result) <= 1.
 
     # Test max_value == 6.
-    test_values = [0.5, 6.]
+    test_values = np.array([[0.5, 6.]], dtype=K.floatx())
     f = K.function([x], [activations.relu(x, max_value=1.)])
     result = f([test_values])[0]
     assert np.max(result) <= 6.
-
 
 
 def test_elu():
