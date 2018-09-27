@@ -10,18 +10,13 @@ from . import keras_modules_injection
 
 
 @keras_modules_injection
-def ResNeXt50c32(*args, **kwargs):
-    return resnext.ResNeXt50c32(*args, **kwargs)
+def ResNeXt50(*args, **kwargs):
+    return resnext.ResNeXt50(*args, **kwargs)
 
 
 @keras_modules_injection
-def ResNeXt101c32(*args, **kwargs):
-    return resnext.ResNeXt101c32(*args, **kwargs)
-
-
-@keras_modules_injection
-def ResNeXt101c64(*args, **kwargs):
-    return resnext.ResNeXt101c64(*args, **kwargs)
+def ResNeXt101(*args, **kwargs):
+    return resnext.ResNeXt101(*args, **kwargs)
 
 
 @keras_modules_injection
