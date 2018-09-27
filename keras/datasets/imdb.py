@@ -91,9 +91,11 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
+        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x]
+              for x in xs]
     else:
-        xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
+        xs = [[w for w in x if skip_top <= w < num_words]
+              for x in xs]
 
     idx = len(x_train)
     x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
@@ -111,8 +113,9 @@ def get_word_index(path='imdb_word_index.json'):
     # Returns
         The word index dictionary.
     """
-    path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
-                    file_hash='bfafd718b763782e994055a2d397834f')
+    path = get_file(
+        path,
+        origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
+        file_hash='bfafd718b763782e994055a2d397834f')
     with open(path) as f:
         return json.load(f)
