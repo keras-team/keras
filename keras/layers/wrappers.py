@@ -540,7 +540,7 @@ class Bidirectional(Wrapper):
         elif self.merge_mode is None:
             output = [y, y_rev]
         else:
-            raise ValueError('Unrecognized merge_mode ' + self.merge_mode)
+					raise ValueError('Unrecognized value for argument merge_mode: %s' % (self.merge_mode))
 
         # Properly set learning phase
         if (getattr(y, '_uses_learning_phase', False) or
