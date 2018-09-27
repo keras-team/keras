@@ -100,27 +100,53 @@ def assert_list_keras_shape(t_list, z_list):
                     assert t._keras_shape[i] == z.shape[i]
 
 
-def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, **kwargs):
+def check_tensor_operation(function_name, shapes_or_vals, backend_list, **kwargs):
     shape_or_val = kwargs.pop('shape_or_val', True)
     assert_value_equality = kwargs.pop('assert_value_equality', True)
+    concat_args = kwargs.pop('concat_args', False)
     cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
+    cntk_two_dynamicity = kwargs.pop('cntk_two_dynamicity', False)
 
-    if shape_or_val:
-        x_shape, x_val = parse_shape_or_val(x_shape_or_val)
+    shapes_and_vals = [parse_shape_or_val(x) for x in shapes_or_vals]
 
     t_list = []
     z_list = []
     for k in backend_list:
-        if shape_or_val:
-            if (k == KC) & (cntk_dynamicity):
-                t, f = cntk_func_tensors(function_name, [x_shape], **kwargs)
-                z = f([x_val])[0]
+        if len(shapes_and_vals) == 1:
+            x_shape, x_val = shapes_and_vals[0]
+            if shape_or_val:
+                if (k == KC) & (cntk_dynamicity):
+                    t, f = cntk_func_tensors(function_name, [x_shape], **kwargs)
+                    z = f([x_val])[0]
+                else:
+                    t = getattr(k, function_name)(k.variable(x_val), **kwargs)
+                    z = k.eval(t)
             else:
-                t = getattr(k, function_name)(k.variable(x_val), **kwargs)
+                t = getattr(k, function_name)(shapes_or_vals[0], **kwargs)
+                z = k.eval(t)
+        elif len(shapes_and_vals) == 2:
+            x_shape, x_val = shapes_and_vals[0]
+            y_shape, y_val = shapes_and_vals[1]
+            if (k == KC) & (cntk_dynamicity):
+                t, f = cntk_func_tensors(function_name, [x_shape, y_val], **kwargs)
+                z = f([x_val])[0]
+            elif (k == KC) & (cntk_two_dynamicity):
+                t, f = cntk_func_tensors(function_name, [x_shape, y_shape], **kwargs)
+                z = f([x_val, y_val])[0]
+            elif (k == KTH) & (function_name[:4] == 'conv'):
+                t = getattr(k, function_name)(
+                    k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs)
+                z = k.eval(t)
+            elif concat_args:
+                t = getattr(k, function_name)(
+                    [k.variable(x_val), k.variable(y_val)], **kwargs)
+                z = k.eval(t)
+            else:
+                t = getattr(k, function_name)(
+                    k.variable(x_val), k.variable(y_val), **kwargs)
                 z = k.eval(t)
         else:
-            t = getattr(k, function_name)(x_shape_or_val, **kwargs)
-            z = k.eval(t)
+            raise IndexError
         t_list += [t]
         z_list += [z]
 
@@ -128,41 +154,15 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, *
     assert_list_keras_shape(t_list, z_list)
 
 
+def check_single_tensor_operation(function_name, x_shape_or_val, backend_list, **kwargs):
+    check_tensor_operation(function_name, [x_shape_or_val],
+                           backend_list, **kwargs)
+
+
 def check_two_tensor_operation(function_name, x_shape_or_val,
                                y_shape_or_val, backend_list, **kwargs):
-    concat_args = kwargs.pop('concat_args', False)
-    cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
-    cntk_two_dynamicity = kwargs.pop('cntk_two_dynamicity', False)
-
-    x_shape, x_val = parse_shape_or_val(x_shape_or_val)
-    y_shape, y_val = parse_shape_or_val(y_shape_or_val)
-
-    t_list = []
-    z_list = []
-    for k in backend_list:
-        if (k == KC) & (cntk_dynamicity):
-            t, f = cntk_func_tensors(function_name, [x_shape, y_val], **kwargs)
-            z = f([x_val])[0]
-        elif (k == KC) & (cntk_two_dynamicity):
-            t, f = cntk_func_tensors(function_name, [x_shape, y_shape], **kwargs)
-            z = f([x_val, y_val])[0]
-        elif (k == KTH) & (function_name[:4] == 'conv'):
-            t = getattr(k, function_name)(
-                k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs)
-            z = k.eval(t)
-        elif concat_args:
-            t = getattr(k, function_name)(
-                [k.variable(x_val), k.variable(y_val)], **kwargs)
-            z = k.eval(t)
-        else:
-            t = getattr(k, function_name)(
-                k.variable(x_val), k.variable(y_val), **kwargs)
-            z = k.eval(t)
-        t_list += [t]
-        z_list += [z]
-
-    assert_list_pairwise(z_list)
-    assert_list_keras_shape(t_list, z_list)
+    check_tensor_operation(function_name, [x_shape_or_val, y_shape_or_val],
+                           backend_list, **kwargs)
 
 
 def check_composed_tensor_operations(first_function_name, first_function_args,
