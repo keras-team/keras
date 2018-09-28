@@ -150,7 +150,7 @@ def test_h5dict_attrs():
         f['y'] = [b'efg', b'hij', b'klmn']
 
         # ndarray
-        array = np.random.random((3, 4, 5))
+        array = np.random.random((4, 5, 512))
         f['z'] = array
 
         f.close()
