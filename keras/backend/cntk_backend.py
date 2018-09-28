@@ -1767,14 +1767,25 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return _postprocess_conv3d_output(x, data_format)
 
 
-def relu(x, alpha=0., max_value=None):
+def relu(x, alpha=0., max_value=None, threshold=0.):
+
     if alpha != 0.:
-        negative_part = C.relu(-x)
-    x = C.relu(x)
+        if threshold != 0.:
+            negative_part = C.relu(-x + threshold)
+        else:
+            negative_part = C.relu(-x)
+
+    if threshold != 0.:
+        x = x * C.greater(x, threshold)
+    else:
+        x = C.relu(x)
+
     if max_value is not None:
         x = C.clip(x, 0.0, max_value)
+
     if alpha != 0.:
         x -= alpha * negative_part
+
     return x
 
 

@@ -226,10 +226,11 @@ def in_test_phase(x, alt, training=None):
     return in_train_phase(alt, x, training=training)
 
 
-def relu(x, alpha=0., max_value=None):
-    y = x * (x > 0) + alpha * x * (x < 0)
+def relu(x, alpha=0., max_value=None, threshold=0.):
+    y = x * (x >= threshold)
     if max_value is not None:
-        y = np.minimum(y, max_value)
+        y = np.clip(y, 0.0, max_value)
+    y += alpha * (x - threshold) * (x < threshold)
     return y
 
 
