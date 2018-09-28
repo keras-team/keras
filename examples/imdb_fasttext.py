@@ -26,8 +26,8 @@ def create_ngram_set(input_list, ngram_value=2):
     Extract a set of n-grams from a list of integers.
 
     >>> create_ngram_set([1, 4, 9, 4, 1, 4], ngram_value=2)
-    {(4, 9), (4, 1), (1, 4), (9, 4)}
-
+    {(1, 4), (4, 1), (4, 9), (9, 4)}
+    
     >>> create_ngram_set([1, 4, 9, 4, 1, 4], ngram_value=3)
     [(1, 4, 9), (4, 9, 4), (9, 4, 1), (4, 1, 4)]
     """
