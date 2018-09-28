@@ -79,6 +79,23 @@ def test_softmax_invalid():
         f = K.function([x], [activations.softmax(x)])
 
 
+def test_softmax_3d():
+    """Test using a reference implementation of softmax.
+    """
+    def softmax(values, axis):
+        m = np.max(values, axis=axis, keepdims=True)
+        e = np.exp(values - m)
+        return e / np.sum(e, axis=axis, keepdims=True)
+
+    x = K.placeholder(ndim=3)
+    f = K.function([x], [activations.softmax(x, axis=1)])
+    test_values = get_standard_values()[:, :, np.newaxis].copy()
+
+    result = f([test_values])[0]
+    expected = softmax(test_values, axis=1)
+    assert_allclose(result, expected, rtol=1e-05)
+
+
 def test_time_distributed_softmax():
     x = K.placeholder(shape=(1, 1, 5))
     f = K.function([x], [activations.softmax(x)])

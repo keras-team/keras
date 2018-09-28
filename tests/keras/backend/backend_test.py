@@ -991,6 +991,7 @@ class TestBackend(object):
         check_single_tensor_operation('tanh', (4, 2), WITH_NP)
 
         check_single_tensor_operation('softmax', (4, 10), WITH_NP)
+        check_single_tensor_operation('softmax', (4, 5, 3), WITH_NP, axis=1)
         check_single_tensor_operation('softmax', (4, 5, 3, 10), WITH_NP, axis=2)
 
         check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2), WITH_NP, from_logits=True)
