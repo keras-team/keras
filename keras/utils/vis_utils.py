@@ -10,16 +10,13 @@ import os
 try:
     import pydot
 except ImportError:
-    pydot = None
+    raise ImportError(
+        'Failed to import `pydot`. '
+        'Please install `pydot`. '
+        'For example with `pip install pydot`.')
 
 
 def _check_pydot():
-    """Raise errors if `pydot` or GraphViz unavailable."""
-    if pydot is None:
-        raise ImportError(
-            'Failed to import `pydot`. '
-            'Please install `pydot`. '
-            'For example with `pip install pydot`.')
     try:
         # Attempt to create an image of a blank graph
         # to check the pydot/graphviz installation.
