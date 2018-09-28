@@ -6,6 +6,8 @@ from __future__ import print_function
 import numpy as np
 import scipy.signal as signal
 import scipy as sp
+
+from keras.backend import normalize_data_format
 from keras.backend import floatx
 
 
@@ -531,6 +533,88 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
     return x
 
 
+def ndim(x):
+    return x.ndim
+
+
+def batch_dot(x, y, axes=None):
+    if isinstance(axes, int):
+        axes = (axes, axes)
+    x_ndim = ndim(x)
+    y_ndim = ndim(y)
+    if axes is None:
+        # behaves like tf.batch_matmul as default
+        axes = [x_ndim - 1, y_ndim - 2]
+    if py_any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
+    if x_ndim > y_ndim:
+        diff = x_ndim - y_ndim
+        y = np.reshape(y, np.concatenate([np.shape(y), [1] * (diff)], axis=0))
+    else:
+        diff = 0
+
+    if ndim(x) == 2 and ndim(y) == 2:
+        if axes[0] == axes[1]:
+            out = np.sum(np.multiply(x, y), axes[0])
+        else:
+            out = np.sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
+    else:
+        out = np.tensordot(x, y, axes=axes)
+        for axis in [axes[0]]:
+            axis_list = np.arange(len(out.shape) - 1).tolist()
+            axis_list.insert(0, axis_list.pop(axis))
+            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis),
+                               tuple(axis_list))
+    if diff:
+        if x_ndim > y_ndim:
+            idx = x_ndim + y_ndim - 3
+        else:
+            idx = x_ndim - 1
+        out = np.squeeze(out, tuple(range(idx, idx + diff)))
+    if ndim(out) == 1:
+        out = expand_dims(out, 1)
+    return out
+
+
+def int_shape(x):
+    return x.shape
+
+
+def cast(x, dtype):
+    return x.astype(dtype)
+
+
+def zeros(shape, dtype=floatx(), name=None):
+    return np.zeros(shape=shape, dtype=dtype)
+
+
+def ones(shape, dtype=floatx(), name=None):
+    return np.ones(shape=shape, dtype=dtype)
+
+
+def zeros_like(x, dtype=floatx(), name=None):
+    return np.zeros_like(x, dtype=dtype)
+
+
+def ones_like(x, dtype=floatx(), name=None):
+    return np.ones_like(x, dtype=dtype)
+
+
+def identity(x, name=None):
+    return np.identity(x)
+
+
+def shape(x):
+    return np.array(np.shape(x), dtype='int32')
+
+
+py_all = all
+py_any = any
+py_sum = sum
+py_slice = slice
+
 square = np.square
 abs = np.abs
 exp = np.exp
@@ -539,3 +623,5 @@ round = np.round
 sign = np.sign
 expand_dims = np.expand_dims
 squeeze = np.squeeze
+sin = np.sin
+cos = np.cos
