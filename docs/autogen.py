@@ -91,6 +91,7 @@ if sys.version[0] == '2':
 
 EXCLUDE = {
     'Optimizer',
+    'TFOptimizer',
     'Wrapper',
     'get_session',
     'set_session',
