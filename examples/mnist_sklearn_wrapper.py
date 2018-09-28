@@ -12,7 +12,7 @@ from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
 from keras.wrappers.scikit_learn import KerasClassifier
 from keras import backend as K
-from sklearn.grid_search import GridSearchCV
+from sklearn.model_selection import GridSearchCV
 
 
 num_classes = 10
