@@ -150,7 +150,7 @@ def test_h5dict_attrs():
         f['y'] = [b'efg', b'hij', b'klmn']
 
         # ndarray
-        array = np.random.random((3, 4, 5))
+        array = np.random.random((4, 5, 512))
         f['z'] = array
 
         f.close()
@@ -183,7 +183,7 @@ def test_h5dict_groups():
         group3['y'] = [b'efg', b'hij', b'klmn']
 
         group4 = group3['group4']
-        array = np.random.random((3, 4, 5))
+        array = np.random.random((4, 5, 512))
         group4['z'] = array
 
         f.close()
