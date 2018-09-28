@@ -34,7 +34,7 @@ def _serialize_model(model, f, include_optimizer=True):
 
     # Arguments
         model: Keras model instance to be serialized.
-        f: keras.utils.hdf5.HD5Dict instance.
+        f: keras.utils.io_utils.HD5Dict instance.
         include_optimizer: If True, serialize optimizer's state together.
 
     """
