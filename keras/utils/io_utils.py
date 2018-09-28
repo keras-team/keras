@@ -219,7 +219,7 @@ class H5Dict(object):
                 dataset[()] = val
             else:
                 dataset[:] = val
-        if isinstance(val, list):
+        elif isinstance(val, list):
             # Check that no item in `data` is larger than `HDF5_OBJECT_HEADER_LIMIT`
             # because in that case even chunking the array would not make the saving
             # possible.
