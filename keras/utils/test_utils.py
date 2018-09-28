@@ -5,12 +5,9 @@ from __future__ import print_function
 
 import numpy as np
 from numpy.testing import assert_allclose
-import six
 
 from .generic_utils import has_arg
 from ..engine import Model, Input
-from ..models import Sequential
-from ..models import model_from_json
 from .. import backend as K
 
 

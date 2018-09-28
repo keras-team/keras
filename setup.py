@@ -38,7 +38,7 @@ setup(name='Keras',
                         'pyyaml',
                         'h5py',
                         'keras_applications>=1.0.6',
-                        'keras_preprocessing>=1.0.4'],
+                        'keras_preprocessing>=1.0.5'],
       extras_require={
           'visualize': ['pydot>=1.2.4'],
           'tests': ['pytest',
