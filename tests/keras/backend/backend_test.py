@@ -965,8 +965,24 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             z = K.dropout(K.variable(val), level=-0.5)
 
+    @pytest.mark.parametrize('alpha,max_value,threshold', [
+        (0.0, None, 0.0),  # standard relu
+        (0.1, None, 0.0),  # set alpha only
+        (0.0, 5.0, 0.0),   # set max_value only
+        (0.0, None, 0.8),  # set threshold only
+        (0.1, 5.0, 0.0),   # set alpha and max_value
+        (0.1, None, 0.8),  # set alpha and threshold
+        (0.0, 5.0, 0.8),   # set max_value and threshold
+        (0.1, 5.0, 0.8),   # set all
+        (0.1, 0.0, 0.8),   # max_value is zero
+        (0.1, 5.0, -2.8),  # threshold is negative
+        (0.1, 9.0, 0.8),   # max_value > 6
+    ])
+    def test_relu(self, alpha, max_value, threshold):
+        check_single_tensor_operation('relu', (4, 2), WITH_NP, alpha=alpha,
+                                      max_value=max_value, threshold=threshold)
+
     def test_nn_operations(self):
-        check_single_tensor_operation('relu', (4, 2), WITH_NP, alpha=0.1, max_value=0.5)
         check_single_tensor_operation('softplus', (4, 10), WITH_NP)
         check_single_tensor_operation('elu', (4, 10), WITH_NP, alpha=0.5)
 

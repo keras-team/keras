@@ -37,8 +37,20 @@ def test_softmax():
 
 
 def test_relu():
-    for max_value in [None, 1., 6.]:
-        layer_test(layers.ReLU, kwargs={'max_value': max_value},
+    layer_test(layers.ReLU,
+               kwargs={'max_value': 10,
+                       'negative_slope': 0.2,
+                       'threshold': 3.0},
+               input_shape=(2, 3, 4))
+
+    # max_value of ReLU layer cannot be negative value
+    with pytest.raises(ValueError):
+        layer_test(layers.ReLU, kwargs={'max_value': -2.0},
+                   input_shape=(2, 3, 4))
+
+    # negative_slope of ReLU layer cannot be negative value
+    with pytest.raises(ValueError):
+        layer_test(layers.ReLU, kwargs={'negative_slope': -2.0},
                    input_shape=(2, 3, 4))
 
 
