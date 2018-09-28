@@ -1054,11 +1054,12 @@ class TestBackend(object):
         ('conv3d', (2, 5, 4, 6, 3), (2, 2, 3, 3, 4), 'valid', 'channels_last', (2, 2, 2)),
         ('conv3d', (2, 3, 5, 4, 6), (2, 2, 3, 3, 4), 'same', 'channels_first', (2, 2, 2)),
     ])
-    def test_conv_dilation(self, op, input_shape, kernel_shape, padding,
-                           data_format, dilation_rate):
+    def test_dilated_conv(self, op, input_shape, kernel_shape, padding,
+                          data_format, dilation_rate):
         check_two_tensor_operation(
-            op, input_shape, kernel_shape, DILATED_CONV_BACKENDS, padding=padding,
-            data_format=data_format, dilation_rate=dilation_rate, cntk_dynamicity=True)
+            op, input_shape, kernel_shape, WITH_NP,
+            padding=padding, data_format=data_format,
+            dilation_rate=dilation_rate, cntk_dynamicity=True)
 
     @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                         reason='cntk only supports dilated conv transpose on GPU')
