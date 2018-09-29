@@ -29,6 +29,14 @@ def normalize_conv(func):
             if kwargs['data_format'] == 'channels_last':
                 x = np.transpose(x, (0, 4, 1, 2, 3))
 
+        dilation_rate = kwargs.pop('dilation_rate', 1)
+        if isinstance(dilation_rate, int):
+            dilation_rate = (dilation_rate,) * (x.ndim - 2)
+        for (i, d) in enumerate(dilation_rate):
+            if d > 1:
+                for j in range(w.shape[2 + i] - 1):
+                    w = np.insert(w, 2 * j + 1, 0, axis=2 + i)
+
         y = func(x, w, **kwargs)
 
         if kwargs['data_format'] == 'channels_last':
