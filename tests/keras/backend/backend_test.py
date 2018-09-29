@@ -420,8 +420,8 @@ class TestBackend(object):
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
         # trig functions
-        check_two_tensor_operation('sin', (4, 2), WITH_NP)
-        check_two_tensor_operation('cos', (4, 2), WITH_NP)
+        check_single_tensor_operation('sin', (4, 2), WITH_NP)
+        check_single_tensor_operation('cos', (4, 2), WITH_NP)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
