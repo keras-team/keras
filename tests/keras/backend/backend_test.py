@@ -200,6 +200,11 @@ class TestBackend(object):
     def test_eye(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
 
+    def test_trigonometry_functions(self):
+        check_single_tensor_operation('sin', (4, 2), WITH_NP)
+        check_single_tensor_operation('cos', (4, 2), WITH_NP)
+
+
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
