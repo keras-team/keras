@@ -200,6 +200,7 @@ class TestBackend(object):
     def test_eye(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
 
+
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
@@ -417,6 +418,10 @@ class TestBackend(object):
         check_two_tensor_operation('less_equal', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
+
+        # trig functions
+        check_single_tensor_operation('sin', (4, 2), WITH_NP)
+        check_single_tensor_operation('cos', (4, 2), WITH_NP)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
