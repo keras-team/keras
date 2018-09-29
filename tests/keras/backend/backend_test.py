@@ -408,6 +408,9 @@ class TestBackend(object):
         check_single_tensor_operation('clip', (4, 2), WITH_NP, min_value=0.4,
                                       max_value=0.6)
 
+        check_single_tensor_operation('cos', (4, 2), WITH_NP)
+        check_single_tensor_operation('sin', (4, 2), WITH_NP)
+
         # two-tensor ops
         check_two_tensor_operation('equal', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('not_equal', (4, 2), (4, 2), WITH_NP)
