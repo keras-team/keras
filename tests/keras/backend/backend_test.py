@@ -9,11 +9,11 @@ from keras.backend import floatx, set_floatx, variable
 from keras.utils.conv_utils import convert_kernel
 import reference_operations as KNP
 
-
 BACKENDS = []  # Holds a list of all available back-ends
 
 try:
     from keras.backend import cntk_backend as KC
+
     BACKENDS.append(KC)
 except ImportError:
     KC = None
@@ -21,6 +21,7 @@ except ImportError:
 
 try:
     from keras.backend import tensorflow_backend as KTF
+
     BACKENDS.append(KTF)
 except ImportError:
     KTF = None
@@ -28,11 +29,11 @@ except ImportError:
 
 try:
     from keras.backend import theano_backend as KTH
+
     BACKENDS.append(KTH)
 except ImportError:
     KTH = None
     warnings.warn('Could not import the Theano backend')
-
 
 WITH_NP = [KTH if K.backend() == 'theano' else KC if K.backend() == 'cntk' else KTF, KNP]
 
@@ -181,7 +182,6 @@ def check_composed_tensor_operations(first_function_name, first_function_args,
 
 
 class TestBackend(object):
-
     def test_is_keras_tensor(self):
         np_var = np.array([1, 2])
         with pytest.raises(ValueError):
@@ -197,8 +197,20 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.set_learning_phase(2)
 
-    def test_eye(self):
+    def test_variable_initializers(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('ones', (10, 5, 1, 8), WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('ones_like', (10, 5, 1, 8), WITH_NP, shape_or_val=True)
+        check_single_tensor_operation('zeros', (10, 5, 1, 8), WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('zeros_like', (10, 5, 1, 8), WITH_NP, shape_or_val=True)
+
+        # random
+        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
+                                      low=0., high=1.,
+                                      shape_or_val=False, assert_value_equality=False)
+        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
+                                      mean=0., scale=1.,
+                                      shape_or_val=False, assert_value_equality=False)
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
@@ -219,14 +231,6 @@ class TestBackend(object):
         check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
         if K.backend() != 'cntk':
             check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
-
-    def test_random_variables(self):
-        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
-                                      low=0., high=1.,
-                                      shape_or_val=False, assert_value_equality=False)
-        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
-                                      mean=0., scale=1.,
-                                      shape_or_val=False, assert_value_equality=False)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Not supported.')
     def test_batch_dot_shape(self):
@@ -277,7 +281,7 @@ class TestBackend(object):
 
         y = K.flatten(x)
         if hasattr(y, '_keras_shape'):
-            assert y._keras_shape == (None, )
+            assert y._keras_shape == (None,)
 
     def test_repeat_elements(self):
         reps = 3
@@ -971,15 +975,15 @@ class TestBackend(object):
     @pytest.mark.parametrize('alpha,max_value,threshold', [
         (0.0, None, 0.0),  # standard relu
         (0.1, None, 0.0),  # set alpha only
-        (0.0, 5.0, 0.0),   # set max_value only
+        (0.0, 5.0, 0.0),  # set max_value only
         (0.0, None, 0.8),  # set threshold only
-        (0.1, 5.0, 0.0),   # set alpha and max_value
+        (0.1, 5.0, 0.0),  # set alpha and max_value
         (0.1, None, 0.8),  # set alpha and threshold
-        (0.0, 5.0, 0.8),   # set max_value and threshold
-        (0.1, 5.0, 0.8),   # set all
-        (0.1, 0.0, 0.8),   # max_value is zero
+        (0.0, 5.0, 0.8),  # set max_value and threshold
+        (0.1, 5.0, 0.8),  # set all
+        (0.1, 0.0, 0.8),  # max_value is zero
         (0.1, 5.0, -2.8),  # threshold is negative
-        (0.1, 9.0, 0.8),   # max_value > 6
+        (0.1, 9.0, 0.8),  # max_value > 6
     ])
     def test_relu(self, alpha, max_value, threshold):
         check_single_tensor_operation('relu', (4, 2), WITH_NP, alpha=alpha,
@@ -1140,9 +1144,9 @@ class TestBackend(object):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
-                ((2, 3, 4, 5), (2, 2, 3, 4), 'channels_first'),
-                ((2, 3, 5, 6), (4, 3, 3, 4), 'channels_first'),
-                ((1, 6, 5, 3), (3, 3, 3, 2), 'channels_last')]:
+            ((2, 3, 4, 5), (2, 2, 3, 4), 'channels_first'),
+            ((2, 3, 5, 6), (4, 3, 3, 4), 'channels_first'),
+            ((1, 6, 5, 3), (3, 3, 3, 2), 'channels_last')]:
             check_two_tensor_operation('conv2d', input_shape, kernel_shape,
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
@@ -1151,9 +1155,9 @@ class TestBackend(object):
         # TF kernel shape: (rows, cols, input_depth, depth_multiplier)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
-                ((2, 3, 4, 5), (2, 2, 3, 4), 'channels_first'),
-                ((2, 3, 5, 6), (4, 3, 3, 4), 'channels_first'),
-                ((1, 6, 5, 3), (3, 3, 3, 2), 'channels_last')]:
+            ((2, 3, 4, 5), (2, 2, 3, 4), 'channels_first'),
+            ((2, 3, 5, 6), (4, 3, 3, 4), 'channels_first'),
+            ((1, 6, 5, 3), (3, 3, 3, 2), 'channels_last')]:
             check_two_tensor_operation('depthwise_conv2d',
                                        input_shape, kernel_shape,
                                        BACKENDS, cntk_dynamicity=True,
@@ -1165,9 +1169,9 @@ class TestBackend(object):
         # TH kernel shape: (depth, input_depth, x, y, z)
         # TF kernel shape: (x, y, z, input_depth, depth)
         for (input_shape, kernel_shape, data_format) in [
-                ((2, 3, 4, 5, 4), (2, 2, 2, 3, 4), 'channels_first'),
-                ((2, 3, 5, 4, 6), (3, 2, 4, 3, 4), 'channels_first'),
-                ((1, 2, 2, 2, 1), (2, 2, 2, 1, 1), 'channels_last')]:
+            ((2, 3, 4, 5, 4), (2, 2, 2, 3, 4), 'channels_first'),
+            ((2, 3, 5, 4, 6), (3, 2, 4, 3, 4), 'channels_first'),
+            ((1, 2, 2, 2, 1), (2, 2, 2, 1, 1), 'channels_last')]:
             check_two_tensor_operation('conv3d', input_shape, kernel_shape,
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
