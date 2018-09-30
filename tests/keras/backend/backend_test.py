@@ -101,11 +101,10 @@ def assert_list_keras_shape(t_list, z_list):
 
 
 def check_tensor_operation(function_name, shapes_or_vals, backend_list,
-                           shape_or_val=True,
                            assert_value_equality=True,
                            concat_args=False,
                            cntk_dynamicity=False,
-                           cntk_two_dynamicity=False,
+                           cntk_use_shapes=False,
                            **kwargs):
 
     shapes_and_vals = [parse_shape_or_val(x) for x in shapes_or_vals]
@@ -119,17 +118,12 @@ def check_tensor_operation(function_name, shapes_or_vals, backend_list,
         variables = [k.variable(x) for x in vals]
 
         nb_tensors = len(shapes_and_vals)
-            
-        if nb_tensors == 1 and not shape_or_val:
-            t = getattr(k, function_name)(shapes_or_vals[0], **kwargs)
-            z = k.eval(t)
 
-        elif nb_tensors == 2 and (k == KC) and cntk_dynamicity:
+        if (k == KC) and cntk_dynamicity:
             t, f = cntk_func_tensors(function_name, [shapes[0], vals[1]], **kwargs)
             z = f([vals[0]])[0]
 
-        elif (k == KC) and (cntk_two_dynamicity or
-                (nb_tensors == 1 and shape_or_val and cntk_dynamicity)):
+        elif (k == KC) and cntk_use_shapes:
 
             t, f = cntk_func_tensors(function_name, shapes, **kwargs)
             z = f(vals)[0]
@@ -153,16 +147,13 @@ def check_tensor_operation(function_name, shapes_or_vals, backend_list,
 
 
 def check_single_tensor_operation(function_name, x_shape_or_val, backend_list,
-                                  shape_or_val=True,
                                   assert_value_equality=True,
                                   cntk_dynamicity=False,
                                   **kwargs):
-
     check_tensor_operation(function_name, [x_shape_or_val],
                            backend_list,
-                           shape_or_val=shape_or_val,
                            assert_value_equality=assert_value_equality,
-                           cntk_dynamicity=cntk_dynamicity,
+                           cntk_use_shapes=cntk_dynamicity,
                            **kwargs)
 
 
@@ -177,7 +168,7 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
                            backend_list,
                            concat_args=concat_args,
                            cntk_dynamicity=cntk_dynamicity,
-                           cntk_two_dynamicity=cntk_two_dynamicity,
+                           cntk_use_shapes=cntk_two_dynamicity,
                            **kwargs)
 
 
@@ -214,19 +205,19 @@ class TestBackend(object):
             K.set_learning_phase(2)
 
     def test_eye(self):
-        check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
+        check_tensor_operation('eye', [], WITH_NP, size=3)
 
     def test_ones(self):
-        check_single_tensor_operation('ones', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+        check_tensor_operation('ones', [], WITH_NP, shape=(3, 5, 10, 8))
 
     def test_zeros(self):
-        check_single_tensor_operation('zeros', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+        check_tensor_operation('zeros', [], WITH_NP, shape=(3, 5, 10, 8))
 
     def test_ones_like(self):
-        check_single_tensor_operation('ones_like', (3, 5, 10, 8), WITH_NP, shape_or_val=True)
+        check_single_tensor_operation('ones_like', (3, 5, 10, 8), WITH_NP)
 
     def test_zeros_like(self):
-        check_single_tensor_operation('zeros_like', (3, 5, 10, 8), WITH_NP, shape_or_val=True)
+        check_single_tensor_operation('zeros_like', (3, 5, 10, 8), WITH_NP)
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
@@ -249,12 +240,12 @@ class TestBackend(object):
             check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
 
     def test_random_variables(self):
-        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
-                                      low=0., high=1.,
-                                      shape_or_val=False, assert_value_equality=False)
-        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
-                                      mean=0., scale=1.,
-                                      shape_or_val=False, assert_value_equality=False)
+        check_tensor_operation('random_uniform_variable', [], WITH_NP,
+                                      shape=(2, 3), low=0., high=1.,
+                                      assert_value_equality=False)
+        check_tensor_operation('random_normal_variable', [], WITH_NP,
+                                      shape=(2, 3), mean=0., scale=1.,
+                                      assert_value_equality=False)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Not supported.')
     def test_batch_dot_shape(self):
