@@ -509,6 +509,10 @@ def minimum(x, y):
     return np.minimum(x, y)
 
 
+def ndim(x):
+    return x.ndim
+
+
 def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
     return (high - low) * np.random.random(shape).astype(dtype) + low
 
