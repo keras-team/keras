@@ -1707,19 +1707,35 @@ def elu(x, alpha=1.0):
     return T.nnet.elu(x, alpha)
 
 
-def relu(x, alpha=0., max_value=None):
+def relu(x, alpha=0., max_value=None, threshold=0.):
     _assert_has_capability(T.nnet, 'relu')
-    x = T.nnet.relu(x, alpha)
+
+    if alpha != 0.:
+        if threshold != 0.:
+            negative_part = T.nnet.relu(-x + threshold)
+        else:
+            negative_part = T.nnet.relu(-x)
+
+    if threshold != 0.:
+        x = x * T.cast(T.gt(x, threshold), floatx())
+    else:
+        x = T.nnet.relu(x)
+
     if max_value is not None:
-        x = T.minimum(x, max_value)
+        x = T.clip(x, 0.0, max_value)
+
+    if alpha != 0.:
+        x -= alpha * negative_part
+
     return x
 
 
 def softmax(x, axis=-1):
-    if axis == -1 or axis == x.ndim - 1:
+    if (axis == -1 or axis == x.ndim - 1) and x.ndim == 2:
         return T.nnet.softmax(x)
-    return T.exp(x - x.max()) / T.exp(
-        x - x.max()).sum(axis=axis, keepdims=True)
+    xm = x.max(axis=axis, keepdims=True)
+    return T.exp(x - xm) / T.exp(
+        x - xm).sum(axis=axis, keepdims=True)
 
 
 def softplus(x):

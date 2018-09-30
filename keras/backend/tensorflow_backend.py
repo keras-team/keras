@@ -3148,27 +3148,55 @@ def in_test_phase(x, alt, training=None):
 
 # NN OPERATIONS
 
-def relu(x, alpha=0., max_value=None):
+def relu(x, alpha=0., max_value=None, threshold=0.):
     """Rectified linear unit.
 
     With default values, it returns element-wise `max(x, 0)`.
 
+    Otherwise, it follows:
+    `f(x) = max_value` for `x >= max_value`,
+    `f(x) = x` for `threshold <= x < max_value`,
+    `f(x) = alpha * (x - threshold)` otherwise.
+
     # Arguments
         x: A tensor or variable.
         alpha: A scalar, slope of negative section (default=`0.`).
-        max_value: Saturation threshold.
+        max_value: float. Saturation threshold.
+        threshold: float. Threshold value for thresholded activation.
 
     # Returns
         A tensor.
     """
+
     if alpha != 0.:
-        x = tf.nn.leaky_relu(x, alpha)
+        if max_value is None and threshold == 0.:
+            return tf.nn.leaky_relu(x, alpha=alpha)
+
+        if threshold != 0.:
+            negative_part = tf.nn.relu(-x + threshold)
+        else:
+            negative_part = tf.nn.relu(-x)
+
+    clip_max = max_value is not None
+
+    if threshold != 0:
+        # computes x for x > threshold else 0
+        x = x * tf.cast(tf.greater(x, threshold), floatx())
+    elif max_value == 6:
+        # if no threshold, then can use nn.relu6 native TF op for performance
+        x = tf.nn.relu6(x)
+        clip_max = False
     else:
         x = tf.nn.relu(x)
 
-    if max_value is not None:
+    if clip_max:
         max_value = _to_tensor(max_value, x.dtype.base_dtype)
-        x = tf.minimum(x, max_value)
+        zero = _to_tensor(0., x.dtype.base_dtype)
+        x = tf.clip_by_value(x, zero, max_value)
+
+    if alpha != 0:
+        alpha = _to_tensor(alpha, x.dtype.base_dtype)
+        x -= alpha * negative_part
     return x
 
 

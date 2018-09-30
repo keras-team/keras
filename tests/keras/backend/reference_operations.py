@@ -29,6 +29,14 @@ def normalize_conv(func):
             if kwargs['data_format'] == 'channels_last':
                 x = np.transpose(x, (0, 4, 1, 2, 3))
 
+        dilation_rate = kwargs.pop('dilation_rate', 1)
+        if isinstance(dilation_rate, int):
+            dilation_rate = (dilation_rate,) * (x.ndim - 2)
+        for (i, d) in enumerate(dilation_rate):
+            if d > 1:
+                for j in range(w.shape[2 + i] - 1):
+                    w = np.insert(w, 2 * j + 1, 0, axis=2 + i)
+
         y = func(x, w, **kwargs)
 
         if kwargs['data_format'] == 'channels_last':
@@ -226,10 +234,11 @@ def in_test_phase(x, alt, training=None):
     return in_train_phase(alt, x, training=training)
 
 
-def relu(x, alpha=0., max_value=None):
-    y = x * (x > 0) + alpha * x * (x < 0)
+def relu(x, alpha=0., max_value=None, threshold=0.):
+    y = x * (x >= threshold)
     if max_value is not None:
-        y = np.minimum(y, max_value)
+        y = np.clip(y, 0.0, max_value)
+    y += alpha * (x - threshold) * (x < threshold)
     return y
 
 
@@ -402,6 +411,10 @@ def repeat(x, n):
     return y
 
 
+def tile(x, n):
+    return np.tile(x, n)
+
+
 def arange(start, stop=None, step=1, dtype='int32'):
     return np.arange(start, stop, step, dtype)
 
@@ -435,10 +448,6 @@ def constant(value, dtype=None, shape=None, name=None):
 def print_tensor(x, message=''):
     print(x, message)
     return x
-
-
-def eye(size, dtype=None, name=None):
-    return np.eye(size, dtype=dtype)
 
 
 def dot(x, y):
@@ -496,12 +505,36 @@ def minimum(x, y):
     return np.minimum(x, y)
 
 
+def ndim(x):
+    return x.ndim
+
+
 def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
     return (high - low) * np.random.random(shape).astype(dtype) + low
 
 
 def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
     return scale * np.random.randn(*shape).astype(dtype) + mean
+
+
+def zeros(shape, dtype=floatx(), name=None):
+    return np.zeros(shape, dtype=dtype)
+
+
+def zeros_like(x, dtype=floatx(), name=None):
+    return np.zeros_like(x, dtype=dtype)
+
+
+def ones(shape, dtype=floatx(), name=None):
+    return np.ones(shape, dtype=dtype)
+
+
+def ones_like(x, dtype=floatx(), name=None):
+    return np.ones_like(x, dtype=dtype)
+
+
+def eye(size, dtype=None, name=None):
+    return np.eye(size, dtype=dtype)
 
 
 def resize_images(x, height_factor, width_factor, data_format):
@@ -534,3 +567,5 @@ round = np.round
 sign = np.sign
 expand_dims = np.expand_dims
 squeeze = np.squeeze
+cos = np.cos
+sin = np.sin
