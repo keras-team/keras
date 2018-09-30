@@ -200,6 +200,18 @@ class TestBackend(object):
     def test_eye(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
 
+    def test_ones(self):
+        check_single_tensor_operation('ones', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+
+    def test_zeros(self):
+        check_single_tensor_operation('zeros', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+
+    def test_ones_like(self):
+        check_single_tensor_operation('ones_like', (3, 5, 10, 8), WITH_NP, shape_or_val=True)
+
+    def test_zeros_like(self):
+        check_single_tensor_operation('zeros_like', (3, 5, 10, 8), WITH_NP, shape_or_val=True)
+
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
         check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
