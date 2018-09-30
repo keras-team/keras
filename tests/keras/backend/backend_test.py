@@ -123,6 +123,7 @@ def check_tensor_operation(function_name, shapes_or_vals, backend_list,
         if nb_tensors == 1 and shape_or_val and (k == KC) and cntk_dynamicity:
             t, f = cntk_func_tensors(function_name, shapes, **kwargs)
             z = f(vals)[0]
+            
         elif nb_tensors == 1 and not shape_or_val:
             t = getattr(k, function_name)(shapes_or_vals[0], **kwargs)
             z = k.eval(t)
@@ -145,6 +146,7 @@ def check_tensor_operation(function_name, shapes_or_vals, backend_list,
         else:
             if nb_tensors == 2 and (k == KTH) and (function_name[:4] == 'conv'):
                 variables[1] = k.variable(convert_kernel(vals[1]))
+
             t = getattr(k, function_name)(*variables, **kwargs)
             z = k.eval(t)
 
