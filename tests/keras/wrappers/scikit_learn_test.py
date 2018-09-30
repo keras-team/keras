@@ -7,6 +7,8 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.wrappers.scikit_learn import KerasClassifier, KerasRegressor
 
+pytestmark = pytest.mark.timeout(timeout=90)
+
 input_dim = 5
 hidden_dims = 5
 num_train = 100

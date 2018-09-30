@@ -21,9 +21,11 @@ from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
 from keras import backend as K
 
-pytestmark = pytest.mark.skipif(
+
+pytestmark = [pytest.mark.skipif(
     K.backend() == 'tensorflow',
-    reason='Temporarily disabled until the use_multiprocessing problem is solved')
+    reason='Temporarily disabled until the use_multiprocessing problem is solved'),
+    pytest.mark.timeout(timeout=90)]
 
 if sys.version_info < (3,):
     def next(x):
