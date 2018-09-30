@@ -197,20 +197,20 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.set_learning_phase(2)
 
-    def test_variable_initializers(self):
+    def test_eye(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
-        check_single_tensor_operation('ones', (10, 5, 1, 8), WITH_NP, shape_or_val=False)
-        check_single_tensor_operation('ones_like', (10, 5, 1, 8), WITH_NP, shape_or_val=True)
-        check_single_tensor_operation('zeros', (10, 5, 1, 8), WITH_NP, shape_or_val=False)
-        check_single_tensor_operation('zeros_like', (10, 5, 1, 8), WITH_NP, shape_or_val=True)
 
-        # random
-        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
-                                      low=0., high=1.,
-                                      shape_or_val=False, assert_value_equality=False)
-        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
-                                      mean=0., scale=1.,
-                                      shape_or_val=False, assert_value_equality=False)
+    def test_ones(self):
+        check_single_tensor_operation('one', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+
+    def test_zeros(self):
+        check_single_tensor_operation('zeros', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+
+    def test_ones_like(self):
+        check_single_tensor_operation('ones_like', (3, 5, 10, 8), WITH_NP, shape_or_val=True)
+
+    def test_zeros_like(self):
+        check_single_tensor_operation('zeros_like', (3, 5, 10, 8), WITH_NP, shape_or_val=True)
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
@@ -231,6 +231,14 @@ class TestBackend(object):
         check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
         if K.backend() != 'cntk':
             check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
+
+    def test_random_variables(self):
+        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
+                                      low=0., high=1.,
+                                      shape_or_val=False, assert_value_equality=False)
+        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
+                                      mean=0., scale=1.,
+                                      shape_or_val=False, assert_value_equality=False)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Not supported.')
     def test_batch_dot_shape(self):
