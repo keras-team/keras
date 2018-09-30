@@ -201,7 +201,7 @@ class TestBackend(object):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
 
     def test_ones(self):
-        check_single_tensor_operation('one', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('ones', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
 
     def test_zeros(self):
         check_single_tensor_operation('zeros', (3, 5, 10, 8), WITH_NP, shape_or_val=False)
