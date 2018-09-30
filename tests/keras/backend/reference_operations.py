@@ -87,12 +87,32 @@ def separable_conv(x, w1, w2, padding, data_format):
     return conv(x2, w2, padding=padding, data_format=data_format)
 
 
+def conv_transpose(x, w, output_shape, padding, data_format, dilation_rate=1):
+    if x.ndim == 4:
+        w = np.fliplr(np.flipud(w))
+        w = np.transpose(w, (0, 1, 3, 2))
+    else:
+        w = np.flip(np.fliplr(np.flipud(w)), axis=2)
+        w = np.transpose(w, (0, 1, 2, 4, 3))
+
+    if isinstance(dilation_rate, int):
+        dilation_rate = (dilation_rate,) * (x.ndim - 2)
+    for (i, d) in enumerate(dilation_rate):
+        if d > 1:
+            for j in range(w.shape[i] - 1):
+                w = np.insert(w, 2 * j + 1, 0, axis=i)
+
+    return conv(x, w, padding=padding, data_format=data_format)
+
+
 conv1d = conv
 conv2d = conv
 conv3d = conv
 depthwise_conv2d = depthwise_conv
 separable_conv1d = separable_conv
 separable_conv2d = separable_conv
+conv2d_transpose = conv_transpose
+conv3d_transpose = conv_transpose
 
 
 def pool(x, pool_size, strides, padding, data_format, pool_mode):
