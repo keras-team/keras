@@ -119,12 +119,8 @@ def check_tensor_operation(function_name, shapes_or_vals, backend_list,
         variables = [k.variable(x) for x in vals]
 
         nb_tensors = len(shapes_and_vals)
-
-        if nb_tensors == 1 and shape_or_val and (k == KC) and cntk_dynamicity:
-            t, f = cntk_func_tensors(function_name, shapes, **kwargs)
-            z = f(vals)[0]
             
-        elif nb_tensors == 1 and not shape_or_val:
+        if nb_tensors == 1 and not shape_or_val:
             t = getattr(k, function_name)(shapes_or_vals[0], **kwargs)
             z = k.eval(t)
 
@@ -132,22 +128,21 @@ def check_tensor_operation(function_name, shapes_or_vals, backend_list,
             t, f = cntk_func_tensors(function_name, [shapes[0], vals[1]], **kwargs)
             z = f([vals[0]])[0]
 
-        elif nb_tensors == 2 and (k == KC) and cntk_two_dynamicity:
+        elif (k == KC) and (cntk_two_dynamicity or
+                (nb_tensors == 1 and shape_or_val and cntk_dynamicity)):
+
             t, f = cntk_func_tensors(function_name, shapes, **kwargs)
             z = f(vals)[0]
-
-        elif nb_tensors == 2 and concat_args:
-            t = getattr(k, function_name)(variables, **kwargs)
-            z = k.eval(t)
-
-        elif nb_tensors not in [1, 2]:
-            raise IndexError
 
         else:
             if nb_tensors == 2 and (k == KTH) and (function_name[:4] == 'conv'):
                 variables[1] = k.variable(convert_kernel(vals[1]))
 
-            t = getattr(k, function_name)(*variables, **kwargs)
+            if concat_args:
+                t = getattr(k, function_name)(variables, **kwargs)
+            else:
+                t = getattr(k, function_name)(*variables, **kwargs)
+
             z = k.eval(t)
 
         t_list += [t]
