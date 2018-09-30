@@ -18,6 +18,9 @@ except:
     from mock import patch
 
 
+pytestmark = pytest.mark.timeout(timeout=90)
+
+
 @pytest.fixture
 def in_tmpdir(tmpdir):
     """Runs a function in a temporary directory.
