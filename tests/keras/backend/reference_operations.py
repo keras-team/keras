@@ -470,10 +470,6 @@ def print_tensor(x, message=''):
     return x
 
 
-def eye(size, dtype=None, name=None):
-    return np.eye(size, dtype=dtype)
-
-
 def dot(x, y):
     return np.dot(x, y)
 
@@ -529,12 +525,36 @@ def minimum(x, y):
     return np.minimum(x, y)
 
 
+def ndim(x):
+    return x.ndim
+
+
 def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
     return (high - low) * np.random.random(shape).astype(dtype) + low
 
 
 def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
     return scale * np.random.randn(*shape).astype(dtype) + mean
+
+
+def zeros(shape, dtype=floatx(), name=None):
+    return np.zeros(shape, dtype=dtype)
+
+
+def zeros_like(x, dtype=floatx(), name=None):
+    return np.zeros_like(x, dtype=dtype)
+
+
+def ones(shape, dtype=floatx(), name=None):
+    return np.ones(shape, dtype=dtype)
+
+
+def ones_like(x, dtype=floatx(), name=None):
+    return np.ones_like(x, dtype=dtype)
+
+
+def eye(size, dtype=None, name=None):
+    return np.eye(size, dtype=dtype)
 
 
 def resize_images(x, height_factor, width_factor, data_format):
