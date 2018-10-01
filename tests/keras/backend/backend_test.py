@@ -1060,7 +1060,7 @@ class TestBackend(object):
                             padding, data_format):
         check_two_tensor_operation(
             op, input_shape, kernel_shape, WITH_NP,
-            output_shape=output_shape,padding=padding, data_format=data_format,
+            output_shape=output_shape, padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
     @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
