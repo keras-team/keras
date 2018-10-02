@@ -292,7 +292,6 @@ class Sequential(Model):
             build_input_shape = config.get('build_input_shape')
             layer_configs = config['layers']
         else:  # legacy config file
-            warnings.warn('Using a legacy config file.')
             name = build_input_shape = None
             layer_configs = config
         model = cls(name=name)
