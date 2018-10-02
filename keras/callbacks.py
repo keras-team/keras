@@ -118,7 +118,8 @@ class CallbackList(object):
         if (self._delta_t_batch > 0. and
            (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
             warnings.warn('Method on_batch_end() is slow compared '
-                          'to the batch update (%f) spending (%d). Check your callbacks.'
+                          'to the batch update (%f) spending (%d).'
+                          ' Check your callbacks.'
                           % (delta_t_median, self._delta_t_batch))
 
     def on_train_begin(self, logs=None):
