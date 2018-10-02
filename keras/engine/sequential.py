@@ -291,6 +291,9 @@ class Sequential(Model):
             name = config['name']
             build_input_shape = config.get('build_input_shape')
             layer_configs = config['layers']
+        else:  # legacy config file
+            name = build_input_shape = None
+            layer_configs = config
         model = cls(name=name)
         for conf in layer_configs:
             layer = layer_module.deserialize(conf,
