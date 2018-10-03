@@ -37,21 +37,6 @@ except ImportError:
 WITH_NP = [KTH if K.backend() == 'theano' else KC if K.backend() == 'cntk' else KTF, KNP]
 
 
-# CNTK only supports dilated convolution on GPU
-def get_dilated_conv_backends():
-    backend_list = []
-    if KTF is not None:
-        backend_list.append(KTF)
-    if KTH is not None:
-        backend_list.append(KTH)
-    if KC is not None and KC.dev.type() == 1:
-        backend_list.append(KC)
-    return backend_list
-
-
-DILATED_CONV_BACKENDS = get_dilated_conv_backends()
-
-
 def check_dtype(var, dtype):
     if K._BACKEND == 'theano':
         assert var.dtype == dtype
@@ -1076,6 +1061,20 @@ class TestBackend(object):
             padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
+    @pytest.mark.parametrize(
+        'op,input_shape,kernel_shape,output_shape,padding,data_format', [
+            ('conv2d_transpose', (2, 5, 6, 3), (3, 3, 2, 3), (2, 5, 6, 2),
+             'same', 'channels_last'),
+            ('conv2d_transpose', (2, 3, 8, 9), (3, 3, 2, 3), (2, 2, 8, 9),
+             'same', 'channels_first'),
+        ])
+    def test_conv_transpose(self, op, input_shape, kernel_shape, output_shape,
+                            padding, data_format):
+        check_two_tensor_operation(
+            op, input_shape, kernel_shape, WITH_NP,
+            output_shape=output_shape, padding=padding, data_format=data_format,
+            cntk_dynamicity=True)
+
     @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
                         reason='cntk only supports dilated conv on GPU')
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format,dilation_rate', [
@@ -1102,10 +1101,10 @@ class TestBackend(object):
             ('conv2d_transpose', (2, 3, 8, 9), (3, 3, 2, 3), (2, 2, 8, 9),
              'same', 'channels_first', (2, 2)),
         ])
-    def test_conv_transpose_dilation(self, op, input_shape, kernel_shape, output_shape,
-                                     padding, data_format, dilation_rate):
+    def test_dilated_conv_transpose(self, op, input_shape, kernel_shape, output_shape,
+                                    padding, data_format, dilation_rate):
         check_two_tensor_operation(
-            op, input_shape, kernel_shape, DILATED_CONV_BACKENDS, output_shape=output_shape,
+            op, input_shape, kernel_shape, WITH_NP, output_shape=output_shape,
             padding=padding, data_format=data_format, dilation_rate=dilation_rate,
             cntk_dynamicity=True)
 
