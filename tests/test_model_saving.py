@@ -632,6 +632,29 @@ def test_saving_recurrent_layer_without_bias():
     os.remove(fname)
 
 
+def test_loop_model_saving():
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 2))
+    _, fname = tempfile.mkstemp('.h5')
+
+    for _ in range(3):
+        model.train_on_batch(x, y)
+        save_model(model, fname, overwrite=True)
+        out = model.predict(x)
+
+    new_model = load_model(fname)
+    os.remove(fname)
+
+    out2 = new_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
 def test_saving_constant_initializer_with_numpy():
     """Test saving and loading model of constant initializer with numpy inputs.
     """

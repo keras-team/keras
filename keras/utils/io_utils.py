@@ -183,11 +183,13 @@ class H5Dict(object):
             self.data = path
             self._is_file = False
         elif isinstance(path, str):
-            self.data = h5py.File(path,)
+            self.data = h5py.File(path, mode=mode)
             self._is_file = True
         elif isinstance(path, dict):
             self.data = path
             self._is_file = False
+            if mode == 'w':
+                self.data.clear()
             # Flag to check if a dict is user defined data or a sub group:
             self.data['_is_group'] = True
         else:
@@ -209,7 +211,7 @@ class H5Dict(object):
             else:
                 self.data[attr] = val
             return
-        if attr in self:
+        if isinstance(self.data, h5py.Group) and attr in self.data:
             raise KeyError('Cannot set attribute. '
                            'Group with name "{}" exists.'.format(attr))
         if is_np:
