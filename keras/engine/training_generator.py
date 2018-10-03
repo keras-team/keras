@@ -124,7 +124,8 @@ def fit_generator(model,
             elif val_gen:
                 val_data = validation_data
                 if isinstance(val_data, Sequence):
-                    val_enqueuer_gen = iter_sequence_infinite(generator)
+                    val_enqueuer_gen = iter_sequence_infinite(val_data)
+                    validation_steps = validation_steps or len(val_data)
                 else:
                     val_enqueuer_gen = val_data
             else:
