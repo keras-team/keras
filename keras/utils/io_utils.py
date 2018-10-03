@@ -183,7 +183,7 @@ class H5Dict(object):
             self.data = path
             self._is_file = False
         elif isinstance(path, str):
-            self.data = h5py.File(path,)
+            self.data = h5py.File(path, mode=mode)
             self._is_file = True
         elif isinstance(path, dict):
             self.data = path
