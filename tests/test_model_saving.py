@@ -637,11 +637,10 @@ def test_loop_model_saving():
     model.add(Dense(2, input_shape=(3,)))
     model.compile(loss=losses.MSE,
                   optimizer=optimizers.RMSprop(lr=0.0001),
-                  metrics=[metrics.categorical_accuracy],
-                  sample_weight_mode='temporal')
+                  metrics=[metrics.categorical_accuracy])
 
     x = np.random.random((1, 3))
-
+    y = np.random.random((1, 2))
     _, fname = tempfile.mkstemp('.h5')
 
     for _ in range(3):

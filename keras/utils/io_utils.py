@@ -209,7 +209,7 @@ class H5Dict(object):
             else:
                 self.data[attr] = val
             return
-        if attr in self:
+        if isinstance(self.data, h5py.Group) and attr in self.data:
             raise KeyError('Cannot set attribute. '
                            'Group with name "{}" exists.'.format(attr))
         if is_np:
