@@ -188,6 +188,8 @@ class H5Dict(object):
         elif isinstance(path, dict):
             self.data = path
             self._is_file = False
+            if mode == 'w':
+                self.data.clear()
             # Flag to check if a dict is user defined data or a sub group:
             self.data['_is_group'] = True
         else:
