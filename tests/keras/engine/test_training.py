@@ -468,6 +468,19 @@ def test_model_methods():
     assert trained_batches == list(range(12)) * 5
     assert len(val_seq.logs) == 12 * 5
 
+    # test for workers = 0
+    trained_epochs = []
+    trained_batches = []
+    val_seq = RandomSequence(4)
+    out = model.fit_generator(generator=RandomSequence(3),
+                              epochs=5,
+                              validation_data=val_seq,
+                              callbacks=[tracker_cb],
+                              workers=0)
+    assert trained_epochs == [0, 1, 2, 3, 4]
+    assert trained_batches == list(range(12)) * 5
+    assert len(val_seq.logs) == 12 * 5
+
     # fit_generator will throw an exception
     # if steps is unspecified for regular generator
     with pytest.raises(ValueError):
