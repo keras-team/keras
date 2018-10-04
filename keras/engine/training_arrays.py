@@ -51,7 +51,8 @@ def fit_loop(model, fit_function, fit_inputs,
         callback_metrics: List of strings, the display names of the metrics
             passed to the callbacks. They should be the
             concatenation of list the display names of the outputs of
-             `fit_function` and the list of display names of the outputs of `fit_inputs`.
+             `fit_function` and the list of display names
+             of the outputs of `fit_inputs`.
         initial_epoch: Epoch at which to start training
             (useful for resuming a previous training run)
         steps_per_epoch: Total number of steps (batches of samples)
