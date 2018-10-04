@@ -67,7 +67,7 @@ class CharacterTable(object):
 
         # Arguments
             x: A vector or a 2D array of probabilities or one-hot representations;
-                or a vector of character indicies (used with `calc_argmax=False`).
+                or a vector of character indices (used with `calc_argmax=False`).
             calc_argmax: Whether to find the character index with maximum
                 probability, defaults to `True`.
         """
