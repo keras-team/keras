@@ -117,9 +117,10 @@ class CallbackList(object):
         delta_t_median = np.median(self._delta_ts_batch_end)
         if (self._delta_t_batch > 0. and
            (delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1)):
-            warnings.warn('Method on_batch_end() is slow compared '
-                          'to the batch update (%f). Check your callbacks.'
-                          % delta_t_median)
+            warnings.warn('In your callbacks, method `on_batch_end()` '
+                          'is slow compared to a model step '
+                          '(%f vs %f). Check your callbacks.'
+                          % (delta_t_median, self._delta_t_batch))
 
     def on_train_begin(self, logs=None):
         """Called at the beginning of training.
