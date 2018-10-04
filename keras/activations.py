@@ -25,9 +25,7 @@ def softmax(x, axis=-1):
         ValueError: In case `dim(x) == 1`.
     """
     ndim = K.ndim(x)
-    if ndim == 1:
-        raise ValueError('Cannot apply softmax to a tensor that is 1D')
-    elif ndim == 2:
+    if ndim == 2:
         return K.softmax(x)
     elif ndim > 2:
         e = K.exp(x - K.max(x, axis=axis, keepdims=True))
