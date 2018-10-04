@@ -70,7 +70,7 @@ class CharacterTable(object):
                 or a vector of character indicies (used with `calc_argmax=False`).
             calc_argmax: Whether to find the character index with maximum
                 probability, defaults to `True`.
-        """ 
+        """
         if calc_argmax:
             x = x.argmax(axis=-1)
         return ''.join(self.indices_char[x] for x in x)
@@ -208,4 +208,3 @@ for iteration in range(1, 200):
         else:
             print(colors.fail + '☒' + colors.close, end=' ')
         print(guess)
-
