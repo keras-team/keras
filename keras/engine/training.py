@@ -971,9 +971,9 @@ class Model(Network):
                 sample_weight=val_sample_weight,
                 batch_size=batch_size)
             if self._uses_dynamic_learning_phase():
-                val_ins = val_x + val_y + val_sample_weights + [0.]
+                val_inputs = val_x + val_y + val_sample_weights + [0.]
             else:
-                val_ins = val_x + val_y + val_sample_weights
+                val_inputs = val_x + val_y + val_sample_weights
 
         elif validation_split and 0. < validation_split < 1.:
             if any(K.is_tensor(t) for t in x):
@@ -993,45 +993,45 @@ class Model(Network):
                 slice_arrays(sample_weights, 0, split_at),
                 slice_arrays(sample_weights, split_at))
             if self._uses_dynamic_learning_phase():
-                val_ins = val_x + val_y + val_sample_weights + [0.]
+                val_inputs = val_x + val_y + val_sample_weights + [0.]
             else:
-                val_ins = val_x + val_y + val_sample_weights
+                val_inputs = val_x + val_y + val_sample_weights
 
         elif validation_steps:
             do_validation = True
             if self._uses_dynamic_learning_phase():
-                val_ins = [0.]
+                val_inputs = [0.]
 
         # Prepare input arrays and training function.
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [1.]
+            fit_inputs = x + y + sample_weights + [1.]
         else:
-            ins = x + y + sample_weights
+            fit_inputs = x + y + sample_weights
         self._make_train_function()
-        f = self.train_function
+        fit_function = self.train_function
 
         # Prepare display labels.
         out_labels = self.metrics_names
 
         if do_validation:
             self._make_test_function()
-            val_f = self.test_function
+            val_function = self.test_function
             callback_metrics = copy.copy(out_labels) + [
                 'val_' + n for n in out_labels]
         else:
             callback_metrics = copy.copy(out_labels)
-            val_f = None
-            val_ins = []
+            val_function = None
+            val_inputs = []
 
         # Delegate logic to `fit_loop`.
-        return training_arrays.fit_loop(self, f, ins,
+        return training_arrays.fit_loop(self, fit_function, fit_inputs,
                                         out_labels=out_labels,
                                         batch_size=batch_size,
                                         epochs=epochs,
                                         verbose=verbose,
                                         callbacks=callbacks,
-                                        val_f=val_f,
-                                        val_ins=val_ins,
+                                        val_function=val_function,
+                                        val_inputs=val_inputs,
                                         shuffle=shuffle,
                                         callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
