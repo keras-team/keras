@@ -820,6 +820,7 @@ def test_preprocess_weights_for_loading_gru_incompatible():
                           'GRU(reset_after=True) is not compatible with '
                           'GRU(reset_after=False)')
 
+
 @patch('keras.optimizers.Optimizer.set_weights')
 @patch('keras.backend.batch_set_value')
 def test_load_callbacks(set_weights, set_value):
