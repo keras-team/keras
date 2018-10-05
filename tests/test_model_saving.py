@@ -19,6 +19,15 @@ from keras import losses
 from keras import metrics
 from keras.models import save_model, load_model
 
+try:
+    from unittest.mock import patch
+    from unittest.mock import call
+    from unittest import mock
+except:
+    from mock import patch
+    from mock import call
+    import mock
+
 
 skipif_no_tf_gpu = pytest.mark.skipif(
     (K.backend() != 'tensorflow' or
@@ -811,6 +820,42 @@ def test_preprocess_weights_for_loading_gru_incompatible():
                           'GRU(reset_after=True) is not compatible with '
                           'GRU(reset_after=False)')
 
+@patch('keras.optimizers.Optimizer.set_weights')
+@patch('keras.backend.batch_set_value')
+def test_load_callbacks(set_weights, set_value):
+    """
+    Callbacks' set_model calls shoud be called before setting
+    weights on the model during load and deserialize.
+    """
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    model.add(RepeatVector(3))
+    model.add(TimeDistributed(Dense(3)))
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy],
+                  sample_weight_mode='temporal')
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3, 3))
+    model.train_on_batch(x, y)
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+
+    callback = mock.Mock()
+    # Set up manager mock to verify call order
+    manager_mock = mock.Mock()
+    manager_mock.attach_mock(set_weights, 'set_weights')
+    manager_mock.attach_mock(set_value, 'set_value')
+    manager_mock.attach_mock(callback, 'callback')
+
+    new_model = load_model(fname, callbacks=[callback])
+    os.remove(fname)
+
+    expected_calls = [call.callback.set_model(mock.ANY),
+                      call.set_weights(mock.ANY),
+                      call.set_value(mock.ANY)]
+    assert manager_mock.mock_calls == expected_calls
 
 if __name__ == '__main__':
     pytest.main([__file__])
