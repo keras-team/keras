@@ -110,12 +110,12 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
          model = Xception(weights=None, ..)
 
          try:
-             model = multi_gpu_model(model, cpu_relocation=True)
+             parallel_model = multi_gpu_model(model, cpu_relocation=True)
              print("Training using multiple GPUs..")
-         except:
+         except ValueError:
+             parallel_model = model
              print("Training using single GPU or CPU..")
-
-         model.compile(..)
+         parallel_model.compile(..)
          ..
     ```
 
