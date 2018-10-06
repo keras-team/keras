@@ -226,7 +226,8 @@ class Layer(object):
                    initializer=None,
                    regularizer=None,
                    trainable=True,
-                   constraint=None):
+                   constraint=None,
+                   constraint_way=1):
         """Adds a weight variable to the layer.
 
         # Arguments
@@ -239,6 +240,9 @@ class Layer(object):
                 be trained via backprop or not (assuming
                 that the layer itself is also trainable).
             constraint: An optional Constraint instance.
+            constraint_way: if 1, apply constraint after
+                optimization step, else apply constraint
+                to weights directly.
 
         # Returns
             The created weight variable.
@@ -246,10 +250,14 @@ class Layer(object):
         initializer = initializers.get(initializer)
         if dtype is None:
             dtype = K.floatx()
+        if constraint_way == 1:
+            constraint_ = constraint
+        else:
+            constraint_ = None
         weight = K.variable(initializer(shape),
                             dtype=dtype,
                             name=name,
-                            constraint=constraint)
+                            constraint=constraint_)
         if regularizer is not None:
             with K.name_scope('weight_regularizer'):
                 self.add_loss(regularizer(weight))
@@ -257,7 +265,10 @@ class Layer(object):
             self._trainable_weights.append(weight)
         else:
             self._non_trainable_weights.append(weight)
-        return weight
+        if constraint_way == 1:
+            return constraint(weight)
+        else:
+            return weight
 
     def assert_input_compatibility(self, inputs):
         """Checks compatibility between the layer and provided inputs.
