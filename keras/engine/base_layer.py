@@ -265,7 +265,7 @@ class Layer(object):
             self._trainable_weights.append(weight)
         else:
             self._non_trainable_weights.append(weight)
-        if constraint_way == 1:
+        if constraint_way == 1 and constraint is not None:
             return constraint(weight)
         else:
             return weight
