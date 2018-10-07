@@ -59,7 +59,9 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         A Keras `Model` instance which can be used just like the initial
         `model` argument, but which distributes its workload on multiple GPUs.
 
-    # Example 1 - Training models with weights merge on CPU
+    # Examples
+
+    **Training models with weights merge on CPU.**
 
     ```python
         import tensorflow as tf
@@ -100,7 +102,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         model.save('my_model.h5')
     ```
 
-    # Example 2 - Training models with weights merge on CPU using cpu_relocation
+    **Training models with weights merge on CPU using cpu_relocation.**
 
     ```python
          ..
@@ -117,7 +119,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
          ..
     ```
 
-    # Example 3 - Training models with weights merge on GPU (recommended for NV-link)
+    **Training models with weights merge on GPU (recommended for NV-link).**
 
     ```python
          ..
