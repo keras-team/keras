@@ -338,8 +338,8 @@ class CuDNNLSTM(_CuDNNRNN):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Setting it to true will also force `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.]
-            (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
+            This is recommended in [Jozefowicz et al. (2015)](
+            http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
             used for the linear transformation of the recurrent state.
