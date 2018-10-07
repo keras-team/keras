@@ -12,6 +12,7 @@ import warnings
 from six.moves import zip
 
 from .. import backend as K
+from .. import callbacks as cbks
 from .. import optimizers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.io_utils import h5dict
@@ -171,7 +172,7 @@ def _serialize_model(model, f, include_optimizer=True):
                     optimizer_weights_group[name] = val
 
 
-def _deserialize_model(f, custom_objects=None, compile=True):
+def _deserialize_model(f, custom_objects=None, compile=True, callbacks=None):
     """De-serializes a model serialized via _serialize_model
 
     # Arguments
@@ -181,6 +182,9 @@ def _deserialize_model(f, custom_objects=None, compile=True):
             considered during deserialization.
         compile: Boolean, whether to compile the model
             after loading.
+        callbacks: List of `keras.callbacks.Callback` instances.
+            List of callbacks to call `set_model` on during the
+            deserialization. See [callbacks](/callbacks).
 
     # Returns
         A Keras model instance. If an optimizer was found
@@ -192,6 +196,7 @@ def _deserialize_model(f, custom_objects=None, compile=True):
     """
     if not custom_objects:
         custom_objects = {}
+    callbacks = cbks.CallbackList(callbacks or [])
 
     def convert_custom_objects(obj):
         """Handles custom object lookup.
@@ -284,15 +289,10 @@ def _deserialize_model(f, custom_objects=None, compile=True):
                              str(len(weight_values)) +
                              ' elements.')
         weight_value_tuples += zip(symbolic_weights, weight_values)
-    K.batch_set_value(weight_value_tuples)
 
-    if compile:
-        training_config = f.get('training_config')
-        if training_config is None:
-            warnings.warn('No training configuration found in save file: '
-                          'the model was *not* compiled. '
-                          'Compile it manually.')
-            return model
+    optimizer_weight_values = None
+    training_config = f.get('training_config')
+    if compile and training_config is not None:
         training_config = json.loads(training_config.decode('utf-8'))
         optimizer_config = training_config['optimizer_config']
         optimizer = optimizers.deserialize(optimizer_config,
@@ -321,13 +321,24 @@ def _deserialize_model(f, custom_objects=None, compile=True):
                 optimizer_weights_group['weight_names']]
             optimizer_weight_values = [optimizer_weights_group[n] for n in
                                        optimizer_weight_names]
-            try:
-                model.optimizer.set_weights(optimizer_weight_values)
-            except ValueError:
-                warnings.warn('Error in loading the saved optimizer '
-                              'state. As a result, your model is '
-                              'starting with a freshly initialized '
-                              'optimizer.')
+    else:
+        warnings.warn('No training configuration found in save file: '
+                      'the model was *not* compiled. '
+                      'Compile it manually.')
+
+    callbacks.set_model(model)
+    # Set weights after the model is set into the callbacks.
+    # Setting the weight puts the model in a session in TensorFlow which
+    # disallows model callbacks from updating the model during set_model.
+    K.batch_set_value(weight_value_tuples)
+    if optimizer_weight_values:
+        try:
+            model.optimizer.set_weights(optimizer_weight_values)
+        except ValueError:
+            warnings.warn('Error in loading the saved optimizer '
+                          'state. As a result, your model is '
+                          'starting with a freshly initialized '
+                          'optimizer.')
 
     return model
 
@@ -385,7 +396,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             f.close()
 
 
-def load_model(filepath, custom_objects=None, compile=True):
+def load_model(filepath, custom_objects=None, compile=True, callbacks=None):
     """Loads a model saved via `save_model`.
 
     # Arguments
@@ -397,6 +408,9 @@ def load_model(filepath, custom_objects=None, compile=True):
             considered during deserialization.
         compile: Boolean, whether to compile the model
             after loading.
+        callbacks: List of `keras.callbacks.Callback` instances.
+            List of callbacks to call `set_model` on during the model load.
+            See [callbacks](/callbacks).
 
     # Returns
         A Keras model instance. If an optimizer was found
@@ -416,7 +430,7 @@ def load_model(filepath, custom_objects=None, compile=True):
     opened_new_file = not isinstance(filepath, h5py.Group)
     f = h5dict(filepath, 'r')
     try:
-        model = _deserialize_model(f, custom_objects, compile)
+        model = _deserialize_model(f, custom_objects, compile, callbacks)
     finally:
         if opened_new_file:
             f.close()
