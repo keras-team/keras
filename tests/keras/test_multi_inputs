@@ -1,0 +1,60 @@
+import numpy as np
+import tensorflow as tf
+from keras.models import Sequential, Model
+from keras.optimizers import RMSprop
+from keras.layers import Dense, Flatten, Dropout, Input, Lambda
+from keras.layers.convolutional import Conv2D, MaxPooling2D
+from keras import backend as K
+import keras
+
+class Test:
+    def __init__(self):
+        self.model = self.build_model()
+        self.optimizer = self.optimizer()
+    def optimizer(self):
+        a = K.placeholder(shape=(None, ), dtype='int32')
+        y = K.placeholder(shape=(None, ), dtype='float32')
+
+        py_x = self.model.output
+        a_one_hot = K.one_hot(a, 3)
+        
+        q_value = K.sum(py_x * a_one_hot, axis = 1)
+        error = K.abs(y - q_value)
+
+        quadratic_part = K.clip(error, 0.0, 1.0)
+        linear_part = error - quadratic_part
+        loss = K.mean(0.5 * K.square(quadratic_part) + linear_part)
+        
+        optimizer = RMSprop(lr=0.00025, epsilon=0.01)
+        updates = optimizer.get_updates(self.model.trainable_weights, [], loss)
+        train = K.function([self.model.input, a, y], [loss], updates=updates)
+        
+        return train
+
+    def build_model(self):
+        input_1 = Input(shape=(2,2,1))
+        flatten_1 = Flatten()(input_1)
+
+        input_2 = Input(shape=(3,3,1))
+        flatten_2 = Flatten()(input_2)
+
+        mid_add = keras.layers.concatenate([flatten_1, flatten_2])
+        out_value = Dense(3, activation='relu')(mid_add)
+
+        model = Model(inputs=[input_1, input_2], output=out_value)
+
+        model.summary()
+        return model
+
+if __name__ == '__main__':
+   
+    test = Test()
+    input_1 = np.array([[2,2],[2,2]], dtype=np.int8)
+    input_2 = np.array([[3,3,3],[3,3,3],[3,3,3]], dtype=np.int8)
+
+    input_1 = np.reshape(input_1, (1, 2, 2, 1))
+    input_2 = np.reshape(input_2, (1, 3, 3, 1))
+
+    loss = test.optimizer([[input_1, input_2], [1], [0]])
+
+    print(loss)
