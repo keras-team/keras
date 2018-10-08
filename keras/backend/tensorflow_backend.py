@@ -2686,7 +2686,7 @@ class Function(object):
                     (np.expand_dims(sparse_coo.row, 1),
                      np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
-            if type(tensor) is list:
+            if isinstance(tensor, list):
                 for tensor_i in range(len(tensor)):
                     feed_dict[tensor[tensor_i]] = value[tensor_i]
             else:
