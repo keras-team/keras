@@ -21,7 +21,25 @@ def to_categorical(y, num_classes=None, dtype='float32'):
     # Returns
         A binary matrix representation of the input. The classes axis
         is placed last.
+
+    # Example
+
+    ```python
+    # Consider an array of 5 labels out of a set of 3 classes {0, 1, 2}:
+    > labels
+    array([0, 2, 1, 2, 0])
+    # `to_categorical` converts this into a matrix with as many
+    # columns as there are classes. The number of rows
+    # stays the same.
+    > to_categorical(labels)
+    array([[ 1.,  0.,  0.],
+           [ 0.,  0.,  1.],
+           [ 0.,  1.,  0.],
+           [ 0.,  0.,  1.],
+           [ 1.,  0.,  0.]], dtype=float32)
+    ```
     """
+
     y = np.array(y, dtype='int')
     input_shape = y.shape
     if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
