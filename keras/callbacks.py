@@ -790,8 +790,7 @@ class TensorBoard(Callback):
             self.sess = K.get_session()
         if self.histogram_freq and self.merged is None:
             for layer in self.model.layers:
-
-                for weight in layer.trainable_weights:
+                for weight in layer.weights:
                     mapped_weight_name = weight.name.replace(':', '_')
                     tf.summary.histogram(mapped_weight_name, weight)
                     if self.write_grads:
