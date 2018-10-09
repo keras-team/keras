@@ -2686,7 +2686,11 @@ class Function(object):
                     (np.expand_dims(sparse_coo.row, 1),
                      np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
-            feed_dict[tensor] = value
+            if isinstance(tensor, list):
+                for tensor_i in range(len(tensor)):
+                    feed_dict[tensor[tensor_i]] = value[tensor_i]
+            else:
+                feed_dict[tensor] = value
         fetches = self.outputs + [self.updates_op] + self.fetches
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
