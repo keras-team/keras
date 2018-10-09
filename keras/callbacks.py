@@ -13,7 +13,6 @@ import time
 import json
 import warnings
 import io
-import sys
 
 from collections import deque
 from collections import OrderedDict
