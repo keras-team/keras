@@ -23,5 +23,6 @@ from .layer_utils import get_source_inputs
 from .layer_utils import print_summary
 from .vis_utils import plot_model
 from .np_utils import to_categorical
+from .np_utils import to_ordinal
 from .np_utils import normalize
 from .multi_gpu_utils import multi_gpu_model
