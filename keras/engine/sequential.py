@@ -228,13 +228,13 @@ class Sequential(Model):
                                      name=self.name)
             self.built = True
 
-    def predict_proba(self, x, batch_size=32, verbose=0):
+    def predict_proba(self, inputs, batch_size=32, verbose=0):
         """Generates class probability predictions for the input samples.
 
         The input samples are processed batch by batch.
 
         # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
+            inputs: input data, as a Numpy array or list of Numpy arrays
                 (if the model has multiple inputs).
             batch_size: integer.
             verbose: verbosity mode, 0 or 1.
@@ -242,7 +242,7 @@ class Sequential(Model):
         # Returns
             A Numpy array of probability predictions.
         """
-        preds = self.predict(x, batch_size, verbose)
+        preds = self.predict(inputs, batch_size, verbose)
         if preds.min() < 0. or preds.max() > 1.:
             warnings.warn('Network returning invalid probability values. '
                           'The last layer might not normalize predictions '
@@ -250,13 +250,13 @@ class Sequential(Model):
                           '(like softmax or sigmoid would).')
         return preds
 
-    def predict_classes(self, x, batch_size=32, verbose=0):
+    def predict_classes(self, inputs, batch_size=32, verbose=0):
         """Generate class predictions for the input samples.
 
         The input samples are processed batch by batch.
 
         # Arguments
-            x: input data, as a Numpy array or list of Numpy arrays
+            inputs: input data, as a Numpy array or list of Numpy arrays
                 (if the model has multiple inputs).
             batch_size: integer.
             verbose: verbosity mode, 0 or 1.
@@ -264,7 +264,7 @@ class Sequential(Model):
         # Returns:
             A numpy array of class predictions.
         """
-        proba = self.predict(x, batch_size=batch_size, verbose=verbose)
+        proba = self.predict(inputs, batch_size=batch_size, verbose=verbose)
         if proba.shape[-1] > 1:
             return proba.argmax(axis=-1)
         else:
