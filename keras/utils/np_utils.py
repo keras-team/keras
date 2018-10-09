@@ -55,6 +55,36 @@ def to_categorical(y, num_classes=None, dtype='float32'):
     return categorical
 
 
+def to_ordinal(y, num_classes=None):
+    """Converts a class vector (integers representing ordinal values) to multi-hot binary class matrix.
+
+    E.g. for use with binary_crossentropy.
+
+    # Arguments
+        y: class vector to be converted into a matrix
+            (integers from 0 to num_classes).
+        num_classes: total number of classes.
+
+    # Returns
+        A binary matrix representation of the input. The classes axis
+        is placed last.
+    """
+    y = np.array(y, dtype='int')
+    input_shape = y.shape
+    if input_shape and input_shape[-1] == 1 and len(input_shape) > 1:
+        input_shape = tuple(input_shape[:-1])
+    y = y.ravel()
+    if not num_classes:
+        num_classes = np.max(y) + 1
+    n = y.shape[0]
+    ordinal = np.zeros((n, num_classes - 1), dtype=np.float32)
+    for i, yi in enumerate(y):
+        ordinal[i, :yi] = 1
+    output_shape = input_shape + (num_classes - 1,)
+    ordinal = np.reshape(ordinal, output_shape)
+    return ordinal
+
+
 def normalize(x, axis=-1, order=2):
     """Normalizes a Numpy array.
 
