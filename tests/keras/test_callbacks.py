@@ -12,10 +12,11 @@ from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Dropout, add, dot, Lambda, Layer
-from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D
-from keras.layers.pooling import GlobalAveragePooling1D
-from keras.layers.pooling import GlobalAveragePooling2D
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
+from keras.layers import GlobalAveragePooling1D
+from keras.layers import GlobalAveragePooling2D
+from keras.layers import BatchNormalization
 from keras.utils.test_utils import get_test_data
 from keras.utils.generic_utils import to_list
 from keras.utils.generic_utils import unpack_singleton
@@ -575,6 +576,7 @@ def test_TensorBoard(tmpdir, update_freq):
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
+    hidden = BatchNormalization()(hidden)
     output = Dense(num_classes, activation='softmax')(hidden)
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
