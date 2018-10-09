@@ -222,13 +222,14 @@ def fit_loop(model, fit_function, fit_inputs,
     return model.history
 
 
-def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
+def predict_loop(model, predict_function, inputs,
+                 batch_size=32, verbose=0, steps=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
         model: Keras model instance.
-        f: Keras function returning a list of tensors.
-        ins: list of tensors to be fed to `f`.
+        predict_function: Keras function returning a list of tensors.
+        inputs: list of tensors to be fed to `predict_function`.
         batch_size: integer batch size.
         verbose: verbosity mode.
         steps: Total number of steps (batches of samples)
@@ -240,7 +241,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         or list of arrays of predictions
         (if the model has multiple outputs).
     """
-    num_samples = check_num_samples(ins,
+    num_samples = check_num_samples(inputs,
                                     batch_size=batch_size,
                                     steps=steps,
                                     steps_name='steps')
@@ -252,7 +253,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
 
     indices_for_conversion_to_dense = []
     for i in range(len(model._feed_inputs)):
-        if issparse(ins[i]) and not K.is_sparse(model._feed_inputs[i]):
+        if issparse(inputs[i]) and not K.is_sparse(model._feed_inputs[i]):
             indices_for_conversion_to_dense.append(i)
 
     if steps is not None:
@@ -264,7 +265,7 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         # and concatenate them upon returning.
         unconcatenated_outs = []
         for step in range(steps):
-            batch_outs = f(ins)
+            batch_outs = predict_function(inputs)
             batch_outs = to_list(batch_outs)
             if step == 0:
                 for batch_out in batch_outs:
@@ -284,15 +285,15 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         index_array = np.arange(num_samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
-            if ins and isinstance(ins[-1], float):
+            if inputs and isinstance(inputs[-1], float):
                 # Do not slice the training phase flag.
-                ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                ins_batch = slice_arrays(inputs[:-1], batch_ids) + [inputs[-1]]
             else:
-                ins_batch = slice_arrays(ins, batch_ids)
+                ins_batch = slice_arrays(inputs, batch_ids)
             for i in indices_for_conversion_to_dense:
                 ins_batch[i] = ins_batch[i].toarray()
 
-            batch_outs = f(ins_batch)
+            batch_outs = predict_function(ins_batch)
             batch_outs = to_list(batch_outs)
             if batch_index == 0:
                 # Pre-allocate the results arrays.
@@ -306,13 +307,13 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         return unpack_singleton(outs)
 
 
-def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
+def test_loop(model, test_function, inputs, batch_size=None, verbose=0, steps=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
         model: Keras model instance.
-        f: Keras function returning a list of tensors.
-        ins: list of tensors to be fed to `f`.
+        test_function: Keras function returning a list of tensors.
+        inputs: list of tensors to be fed to `test_function`.
         batch_size: integer batch size or `None`.
         verbose: verbosity mode.
         steps: Total number of steps (batches of samples)
@@ -335,7 +336,7 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
     else:
         stateful_metric_indices = []
 
-    num_samples = check_num_samples(ins,
+    num_samples = check_num_samples(inputs,
                                     batch_size=batch_size,
                                     steps=steps,
                                     steps_name='steps')
@@ -353,12 +354,12 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
             model._feed_sample_weights)
     indices_for_conversion_to_dense = []
     for i in range(len(feed)):
-        if issparse(ins[i]) and not K.is_sparse(feed[i]):
+        if issparse(inputs[i]) and not K.is_sparse(feed[i]):
             indices_for_conversion_to_dense.append(i)
 
     if steps is not None:
         for step in range(steps):
-            batch_outs = f(ins)
+            batch_outs = test_function(inputs)
             if isinstance(batch_outs, list):
                 if step == 0:
                     for _ in enumerate(batch_outs):
@@ -382,15 +383,15 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
         index_array = np.arange(num_samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
-            if isinstance(ins[-1], float):
+            if isinstance(inputs[-1], float):
                 # Do not slice the training phase flag.
-                ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
+                ins_batch = slice_arrays(inputs[:-1], batch_ids) + [inputs[-1]]
             else:
-                ins_batch = slice_arrays(ins, batch_ids)
+                ins_batch = slice_arrays(inputs, batch_ids)
             for i in indices_for_conversion_to_dense:
                 ins_batch[i] = ins_batch[i].toarray()
 
-            batch_outs = f(ins_batch)
+            batch_outs = test_function(ins_batch)
             if isinstance(batch_outs, list):
                 if batch_index == 0:
                     for batch_out in enumerate(batch_outs):

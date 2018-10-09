@@ -1112,7 +1112,7 @@ class Model(Network):
                                          verbose=verbose,
                                          steps=steps)
 
-    def predict(self, x,
+    def predict(self, inputs,
                 batch_size=None,
                 verbose=0,
                 steps=None):
@@ -1121,7 +1121,7 @@ class Model(Network):
         Computation is done in batches.
 
         # Arguments
-            x: The input data, as a Numpy array
+            inputs: The input data, as a Numpy array
                 (or list of Numpy arrays if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
@@ -1141,29 +1141,30 @@ class Model(Network):
         # Backwards compatibility.
         if batch_size is None and steps is None:
             batch_size = 32
-        if x is None and steps is None:
+        if inputs is None and steps is None:
             raise ValueError('If predicting from data tensors, '
                              'you should specify the `steps` '
                              'argument.')
         # Validate user data.
-        x, _, _ = self._standardize_user_data(x)
+        inputs, _, _ = self._standardize_user_data(inputs)
         if self.stateful:
-            if x[0].shape[0] > batch_size and x[0].shape[0] % batch_size != 0:
+            if inputs[0].shape[0] > batch_size \
+                    and inputs[0].shape[0] % batch_size != 0:
                 raise ValueError('In a stateful network, '
                                  'you should only pass inputs with '
                                  'a number of samples that can be '
                                  'divided by the batch size. Found: ' +
-                                 str(x[0].shape[0]) + ' samples. '
+                                 str(inputs[0].shape[0]) + ' samples. '
                                  'Batch size: ' + str(batch_size) + '.')
 
         # Prepare inputs, delegate logic to `predict_loop`.
         if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
+            ins = inputs + [0.]
         else:
-            ins = x
+            ins = inputs
         self._make_predict_function()
-        f = self.predict_function
-        return training_arrays.predict_loop(self, f, ins,
+        predict_function = self.predict_function
+        return training_arrays.predict_loop(self, predict_function, ins,
                                             batch_size=batch_size,
                                             verbose=verbose,
                                             steps=steps)
