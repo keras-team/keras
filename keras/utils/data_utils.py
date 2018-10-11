@@ -91,16 +91,16 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     """
     if archive_format is None:
         return False
-    if archive_format is 'auto':
+    if archive_format == 'auto':
         archive_format = ['tar', 'zip']
     if isinstance(archive_format, six.string_types):
         archive_format = [archive_format]
 
     for archive_type in archive_format:
-        if archive_type is 'tar':
+        if archive_type == 'tar':
             open_fn = tarfile.open
             is_match_fn = tarfile.is_tarfile
-        if archive_type is 'zip':
+        if archive_type == 'zip':
             open_fn = zipfile.ZipFile
             is_match_fn = zipfile.is_zipfile
 
@@ -210,7 +210,7 @@ def get_file(fname,
 
         def dl_progress(count, block_size, total_size):
             if ProgressTracker.progbar is None:
-                if total_size is -1:
+                if total_size == -1:
                     total_size = None
                 ProgressTracker.progbar = Progbar(total_size)
             else:
@@ -261,7 +261,7 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
     # Returns
         The file hash
     """
-    if (algorithm is 'sha256') or (algorithm is 'auto' and len(hash) is 64):
+    if (algorithm == 'sha256') or (algorithm == 'auto' and len(hash) == 64):
         hasher = hashlib.sha256()
     else:
         hasher = hashlib.md5()
@@ -287,8 +287,8 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
     # Returns
         Whether the file is valid
     """
-    if ((algorithm is 'sha256') or
-            (algorithm is 'auto' and len(file_hash) is 64)):
+    if ((algorithm == 'sha256') or
+            (algorithm == 'auto' and len(file_hash) == 64)):
         hasher = 'sha256'
     else:
         hasher = 'md5'
