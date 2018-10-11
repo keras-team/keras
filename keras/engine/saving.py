@@ -133,6 +133,7 @@ def _serialize_model(model, f, include_optimizer=True):
                 },
                 'loss': model.loss,
                 'metrics': model.metrics,
+                'weighted_metrics': model.weighted_metrics,
                 'sample_weight_mode': model.sample_weight_mode,
                 'loss_weights': model.loss_weights,
             }, default=get_json_type).encode('utf8')
