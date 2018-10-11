@@ -1,12 +1,8 @@
 import pytest
-import os
 import sys
-import tempfile
 import numpy as np
 from numpy.testing import assert_allclose
-from numpy.testing import assert_raises
 
-from keras import backend as K
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Input
@@ -18,12 +14,6 @@ if sys.version_info[0] == 3:
     import pickle
 else:
     import cPickle as pickle
-
-
-skipif_no_tf_gpu = pytest.mark.skipif(
-    (K.backend() != 'tensorflow') or
-    (not K.tensorflow_backend._get_available_gpus()),
-    reason='Requires TensorFlow backend and a GPU')
 
 
 def test_sequential_model_pickling():
