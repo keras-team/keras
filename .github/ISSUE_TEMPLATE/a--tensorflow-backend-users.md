@@ -1,6 +1,6 @@
 ---
 name: a) TensorFlow backend users
-about: Select this is you're using Keras with the TensorFlow backend (default).
+about: Select this if you're using Keras with the TensorFlow backend (default).
 
 ---
 
