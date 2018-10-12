@@ -51,7 +51,7 @@ def test_sparse_categorical_accuracy_correctness():
         y_b_shape = shape + (7,)
         y_b = K.variable(np.random.random(y_b_shape), dtype=K.floatx())
         # use one_hot embedding to convert sparse labels to equivalent dense labels
-        y_a_dense_labels = K.cast(K.one_hot(K.cast(y_a, dtype='int32'), num_classes=7),
+        y_a_dense_labels = K.cast(K.one_hot(K.cast(y_a, dtype='int32'), 7),
                                   dtype=K.floatx())
         sparse_categorical_acc = metrics.sparse_categorical_accuracy(y_a, y_b)
         categorical_acc = metrics.categorical_accuracy(y_a_dense_labels, y_b)
