@@ -56,7 +56,8 @@ def to_categorical(y, num_classes=None, dtype='float32'):
 
 
 def to_ordinal(y, num_classes=None, dtype='float32'):
-    """Converts a class vector (integers representing ordinal values) to multi-hot binary class matrix.
+    """Converts a class vector (integers representing ordinal values) to multi-hot
+    binary class matrix.
 
     E.g. for use with binary_crossentropy.
 
