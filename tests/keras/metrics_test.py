@@ -55,6 +55,12 @@ def test_sparse_categorical_accuracy_correctness():
     assert np.allclose(K.eval(sparse_categorical_acc), K.eval(categorical_acc))
 
 
+def test_sparse_categorical_accuracy_with_timesteps():
+    y_a = K.variable(np.random.randint(0, 7, (6, 3)), dtype=K.floatx())
+    y_b = K.variable(np.random.random((6, 3, 7)), dtype=K.floatx())
+    acc = K.eval(metrics.sparse_categorical_accuracy(y_a, y_b))
+
+
 def test_serialize():
     '''This is a mock 'round trip' of serialize and deserialize.
     '''
