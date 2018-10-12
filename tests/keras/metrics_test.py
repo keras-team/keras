@@ -45,20 +45,17 @@ def test_sparse_metrics():
 
 
 def test_sparse_categorical_accuracy_correctness():
-    y_a = K.variable(np.random.randint(0, 7, (6,)), dtype=K.floatx())
-    y_b = K.variable(np.random.random((6, 7)), dtype=K.floatx())
-    # use one_hot embedding to convert sparse labels to equivalent dense labels
-    y_a_dense_labels = K.cast(K.one_hot(K.cast(y_a, dtype='int32'), num_classes=7),
-                              dtype=K.floatx())
-    sparse_categorical_acc = metrics.sparse_categorical_accuracy(y_a, y_b)
-    categorical_acc = metrics.categorical_accuracy(y_a_dense_labels, y_b)
-    assert np.allclose(K.eval(sparse_categorical_acc), K.eval(categorical_acc))
-
-
-def test_sparse_categorical_accuracy_with_timesteps():
-    y_a = K.variable(np.random.randint(0, 7, (6, 3)), dtype=K.floatx())
-    y_b = K.variable(np.random.random((6, 3, 7)), dtype=K.floatx())
-    acc = K.eval(metrics.sparse_categorical_accuracy(y_a, y_b))
+    input_shapes = [(6,), (6, 3)]
+    for shape in input_shapes:
+        y_a = K.variable(np.random.randint(0, 7, shape), dtype=K.floatx())
+        y_b_shape = shape + (7,)
+        y_b = K.variable(np.random.random(y_b_shape), dtype=K.floatx())
+        # use one_hot embedding to convert sparse labels to equivalent dense labels
+        y_a_dense_labels = K.cast(K.one_hot(K.cast(y_a, dtype='int32'), num_classes=7),
+                                  dtype=K.floatx())
+        sparse_categorical_acc = metrics.sparse_categorical_accuracy(y_a, y_b)
+        categorical_acc = metrics.categorical_accuracy(y_a_dense_labels, y_b)
+        assert np.allclose(K.eval(sparse_categorical_acc), K.eval(categorical_acc))
 
 
 def test_serialize():
