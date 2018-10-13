@@ -44,11 +44,13 @@ def test_sparse_metrics():
         assert K.eval(metric(y_a, y_b)).shape == (6,)
 
 
-def test_sparse_categorical_accuracy_correctness():
-    y_a = K.variable(np.random.randint(0, 7, (6,)), dtype=K.floatx())
-    y_b = K.variable(np.random.random((6, 7)), dtype=K.floatx())
+@pytest.mark.parametrize('shape', [(6,), (6, 3), (6, 3, 1)])
+def test_sparse_categorical_accuracy_correctness(shape):
+    y_a = K.variable(np.random.randint(0, 7, shape), dtype=K.floatx())
+    y_b_shape = shape + (7,)
+    y_b = K.variable(np.random.random(y_b_shape), dtype=K.floatx())
     # use one_hot embedding to convert sparse labels to equivalent dense labels
-    y_a_dense_labels = K.cast(K.one_hot(K.cast(y_a, dtype='int32'), num_classes=7),
+    y_a_dense_labels = K.cast(K.one_hot(K.cast(y_a, dtype='int32'), 7),
                               dtype=K.floatx())
     sparse_categorical_acc = metrics.sparse_categorical_accuracy(y_a, y_b)
     categorical_acc = metrics.categorical_accuracy(y_a_dense_labels, y_b)
