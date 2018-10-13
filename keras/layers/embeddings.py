@@ -10,6 +10,7 @@ from .. import regularizers
 from .. import constraints
 from ..engine.base_layer import Layer
 from ..legacy import interfaces
+from ..utils.generic_utils import to_list
 
 
 class Embedding(Layer):
@@ -24,7 +25,8 @@ class Embedding(Layer):
       model = Sequential()
       model.add(Embedding(1000, 64, input_length=10))
       # the model will take as input an integer matrix of size (batch, input_length).
-      # the largest integer (i.e. word index) in the input should be no larger than 999 (vocabulary size).
+      # the largest integer (i.e. word index) in the input should be
+      # no larger than 999 (vocabulary size).
       # now model.output_shape == (None, 10, 64), where None is the batch dimension.
 
       input_array = np.random.randint(1000, size=(32, 10))
@@ -35,30 +37,30 @@ class Embedding(Layer):
     ```
 
     # Arguments
-      input_dim: int > 0. Size of the vocabulary,
-          i.e. maximum integer index + 1.
-      output_dim: int >= 0. Dimension of the dense embedding.
-      embeddings_initializer: Initializer for the `embeddings` matrix
-          (see [initializers](../initializers.md)).
-      embeddings_regularizer: Regularizer function applied to
-          the `embeddings` matrix
-          (see [regularizer](../regularizers.md)).
-      embeddings_constraint: Constraint function applied to
-          the `embeddings` matrix
-          (see [constraints](../constraints.md)).
-      mask_zero: Whether or not the input value 0 is a special "padding"
-          value that should be masked out.
-          This is useful when using [recurrent layers](recurrent.md)
-          which may take variable length input.
-          If this is `True` then all subsequent layers
-          in the model need to support masking or an exception will be raised.
-          If mask_zero is set to True, as a consequence, index 0 cannot be
-          used in the vocabulary (input_dim should equal size of
-          vocabulary + 1).
-      input_length: Length of input sequences, when it is constant.
-          This argument is required if you are going to connect
-          `Flatten` then `Dense` layers upstream
-          (without it, the shape of the dense outputs cannot be computed).
+        input_dim: int > 0. Size of the vocabulary,
+            i.e. maximum integer index + 1.
+        output_dim: int >= 0. Dimension of the dense embedding.
+        embeddings_initializer: Initializer for the `embeddings` matrix
+            (see [initializers](../initializers.md)).
+        embeddings_regularizer: Regularizer function applied to
+            the `embeddings` matrix
+            (see [regularizer](../regularizers.md)).
+        embeddings_constraint: Constraint function applied to
+            the `embeddings` matrix
+            (see [constraints](../constraints.md)).
+        mask_zero: Whether or not the input value 0 is a special "padding"
+            value that should be masked out.
+            This is useful when using [recurrent layers](recurrent.md)
+            which may take variable length input.
+            If this is `True` then all subsequent layers
+            in the model need to support masking or an exception will be raised.
+            If mask_zero is set to True, as a consequence, index 0 cannot be
+            used in the vocabulary (input_dim should equal size of
+            vocabulary + 1).
+        input_length: Length of input sequences, when it is constant.
+            This argument is required if you are going to connect
+            `Flatten` then `Dense` layers upstream
+            (without it, the shape of the dense outputs cannot be computed).
 
     # Input shape
         2D tensor with shape: `(batch_size, sequence_length)`.
@@ -67,7 +69,8 @@ class Embedding(Layer):
         3D tensor with shape: `(batch_size, sequence_length, output_dim)`.
 
     # References
-        - [A Theoretically Grounded Application of Dropout in Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
+        - [A Theoretically Grounded Application of Dropout in
+           Recurrent Neural Networks](http://arxiv.org/abs/1512.05287)
     """
 
     @interfaces.legacy_embedding_support
@@ -93,6 +96,7 @@ class Embedding(Layer):
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.embeddings_constraint = constraints.get(embeddings_constraint)
         self.mask_zero = mask_zero
+        self.supports_masking = mask_zero
         self.input_length = input_length
 
     def build(self, input_shape):
@@ -108,26 +112,25 @@ class Embedding(Layer):
     def compute_mask(self, inputs, mask=None):
         if not self.mask_zero:
             return None
-        else:
-            return K.not_equal(inputs, 0)
+        output_mask = K.not_equal(inputs, 0)
+        return output_mask
 
     def compute_output_shape(self, input_shape):
         if self.input_length is None:
             return input_shape + (self.output_dim,)
         else:
             # input_length can be tuple if input is 3D or higher
-            if isinstance(self.input_length, (list, tuple)):
-                in_lens = list(self.input_length)
-            else:
-                in_lens = [self.input_length]
+            in_lens = to_list(self.input_length, allow_tuple=True)
             if len(in_lens) != len(input_shape) - 1:
-                ValueError('"input_length" is %s, but received input has shape %s' %
-                           (str(self.input_length), str(input_shape)))
+                raise ValueError(
+                    '"input_length" is %s, but received input has shape %s' %
+                    (str(self.input_length), str(input_shape)))
             else:
                 for i, (s1, s2) in enumerate(zip(in_lens, input_shape[1:])):
                     if s1 is not None and s2 is not None and s1 != s2:
-                        ValueError('"input_length" is %s, but received input has shape %s' %
-                                   (str(self.input_length), str(input_shape)))
+                        raise ValueError(
+                            '"input_length" is %s, but received input has shape %s' %
+                            (str(self.input_length), str(input_shape)))
                     elif s1 is None:
                         in_lens[i] = s2
             return (input_shape[0],) + tuple(in_lens) + (self.output_dim,)
@@ -141,10 +144,14 @@ class Embedding(Layer):
     def get_config(self):
         config = {'input_dim': self.input_dim,
                   'output_dim': self.output_dim,
-                  'embeddings_initializer': initializers.serialize(self.embeddings_initializer),
-                  'embeddings_regularizer': regularizers.serialize(self.embeddings_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-                  'embeddings_constraint': constraints.serialize(self.embeddings_constraint),
+                  'embeddings_initializer':
+                      initializers.serialize(self.embeddings_initializer),
+                  'embeddings_regularizer':
+                      regularizers.serialize(self.embeddings_regularizer),
+                  'activity_regularizer':
+                      regularizers.serialize(self.activity_regularizer),
+                  'embeddings_constraint':
+                      constraints.serialize(self.embeddings_constraint),
                   'mask_zero': self.mask_zero,
                   'input_length': self.input_length}
         base_config = super(Embedding, self).get_config()

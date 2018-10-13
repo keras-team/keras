@@ -11,6 +11,7 @@ import numpy as np
 
 from ..utils.np_utils import to_categorical
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import to_list
 from ..models import Sequential
 
 
@@ -291,8 +292,7 @@ class KerasClassifier(BaseWrapper):
             y = to_categorical(y)
 
         outputs = self.model.evaluate(x, y, **kwargs)
-        if not isinstance(outputs, list):
-            outputs = [outputs]
+        outputs = to_list(outputs)
         for name, output in zip(self.model.metrics_names, outputs):
             if name == 'acc':
                 return output

@@ -11,12 +11,17 @@ from .common import set_floatx
 from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
+from .common import normalize_data_format
 
-# Obtain Keras base dir path: either ~/.keras or /tmp.
-_keras_base_dir = os.path.expanduser('~')
-if not os.access(_keras_base_dir, os.W_OK):
-    _keras_base_dir = '/tmp'
-_keras_dir = os.path.join(_keras_base_dir, '.keras')
+# Set Keras base dir path given KERAS_HOME env variable, if applicable.
+# Otherwise either ~/.keras or /tmp.
+if 'KERAS_HOME' in os.environ:
+    _keras_dir = os.environ.get('KERAS_HOME')
+else:
+    _keras_base_dir = os.path.expanduser('~')
+    if not os.access(_keras_base_dir, os.W_OK):
+        _keras_base_dir = '/tmp'
+    _keras_dir = os.path.join(_keras_base_dir, '.keras')
 
 # Default backend: TensorFlow.
 _BACKEND = 'tensorflow'
@@ -69,7 +74,8 @@ if not os.path.exists(_config_path):
 # Set backend based on KERAS_BACKEND flag, if applicable.
 if 'KERAS_BACKEND' in os.environ:
     _backend = os.environ['KERAS_BACKEND']
-    _BACKEND = _backend
+    if _backend:
+        _BACKEND = _backend
 
 # Import backend functions.
 if _BACKEND == 'cntk':

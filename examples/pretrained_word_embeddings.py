@@ -22,6 +22,7 @@ from keras.utils import to_categorical
 from keras.layers import Dense, Input, GlobalMaxPooling1D
 from keras.layers import Conv1D, MaxPooling1D, Embedding
 from keras.models import Model
+from keras.initializers import Constant
 
 
 BASE_DIR = ''
@@ -101,10 +102,10 @@ y_val = labels[-num_validation_samples:]
 print('Preparing embedding matrix.')
 
 # prepare embedding matrix
-num_words = min(MAX_NUM_WORDS, len(word_index) + 1)
+num_words = min(MAX_NUM_WORDS, len(word_index)) + 1
 embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
 for word, i in word_index.items():
-    if i >= MAX_NUM_WORDS:
+    if i > MAX_NUM_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
     if embedding_vector is not None:
@@ -115,7 +116,7 @@ for word, i in word_index.items():
 # note that we set trainable = False so as to keep the embeddings fixed
 embedding_layer = Embedding(num_words,
                             EMBEDDING_DIM,
-                            weights=[embedding_matrix],
+                            embeddings_initializer=Constant(embedding_matrix),
                             input_length=MAX_SEQUENCE_LENGTH,
                             trainable=False)
 

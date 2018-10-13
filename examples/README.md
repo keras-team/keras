@@ -11,6 +11,9 @@ Trains a simple convnet on the MNIST dataset.
 [cifar10_cnn.py](cifar10_cnn.py)
 Trains a simple deep CNN on the CIFAR10 small images dataset.
 
+[cifar10_cnn_capsule.py](cifar10_cnn_capsule.py)
+Trains a simple CNN-Capsule Network on the CIFAR10 small images dataset.
+
 [cifar10_resnet.py](cifar10_resnet.py)
 Trains a ResNet on the CIFAR10 small images dataset.
 
@@ -33,7 +36,10 @@ Trains a Siamese multi-layer perceptron on pairs of digits from the MNIST datase
 Trains a Stacked What-Where AutoEncoder built on residual blocks on the MNIST dataset.
 
 [mnist_transfer_cnn.py](mnist_transfer_cnn.py)
-Transfer learning toy example.
+Transfer learning toy example on the MNIST dataset.
+
+[mnist_denoising_autoencoder.py](mnist_denoising_autoencoder.py)
+Trains a denoising autoencoder on the MNIST dataset.
 
 ----
 
@@ -65,6 +71,12 @@ Trains an LSTM model on the IMDB sentiment classification task.
 
 [lstm_stateful.py](lstm_stateful.py)
 Demonstrates how to use stateful RNNs to model long sequences efficiently.
+
+[lstm_seq2seq.py](lstm_seq2seq.py)
+Trains a basic character-level sequence-to-sequence model.
+
+[lstm_seq2seq_restore.py](lstm_seq2seq_restore.py)
+Restores a character-level sequence to sequence model from disk (saved by [lstm_seq2seq.py](lstm_seq2seq.py)) and uses it to generate predictions.
 
 [pretrained_word_embeddings.py](pretrained_word_embeddings.py)
 Loads pre-trained word embeddings (GloVe embeddings) into a frozen Keras Embedding layer, and uses it to train a text classification model on the 20 Newsgroup dataset.
@@ -121,3 +133,9 @@ MNIST dataset with TFRecords, the standard TensorFlow data format.
 
 [mnist_dataset_api.py](mnist_dataset_api.py)
 MNIST dataset with TensorFlow's Dataset API.
+
+[cifar10_cnn_tfaugment2d.py](cifar10_cnn_tfaugment2d.py)
+Trains a simple deep CNN on the CIFAR10 small images dataset using Tensorflow internal augmentation APIs.
+
+[tensorboard_embeddings_mnist.py](tensorboard_embeddings_mnist.py)
+Trains a simple convnet on the MNIST dataset and embeds test data which can be later visualized using TensorBoard's Embedding Projector.

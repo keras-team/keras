@@ -115,6 +115,17 @@ def deserialize(name, custom_objects=None):
 
 
 def get(identifier):
+    """Get the `identifier` loss function.
+
+    # Arguments
+        identifier: None or str, name of the function.
+
+    # Returns
+        The loss function or None if `identifier` is None.
+
+    # Raises
+        ValueError if unknown identifier.
+    """
     if identifier is None:
         return None
     if isinstance(identifier, six.string_types):

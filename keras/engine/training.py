@@ -25,6 +25,8 @@ from .. import optimizers
 from .. import losses
 from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
+from ..utils.generic_utils import to_list
+from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
 
 
@@ -154,8 +156,7 @@ class Model(Network):
         masks = self.compute_mask(self.inputs, mask=None)
         if masks is None:
             masks = [None for _ in self.outputs]
-        if not isinstance(masks, list):
-            masks = [masks]
+        masks = to_list(masks)
 
         # Prepare loss weights.
         if loss_weights is None:
@@ -206,9 +207,18 @@ class Model(Network):
                 for name in self.output_names:
                     tmp_target_tensors.append(target_tensors.get(name, None))
                 target_tensors = tmp_target_tensors
+            elif K.is_tensor(target_tensors):
+                if len(self.outputs) != 1:
+                    raise ValueError('The model has ' + str(len(self.outputs)) +
+                                     ' outputs, but you passed a single tensor as '
+                                     '`target_tensors`. Expected a list or a dict '
+                                     'of tensors.')
+                target_tensors = [target_tensors]
             else:
-                raise TypeError('Expected `target_tensors` to be '
-                                'a list or dict, but got:', target_tensors)
+                raise TypeError('Expected `target_tensors` to be a tensor, '
+                                'a list of tensors, or dict of tensors, but got:',
+                                target_tensors)
+
         for i in range(len(self.outputs)):
             if i in skip_target_indices:
                 self.targets.append(None)
@@ -373,13 +383,15 @@ class Model(Network):
                             metric_fn = metrics_module.binary_accuracy
                         elif metric in ('crossentropy', 'ce'):
                             metric_fn = metrics_module.binary_crossentropy
-                    elif self.loss_functions[i] == losses.sparse_categorical_crossentropy:
+                    elif (self.loss_functions[i] ==
+                          losses.sparse_categorical_crossentropy):
                         # case: categorical accuracy/crossentropy
                         # with sparse targets
                         if metric in ('accuracy', 'acc'):
                             metric_fn = metrics_module.sparse_categorical_accuracy
                         elif metric in ('crossentropy', 'ce'):
-                            metric_fn = metrics_module.sparse_categorical_crossentropy
+                            metric_fn = (
+                                metrics_module.sparse_categorical_crossentropy)
                     else:
                         # case: categorical accuracy/crossentropy
                         if metric in ('accuracy', 'acc'):
@@ -561,7 +573,8 @@ class Model(Network):
               when calling `fit`/etc.
             - if data tensors: the model is built on top of these tensors.
               We do not expect any Numpy data to be provided when calling `fit`/etc.
-          outputs: Optional output tensors (if already computed by running the model).
+          outputs: Optional output tensors (if already computed by running
+            the model).
           training: Boolean or None. Only relevant in symbolic mode. Specifies
             whether to build the model's graph in inference mode (False), training
             mode (True), or using the Keras learning phase (None).
@@ -587,10 +600,7 @@ class Model(Network):
         self._feed_inputs = []
         self._feed_input_names = []
         self._feed_input_shapes = []
-        if isinstance(inputs, (list, tuple)):
-            inputs = list(inputs)
-        else:
-            inputs = [inputs]
+        inputs = to_list(inputs, allow_tuple=True)
 
         for i, v in enumerate(inputs):
             name = 'input_%d' % (i + 1)
@@ -620,20 +630,11 @@ class Model(Network):
 
         if outputs is None:
             # Obtain symbolic outputs by calling the model.
-            if len(self.inputs) == 1:
-                if self._expects_training_arg:
-                    outputs = self.call(self.inputs[0], training=training)
-                else:
-                    outputs = self.call(self.inputs[0])
+            if self._expects_training_arg:
+                outputs = self.call(unpack_singleton(self.inputs), training=training)
             else:
-                if self._expects_training_arg:
-                    outputs = self.call(self.inputs, training=training)
-                else:
-                    outputs = self.call(self.inputs)
-        if isinstance(outputs, (list, tuple)):
-            outputs = list(outputs)
-        else:
-            outputs = [outputs]
+                outputs = self.call(unpack_singleton(self.inputs))
+        outputs = to_list(outputs, allow_tuple=True)
         self.outputs = outputs
         self.output_names = [
             'output_%d' % (i + 1) for i in range(len(self.outputs))]
@@ -701,10 +702,7 @@ class Model(Network):
                                          'You passed: y=' + str(y))
                 # Typecheck that all inputs are *either* value *or* symbolic.
                 if y is not None:
-                    if isinstance(y, (list, tuple)):
-                        all_inputs += list(y)
-                    else:
-                        all_inputs.append(y)
+                    all_inputs += to_list(y, allow_tuple=True)
                 if any(K.is_tensor(v) for v in all_inputs):
                     if not all(K.is_tensor(v) for v in all_inputs):
                         raise ValueError('Do not pass inputs that mix Numpy '
@@ -713,8 +711,7 @@ class Model(Network):
                                          '; y=' + str(y))
 
                 # Handle target tensors if any passed.
-                if not isinstance(y, (list, tuple)):
-                    y = [y]
+                y = to_list(y, allow_tuple=True)
                 target_tensors = [v for v in y if K.is_tensor(v)]
                 if not target_tensors:
                     target_tensors = None
@@ -767,7 +764,12 @@ class Model(Network):
                 for output_shape, loss_fn in zip(self._feed_output_shapes,
                                                  self._feed_loss_fns):
                     if loss_fn is losses.sparse_categorical_crossentropy:
-                        feed_output_shapes.append(output_shape[:-1] + (1,))
+                        if K.image_data_format() == 'channels_first' and len(
+                                output_shape) in [4, 5]:
+                            feed_output_shapes.append(
+                                (output_shape[0], 1) + output_shape[2:])
+                        else:
+                            feed_output_shapes.append(output_shape[:-1] + (1,))
                     elif (not hasattr(loss_fn, '__name__') or
                             getattr(losses, loss_fn.__name__, None) is None):
                         # If `loss_fn` is not a function (e.g. callable class)
@@ -974,9 +976,13 @@ class Model(Network):
                 val_ins = val_x + val_y + val_sample_weights
 
         elif validation_split and 0. < validation_split < 1.:
+            if any(K.is_tensor(t) for t in x):
+                raise ValueError(
+                    'If your data is in the form of symbolic tensors, '
+                    'you cannot use `validation_split`.')
             do_validation = True
             if hasattr(x[0], 'shape'):
-                split_at = int(x[0].shape[0] * (1. - validation_split))
+                split_at = int(int(x[0].shape[0]) * (1. - validation_split))
             else:
                 split_at = int(len(x[0]) * (1. - validation_split))
             x, val_x = (slice_arrays(x, 0, split_at),
@@ -1116,7 +1122,7 @@ class Model(Network):
 
         # Arguments
             x: The input data, as a Numpy array
-                (or list of Numpy arrays if the model has multiple outputs).
+                (or list of Numpy arrays if the model has multiple inputs).
             batch_size: Integer. If unspecified, it will default to 32.
             verbose: Verbosity mode, 0 or 1.
             steps: Total number of steps (batches of samples)
@@ -1209,9 +1215,7 @@ class Model(Network):
             ins = x + y + sample_weights
         self._make_train_function()
         outputs = self.train_function(ins)
-        if len(outputs) == 1:
-            return outputs[0]
-        return outputs
+        return unpack_singleton(outputs)
 
     def test_on_batch(self, x, y, sample_weight=None):
         """Test the model on a single batch of samples.
@@ -1250,9 +1254,7 @@ class Model(Network):
             ins = x + y + sample_weights
         self._make_test_function()
         outputs = self.test_function(ins)
-        if len(outputs) == 1:
-            return outputs[0]
-        return outputs
+        return unpack_singleton(outputs)
 
     def predict_on_batch(self, x):
         """Returns predictions for a single batch of samples.
@@ -1270,9 +1272,7 @@ class Model(Network):
             ins = x
         self._make_predict_function()
         outputs = self.predict_function(ins)
-        if len(outputs) == 1:
-            return outputs[0]
-        return outputs
+        return unpack_singleton(outputs)
 
     @interfaces.legacy_generator_methods_support
     def fit_generator(self, generator,
@@ -1288,7 +1288,8 @@ class Model(Network):
                       use_multiprocessing=False,
                       shuffle=True,
                       initial_epoch=0):
-        """Trains the model on data generated batch-by-batch by a Python generator (or an instance of `Sequence`).
+        """Trains the model on data generated batch-by-batch by a Python generator
+        (or an instance of `Sequence`).
 
         The generator is run in parallel to the model, for efficiency.
         For instance, this allows you to do real-time data augmentation
@@ -1336,7 +1337,7 @@ class Model(Network):
                 List of callbacks to apply during training.
                 See [callbacks](/callbacks).
             validation_data: This can be either
-                - a generator for the validation data
+                - a generator or a `Sequence` object for the validation data
                 - tuple `(x_val, y_val)`
                 - tuple `(x_val, y_val, val_sample_weights)`
                 on which to evaluate

@@ -14,6 +14,7 @@ from ..utils.layer_utils import count_params
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import object_list_uid
 from ..utils.generic_utils import to_list
+from ..utils.generic_utils import unpack_singleton
 from ..utils.generic_utils import is_all_none
 from ..legacy import interfaces
 
@@ -22,37 +23,42 @@ class Layer(object):
     """Abstract base layer class.
 
     # Properties
-        name: String, must be unique within a model.
+        input, output: Input/output tensor(s). Note that if the layer
+            is used more than once (shared layer), this is ill-defined
+            and will raise an exception. In such cases, use
+            `layer.get_input_at(node_index)`.
+        input_mask, output_mask: Mask tensors. Same caveats apply as
+            input, output.
+        input_shape: Shape tuple. Provided for convenience, but note
+            that there may be cases in which this attribute is
+            ill-defined (e.g. a shared layer with multiple input
+            shapes), in which case requesting `input_shape` will raise
+            an Exception. Prefer using
+            `layer.get_input_shape_at(node_index)`.
         input_spec: List of InputSpec class instances
             each entry describes one required input:
                 - ndim
                 - dtype
             A layer with `n` input tensors must have
             an `input_spec` of length `n`.
+        name: String, must be unique within a model.
+        non_trainable_weights: List of variables.
+        output_shape: Shape tuple. See `input_shape`.
+        stateful: Boolean indicating whether the layer carries
+            additional non-weight state. Used in, for instance, RNN
+            cells to carry information between batches.
+        supports_masking: Boolean indicator of whether the layer
+            supports masking, typically for unused timesteps in a
+            sequence.
         trainable: Boolean, whether the layer weights
             will be updated during training.
+        trainable_weights: List of variables.
         uses_learning_phase: Whether any operation
             of the layer uses `K.in_training_phase()`
             or `K.in_test_phase()`.
-        input_shape: Shape tuple. Provided for convenience,
-            but note that there may be cases in which this
-            attribute is ill-defined (e.g. a shared layer
-            with multiple input shapes), in which case
-            requesting `input_shape` will raise an Exception.
-            Prefer using `layer.get_input_shape_for(input_shape)`,
-            or `layer.get_input_shape_at(node_index)`.
-        output_shape: Shape tuple. See above.
-        inbound_nodes: List of nodes.
-        outbound_nodes: List of nodes.
-        input, output: Input/output tensor(s). Note that if the layer is used
-            more than once (shared layer), this is ill-defined
-            and will raise an exception. In such cases, use
-            `layer.get_input_at(node_index)`.
-        input_mask, output_mask: Same as above, for masks.
-        trainable_weights: List of variables.
-        non_trainable_weights: List of variables.
         weights: The concatenation of the lists trainable_weights and
             non_trainable_weights (in this order).
+
 
     # Methods
         call(x, mask=None): Where the layer's logic lives.
@@ -63,26 +69,26 @@ class Layer(object):
                 - Add layer to tensor history
             If layer is not built:
                 - Build from x._keras_shape
+        compute_mask(x, mask)
+        compute_output_shape(input_shape)
+        count_params()
+        get_config()
+        get_input_at(node_index)
+        get_input_mask_at(node_index)
+        get_input_shape_at(node_index)
+        get_output_at(node_index)
+        get_output_mask_at(node_index)
+        get_output_shape_at(node_index)
         get_weights()
         set_weights(weights)
-        get_config()
-        count_params()
-        compute_output_shape(input_shape)
-        compute_mask(x, mask)
-        get_input_at(node_index)
-        get_output_at(node_index)
-        get_input_shape_at(node_index)
-        get_output_shape_at(node_index)
-        get_input_mask_at(node_index)
-        get_output_mask_at(node_index)
 
     # Class Methods
         from_config(config)
 
     # Internal methods:
-        build(input_shape)
         _add_inbound_node(layer, index=0)
         assert_input_compatibility()
+        build(input_shape)
     """
 
     def __init__(self, **kwargs):
@@ -422,10 +428,7 @@ class Layer(object):
                                          'and thus cannot be built. '
                                          'You can build it manually via: '
                                          '`layer.build(batch_input_shape)`')
-                if len(input_shapes) == 1:
-                    self.build(input_shapes[0])
-                else:
-                    self.build(input_shapes)
+                self.build(unpack_singleton(input_shapes))
                 self.built = True
 
                 # Load weights that were specified at layer instantiation.
@@ -463,10 +466,7 @@ class Layer(object):
                 if x in inputs_ls:
                     x = K.identity(x)
                 output_ls_copy.append(x)
-            if len(output_ls_copy) == 1:
-                output = output_ls_copy[0]
-            else:
-                output = output_ls_copy
+            output = unpack_singleton(output_ls_copy)
 
             # Inferring the output shape is only relevant for Theano.
             if all([s is not None
@@ -663,10 +663,7 @@ class Layer(object):
                              ', but the layer has only ' +
                              str(len(self._inbound_nodes)) + ' inbound nodes.')
         values = getattr(self._inbound_nodes[node_index], attr)
-        if len(values) == 1:
-            return values[0]
-        else:
-            return values
+        return unpack_singleton(values)
 
     def get_input_shape_at(self, node_index):
         """Retrieves the input shape(s) of a layer at a given node.
@@ -892,10 +889,7 @@ class Layer(object):
             [str(node.input_shapes) for node in self._inbound_nodes])
         if len(all_input_shapes) == 1:
             input_shapes = self._inbound_nodes[0].input_shapes
-            if len(input_shapes) == 1:
-                return input_shapes[0]
-            else:
-                return input_shapes
+            return unpack_singleton(input_shapes)
         else:
             raise AttributeError('The layer "' + str(self.name) +
                                  ' has multiple inbound nodes, '
@@ -927,10 +921,7 @@ class Layer(object):
             [str(node.output_shapes) for node in self._inbound_nodes])
         if len(all_output_shapes) == 1:
             output_shapes = self._inbound_nodes[0].output_shapes
-            if len(output_shapes) == 1:
-                return output_shapes[0]
-            else:
-                return output_shapes
+            return unpack_singleton(output_shapes)
         else:
             raise AttributeError('The layer "' + str(self.name) +
                                  ' has multiple inbound nodes, '
@@ -1321,9 +1312,7 @@ def _collect_previous_mask(input_tensors):
             masks.append(mask)
         else:
             masks.append(None)
-    if len(masks) == 1:
-        return masks[0]
-    return masks
+    return unpack_singleton(masks)
 
 
 def _to_snake_case(name):
@@ -1352,6 +1341,4 @@ def _collect_input_shape(input_tensors):
             shapes.append(K.int_shape(x))
         except TypeError:
             shapes.append(None)
-    if len(shapes) == 1:
-        return shapes[0]
-    return shapes
+    return unpack_singleton(shapes)

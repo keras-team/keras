@@ -6,10 +6,10 @@ and 79% after 15 epochs, and overfitting after 20 epochs
 
 With Data Augmentation:
 It gets to 75% validation accuracy in 10 epochs,
-and 79% after 15 epochs, and 83% after 30 epcohs.
-In my test, highest validation accuracy is 83.79% after 50 epcohs.
+and 79% after 15 epochs, and 83% after 30 epochs.
+In my test, highest validation accuracy is 83.79% after 50 epochs.
 
-This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
+This is a fast Implement, just 20s/epoch with a gtx 1070 gpu.
 """
 
 from __future__ import print_function
@@ -204,11 +204,26 @@ else:
         featurewise_std_normalization=False,  # divide inputs by dataset std
         samplewise_std_normalization=False,  # divide each input by its std
         zca_whitening=False,  # apply ZCA whitening
+        zca_epsilon=1e-06,  # epsilon for ZCA whitening
         rotation_range=0,  # randomly rotate images in 0 to 180 degrees
         width_shift_range=0.1,  # randomly shift images horizontally
         height_shift_range=0.1,  # randomly shift images vertically
+        shear_range=0.,  # set range for random shear
+        zoom_range=0.,  # set range for random zoom
+        channel_shift_range=0.,  # set range for random channel shifts
+        # set mode for filling points outside the input boundaries
+        fill_mode='nearest',
+        cval=0.,  # value used for fill_mode = "constant"
         horizontal_flip=True,  # randomly flip images
-        vertical_flip=False)  # randomly flip images
+        vertical_flip=False,  # randomly flip images
+        # set rescaling factor (applied before any other transformation)
+        rescale=None,
+        # set function that will be applied on each input
+        preprocessing_function=None,
+        # image data format, either "channels_first" or "channels_last"
+        data_format=None,
+        # fraction of images reserved for validation (strictly between 0 and 1)
+        validation_split=0.0)
 
     # Compute quantities required for feature-wise normalization
     # (std, mean, and principal components if ZCA whitening is applied).

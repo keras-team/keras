@@ -24,7 +24,7 @@ Four digits reversed:
 
 Five digits reversed:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
-'''
+'''  # noqa
 
 from __future__ import print_function
 from keras.models import Sequential

@@ -1,14 +1,15 @@
 sudo: required
 dist: trusty
 language: python
+cache:
+  directories:
+    - $HOME/.theano
 matrix:
     include:
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8
-        - python: 2.7
           env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=DOC
+          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8_DOC
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.6
@@ -38,35 +39,33 @@ install:
   # Useful for debugging any issues with conda
   - conda info -a
 
-  - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION pytest pandas
+  - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - pip install --only-binary=numpy,scipy numpy nose scipy matplotlib h5py theano
-  - conda install mkl mkl-service
+  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy matplotlib h5py theano pytest pytest-pep8 pandas
+  - pip install keras_applications keras_preprocessing
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
-  # install PIL for preprocessing tests
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      conda install pil;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      conda install Pillow;
+  # install PIL for preprocessing tests (they are integration tests).
+  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+      if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        export PIL=Pil;
+      else
+        export PIL=Pillow;
+      fi
     fi
+
+    # install pydot for visualization tests
+  - travis_retry conda install mkl mkl-service pydot graphviz $PIL
 
   - pip install -e .[tests]
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow
+  - pip install tensorflow==1.9
   
   # install cntk
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp27-cp27mu-linux_x86_64.whl;
-    elif [[ "$TRAVIS_PYTHON_VERSION" == "3.6" ]]; then
-      pip install https://cntk.ai/PythonWheel/CPU-Only/cntk-2.3.1-cp36-cp36m-linux_x86_64.whl;
-    fi
-
-  # install pydot for visualization tests
-  - conda install pydot graphviz
+  - pip install cntk
 
   # exclude different backends to measure a coverage for the designated backend only
   - if [[ "$KERAS_BACKEND" != "tensorflow" ]]; then
@@ -106,10 +105,8 @@ script:
   - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
   - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
-    elif [[ "$TEST_MODE" == "PEP8" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0;
-    elif [[ "$TEST_MODE" == "DOC" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/test_documentation.py;
+    elif [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+      PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/test_documentation.py;
     else
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
     fi
