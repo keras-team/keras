@@ -44,12 +44,9 @@ def test_sparse_metrics():
         assert K.eval(metric(y_a, y_b)).shape == (6,)
 
 
-@pytest.fixture(scope='function', params=[(6,), (6, 3), (6, 3, 1)])
-def shape_for_sparse_categorical_accuracy_test(request):
-    return request.param
 
-def test_sparse_categorical_accuracy_correctness(shape_for_sparse_categorical_accuracy_test):
-    shape = shape_for_sparse_categorical_accuracy_test
+@pytest.mark.parametrize('shape', [(6,), (6, 3), (6, 3, 1)])
+def test_sparse_categorical_accuracy_correctness(shape):
     y_a = K.variable(np.random.randint(0, 7, shape), dtype=K.floatx())
     y_b_shape = shape + (7,)
     y_b = K.variable(np.random.random(y_b_shape), dtype=K.floatx())
