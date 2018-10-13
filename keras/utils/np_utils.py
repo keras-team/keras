@@ -56,8 +56,7 @@ def to_categorical(y, num_classes=None, dtype='float32'):
 
 
 def to_ordinal(y, num_classes=None, dtype='float32'):
-    """Converts a class vector (integers representing ordinal values) to multi-hot
-    binary class matrix.
+    """Converts a class vector of ordinal values to multi-hot binary class matrix.
 
     E.g. for use with binary_crossentropy.
 
@@ -65,6 +64,8 @@ def to_ordinal(y, num_classes=None, dtype='float32'):
         y: class vector to be converted into a matrix
             (integers from 0 to num_classes).
         num_classes: total number of classes.
+        dtype: The data type expected by the input, as a string
+            (`float32`, `float64`, `int32`...)
 
     # Returns
         A binary matrix representation of the input. The classes axis
@@ -79,7 +80,7 @@ def to_ordinal(y, num_classes=None, dtype='float32'):
     # `to_ordinal` converts this into a matrix with as many
     # columns are there are classes, minus one, because the
     # first class is represented by a zero vector.
-    > to_categorical(labels)
+    > to_ordinal(labels)
     array([[ 0.,  0.],
            [ 1.,  1.],
            [ 1.,  0.],
