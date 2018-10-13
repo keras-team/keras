@@ -49,7 +49,7 @@ def elu(x, alpha=1.0):
 
     # References
         - [Fast and Accurate Deep Network Learning by Exponential
-        Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
+           Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
     """
     return K.elu(x, alpha)
 

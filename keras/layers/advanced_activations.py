@@ -35,8 +35,8 @@ class LeakyReLU(Layer):
         alpha: float >= 0. Negative slope coefficient.
 
     # References
-        - [Rectifier Nonlinearities Improve Neural Network Acoustic Models]
-          (https://ai.stanford.edu/~amaas/papers/relu_hybrid_icml2013_final.pdf)
+        - [Rectifier Nonlinearities Improve Neural Network Acoustic Models](
+           https://ai.stanford.edu/~amaas/papers/relu_hybrid_icml2013_final.pdf)
     """
 
     def __init__(self, alpha=0.3, **kwargs):
@@ -209,8 +209,8 @@ class ThresholdedReLU(Layer):
         theta: float >= 0. Threshold location of activation.
 
     # References
-        - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features]
-          (https://arxiv.org/abs/1402.3337)
+        - [Zero-Bias Autoencoders and the Benefits of Co-Adapting Features](
+           https://arxiv.org/abs/1402.3337)
     """
 
     def __init__(self, theta=1.0, **kwargs):
