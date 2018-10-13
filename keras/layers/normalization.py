@@ -194,8 +194,10 @@ class BatchNormalization(Layer):
             # If the learning phase is *static* and set to inference:
             return normalize_inference()
         elif training is None:
-            # If it's undefined then if trainable tensor is on respect learning phase else set to false
-            training = K.switch(self._trainable_tensor, K.cast(K.learning_phase(), 'float32'),
+            # If it's undefined then if trainable tensor is on then
+            # respect learning phase else set to false
+            training = K.switch(self._trainable_tensor,
+                                K.cast(K.learning_phase(), 'float32'),
                                 K.constant(0, dtype='float32'))
             training._uses_learning_phase = True
 
