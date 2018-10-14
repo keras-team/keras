@@ -70,6 +70,22 @@ You can change these settings by editing `$HOME/.keras/keras.json`.
 * `floatx`: String, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
 * `backend`: String, `"tensorflow"`, `"theano"`, or `"cntk"`.
 
+In keras it is possible to load more backends than `"tensorflow"`, `"theano"`, and `"cntk"`. This can be performed by changing the `keras.json` configuration file, and the `"backend"` setting. Suppose you have a python file called mxnet_backend.py, changing `keras.json` would be as follows:
+
+```
+{
+    "image_data_format": "channels_last",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "mxnet_backend"
+}
+```
+In order to add an external backend, it must be validated. A valid external backend must have the following required entires: 
+```python
+required_entries = ['placeholder', 'variable', 'function']
+```
+
+
 ----
 
 ## Using the abstract Keras backend to write new code
