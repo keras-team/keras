@@ -18,6 +18,7 @@ from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
 from keras.callbacks import LambdaCallback
+from keras.callbacks import Callback
 
 
 class RandomSequence(Sequence):
@@ -123,7 +124,7 @@ def test_weighted_masked_objective():
     weighted_function(a, a, None)
 
 
-def test_model_methods():
+def get_model(nb_of_outputs=1):
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
 
@@ -131,7 +132,34 @@ def test_model_methods():
     dp = Dropout(0.5, name='dropout')
     b_2 = dp(b)
 
-    model = Model([a, b], [a_2, b_2])
+    if nb_of_outputs == 1:
+        model = Model([a, b], a_2)
+    else:
+        model = Model([a, b], [a_2, b_2])
+    return model
+
+
+def get_tracker_callback():
+    class TrackerCallback(Callback):
+
+        def __init__(self):
+            # test starting from non-zero initial epoch
+            self.trained_epochs = []
+            self.trained_batches = []
+            super(TrackerCallback, self).__init__()
+
+        # define tracer callback
+        def on_epoch_begin(self, epoch, logs):
+            self.trained_epochs.append(epoch)
+
+        def on_batch_begin(self, batch, logs):
+            self.trained_batches.append(batch)
+
+    return TrackerCallback()
+
+
+def test_model_methods():
+    model = get_model(nb_of_outputs=2)
 
     optimizer = 'rmsprop'
     loss = 'mse'
@@ -269,27 +297,15 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     assert len(out) == 4
 
-    # test starting from non-zero initial epoch
-    trained_epochs = []
-    trained_batches = []
-
-    # define tracer callback
-    def on_epoch_begin(epoch, logs):
-        trained_epochs.append(epoch)
-
-    def on_batch_begin(batch, logs):
-        trained_batches.append(batch)
-
-    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin,
-                                on_batch_begin=on_batch_begin)
+    tracker_cb = get_tracker_callback()
 
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np], epochs=5, batch_size=4,
                     initial_epoch=2, callbacks=[tracker_cb])
-    assert trained_epochs == [2, 3, 4]
+    assert tracker_cb.trained_epochs == [2, 3, 4]
 
     # test starting from non-zero initial epoch for generator too
-    trained_epochs = []
+    tracker_cb = get_tracker_callback()
 
     @threadsafe_generator
     def gen_data(batch_sz):
@@ -301,7 +317,7 @@ def test_model_methods():
 
     out = model.fit_generator(gen_data(4), steps_per_epoch=3, epochs=5,
                               initial_epoch=2, callbacks=[tracker_cb])
-    assert trained_epochs == [2, 3, 4]
+    assert tracker_cb.trained_epochs == [2, 3, 4]
 
     # test with a custom metric function
     def mse(y_true, y_pred):
@@ -438,10 +454,16 @@ def test_model_methods():
                                    [output_a_np, output_b_np],
                                    sample_weight=sample_weight)
 
+
+def test_fit_generator():
+    model = get_model(nb_of_outputs=2)
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
-    trained_epochs = []
-    trained_batches = []
+    tracker_cb = get_tracker_callback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               steps_per_epoch=3,
@@ -451,34 +473,32 @@ def test_model_methods():
                               validation_steps=3,
                               max_queue_size=1,
                               callbacks=[tracker_cb])
-    assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == list(range(3)) * 5
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(3)) * 5
     assert len(val_seq.logs) <= 4 * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
-    trained_epochs = []
-    trained_batches = []
+    tracker_cb = get_tracker_callback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
                               initial_epoch=0,
                               validation_data=val_seq,
                               callbacks=[tracker_cb])
-    assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == list(range(12)) * 5
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(12)) * 5
     assert len(val_seq.logs) == 12 * 5
 
     # test for workers = 0
-    trained_epochs = []
-    trained_batches = []
+    tracker_cb = get_tracker_callback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
                               validation_data=val_seq,
                               callbacks=[tracker_cb],
                               workers=0)
-    assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == list(range(12)) * 5
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(12)) * 5
     assert len(val_seq.logs) == 12 * 5
 
     # fit_generator will throw an exception
@@ -529,9 +549,15 @@ def test_model_methods():
     # of the queue depends on sleep in the enqueuers
     assert 3 <= gen_counters[0] <= 12
 
+
+def test_fit_generator_shape():
     # predict_generator output shape behavior should be consistent
     def expected_shape(batch_size, n_batches):
         return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
+
+    model = get_model(nb_of_outputs=2)
+    optimizer = 'rmsprop'
+    loss = 'mse'
 
     # Multiple outputs and one step.
     batch_size = 5
@@ -550,7 +576,7 @@ def test_model_methods():
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
     # Create a model with a single output.
-    single_output_model = Model([a, b], a_2)
+    single_output_model = get_model(nb_of_outputs=1)
     single_output_model.compile(optimizer, loss,
                                 metrics=[], sample_weight_mode=None)
 
