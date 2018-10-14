@@ -80,11 +80,11 @@ In keras it is possible to load more backends than `"tensorflow"`, `"theano"`, a
     "backend": "mxnet_backend"
 }
 ```
-In order to add an external backend, it must be validated. A valid external backend must have the following required entires: 
+In order to add an external backend, it must be validated. A valid external backend must have the following required entries: 
 ```python
 required_entries = ['placeholder', 'variable', 'function']
 ```
-
+If an external backend is not valid due to missing a required entry, an error will be logged notifying which entry/entries are missing.
 
 ----
 
