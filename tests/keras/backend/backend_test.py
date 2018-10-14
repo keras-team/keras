@@ -918,9 +918,8 @@ class TestBackend(object):
         Check if optimization works.
         '''
         x_np = np.array([1e+4, 1e-4])
-        assert_allclose(K.eval(K.logsumexp(K.variable(x_np), axis=0)),
-                        1e4,
-                        rtol=1e-5)
+        result = K.eval(K.logsumexp(K.variable(x_np), axis=0))
+        assert_allclose(result, 1e4, rtol=1e-5)
 
     def test_switch(self):
         # scalar
