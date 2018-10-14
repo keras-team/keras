@@ -2745,8 +2745,8 @@ def ctc_path_probs(predict, Y, alpha=1e-4):
 def ctc_cost(predict, Y):
     log_probs, mask = ctc_path_probs(predict, ctc_interleave_blanks(Y))
     common_factor = T.max(log_probs)
-    total_log_prob = T.log(T.sum(T.exp(log_probs - common_factor)[mask.nonzero()]))
-    total_log_prob = total_log_prob + common_factor
+    log_probs = T.log(T.sum(T.exp(log_probs - common_factor)[mask.nonzero()]))
+    total_log_prob = log_probs + common_factor
     return -total_log_prob
 
 
