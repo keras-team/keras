@@ -54,7 +54,6 @@ def parse_stories(lines, only_supporting=False):
         if '\t' in line:
             q, a, supporting = line.split('\t')
             q = tokenize(q)
-            substory = None
             if only_supporting:
                 # Only select the related substory
                 supporting = map(int, supporting.split())

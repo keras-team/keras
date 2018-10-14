@@ -1601,7 +1601,6 @@ class TestBackend(object):
              [0.0, 0.0, 0.0, 0.0],  # t=4 (ignored)
              [0.0, 0.0, 0.0, 0.0]],  # t=5 (ignored)
             dtype=np.float32)
-        input_log_prob_matrix_0 = np.log(input_prob_matrix_0)
 
         seq_len_1 = 5
         # dimensions are time x depth
