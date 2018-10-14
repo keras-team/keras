@@ -911,15 +911,15 @@ class TestBackend(object):
                         np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
                         rtol=1e-5)
 
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='The optimization is applied only with TensorFlow.')
     def test_logsumexp_optim(self):
         '''
         Check if optimization works.
         '''
-        for k in [KTF]:
-            x_np = np.array([1e+4, 1e-4])
-            assert_allclose(k.eval(k.logsumexp(k.variable(x_np), axis=0)),
-                            1e4,
-                            rtol=1e-5)
+        x_np = np.array([1e+4, 1e-4])
+        result = K.eval(K.logsumexp(K.variable(x_np), axis=0))
+        assert_allclose(result, 1e4, rtol=1e-5)
 
     def test_switch(self):
         # scalar
@@ -1440,11 +1440,11 @@ class TestBackend(object):
                 x_shape = (1,) + shape + (3,)
             check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
-            # Check handling of dynamic shapes.
-            for k in [KTF, KTH]:
-                x = k.placeholder(shape=(1, None, None, 1))
-                y = k.spatial_2d_padding(x, padding=padding, data_format='channels_last')
-                assert k.int_shape(y) == (1, None, None, 1)
+        # Check handling of dynamic shapes.
+        if K in [KTF, KTH]:
+            x = K.placeholder(shape=(1, None, None, 1))
+            y = K.spatial_2d_padding(x, padding=padding, data_format='channels_last')
+            assert K.int_shape(y) == (1, None, None, 1)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
@@ -1462,11 +1462,11 @@ class TestBackend(object):
                 x_shape = (1,) + shape + (3,)
             check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
                                           padding=padding, data_format=data_format)
-            # Check handling of dynamic shapes.
-            for k in [KTF, KTH]:
-                x = k.placeholder(shape=(1, None, None, None, 1))
-                y = k.spatial_3d_padding(x, padding=padding, data_format='channels_last')
-                assert k.int_shape(y) == (1, None, None, None, 1)
+        # Check handling of dynamic shapes.
+        if K in [KTF, KTH]:
+            x = K.placeholder(shape=(1, None, None, None, 1))
+            y = K.spatial_3d_padding(x, padding=padding, data_format='channels_last')
+            assert K.int_shape(y) == (1, None, None, None, 1)
 
         # Test invalid use cases
         xval = np.random.random(x_shape)
