@@ -616,8 +616,10 @@ def normalize_batch_in_training(x, gamma, beta,
     # Returns
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
-    batch_mean = x.mean(axis=reduction_axes, keepdims=True)
-    batch_var = x.var(axis=reduction_axes, keepdims=True)
+    batch_mean, batch_var = x, x
+    for axis in reduction_axes:
+        batch_mean = batch_mean.mean(axis=axis, keepdims=True)
+        batch_var = batch_mean.var(axis=axis, keepdims=True)
     return (batch_normalization(x, batch_mean, batch_var, beta, gamma, epsilon=epsilon),
             batch_mean,
             batch_var)
