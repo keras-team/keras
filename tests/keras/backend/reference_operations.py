@@ -447,6 +447,10 @@ def batch_flatten(x):
     return np.reshape(x, (x.shape[0], -1))
 
 
+def gather(reference, indices):
+    return reference[indices]
+
+
 def eval(x):
     return x
 
