@@ -596,7 +596,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 self.queue.task_done()
                 if inputs is not None:
                     yield inputs
-        except Exception as e:
+        except Exception:
             self.stop()
             six.reraise(*sys.exc_info())
 
