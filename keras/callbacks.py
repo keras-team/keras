@@ -717,8 +717,8 @@ class TensorBoard(Callback):
         embeddings_data: data to be embedded at layers specified in
             `embeddings_layer_names`. Numpy array (if the model has a single
             input) or list of Numpy arrays (if the model has multiple inputs).
-            Learn [more about embeddings]
-            (https://www.tensorflow.org/programmers_guide/embedding).
+            Learn [more about embeddings](
+            https://www.tensorflow.org/programmers_guide/embedding).
         update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`, writes
             the losses and metrics to TensorBoard after each batch. The same
             applies for `'epoch'`. If using an integer, let's say `10000`,
