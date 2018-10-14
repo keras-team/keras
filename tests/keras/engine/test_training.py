@@ -139,23 +139,20 @@ def get_model(nb_of_outputs=1):
     return model
 
 
-def get_tracker_callback():
-    class TrackerCallback(Callback):
+class TrackerCallback(Callback):
 
-        def __init__(self):
-            # test starting from non-zero initial epoch
-            self.trained_epochs = []
-            self.trained_batches = []
-            super(TrackerCallback, self).__init__()
+    def __init__(self):
+        # test starting from non-zero initial epoch
+        self.trained_epochs = []
+        self.trained_batches = []
+        super(TrackerCallback, self).__init__()
 
-        # define tracer callback
-        def on_epoch_begin(self, epoch, logs):
-            self.trained_epochs.append(epoch)
+    # define tracer callback
+    def on_epoch_begin(self, epoch, logs):
+        self.trained_epochs.append(epoch)
 
-        def on_batch_begin(self, batch, logs):
-            self.trained_batches.append(batch)
-
-    return TrackerCallback()
+    def on_batch_begin(self, batch, logs):
+        self.trained_batches.append(batch)
 
 
 def test_model_methods():
@@ -297,7 +294,7 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     assert len(out) == 4
 
-    tracker_cb = get_tracker_callback()
+    tracker_cb = TrackerCallback()
 
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np], epochs=5, batch_size=4,
@@ -305,7 +302,7 @@ def test_model_methods():
     assert tracker_cb.trained_epochs == [2, 3, 4]
 
     # test starting from non-zero initial epoch for generator too
-    tracker_cb = get_tracker_callback()
+    tracker_cb = TrackerCallback()
 
     @threadsafe_generator
     def gen_data(batch_sz):
@@ -463,7 +460,7 @@ def test_fit_generator():
 
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
-    tracker_cb = get_tracker_callback()
+    tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               steps_per_epoch=3,
@@ -478,7 +475,7 @@ def test_fit_generator():
     assert len(val_seq.logs) <= 4 * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
-    tracker_cb = get_tracker_callback()
+    tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
@@ -490,7 +487,7 @@ def test_fit_generator():
     assert len(val_seq.logs) == 12 * 5
 
     # test for workers = 0
-    tracker_cb = get_tracker_callback()
+    tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
