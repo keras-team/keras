@@ -580,7 +580,6 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 
 def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
-
     return (x - mean) / sqrt(var + epsilon) * gamma + beta
 
 
