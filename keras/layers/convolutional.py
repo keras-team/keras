@@ -273,8 +273,8 @@ class Conv1D(_Conv):
             the output has the same length as the original input.
             Useful when modeling temporal data where the model
             should not violate the temporal order. See
-            [WaveNet: A Generative Model for Raw Audio, section 2.1]
-            (https://arxiv.org/abs/1609.03499).
+            [WaveNet: A Generative Model for Raw Audio, section 2.1](
+            https://arxiv.org/abs/1609.03499).
         data_format: A string,
             one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -727,10 +727,10 @@ class Conv2DTranspose(Conv2D):
         ```
 
     # References
-        - [A guide to convolution arithmetic for deep learning]
-          (https://arxiv.org/abs/1603.07285v1)
-        - [Deconvolutional Networks]
-          (http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+        - [A guide to convolution arithmetic for deep learning](
+           https://arxiv.org/abs/1603.07285v1)
+        - [Deconvolutional Networks](
+           http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
     @interfaces.legacy_deconv2d_support
@@ -1002,10 +1002,10 @@ class Conv3DTranspose(Conv3D):
         ```
 
     # References
-        - [A guide to convolution arithmetic for deep learning]
-          (https://arxiv.org/abs/1603.07285v1)
-        - [Deconvolutional Networks]
-          (http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+        - [A guide to convolution arithmetic for deep learning](
+           https://arxiv.org/abs/1603.07285v1)
+        - [Deconvolutional Networks](
+           http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
     def __init__(self, filters,
