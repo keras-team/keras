@@ -474,6 +474,44 @@ def dot(x, y):
     return np.dot(x, y)
 
 
+def batch_dot(x, y, axes=None):
+    if isinstance(axes, int):
+        axes = (axes, axes)
+    if axes is None:
+        # behaves like tf.batch_matmul as default
+        axes = [x.ndim - 1, y.ndim - 2]
+    if any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
+    if x.ndim > y.ndim:
+        diff = x.ndim - y.ndim
+        y = np.reshape(y, np.concatenate([np.shape(y), [1] * diff], axis=0))
+    else:
+        diff = 0
+    if ndim(x) == 2 and ndim(y) == 2:
+        if axes[0] == axes[1]:
+            out = np.sum(np.multiply(x, y), axes[0])
+        else:
+            out = np.sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
+    else:
+        out = np.tensordot(x, y, axes=axes)
+        for axis in [axes[0]]:
+            axis_list = np.arange(len(out.shape) - 1).tolist()
+            axis_list.insert(0, axis_list.pop(axis))
+            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis),
+                               tuple(axis_list))
+    if diff:
+        if x.ndim > y.ndim:
+            idx = x.ndim + y.ndim - 3
+        else:
+            idx = x.ndim - 1
+        out = np.squeeze(out, tuple(range(idx, idx + diff)))
+    if ndim(out) == 1:
+        out = expand_dims(out, 1)
+    return out
+
+
 def transpose(x):
     return np.transpose(x)
 
