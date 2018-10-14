@@ -807,9 +807,9 @@ def _old_normalize_batch_in_training(x, gamma, beta, reduction_axes,
         beta = zeros_like(x)
 
     dev = theano.config.device
-    use_cudnn = ndim(x) < 5 and
-        reduction_axes == [0, 2, 3] and
-        (dev.startswith('cuda') or dev.startswith('gpu'))
+    use_cudnn = (ndim(x) < 5 and \
+        reduction_axes == [0, 2, 3] and \
+        (dev.startswith('cuda') or dev.startswith('gpu')))
     if use_cudnn:
         broadcast_beta = beta.dimshuffle('x', 0, 'x', 'x')
         broadcast_gamma = gamma.dimshuffle('x', 0, 'x', 'x')
