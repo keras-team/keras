@@ -579,6 +579,49 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
     return x
 
 
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
+    """Applies batch normalization on x given mean, var, beta and gamma.
+
+    I.e. returns:
+    `output = (x - mean) / sqrt(var + epsilon) * gamma + beta`
+
+    # Arguments
+        x: Input tensor or variable.
+        mean: Mean of batch.
+        var: Variance of batch.
+        beta: Tensor with which to center the input.
+        gamma: Tensor by which to scale the input.
+        axis: Integer, the axis that should be normalized.
+            (typically the features axis).
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tensor.
+    """
+    return (x - mean) / sqrt(var + epsilon) * gamma + beta
+
+
+def normalize_batch_in_training(x, gamma, beta,
+                                reduction_axes, epsilon=1e-3):
+    """Computes mean and std for batch then apply batch_normalization on batch.
+
+    # Arguments
+        x: Input tensor or variable.
+        gamma: Tensor by which to scale the input.
+        beta: Tensor with which to center the input.
+        reduction_axes: iterable of integers,
+            axes over which to normalize.
+        epsilon: Fuzz factor.
+
+    # Returns
+        A tuple length of 3, `(normalized_tensor, mean, variance)`.
+    """
+    batch_mean = x.mean(axis=reduction_axes, keepdims=True)
+    batch_var = x.var(axis=reduction_axes, keepdims=True)
+    return (batch_normalization(x, batch_mean, batch_var, beta, gamma, epsilon=epsilon),
+            batch_mean,
+            batch_var)
+
 square = np.square
 abs = np.abs
 exp = np.exp

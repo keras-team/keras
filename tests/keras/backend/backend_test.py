@@ -1517,6 +1517,7 @@ class TestBackend(object):
                                                         reduction_axes=[0, 1, 2, 3])
             zc, _, _ = KC.normalize_batch_in_training(xc, None, None,
                                                       reduction_axes=[0, 1, 2, 3])
+
             zth = KTH.eval(zth)
             ztf = KTF.eval(ztf)
             zc = KC.function([xc], [zc])([x_val])[0]
