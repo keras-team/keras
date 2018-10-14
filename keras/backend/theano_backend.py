@@ -2737,7 +2737,7 @@ def ctc_path_probs(predict, Y, alpha=1e-4):
 
     idxs = T.arange(L.shape[1]).dimshuffle('x', 0)
     mask = ((idxs < f_active.dimshuffle(0, 'x')) &
-            (idxs < b_active.dimshuffle(0, 'x')))[::-1, ::-1]
+            (idxs < b_active.dimshuffle(0, 'x'))[::-1, ::-1])
     log_probs = log_f_probs + log_b_probs[::-1, ::-1] - L
     return log_probs, mask
 
@@ -2745,8 +2745,8 @@ def ctc_path_probs(predict, Y, alpha=1e-4):
 def ctc_cost(predict, Y):
     log_probs, mask = ctc_path_probs(predict, ctc_interleave_blanks(Y))
     common_factor = T.max(log_probs)
-    foo = T.log(T.sum(T.exp(log_probs - common_factor)[mask.nonzero()]))
-    total_log_prob = foo + common_factor
+    total_log_prob = T.log(T.sum(T.exp(log_probs - common_factor)[mask.nonzero()]))
+    total_log_prob = total_log_prob + common_factor
     return -total_log_prob
 
 
