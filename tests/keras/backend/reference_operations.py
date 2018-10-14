@@ -501,7 +501,7 @@ def dropout(x, level, noise_shape=None, seed=None):
         noise = np.random.choice([0, 1],
                                  noise_shape,
                                  replace=True,
-                                 p=[level, 1-level])
+                                 p=[level, 1 - level])
         return x * noise / (1 - level)
     else:
         return x
