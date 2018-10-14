@@ -807,16 +807,16 @@ def _old_normalize_batch_in_training(x, gamma, beta, reduction_axes,
         beta = zeros_like(x)
 
     dev = theano.config.device
-    use_cudnn = (ndim(x) < 5 and \
-        reduction_axes == [0, 2, 3] and \
-        (dev.startswith('cuda') or dev.startswith('gpu')))
+    use_cudnn = (ndim(x) < 5 and
+                 reduction_axes == [0, 2, 3] and
+                 (dev.startswith('cuda') or dev.startswith('gpu')))
     if use_cudnn:
         broadcast_beta = beta.dimshuffle('x', 0, 'x', 'x')
         broadcast_gamma = gamma.dimshuffle('x', 0, 'x', 'x')
         try:
             trained = theano.sandbox.cuda.dnn.dnn_batch_normalization_train(
                 x, broadcast_gamma, broadcast_beta, 'spatial', epsilon)
-            normed, mean, stdinv = trained9
+            normed, mean, stdinv = trained
             normed = theano.tensor.as_tensor_variable(normed)
             mean = theano.tensor.as_tensor_variable(mean)
             stdinv = theano.tensor.as_tensor_variable(stdinv)
@@ -1398,7 +1398,7 @@ class Function(object):
         return self.function(*inputs)
 
 
-def raise_invalid_arg(key):
+def _raise_invalid_arg(key):
     msg = 'Invalid argument "%s" passed to K.function with Theano backend' % key
     raise ValueError(msg)
 
@@ -1407,7 +1407,7 @@ def function(inputs, outputs, updates=[], **kwargs):
     if len(kwargs) > 0:
         for key in kwargs.keys():
             if not has_arg(theano.function, key, True):
-                raise_invalid_arg(key)
+                _raise_invalid_arg(key)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
 
@@ -1933,7 +1933,7 @@ def _preprocess_conv2d_depthwise_kernel(kernel, kernel_shape, data_format):
     # As of Keras 2.0.0, all kernels are normalized
     # on the format `(rows, cols, input_depth, depth)`,
     # independently of `data_format`.
-    # Theano expects `(input_depth * depth, 1, rows, cols)` 
+    # Theano expects `(input_depth * depth, 1, rows, cols)`
     # for depthwise convolution.
     kernel = kernel[::-1, ::-1, :, :]
     kernel = kernel.dimshuffle((2, 3, 0, 1))
@@ -2231,7 +2231,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or 
+        ValueError: if `data_format` is neither `"channels_last"` or
         `"channels_first"`.
     """
     data_format = normalize_data_format(data_format)
@@ -2369,7 +2369,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
         Output tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or 
+        ValueError: if `data_format` is neither `"channels_last"` or
         `"channels_first"`.
     """
     data_format = normalize_data_format(data_format)
@@ -2756,7 +2756,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
     # Arguments
         y_true: tensor (samples, max_string_length) containing the truth labels
-        y_pred: tensor (samples, time_steps, num_categories) containing the 
+        y_pred: tensor (samples, time_steps, num_categories) containing the
                 prediction, or output of the softmax
         input_length: tensor (samples,1) containing the sequence length for
                 each batch item in y_pred
