@@ -111,7 +111,7 @@ def cast_to_floatx(x):
 
 
 def image_data_format():
-    """Returns the default image data format convention ('channels_first' or 'channels_last').
+    """Returns the default image data format convention.
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`
