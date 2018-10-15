@@ -45,6 +45,22 @@ KERAS_BACKEND=tensorflow python -c "from keras import backend"
 Using TensorFlow backend.
 ```
 
+In keras it is possible to load more backends than `"tensorflow"`, `"theano"`, and `"cntk"`. keras can use external backends as well, and this can be performed by changing the `keras.json` configuration file, and the `"backend"` setting. Suppose you have a python file called mxnet_backend.py that you wanted to use as your external backend. The `keras.json` configuration file would be changed as follows:
+
+```
+{
+    "image_data_format": "channels_last",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "mxnet_backend"
+}
+```
+An external backend must be validated in order to be used, a valid backend is one that meets the following required entries:
+```python
+required_entries = ['placeholder', 'variable', 'function']
+```
+If an external backend is not valid due to missing a required entry, an error will be logged notifying which entry/entries are missing.
+
 ----
 
 ## keras.json details
@@ -69,22 +85,6 @@ You can change these settings by editing `$HOME/.keras/keras.json`.
 * `epsilon`: Float, a numeric fuzzing constant used to avoid dividing by zero in some operations.
 * `floatx`: String, `"float16"`, `"float32"`, or `"float64"`. Default float precision.
 * `backend`: String, `"tensorflow"`, `"theano"`, or `"cntk"`.
-
-In keras it is possible to load more backends than `"tensorflow"`, `"theano"`, and `"cntk"`. keras can use external backends as well, and this can be performed by changing the `keras.json` configuration file, and the `"backend"` setting. Suppose you have a python file called mxnet_backend.py that you wanted to use as your external backend. The `keras.json` configuration file would be changed as follows:
-
-```
-{
-    "image_data_format": "channels_last",
-    "epsilon": 1e-07,
-    "floatx": "float32",
-    "backend": "mxnet_backend"
-}
-```
-An external backend must be validated in order to be used, a valid backend is one that meets the following required entries:
-```python
-required_entries = ['placeholder', 'variable', 'function']
-```
-If an external backend is not valid due to missing a required entry, an error will be logged notifying which entry/entries are missing.
 
 ----
 
