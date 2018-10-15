@@ -62,8 +62,9 @@ def get_uid(prefix=''):
 
 def learning_phase():
     # If _LEARNING_PHASE is not 0 or 1, return dynamic learning phase tensor
-    return _LEARNING_PHASE \
-    if _LEARNING_PHASE in {0, 1} else _LEARNING_PHASE_PLACEHOLDER
+    return (
+        _LEARNING_PHASE \
+        if _LEARNING_PHASE in {0, 1} else _LEARNING_PHASE_PLACEHOLDER)
 
 
 def set_learning_phase(value):
@@ -245,8 +246,8 @@ def bias_add(x, bias, data_format=None):
 def eval(x):
     if isinstance(x, C.cntk_py.Function):
         return x.eval()
-    elif (
-        isinstance(x, C.variables.Constant) or isinstance(x, C.variables.Parameter)):
+    elif (isinstance(x, C.variables.Constant) or \
+        isinstance(x, C.variables.Parameter)):
         return x.value
     else:
         raise ValueError('CNTK Backend: `eval` method on '
@@ -1165,8 +1166,7 @@ def permute_dimensions(x, pattern):
     else:
         current_layout = tuple([i for i in range(dims)])
 
-    if (
-        num_dynamic_axis > 0 and
+    if (num_dynamic_axis > 0 and \
         pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]):
         raise ValueError(
             'CNTK backend: the permute pattern %s '
@@ -1180,23 +1180,21 @@ def permute_dimensions(x, pattern):
     return C.transpose(x, axis)
 
 
-def resize_images(
-    x, height_factor,
-    width_factor,
-    data_format, interpolation='nearest'):
-        if interpolation == 'nearest':
-            if data_format == 'channels_first':
-                output = repeat_elements(x, height_factor, axis=2)
-                output = repeat_elements(output, width_factor, axis=3)
-                return output
-            elif data_format == 'channels_last':
-                output = repeat_elements(x, height_factor, axis=1)
-                output = repeat_elements(output, width_factor, axis=2)
-                return output
-            else:
-                raise ValueError('CNTK Backend: Invalid data_format: %s' % data_format)
+def resize_images(x, height_factor, width_factor, data_format, \
+    interpolation='nearest'):
+    if interpolation == 'nearest':
+        if data_format == 'channels_first':
+            output = repeat_elements(x, height_factor, axis=2)
+            output = repeat_elements(output, width_factor, axis=3)
+            return output
+        elif data_format == 'channels_last':
+            output = repeat_elements(x, height_factor, axis=1)
+            output = repeat_elements(output, width_factor, axis=2)
+            return output
         else:
-            raise NotImplementedError('CNTK only supports `nearest` interpolation.')
+            raise ValueError('CNTK Backend: Invalid data_format: %s' % data_format)
+    else:
+        raise NotImplementedError('CNTK only supports `nearest` interpolation.')
 
 
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
@@ -2045,13 +2043,13 @@ class Function(object):
             # "forward" method to let cntk know we want to evaluate them.from
             # But the assign ops won't be executed under this mode, that's why
             # we need this check.
-            if (self.unrelated_updates is None and (
-                _LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
-                    _, output_values = self.metrics_func.forward(
-                        input_dict,
-                        self.metrics_func.outputs,
-                        (self.metrics_func.outputs[0],),
-                        as_numpy=False)
+            if (self.unrelated_updates is None and \
+                (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
+                _, output_values = self.metrics_func.forward(
+                    input_dict,
+                    self.metrics_func.outputs,
+                    (self.metrics_func.outputs[0],),
+                    as_numpy=False)
             else:
                 output_values = self.metrics_func.eval(input_dict, as_numpy=False)
             if isinstance(output_values, dict):
@@ -2361,8 +2359,7 @@ def get_num_dynamic_axis(x):
 def _reduce_on_axis(x, axis, reduce_fun_name):
     if isinstance(axis, list):
         for a in axis:
-            if (
-                isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and
+            if (isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and \
                 hasattr(C.sequence, reduce_fun_name)):
                 x = getattr(C.sequence, reduce_fun_name)(x, a)
             else:
