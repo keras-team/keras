@@ -63,7 +63,7 @@ def get_uid(prefix=''):
 def learning_phase():
     # If _LEARNING_PHASE is not 0 or 1, return dynamic learning phase tensor
     return (
-        _LEARNING_PHASE \
+        _LEARNING_PHASE
         if _LEARNING_PHASE in {0, 1} else _LEARNING_PHASE_PLACEHOLDER)
 
 
@@ -246,8 +246,8 @@ def bias_add(x, bias, data_format=None):
 def eval(x):
     if isinstance(x, C.cntk_py.Function):
         return x.eval()
-    elif (isinstance(x, C.variables.Constant) or \
-        isinstance(x, C.variables.Parameter)):
+    elif (isinstance(x, C.variables.Constant) or isinstance(
+            x, C.variables.Parameter)):
         return x.value
     else:
         raise ValueError('CNTK Backend: `eval` method on '
@@ -1166,8 +1166,8 @@ def permute_dimensions(x, pattern):
     else:
         current_layout = tuple([i for i in range(dims)])
 
-    if (num_dynamic_axis > 0 and \
-        pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]):
+    if (num_dynamic_axis > 0 and
+            pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]):
         raise ValueError(
             'CNTK backend: the permute pattern %s '
             'requested permute on dynamic axis, '
@@ -1180,8 +1180,8 @@ def permute_dimensions(x, pattern):
     return C.transpose(x, axis)
 
 
-def resize_images(x, height_factor, width_factor, data_format, \
-    interpolation='nearest'):
+def resize_images(x, height_factor, width_factor, data_format,
+                  interpolation='nearest'):
     if interpolation == 'nearest':
         if data_format == 'channels_first':
             output = repeat_elements(x, height_factor, axis=2)
@@ -2043,8 +2043,9 @@ class Function(object):
             # "forward" method to let cntk know we want to evaluate them.from
             # But the assign ops won't be executed under this mode, that's why
             # we need this check.
-            if (self.unrelated_updates is None and \
-                (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
+            if (self.unrelated_updates is None and
+                    (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or
+                        _LEARNING_PHASE == 1)):
                 _, output_values = self.metrics_func.forward(
                     input_dict,
                     self.metrics_func.outputs,
@@ -2359,8 +2360,8 @@ def get_num_dynamic_axis(x):
 def _reduce_on_axis(x, axis, reduce_fun_name):
     if isinstance(axis, list):
         for a in axis:
-            if (isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and \
-                hasattr(C.sequence, reduce_fun_name)):
+            if (isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and
+                    hasattr(C.sequence, reduce_fun_name)):
                 x = getattr(C.sequence, reduce_fun_name)(x, a)
             else:
                 x = getattr(C, reduce_fun_name)(x, a)
