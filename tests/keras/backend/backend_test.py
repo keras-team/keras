@@ -1252,8 +1252,10 @@ class TestBackend(object):
         ])
     def test_separable_conv(self, op, input_shape, kernel_shape, depth_multiplier,
                             padding, data_format):
-        input_depth = \
-            input_shape[1] if data_format == 'channels_first' else input_shape[-1]
+        if data_format == 'channels_first':
+            input_depth = input_shape[1]
+        else:
+            input_depth = input_shape[-1]
         _, x = parse_shape_or_val(input_shape)
         _, depthwise = parse_shape_or_val(kernel_shape +
                                           (input_depth, depth_multiplier))
