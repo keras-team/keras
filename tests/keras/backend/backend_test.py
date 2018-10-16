@@ -316,9 +316,9 @@ class TestBackend(object):
         ref = np.arange(np.prod(shape)).reshape(shape)
         inds = [1, 3, 7, 9]
         t_list = [k.gather(k.variable(ref), k.variable(inds, dtype='int32'))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
         z_list = [k.eval(k.gather(k.variable(ref), k.variable(inds, dtype='int32')))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
 
         assert_list_pairwise(z_list)
         assert_list_keras_shape(t_list, z_list)
