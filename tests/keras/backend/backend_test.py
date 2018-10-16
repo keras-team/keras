@@ -1,20 +1,19 @@
-import warnings
-
-import numpy as np
 import pytest
-import reference_operations as KNP
-import scipy.sparse as sparse
 from numpy.testing import assert_allclose
+import numpy as np
+import scipy.sparse as sparse
+import warnings
 
 from keras import backend as K
 from keras.backend import floatx, set_floatx, variable
 from keras.utils.conv_utils import convert_kernel
+import reference_operations as KNP
+
 
 BACKENDS = []  # Holds a list of all available back-ends
 
 try:
     from keras.backend import cntk_backend as KC
-
     BACKENDS.append(KC)
 except ImportError:
     KC = None
@@ -22,7 +21,6 @@ except ImportError:
 
 try:
     from keras.backend import tensorflow_backend as KTF
-
     BACKENDS.append(KTF)
 except ImportError:
     KTF = None
@@ -30,14 +28,17 @@ except ImportError:
 
 try:
     from keras.backend import theano_backend as KTH
-
     BACKENDS.append(KTH)
 except ImportError:
     KTH = None
     warnings.warn('Could not import the Theano backend')
 
-WITH_NP = [KTH if K.backend() == 'theano' else KC if K.backend() == 'cntk' else KTF,
-           KNP]
+if K.backend() == 'theano':
+    WITH_NP = [KTH, KNP]
+elif K.backend() == 'cntk':
+    WITH_NP = [KC, KNP]
+else:
+    WITH_NP = [KTF, KNP]
 
 
 def check_dtype(var, dtype):
@@ -1626,8 +1627,10 @@ class TestBackend(object):
         k_label_lens = K.variable(label_lens, dtype="int32")
         res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens,
                                       k_label_lens))
-        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref,
-                        atol=1e-05)
+        if K.backend() == 'theano':
+            assert_allclose(res[0, :], ref, atol=1e-05)
+        else:
+            assert_allclose(res[:, 0], ref, atol=1e-05)
 
         # test when batch_size = 1, that is, one sample only
         # get only first sample from above test case
@@ -1654,8 +1657,10 @@ class TestBackend(object):
         k_label_lens = K.variable(label_lens, dtype="int32")
         res = K.eval(K.ctc_batch_cost(k_labels, k_inputs, k_input_lens,
                                       k_label_lens))
-        assert_allclose(res[0, :] if K.backend() == 'theano' else res[:, 0], ref,
-                        atol=1e-05)
+        if K.backend() == 'theano':
+            assert_allclose(res[0, :], ref, atol=1e-05)
+        else:
+            assert_allclose(res[:, 0], ref, atol=1e-05)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Test adapted from tensorflow.')
