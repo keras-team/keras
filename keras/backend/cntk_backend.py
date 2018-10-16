@@ -63,9 +63,9 @@ def get_uid(prefix=''):
 def learning_phase():
     # If _LEARNING_PHASE is not 0 or 1, return dynamic learning phase tensor
     if _LEARNING_PHASE in {0, 1}:
-    	return _LEARNING_PHASE
+        return _LEARNING_PHASE
     else:
-    	return _LEARNING_PHASE_PLACEHOLDER
+        return _LEARNING_PHASE_PLACEHOLDER
 
 
 def set_learning_phase(value):
@@ -272,9 +272,9 @@ def placeholder(
             shape = tuple([None for _ in range(ndim)])
 
     if _get_cntk_version() >= 2.2:
-    	dynamic_dimension = C.FreeDimension
+        dynamic_dimension = C.FreeDimension
     else:
-    	dynamic_dimension = C.InferredDimension
+        dynamic_dimension = C.InferredDimension
 
     cntk_shape = [dynamic_dimension if s is None else s for s in shape]
     cntk_shape = tuple(cntk_shape)
@@ -728,13 +728,13 @@ def squeeze(x, axis):
 
     new_shape_temp = []
     for _ in new_shape:
-    	if _ == C.FreeDimension:
-    		new_shape_temp.append(C.InferredDimension)
-    	else:
-    		new_shape_temp.append(_)
+        if _ == C.FreeDimension:
+            new_shape_temp.append(C.InferredDimension)
+        else:
+            new_shape_temp.append(_)
 
-	new_shape =tuple(new_shape_temp)
-	del new_shape_temp
+    new_shape = tuple(new_shape_temp)
+    del new_shape_temp
 
     return C.reshape(x, new_shape)
 
