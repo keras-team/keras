@@ -734,7 +734,6 @@ def squeeze(x, axis):
             new_shape_temp.append(_)
 
     new_shape = tuple(new_shape_temp)
-    del new_shape_temp
 
     return C.reshape(x, new_shape)
 
@@ -1476,9 +1475,12 @@ def rnn(step_function, inputs, initial_states,
                 uses_learning_phase = True
 
             if m is not None:
-                new_states = [C.element_select(m, n, s) for n, s in zip(
-                    new_states,
-                    past_values)]
+                new_states_temp = []
+                for n, s in zip(new_states, past_values):
+                    new_states_temp.append(C.element_select(m, n, s))
+
+                new_states = new_states_temp
+
             n_s = []
             for o, p in zip(new_states, place_holders):
                 n_s.append(o.replace_placeholders({p: o.output}))
