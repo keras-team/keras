@@ -754,7 +754,7 @@ class TestBackend(object):
         assert_allclose(last_y1, last_y2, atol=1e-05)
         assert_allclose(y1, y2, atol=1e-05)
 
-    def legacy_test_rnn(self):
+    def test_legacy_rnn(self):
         # implement a simple RNN
         num_samples = 4
         input_dim = 5
@@ -849,7 +849,7 @@ class TestBackend(object):
         for m_s, u_m_s, k in zip(state_list[4], state_list[5], BACKENDS):
             assert_allclose(m_s, u_m_s, atol=1e-04)
 
-    def legacy_test_rnn_no_states(self):
+    def test_legacy_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
         output_dim = 4
@@ -1137,7 +1137,7 @@ class TestBackend(object):
             padding=padding, data_format=data_format, pool_mode=pool_mode,
             cntk_dynamicity=True)
 
-    def legacy_test_conv1d(self):
+    def test_legacy_conv1d(self):
         # channels_last input shape: (n, length, input_depth)
         input_shape = (4, 8, 2)
         kernel_shape = (3, 2, 3)
@@ -1147,7 +1147,7 @@ class TestBackend(object):
                                        strides=strides,
                                        data_format='channels_last')
 
-    def legacy_test_conv2d(self):
+    def test_legacy_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -1158,7 +1158,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def legacy_test_depthwise_conv_2d(self):
+    def test_legacy_depthwise_conv_2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth_multiplier)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -1170,7 +1170,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def legacy_test_conv3d(self):
+    def test_legacy_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
         # TH kernel shape: (depth, input_depth, x, y, z)
@@ -1210,7 +1210,7 @@ class TestBackend(object):
                 padding=padding, data_format=data_format))
         assert_allclose(y1, y2, atol=1e-05)
 
-    def legacy_test_pool2d(self):
+    def test_legacy_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3),
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 2), strides=(1, 1), padding='valid')
@@ -1232,7 +1232,7 @@ class TestBackend(object):
                                       pool_size=(3, 3), strides=(1, 1),
                                       padding='same', pool_mode='avg')
 
-    def legacy_test_pool3d(self):
+    def test_legacy_pool3d(self):
         check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3),
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
