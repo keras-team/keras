@@ -455,6 +455,22 @@ def eval(x):
     return x
 
 
+def get_value(x):
+    return x
+
+
+def count_params(x):
+    return x.size
+
+
+def int_shape(x):
+    return x.shape
+
+
+def get_variable_shape(x):
+    return int_shape(x)
+
+
 def dtype(x):
     return x.dtype.name
 

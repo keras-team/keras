@@ -331,19 +331,20 @@ class TestBackend(object):
             y = K.gather(x, indices)
             assert y._keras_shape == (5, 6, 3, 4)
 
-    def test_value_manipulation(self):
+    @pytest.mark.parametrize('function_name',
+                             ['get_value', 'count_params',
+                              'int_shape', 'get_variable_shape'])
+    def test_value_manipulation(self, function_name):
         val = np.random.random((4, 2))
-        for function_name in ['get_value', 'count_params',
-                              'int_shape', 'get_variable_shape']:
-            v_list = [getattr(k, function_name)(k.variable(val))
-                      for k in BACKENDS]
+        v_list = [getattr(k, function_name)(k.variable(val))
+                  for k in WITH_NP]
 
-            if function_name == 'get_value':
-                assert_list_pairwise(v_list)
-            else:
-                assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
+        if function_name == 'get_value':
+            assert_list_pairwise(v_list)
+        else:
+            assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
 
-        # print_tensor
+    def test_print_tensor(self):
         check_single_tensor_operation('print_tensor', (), WITH_NP)
         check_single_tensor_operation('print_tensor', (2,), WITH_NP)
         check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
