@@ -1427,9 +1427,9 @@ class TestBackend(object):
 
     def test_temporal_padding(self):
         check_single_tensor_operation('temporal_padding', (4, 3, 3),
-                                      BACKENDS)
+                                      WITH_NP)
         check_single_tensor_operation('temporal_padding', (2, 3, 4),
-                                      BACKENDS, padding=(1, 2))
+                                      WITH_NP, padding=(1, 2))
 
     def test_spatial_2d_padding(self):
         padding = ((1, 2), (2, 1))
@@ -1439,7 +1439,7 @@ class TestBackend(object):
                 x_shape = (1, 3) + shape
             else:
                 x_shape = (1,) + shape + (3,)
-            check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
+            check_single_tensor_operation('spatial_2d_padding', x_shape, WITH_NP,
                                           padding=padding, data_format=data_format)
         # Check handling of dynamic shapes.
         if K in [KTF, KTH]:
@@ -1461,7 +1461,7 @@ class TestBackend(object):
                 x_shape = (1, 3) + shape
             else:
                 x_shape = (1,) + shape + (3,)
-            check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
+            check_single_tensor_operation('spatial_3d_padding', x_shape, WITH_NP,
                                           padding=padding, data_format=data_format)
         # Check handling of dynamic shapes.
         if K in [KTF, KTH]:
