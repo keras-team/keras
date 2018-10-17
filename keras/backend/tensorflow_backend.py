@@ -2722,8 +2722,8 @@ class Function(object):
                     StrictVersion('1.10.0')):
                 if py_any(is_tensor(x) for x in inputs):
                     raise ValueError(
-                        'In order to feed symbolic tensors to a Keras model and set '
-                        '`run_metadata`, you need tensorflow 1.10 or higher.')
+                        'In order to feed symbolic tensors to a Keras model and set'
+                        ' `run_metadata`, you need tensorflow 1.10 or higher.')
                 return self._legacy_call(inputs)
 
             return self._call(inputs)
