@@ -7,6 +7,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 from keras.backend import floatx
+from keras.utils.generic_utils import transpose_shape
 
 
 def normalize_conv(func):
@@ -431,6 +432,24 @@ def repeat(x, n):
     return y
 
 
+def temporal_padding(x, padding=(1, 1)):
+    return np.pad(x, [(0, 0), padding, (0, 0)], mode='constant')
+
+
+def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
+def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2, 3))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
 def tile(x, n):
     return np.tile(x, n)
 
@@ -447,8 +466,28 @@ def batch_flatten(x):
     return np.reshape(x, (x.shape[0], -1))
 
 
+def gather(reference, indices):
+    return reference[indices]
+
+
 def eval(x):
     return x
+
+
+def get_value(x):
+    return x
+
+
+def count_params(x):
+    return x.size
+
+
+def int_shape(x):
+    return x.shape
+
+
+def get_variable_shape(x):
+    return int_shape(x)
 
 
 def dtype(x):
@@ -472,6 +511,44 @@ def print_tensor(x, message=''):
 
 def dot(x, y):
     return np.dot(x, y)
+
+
+def batch_dot(x, y, axes=None):
+    if isinstance(axes, int):
+        axes = (axes, axes)
+    if axes is None:
+        # behaves like tf.batch_matmul as default
+        axes = [x.ndim - 1, y.ndim - 2]
+    if any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
+    if x.ndim > y.ndim:
+        diff = x.ndim - y.ndim
+        y = np.reshape(y, np.concatenate([np.shape(y), [1] * diff], axis=0))
+    else:
+        diff = 0
+    if ndim(x) == 2 and ndim(y) == 2:
+        if axes[0] == axes[1]:
+            out = np.sum(np.multiply(x, y), axes[0])
+        else:
+            out = np.sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
+    else:
+        out = np.tensordot(x, y, axes=axes)
+        for axis in [axes[0]]:
+            axis_list = np.arange(len(out.shape) - 1).tolist()
+            axis_list.insert(0, axis_list.pop(axis))
+            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis),
+                               tuple(axis_list))
+    if diff:
+        if x.ndim > y.ndim:
+            idx = x.ndim + y.ndim - 3
+        else:
+            idx = x.ndim - 1
+        out = np.squeeze(out, tuple(range(idx, idx + diff)))
+    if ndim(out) == 1:
+        out = expand_dims(out, 1)
+    return out
 
 
 def transpose(x):

@@ -885,8 +885,6 @@ class TensorBoard(Callback):
 
             self.saver = tf.train.Saver(list(embeddings_vars.values()))
 
-            embeddings_metadata = {}
-
             if not isinstance(self.embeddings_metadata, str):
                 embeddings_metadata = self.embeddings_metadata
             else:
