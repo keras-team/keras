@@ -1475,8 +1475,11 @@ def rnn(step_function, inputs, initial_states,
                 uses_learning_phase = True
 
             if m is not None:
+                new_states_temp = []
                 for n, s in zip(new_states, past_values):
-                    new_states.append(C.element_select(m, n, s))
+                    new_states_temp.append(C.element_select(m, n, s))
+
+                new_states = new_states_temp
 
             n_s = []
             for o, p in zip(new_states, place_holders):
