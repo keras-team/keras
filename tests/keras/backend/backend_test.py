@@ -316,9 +316,9 @@ class TestBackend(object):
         ref = np.arange(np.prod(shape)).reshape(shape)
         inds = [1, 3, 7, 9]
         t_list = [k.gather(k.variable(ref), k.variable(inds, dtype='int32'))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
         z_list = [k.eval(k.gather(k.variable(ref), k.variable(inds, dtype='int32')))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
 
         assert_list_pairwise(z_list)
         assert_list_keras_shape(t_list, z_list)
@@ -331,19 +331,20 @@ class TestBackend(object):
             y = K.gather(x, indices)
             assert y._keras_shape == (5, 6, 3, 4)
 
-    def test_value_manipulation(self):
+    @pytest.mark.parametrize('function_name',
+                             ['get_value', 'count_params',
+                              'int_shape', 'get_variable_shape'])
+    def test_value_manipulation(self, function_name):
         val = np.random.random((4, 2))
-        for function_name in ['get_value', 'count_params',
-                              'int_shape', 'get_variable_shape']:
-            v_list = [getattr(k, function_name)(k.variable(val))
-                      for k in BACKENDS]
+        v_list = [getattr(k, function_name)(k.variable(val))
+                  for k in WITH_NP]
 
-            if function_name == 'get_value':
-                assert_list_pairwise(v_list)
-            else:
-                assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
+        if function_name == 'get_value':
+            assert_list_pairwise(v_list)
+        else:
+            assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
 
-        # print_tensor
+    def test_print_tensor(self):
         check_single_tensor_operation('print_tensor', (), WITH_NP)
         check_single_tensor_operation('print_tensor', (2,), WITH_NP)
         check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
@@ -754,7 +755,7 @@ class TestBackend(object):
         assert_allclose(last_y1, last_y2, atol=1e-05)
         assert_allclose(y1, y2, atol=1e-05)
 
-    def legacy_test_rnn(self):
+    def test_legacy_rnn(self):
         # implement a simple RNN
         num_samples = 4
         input_dim = 5
@@ -849,7 +850,7 @@ class TestBackend(object):
         for m_s, u_m_s, k in zip(state_list[4], state_list[5], BACKENDS):
             assert_allclose(m_s, u_m_s, atol=1e-04)
 
-    def legacy_test_rnn_no_states(self):
+    def test_legacy_rnn_no_states(self):
         # implement a simple RNN without states
         input_dim = 8
         output_dim = 4
@@ -1137,7 +1138,7 @@ class TestBackend(object):
             padding=padding, data_format=data_format, pool_mode=pool_mode,
             cntk_dynamicity=True)
 
-    def legacy_test_conv1d(self):
+    def test_legacy_conv1d(self):
         # channels_last input shape: (n, length, input_depth)
         input_shape = (4, 8, 2)
         kernel_shape = (3, 2, 3)
@@ -1147,7 +1148,7 @@ class TestBackend(object):
                                        strides=strides,
                                        data_format='channels_last')
 
-    def legacy_test_conv2d(self):
+    def test_legacy_conv2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -1158,7 +1159,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def legacy_test_depthwise_conv_2d(self):
+    def test_legacy_depthwise_conv_2d(self):
         # TF kernel shape: (rows, cols, input_depth, depth_multiplier)
         # channels_first input shape: (n, input_depth, rows, cols)
         for (input_shape, kernel_shape, data_format) in [
@@ -1170,7 +1171,7 @@ class TestBackend(object):
                                        BACKENDS, cntk_dynamicity=True,
                                        data_format=data_format)
 
-    def legacy_test_conv3d(self):
+    def test_legacy_conv3d(self):
         # TH input shape: (samples, input_depth, conv_dim1, conv_dim2, conv_dim3)
         # TF input shape: (samples, conv_dim1, conv_dim2, conv_dim3, input_depth)
         # TH kernel shape: (depth, input_depth, x, y, z)
@@ -1210,7 +1211,7 @@ class TestBackend(object):
                 padding=padding, data_format=data_format))
         assert_allclose(y1, y2, atol=1e-05)
 
-    def legacy_test_pool2d(self):
+    def test_legacy_pool2d(self):
         check_single_tensor_operation('pool2d', (5, 10, 12, 3),
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 2), strides=(1, 1), padding='valid')
@@ -1232,7 +1233,7 @@ class TestBackend(object):
                                       pool_size=(3, 3), strides=(1, 1),
                                       padding='same', pool_mode='avg')
 
-    def legacy_test_pool3d(self):
+    def test_legacy_pool3d(self):
         check_single_tensor_operation('pool3d', (5, 10, 12, 5, 3),
                                       BACKENDS, cntk_dynamicity=True,
                                       pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
@@ -1426,9 +1427,9 @@ class TestBackend(object):
 
     def test_temporal_padding(self):
         check_single_tensor_operation('temporal_padding', (4, 3, 3),
-                                      BACKENDS)
+                                      WITH_NP)
         check_single_tensor_operation('temporal_padding', (2, 3, 4),
-                                      BACKENDS, padding=(1, 2))
+                                      WITH_NP, padding=(1, 2))
 
     def test_spatial_2d_padding(self):
         padding = ((1, 2), (2, 1))
@@ -1438,7 +1439,7 @@ class TestBackend(object):
                 x_shape = (1, 3) + shape
             else:
                 x_shape = (1,) + shape + (3,)
-            check_single_tensor_operation('spatial_2d_padding', x_shape, BACKENDS,
+            check_single_tensor_operation('spatial_2d_padding', x_shape, WITH_NP,
                                           padding=padding, data_format=data_format)
         # Check handling of dynamic shapes.
         if K in [KTF, KTH]:
@@ -1460,7 +1461,7 @@ class TestBackend(object):
                 x_shape = (1, 3) + shape
             else:
                 x_shape = (1,) + shape + (3,)
-            check_single_tensor_operation('spatial_3d_padding', x_shape, BACKENDS,
+            check_single_tensor_operation('spatial_3d_padding', x_shape, WITH_NP,
                                           padding=padding, data_format=data_format)
         # Check handling of dynamic shapes.
         if K in [KTF, KTH]:
