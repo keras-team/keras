@@ -124,7 +124,7 @@ def test_weighted_masked_objective():
     weighted_function(a, a, None)
 
 
-def get_model(nb_of_outputs=1):
+def get_model(num_outputs=1):
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
 
@@ -132,7 +132,7 @@ def get_model(nb_of_outputs=1):
     dp = Dropout(0.5, name='dropout')
     b_2 = dp(b)
 
-    if nb_of_outputs == 1:
+    if num_outputs == 1:
         model = Model([a, b], a_2)
     else:
         model = Model([a, b], [a_2, b_2])
