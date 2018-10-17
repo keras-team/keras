@@ -497,7 +497,6 @@ def dropout(x, level, noise_shape=None, seed=None):
     if noise_shape is None:
         noise_shape = x.shape
     if learning_phase():
-        np.random.seed(seed)
         noise = np.random.choice([0, 1],
                                  noise_shape,
                                  replace=True,
