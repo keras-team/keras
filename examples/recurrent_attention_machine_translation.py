@@ -555,8 +555,7 @@ class DenseAnnotationAttention(_RNNAttentionCell):
 
 
 if __name__ == '__main__':
-    # DATA_DIR = 'data/wmt16_mmt'
-    DATA_DIR = '/Users/andershuss/Datasets/WMT16/mmt'
+    DATA_DIR = 'data/wmt16_mmt'
     FROM_LANGUAGE = 'en'
     TO_LANGUAGE = 'de'
 
