@@ -1710,8 +1710,8 @@ class TestBackend(object):
         assert np.all(koh == oh)
 
     @pytest.mark.skipif((K.backend() == 'cntk'
-                         or (K.backend() == 'theano' and K.th_sparse_module)),
-                        reason='Sparse tensors are not supported in cntk.'
+                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+                        reason='Sparse tensors are not supported in cntk '
                                'and Theano has some dependency issues for sparse.')
     def test_sparse_dot(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)
@@ -1730,8 +1730,8 @@ class TestBackend(object):
         assert_allclose(k_s, k_d, atol=1e-05)
 
     @pytest.mark.skipif((K.backend() == 'cntk'
-                         or (K.backend() == 'theano' and K.th_sparse_module)),
-                        reason='Sparse tensors are not supported in cntk.'
+                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+                        reason='Sparse tensors are not supported in cntk '
                                'and Theano has some dependency issues for sparse.')
     def test_sparse_concat(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)
