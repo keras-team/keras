@@ -1475,11 +1475,8 @@ def rnn(step_function, inputs, initial_states,
                 uses_learning_phase = True
 
             if m is not None:
-                new_states_temp = []
                 for n, s in zip(new_states, past_values):
-                    new_states_temp.append(C.element_select(m, n, s))
-
-                new_states = new_states_temp
+                    new_states.append(C.element_select(m, n, s))
 
             n_s = []
             for o, p in zip(new_states, place_holders):
@@ -2375,8 +2372,9 @@ def get_num_dynamic_axis(x):
 def _reduce_on_axis(x, axis, reduce_fun_name):
     if isinstance(axis, list):
         for a in axis:
-            if (isinstance(a, C.Axis) and a != C.Axis.default_batch_axis() and
-                    hasattr(C.sequence, reduce_fun_name)):
+            if isinstance(a, C.Axis) \
+                    and a != C.Axis.default_batch_axis() \
+                    and hasattr(C.sequence, reduce_fun_name):
                 x = getattr(C.sequence, reduce_fun_name)(x, a)
             else:
                 x = getattr(C, reduce_fun_name)(x, a)
