@@ -72,7 +72,10 @@ def parse_shape_or_val(shape_or_val):
 
 
 def assert_list_pairwise(z_list,
-                         shape=True, allclose=True, itself=False, atol=1e-05):
+                         shape=True,
+                         allclose=True,
+                         itself=False,
+                         atol=1e-05):
     for (z1, z2) in zip(z_list[1:], z_list[:-1]):
         if shape:
             assert z1.shape == z2.shape
@@ -90,7 +93,9 @@ def assert_list_keras_shape(t_list, z_list):
                     assert t._keras_shape[i] == z.shape[i]
 
 
-def check_single_tensor_operation(function_name, x_shape_or_val, backend_list,
+def check_single_tensor_operation(function_name,
+                                  x_shape_or_val,
+                                  backend_list,
                                   **kwargs):
     shape_or_val = kwargs.pop('shape_or_val', True)
     assert_value_equality = kwargs.pop('assert_value_equality', True)
@@ -119,8 +124,11 @@ def check_single_tensor_operation(function_name, x_shape_or_val, backend_list,
     assert_list_keras_shape(t_list, z_list)
 
 
-def check_two_tensor_operation(function_name, x_shape_or_val,
-                               y_shape_or_val, backend_list, **kwargs):
+def check_two_tensor_operation(function_name,
+                               x_shape_or_val,
+                               y_shape_or_val,
+                               backend_list,
+                               **kwargs):
     concat_args = kwargs.pop('concat_args', False)
     cntk_dynamicity = kwargs.pop('cntk_dynamicity', False)
     cntk_two_dynamicity = kwargs.pop('cntk_two_dynamicity', False)
@@ -156,9 +164,12 @@ def check_two_tensor_operation(function_name, x_shape_or_val,
     assert_list_keras_shape(t_list, z_list)
 
 
-def check_composed_tensor_operations(first_function_name, first_function_args,
-                                     second_function_name, second_function_args,
-                                     input_shape, backend_list):
+def check_composed_tensor_operations(first_function_name,
+                                     first_function_args,
+                                     second_function_name,
+                                     second_function_args,
+                                     input_shape,
+                                     backend_list):
     val = np.random.random(input_shape) - 0.5
 
     z_list = []
@@ -996,15 +1007,15 @@ class TestBackend(object):
     @pytest.mark.parametrize('alpha,max_value,threshold', [
         (0.0, None, 0.0),  # standard relu
         (0.1, None, 0.0),  # set alpha only
-        (0.0, 5.0, 0.0),  # set max_value only
+        (0.0, 5.0, 0.0),   # set max_value only
         (0.0, None, 0.8),  # set threshold only
-        (0.1, 5.0, 0.0),  # set alpha and max_value
+        (0.1, 5.0, 0.0),   # set alpha and max_value
         (0.1, None, 0.8),  # set alpha and threshold
-        (0.0, 5.0, 0.8),  # set max_value and threshold
-        (0.1, 5.0, 0.8),  # set all
-        (0.1, 0.0, 0.8),  # max_value is zero
+        (0.0, 5.0, 0.8),   # set max_value and threshold
+        (0.1, 5.0, 0.8),   # set all
+        (0.1, 0.0, 0.8),   # max_value is zero
         (0.1, 5.0, -2.8),  # threshold is negative
-        (0.1, 9.0, 0.8),  # max_value > 6
+        (0.1, 9.0, 0.8),   # max_value > 6
     ])
     def test_relu(self, alpha, max_value, threshold):
         check_single_tensor_operation('relu', (4, 2), WITH_NP, alpha=alpha,
@@ -1105,8 +1116,13 @@ class TestBackend(object):
             ('conv2d_transpose', (2, 3, 8, 9), (3, 3, 2, 3), (2, 2, 8, 9),
              'same', 'channels_first'),
         ])
-    def test_conv_transpose(self, op, input_shape, kernel_shape, output_shape,
-                            padding, data_format):
+    def test_conv_transpose(self,
+                            op,
+                            input_shape,
+                            kernel_shape,
+                            output_shape,
+                            padding,
+                            data_format):
         check_two_tensor_operation(
             op, input_shape, kernel_shape, WITH_NP,
             output_shape=output_shape, padding=padding, data_format=data_format,
@@ -1127,8 +1143,13 @@ class TestBackend(object):
             ('conv3d', (2, 3, 5, 4, 6), (2, 2, 3, 3, 4),
              'same', 'channels_first', (2, 2, 2)),
         ])
-    def test_dilated_conv(self, op, input_shape, kernel_shape, padding,
-                          data_format, dilation_rate):
+    def test_dilated_conv(self,
+                          op,
+                          input_shape,
+                          kernel_shape,
+                          padding,
+                          data_format,
+                          dilation_rate):
         check_two_tensor_operation(
             op, input_shape, kernel_shape, WITH_NP,
             padding=padding, data_format=data_format,
@@ -1144,8 +1165,13 @@ class TestBackend(object):
             ('conv2d_transpose', (2, 3, 8, 9), (3, 3, 2, 3), (2, 2, 8, 9),
              'same', 'channels_first', (2, 2)),
         ])
-    def test_dilated_conv_transpose(self, op, input_shape, kernel_shape,
-                                    output_shape, padding, data_format,
+    def test_dilated_conv_transpose(self,
+                                    op,
+                                    input_shape,
+                                    kernel_shape,
+                                    output_shape,
+                                    padding,
+                                    data_format,
                                     dilation_rate):
         check_two_tensor_operation(
             op, input_shape, kernel_shape, WITH_NP, output_shape=output_shape,
@@ -1158,8 +1184,12 @@ class TestBackend(object):
         ('depthwise_conv2d', (1, 6, 5, 3), (3, 4, 3, 2), 'valid', 'channels_last'),
         ('depthwise_conv2d', (1, 7, 6, 3), (3, 3, 3, 4), 'same', 'channels_last'),
     ])
-    def test_depthwise_conv(self, op, input_shape, kernel_shape,
-                            padding, data_format):
+    def test_depthwise_conv(self,
+                            op,
+                            input_shape,
+                            kernel_shape,
+                            padding,
+                            data_format):
         check_two_tensor_operation(
             op, input_shape, kernel_shape, WITH_NP,
             padding=padding, data_format=data_format,
@@ -1184,8 +1214,14 @@ class TestBackend(object):
             ('pool3d', (3, 5, 6, 7, 3), (3, 3, 3), (1, 1, 1),
              'same', 'channels_last', 'max'),
         ])
-    def test_pool(self, op, input_shape, pool_size, strides,
-                  padding, data_format, pool_mode):
+    def test_pool(self,
+                  op,
+                  input_shape,
+                  pool_size,
+                  strides,
+                  padding,
+                  data_format,
+                  pool_mode):
         check_single_tensor_operation(
             op, input_shape, WITH_NP,
             pool_size=pool_size, strides=strides,
@@ -1250,8 +1286,13 @@ class TestBackend(object):
             ('separable_conv2d', (1, 6, 5, 3), (3, 4), 1, 'valid', 'channels_last'),
             ('separable_conv2d', (1, 7, 6, 3), (3, 3), 2, 'same', 'channels_last'),
         ])
-    def test_separable_conv(self, op, input_shape, kernel_shape, depth_multiplier,
-                            padding, data_format):
+    def test_separable_conv(self,
+                            op,
+                            input_shape,
+                            kernel_shape,
+                            depth_multiplier,
+                            padding,
+                            data_format):
         if data_format == 'channels_first':
             input_depth = input_shape[1]
         else:
