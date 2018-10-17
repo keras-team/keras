@@ -7,6 +7,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 from keras.backend import floatx
+from keras.utils.generic_utils import transpose_shape
 
 
 def normalize_conv(func):
@@ -429,6 +430,24 @@ def repeat(x, n):
     y = np.expand_dims(x, 1)
     y = np.repeat(y, n, axis=1)
     return y
+
+
+def temporal_padding(x, padding=(1, 1)):
+    return np.pad(x, [(0, 0), padding, (0, 0)], mode='constant')
+
+
+def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
+def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2, 3))
+    return np.pad(x, all_dims_padding, mode='constant')
 
 
 def tile(x, n):
