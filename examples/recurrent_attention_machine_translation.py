@@ -1,6 +1,6 @@
 '''Machine Translation (word-level) with recurrent attention in Keras.
 
-This script demonstrates how to implement a basic word-level machine
+This script demonstrates how to implement basic word-level machine
 translation using the recurrent attention mechanism described in [1].
 
 # Summary of the algorithm
@@ -9,7 +9,7 @@ given the sequence of words in the input language. The overall approach
 can be summarized as:
     teacher forcing (i.e. next word is predicted given previous words
     in target language) conditioned on the input language sentence
-    using an attention.
+    using attention.
 
 Main steps:
 - Input and target sentences are tokenized (word level).
@@ -18,8 +18,8 @@ Main steps:
     into a _sequence_ of encodings - with same length as the input
     sequence.
 - A Decoder is constructed using a (unidirectional) GRU with attention:
-    At each time step it:
-    - Is fed the previous target word embedding and previous GRU state.
+    At each time step:
+    - It is fed the previous target word embedding and previous GRU state.
     - Based on the previous state and the input encoding sequence, it
         computes a weight for each time step (i.e. word index) of the
         input encoding sequence, using a single hidden layer MLP. The
@@ -59,17 +59,26 @@ To download the data run:
 
 # Differences between this implementation and [1]
 - A different/older dataset (wmt14) is used in [1].
-- The Tokenization is similar but not identical
-- TODO(!) A "cascading architecture" is use in [1] by feeding not only the GRU output
-    to the readout layer but also the attention encoding. This can be done by:
-    1) concatenating the attention encoding to the output of the wrapped cell in
-        the _RNNAttentionCell. However, then it must be concatenated to the wrapped cell
-        state as well since the `state_size` and `output_size` of an RNNCell must e the
-        same for masking to work currently (this is a separate issue that should be fixed
-        though).
-    2) Adding "return_state_sequences" to RNN - this way concatenation can be done
-        externally and if also offers much more flexibility for inspecting "what is
-        attended" by the attention mechanism.
+- The Tokenization here is similar but not identical to [1].
+- TODO(1) Beam search is used in inference in [1]. This would be nice to
+    add to make example complete.
+- TODO(2) A "cascading architecture" is use in [1] by feeding not only
+    the GRU output to the readout layer but also the attention encoding.
+    This can be done by:
+    1) concatenating the attention encoding to the output of the
+        wrapped cell in the _RNNAttentionCell. However, then it must be
+        concatenated to the wrapped cell state as well which causes
+        cognitive overhead. This must be done becasue `state_size` and
+        `output_size` of an RNNCell must be the equal for masking to
+        work currently (this is a separate issue that can and should be
+        fixed though).
+    2) Adding "return_state_sequences" to RNN - this way concatenation
+        can be done externally and if also offers much more flexibility
+        for inspecting "what is attended" by the attention mechanism.
+- TODO(3) This implementation is inefficient in how attention is applied,
+    part of the computation can be done _once_ for the attended but is
+    now done at every timestep. It is kept this way here for readability.
+    Will make a separate PR to show alternative solution.
 '''
 
 from __future__ import print_function
@@ -84,6 +93,7 @@ from keras import (
 from keras.engine import (
     Layer,
     InputSpec)
+from keras.engine.base_layer import _collect_previous_mask
 from keras.layers import (
     Input,
     Embedding,
@@ -217,6 +227,7 @@ class _RNNAttentionCell(Layer):
                        cell_states,
                        attended,
                        attention_states,
+                       attended_mask,
                        training=None):
         """The main logic for computing the attention encoding.
 
@@ -307,6 +318,10 @@ class _RNNAttentionCell(Layer):
         """Complete attentive cell transformation.
         """
         attended = constants
+        attended_mask = _collect_previous_mask(attended)
+        # attended and mask are always lists for uniformity:
+        if not isinstance(attended_mask, list):
+            attended_mask = [attended_mask]
         cell_states = states[:self._num_wrapped_states]
         attention_states = states[self._num_wrapped_states:]
 
@@ -319,6 +334,7 @@ class _RNNAttentionCell(Layer):
                     cell_states=cell_states,
                     attended=attended,
                     attention_states=attention_states,
+                    attended_mask=attended_mask,
                     training=training)
 
     def call_attend_before(self,
@@ -326,6 +342,7 @@ class _RNNAttentionCell(Layer):
                            cell_states,
                            attended,
                            attention_states,
+                           attended_mask,
                            training=None):
         """Complete attentive cell transformation, if `attend_after=False`.
         """
@@ -334,6 +351,7 @@ class _RNNAttentionCell(Layer):
             cell_states=cell_states,
             attended=attended,
             attention_states=attention_states,
+            attended_mask=attended_mask,
             training=training)
 
         if self.concatenate_input:
@@ -354,6 +372,7 @@ class _RNNAttentionCell(Layer):
                           cell_states,
                           attended,
                           attention_states,
+                          attended_mask,
                           training=None):
         """Complete attentive cell transformation, if `attend_after=True`.
         """
@@ -375,6 +394,7 @@ class _RNNAttentionCell(Layer):
             cell_states=new_cell_states,
             attended=attended,
             attention_states=attention_states,
+            attended_mask=attended_mask,
             training=training)
 
         return output, new_cell_states, new_attention_states
@@ -458,7 +478,7 @@ class _RNNAttentionCell(Layer):
 
 
 class DenseAnnotationAttention(_RNNAttentionCell):
-    """RNN attention mechanism for attending sequences.
+    """Recurrent attention mechanism for attending sequences.
     TODO docs
     """
     def __init__(self, cell,
@@ -480,19 +500,24 @@ class DenseAnnotationAttention(_RNNAttentionCell):
                        cell_states,
                        attended,
                        attention_states,
+                       attended_mask,
                        training=None):
         # only one attended sequence (verified in build)
         assert len(attended) == 1
         attended = attended[0]
+        attended_mask = attended_mask[0]
         h_cell_tm1 = cell_states[0]
 
         # compute attention weights
         w = K.repeat(K.dot(h_cell_tm1, self.W_a), K.shape(attended)[1])
-        u = K.dot(attended, self.U_a)  # this computation should be done externally!?
-        e = K.dot(K.tanh(w + u), self.v_a)
-        a = K.softmax(e, axis=1)
+        u = K.dot(attended, self.U_a)  # TODO should be done externally of cell
+        e = K.exp(K.dot(K.tanh(w + u), self.v_a))
+
+        if attended_mask is not None:
+            e = e * K.cast(K.expand_dims(attended_mask, -1), K.dtype(e))
 
         # weighted average of attended
+        a = e / K.sum(e, axis=1, keepdims=True)
         c = K.sum(a * attended, axis=1, keepdims=False)
 
         return c, [c]
@@ -598,9 +623,9 @@ if __name__ == '__main__':
         """Implements a dense maxout layer where max is taken
         over _two_ units"""
         x_ = Dense(READOUT_HIDDEN_UNITS * 2)(x_)
-        new_shape = K.int_shape(x_)[0] + (READOUT_HIDDEN_UNITS, 2)
-        x_fold = K.reshape(x_, new_shape)
-        return K.max(x_fold, axis=-1, keepdims=False)
+        x_1 = x_[:, :READOUT_HIDDEN_UNITS]
+        x_2 = x_[:, READOUT_HIDDEN_UNITS:]
+        return K.max(K.stack([x_1, x_2], axis=-1), axis=-1, keepdims=False)
 
     h2 = TimeDistributed(Lambda(dense_maxout))(concatenate([h1, y_emb]))
     y_pred = TimeDistributed(Dense(target_tokenizer.num_words))(h2)
