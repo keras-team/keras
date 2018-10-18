@@ -48,9 +48,13 @@ def model_to_dot(model,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
+        expand_nested: whether to expand wrapped models into clusters.
+        dpi: dot DPI.
+        subgraph: is this model are wrapped model,
+            in this case method will return `pydot.Cluster` instance
 
     # Returns
-        A `pydot.Dot` instance representing the Keras model.
+        A `pydot.Graph` instance representing the Keras model.
     """
     from ..layers.wrappers import Wrapper
     from ..models import Model
@@ -136,8 +140,8 @@ def plot_model(model,
                to_file='model.png',
                show_shapes=False,
                show_layer_names=True,
-               expand_nested=False,
                rankdir='TB',
+               expand_nested=False,
                dpi=96):
     """Converts a Keras model to dot format and save to a file.
 
@@ -150,6 +154,8 @@ def plot_model(model,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
+        expand_nested: whether to expand wrapped models into clusters.
+        dpi: dot DPI.
     """
     dot = model_to_dot(model, show_shapes, show_layer_names, rankdir, expand_nested, dpi)
     _, extension = os.path.splitext(to_file)
