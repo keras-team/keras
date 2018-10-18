@@ -60,25 +60,33 @@ To download the data run:
 # Differences between this implementation and [1]
 - A different/older dataset (wmt14) is used in [1].
 - The Tokenization here is similar but not identical to [1].
-- TODO(1) Beam search is used in inference in [1]. This would be nice to
+- Initialisation of weights are not identical here and [1].
+- Normalisation of gradients is done when L2-norm > 1 in [1].
+- TODO(1) Add bias terms. In the detailed description of the
+    architecture in [1] it is stated: "From here on, we omit all bias
+    terms in order to increase readability". It is thus not fully clear
+    which linear transformations also has bias terms, but probably all.
+- TODO(2) Beam search is used in inference in [1]. This would be nice to
     add to make example complete.
-- TODO(2) A "cascading architecture" is use in [1] by feeding not only
+- TODO(3) A "cascading architecture" is use in [1] by feeding not only
     the GRU output to the readout layer but also the attention encoding.
     This can be done by:
     1) concatenating the attention encoding to the output of the
         wrapped cell in the _RNNAttentionCell. However, then it must be
         concatenated to the wrapped cell state as well which causes
-        cognitive overhead. This must be done becasue `state_size` and
+        cognitive overhead. This must be done because `state_size` and
         `output_size` of an RNNCell must be the equal for masking to
         work currently (this is a separate issue that can and should be
         fixed though).
     2) Adding "return_state_sequences" to RNN - this way concatenation
         can be done externally and if also offers much more flexibility
         for inspecting "what is attended" by the attention mechanism.
-- TODO(3) This implementation is inefficient in how attention is applied,
+- TODO(4) This implementation is inefficient in how attention is applied,
     part of the computation can be done _once_ for the attended but is
     now done at every timestep. It is kept this way here for readability.
     Will make a separate PR to show alternative solution.
+(- There is no mention of Dropout or other regularisation methods in [1],
+    this could improve performance.)
 '''
 
 from __future__ import print_function
@@ -234,9 +242,10 @@ class _RNNAttentionCell(Layer):
         # Arguments
             inputs: The input at current time step.
             cell_states: States for the core RNN cell.
-            attended: The same tensor(s) to attend at each time step.
+            attended: The constant tensor(s) to attend at each time step.
             attention_states: States dedicated for the attention mechanism.
-            training: whether run in training mode or not
+            attended_mask: Collected masks for the attended.
+            training: Whether run in training mode or not.
 
         # Returns
             attention_h: The computed attention encoding at current time step.
@@ -627,7 +636,7 @@ if __name__ == '__main__':
         return K.max(K.stack([x_1, x_2], axis=-1), axis=-1, keepdims=False)
 
     h2 = TimeDistributed(Lambda(dense_maxout))(concatenate([h1, y_emb]))
-    y_pred = TimeDistributed(Dense(target_tokenizer.num_words))(h2)
+    y_pred = TimeDistributed(Dense(target_tokenizer.num_words, activation='softmax'))(h2)
 
     model = Model([y, x], y_pred)
     model.compile(loss='sparse_categorical_crossentropy',
@@ -638,7 +647,7 @@ if __name__ == '__main__':
               batch_size=BATCH_SIZE,
               epochs=EPOCHS,
               validation_data=(
-                  [target_seqs_train[:, :-1], input_seqs_train],
-                  target_seqs_train[:, 1:, None]))
+                  [target_seqs_val[:, :-1], input_seqs_val],
+                  target_seqs_val[:, 1:, None]))
 
     # TODO add logic for greedy/beam search generation
