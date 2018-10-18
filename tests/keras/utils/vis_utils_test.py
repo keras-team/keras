@@ -35,7 +35,8 @@ def test_plot_model():
     l_lstm_sent = LSTM(16)(review_encoder)
     preds = Dense(5, activation='softmax')(l_lstm_sent)
     model = Model(review_input, preds)
-    vis_utils.plot_model(model, to_file='model3.png', show_shapes=True, expand_nested=True, dpi=300)
+    vis_utils.plot_model(model, to_file='model3.png', show_shapes=True,
+                         expand_nested=True, dpi=300)
     os.remove('model3.png')
 
 

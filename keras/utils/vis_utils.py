@@ -84,13 +84,16 @@ def model_to_dot(model,
         class_name = layer.__class__.__name__
         if isinstance(layer, Wrapper):
             if expand_nested and isinstance(layer.layer, Model):
-                submodel = model_to_dot(layer.layer, show_shapes, show_layer_names, rankdir, expand_nested,
+                submodel = model_to_dot(layer.layer, show_shapes,
+                                        show_layer_names, rankdir, expand_nested,
                                         subgraph=True)
                 model_nodes = submodel.get_nodes()
                 dot.add_edge(pydot.Edge(layer_id, model_nodes[0].get_name()))
                 if len(layers) > i + 1:
-                    next_layer_id = str(id(layers[i+1]))
-                    dot.add_edge(pydot.Edge(model_nodes[len(model_nodes)-1].get_name(), next_layer_id))
+                    next_layer_id = str(id(layers[i + 1]))
+                    dot.add_edge(pydot.Edge(
+                        model_nodes[len(model_nodes) - 1].get_name(),
+                        next_layer_id))
                 dot.add_subgraph(submodel)
             else:
                 layer_name = '{}({})'.format(layer_name, layer.layer.name)
@@ -130,7 +133,8 @@ def model_to_dot(model,
             if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
                     if not expand_nested or not \
-                            (isinstance(inbound_layer, Wrapper) and isinstance(inbound_layer.layer, Model)):
+                            (isinstance(inbound_layer, Wrapper) and
+                             isinstance(inbound_layer.layer, Model)):
                         inbound_layer_id = str(id(inbound_layer))
                         dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
     return dot
@@ -157,7 +161,8 @@ def plot_model(model,
         expand_nested: whether to expand wrapped models into clusters.
         dpi: dot DPI.
     """
-    dot = model_to_dot(model, show_shapes, show_layer_names, rankdir, expand_nested, dpi)
+    dot = model_to_dot(model, show_shapes, show_layer_names, rankdir,
+                       expand_nested, dpi)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = 'png'
