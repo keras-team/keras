@@ -62,10 +62,10 @@ To download the data run:
 - The Tokenization here is similar but not identical to [1].
 - Initialisation of weights are not identical here and [1].
 - Normalisation of gradients is done when L2-norm > 1 in [1].
-- TODO(1) Add bias terms. In the detailed description of the
-    architecture in [1] it is stated: "From here on, we omit all bias
-    terms in order to increase readability". It is thus not fully clear
-    which linear transformations also has bias terms, but probably all.
+- In the detailed description of the architecture in [1] it is stated:
+    "From here on, we omit all bias terms in order to increase
+    readability". It is thus not fully clear which linear transformations
+    also has bias terms, here all have.
 - TODO(2) Beam search is used in inference in [1]. This would be nice to
     add to make example complete.
 - TODO(3) A "cascading architecture" is use in [1] by feeding not only
@@ -81,10 +81,6 @@ To download the data run:
     2) Adding "return_state_sequences" to RNN - this way concatenation
         can be done externally and if also offers much more flexibility
         for inspecting "what is attended" by the attention mechanism.
-- TODO(4) This implementation is inefficient in how attention is applied,
-    part of the computation can be done _once_ for the attended but is
-    now done at every timestep. It is kept this way here for readability.
-    Will make a separate PR to show alternative solution.
 (- There is no mention of Dropout or other regularisation methods in [1],
     this could improve performance.)
 '''
@@ -492,15 +488,21 @@ class DenseAnnotationAttention(_RNNAttentionCell):
     """
     def __init__(self, cell,
                  kernel_initializer='glorot_uniform',
+                 bias_initializer='zeros',
                  kernel_regularizer=None,
+                 bias_regularizer=None,
                  activity_regularizer=None,
                  kernel_constraint=None,
+                 bias_constraint=None,
                  **kwargs):
         super(DenseAnnotationAttention, self).__init__(cell, **kwargs)
         self.kernel_initializer = initializers.get(kernel_initializer)
+        self.bias_initializer = initializers.get(bias_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
+        self.bias_regularizer = regularizers.get(bias_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
+        self.bias_constraint = constraints.get(bias_constraint)
 
     def attention_call(self,
                        inputs,
@@ -515,8 +517,8 @@ class DenseAnnotationAttention(_RNNAttentionCell):
         h_cell_tm1 = cell_states[0]
 
         # compute attention weights
-        w = K.repeat(K.dot(h_cell_tm1, self.W_a), K.shape(attended)[1])
-        e = K.exp(K.dot(K.tanh(w + u), self.v_a))
+        w = K.repeat(K.dot(h_cell_tm1, self.W_a) + self.b_UW, K.shape(attended)[1])
+        e = K.exp(K.dot(K.tanh(w + u), self.v_a) + self.b_v)
 
         if attended_mask is not None:
             e = e * K.cast(K.expand_dims(attended_mask, -1), K.dtype(e))
@@ -539,20 +541,32 @@ class DenseAnnotationAttention(_RNNAttentionCell):
         self._attention_size = attended_shape[-1]
         units = u_shape[-1]
 
-        kwargs = dict(initializer=self.kernel_initializer,
-                      regularizer=self.kernel_regularizer,
-                      constraint=self.kernel_constraint)
+        kernel_kwargs = dict(initializer=self.kernel_initializer,
+                             regularizer=self.kernel_regularizer,
+                             constraint=self.kernel_constraint)
         self.W_a = self.add_weight(shape=(cell_state_size[0], units),
-                                   name='W_a', **kwargs)
+                                   name='W_a', **kernel_kwargs)
         self.v_a = self.add_weight(shape=(units, 1),
-                                   name='v_a', **kwargs)
+                                   name='v_a', **kernel_kwargs)
+
+        bias_kwargs = dict(initializer=self.bias_initializer,
+                           regularizer=self.bias_regularizer,
+                           constraint=self.bias_constraint)
+        self.b_UW = self.add_weight(shape=(units,),
+                                    name="b_UW", **bias_kwargs)
+        self.b_v = self.add_weight(shape=(1,),
+                                   name="b_v", **bias_kwargs)
 
     def get_config(self):
         config = {
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
+            'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'bias_regularizer': regularizers.serialize(self.bias_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
+            'bias_constraint': constraints.serialize(self.bias_constraint)
         }
         base_config = super(DenseAnnotationAttention, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
