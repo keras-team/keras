@@ -491,14 +491,12 @@ class DenseAnnotationAttention(_RNNAttentionCell):
     TODO docs
     """
     def __init__(self, cell,
-                 units,
                  kernel_initializer='glorot_uniform',
                  kernel_regularizer=None,
                  activity_regularizer=None,
                  kernel_constraint=None,
                  **kwargs):
         super(DenseAnnotationAttention, self).__init__(cell, **kwargs)
-        self.units = units
         self.kernel_initializer = initializers.get(kernel_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.activity_regularizer = regularizers.get(activity_regularizer)
@@ -512,14 +510,12 @@ class DenseAnnotationAttention(_RNNAttentionCell):
                        attended_mask,
                        training=None):
         # only one attended sequence (verified in build)
-        assert len(attended) == 1
-        attended = attended[0]
+        [attended, u] = attended
         attended_mask = attended_mask[0]
         h_cell_tm1 = cell_states[0]
 
         # compute attention weights
         w = K.repeat(K.dot(h_cell_tm1, self.W_a), K.shape(attended)[1])
-        u = K.dot(attended, self.U_a)  # TODO should be done externally of cell
         e = K.exp(K.dot(K.tanh(w + u), self.v_a))
 
         if attended_mask is not None:
@@ -532,28 +528,27 @@ class DenseAnnotationAttention(_RNNAttentionCell):
         return c, [c]
 
     def attention_build(self, input_shape, cell_state_size, attended_shape):
-        if not len(attended_shape) == 1:
-            raise ValueError('only a single attended supported')
-        attended_shape = attended_shape[0]
-        if not len(attended_shape) == 3:
-            raise ValueError('only support attending tensors with dim=3')
+        if not len(attended_shape) == 2:
+            raise ValueError('There must be two attended tensors')
+        for a in attended_shape:
+            if not len(a) == 3:
+                raise ValueError('only support attending tensors with dim=3')
+        [attended_shape, u_shape] = attended_shape
 
         # NOTE _attention_size must always be set in `attention_build`
         self._attention_size = attended_shape[-1]
+        units = u_shape[-1]
 
         kwargs = dict(initializer=self.kernel_initializer,
                       regularizer=self.kernel_regularizer,
                       constraint=self.kernel_constraint)
-        self.W_a = self.add_weight(shape=(cell_state_size[0], self.units),
+        self.W_a = self.add_weight(shape=(cell_state_size[0], units),
                                    name='W_a', **kwargs)
-        self.U_a = self.add_weight(shape=(attended_shape[-1], self.units),
-                                   name='U_a', **kwargs)
-        self.v_a = self.add_weight(shape=(self.units, 1),
+        self.v_a = self.add_weight(shape=(units, 1),
                                    name='v_a', **kwargs)
 
     def get_config(self):
         config = {
-            'units': self.units,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'activity_regularizer': regularizers.serialize(self.activity_regularizer),
@@ -621,11 +616,10 @@ if __name__ == '__main__':
     x_enc = encoder(x_emb)
 
     decoder = RNN(
-        cell=DenseAnnotationAttention(
-            cell=GRUCell(RECURRENT_UNITS),
-            units=DENSE_ATTENTION_UNITS),
+        cell=DenseAnnotationAttention(cell=GRUCell(RECURRENT_UNITS)),
         return_sequences=True)
-    h1 = decoder(y_emb, constants=x_enc)
+    u = TimeDistributed(Dense(DENSE_ATTENTION_UNITS, use_bias=False))(x_enc)
+    h1 = decoder(y_emb, constants=[x_enc, u])
 
     def dense_maxout(x_):
         """Implements a dense maxout layer where max is taken
