@@ -169,6 +169,21 @@ def linear(x):
     """
     return x
 
+def swish(x):
+    """Swish activation function from "https://arxiv.org/pdf/1710.05941.pdf"
+    Sigmoid-weighted Linear Unit 
+    # Arguments
+      x: Input tensor.
+    # Returns 
+      Smooth-ReLU
+      where beta ~1
+      - `0` if `x < 0` monotonic bump
+      - `0` if `-5< x <0
+      - `1` if x > 0
+    
+    """
+    return(K.sigmoid(x)*x)
+
 
 def serialize(activation):
     return activation.__name__
