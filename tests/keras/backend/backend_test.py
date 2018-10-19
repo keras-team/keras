@@ -986,7 +986,7 @@ class TestBackend(object):
     def test_dropout(self):
         val = np.random.random((100, 100))
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
         assert_list_pairwise(z_list, allclose=False)
         # dropout patterns are different, only check mean
         for i in range(len(z_list) - 1):
@@ -994,7 +994,7 @@ class TestBackend(object):
 
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2,
                                    noise_shape=list(val.shape)))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
         assert_list_pairwise(z_list, allclose=False)
         # dropout patterns are different, only check mean
         for i in range(len(z_list) - 1):
