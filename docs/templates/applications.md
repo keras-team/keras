@@ -720,7 +720,7 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 
 ```python
-keras.applications.mobilenetv2.MobileNetV2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
+keras.applications.mobilenet_v2.MobileNetV2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
 ```
 
 MobileNetV2 model, with weights pre-trained on ImageNet.

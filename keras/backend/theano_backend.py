@@ -1327,7 +1327,12 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
-    slices = [py_slice(None, None, -1 if i in axes else None) for i in range(x.ndim)]
+    slices = []
+    for i in range(x.ndim)]:
+        if i in axes:
+            slices.add(py_slice(None, None, -1))
+        else:
+            slices.add(py_slice(None, None, None))
     return x[slices]
 
 
@@ -1529,8 +1534,10 @@ def rnn(step_function, inputs, initial_states,
             outputs = T.stack(*successive_outputs)
             states = []
             for i in range(len(successive_states[-1])):
-                states.append(T.stack(
-                    *[states_at_step[i] for states_at_step in successive_states]))
+                new_states = []
+                for states_at_step in successive_states:
+                    new_states.append(states_at_step[i])
+                states.append(T.stack(*new_states))
         else:
             # build an all-zero tensor of shape (samples, output_dim)
             initial_output = step_function(inputs[0], initial_states + constants)
@@ -2044,11 +2051,11 @@ def _postprocess_conv2d_output(conv_out, x,
                                strides, data_format):
     if padding == 'same':
         if kernel_shape[2] % 2 == 0:
-            conv_out = conv_out[
-                :, :, :(x.shape[2] + strides[0] - 1) // strides[0], :]
+            i = (x.shape[2] + strides[0] - 1) // strides[0]
+            conv_out = conv_out[:, :, :i, :]
         if kernel_shape[3] % 2 == 0:
-            conv_out = conv_out[
-                :, :, :, :(x.shape[3] + strides[1] - 1) // strides[1]]
+            i = (x.shape[3] + strides[1] - 1) // strides[1]
+            conv_out = conv_out[:, :, :, :i]
     if data_format == 'channels_last':
         conv_out = conv_out.dimshuffle((0, 2, 3, 1))
     return conv_out
@@ -2059,14 +2066,14 @@ def _postprocess_conv3d_output(conv_out, x,
                                strides, data_format):
     if padding == 'same':
         if kernel_shape[2] % 2 == 0:
-            conv_out = conv_out[
-                :, :, :(x.shape[2] + strides[0] - 1) // strides[0], :, :]
+            i = (x.shape[2] + strides[0] - 1) // strides[0]
+            conv_out = conv_out[:, :, :i, :, :]
         if kernel_shape[3] % 2 == 0:
-            conv_out = conv_out[
-                :, :, :, :(x.shape[3] + strides[1] - 1) // strides[1], :]
+            i = (x.shape[3] + strides[1] - 1) // strides[1]
+            conv_out = conv_out[:, :, :, :i, :]
         if kernel_shape[4] % 2 == 0:
-            conv_out = conv_out[
-                :, :, :, :, :(x.shape[4] + strides[2] - 1) // strides[2]]
+            i = (x.shape[4] + strides[2] - 1) // strides[2]
+            conv_out = conv_out[:, :, :, :, :i]
     if data_format == 'channels_last':
         conv_out = conv_out.dimshuffle((0, 2, 3, 4, 1))
     return conv_out
