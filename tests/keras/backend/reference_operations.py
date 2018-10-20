@@ -7,6 +7,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 from keras.backend import floatx
+from keras.utils.generic_utils import transpose_shape
 
 
 def normalize_conv(func):
@@ -431,6 +432,24 @@ def repeat(x, n):
     return y
 
 
+def temporal_padding(x, padding=(1, 1)):
+    return np.pad(x, [(0, 0), padding, (0, 0)], mode='constant')
+
+
+def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
+def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2, 3))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
 def tile(x, n):
     return np.tile(x, n)
 
@@ -447,8 +466,28 @@ def batch_flatten(x):
     return np.reshape(x, (x.shape[0], -1))
 
 
+def gather(reference, indices):
+    return reference[indices]
+
+
 def eval(x):
     return x
+
+
+def get_value(x):
+    return x
+
+
+def count_params(x):
+    return x.size
+
+
+def int_shape(x):
+    return x.shape
+
+
+def get_variable_shape(x):
+    return int_shape(x)
 
 
 def dtype(x):
@@ -529,6 +568,19 @@ def variable(value, dtype=None, name=None, constraint=None):
         raise TypeError("Constraint must be None when "
                         "using the NumPy backend.")
     return np.array(value, dtype)
+
+
+def dropout(x, level, noise_shape=None, seed=None):
+    if noise_shape is None:
+        noise_shape = x.shape
+    if learning_phase():
+        noise = np.random.choice([0, 1],
+                                 noise_shape,
+                                 replace=True,
+                                 p=[level, 1 - level])
+        return x * noise / (1 - level)
+    else:
+        return x
 
 
 def equal(x, y):
