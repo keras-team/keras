@@ -1136,8 +1136,15 @@ def flatten(x):
 
 
 def reshape(x, shape):
-    shape = tuple(
-        [C.InferredDimension if _ == C.FreeDimension else _ for _ in shape])
+    shape_temp = []
+    for _ in shape:
+        if _ == C.FreeDimension:
+            shape_temp.append(C.InferredDimension)
+        else:
+            shape_temp.append(_)
+
+    shape = tuple(shape_temp)
+
     if isinstance(x, C.variables.Parameter):
         return C.reshape(x, shape)
     else:
@@ -1180,11 +1187,10 @@ def permute_dimensions(x, pattern):
 
     if (num_dynamic_axis > 0 and
             pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]):
-        raise ValueError(
-            'CNTK backend: the permute pattern %s '
-            'requested permute on dynamic axis, '
-            'which is not supported. Please do permute '
-            'on static axis.' % pattern)
+                raise ValueError('CNTK backend: the permute pattern %s '
+                                 'requested permute on dynamic axis, '
+                                 'which is not supported. Please do permute '
+                                 'on static axis.' % pattern)
 
     axis = list(pattern)
     axis = axis[num_dynamic_axis:]
@@ -1745,9 +1751,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        output_shape = transpose_shape(
-            output_shape, 'channels_first',
-            spatial_axes=(0, 1, 2))
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1, 2))
 
     x = C.convolution_transpose(
         kernel,
