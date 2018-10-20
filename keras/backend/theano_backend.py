@@ -1330,9 +1330,9 @@ def reverse(x, axes):
     slices = []
     for i in range(x.ndim):
         if i in axes:
-            slices.add(py_slice(None, None, -1))
+            slices.append(py_slice(None, None, -1))
         else:
-            slices.add(py_slice(None, None, None))
+            slices.append(py_slice(None, None, None))
     return x[slices]
 
 
