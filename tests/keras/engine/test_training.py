@@ -156,7 +156,7 @@ class TrackerCallback(Callback):
 
 
 def test_model_methods():
-    model = get_model(nb_of_outputs=2)
+    model = get_model(num_outputs=2)
 
     optimizer = 'rmsprop'
     loss = 'mse'
@@ -453,7 +453,7 @@ def test_model_methods():
 
 
 def test_fit_generator():
-    model = get_model(nb_of_outputs=2)
+    model = get_model(num_outputs=2)
     optimizer = 'rmsprop'
     loss = 'mse'
     loss_weights = [1., 0.5]
@@ -552,7 +552,7 @@ def test_fit_generator_shape():
     def expected_shape(batch_size, n_batches):
         return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
 
-    model = get_model(nb_of_outputs=2)
+    model = get_model(num_outputs=2)
     optimizer = 'rmsprop'
     loss = 'mse'
 
@@ -573,7 +573,7 @@ def test_fit_generator_shape():
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
     # Create a model with a single output.
-    single_output_model = get_model(nb_of_outputs=1)
+    single_output_model = get_model(num_outputs=1)
     single_output_model.compile(optimizer, loss,
                                 metrics=[], sample_weight_mode=None)
 
