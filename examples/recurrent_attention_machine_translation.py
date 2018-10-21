@@ -47,15 +47,19 @@ Main steps:
 We use the machine translation dataset described in [2].
 To download the data run:
     mkdir -p data/wmt16_mmt
-    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz &&  tar -xf training.tar.gz -C data/wmt16_mmt && rm training.tar.gz
-    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz && tar -xf validation.tar.gz -C data/wmt16_mmt && rm validation.tar.gz
-    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/mmt16_task1_test.tar.gz && tar -xf mmt16_task1_test.tar.gz -C data/wmt16_mmt && rm mmt16_task1_test.tar.gz
+    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz
+    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz
+    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/mmt16_task1_test.tar.gz
+    tar -xf training.tar.gz -C data/wmt16_mmt && rm training.tar.gz
+    tar -xf validation.tar.gz -C data/wmt16_mmt && rm validation.tar.gz
+    tar -xf mmt16_task1_test.tar.gz -C data/wmt16_mmt && rm mmt16_task1_test.tar.gz
 
 # References
 [1] Neural Machine Translation by Jointly Learning to Align and Translate
     https://arxiv.org/abs/1409.0473
 [2] Multi30K: Multilingual English-German Image Descriptions
-    https://arxiv.org/abs/1605.00459 (http://www.statmt.org/wmt16/multimodal-task.html)
+    https://arxiv.org/abs/1605.00459
+    (http://www.statmt.org/wmt16/multimodal-task.html)
 
 # Differences between this implementation and [1]
 - A different/older dataset (wmt14) is used in [1].
@@ -467,13 +471,13 @@ class _RNNAttentionCell(Layer):
 
     @property
     def trainable_weights(self):
-        return super(_RNNAttentionCell, self).trainable_weights + \
-               self.cell.trainable_weights
+        return (super(_RNNAttentionCell, self).trainable_weights +
+                self.cell.trainable_weights)
 
     @property
     def non_trainable_weights(self):
-        return super(_RNNAttentionCell, self).non_trainable_weights + \
-               self.cell.non_trainable_weights
+        return (super(_RNNAttentionCell, self).non_trainable_weights +
+                self.cell.non_trainable_weights)
 
     def get_config(self):
         config = {'attend_after': self.attend_after,
@@ -627,7 +631,10 @@ if __name__ == '__main__':
 
     input_seqs_train, input_seqs_val, target_seqs_train, target_seqs_val = (
         pad_sequences(seq, maxlen=MAX_WORDS_PER_SENTENCE, padding='post')
-        for seq in [input_seqs_train, input_seqs_val, target_seqs_train, target_seqs_val]
+        for seq in [input_seqs_train,
+                    input_seqs_val,
+                    target_seqs_train,
+                    target_seqs_val]
     )
 
     # Build the model
@@ -659,11 +666,11 @@ if __name__ == '__main__':
         return K.max(K.stack([x_1, x_2], axis=-1), axis=-1, keepdims=False)
 
     h2 = TimeDistributed(Lambda(dense_maxout))(concatenate([h1, y_emb]))
-    y_pred = TimeDistributed(Dense(target_tokenizer.num_words, activation='softmax'))(h2)
+    y_pred = TimeDistributed(Dense(target_tokenizer.num_words,
+                                   activation='softmax'))(h2)
 
     model = Model([y, x], y_pred)
-    model.compile(loss='sparse_categorical_crossentropy',
-                  optimizer=OPTIMIZER)
+    model.compile(loss='sparse_categorical_crossentropy', optimizer=OPTIMIZER)
 
     model.fit([target_seqs_train[:, :-1], input_seqs_train],
               target_seqs_train[:, 1:, None],
