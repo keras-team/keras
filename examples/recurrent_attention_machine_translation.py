@@ -598,12 +598,17 @@ if __name__ == '__main__':
     EPOCHS = 20
 
     # Load and tokenize the data
+    start_token = "'start'"
+    end_token = "'end'"
+    # NOTE: using single quotes (which are not dropped by Tokenizer by default)
+    # for the tokens to be distinguished from other use of "start" and "end"
+
     def get_sentences(partion, language):
         fpath = os.path.join(DATA_DIR, partion + '.' + language)
         with open(fpath, 'r') as f:
             sentences = f.readlines()
-        return ["<start> {} <end>".format(sentence) for sentence in sentences]
-
+        return ["{} {} {}".format(start_token, sentence, end_token)
+                for sentence in sentences]
 
     input_texts_train = get_sentences("train", FROM_LANGUAGE)
     input_texts_val = get_sentences("val", FROM_LANGUAGE)
