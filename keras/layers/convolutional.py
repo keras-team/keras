@@ -251,8 +251,9 @@ class Conv1D(_Conv):
     When using this layer as the first layer in a model,
     provide an `input_shape` argument (tuple of integers or `None`, does not
     include the sample axis), e.g. `input_shape=(10, 128)` for time series
-    sequences of 10 time steps with 128 features per step, or
-    `(None, 128)` for variable-length sequences with 128 features per step.
+    sequences of 10 time steps with 128 features per step in
+    `data_format="channels_last"`, or `(None, 128)` for variable-length
+    sequences with 128 features per step.
 
     # Arguments
         filters: Integer, the dimensionality of the output space
