@@ -11,13 +11,15 @@ import numpy as np
 import os
 
 
-def load_data():
+def load_data(dirname='cifar-10-batches-py'):
     """Loads CIFAR10 dataset.
+
+    # Arguments
+        dirname: Name of the directory in which to untar the data.
 
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
     """
-    dirname = 'cifar-10-batches-py'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz'
     path = get_file(dirname, origin=origin, untar=True)
 

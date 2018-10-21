@@ -11,10 +11,11 @@ import numpy as np
 import os
 
 
-def load_data(label_mode='fine'):
+def load_data(dirname='cifar-100-python', label_mode='fine'):
     """Loads CIFAR100 dataset.
 
     # Arguments
+        dirname: Name of the directory in which to untar the data.
         label_mode: one of "fine", "coarse".
 
     # Returns
@@ -26,7 +27,6 @@ def load_data(label_mode='fine'):
     if label_mode not in ['fine', 'coarse']:
         raise ValueError('`label_mode` must be one of `"fine"`, `"coarse"`.')
 
-    dirname = 'cifar-100-python'
     origin = 'https://www.cs.toronto.edu/~kriz/cifar-100-python.tar.gz'
     path = get_file(dirname, origin=origin, untar=True)
 

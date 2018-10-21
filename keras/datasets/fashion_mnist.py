@@ -11,13 +11,15 @@ from ..utils.data_utils import get_file
 import numpy as np
 
 
-def load_data():
+def load_data(dirname=os.path.join('datasets', 'fashion-mnist')):
     """Loads the Fashion-MNIST dataset.
+
+    # Arguments:
+        dirname: Name of the directory in which to unzip the data.
 
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
     """
-    dirname = os.path.join('datasets', 'fashion-mnist')
     base = 'http://fashion-mnist.s3-website.eu-central-1.amazonaws.com/'
     files = ['train-labels-idx1-ubyte.gz', 'train-images-idx3-ubyte.gz',
              't10k-labels-idx1-ubyte.gz', 't10k-images-idx3-ubyte.gz']
