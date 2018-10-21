@@ -249,10 +249,10 @@ class Conv1D(_Conv):
     it is applied to the outputs as well.
 
     When using this layer as the first layer in a model,
-    provide an `input_shape` argument
-    (tuple of integers or `None`, e.g.
-    `(10, 128)` for sequences of 10 vectors of 128-dimensional vectors,
-    or `(None, 128)` for variable-length sequences of 128-dimensional vectors.
+    provide an `input_shape` argument (tuple of integers or `None`, does not
+    include the sample axis), e.g. `input_shape=(10, 128)` for time series
+    sequences of 10 time steps with 128 features per step, or
+    `(None, 128)` for variable-length sequences with 128 features per step.
 
     # Arguments
         filters: Integer, the dimensionality of the output space
