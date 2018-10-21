@@ -2025,6 +2025,15 @@ class TestBackend(object):
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
 
+    def test_clip_supports_tensor_arguments(self):
+        # GitHub issue: 11435
+        x = K.variable([-10., -5., 0., 5., 10.])
+        min_value = K.variable([-5., -4., 0., 3., 5.])
+        max_value = K.variable([5., 4., 1., 4., 9.])
+
+        assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
+                           np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
