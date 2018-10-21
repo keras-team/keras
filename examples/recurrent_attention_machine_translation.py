@@ -88,6 +88,7 @@ To download the data run:
 from __future__ import print_function
 
 import os
+import numpy as np
 
 from keras import backend as K
 from keras import (
@@ -573,7 +574,9 @@ class DenseAnnotationAttention(_RNNAttentionCell):
 
 
 if __name__ == '__main__':
-    DATA_DIR = 'data/wmt16_mmt'
+    # DATA_DIR = 'data/wmt16_mmt'
+    DATA_DIR = '/Users/andershuss/Datasets/WMT16/mmt'
+
     FROM_LANGUAGE = 'en'
     TO_LANGUAGE = 'de'
 
@@ -586,7 +589,7 @@ if __name__ == '__main__':
     READOUT_HIDDEN_UNITS = 500  # `l` in [1]
     OPTIMIZER = Adadelta(rho=0.95, epsilon=1e-6)
     BATCH_SIZE = 80
-    EPOCHS = 20
+    EPOCHS = 5
 
     # Load and tokenize the data
     def get_sentences(partion, language):
@@ -629,9 +632,8 @@ if __name__ == '__main__':
     encoder = Bidirectional(GRU(RECURRENT_UNITS, return_sequences=True))
     x_enc = encoder(x_emb)
 
-    decoder = RNN(
-        cell=DenseAnnotationAttention(cell=GRUCell(RECURRENT_UNITS)),
-        return_sequences=True)
+    cell = DenseAnnotationAttention(cell=GRUCell(RECURRENT_UNITS))
+    decoder = RNN(cell=cell, return_sequences=True)
     u = TimeDistributed(Dense(DENSE_ATTENTION_UNITS, use_bias=False))(x_enc)
     h1 = decoder(y_emb, constants=[x_enc, u])
 
@@ -643,19 +645,71 @@ if __name__ == '__main__':
         x_2 = x_[:, READOUT_HIDDEN_UNITS:]
         return K.max(K.stack([x_1, x_2], axis=-1), axis=-1, keepdims=False)
 
-    h2 = TimeDistributed(Lambda(dense_maxout))(concatenate([h1, y_emb]))
-    y_pred = TimeDistributed(Dense(target_tokenizer.num_words, activation='softmax'))(h2)
+    maxout_layer = TimeDistributed(Lambda(dense_maxout))
+    h2 = maxout_layer(concatenate([h1, y_emb]))
+    output_layer = TimeDistributed(
+        Dense(target_tokenizer.num_words, activation='softmax'))
+    y_pred = output_layer(h2)
 
     model = Model([y, x], y_pred)
     model.compile(loss='sparse_categorical_crossentropy',
                   optimizer=OPTIMIZER)
 
-    model.fit([target_seqs_train[:, :-1], input_seqs_train],
-              target_seqs_train[:, 1:, None],
-              batch_size=BATCH_SIZE,
-              epochs=EPOCHS,
-              validation_data=(
-                  [target_seqs_val[:, :-1], input_seqs_val],
-                  target_seqs_val[:, 1:, None]))
+    # reduce data TODO temp
+    # input_seqs_train = input_seqs_train[:80]
+    # target_seqs_train = target_seqs_train[:80]
+    # input_seqs_val = input_seqs_val[:80]
+    # target_seqs_val = target_seqs_val[:80]
+    #
+    #
+    # model.fit([target_seqs_train[:, :-1], input_seqs_train],
+    #           target_seqs_train[:, 1:, None],
+    #           batch_size=BATCH_SIZE,
+    #           epochs=EPOCHS,
+    #           validation_data=(
+    #               [target_seqs_val[:, :-1], input_seqs_val],
+    #               target_seqs_val[:, 1:, None]))
 
     # TODO add logic for greedy/beam search generation
+
+    # TODO!!
+    # [/] graph construction simpler -> seems to be required to do this way
+    # [/] start and end token for Tokenizer, must be changed (org PR)
+    # [-] Beam search
+
+    # pre-processing (once per input sequence)
+    prep_model = Model(x, [x_enc, u])
+
+    # decoder to output with exposed state
+    x_enc_new = Input(batch_shape=K.int_shape(x_enc))
+    u_new = Input(batch_shape=K.int_shape(u))
+
+    initial_state = [Input((size,)) for size in cell.state_size]
+    decoder_new = RNN(cell=cell, return_sequences=True, return_state=True)
+    h1_new_and_state = decoder_new(y_emb,
+                                   initial_state=initial_state,
+                                   constants=[x_enc_new, u_new])
+    h1_new = h1_new_and_state[0]
+    state = h1_new_and_state[1:]
+    h2_new = maxout_layer(concatenate([h1_new, y_emb]))
+    y_pred_new = output_layer(h2_new)
+    decoder_output_model = Model([y, x_enc_new, u_new] + initial_state, [y_pred_new] + state)
+
+    def translate_greedy(input_sequence, t_max=100):
+        # initialization
+        start_idx = target_tokenizer.texts_to_sequences(["<start>"])[0][0]
+        end_idx = target_tokenizer.texts_to_sequences(["<end>"])[0][0]
+        y_t = np.array([[start_idx]])
+        y_0_to_t = [y_t]
+        state = [np.zeros((1, size)) for size in cell.state_size]
+        [x_enc, u] = prep_model.predict(input_sequence)
+        t = 0
+        while y_t[0, 0] != end_idx and t < t_max:
+            t += 1
+            outputs = decoder_output_model.predict([y_t, x_enc, u] + state)
+            state = outputs[1:]
+            y_pred = outputs[0]
+            y_t = np.argmax(y_pred, axis=-1)
+            y_0_to_t.append(y_t)
+
+        return y_0_to_t
