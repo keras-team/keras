@@ -6,6 +6,7 @@ from keras import Input, Model
 
 from keras.layers import Conv2D, Bidirectional
 from keras.layers import Dense
+from keras.layers import Embedding
 from keras.layers import Flatten
 from keras.layers import LSTM
 from keras.layers import TimeDistributed
@@ -38,6 +39,17 @@ def test_plot_model():
     vis_utils.plot_model(model, to_file='model3.png', show_shapes=True,
                          expand_nested=True, dpi=300)
     os.remove('model3.png')
+
+
+def test_plot_sequential_embedding():
+    """Fixes #11376"""
+    model = Sequential()
+    model.add(Embedding(10000, 256, input_length=400, name='embed'))
+    vis_utils.plot_model(model,
+                         to_file='model1.png',
+                         show_shapes=True,
+                         show_layer_names=True)
+    os.remove('model1.png')
 
 
 if __name__ == '__main__':

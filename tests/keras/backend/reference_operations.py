@@ -570,6 +570,19 @@ def variable(value, dtype=None, name=None, constraint=None):
     return np.array(value, dtype)
 
 
+def dropout(x, level, noise_shape=None, seed=None):
+    if noise_shape is None:
+        noise_shape = x.shape
+    if learning_phase():
+        noise = np.random.choice([0, 1],
+                                 noise_shape,
+                                 replace=True,
+                                 p=[level, 1 - level])
+        return x * noise / (1 - level)
+    else:
+        return x
+
+
 def equal(x, y):
     return x == y
 

@@ -986,7 +986,7 @@ class TestBackend(object):
     def test_dropout(self):
         val = np.random.random((100, 100))
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
         assert_list_pairwise(z_list, allclose=False)
         # dropout patterns are different, only check mean
         for i in range(len(z_list) - 1):
@@ -994,7 +994,7 @@ class TestBackend(object):
 
         z_list = [k.eval(k.dropout(k.variable(val), level=0.2,
                                    noise_shape=list(val.shape)))
-                  for k in BACKENDS]
+                  for k in WITH_NP]
         assert_list_pairwise(z_list, allclose=False)
         # dropout patterns are different, only check mean
         for i in range(len(z_list) - 1):
@@ -1827,8 +1827,10 @@ class TestBackend(object):
         koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
         assert np.all(koh == oh)
 
-    @pytest.mark.skipif(K.backend() == 'cntk',
-                        reason='Sparse tensors are not supported in cntk.')
+    @pytest.mark.skipif((K.backend() == 'cntk'
+                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+                        reason='Sparse tensors are not supported in cntk '
+                               'and Theano has some dependency issues for sparse.')
     def test_sparse_dot(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)
         x_r = np.array([0, 2, 2, 3], dtype=np.int64)
@@ -1838,20 +1840,17 @@ class TestBackend(object):
         x_dense = x_sparse.toarray()
 
         W = np.random.random((5, 4))
-        # cntk not support it yet
-        backends = [KTF]
-        if KTH.th_sparse_module:
-            # Theano has some dependency issues for sparse
-            backends.append(KTH)
+        t_W = K.variable(W)
+        k_s = K.eval(K.dot(K.variable(x_sparse), t_W))
+        k_d = K.eval(K.dot(K.variable(x_dense), t_W))
 
-        for k in backends:
-            t_W = k.variable(W)
-            k_s = k.eval(k.dot(k.variable(x_sparse), t_W))
-            k_d = k.eval(k.dot(k.variable(x_dense), t_W))
+        assert k_s.shape == k_d.shape
+        assert_allclose(k_s, k_d, atol=1e-05)
 
-            assert k_s.shape == k_d.shape
-            assert_allclose(k_s, k_d, atol=1e-05)
-
+    @pytest.mark.skipif((K.backend() == 'cntk'
+                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+                        reason='Sparse tensors are not supported in cntk '
+                               'and Theano has some dependency issues for sparse.')
     def test_sparse_concat(self):
         x_d = np.array([0, 7, 2, 3], dtype=np.float32)
         x_r = np.array([0, 2, 2, 3], dtype=np.int64)
@@ -1868,23 +1867,15 @@ class TestBackend(object):
         x_dense_1 = x_sparse_1.toarray()
         x_dense_2 = x_sparse_2.toarray()
 
-        # cntk not support it yet
-        backends = [KTF]
-        if KTH.th_sparse_module:
-            # Theano has some dependency issues for sparse
-            backends.append(KTH)
+        k_s = K.concatenate([K.variable(x_sparse_1), K.variable(x_sparse_2)])
+        assert K.is_sparse(k_s)
 
-        for k in backends:
-            k_s = k.concatenate([k.variable(x_sparse_1), k.variable(x_sparse_2)])
-            assert k.is_sparse(k_s)
+        k_s_d = K.eval(k_s)
 
-            k_s_d = k.eval(k_s)
+        k_d = K.eval(K.concatenate([K.variable(x_dense_1), K.variable(x_dense_2)]))
 
-            k_d = k.eval(k.concatenate([k.variable(x_dense_1),
-                                        k.variable(x_dense_2)]))
-
-            assert k_s_d.shape == k_d.shape
-            assert_allclose(k_s_d, k_d, atol=1e-05)
+        assert k_s_d.shape == k_d.shape
+        assert_allclose(k_s_d, k_d, atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_map(self):
@@ -1956,14 +1947,13 @@ class TestBackend(object):
                 t = k.arange(10, dtype=dtype)
                 assert k.dtype(t) == dtype
 
-        for k in WITH_NP:
-            start = k.constant(1, dtype='int32')
-            t = k.arange(start)
-            assert len(k.eval(t)) == 1
+        start = K.constant(1, dtype='int32')
+        t = K.arange(start)
+        assert len(K.eval(t)) == 1
 
-            start = k.constant(-1, dtype='int32')
-            t = k.arange(start)
-            assert len(k.eval(t)) == 0
+        start = K.constant(-1, dtype='int32')
+        t = K.arange(start)
+        assert len(K.eval(t)) == 0
 
     @pytest.mark.parametrize('training', [True, False])
     def test_in_train_phase(self, training):
@@ -2034,6 +2024,15 @@ class TestBackend(object):
             assert K.dtype(K.variable(False, dtype='bool')) == 'bool'
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
+
+    def test_clip_supports_tensor_arguments(self):
+        # GitHub issue: 11435
+        x = K.variable([-10., -5., 0., 5., 10.])
+        min_value = K.variable([-5., -4., 0., 3., 5.])
+        max_value = K.variable([5., 4., 1., 4., 9.])
+
+        assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
+                           np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
 
 
 if __name__ == '__main__':
