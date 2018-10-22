@@ -655,6 +655,8 @@ if __name__ == '__main__':
     target_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS)
     input_tokenizer.fit_on_texts(input_texts_train + input_texts_val)
     target_tokenizer.fit_on_texts(target_texts_train + target_texts_val)
+    input_num_words = len(input_tokenizer.word_index)
+    target_num_words = len(target_tokenizer.word_index)
 
     input_seqs_train = input_tokenizer.texts_to_sequences(input_texts_train)
     input_seqs_val = input_tokenizer.texts_to_sequences(input_texts_val)
@@ -777,8 +779,16 @@ if __name__ == '__main__':
                               init_text=None,
                               t_max=None,
                               search_width=50):
-        def argmaxk(a, k):
-            return np.argpartition(a, -k)[-k:]
+        import heapq
+
+        def k_largest_val_idx(a, k):
+            """Returns top k largest values of a and their indices, ordered by
+            decreasing value"""
+            # equivalent slower implementation:
+            # top_k = np.argsort(a)[-k:][::-1]
+            # return zip(a[top_k], top_k)
+            top_k = np.argpartition(a, -k)[-k:]
+            return sorted(zip(a[top_k], top_k))[::-1]
 
         if init_text is None:
             init_text = start_token
@@ -789,16 +799,15 @@ if __name__ == '__main__':
         [x_enc, u] = prep_model.predict(x)
         end_idx = target_tokenizer.word_index[end_token]
 
-        import heapq
-
         complete = []
-        incomplete = [{"score": 0., "y_0:t": [y_0], "state": state_0}]
+        incomplete = [(0., [y_0], state_0)]
+        # beam with (score, [y_0, ..., y_t], state)
 
         while len(complete) < search_width and t < t_max:
             t += 1
-            y_tm1 = np.vstack([beam["y_0:t"][-1] for beam in incomplete])
+            y_tm1 = np.vstack([beam[1][-1] for beam in incomplete])
             state_tm1 = [
-                np.vstack([beam["state"][s] for beam in incomplete])
+                np.vstack([beam[2][s] for beam in incomplete])
                 for s in range(len(state_0))
             ]
             outputs = decoder_output_model.predict([y_tm1, x_enc, u] + state_tm1)
@@ -806,22 +815,19 @@ if __name__ == '__main__':
             y_pred = outputs[0]
             incomplete_new = []
             for i, beam in enumerate(incomplete):
-                max_idxs = argmaxk(y_pred[i], search_width)
-                l = len(beam["y_0:t"]) - 1  # don't count 'start' token
-                for idx in max_idxs:
-                    proba = y_pred[i][idx]
-                    new_score = (beam["score"] * l + np.log(proba)) / (l + 1)
-                    if (len(incomplete_new) < search_width or
-                            new_score > incomplete_new[0] or
-                            idx == end_idx):
+                l = len(beam[1]) - 1  # don't count 'start' token
+                for proba, idx in k_largest_val_idx(y_pred[i, 0], search_width):
+                    new_score = (beam[0] * l + np.log(proba)) / (l + 1)
+                    not_full = len(incomplete_new) < search_width
+                    ended = idx == end_idx
+                    if not_full or ended or new_score > incomplete_new[0][0]:
                         # add this version
-                        beam_new = beam.copy()
-                        beam_new["score"] = new_score
-                        beam_new["y_0:t"] = beam["y_0:t"] + [np.array([idx])]
-                        beam_new["state"] = state_t
-                        if idx == end_idx:
+                        beam_new = (new_score,
+                                    beam[1] + [np.array([idx])],
+                                    [s[i] for s in state_t])
+                        if ended:
                             heapq.heappush(complete, beam_new)
-                        elif len(incomplete_new) < search_width:
+                        elif not_full:
                             heapq.heappush(incomplete_new, beam_new)
                         else:
                             heapq.heapreplace(incomplete_new, beam_new)
@@ -829,8 +835,10 @@ if __name__ == '__main__':
                         break
             incomplete = incomplete_new
 
-            for beam in complete + incomplete:
-                beam["text"] = target_tokenizer.sequences_to_texts(
-                    np.concatenate(beam["y_0:t"]))
+        # import ipdb; ipdb.set_trace()
+        texts = []
+        for beam in complete + incomplete:
+            texts.append(target_tokenizer.sequences_to_texts(
+                np.concatenate(beam[1])[None, :]))
 
-            return complete, incomplete
+        return texts, complete, incomplete
