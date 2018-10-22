@@ -48,13 +48,14 @@ def model_to_dot(model,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
-        expand_nested: whether to expand wrapped models into clusters.
+        expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
-        subgraph: is this model are wrapped model,
-            in this case method will return `pydot.Cluster` instance
+        subgraph: whether to return a pydot.Cluster instance
 
     # Returns
-        A `pydot.Graph` instance representing the Keras model.
+        A `pydot.Dot` instance representing the Keras model or
+        a `pydot.Cluster` instance representing nested model if
+        `subgraph=True`
     """
     from ..layers.wrappers import Wrapper
     from ..models import Model
@@ -63,6 +64,8 @@ def model_to_dot(model,
     _check_pydot()
     if subgraph:
         dot = pydot.Cluster(style='dashed')
+        dot.set('label', model.name)
+        dot.set('labeljust', 'l')
     else:
         dot = pydot.Dot()
         dot.set('rankdir', rankdir)
@@ -132,9 +135,9 @@ def model_to_dot(model,
             node_key = layer.name + '_ib-' + str(i)
             if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
-                    if not expand_nested or not \
-                            (isinstance(inbound_layer, Wrapper) and
-                             isinstance(inbound_layer.layer, Model)):
+                    if not expand_nested or not (
+                            isinstance(inbound_layer, Wrapper) and
+                            isinstance(inbound_layer.layer, Model)):
                         inbound_layer_id = str(id(inbound_layer))
                         dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
     return dot
@@ -158,7 +161,7 @@ def plot_model(model,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
-        expand_nested: whether to expand wrapped models into clusters.
+        expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
     """
     dot = model_to_dot(model, show_shapes, show_layer_names, rankdir,

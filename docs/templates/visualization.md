@@ -14,7 +14,7 @@ plot_model(model, to_file='model.png')
 
 - `show_shapes` (defaults to False) controls whether output shapes are shown in the graph.
 - `show_layer_names` (defaults to True) controls whether layer names are shown in the graph.
-- `expand_nested` (defaults to False) conctrols whether to expand wrapped models into clusters in the graph.
+- `expand_nested` (defaults to False) controls whether to expand nested models into clusters in the graph.
 - `dpi` (defaults to 96) controls image dpi.
 
 You can also directly obtain the `pydot.Graph` object and render it yourself,
