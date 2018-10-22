@@ -80,6 +80,7 @@ from keras import models
 from keras import losses
 from keras import metrics
 from keras import backend
+from keras import constraints
 from keras import activations
 from keras import preprocessing
 
@@ -326,6 +327,10 @@ PAGES = [
     {
         'page': 'backend.md',
         'all_module_functions': [backend],
+    },
+    {
+        'page': 'constraints.md',
+        'all_module_classes': [constraints],
     },
     {
         'page': 'utils.md',
