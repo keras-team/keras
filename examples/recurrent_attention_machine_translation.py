@@ -702,7 +702,7 @@ if __name__ == '__main__':
         return K.max(K.stack([x_1, x_2], axis=-1), axis=-1, keepdims=False)
 
     h2 = TimeDistributed(Lambda(dense_maxout))(concatenate([h1, y_emb]))
-    y_pred = TimeDistributed(Dense(target_tokenizer.num_words,
+    y_pred = TimeDistributed(Dense(target_max_word_idx + 1,
                                    activation='softmax'))(h2)
 
     model = Model([y, x], y_pred)
