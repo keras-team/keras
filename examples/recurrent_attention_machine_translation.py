@@ -696,7 +696,7 @@ if __name__ == '__main__':
     maxout_layer = TimeDistributed(Lambda(dense_maxout))
     h2 = maxout_layer(concatenate([h1, y_emb]))
     output_layer = TimeDistributed(
-        Dense(target_tokenizer.num_words, activation='softmax'))
+        Dense(target_max_word_idx + 1, activation='softmax'))
     y_pred = output_layer(h2)
 
     model = Model([y, x], y_pred)
