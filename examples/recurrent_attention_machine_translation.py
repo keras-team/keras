@@ -758,20 +758,79 @@ if __name__ == '__main__':
         y_t = np.array(target_tokenizer.texts_to_sequences([init_text]))
         y_0_to_t = [y_t]
         x = input_tokenizer.texts_to_sequences([input_text])
-        state = [np.zeros((1, size)) for size in cell.state_size]
+        state_t = [np.zeros((1, size)) for size in cell.state_size]
         [x_enc, u] = prep_model.predict(x)
         end_idx = target_tokenizer.word_index[end_token]
         while y_t[0, 0] != end_idx and t < t_max:
-            outputs = decoder_output_model.predict([y_t, x_enc, u] + state)
-            state = outputs[1:]
+            outputs = decoder_output_model.predict([y_t, x_enc, u] + state_t)
+            t += 1
+            state_t = outputs[1:]
             y_pred = outputs[0]
             y_t = np.argmax(y_pred, axis=-1)
             y_0_to_t.append(y_t)
-            t += 1
         y = np.hstack(y_0_to_t)
         output_text = target_tokenizer.sequences_to_texts(y)[0]
 
         return output_text
 
-    def translate_beam_serach(input_sequence, t_max=None, width=50):
-        pass
+    def translate_beam_serach(input_text,
+                              init_text=None,
+                              t_max=None,
+                              search_width=50):
+        def argmaxk(a, k):
+            return np.argpartition(a, -k)[-k:]
+
+        if init_text is None:
+            init_text = start_token
+        t = 0
+        y_0 = np.array(target_tokenizer.texts_to_sequences([init_text]))[0]
+        x = input_tokenizer.texts_to_sequences([input_text])
+        state_0 = [np.zeros((size,)) for size in cell.state_size]
+        [x_enc, u] = prep_model.predict(x)
+        end_idx = target_tokenizer.word_index[end_token]
+
+        import heapq
+
+        complete = []
+        incomplete = [{"score": 0., "y_0:t": [y_0], "state": state_0}]
+
+        while len(complete) < search_width and t < t_max:
+            t += 1
+            y_tm1 = np.vstack([beam["y_0:t"][-1] for beam in incomplete])
+            state_tm1 = [
+                np.vstack([beam["state"][s] for beam in incomplete])
+                for s in range(len(state_0))
+            ]
+            outputs = decoder_output_model.predict([y_tm1, x_enc, u] + state_tm1)
+            state_t = outputs[1:]
+            y_pred = outputs[0]
+            incomplete_new = []
+            for i, beam in enumerate(incomplete):
+                max_idxs = argmaxk(y_pred[i], search_width)
+                l = len(beam["y_0:t"]) - 1  # don't count 'start' token
+                for idx in max_idxs:
+                    proba = y_pred[i][idx]
+                    new_score = (beam["score"] * l + np.log(proba)) / (l + 1)
+                    if (len(incomplete_new) < search_width or
+                            new_score > incomplete_new[0] or
+                            idx == end_idx):
+                        # add this version
+                        beam_new = beam.copy()
+                        beam_new["score"] = new_score
+                        beam_new["y_0:t"] = beam["y_0:t"] + [np.array([idx])]
+                        beam_new["state"] = state_t
+                        if idx == end_idx:
+                            heapq.heappush(complete, beam_new)
+                        elif len(incomplete_new) < search_width:
+                            heapq.heappush(incomplete_new, beam_new)
+                        else:
+                            heapq.heapreplace(incomplete_new, beam_new)
+                    else:
+                        break
+            incomplete = incomplete_new
+
+            for beam in complete + incomplete:
+                beam["text"] = target_tokenizer.sequences_to_texts(
+                    np.concatenate(beam["y_0:t"]))
+
+            return complete, incomplete
