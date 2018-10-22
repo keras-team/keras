@@ -652,6 +652,8 @@ if __name__ == '__main__':
     target_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS)
     input_tokenizer.fit_on_texts(input_texts_train + input_texts_val)
     target_tokenizer.fit_on_texts(target_texts_train + target_texts_val)
+    input_max_word_idx = max(input_tokenizer.word_index.values())
+    target_max_word_idx = max(target_tokenizer.word_index.values())
 
     input_seqs_train = input_tokenizer.texts_to_sequences(input_texts_train)
     input_seqs_val = input_tokenizer.texts_to_sequences(input_texts_val)
@@ -669,12 +671,8 @@ if __name__ == '__main__':
     # Build the model
     x = Input((None,), name="input_sequences")
     y = Input((None,), name="target_sequences")
-    x_emb = Embedding(input_tokenizer.num_words,
-                      EMBEDDING_SIZE,
-                      mask_zero=True)(x)
-    y_emb = Embedding(target_tokenizer.num_words,
-                      EMBEDDING_SIZE,
-                      mask_zero=True)(y)
+    x_emb = Embedding(input_max_word_idx + 1, EMBEDDING_SIZE, mask_zero=True)(x)
+    y_emb = Embedding(target_max_word_idx + 1, EMBEDDING_SIZE, mask_zero=True)(y)
 
     encoder = Bidirectional(GRU(RECURRENT_UNITS, return_sequences=True))
     x_enc = encoder(x_emb)
