@@ -50,12 +50,12 @@ def model_to_dot(model,
             'LR' creates a horizontal plot.
         expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
-        subgraph: whether to return a pydot.Cluster instance
+        subgraph: whether to return a pydot.Cluster instance.
 
     # Returns
         A `pydot.Dot` instance representing the Keras model or
         a `pydot.Cluster` instance representing nested model if
-        `subgraph=True`
+        `subgraph=True`.
     """
     from ..layers.wrappers import Wrapper
     from ..models import Model
