@@ -29,7 +29,7 @@ Main steps:
         generated output word.)
     - The attention encoding is concatenated to the previous target word
         embedding and fed as input to the regular GRUCell transform.
-    - The output (updated state) of the GRUCell id fed to a single
+    - The output (updated state) of the GRUCell is fed to a single
         hidden (maxout) layer MLP which outputs the probabilities of the
         next target word.
 - In inference mode (greedy approach),
@@ -98,25 +98,11 @@ from __future__ import print_function
 import os
 
 from keras import backend as K
-from keras import (
-    initializers,
-    regularizers,
-    constraints)
-from keras.engine import (
-    Layer,
-    InputSpec)
+from keras import initializers, regularizers, constraints
 from keras.engine.base_layer import _collect_previous_mask
-from keras.layers import (
-    Input,
-    Embedding,
-    Bidirectional,
-    RNN,
-    GRU,
-    GRUCell,
-    TimeDistributed,
-    Dense,
-    concatenate,
-    Lambda)
+from keras.layers import Layer, InputSpec
+from keras.layers import Input, Embedding, Bidirectional, RNN, GRU, GRUCell
+from keras.layers import TimeDistributed, Dense, concatenate, Lambda
 from keras.models import Model
 from keras.optimizers import Adadelta
 from keras.preprocessing.text import Tokenizer
@@ -139,15 +125,7 @@ class _RNNAttentionCell(Layer):
 
     # Arguments
         cell: A RNN cell instance. The cell to wrap by the attention mechanism.
-            A RNN cell is a class that has:
-            - a `call(input_at_t, states_at_t)` method, returning
-                `(output_at_t, states_at_t_plus_1)`.
-            - a `state_size` attribute. This can be a single integer
-                (single state) in which case it is the size of the recurrent
-                state (which should be the same as the size of the cell
-                output). This can also be a list/tuple of integers (one size
-                per state). In this case, the first entry (`state_size[0]`)
-                should be the same as the size of the cell output.
+            See docs of `cell` argument in the `RNN` Layer for further details.
         attend_after: Boolean (default False). If True, the attention
             transformation defined by `attention_call` will be applied after
             the core cell transformation (and the attention encoding will be
@@ -492,7 +470,71 @@ class _RNNAttentionCell(Layer):
 
 class DenseAnnotationAttention(_RNNAttentionCell):
     """Recurrent attention mechanism for attending sequences.
-    TODO docs
+
+    This class implements the attention mechanism used in [1] for machine
+    translation. It is, however, a generic sequence attention mechanism that can be
+    used for other sequence-to-sequence problems.
+
+    As any recurrent attention mechanism extending `_RNNAttentionCell`, this class
+    should be used in conjunction with a core (non attentive) RNN Cell, such as the
+    `SimpleRNNCell`, `LSTMCell` or `GRUCell`. It modifies the input of the core cell
+    by attending to a constant sequence (i.e. independent of the time step of the
+    recurrent application of the attention mechanism). The attention encoding is
+    computed  by using a single hidden layer MLP which computes a weighting over the
+    attended input. The MLP is applied to each time step of the attended, together
+    with the previous state. The attention encoding is the taken as the weighted sum
+    over the attended input using these weights.
+
+    # Arguments
+        cell: A RNN cell instance. The core RNN cell wrapped by this attention
+            mechanism. See docs of `cell` argument in the `RNN` Layer for further
+            details.
+        units: the number of hidden units in the single hidden MLP used for
+            computing the attention weights.
+        kernel_initializer: Initializer for all weights matrices
+            (see [initializers](../initializers.md)).
+        bias_initializer: Initializer for all bias vectors
+            (see [initializers](../initializers.md)).
+        kernel_regularizer: Regularizer function applied to
+            all weights matrices. (see [regularizer](../regularizers.md)).
+        bias_regularizer: Regularizer function applied to all biases
+            (see [regularizer](../regularizers.md)).
+        kernel_constraint: Constraint function applied to
+            all weights matrices. (see [constraints](../constraints.md)).
+        bias_constraint: Constraint function applied to all bias vectors
+            (see [constraints](../constraints.md)).
+
+     # Examples
+
+    ```python
+        # machine translation (similar to the architecture used in [1])
+        x = Input((None,), name="input_sequences")
+        y = Input((None,), name="target_sequences")
+        x_emb = Embedding(INPUT_NUM_WORDS, 256, mask_zero=True)(x)
+        y_emb = Embedding(TARGET_NUM_WORDS, 256, mask_zero=True)(y)
+        encoder = Bidirectional(GRU(512, return_sequences=True))
+        x_enc = encoder(x_emb)
+        decoder = RNN(cell=DenseAnnotationAttention(cell=GRUCell(512), units=128),
+                      return_sequences=True)
+        h = decoder(y_emb, constants=x_enc)
+        y_pred = TimeDistributed(Dense(TARGET_NUM_WORDS, activation='softmax'))(h)
+        model = Model([y, x], y_pred)
+        model.compile(loss='sparse_categorical_crossentropy', optimizer=OPTIMIZER)
+    ```
+
+    # Details of attention mechanism
+    Let {attended_1, ..., attended_I} denote the attended input sequence, where
+    attended_i is the i:t attended input vector, h_cell_tm1 the previous state of
+    the core cell at the recurrent time step t. Then the attention encoding at
+    time step t is computed as follows:
+
+        e_i = MLP([attended_i, h_cell_tm1])  # [., .] denoting concatenation
+        a_i = softmax_i({e_1, ..., e_I})
+        attention_h_t = sum_i(a_i * h_i)
+
+    # References
+    [1] Neural Machine Translation by Jointly Learning to Align and Translate
+        https://arxiv.org/abs/1409.0473
     """
     def __init__(self, cell,
                  units,
@@ -500,7 +542,6 @@ class DenseAnnotationAttention(_RNNAttentionCell):
                  bias_initializer='zeros',
                  kernel_regularizer=None,
                  bias_regularizer=None,
-                 activity_regularizer=None,
                  kernel_constraint=None,
                  bias_constraint=None,
                  **kwargs):
@@ -510,7 +551,6 @@ class DenseAnnotationAttention(_RNNAttentionCell):
         self.bias_initializer = initializers.get(bias_initializer)
         self.kernel_regularizer = regularizers.get(kernel_regularizer)
         self.bias_regularizer = regularizers.get(bias_regularizer)
-        self.activity_regularizer = regularizers.get(activity_regularizer)
         self.kernel_constraint = constraints.get(kernel_constraint)
         self.bias_constraint = constraints.get(bias_constraint)
 
@@ -576,8 +616,6 @@ class DenseAnnotationAttention(_RNNAttentionCell):
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer':
-                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
