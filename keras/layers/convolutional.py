@@ -250,7 +250,7 @@ class Conv1D(_Conv):
 
     When using this layer as the first layer in a model,
     provide an `input_shape` argument (tuple of integers or `None`, does not
-    include the sample axis), e.g. `input_shape=(10, 128)` for time series
+    include the batch axis), e.g. `input_shape=(10, 128)` for time series
     sequences of 10 time steps with 128 features per step in
     `data_format="channels_last"`, or `(None, 128)` for variable-length
     sequences with 128 features per step.
@@ -376,7 +376,7 @@ class Conv2D(_Conv):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
     in `data_format="channels_last"`.
 
@@ -507,7 +507,7 @@ class Conv3D(_Conv):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 128, 1)` for 128x128x128 volumes
     with a single channel,
     in `data_format="channels_last"`.
@@ -637,7 +637,7 @@ class Conv2DTranspose(Conv2D):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
     in `data_format="channels_last"`.
 
@@ -910,7 +910,7 @@ class Conv3DTranspose(Conv3D):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 volume with 3 channels
     if `data_format="channels_last"`.
 
