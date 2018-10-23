@@ -341,6 +341,8 @@ class Sequence(object):
     ```
     """
 
+    use_sequence_api = True
+
     @abstractmethod
     def __getitem__(self, index):
         """Gets batch at position `index`.

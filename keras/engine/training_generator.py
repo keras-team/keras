@@ -7,6 +7,7 @@ from __future__ import print_function
 import warnings
 import numpy as np
 
+from .training_utils import is_sequence
 from .training_utils import iter_sequence_infinite
 from .. import backend as K
 from ..utils.data_utils import Sequence
@@ -40,15 +41,15 @@ def fit_generator(model,
     if do_validation:
         model._make_test_function()
 
-    is_sequence = isinstance(generator, Sequence)
-    if not is_sequence and use_multiprocessing and workers > 1:
+    use_sequence_api = is_sequence(generator)
+    if not use_sequence_api and use_multiprocessing and workers > 1:
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
                         ' Please consider using the`keras.utils.Sequence'
                         ' class.'))
     if steps_per_epoch is None:
-        if is_sequence:
+        if use_sequence_api:
             steps_per_epoch = len(generator)
         else:
             raise ValueError('`steps_per_epoch=None` is only valid for a'
@@ -59,10 +60,11 @@ def fit_generator(model,
 
     # python 2 has 'next', 3 has '__next__'
     # avoid any explicit version checks
+    val_use_sequence_api = is_sequence(validation_data)
     val_gen = (hasattr(validation_data, 'next') or
                hasattr(validation_data, '__next__') or
-               isinstance(validation_data, Sequence))
-    if (val_gen and not isinstance(validation_data, Sequence) and
+               val_use_sequence_api)
+    if (val_gen and not val_use_sequence_api and
             not validation_steps):
         raise ValueError('`validation_steps=None` is only valid for a'
                          ' generator based on the `keras.utils.Sequence`'
@@ -108,7 +110,7 @@ def fit_generator(model,
             if val_gen and workers > 0:
                 # Create an Enqueuer that can be reused
                 val_data = validation_data
-                if isinstance(val_data, Sequence):
+                if is_sequence(val_data):
                     val_enqueuer = OrderedEnqueuer(
                         val_data,
                         use_multiprocessing=use_multiprocessing)
@@ -122,7 +124,7 @@ def fit_generator(model,
                 val_enqueuer_gen = val_enqueuer.get()
             elif val_gen:
                 val_data = validation_data
-                if isinstance(val_data, Sequence):
+                if is_sequence(val_data):
                     val_enqueuer_gen = iter_sequence_infinite(val_data)
                     validation_steps = validation_steps or len(val_data)
                 else:
@@ -149,7 +151,7 @@ def fit_generator(model,
                     cbk.validation_data = val_data
 
         if workers > 0:
-            if is_sequence:
+            if use_sequence_api:
                 enqueuer = OrderedEnqueuer(
                     generator,
                     use_multiprocessing=use_multiprocessing,
@@ -161,7 +163,7 @@ def fit_generator(model,
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
         else:
-            if is_sequence:
+            if use_sequence_api:
                 output_generator = iter_sequence_infinite(generator)
             else:
                 output_generator = generator
@@ -284,15 +286,15 @@ def evaluate_generator(model, generator,
     steps_done = 0
     outs_per_batch = []
     batch_sizes = []
-    is_sequence = isinstance(generator, Sequence)
-    if not is_sequence and use_multiprocessing and workers > 1:
+    use_sequence_api = is_sequence(generator)
+    if not use_sequence_api and use_multiprocessing and workers > 1:
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
                         ' Please consider using the`keras.utils.Sequence'
                         ' class.'))
     if steps is None:
-        if is_sequence:
+        if use_sequence_api:
             steps = len(generator)
         else:
             raise ValueError('`steps=None` is only valid for a generator'
@@ -303,7 +305,7 @@ def evaluate_generator(model, generator,
 
     try:
         if workers > 0:
-            if is_sequence:
+            if use_sequence_api:
                 enqueuer = OrderedEnqueuer(
                     generator,
                     use_multiprocessing=use_multiprocessing)
@@ -314,7 +316,7 @@ def evaluate_generator(model, generator,
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
         else:
-            if is_sequence:
+            if use_sequence_api:
                 output_generator = iter_sequence_infinite(generator)
             else:
                 output_generator = generator
@@ -387,15 +389,15 @@ def predict_generator(model, generator,
 
     steps_done = 0
     all_outs = []
-    is_sequence = isinstance(generator, Sequence)
-    if not is_sequence and use_multiprocessing and workers > 1:
+    use_sequence_api = is_sequence(generator)
+    if not use_sequence_api and use_multiprocessing and workers > 1:
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
                         ' Please consider using the`keras.utils.Sequence'
                         ' class.'))
     if steps is None:
-        if is_sequence:
+        if use_sequence_api:
             steps = len(generator)
         else:
             raise ValueError('`steps=None` is only valid for a generator'
@@ -406,7 +408,7 @@ def predict_generator(model, generator,
 
     try:
         if workers > 0:
-            if is_sequence:
+            if use_sequence_api:
                 enqueuer = OrderedEnqueuer(
                     generator,
                     use_multiprocessing=use_multiprocessing)
@@ -417,7 +419,7 @@ def predict_generator(model, generator,
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
         else:
-            if is_sequence:
+            if use_sequence_api:
                 output_generator = iter_sequence_infinite(generator)
             else:
                 output_generator = generator
