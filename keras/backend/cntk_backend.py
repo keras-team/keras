@@ -547,46 +547,184 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
+    """Batchwise dot product.
+
+    `batch_dot` is used to compute dot product of `x` and `y` when
+    `x` and `y` are data in batches, i.e. in a shape of
+    `(batch_size, :)`.
+    `batch_dot` results in a tensor or variable with less dimensions
+    than the input. If the number of dimensions is reduced to 1,
+    we use `expand_dims` to make sure that ndim is at least 2.
+
+    # Arguments
+        x: Keras tensor or variable with `ndim >= 2`.
+        y: Keras tensor or variable with `ndim >= 2`.
+        axes: int or tupe(int, int). Target dimensions to be reduced.
+              Defaults to [ndim(x) - 1, 1]
+
+    # Returns
+        A tensor with shape equal to the concatenation of `x`'s shape
+        (less the dimension that was summed over) and `y`'s shape
+        (less the batch dimension and the dimension that was summed over).
+        If the final rank is 1, we reshape it to `(batch_size, 1)`.
+
+    # Examples
+        Assume `x = [[1, 2], [3, 4]]` and `y = [[5, 6], [7, 8]]`
+        `batch_dot(x, y, axes=1) = [[17], [53]]` which is the main diagonal
+        of `x.dot(y.T)`, although we never have to calculate the off-diagonal
+        elements.
+
+        Pseudocode:
+        ```
+        inner_products = []
+        for xi, yi in zip(x, y):
+            inner_products.append(xi.dot(yi))
+        result = stack(inner_prodcuts)
+        ```
+
+        Shape inference:
+        Let `x`'s shape be `(100, 20)` and `y`'s shape be `(100, 30, 20)`.
+        If `axes` is (1, 2), to find the output shape of resultant tensor,
+            loop through each dimension in `x`'s shape and `y`'s shape:
+
+        * `x.shape[0]` : 100 : append to output shape
+        * `x.shape[1]` : 20 : do not append to output shape,
+            dimension 1 of `x` has been summed over. (`dot_axes[0]` = 1)
+        * `y.shape[0]` : 100 : do not append to output shape,
+            always ignore first dimension of `y`
+        * `y.shape[1]` : 30 : append to output shape
+        * `y.shape[2]` : 20 : do not append to output shape,
+            dimension 2 of `y` has been summed over. (`dot_axes[1]` = 2)
+        `output_shape` = `(100, 30)`
+
+    ```python
+        >>> x_batch = K.ones(shape=(32, 20, 1))
+        >>> y_batch = K.ones(shape=(32, 30, 20))
+        >>> xy_batch_dot = K.batch_dot(x_batch, y_batch, axes=(1, 2))
+        >>> K.int_shape(xy_batch_dot)
+        (32, 1, 30)
+    ```
+    """
     x_shape = int_shape(x)
     y_shape = int_shape(y)
 
+    x_ndim = len(x_shape)
+    y_ndim = len(y_shape)
+
+    if x_ndim < 2 or y_ndim < 2:
+        raise ValueError('Can not do batch_dot on inputs '
+                         'with rank < 2. '
+                         'Received inputs with shapes ' +
+                         str(x_shape) + ' and ' +
+                         str(y_shape) + '.')
+
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is None and y_batch_size is None:
+        dynamic_batch_size = True
+    elif x_batch_size is not None and y_batch_size is not None:
+        dynamic_batch_size = False
+        if x_batch_size != y_batch_size:
+            raise ValueError('Can not do batch_dot on inputs '
+                             'with different batch sizes. '
+                             'Received inputs with shapes ' +
+                             str(x_shape) + ' and ' +
+                             str(y_shape) + '.')
+    else:
+        raise ValueError('Can not mix inputs with and without dynamic batch size.')
+
     if isinstance(axes, int):
-        axes = (axes, axes)
+        axes = [axes, axes]
+
     if axes is None:
-        # behaves like tf.batch_matmul as default
-        axes = [len(x_shape) - 1, len(y_shape) - 2]
+        axes = [x_ndim - 1, 1]
+
     if b_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
 
-    if len(x_shape) == 2 and len(y_shape) == 2:
-        if axes[0] == axes[1]:
-            result = sum(x * y, axis=axes[0], keepdims=True)
-            return result if axes[0] == 1 else transpose(result)
-        else:
-            return sum(x * transpose(y), axis=axes[0], keepdims=True)
-    else:
-        if len(y_shape) == 2:
-            y = expand_dims(y)
+    # if tuple, convert to list
+    axes = list(axes)
 
-        normalized_axis = []
-        normalized_axis.append(_normalize_axis(axes[0], x)[0])
-        normalized_axis.append(_normalize_axis(axes[1], y)[0])
-        # transpose
-        i = normalized_axis[0]
-        while i < len(x.shape) - 1:
-            x = C.swapaxes(x, i, i + 1)
-            i += 1
-        i = normalized_axis[1]
-        while i > 0:
-            y = C.swapaxes(y, i, i - 1)
-            i -= 1
-        result = C.times(x, y, output_rank=(len(y.shape) - 1)
-                         if len(y.shape) > 1 else 1)
-        if len(y_shape) == 2:
-            result = squeeze(result, -1)
-        return result
+    # convert negative indices
+    if axes[0] < 0:
+        axes[0] += x_ndim
+    if axes[1] < 0:
+        axes[1] += y_ndim
+
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0. If your inputs are not batched,'
+                         ' add a dummy batch dimension to your inputs using K.expand_dims(x, 0)')
+
+    d1 = x_shape[axes[0]]
+    d2 = y_shape[axes[1]]
+
+    if d1 is not None and d2 is not None and d1 != d2:
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x_shape) + ' and ' + str(y_shape) +
+                         ' with axes=' + str(axes) + '. x.shape[%d] != '
+                         'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
+
+    # Input shapes:
+    # x: (b_size, x1, ..., d, ..., xn)
+    # y: (b_size, y1, ..., d, ..., yn)
+    # where d is the dimension to reduce.
+
+    # Bring d to the last dimension in x
+    # x: (b_size, ..., d)
+
+    permute_pattern = list(range(x_ndim))
+    for i in range(axes[0], x_ndim - 1):
+        permute_pattern[i] = permute_pattern[i + 1]
+    permute_pattern[-1] = axes[0]
+
+    x = permute_dimensions(x, permute_pattern)
+
+    # Bring d to the second dimension in y
+    # y: (b_size, d, ...)
+    permute_pattern = list(range(y_ndim))
+
+    for i in range(axes[1], 1, -1):
+        permute_pattern[i] = permute_pattern[i - 1]
+    permute_pattern[1] = axes[1]
+    y = permute_dimensions(y, permute_pattern)
+
+    if x_ndim == 2:
+        x = expand_dims(x, 1)
+        x_expanded = True
+    else:
+        x_expanded = False
+
+    if y_ndim == 2:
+        y = expand_dims(y, -1)
+        y_expanded = True
+    else:
+        y_expanded = False
+
+    if dynamic_batch_size:
+        result = C.times(x, y, output_rank=y_ndim - 2 + int(y_expanded))
+    else:
+        result = []
+
+        for i in range(x_batch_size):
+            xi = x[i]
+            yi = y[i]
+            xi = squeeze(xi, 0)
+            yi = squeeze(yi, 0)
+            result.append(C.times(xi, yi, output_rank=y_ndim - 2 + int(y_expanded)))
+        result = stack(result, 0)
+
+    if x_expanded:
+        result = squeeze(result, 1)
+
+    if y_expanded:
+        result = squeeze(result, -1)
+
+    if ndim(result) == 1:
+        return expand_dims(result)
+    return result
 
 
 def transpose(x):
@@ -1096,6 +1234,11 @@ def concatenate(tensors, axis=-1):
     axis = [axis]
     axis = _normalize_axis(axis, tensors[0])
     return C.splice(*tensors, axis=axis[0])
+
+
+def stack(tensors, axis=0):
+    tensors = [expand_dims(t, axis) for t in tensors]
+    return concatenate(tensors, axis)
 
 
 def flatten(x):
