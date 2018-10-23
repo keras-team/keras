@@ -689,7 +689,8 @@ def test_TensorBoard_multi_input_output(tmpdir):
 
     inp1 = Input((input_dim, input_dim))
     inp2 = Input((input_dim, input_dim))
-    inp_3d = add([inp1, inp2])
+    inp3 = Input(tensor=K.random_normal(K.shape(inp1)))  # see issue #11433
+    inp_3d = add([inp1, inp2, inp3])
     inp_2d = GlobalAveragePooling1D()(inp_3d)
     # test a layer with a list of output tensors
     inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])
@@ -698,7 +699,7 @@ def test_TensorBoard_multi_input_output(tmpdir):
     hidden = Dropout(0.1)(hidden)
     output1 = Dense(num_classes, activation='softmax')(hidden)
     output2 = Dense(num_classes, activation='softmax')(hidden)
-    model = Model(inputs=[inp1, inp2], outputs=[output1, output2])
+    model = Model(inputs=[inp1, inp2, inp3], outputs=[output1, output2])
     model.compile(loss='categorical_crossentropy',
                   optimizer='sgd',
                   metrics=['accuracy'])

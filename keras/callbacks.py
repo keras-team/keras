@@ -856,7 +856,7 @@ class TensorBoard(Callback):
 
         if self.embeddings_freq and self.embeddings_data is not None:
             self.embeddings_data = standardize_input_data(self.embeddings_data,
-                                                          model.input_names)
+                                                          model._feed_input_names)
 
             embeddings_layer_names = self.embeddings_layer_names
 
@@ -915,9 +915,9 @@ class TensorBoard(Callback):
             if epoch % self.histogram_freq == 0:
 
                 val_data = self.validation_data
-                tensors = (self.model.inputs +
-                           self.model.targets +
-                           self.model.sample_weights)
+                tensors = (self.model._feed_inputs +
+                           self.model._feed_targets +
+                           self.model._feed_sample_weights)
 
                 if self.model.uses_learning_phase:
                     tensors += [K.learning_phase()]
@@ -960,11 +960,9 @@ class TensorBoard(Callback):
                     step = min(self.batch_size, n_samples - i)
                     batch = slice(i, i + step)
 
-                    if type(self.model.input) == list:
-                        feed_dict = {_input: embeddings_data[idx][batch]
-                                     for idx, _input in enumerate(self.model.input)}
-                    else:
-                        feed_dict = {self.model.input: embeddings_data[0][batch]}
+                    feed_dict = {
+                        _input: embeddings_data[idx][batch]
+                        for idx, _input in enumerate(self.model._feed_inputs)}
 
                     feed_dict.update({self.batch_id: i, self.step: step})
 
