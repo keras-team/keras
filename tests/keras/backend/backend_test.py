@@ -259,7 +259,7 @@ class TestBackend(object):
                                       assert_value_equality=False)
 
     def test_batch_dot_shape(self):
-        # Note : batch_dot behavior is different for
+        # Note : batch_dot implementation is different for
         # placeholders and variables in CNTK backend
 
         test_cases = []
