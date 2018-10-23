@@ -92,6 +92,7 @@ To download the data run:
 from __future__ import print_function
 
 import os
+import heapq
 import numpy as np
 
 from keras import backend as K
@@ -622,7 +623,7 @@ if __name__ == '__main__':
     FROM_LANGUAGE = 'en'
     TO_LANGUAGE = 'de'
 
-    # Meta parameters
+    # Set meta parameters
     MAX_UNIQUE_WORDS = 30000
     MAX_WORDS_PER_SENTENCE = 40  # inf in [1]
     EMBEDDING_SIZE = 620  # `m` in [1]
@@ -671,7 +672,7 @@ if __name__ == '__main__':
                     target_seqs_val]
     )
 
-    # Build the model
+    # Build model
     x = Input((None,), name="input_sequences")
     y = Input((None,), name="target_sequences")
     x_emb = Embedding(input_max_word_idx + 1, EMBEDDING_SIZE, mask_zero=True)(x)
@@ -707,8 +708,8 @@ if __name__ == '__main__':
     # target_seqs_train = target_seqs_train[:80]
     # input_seqs_val = input_seqs_val[:80]
     # target_seqs_val = target_seqs_val[:80]
-    #
-    #
+
+    # Run training
     # model.fit([target_seqs_train[:, :-1], input_seqs_train],
     #           target_seqs_train[:, 1:, None],
     #           batch_size=BATCH_SIZE,
@@ -717,124 +718,169 @@ if __name__ == '__main__':
     #               [target_seqs_val[:, :-1], input_seqs_val],
     #               target_seqs_val[:, 1:, None]))
 
-    # TODO add logic for greedy/beam search generation
+    # Save model
+    model.save('rec_att_mt.h5')
 
-    # TODO!!
-    # [/] graph construction simpler -> seems to be required to do this way
-    # [/] start and end token for Tokenizer, must be changed (org PR)
-    # [-] Beam search
+    # Inference, i.e. use to model to translate new sentences!
+    # To be able to do this efficiently we need to do two things in preparation:
+    #  1) Build separate model for the encoding that is only done _once_ per input
+    #     sequence.
+    #  2) Build a model for the decoder (and output layers) that takes input states
+    #     and returns updated states for the recurrent part of the model, so that
+    #     it can be run one time step at a time.
 
-    # pre-processing (once per input sequence)
-    prep_model = Model(x, [x_enc, u])
+    encoder_model = Model(x, [x_enc, u])
 
-    # decoder to output with exposed state
     x_enc_new = Input(batch_shape=K.int_shape(x_enc))
     u_new = Input(batch_shape=K.int_shape(u))
-
     initial_state = [Input((size,)) for size in cell.state_size]
     decoder_new = RNN(cell=cell, return_sequences=True, return_state=True)
     h1_new_and_state = decoder_new(y_emb,
                                    initial_state=initial_state,
                                    constants=[x_enc_new, u_new])
     h1_new = h1_new_and_state[0]
-    state = h1_new_and_state[1:]
+    updated_state = h1_new_and_state[1:]
     h2_new = maxout_layer(concatenate([h1_new, y_emb]))
     y_pred_new = output_layer(h2_new)
-    decoder_output_model = Model([y, x_enc_new, u_new] + initial_state, [y_pred_new] + state)
+    decoder_output_model = Model([y, x_enc_new, u_new] + initial_state,
+                                 [y_pred_new] + updated_state)
 
-    def translate_greedy(input_text, init_text=None, t_max=100):
+    def translate_greedy(input_text, t_max=None):
+        """Takes the most probable next token at each time step until the end-token
+        is predicted or t_max reached.
         """
-
-        :param input_text:
-        :param init_text:
-        :param t_max:
-        :return:
-        """
-        if init_text is None:
-            init_text = start_token
         t = 0
-        y_t = np.array(target_tokenizer.texts_to_sequences([init_text]))
+        y_t = np.array(target_tokenizer.texts_to_sequences([start_token]))
         y_0_to_t = [y_t]
-        x = input_tokenizer.texts_to_sequences([input_text])
+        x_ = np.array(input_tokenizer.texts_to_sequences([input_text]))
         state_t = [np.zeros((1, size)) for size in cell.state_size]
-        [x_enc, u] = prep_model.predict(x)
+        [x_enc_, u_] = encoder_model.predict(x_)
+
+        if t_max is None:
+            t_max = x_.shape[-1] * 2
         end_idx = target_tokenizer.word_index[end_token]
+        score = 0  # track the cumulative log likelihood
         while y_t[0, 0] != end_idx and t < t_max:
-            outputs = decoder_output_model.predict([y_t, x_enc, u] + state_t)
+            outputs = decoder_output_model.predict([y_t, x_enc_, u_] + state_t)
             t += 1
             state_t = outputs[1:]
-            y_pred = outputs[0]
-            y_t = np.argmax(y_pred, axis=-1)
+            y_pred_ = outputs[0]
+            y_t = np.argmax(y_pred_, axis=-1)
+            score += np.log(y_pred_[0, 0, y_t[0, 0]])
             y_0_to_t.append(y_t)
-        y = np.hstack(y_0_to_t)
-        output_text = target_tokenizer.sequences_to_texts(y)[0]
+        y_ = np.hstack(y_0_to_t)
+        output_text = target_tokenizer.sequences_to_texts(y_)[0]
+        # length normalised score, skipping start token
+        score = score / (len(y_0_to_t) - 1)
 
-        return output_text
+        return output_text, score
 
-    def translate_beam_serach(input_text,
-                              init_text=None,
-                              t_max=None,
-                              search_width=50):
-        import heapq
+    def translate_beam_search(input_text,
+                              search_width=20,
+                              branch_factor=None,
+                              t_max=None):
+        """Perform beam search to approximately find the translated sentence that
+        maximises the conditional probability given the input sequence.
+
+        Returns the completed sentences (reached end-token) in order of decreasing
+        score (the first is most probable) followed by incomplete sentences in order
+        of decreasing score - as well as the score for the respective sentence.
+
+        References:
+            [1] "Sequence to sequence learning with neural networks"
+            (https://arxiv.org/pdf/1409.3215.pdf)
+        """
+
+        if branch_factor is None:
+            branch_factor = search_width
+        elif branch_factor > search_width:
+            raise ValueError("branch_factor must be smaller than search_width")
+        elif branch_factor < 2:
+            raise ValueError("branch_factor must be >= 2")
 
         def k_largest_val_idx(a, k):
             """Returns top k largest values of a and their indices, ordered by
             decreasing value"""
-            # equivalent slower implementation:
-            # top_k = np.argsort(a)[-k:][::-1]
-            # return zip(a[top_k], top_k)
             top_k = np.argpartition(a, -k)[-k:]
             return sorted(zip(a[top_k], top_k))[::-1]
 
-        if init_text is None:
-            init_text = start_token
+        # initialisation of search
         t = 0
-        y_0 = np.array(target_tokenizer.texts_to_sequences([init_text]))[0]
-        x = input_tokenizer.texts_to_sequences([input_text])
+        y_0 = np.array(target_tokenizer.texts_to_sequences([start_token]))[0]
         state_0 = [np.zeros((size,)) for size in cell.state_size]
-        [x_enc, u] = prep_model.predict(x)
         end_idx = target_tokenizer.word_index[end_token]
 
-        complete = []
-        incomplete = [(0., [y_0], state_0)]
-        # beam with (score, [y_0, ..., y_t], state)
+        # run input encoding once
+        x_ = np.array(input_tokenizer.texts_to_sequences([input_text]))
+        [x_enc_, u_] = encoder_model.predict(x_)
+        # repeat to a batch of <search_width> samples
+        x_enc_ = np.repeat(x_enc_, search_width, axis=0)
+        u_ = np.repeat(u_, search_width, axis=0)
 
-        while len(complete) < search_width and t < t_max:
+        if t_max is None:
+            t_max = x_.shape[-1] * 2
+
+        # A "search beam" is represented as a tuple of:
+        #   (score, [y_0, ..., y_t], state)
+        # where the score is the average log likelihood of the output tokens
+        # (i.e. "length normalized") and the most recent state of the decoder at
+        # time step t.
+
+        # A short-list of the <search_width> number of beams with highest
+        # score is maintained through out the search. Initially there is only one
+        # beam.
+        incomplete_beams = [(0., [y_0], state_0)]
+        # All beams that reached the end-token are kept separately.
+        complete_beams = []
+
+        while len(complete_beams) < search_width and t < t_max:
             t += 1
-            y_tm1 = np.vstack([beam[1][-1] for beam in incomplete])
+            # create a batch of inputs representing the incomplete_beams
+            y_tm1 = np.vstack([beam[1][-1] for beam in incomplete_beams])
             state_tm1 = [
-                np.vstack([beam[2][s] for beam in incomplete])
+                np.vstack([beam[2][s] for beam in incomplete_beams])
                 for s in range(len(state_0))
             ]
-            outputs = decoder_output_model.predict([y_tm1, x_enc, u] + state_tm1)
+            # predict next tokes for every incomplete beam
+            batch_size = len(incomplete_beams)
+            outputs = decoder_output_model.predict(
+                [y_tm1, x_enc_[:batch_size], u_[:batch_size]] + state_tm1)
             state_t = outputs[1:]
-            y_pred = outputs[0]
-            incomplete_new = []
-            for i, beam in enumerate(incomplete):
+            y_pred_ = outputs[0]
+
+            # from each previous beam create new candidate beams and save the once
+            # with highest score for next iteration.
+            beams_updated = []
+            for i, beam in enumerate(incomplete_beams):
                 l = len(beam[1]) - 1  # don't count 'start' token
-                for proba, idx in k_largest_val_idx(y_pred[i, 0], search_width):
+                for proba, idx in k_largest_val_idx(y_pred_[i, 0], branch_factor):
                     new_score = (beam[0] * l + np.log(proba)) / (l + 1)
-                    not_full = len(incomplete_new) < search_width
+                    not_full = len(beams_updated) < search_width
                     ended = idx == end_idx
-                    if not_full or ended or new_score > incomplete_new[0][0]:
-                        # add this version
+                    if not_full or ended or new_score > beams_updated[0][0]:
+                        # create new successor beam with next token=idx
                         beam_new = (new_score,
                                     beam[1] + [np.array([idx])],
                                     [s[i] for s in state_t])
                         if ended:
-                            heapq.heappush(complete, beam_new)
+                            heapq.heappush(complete_beams, beam_new)
                         elif not_full:
-                            heapq.heappush(incomplete_new, beam_new)
+                            heapq.heappush(beams_updated, beam_new)
                         else:
-                            heapq.heapreplace(incomplete_new, beam_new)
+                            heapq.heapreplace(beams_updated, beam_new)
                     else:
+                        # if score is not among to candidates we abort search
+                        # for this ancestor beam (next token processed in order of
+                        # decreasing likelihood)
                         break
-            incomplete = incomplete_new
+            # faster to process in order of decreasing score
+            incomplete_beams = sorted(beams_updated, reverse=True)
 
-        # import ipdb; ipdb.set_trace()
-        texts = []
-        for beam in complete + incomplete:
-            texts.append(target_tokenizer.sequences_to_texts(
-                np.concatenate(beam[1])[None, :]))
+        output_texts = []
+        scores = []
+        for beam in complete_beams[::-1] + incomplete_beams:
+            output_texts.append(target_tokenizer.sequences_to_texts(
+                np.concatenate(beam[1])[None, :])[0])
+            scores.append(beam[0])
 
-        return texts, complete, incomplete
+        return output_texts, scores  # return scores as well for context
