@@ -628,6 +628,7 @@ def batch_dot(x, y, axes=None):
     permute_pattern[1] = axes[1]
     y = permute_dimensions(y, permute_pattern)
 
+    # Expand to rank 3 if needed
     if x_ndim == 2:
         x = expand_dims(x, 1)
         x_expanded = True
@@ -640,7 +641,37 @@ def batch_dot(x, y, axes=None):
     else:
         y_expanded = False
 
-    result = C.times(x, y, output_rank=y_ndim - 2 + int(y_expanded))
+    x_shape = int_shape(x)
+    y_shape = int_shape(y)
+
+    # batch size might be lost at this point
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is None and y_batch_size is None:
+        dynamic_batch_size = True
+    elif x_batch_size is not None and y_batch_size is not None:
+        dynamic_batch_size = False
+    else:
+        raise ValueError('Can not perform batch_dot on inputs' +
+                         ' with both static and dynamic batch sizes.' +
+                         'You probably attempted to permform the ' +
+                         'operation on a placeholder and a variable, ' +
+                         'which is not yet supported on the CNTK backend.')
+
+    if dynamic_batch_size:
+        result = C.times(x, y, output_rank=y_ndim - 2 + int(y_expanded))
+    else:
+        result = []
+
+        for i in range(x_batch_size):
+            xi = x[i]
+            yi = y[i]
+            if ndim(xi) == ndim(x):  # for older versions of CNTK
+                xi = squeeze(xi, 0)
+                yi = squeeze(yi, 0)
+            result.append(C.times(xi, yi, output_rank=y_ndim - 2 + int(y_expanded)))
+        result = stack(result, 0)
 
     if x_expanded:
         result = squeeze(result, 1)
