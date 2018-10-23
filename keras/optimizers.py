@@ -234,8 +234,8 @@ class RMSprop(Optimizer):
         decay: float >= 0. Learning rate decay over each update.
 
     # References
-        - [rmsprop: Divide the gradient by a running average of its recent magnitude]
-          (http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
+        - [rmsprop: Divide the gradient by a running average of its recent magnitude
+           ](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
     def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0.,
@@ -373,8 +373,8 @@ class Adadelta(Optimizer):
         decay: float >= 0. Initial learning rate decay.
 
     # References
-        - [Adadelta - an adaptive learning rate method]
-          (https://arxiv.org/abs/1212.5701)
+        - [Adadelta - an adaptive learning rate method](
+           https://arxiv.org/abs/1212.5701)
     """
 
     def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0.,
@@ -449,10 +449,10 @@ class Adam(Optimizer):
             Beyond".
 
     # References
-        - [Adam - A Method for Stochastic Optimization]
-          (https://arxiv.org/abs/1412.6980v8)
-        - [On the Convergence of Adam and Beyond]
-          (https://openreview.net/forum?id=ryQu7f-RZ)
+        - [Adam - A Method for Stochastic Optimization](
+           https://arxiv.org/abs/1412.6980v8)
+        - [On the Convergence of Adam and Beyond](
+           https://openreview.net/forum?id=ryQu7f-RZ)
     """
 
     def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
@@ -537,8 +537,8 @@ class Adamax(Optimizer):
         decay: float >= 0. Learning rate decay over each update.
 
     # References
-        - [Adam - A Method for Stochastic Optimization]
-          (https://arxiv.org/abs/1412.6980v8)
+        - [Adam - A Method for Stochastic Optimization](
+           https://arxiv.org/abs/1412.6980v8)
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
@@ -619,8 +619,8 @@ class Nadam(Optimizer):
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
-        - [On the importance of initialization and momentum in deep learning]
-          (http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
+        - [On the importance of initialization and momentum in deep learning](
+           http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
     """
 
     def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,

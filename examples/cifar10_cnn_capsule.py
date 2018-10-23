@@ -130,8 +130,6 @@ class Capsule(Layer):
         b = K.zeros_like(hat_inputs[:, :, :, 0])
         for i in range(self.routings):
             c = softmax(b, 1)
-            if K.backend() == 'theano':
-                o = K.sum(o, axis=1)
             o = self.activation(K.batch_dot(c, hat_inputs, [2, 2]))
             if i < self.routings - 1:
                 b = K.batch_dot(o, hat_inputs, [2, 3])
