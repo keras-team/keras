@@ -592,9 +592,10 @@ def batch_dot(x, y, axes=None):
         axes[1] += y_ndim
 
     if 0 in axes:
-        raise ValueError('Can not perform batch_dot over axis 0. If your inputs are not batched,'
-                         ' add a dummy batch dimension to your inputs using K.expand_dims(x, 0)')
-
+        raise ValueError('Can not perform batch_dot over axis 0.'
+                         'If your inputs are not batched,'
+                         ' add a dummy batch dimension to your '
+                         'inputs using K.expand_dims(x, 0)')
     d1 = x_shape[axes[0]]
     d2 = y_shape[axes[1]]
 
