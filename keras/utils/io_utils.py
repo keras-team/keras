@@ -178,15 +178,21 @@ class H5Dict(object):
     deserialization.
 
     # Arguments
-        path: Either a string (path on disk), a dict, or a HDF5 Group.
+        path: Either a string (path on disk), a Path, a dict, or a HDF5 Group.
         mode: File open mode (one of `{"a", "r", "w"}`).
     """
 
     def __init__(self, path, mode='a'):
+        def is_path_instance(path):
+            # We can't use isinstance here because it would require
+            # us to add pathlib2 to the Python 2 dependencies.
+            class_name = type(path).__name__
+            return class_name == 'PosixPath' or class_name == 'WindowsPath'
+
         if isinstance(path, h5py.Group):
             self.data = path
             self._is_file = False
-        elif isinstance(path, six.string_types):
+        elif isinstance(path, six.string_types) or is_path_instance(path):
             self.data = h5py.File(path, mode=mode)
             self._is_file = True
         elif isinstance(path, dict):
@@ -197,7 +203,7 @@ class H5Dict(object):
             # Flag to check if a dict is user defined data or a sub group:
             self.data['_is_group'] = True
         else:
-            raise TypeError('Required Group, str or dict. '
+            raise TypeError('Required Group, str, Path or dict. '
                             'Received: {}.'.format(type(path)))
         self.read_only = mode == 'r'
 
