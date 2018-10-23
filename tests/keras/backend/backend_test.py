@@ -263,7 +263,8 @@ class TestBackend(object):
         # placeholders and variables in CNTK backend
 
         test_cases = []
-        test_cases.append([(None, 3, 4, 5), (None, 2, 3, 4), (2, 3), (None, 3, 5, 2, 3)])
+        test_cases.append([(None, 3, 4, 5), (None, 2, 3, 4), (2, 3),
+                           (None, 3, 5, 2, 3)])
         test_cases.append([(None, 3, 4, 5), (None, 2, 4), 2, (None, 3, 5, 2)])
         test_cases.append([(None, 3, 4), (None, 2, 3, 4), (2, 3), (None, 3, 2, 3)])
         test_cases.append([(None, 4), (None, 3, 4), (1, 2), (None, 3)])

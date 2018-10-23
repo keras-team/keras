@@ -1173,7 +1173,10 @@ def batch_dot(x, y, axes=None):
         axes = [axes, axes]
 
     if axes is None:
-        axes = [x_ndim - 1, 1]
+        if y_ndim == 2:
+            axes = [x_ndim - 1, y_ndim - 1]
+        else:
+            axes = [x_ndim - 1, y_ndim - 2]
 
     if py_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
@@ -1191,8 +1194,10 @@ def batch_dot(x, y, axes=None):
 
     # sanity checks
     if 0 in axes:
-        raise ValueError('Can not perform batch_dot over axis 0. If your inputs are not batched,'
-                         ' add a dummy batch dimension to your inputs using K.expand_dims(x, 0)')
+        raise ValueError('Can not perform batch_dot over axis 0.'
+                         'If your inputs are not batched,'
+                         ' add a dummy batch dimension to your '
+                         'inputs using K.expand_dims(x, 0)')
 
     a0, a1 = axes
     d1 = x_shape[a0]
