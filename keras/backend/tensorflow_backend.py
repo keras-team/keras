@@ -1100,7 +1100,6 @@ def batch_dot(x, y, axes=None):
         x: Keras tensor or variable with `ndim >= 2`.
         y: Keras tensor or variable with `ndim >= 2`.
         axes: int or tupe(int, int). Target dimensions to be reduced.
-              Defaults to [ndim(x) - 1, 1]
 
     # Returns
         A tensor with shape equal to the concatenation of `x`'s shape

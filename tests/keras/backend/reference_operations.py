@@ -514,6 +514,9 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError('Batch dot requires inputs of rank 2 or more.')
+
     if isinstance(axes, int):
         axes = [axes, axes]
     elif isinstance(axes, tuple):
