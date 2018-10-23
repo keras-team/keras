@@ -240,6 +240,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      argdefs=defaults,
                                      closure=closure)
 
+
 def getargspec(fn):
     """A python3 version of getargspec.
     Calls `getfullargspec` and assigns args, varargs,
