@@ -240,6 +240,29 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      argdefs=defaults,
                                      closure=closure)
 
+def getargspec(fn):
+    """A python3 version of getargspec.
+    Calls `getfullargspec` and assigns args, varargs,
+    varkw, and defaults to a python 2/3 compatible `ArgSpec`.
+    The parameter name 'varkw' is changed to 'keywords' to fit the
+    `ArgSpec` struct.
+    Args:
+      fn: the target function to inspect.
+    Returns:
+      An ArgSpec with args, varargs, keywords, and defaults parameters
+      from FullArgSpec.
+    """
+    if sys.version_info < (3,):
+        arg_spec = inspect.getargspec(fn)
+    else:
+        full_arg_spec = inspect.getfullargspec(fn)
+        arg_spec = inspect.ArgSpec(
+            args=full_arg_spec.args,
+            varargs=full_arg_spec.varargs,
+            keywords=full_arg_spec.varkw,
+            defaults=full_arg_spec.defaults)
+    return arg_spec
+
 
 def has_arg(fn, name, accept_all=False):
     """Checks if a callable accepts a given keyword argument.
