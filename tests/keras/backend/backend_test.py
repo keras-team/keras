@@ -263,34 +263,34 @@ class TestBackend(object):
         # placeholders and variables in CNTK backend
 
         test_cases = []
-        test_cases.append([(None, 3, 4, 5), (None, 2, 3, 4), (2, 3),
-                           (None, 3, 5, 2, 3)])
-        test_cases.append([(None, 3, 4, 5), (None, 2, 4), 2, (None, 3, 5, 2)])
-        test_cases.append([(None, 3, 4), (None, 2, 3, 4), (2, 3), (None, 3, 2, 3)])
-        test_cases.append([(None, 4), (None, 3, 4), (1, 2), (None, 3)])
-        test_cases.append([(None, 4), (None, 4), None, (None, 1)])
+        test_cases.append([(None, 3, 4, 5), (None, 2, 3, 4), (2, 3)])
+        test_cases.append([(None, 3, 4, 5), (None, 2, 4), 2])
+        test_cases.append([(None, 3, 4), (None, 2, 3, 4), (2, 3)])
+        test_cases.append([(None, 4, 3), (None, 3, 5), (2, 1)])
+        test_cases.append([(None, 4), (None, 3, 4), (1, 2)])
+        test_cases.append([(None, 4), (None, 4), None])
 
         batch_size = 7
 
         def batch_shape(shape):
             return (batch_size, ) + shape[1:]
 
-        def ones(shape):
-            return np.ones(batch_shape(shape))
+        def random(shape):
+            return np.random.random(batch_shape(shape))
 
-        for tc in test_cases:
-            x_np = ones(tc[0])
-            y_np = ones(tc[1])
-            z_np = ones(tc[3]) * 4
+        for x_shape, y_shape, axes in test_cases:
+            x_np = random(x_shape)
+            y_np = random(y_shape)
+            z_np = KNP.batch_dot(x_np, y_np, axes)
 
             # test with placeholders
-            x = K.placeholder(shape=tc[0])
-            y = K.placeholder(shape=tc[1])
-            z = K.batch_dot(x, y, tc[2])
+            x = K.placeholder(shape=x_shape)
+            y = K.placeholder(shape=y_shape)
+            z = K.batch_dot(x, y, axes)
 
             z_shape = K.int_shape(z)
             if z_shape is not None:
-                assert z_shape == tc[3]
+                assert z_shape[1:] == z_np.shape[1:]
 
             f = K.function([x, y], [z])
 
@@ -299,11 +299,11 @@ class TestBackend(object):
             # test with variables
             x = K.variable(x_np)
             y = K.variable(y_np)
-            z = K.batch_dot(x, y, tc[2])
+            z = K.batch_dot(x, y, axes)
 
             z_shape = K.int_shape(z)
             if z_shape is not None:
-                assert z_shape == batch_shape(tc[3])
+                assert z_shape == z_np.shape
 
             z = K.eval(z)
             assert_allclose(z, z_np, atol=1e-05)

@@ -1232,9 +1232,9 @@ def concatenate(tensors, axis=-1):
     return C.splice(*tensors, axis=axis[0])
 
 
-def stack(tensors, axis=0):
-    tensors = [expand_dims(t, axis) for t in tensors]
-    return concatenate(tensors, axis)
+def stack(x, axis=0):
+    x = [expand_dims(t, axis) for t in x]
+    return concatenate(x, axis)
 
 
 def flatten(x):
