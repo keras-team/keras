@@ -165,6 +165,7 @@ def test_masking_correctness(layer_class):
     assert_allclose(out7, out6, atol=1e-5)
 
 
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
 def test_masking_correctness_output_not_equal_to_first_state():
 
     class Cell(keras.layers.Layer):
@@ -206,6 +207,7 @@ def test_masking_correctness_output_not_equal_to_first_state():
                         err_msg="Unexpected output for unroll={}".format(unroll))
 
 
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
 def test_masking_correctness_output_size_not_equal_to_first_state_size():
 
     class Cell(keras.layers.Layer):
