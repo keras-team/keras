@@ -73,15 +73,12 @@ To download the data run:
 - TODO(3) A "cascading architecture" is use in [1] by feeding not only
     the GRU output to the readout layer but also the attention encoding.
     This can be done by:
-    1) concatenating the attention encoding to the output of the
-        wrapped cell in the _RNNAttentionCell. However, then it must be
-        concatenated to the wrapped cell state as well which causes
-        cognitive overhead. This must be done because `state_size` and
-        `output_size` of an RNNCell must be the equal for masking to
-        work currently (this is a separate issue that can and should be
-        fixed though).
-    2) Adding "return_state_sequences" to RNN - this way concatenation
-        can be done externally and if also offers much more flexibility
+    A) Set `output_mode="concatenate"` in `DenseAnnotationAttention`,
+        currently blocked by this bug:
+        https://github.com/keras-team/keras/issues/11472
+    B) Add support for multiple outputs from the RNN cell or
+        "return_state_sequences" option to RNN - this way concatenation
+        can be done externally and it also offers much more flexibility
         for inspecting "what is attended" by the attention mechanism.
 - TODO(4) This implementation is inefficient in how attention is applied,
     part of the computation can be done _once_ for the attended but is
@@ -110,31 +107,37 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.utils.generic_utils import has_arg
 
 
-class _RNNAttentionCell(Layer):
+class AttentionCellWrapper(Layer):
     """Base class for recurrent attention mechanisms.
 
     This base class implements the RNN cell interface and defines a standard
-    way for attention mechanisms to interact with a (wrapped) "core" RNN cell
+    way for attention mechanisms to interact with a wrapped RNNCell
     (such as the `SimpleRNNCell`, `GRUCell` or `LSTMCell`).
 
     The main idea is that the attention mechanism, implemented by
     `attention_call` in extensions of this class, computes an "attention
-    encoding", based on the attended input as well as the input and the core
+    encoding", based on the attended input as well as the input and the wrapped
     cell state(s) at the current time step, which will be used as modified
-    input for the core cell.
+    input for the wrapped cell.
 
     # Arguments
         cell: A RNN cell instance. The cell to wrap by the attention mechanism.
             See docs of `cell` argument in the `RNN` Layer for further details.
         attend_after: Boolean (default False). If True, the attention
             transformation defined by `attention_call` will be applied after
-            the core cell transformation (and the attention encoding will be
-            used as input for core cell transformation next time step).
-        concatenate_input: Boolean (default True). If True the concatenation of
-            the attention encoding and the original input will be used as input
-            for the core cell transformation. If set to False, only the
-            attention encoding will be used as input for the core cell
-            transformation.
+            the wrapped cell transformation (and the attention encoding will be
+            used as input for wrapped cell transformation next time step).
+        input_mode: String, one of `"replace"` (default) or `"concatenate"`.
+            `"replace"`: only the attention encoding will be used as input for
+                the wrapped cell.
+            `"concatenate"` the concatenation of the original input and the
+                attention encoding will be used as input to the wrapped cell.
+            TODO set "concatenate" to default?
+        output_mode: String, one of `"cell_output"` (default) or `"concatenate"`.
+            `"cell_output"`: the output from the wrapped cell will be used.
+            `"concatenate"`: the attention encoding will be concatenated to the
+                output of the wrapped cell.
+            TODO set "concatenate" to default?
 
     # Abstract Methods and Properties
         Extension of this class must implement:
@@ -155,13 +158,13 @@ class _RNNAttentionCell(Layer):
         See docs of the respective method/property for further details.
 
     # Details of interaction between attention and cell transformations
-        Let "cell" denote core (wrapped) RNN cell and "att(cell)" the complete
-        attentive RNN cell defined by this class. We write the core cell
+        Let "cell" denote wrapped RNN cell and "att(cell)" the complete
+        attentive RNN cell defined by this class. We write the wrapped cell
         transformation as:
 
             y{t}, s_cell{t+1} = cell.call(x{t}, s_cell{t})
 
-        where y{t} denotes the output, x{t} the input at and s_cell{t} the core
+        where y{t} denotes the output, x{t} the input at and s_cell{t} the wrapped
         cell state(s) at time t and s_cell{t+1} the updated state(s).
 
         We can then write the complete "attentive" cell transformation as:
@@ -170,45 +173,61 @@ class _RNNAttentionCell(Layer):
                                                     constants=attended)
 
         where s_att(cell) denotes the complete states of the attentive cell,
-        which consists of the core cell state(s) followed but the attention
+        which consists of the wrapped cell state(s) followed but the attention
         state(s), and attended denotes the tensor attended to (note: no time
         indexing as this is the same constant input at each time step).
 
         Internally, this is how the attention transformation, implemented by
-        `attention_call`, interacts with the core cell transformation
+        `attention_call`, interacts with the wrapped cell transformation
         `cell.call`:
 
         - with `attend_after=False` (default):
             a{t}, s_att{t+1} = att(cell).attention_call(x_t, s_cell{t},
                                                         attended, s_att{t})
-            with `concatenate_input=True` (default):
-                x'{t} = [x{t}, a{t}]
-            else:
+            with `input_mode="replace"` (default):
                 x'{t} = a{t}
+            with `input_mode="concatenate"`:
+                x'{t} = [x{t}, a{t}]
+
             y{t}, s_cell{t+1} = cell.call(x'{t}, s_cell{t})
 
         - with `attend_after=True`:
-            with `concatenate_input=True` (default):
-                x'{t} = [x{t}, a{t-1}]
-            else:
-                x'{t} = a{t-1}
+            with `input_mode="replace"` (default):
+                x'{t} = a{t}
+            with `input_mode="concatenate"`:
+                x'{t} = [x{t}, a{t}]
+
             y{t}, s_cell{t+1} = cell.call(x'{t}, s_cell{t})
             a{t}, s_att{t+1} = att(cell).attention_call(x_t, s_cell{t+1},
                                                         attended, s_att{t})
 
         where a{t} denotes the attention encoding, s_att{t} the attention
-        state(s), x'{t} the modified core cell input and [x{.}, a{.}] the
+        state(s), x'{t} the modified wrapped cell input and [x{.}, a{.}] the
         (tensor) concatenation of the input and attention encoding.
     """
+    # in/output modes
+    _REPLACE = "replace"
+    _CELL_OUTPUT = "cell_output"
+    _CONCATENATE = "concatenate"
+    _input_modes = [_REPLACE, _CONCATENATE]
+    _output_modes = [_CELL_OUTPUT, _CONCATENATE]
 
     def __init__(self, cell,
                  attend_after=False,
-                 concatenate_input=False,
+                 input_mode="replace",
+                 output_mode="cell_output",
                  **kwargs):
         self.cell = cell  # must be set before calling super
-        super(_RNNAttentionCell, self).__init__(**kwargs)
+        super(AttentionCellWrapper, self).__init__(**kwargs)
         self.attend_after = attend_after
-        self.concatenate_input = concatenate_input
+        if input_mode not in self._input_modes:
+            raise ValueError(
+                "input_mode must be one of {}".format(self._input_modes))
+        self.input_mode = input_mode
+        if output_mode not in self._output_modes:
+            raise ValueError(
+                "output_mode must be one of {}".format(self._output_modes))
+        self.output_mode = output_mode
         self.attended_spec = None
         self._attention_size = None
 
@@ -223,7 +242,7 @@ class _RNNAttentionCell(Layer):
 
         # Arguments
             inputs: The input at current time step.
-            cell_states: States for the core RNN cell.
+            cell_states: States for the wrapped RNN cell.
             attended: The constant tensor(s) to attend at each time step.
             attention_states: States dedicated for the attention mechanism.
             attended_mask: Collected masks for the attended.
@@ -291,8 +310,8 @@ class _RNNAttentionCell(Layer):
     def state_size(self):
         """Size of states of the complete attentive cell, a tuple of integers.
 
-        The attentive cell's states consists of the core RNN cell state size(s)
-        followed by attention state size(s). NOTE it is important that the core
+        The attentive cell's states consists of the wrapped RNN cell state size(s)
+        followed by attention state size(s). NOTE it is important that the wrapped
         cell states are first as the first state of any RNN cell should be same
         as the cell's output.
         """
@@ -304,6 +323,15 @@ class _RNNAttentionCell(Layer):
                 state_size_s.append(state_size)
 
         return tuple(state_size_s)
+
+    @property
+    def output_size(self):
+        if self.output_mode == self._CELL_OUTPUT:
+            return self._wrapped_cell_output_size
+        if self.output_mode == self._CONCATENATE:
+            return self._wrapped_cell_output_size + self.attention_size
+        raise RuntimeError(  # already validated in __init__
+            "got unexpected output_mode: {}".format(self.output_mode))
 
     def call(self, inputs, states, constants, training=None):
         """Complete attentive cell transformation.
@@ -317,9 +345,9 @@ class _RNNAttentionCell(Layer):
         attention_states = states[self._num_wrapped_states:]
 
         if self.attend_after:
-            call = self.call_attend_after
+            call = self._call_attend_after
         else:
-            call = self.call_attend_before
+            call = self._call_attend_before
 
         return call(inputs=inputs,
                     cell_states=cell_states,
@@ -328,13 +356,13 @@ class _RNNAttentionCell(Layer):
                     attended_mask=attended_mask,
                     training=training)
 
-    def call_attend_before(self,
-                           inputs,
-                           cell_states,
-                           attended,
-                           attention_states,
-                           attended_mask,
-                           training=None):
+    def _call_attend_before(self,
+                            inputs,
+                            cell_states,
+                            attended,
+                            attention_states,
+                            attended_mask,
+                            training=None):
         """Complete attentive cell transformation, if `attend_after=False`.
         """
         attention_h, new_attention_states = self.attention_call(
@@ -345,40 +373,36 @@ class _RNNAttentionCell(Layer):
             attended_mask=attended_mask,
             training=training)
 
-        if self.concatenate_input:
-            cell_input = concatenate([attention_h, inputs])
-        else:
-            cell_input = attention_h
+        cell_input = self._get_cell_input(inputs, attention_h)
 
         if has_arg(self.cell.call, 'training'):
-            output, new_cell_states = self.cell.call(cell_input, cell_states,
-                                                     training=training)
+            cell_output, new_cell_states = self.cell.call(
+                cell_input, cell_states, training=training)
         else:
-            output, new_cell_states = self.cell.call(cell_input, cell_states)
+            cell_output, new_cell_states = self.cell.call(cell_input, cell_states)
+
+        output = self._get_output(cell_output, attention_h)
 
         return output, new_cell_states + new_attention_states
 
-    def call_attend_after(self,
-                          inputs,
-                          cell_states,
-                          attended,
-                          attention_states,
-                          attended_mask,
-                          training=None):
+    def _call_attend_after(self,
+                           inputs,
+                           cell_states,
+                           attended,
+                           attention_states,
+                           attended_mask,
+                           training=None):
         """Complete attentive cell transformation, if `attend_after=True`.
         """
         attention_h_previous = attention_states[0]
 
-        if self.concatenate_input:
-            cell_input = concatenate([attention_h_previous, inputs])
-        else:
-            cell_input = attention_h_previous
+        cell_input = self._get_cell_input(inputs, attention_h_previous)
 
         if has_arg(self.cell.call, 'training'):
-            output, new_cell_states = self.cell.call(cell_input, cell_states,
-                                                     training=training)
+            cell_output, new_cell_states = self.cell.call(
+                cell_input, cell_states, training=training)
         else:
-            output, new_cell_states = self.cell.call(cell_input, cell_states)
+            cell_output, new_cell_states = self.cell.call(cell_input, cell_states)
 
         attention_h, new_attention_states = self.attention_call(
             inputs=inputs,
@@ -388,7 +412,25 @@ class _RNNAttentionCell(Layer):
             attended_mask=attended_mask,
             training=training)
 
+        output = self._get_output(cell_output, attention_h)
+
         return output, new_cell_states, new_attention_states
+
+    def _get_cell_input(self, inputs, attention_h):
+        if self.input_mode == self._REPLACE:
+            return attention_h
+        if self.input_mode == self._CONCATENATE:
+            return concatenate([inputs, attention_h])
+        raise RuntimeError(  # already validated in __init__
+            "got unexpected input_mode: {}".format(self.input_mode))
+
+    def _get_output(self, cell_output, attention_h):
+        if self.output_mode == self._CELL_OUTPUT:
+            return cell_output
+        if self.output_mode == self._CONCATENATE:
+            return concatenate([cell_output, attention_h])
+        raise RuntimeError(  # already validated in __init__
+            "got unexpected output_mode: {}".format(self.output_mode))
 
     @staticmethod
     def _num_elements(x):
@@ -404,6 +446,14 @@ class _RNNAttentionCell(Layer):
     @property
     def _num_attention_states(self):
         return self._num_elements(self.attention_state_size)
+
+    @property
+    def _wrapped_cell_output_size(self):
+        if hasattr(self.cell, "output_size"):
+            return self.cell.output_size
+        if hasattr(self.cell.state_size, '__len__'):
+            return self.cell.state_size[0]
+        return self.cell.state_size
 
     def build(self, input_shape):
         """Builds attention mechanism and wrapped cell (if keras layer).
@@ -431,30 +481,30 @@ class _RNNAttentionCell(Layer):
         )
 
         if isinstance(self.cell, Layer):
-            cell_input_shape = (input_shape[0],
-                                self.attention_size +
-                                input_shape[-1] if self.concatenate_input
-                                else self._attention_size)
+            if self.input_mode == self._REPLACE:
+                cell_input_size = self._attention_size
+            elif self.input_mode == self._CONCATENATE:
+                cell_input_size = self.attention_size + input_shape[-1]
+            else:
+                raise RuntimeError(  # already validated in __init__
+                    "got unexpected input_mode: {}".format(self.input_mode))
+
+            cell_input_shape = (input_shape[0], cell_input_size)
             self.cell.build(cell_input_shape)
 
         self.built = True
 
     def compute_output_shape(self, input_shape):
-        if hasattr(self.cell.state_size, '__len__'):
-            cell_output_dim = self.cell.state_size[0]
-        else:
-            cell_output_dim = self.cell.state_size
-
-        return input_shape[0], cell_output_dim
+        return input_shape[0], self.output_size
 
     @property
     def trainable_weights(self):
-        return (super(_RNNAttentionCell, self).trainable_weights +
+        return (super(AttentionCellWrapper, self).trainable_weights +
                 self.cell.trainable_weights)
 
     @property
     def non_trainable_weights(self):
-        return (super(_RNNAttentionCell, self).non_trainable_weights +
+        return (super(AttentionCellWrapper, self).non_trainable_weights +
                 self.cell.non_trainable_weights)
 
     def get_config(self):
@@ -464,11 +514,11 @@ class _RNNAttentionCell(Layer):
         cell_config = self.cell.get_config()
         config['cell'] = {'class_name': self.cell.__class__.__name__,
                           'config': cell_config}
-        base_config = super(_RNNAttentionCell, self).get_config()
+        base_config = super(AttentionCellWrapper, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class DenseAnnotationAttention(_RNNAttentionCell):
+class DenseAnnotationAttention(AttentionCellWrapper):
     """Recurrent attention mechanism for attending sequences.
 
     This class implements the attention mechanism used in [1] for machine
@@ -476,8 +526,8 @@ class DenseAnnotationAttention(_RNNAttentionCell):
     used for other sequence-to-sequence problems.
 
     As any recurrent attention mechanism extending `_RNNAttentionCell`, this class
-    should be used in conjunction with a core (non attentive) RNN Cell, such as the
-    `SimpleRNNCell`, `LSTMCell` or `GRUCell`. It modifies the input of the core cell
+    should be used in conjunction with a wrapped (non attentive) RNN Cell, such as the
+    `SimpleRNNCell`, `LSTMCell` or `GRUCell`. It modifies the input of the wrapped cell
     by attending to a constant sequence (i.e. independent of the time step of the
     recurrent application of the attention mechanism). The attention encoding is
     computed  by using a single hidden layer MLP which computes a weighting over the
@@ -486,7 +536,7 @@ class DenseAnnotationAttention(_RNNAttentionCell):
     over the attended input using these weights.
 
     # Arguments
-        cell: A RNN cell instance. The core RNN cell wrapped by this attention
+        cell: A RNN cell instance. The wrapped RNN cell wrapped by this attention
             mechanism. See docs of `cell` argument in the `RNN` Layer for further
             details.
         units: the number of hidden units in the single hidden MLP used for
@@ -525,7 +575,7 @@ class DenseAnnotationAttention(_RNNAttentionCell):
     # Details of attention mechanism
     Let {attended_1, ..., attended_I} denote the attended input sequence, where
     attended_i is the i:t attended input vector, h_cell_tm1 the previous state of
-    the core cell at the recurrent time step t. Then the attention encoding at
+    the wrapped cell at the recurrent time step t. Then the attention encoding at
     time step t is computed as follows:
 
         e_i = MLP([attended_i, h_cell_tm1])  # [., .] denoting concatenation
@@ -624,7 +674,9 @@ class DenseAnnotationAttention(_RNNAttentionCell):
 
 
 if __name__ == '__main__':
-    DATA_DIR = 'data/wmt16_mmt'
+    DATA_DIR = '/Users/andershuss/Datasets/WMT16/mmt'
+
+    # DATA_DIR = 'data/wmt16_mmt'
     FROM_LANGUAGE = 'en'
     TO_LANGUAGE = 'de'
 
@@ -686,7 +738,10 @@ if __name__ == '__main__':
     x_enc = encoder(x_emb)
 
     cell = DenseAnnotationAttention(cell=GRUCell(RECURRENT_UNITS),
-                                    units=DENSE_ATTENTION_UNITS)
+                                    units=DENSE_ATTENTION_UNITS,
+                                    input_mode="concatenate",
+                                    output_mode="cell_output")
+    # TODO output_mode="concatenate", see TODO(3)/A
     decoder = RNN(cell=cell, return_sequences=True)
     h1 = decoder(y_emb, constants=x_enc)
 
