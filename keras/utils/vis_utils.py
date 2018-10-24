@@ -140,7 +140,8 @@ def model_to_dot(model,
                             isinstance(inbound_layer.layer, Model)):
                         inbound_layer_id = str(id(inbound_layer))
                         # Make sure that both nodes exist before connecting them with
-                        # an edge, as add_edge would otherwise create any missing node.
+                        # an edge, as add_edge would otherwise
+                        # create any missing node.
                         assert dot.get_node(inbound_layer_id)
                         assert dot.get_node(layer_id)
                         dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
