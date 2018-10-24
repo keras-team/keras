@@ -192,7 +192,7 @@ def test_masking_correctness_output_not_equal_to_first_state():
         model.compile(optimizer='sgd', loss='mse')
 
         # last time step masked
-        x_arr = np.array([[[1.],[2.],[0.]]])
+        x_arr = np.array([[[1.], [2.], [0.]]])
         s_0_arr = np.array([[10.]])
         y_arr, s_arr = model.predict([x_arr, s_0_arr])
 
@@ -220,7 +220,7 @@ def test_masking_correctness_output_size_not_equal_to_first_state_size():
             self.output_size = input_shape[-1] * 2
 
         def call(self, inputs, states):
-            return keras.layers.concatenate([inputs]*2), [s + 1 for s in states]
+            return keras.layers.concatenate([inputs] * 2), [s + 1 for s in states]
 
     for unroll in [True, False]:
         x = Input((3, 1), name="x")
@@ -233,7 +233,7 @@ def test_masking_correctness_output_size_not_equal_to_first_state_size():
         model.compile(optimizer='sgd', loss='mse')
 
         # last time step masked
-        x_arr = np.array([[[1.],[2.],[0.]]])
+        x_arr = np.array([[[1.], [2.], [0.]]])
         s_0_arr = np.array([[10.]])
         y_arr, s_arr = model.predict([x_arr, s_0_arr])
 
