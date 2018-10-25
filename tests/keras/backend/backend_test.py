@@ -164,8 +164,37 @@ def check_two_tensor_operation(function_name,
     assert_list_keras_shape(t_list, z_list)
 
 
-def check_three_or_more_tensor_operation():
-    pass
+def check_three_or_more_tensor_operation(function_name,
+                                         shapes_or_vals,
+                                         backend_list,
+                                         assert_value_equality=True,
+                                         cntk_dynamicity=False,
+                                         **kwargs):
+
+    shapes_and_vals = [parse_shape_or_val(x) for x in shapes_or_vals]
+
+    t_list = []
+    z_list = []
+    for k in backend_list:
+
+        shapes = [x[0] for x in shapes_and_vals]
+        vals = [x[1] for x in shapes_and_vals]
+        variables = [k.variable(x) for x in vals]
+
+        if (k == KC) and cntk_dynamicity:
+            t, f = cntk_func_tensors(function_name, [shapes[0], vals[1]],
+                                     **kwargs)
+            z = f([vals[0]])[0]
+
+        else:
+            t = getattr(k, function_name)(*variables, **kwargs)
+            z = k.eval(t)
+
+        t_list += [t]
+        z_list += [z]
+
+    assert_list_pairwise(z_list, allclose=assert_value_equality)
+    assert_list_keras_shape(t_list, z_list)
 
 
 def check_composed_tensor_operations(first_function_name,
