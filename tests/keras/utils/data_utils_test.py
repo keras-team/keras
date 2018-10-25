@@ -1,6 +1,7 @@
 """Tests for functions in data_utils.py.
 """
 import os
+import time
 import sys
 import tarfile
 import threading
@@ -136,6 +137,7 @@ class DummySequence(Sequence):
         self.inner = value
 
     def __getitem__(self, item):
+        time.sleep(0.05)
         return np.ones(self.shape, dtype=np.uint32) * item * self.inner
 
     def __len__(self):
