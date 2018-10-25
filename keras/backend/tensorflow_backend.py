@@ -2928,21 +2928,24 @@ def rnn(step_function, inputs, initial_states,
 
     else:
         if go_backwards:
-            inputs = reverse(inputs, 0)
+            inputs = [reverse(inp, 0) for inp in inputs]
 
         states = tuple(initial_states)
 
-        time_steps = tf.shape(inputs)[0]
-        outputs, _ = step_function(inputs[0], initial_states + constants)
+        time_steps = tf.shape(inputs[0])[0]  # all must have same
+        outputs, _ = step_function([inp[0] for inp in inputs],
+                                   initial_states + constants)
         output_ta = tensor_array_ops.TensorArray(
             dtype=outputs.dtype,
             size=time_steps,
             tensor_array_name='output_ta')
-        input_ta = tensor_array_ops.TensorArray(
-            dtype=inputs.dtype,
-            size=time_steps,
-            tensor_array_name='input_ta')
-        input_ta = input_ta.unstack(inputs)
+        input_tas = [
+            tensor_array_ops.TensorArray(
+                dtype=inp.dtype,
+                size=time_steps,
+                tensor_array_name='input_ta_{}'.format(i)).unstack(inp)
+            for i, inp in enumerate(inputs)
+        ]
         time = tf.constant(0, dtype='int32', name='time')
 
         if mask is not None:
@@ -2973,9 +2976,9 @@ def rnn(step_function, inputs, initial_states,
                 # Returns
                     Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
                 """
-                current_input = input_ta.read(time)
+                current_inputs = [input_ta.read(time) for input_ta in input_tas]
                 mask_t = mask_ta.read(time)
-                output, new_states = step_function(current_input,
+                output, new_states = step_function(current_inputs,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
@@ -3004,8 +3007,8 @@ def rnn(step_function, inputs, initial_states,
                 # Returns
                     Tuple: `(time + 1,output_ta_t) + tuple(new_states)`
                 """
-                current_input = input_ta.read(time)
-                output, new_states = step_function(current_input,
+                current_inputs = [input_ta.read(time) for input_ta in input_tas]
+                output, new_states = step_function(current_inputs,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):

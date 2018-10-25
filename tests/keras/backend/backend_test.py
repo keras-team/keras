@@ -800,15 +800,16 @@ class TestBackend(object):
         initial_state_val = np.ones((2, 3, 2)) * 1.
 
         for k in BACKENDS:
-            inputs = [k.variable(inp) for inp in input_vals]
-            initial_states = [k.variable(initial_state_val)]
-            last_output, outputs, new_states = k.rnn(
-                step_function,
-                inputs,
-                initial_states,
-                unroll=True
-            )
-            assert_allclose(k.eval(outputs), input_vals[0])
+            for unroll in [True, False]:
+                inputs = [k.variable(inp) for inp in input_vals]
+                initial_states = [k.variable(initial_state_val)]
+                last_output, outputs, new_states = k.rnn(
+                    step_function,
+                    inputs,
+                    initial_states,
+                    unroll=unroll
+                )
+                assert_allclose(k.eval(outputs), input_vals[0])
 
     def test_legacy_rnn(self):
         # implement a simple RNN
