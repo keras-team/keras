@@ -509,6 +509,38 @@ def print_tensor(x, message=''):
     return x
 
 
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
+    broadcast_shape = [1 for _ in x.shape()]
+    broadcast_shape[axis] = mean.size
+
+    if beta is None:
+        beta = np.zeros(mean.size)
+
+    if gamma is None:
+        gamma = np.ones(mean.size)
+
+    mean = np.reshape(mean, broadcast_shape)
+    var = np.reshape(var, broadcast_shape)
+    beta = np.reshape(beta, broadcast_shape)
+    gamma = np.reshape(gamma, broadcast_shape)
+
+    return (x - mean) / sqrt(var + epsilon) * gamma + beta
+
+
+def normalize_batch_in_training(x, gamma, beta,
+                                reduction_axes, epsilon=1e-3):
+    batch_mean = x.mean(axis=reduction_axes)
+    batch_var = x.var(axis=reduction_axes)
+    i = 0
+    while i in reduction_axes:
+        i += 1
+
+    normalized_x = batch_normalization(x, batch_mean, batch_var,
+                                       beta, gamma, axis=i,
+                                       epsilon=epsilon)
+    return normalized_x, batch_mean, batch_var
+
+
 def dot(x, y):
     return np.dot(x, y)
 

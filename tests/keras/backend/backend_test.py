@@ -164,6 +164,10 @@ def check_two_tensor_operation(function_name,
     assert_list_keras_shape(t_list, z_list)
 
 
+def check_three_or_more_tensor_operation():
+    pass
+
+
 def check_composed_tensor_operations(first_function_name,
                                      first_function_args,
                                      second_function_name,
@@ -1610,6 +1614,10 @@ class TestBackend(object):
         b = K.variable(np.random.random(bias_shape))
         with pytest.raises(ValueError):
             K.bias_add(x, b, data_format='channels_middle')
+
+    def test_batch_normalization(self, ):
+
+
 
     def test_batchnorm(self):
         shape = (2, 3)
