@@ -10,6 +10,7 @@ import warnings
 
 from .. import backend as K
 from .. import losses
+from ..utils import Sequence
 from ..utils.generic_utils import to_list
 
 
@@ -589,3 +590,17 @@ def iter_sequence_infinite(seq):
     while True:
         for item in seq:
             yield item
+
+
+def is_sequence(seq):
+    """Determine if an object follows the Sequence API.
+
+    # Arguments
+        seq: a possible Sequence object
+
+    # Returns
+        boolean, whether the object follows the Sequence API.
+    """
+    # TODO Dref360: Decide which pattern to follow. First needs a new TF Version.
+    return (getattr(seq, 'use_sequence_api', False)
+            or set(dir(Sequence())).issubset(set(dir(seq) + ['use_sequence_api'])))

@@ -22,7 +22,7 @@ from keras.utils.data_utils import validate_file
 from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
-    K.backend() == 'tensorflow',
+    K.backend() == 'tensorflow' and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
 if sys.version_info < (3,):
