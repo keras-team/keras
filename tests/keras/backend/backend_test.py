@@ -788,6 +788,28 @@ class TestBackend(object):
         assert_allclose(last_y1, last_y2, atol=1e-05)
         assert_allclose(y1, y2, atol=1e-05)
 
+    def test_rnn_multiple_inputs(self):
+
+        def step_function(inputs, states):
+            return inputs[0], states
+
+        input_vals = [
+            np.ones((2, 3, 4)) * 1.,
+            np.ones((2, 3, 5)) * 2.
+        ]
+        initial_state_val = np.ones((2, 3, 2)) * 1.
+
+        for k in BACKENDS:
+            inputs = [k.variable(inp) for inp in input_vals]
+            initial_states = [k.variable(initial_state_val)]
+            last_output, outputs, new_states = k.rnn(
+                step_function,
+                inputs,
+                initial_states,
+                unroll=True
+            )
+            assert_allclose(k.eval(outputs), input_vals[0])
+
     def test_legacy_rnn(self):
         # implement a simple RNN
         num_samples = 4
