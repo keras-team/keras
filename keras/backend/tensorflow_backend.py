@@ -2825,14 +2825,22 @@ def rnn(step_function, inputs, initial_states,
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
     """
-    ndim = len(inputs.get_shape())
-    if ndim < 3:
-        raise ValueError('Input should be at least 3D.')
+    if not isinstance(inputs, list):
+        inputs = [inputs]
+        _step_function = step_function
+
+        def step_function(inputs, *args, **kwargs):
+            return _step_function(inputs[0], *args, **kwargs)
+
+    ndims = [len(inp.get_shape()) for inp in inputs]
+    for ndim in ndims:
+        if ndim < 3:
+            raise ValueError('Input should be at least 3D.')
 
     # Transpose to time-major, i.e.
     # from (batch, time, ...) to (time, batch, ...)
-    axes = [1, 0] + list(range(2, ndim))
-    inputs = tf.transpose(inputs, (axes))
+    axes = [[1, 0] + list(range(2, ndim)) for ndim in ndims]
+    inputs = [tf.transpose(inp, ax) for inp, ax in zip(inputs, axes)]
 
     if mask is not None:
         if mask.dtype != tf.bool:
@@ -2848,24 +2856,28 @@ def rnn(step_function, inputs, initial_states,
     uses_learning_phase = False
 
     if unroll:
-        if not inputs.get_shape()[0]:
-            raise ValueError('Unrolling requires a '
-                             'fixed number of timesteps.')
+        for inp in inputs:
+            if not inp.get_shape()[0]:
+                raise ValueError('Unrolling requires a '
+                                 'fixed number of timesteps.')
         states = initial_states
         successive_states = []
         successive_outputs = []
 
-        input_list = tf.unstack(inputs)
+        input_lists = [tf.unstack(inp) for inp in inputs]
         if go_backwards:
-            input_list.reverse()
+            for input_list in input_lists:
+                input_list.reverse()
 
         if mask is not None:
             mask_list = tf.unstack(mask)
             if go_backwards:
                 mask_list.reverse()
 
-            for inp, mask_t in zip(input_list, mask_list):
-                output, new_states = step_function(inp, states + constants)
+            for mask_and_inputs_t in zip(mask_list, *input_lists):
+                mask_t = mask_and_inputs_t[0]
+                inputs_t = mask_and_inputs_t[1:]
+                output, new_states = step_function(inputs_t, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
                     uses_learning_phase = True
 
@@ -2904,8 +2916,8 @@ def rnn(step_function, inputs, initial_states,
             new_states = successive_states[-1]
             outputs = tf.stack(successive_outputs)
         else:
-            for inp in input_list:
-                output, states = step_function(inp, states + constants)
+            for inputs_t in zip(*input_lists):
+                output, states = step_function(inputs_t, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
                     uses_learning_phase = True
                 successive_outputs.append(output)
