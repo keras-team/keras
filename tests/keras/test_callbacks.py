@@ -759,6 +759,7 @@ def test_TensorBoard_convnet(tmpdir):
         MaxPooling2D(pool_size=2),
         Conv2D(filters=4, kernel_size=(3, 3),
                activation='relu', padding='same'),
+        BatchNormalization(),
         GlobalAveragePooling2D(),
         Dense(num_classes, activation='softmax')
     ])
