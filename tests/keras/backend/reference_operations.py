@@ -684,7 +684,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         x = repeat_elements(x, width_factor, axis=3)
     return x
 
- 
+
 def one_hot(indices, num_classes):
     return to_categorical(indices, num_classes)
 
