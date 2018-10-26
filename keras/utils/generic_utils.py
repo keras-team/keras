@@ -242,7 +242,7 @@ def func_load(code, defaults=None, closure=None, globs=None):
 
 
 def getargspec(fn):
-    """ python2/python3 compatible getargspec.
+    """Python 2/3 compatible `getargspec`.
 
     Calls `getfullargspec` and assigns args, varargs,
     varkw, and defaults to a python 2/3 compatible `ArgSpec`.
