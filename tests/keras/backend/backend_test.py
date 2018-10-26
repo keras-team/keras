@@ -791,25 +791,30 @@ class TestBackend(object):
     def test_rnn_multiple_inputs(self):
 
         def step_function(inputs, states):
-            return inputs[0], states
+            return inputs, states
 
         input_vals = [
             np.ones((2, 3, 4)) * 1.,
             np.ones((2, 3, 5)) * 2.
         ]
         initial_state_val = np.ones((2, 3, 2)) * 1.
+        mask_vals = np.ones((2, 3))
 
         for k in BACKENDS:
+            inputs = [k.variable(inp) for inp in input_vals]
+            initial_states = [k.variable(initial_state_val)]
+            mask = k.variable(mask_vals)
+
             for unroll in [True, False]:
-                inputs = [k.variable(inp) for inp in input_vals]
-                initial_states = [k.variable(initial_state_val)]
                 last_output, outputs, new_states = k.rnn(
                     step_function,
                     inputs,
                     initial_states,
+                    mask=mask,
                     unroll=unroll
                 )
-                assert_allclose(k.eval(outputs), input_vals[0])
+                for output, input_val in zip(outputs, input_vals):
+                    assert_allclose(k.eval(output), input_val)
 
     def test_legacy_rnn(self):
         # implement a simple RNN
