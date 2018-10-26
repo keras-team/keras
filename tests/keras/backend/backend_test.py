@@ -970,6 +970,46 @@ class TestBackend(object):
         assert_list_pairwise(last_output_list, shape=False)
         assert_list_pairwise(outputs_list, shape=False)
 
+    def test_rnn_output_dim_larger_than_2_masking(self):
+
+        def step_function(inputs, states):
+            outputs = K.tile(K.expand_dims(inputs), [1, 1, 2])
+            return outputs, states
+
+        inputs_vals = np.ones((3, 4, 5))
+        initial_state_vals = [np.ones((3, 6))]
+        mask_vals = np.ones((3, 4))
+
+        inputs = K.variable(inputs_vals)
+        initial_state = [K.variable(initial_state_vals[0])]
+        mask = K.variable(mask_vals)
+        last_output, outputs, last_states = K.rnn(step_function,
+                                                  inputs,
+                                                  initial_state,
+                                                  mask=mask,
+                                                  unroll=True)
+
+        expected_outputs = np.concatenate([inputs_vals[..., None]] * 2, axis=-1)
+        assert_allclose(outputs, expected_outputs)
+
+    def test_rnn_state_dim_larger_than_2_masking(self):
+
+        def step_function(inputs, states):
+            return inputs, states
+
+        inputs_vals = np.ones((3, 4, 5))
+        initial_state_vals = [np.ones((3, 6, 6))]
+        mask_vals = np.ones((3, 4))
+
+        inputs = K.variable(inputs_vals)
+        initial_state = [K.variable(initial_state_vals[0])]
+        mask = K.variable(mask_vals)
+        last_output, outputs, last_states = K.rnn(step_function,
+                                                  inputs,
+                                                  initial_state,
+                                                  mask=mask,
+                                                  unroll=True)
+
     @pytest.mark.parametrize('x_np,axis,keepdims', [
         (np.array([1.1, 0.8, 0.9]), 0, False),
         (np.array([[1.1, 0.8, 0.9]]), 0, False),
