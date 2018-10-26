@@ -970,7 +970,7 @@ class TestBackend(object):
         assert_list_pairwise(last_output_list, shape=False)
         assert_list_pairwise(outputs_list, shape=False)
 
-    def test_rnn_output_dim_larger_than_2_masking(self):
+    def test_rnn_output_ndim_larger_than_2_masking(self):
         n_samples = 3
         n_timesteps = 4
 
@@ -998,7 +998,7 @@ class TestBackend(object):
             expected_outputs = np.ones((n_samples, n_timesteps, 5, 2))
             assert_allclose(K.eval(outputs), expected_outputs)
 
-    def test_rnn_state_dim_larger_than_2_masking(self):
+    def test_rnn_state_ndim_larger_than_2_masking(self):
         n_samples = 3
         n_timesteps = 4
 
