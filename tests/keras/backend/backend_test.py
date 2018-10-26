@@ -971,44 +971,58 @@ class TestBackend(object):
         assert_list_pairwise(outputs_list, shape=False)
 
     def test_rnn_output_dim_larger_than_2_masking(self):
+        n_samples = 3
+        n_timesteps = 4
 
         def step_function(inputs, states):
             outputs = K.tile(K.expand_dims(inputs), [1, 1, 2])
             return outputs, states
 
-        inputs_vals = np.ones((3, 4, 5))
-        initial_state_vals = [np.ones((3, 6))]
-        mask_vals = np.ones((3, 4))
+        inputs_vals = np.ones((n_samples, n_timesteps, 5))
+        inputs_vals[:, -1] = 0  # this should be ignored due to mask
+        initial_state_vals = [np.ones((n_samples, 6))]
+        mask_vals = np.ones((n_samples, n_timesteps))
+        mask_vals[:, -1] = 0  # final timestep masked
 
         inputs = K.variable(inputs_vals)
         initial_state = [K.variable(initial_state_vals[0])]
         mask = K.variable(mask_vals)
-        last_output, outputs, last_states = K.rnn(step_function,
-                                                  inputs,
-                                                  initial_state,
-                                                  mask=mask,
-                                                  unroll=True)
+        for unroll in [True , False]:
+            last_output, outputs, last_states = K.rnn(
+                step_function,
+                inputs,
+                initial_state,
+                mask=mask,
+                unroll=unroll)
 
-        expected_outputs = np.concatenate([inputs_vals[..., None]] * 2, axis=-1)
-        assert_allclose(outputs, expected_outputs)
+            expected_outputs = np.ones((n_samples, n_timesteps, 5, 2))
+            assert_allclose(K.eval(outputs), expected_outputs)
 
     def test_rnn_state_dim_larger_than_2_masking(self):
+        n_samples = 3
+        n_timesteps = 4
 
         def step_function(inputs, states):
-            return inputs, states
+            return inputs, [s + 1 for s in states]
 
-        inputs_vals = np.ones((3, 4, 5))
-        initial_state_vals = [np.ones((3, 6, 6))]
-        mask_vals = np.ones((3, 4))
+        inputs_vals = np.ones((n_samples, n_timesteps, 5))
+        initial_state_vals = [np.zeros((n_samples, 6, 6))]
+        mask_vals = np.ones((n_samples, n_timesteps))
+        mask_vals[:, -1] = 0  # final timestep masked
 
         inputs = K.variable(inputs_vals)
         initial_state = [K.variable(initial_state_vals[0])]
         mask = K.variable(mask_vals)
-        last_output, outputs, last_states = K.rnn(step_function,
-                                                  inputs,
-                                                  initial_state,
-                                                  mask=mask,
-                                                  unroll=True)
+        for unroll in [True , False]:
+            last_output, outputs, last_states = K.rnn(
+                step_function,
+                inputs,
+                initial_state,
+                mask=mask,
+                unroll=unroll)
+            # not updated last timestep:
+            expected_last_state = np.ones((n_samples, 6, 6)) * (n_timesteps - 1)
+            assert_allclose(K.eval(last_states[0]), expected_last_state)
 
     @pytest.mark.parametrize('x_np,axis,keepdims', [
         (np.array([1.1, 0.8, 0.9]), 0, False),

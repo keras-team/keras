@@ -2897,9 +2897,22 @@ def rnn(step_function, inputs, initial_states,
     if mask is not None:
         if mask.dtype != tf.bool:
             mask = tf.cast(mask, tf.bool)
-        if len(mask.get_shape()) == ndim - 1:
-            mask = expand_dims(mask)
-        mask = tf.transpose(mask, axes)
+        if len(mask.get_shape()) != 2:
+            raise ValueError(
+                "mask should have shape=(samples, time), "
+                "got {}".format(mask.get_shape()))
+        mask = tf.transpose(mask, [1, 0])
+
+        def get_matching_mask(mask_t, ref_tensor_t):
+            # tf.where needs its condition tensor
+            # to be the same shape as its two
+            # result tensors
+            ndim = len(ref_tensor_t.get_shape())
+            for _ in range(ndim - 1):
+                mask_t = expand_dims(mask_t)
+            add_shape = tf.shape(ref_tensor_t)[1:]
+            multiple = tf.concat([[1], add_shape], 0)
+            return tf.tile(mask_t, multiple)
 
     if constants is None:
         constants = []
@@ -2929,32 +2942,18 @@ def rnn(step_function, inputs, initial_states,
                 if getattr(output, '_uses_learning_phase', False):
                     uses_learning_phase = True
 
-                # tf.where needs its condition tensor
-                # to be the same shape as its two
-                # result tensors, but in our case
-                # the condition (mask) tensor is
-                # (nsamples, 1), and A and B are (nsamples, ndimensions).
-                # So we need to
-                # broadcast the mask to match the shape of A and B.
-                # That's what the tile call does,
-                # it just repeats the mask along its second dimension
-                # n times.
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-
                 if not successive_outputs:
                     prev_output = zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = tf.where(tiled_mask_t, output, prev_output)
+                output_mask_t = get_matching_mask(mask_t, output)
+                output = tf.where(output_mask_t, output, prev_output)
 
                 return_states = []
                 for state, new_state in zip(states, new_states):
-                    # (see earlier comment for tile explanation)
-                    tiled_mask_t = tf.tile(mask_t,
-                                           tf.stack([1, tf.shape(new_state)[1]]))
-                    return_states.append(tf.where(tiled_mask_t,
+                    state_mask_t = get_matching_mask(mask_t, new_state)
+                    return_states.append(tf.where(state_mask_t,
                                                   new_state,
                                                   state))
                 states = return_states
@@ -3036,13 +3035,13 @@ def rnn(step_function, inputs, initial_states,
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
 
-                tiled_output_mask_t = tf.tile(mask_t,
-                                              tf.stack([1, tf.shape(output)[1]]))
-                output = tf.where(tiled_output_mask_t, output, output_tm1)
-                new_states = [
-                    tf.where(tf.tile(mask_t, tf.stack([1, tf.shape(new_states[i])[1]])),
-                             new_states[i], states[i]) for i in range(len(states))
-                ]
+                output_mask_t = get_matching_mask(mask_t, output)
+                output = tf.where(output_mask_t, output, output_tm1)
+
+                new_states = [tf.where(get_matching_mask(mask_t, new_states[i]),
+                                       new_states[i],
+                                       states[i]) for i in range(len(states))]
+
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t, output) + tuple(new_states)
 

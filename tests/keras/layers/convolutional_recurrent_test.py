@@ -4,7 +4,7 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras.models import Sequential, Model
-from keras.layers import convolutional_recurrent, Input, Masking
+from keras.layers import convolutional_recurrent, Input, Masking, Lambda
 from keras.utils.test_utils import layer_test
 from keras import regularizers
 
@@ -20,6 +20,11 @@ sequence_len = 2
 
 def test_convolutional_recurrent():
 
+    class Masking5D(Masking):
+        """Regular masking layer returns wrong shape of mask for RNN"""
+        def compute_mask(self, inputs, mask=None):
+            return K.any(K.not_equal(inputs, 0.), axis=[2, 3, 4])
+
     for data_format in ['channels_first', 'channels_last']:
 
         if data_format == 'channels_first':
@@ -31,15 +36,10 @@ def test_convolutional_recurrent():
                                     input_num_row, input_num_col,
                                     input_channel)
 
-        for return_sequences in [True, False]:
-            for use_mask in [False, True]:
-
+        for use_mask in [False, True]:
+            for return_sequences in [True, False]:
                 # test for return state:
                 x = Input(batch_shape=inputs.shape)
-
-                if use_mask:
-                    x = Masking()(x)
-
                 kwargs = {'data_format': data_format,
                           'return_sequences': return_sequences,
                           'return_state': True,
@@ -49,7 +49,10 @@ def test_convolutional_recurrent():
                           'padding': 'valid'}
                 layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
                 layer.build(inputs.shape)
-                outputs = layer(x)
+                if use_mask:
+                    outputs = layer(Masking5D()(x))
+                else:
+                    outputs = layer(x)
                 output, states = outputs[0], outputs[1:]
                 assert len(states) == 2
                 model = Model(x, states[0])
