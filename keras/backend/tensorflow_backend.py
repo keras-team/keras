@@ -1010,6 +1010,7 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
+    value = tf.cast(value, x.dtype)
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=True)
 
@@ -1895,8 +1896,8 @@ def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
 
     return tf.nn.fused_batch_norm(
         x,
-        gamma,
-        beta,
+        tf.cast(gamma, tf.float32),
+        tf.cast(beta, tf.float32),
         epsilon=epsilon,
         data_format=tf_data_format)
 
@@ -1980,11 +1981,11 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
                 gamma = tf.reshape(gamma, [-1])
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
-                gamma,
-                beta,
+                tf.cast(gamma, tf.float32),
+                tf.cast(beta, tf.float32),
                 epsilon=epsilon,
-                mean=mean,
-                variance=var,
+                mean=tf.cast(mean, tf.float32),
+                variance=tf.cast(var, tf.float32),
                 data_format=tf_data_format,
                 is_training=False
             )
