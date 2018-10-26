@@ -514,41 +514,56 @@ def dot(x, y):
 
 
 def batch_dot(x, y, axes=None):
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError('Batch dot requires inputs of rank 2 or more.')
+
     if isinstance(axes, int):
-        axes = (axes, axes)
+        axes = [axes, axes]
+    elif isinstance(axes, tuple):
+        axes = list(axes)
+
     if axes is None:
-        # behaves like tf.batch_matmul as default
-        axes = [x.ndim - 1, y.ndim - 2]
+        if y.ndim == 2:
+            axes = [x.ndim - 1, y.ndim - 1]
+        else:
+            axes = [x.ndim - 1, y.ndim - 2]
+
     if any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
-    if x.ndim > y.ndim:
-        diff = x.ndim - y.ndim
-        y = np.reshape(y, np.concatenate([np.shape(y), [1] * diff], axis=0))
-    else:
-        diff = 0
-    if ndim(x) == 2 and ndim(y) == 2:
-        if axes[0] == axes[1]:
-            out = np.sum(np.multiply(x, y), axes[0])
-        else:
-            out = np.sum(np.multiply(np.transpose(x, [1, 0]), y), axes[1])
-    else:
-        out = np.tensordot(x, y, axes=axes)
-        for axis in [axes[0]]:
-            axis_list = np.arange(len(out.shape) - 1).tolist()
-            axis_list.insert(0, axis_list.pop(axis))
-            out = np.transpose(np.diagonal(out, axis1=0, axis2=axis),
-                               tuple(axis_list))
-    if diff:
-        if x.ndim > y.ndim:
-            idx = x.ndim + y.ndim - 3
-        else:
-            idx = x.ndim - 1
-        out = np.squeeze(out, tuple(range(idx, idx + diff)))
-    if ndim(out) == 1:
-        out = expand_dims(out, 1)
-    return out
+
+    # Handle negative axes
+    if axes[0] < 0:
+        axes[0] += x.ndim
+    if axes[1] < 0:
+        axes[1] += y.ndim
+
+    if 0 in axes:
+        raise ValueError('Can not perform batch dot over axis 0.')
+
+    if x.shape[0] != y.shape[0]:
+        raise ValueError('Can not perform batch dot on inputs'
+                         ' with different batch sizes.')
+
+    d1 = x.shape[axes[0]]
+    d2 = y.shape[axes[1]]
+    if d1 != d2:
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x.shape) + ' and ' + str(y.shape) +
+                         ' with axes=' + str(axes) + '. x.shape[%d] != '
+                         'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
+
+    result = []
+    axes = [axes[0] - 1, axes[1] - 1]  # ignore batch dimension
+    for xi, yi in zip(x, y):
+        result.append(np.tensordot(xi, yi, axes))
+    result = np.array(result)
+
+    if result.ndim == 1:
+        result = np.expand_dims(result, -1)
+
+    return result
 
 
 def transpose(x):
