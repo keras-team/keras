@@ -1867,7 +1867,7 @@ class TestBackend(object):
         num_classes = 20
         batch_size = 30
         indices = np.random.randint(0, num_classes, size=(batch_size, input_length))
-        oh = np.eye(num_classes)[indices]
+        oh = KNP.one_hot(np.int32(indices), num_classes)
         koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
         assert np.all(koh == oh)
 
