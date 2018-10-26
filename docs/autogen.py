@@ -73,6 +73,7 @@ from keras import layers
 from keras.layers import advanced_activations
 from keras.layers import noise
 from keras.layers import wrappers
+from keras.utils import generic_utils
 from keras import initializers
 from keras import optimizers
 from keras import callbacks
@@ -352,9 +353,9 @@ ROOT = 'http://keras.io/'
 def get_function_signature(function, method=True):
     wrapped = getattr(function, '_original_function', None)
     if wrapped is None:
-        signature = inspect.getargspec(function)
+        signature = generic_utils.getargspec(function)
     else:
-        signature = inspect.getargspec(wrapped)
+        signature = generic_utils.getargspec(wrapped)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]
