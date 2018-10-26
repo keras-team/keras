@@ -2831,22 +2831,22 @@ def rnn(step_function, inputs, initial_states,
 
     if not isinstance(inputs, list):
         inputs = [inputs]
-        _step_function = step_function
+        original_step_function = step_function
 
-        def step_function(inputs, *args, **kwargs):
-            return _step_function(inputs[0], *args, **kwargs)
+        def step_function(_inputs, _states):
+            return original_step_function(_inputs[0], _states)
 
-    # get sample outputs and states
+    # get sample of outputs and states
     sample_outputs, sample_states = step_function(
         [inp[:, 0] for inp in inputs], initial_states + constants)
     if not isinstance(sample_outputs, list):
         single_output = True
         sample_outputs = [sample_outputs]
-        _step_function = step_function
+        prev_step_function = step_function
 
-        def step_function(*args, **kwargs):
-            output, states = _step_function(*args, **kwargs)
-            return [output], states
+        def step_function(_inputs, _states):
+            _output, _states = prev_step_function(_inputs, _states)
+            return [_output], _states
     else:
         single_output = False
 
