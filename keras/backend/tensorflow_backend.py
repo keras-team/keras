@@ -2981,26 +2981,29 @@ def rnn(step_function, inputs, initial_states,
         states = tuple(initial_states)
 
         time_steps = tf.shape(inputs)[0]
-        outputs, _ = step_function(inputs[0], initial_states + constants)
+        output, _ = step_function(inputs[0], initial_states + constants)
         output_ta = tensor_array_ops.TensorArray(
-            dtype=outputs.dtype,
+            dtype=output.dtype,
             size=time_steps,
             tensor_array_name='output_ta')
+        initial_output = zeros_like(output)
         input_ta = tensor_array_ops.TensorArray(
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
         input_ta = input_ta.unstack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
+        while_loop_kwargs = dict(
+            cond=lambda time, *_: time < time_steps,
+            parallel_iterations=32,
+            swap_memory=True,
+            maximum_iterations=input_length)
 
         if mask is not None:
             if not states:
                 raise ValueError('No initial states provided! '
                                  'When using masking in an RNN, you should '
-                                 'provide initial states '
-                                 '(and your step function should return '
-                                 'as its first state at time `t` '
-                                 'the output at time `t-1`).')
+                                 'provide initial states')
             if go_backwards:
                 mask = reverse(mask, 0)
 
@@ -3010,12 +3013,13 @@ def rnn(step_function, inputs, initial_states,
                 tensor_array_name='mask_ta')
             mask_ta = mask_ta.unstack(mask)
 
-            def _step(time, output_ta_t, *states):
+            def _step(time, output_ta_t, output_tm1, *states):
                 """RNN step function.
 
                 # Arguments
                     time: Current timestep value.
                     output_ta_t: TensorArray.
+                    output_tm1: output Tensor from previous timestep
                     *states: List of states.
 
                 # Returns
@@ -3031,15 +3035,22 @@ def rnn(step_function, inputs, initial_states,
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.get_shape())
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-                output = tf.where(tiled_mask_t, output, states[0])
+
+                tiled_output_mask_t = tf.tile(mask_t,
+                                              tf.stack([1, tf.shape(output)[1]]))
+                output = tf.where(tiled_output_mask_t, output, output_tm1)
                 new_states = [
                     tf.where(tf.tile(mask_t, tf.stack([1, tf.shape(new_states[i])[1]])),
                              new_states[i], states[i]) for i in range(len(states))
                 ]
                 output_ta_t = output_ta_t.write(time, output)
-                return (time + 1, output_ta_t) + tuple(new_states)
+                return (time + 1, output_ta_t, output) + tuple(new_states)
+
+            final_outputs = control_flow_ops.while_loop(
+                body=_step,
+                loop_vars=(time, output_ta, initial_output) + states,
+                **while_loop_kwargs)
+            new_states = final_outputs[3:]  # skip output_tm1
         else:
             def _step(time, output_ta_t, *states):
                 """RNN step function.
@@ -3064,17 +3075,14 @@ def rnn(step_function, inputs, initial_states,
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
 
-        final_outputs = control_flow_ops.while_loop(
-            cond=lambda time, *_: time < time_steps,
-            body=_step,
-            loop_vars=(time, output_ta) + states,
-            parallel_iterations=32,
-            swap_memory=True,
-            maximum_iterations=input_length)
+            final_outputs = control_flow_ops.while_loop(
+                body=_step,
+                loop_vars=(time, output_ta) + states,
+                **while_loop_kwargs)
+            new_states = final_outputs[2:]
+
         last_time = final_outputs[0]
         output_ta = final_outputs[1]
-        new_states = final_outputs[2:]
-
         outputs = output_ta.stack()
         last_output = output_ta.read(last_time - 1)
 

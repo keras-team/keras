@@ -165,6 +165,90 @@ def test_masking_correctness(layer_class):
     assert_allclose(out7, out6, atol=1e-5)
 
 
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+def test_masking_correctness_output_not_equal_to_first_state():
+
+    class Cell(keras.layers.Layer):
+
+        def __init__(self):
+            self.state_size = None
+            self.output_size = None
+            super(Cell, self).__init__()
+
+        def build(self, input_shape):
+            self.state_size = input_shape[-1]
+            self.output_size = input_shape[-1]
+
+        def call(self, inputs, states):
+            return inputs, [s + 1 for s in states]
+
+    for unroll in [True, False]:
+        x = Input((3, 1), name="x")
+        x_masked = Masking()(x)
+        s_0 = Input((1,), name="s_0")
+        y, s = recurrent.RNN(Cell(),
+                             return_state=True,
+                             unroll=unroll)(x_masked, initial_state=s_0)
+        model = Model([x, s_0], [y, s])
+        model.compile(optimizer='sgd', loss='mse')
+
+        # last time step masked
+        x_arr = np.array([[[1.], [2.], [0.]]])
+        s_0_arr = np.array([[10.]])
+        y_arr, s_arr = model.predict([x_arr, s_0_arr])
+
+        # 1 is added to initial state two times
+        assert_allclose(s_arr,
+                        s_0_arr + 2,
+                        err_msg="Unexpected state for unroll={}".format(unroll))
+        # expect last output to be the same as last output before masking
+        assert_allclose(y_arr,
+                        x_arr[:, 1, :],
+                        err_msg="Unexpected output for unroll={}".format(unroll))
+
+
+@pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+def test_masking_correctness_output_size_not_equal_to_first_state_size():
+
+    class Cell(keras.layers.Layer):
+
+        def __init__(self):
+            self.state_size = None
+            self.output_size = None
+            super(Cell, self).__init__()
+
+        def build(self, input_shape):
+            self.state_size = input_shape[-1]
+            self.output_size = input_shape[-1] * 2
+
+        def call(self, inputs, states):
+            return keras.layers.concatenate([inputs] * 2), [s + 1 for s in states]
+
+    for unroll in [True, False]:
+        x = Input((3, 1), name="x")
+        x_masked = Masking()(x)
+        s_0 = Input((1,), name="s_0")
+        y, s = recurrent.RNN(Cell(),
+                             return_state=True,
+                             unroll=unroll)(x_masked, initial_state=s_0)
+        model = Model([x, s_0], [y, s])
+        model.compile(optimizer='sgd', loss='mse')
+
+        # last time step masked
+        x_arr = np.array([[[1.], [2.], [0.]]])
+        s_0_arr = np.array([[10.]])
+        y_arr, s_arr = model.predict([x_arr, s_0_arr])
+
+        # 1 is added to initial state two times
+        assert_allclose(s_arr,
+                        s_0_arr + 2,
+                        err_msg="Unexpected state for unroll={}".format(unroll))
+        # expect last output to be the same as last output before masking
+        assert_allclose(y_arr,
+                        np.concatenate([x_arr[:, 1, :]] * 2, axis=-1),
+                        err_msg="Unexpected output for unroll={}".format(unroll))
+
+
 @rnn_test
 def test_implementation_mode(layer_class):
     for mode in [1, 2]:
