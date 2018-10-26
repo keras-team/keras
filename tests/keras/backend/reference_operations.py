@@ -10,6 +10,7 @@ from keras.backend import floatx
 from keras.utils.generic_utils import transpose_shape
 from keras.utils import to_categorical
 
+
 def normalize_conv(func):
     def wrapper(*args, **kwargs):
         x = args[0]
