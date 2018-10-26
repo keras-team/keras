@@ -245,7 +245,7 @@ def getargspec(fn):
     """ python2/python3 compatible getargspec.
 
     Calls `getfullargspec` and assigns args, varargs,
-    varkw, and defautls to a python 2/3 compatible `ArgSpec`.
+    varkw, and defaults to a python 2/3 compatible `ArgSpec`.
     The parameter name 'varkw' is changed to 'keywords' to fit the
     `ArgSpec` struct.
 
