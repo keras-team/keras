@@ -1524,6 +1524,42 @@ class TestBackend(object):
             assert zth.shape == ztf.shape
             assert zth.shape == zc.shape
 
+    def test_normalize_batch_in_training(self):
+        reduction_axes = [2]
+        shape = (2, 3)
+        for K in BACKENDS:
+            for data_format in ['channels_first', 'channels_last']:
+                if data_format == 'channels_first':
+                    x_shape = (1, 4) + shape
+                else:
+                    x_shape = (1,) + shape + (4,)
+            x = np.random.random(x_shape).astype(np.float32)
+            gamma = np.random.random(x_shape).mean(axis=tuple(reduction_axes), keepdims=True).mean(axis=0, keepdims=True).astype(np.float32)
+            beta = np.random.random(x_shape).mean(axis=tuple(reduction_axes), keepdims=True).mean(axis=0, keepdims=True).astype(np.float32)
+            normed_np, mean_np, var_np = KNP.normalize_batch_in_training(x, gamma, beta, reduction_axes, epsilon=1e-3)
+
+            if K.backend() == "cntk":
+                gamma, beta = gamma[0, ...], beta[0, ...]
+                x_place_holder = K.placeholder(x_shape)
+                normed_k, mean_k, var_k = K.normalize_batch_in_training(x_place_holder, K.variable(gamma), K.variable(beta),
+                                              reduction_axes, epsilon=1e-3)
+            else:
+                normed_k, mean_k, var_k = K.normalize_batch_in_training(K.variable(x), K.variable(gamma),
+                                                                        K.variable(beta),
+                                                                        reduction_axes, epsilon=1e-3)
+            if K == KC:
+                normed_k = KC.function([x_place_holder], [normed_k])([x])[0]
+            else:
+                normed_k = K.eval(normed_k)
+                mean_k = K.eval(mean_k)
+                var_k = K.eval(var_k)
+
+
+            for variable_to_check, ground_truth in zip([normed_k, mean_k, var_k], [normed_np, mean_np, var_np]):
+                print("pass")
+                assert_allclose(variable_to_check, ground_truth, atol=1e-05)
+        hi = 5
+
     # the Theano and TensorFlow CTC code use different methods to ensure
     # numerical stability.  The Theano code subtracts out the max
     # before the final log, so the results are different but scale

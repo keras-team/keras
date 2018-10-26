@@ -585,6 +585,7 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
+    reduction_axes = tuple(reduction_axes)
     batch_mean = x.mean(axis=reduction_axes, keepdims=True)
     batch_var = x.var(axis=reduction_axes, keepdims=True)
     return (batch_normalization(x, batch_mean, batch_var, beta, gamma, epsilon=epsilon),
