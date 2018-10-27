@@ -8,6 +8,7 @@ import scipy.signal as signal
 import scipy as sp
 from keras.backend import floatx
 from keras.utils.generic_utils import transpose_shape
+from keras.utils import to_categorical
 
 
 def normalize_conv(func):
@@ -683,6 +684,9 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         x = repeat_elements(x, width_factor, axis=3)
     return x
 
+
+def one_hot(indices, num_classes):
+    return to_categorical(indices, num_classes)
 
 square = np.square
 abs = np.abs
