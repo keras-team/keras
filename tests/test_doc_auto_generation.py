@@ -345,7 +345,7 @@ dummy_docstring = """Multiplies 2 tensors (and/or variables) and returns a *tens
         >>> K.int_shape(xy)
         (2, 4, 5)
     ```
-    
+
     # Numpy implementation
     ```python
         def dot(x, y):
