@@ -692,39 +692,24 @@ def one_hot(indices, num_classes):
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
     decoded_dense, log_prob = [], []
     if greedy:
+        max_len = 0
         for sample_num in range(y_pred.shape[0]):
             top_ind_per_timestep = y_pred[sample_num, :input_length[sample_num], :].argmax(axis=-1)
-            log_prob.append(y_pred[sample_num, np.arange(input_length[sample_num]), top_ind_per_timestep].prod())
-            is_not_repeat = np.insert(np.diff(top_ind_per_timestep).astype(np.bool), 0, True)
-            no_repeats = top_ind_per_timestep[is_not_repeat]
-            decoded_dense.append(no_repeats) #no_repeats[no_repeats < (y_pred.shape[-1]-1)])
-        return decoded_dense, np.array(log_prob)
+            log_prob.append(-np.log(y_pred[sample_num, np.arange(input_length[sample_num]), top_ind_per_timestep]).sum())
+            decoded_with_null = remove_repeating_inds(top_ind_per_timestep)
+            decoded_without_null = decoded_with_null[decoded_with_null < (y_pred.shape[-1]-1)]
+            decoded_dense.append(decoded_without_null)
+            max_len = np.maximum(len(decoded_without_null), max_len)
+        decoded_dense_mat = -np.ones(shape=(y_pred.shape[0], max_len))
+        for sample_num, decoded_sample in enumerate(decoded_dense):
+            decoded_dense_mat[sample_num, :len(decoded_sample)] = decoded_sample.reshape(1, -1)
+        return decoded_dense_mat, np.array(log_prob)[:, np.newaxis]
     else:
-        for sample_num in range(y_pred.shape[0]):
-            decoded_dense_curr, log_prob_curr = beam_search_decoder(
-                y_pred[sample_num, :input_length[sample_num], :], beam_width, top_paths)
-            decoded_dense.append(decoded_dense_curr)
-            log_prob.append(log_prob_curr)
-        return decoded_dense, log_prob
+        raise "not supported yet"
 
-def beam_search_decoder(data, beam_width, top_paths):
-    # https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/
-    sequences = [[list(), 1.0]]
-    # walk over each step in sequence
-    for row in data:
-        all_candidates = list()
-        # expand each current candidate
-        for i in range(len(sequences)):
-            seq, score = sequences[i]
-            for j in range(len(row)):
-                candidate = [seq + [j], score * -log(row[j])]
-                all_candidates.append(candidate)
-        # order all candidates by score
-        ordered = sorted(all_candidates, key=lambda tup: tup[1])
-        # select k best
-        sequences = ordered[:beam_width]
-    sequences = sequences[:top_paths]
-    return [sequence[0] for sequence in sequences], [sequence[1] for sequence in sequences]
+def remove_repeating_inds(inds):
+    is_not_repeat = np.insert(np.diff(inds).astype(np.bool), 0, True)
+    return inds[is_not_repeat]
 
 square = np.square
 abs = np.abs
