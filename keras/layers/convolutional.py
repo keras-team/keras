@@ -397,7 +397,7 @@ class Conv2D(_Conv):
         padding: one of `"valid"` or `"same"` (case-insensitive).
             Note that `"same"` is slightly inconsistent across backends with
             `strides` != 1, as described
-            [here](https://github.com/keras-team/keras/pull/9473#issuecomment-372166860)
+            [here](https://git.io/fxH09)
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.

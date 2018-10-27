@@ -711,7 +711,7 @@ class TensorBoard(Callback):
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
             in which metadata for this embedding layer is saved. See the
-            [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
+            [details](https://www.tensorflow.org/guide/embedding#metadata)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
         embeddings_data: data to be embedded at layers specified in
@@ -950,7 +950,7 @@ class TensorBoard(Callback):
                 # the `validation_data` is not yet set.
 
                 # More details in this discussion:
-                # https://github.com/keras-team/keras/pull/7766#issuecomment-329195622
+                # https://git.io/fxH0d
 
                 embeddings_data = self.embeddings_data
                 n_samples = embeddings_data[0].shape[0]
