@@ -330,5 +330,78 @@ def test_doc_lists():
     assert docstring == test_doc1['result']
 
 
+test_doc2 = {
+    'doc': """Multiplies 2 tensors (and/or variables) and returns a *tensor*.
+
+    When attempting to multiply a nD tensor
+    with a nD tensor, it reproduces the Theano behavior.
+    (e.g. `(2, 3) * (4, 3, 5) -> (2, 4, 5)`)
+
+    # Arguments
+        x: Tensor or variable.
+        y: Tensor or variable.
+
+    # Returns
+        A tensor, dot product of `x` and `y`.
+
+    # Examples
+    ```python
+        # Theano-like behavior example
+        >>> x = K.random_uniform_variable(shape=(2, 3), low=0, high=1)
+        >>> y = K.ones((4, 3, 5))
+        >>> xy = K.dot(x, y)
+        >>> K.int_shape(xy)
+        (2, 4, 5)
+    ```
+    
+    # Numpy implementation
+    ```python
+        def dot(x, y):
+            return dot(x, y)
+    ```
+    """,
+    'result': '''Multiplies 2 tensors (and/or variables) and returns a *tensor*.
+
+When attempting to multiply a nD tensor
+with a nD tensor, it reproduces the Theano behavior.
+(e.g. `(2, 3) * (4, 3, 5) -> (2, 4, 5)`)
+
+__Arguments__
+
+- __x__: Tensor or variable.
+- __y__: Tensor or variable.
+
+__Returns__
+
+A tensor, dot product of `x` and `y`.
+
+__Examples__
+
+```python
+# Theano-like behavior example
+>>> x = K.random_uniform_variable(shape=(2, 3), low=0, high=1)
+>>> y = K.ones((4, 3, 5))
+>>> xy = K.dot(x, y)
+>>> K.int_shape(xy)
+(2, 4, 5)
+```
+
+__Numpy implementation__
+
+```python
+def dot(x, y):
+    return dot(x, y)
+```
+'''}
+
+
+def test_doc_multiple_sections_code():
+    """ Checks that we can have code blocks in multiple sections."""
+    docstring = autogen.process_docstring(test_doc2['doc'])
+    with open('./dudu.txt', 'w+') as f:
+        f.write(docstring)
+    assert docstring == test_doc2['result']
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
