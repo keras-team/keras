@@ -688,6 +688,44 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 def one_hot(indices, num_classes):
     return to_categorical(indices, num_classes)
 
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    decoded_dense, log_prob = [], []
+    if greedy:
+        for sample_num in range(y_pred.shape[0]):
+            top_ind_per_timestep = y_pred[sample_num, :input_length[sample_num], :].argmax(axis=-1)
+            log_prob.append(y_pred[sample_num, np.arange(input_length[sample_num]), top_ind_per_timestep].prod())
+            is_not_repeat = np.insert(np.diff(top_ind_per_timestep).astype(np.bool), 0, True)
+            no_repeats = top_ind_per_timestep[is_not_repeat]
+            decoded_dense.append(no_repeats) #no_repeats[no_repeats < (y_pred.shape[-1]-1)])
+        return decoded_dense, np.array(log_prob)
+    else:
+        for sample_num in range(y_pred.shape[0]):
+            decoded_dense_curr, log_prob_curr = beam_search_decoder(
+                y_pred[sample_num, :input_length[sample_num], :], beam_width, top_paths)
+            decoded_dense.append(decoded_dense_curr)
+            log_prob.append(log_prob_curr)
+        return decoded_dense, log_prob
+
+def beam_search_decoder(data, beam_width, top_paths):
+    # https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/
+    sequences = [[list(), 1.0]]
+    # walk over each step in sequence
+    for row in data:
+        all_candidates = list()
+        # expand each current candidate
+        for i in range(len(sequences)):
+            seq, score = sequences[i]
+            for j in range(len(row)):
+                candidate = [seq + [j], score * -log(row[j])]
+                all_candidates.append(candidate)
+        # order all candidates by score
+        ordered = sorted(all_candidates, key=lambda tup: tup[1])
+        # select k best
+        sequences = ordered[:beam_width]
+    sequences = sequences[:top_paths]
+    return [sequence[0] for sequence in sequences], [sequence[1] for sequence in sequences]
+
 square = np.square
 abs = np.abs
 exp = np.exp
