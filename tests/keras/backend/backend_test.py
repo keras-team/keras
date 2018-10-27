@@ -7,7 +7,7 @@ import warnings
 from keras import backend as K
 from keras.backend import floatx, set_floatx, variable
 from keras.utils.conv_utils import convert_kernel
-import reference_operations as KNP
+from keras.backend import numpy_backend as KNP
 
 
 BACKENDS = []  # Holds a list of all available back-ends
