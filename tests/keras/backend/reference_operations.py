@@ -695,14 +695,14 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
         max_len = 0
         for sample_num in range(y_pred.shape[0]):
             top_ind_per_timestep = \
-                y_pred[sample_num,
-                :input_length[sample_num], :].argmax(axis=-1)
+                y_pred[sample_num, :input_length[
+                    sample_num], :].argmax(axis=-1)
             log_prob.append(
                 -np.log(y_pred[sample_num, np.arange(input_length[sample_num]),
                                top_ind_per_timestep]).sum())
             decoded_with_null = remove_repeating_inds(top_ind_per_timestep)
             decoded_without_null = decoded_with_null[decoded_with_null <
-                                                     (y_pred.shape[-1]-1)]
+                                                     (y_pred.shape[-1] - 1)]
             decoded_dense.append(decoded_without_null)
             max_len = np.maximum(len(decoded_without_null), max_len)
         decoded_dense_mat = -np.ones(shape=(y_pred.shape[0], max_len))
@@ -713,9 +713,11 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
     else:
         raise "not supported yet"
 
+
 def remove_repeating_inds(inds):
     is_not_repeat = np.insert(np.diff(inds).astype(np.bool), 0, True)
     return inds[is_not_repeat]
+
 
 square = np.square
 abs = np.abs

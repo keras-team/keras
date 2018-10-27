@@ -1788,10 +1788,12 @@ class TestBackend(object):
         # batch_size length vector of sequence_lengths
         input_length = np.array([seq_len_0, seq_len_1], dtype=np.int32)
 
-        decode_pred_np, log_prob_pred_np = KNP.ctc_decode(inputs, input_length, greedy=True)
+        decode_pred_np, log_prob_pred_np = KNP.ctc_decode(inputs,
+                                                          input_length, greedy=True)
         inputs = K.variable(inputs)
         input_length = K.variable(input_length)
-        decode_pred_tf, log_prob_pred_tf = K.ctc_decode(inputs, input_length, greedy=True)
+        decode_pred_tf, log_prob_pred_tf = K.ctc_decode(inputs,
+                                                        input_length, greedy=True)
 
         assert len(decode_pred_tf) == 1
 
