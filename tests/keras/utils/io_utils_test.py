@@ -13,8 +13,10 @@ import six
 import h5py
 import tempfile
 try:
+    from pathlib import Path
     from unittest.mock import patch
 except:
+    from pathlib2 import Path
     from mock import patch
 
 
@@ -211,6 +213,22 @@ def test_H5Dict_groups():
         assert_allclose(group4['z'], array)
 
         f.close()
+    os.remove(h5_path)
+
+
+def test_H5Dict_accepts_pathlib_Path():
+    """GitHub issue: 11459"""
+    _, h5_path = tempfile.mkstemp('.h5')
+
+    f = H5Dict(Path(h5_path), mode='w')
+    f['x'] = 'abcd'
+    f.close()
+    del f
+
+    f = H5Dict(Path(h5_path), mode='r')
+    assert f['x'] == 'abcd'
+    f.close()
+
     os.remove(h5_path)
 
 
