@@ -104,6 +104,7 @@ EXCLUDE = {
     'normalize_data_format',
     'image_dim_ordering',
     'get_variable_shape',
+    'Constraint'
 }
 
 
