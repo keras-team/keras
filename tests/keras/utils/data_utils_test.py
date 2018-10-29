@@ -195,7 +195,7 @@ def test_generator_enqueuer_processes():
     acc = []
     for i in range(100):
         acc.append(int(next(gen_output)[0, 0, 0, 0]))
-    assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
+    assert acc == list(range(100)), ('Order was keep in GeneratorEnqueuer '
                                      'with processes')
     enqueuer.stop()
 
