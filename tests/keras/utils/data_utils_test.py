@@ -12,6 +12,8 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
+import time
+import warnings
 
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
@@ -32,6 +34,7 @@ if sys.version_info < (3,):
 
 def use_spawn(func):
     """Decorator to test both Unix (fork) and Windows (spawn)"""
+
     @six.wraps(func)
     def wrapper(*args, **kwargs):
         out = func(*args, **kwargs)
@@ -40,6 +43,7 @@ def use_spawn(func):
             func(*args, **kwargs)
             mp.set_start_method('fork', force=True)
         return out
+
     return wrapper
 
 
@@ -382,6 +386,39 @@ def test_finite_generator_enqueuer_processes():
     assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
                                      'with processes')
     enqueuer.stop()
+
+
+@pytest.mark.skipif('TRAVIS_PYTHON_VERSION' in os.environ,
+                    reason='Takes 150s to run')
+def test_missing_inputs():
+    missing_idx = 10
+
+    class TimeOutSequence(DummySequence):
+        def __getitem__(self, item):
+            if item == missing_idx:
+                time.sleep(120)
+            return super(TimeOutSequence, self).__getitem__(item)
+
+    enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
+        TimeOutSequence([3, 2, 2, 3])), use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        for _ in range(4 * missing_idx):
+            next(gen_output)
+    assert 'An input could not be retrieved.' in str(w[-1].message)
+
+    enqueuer = OrderedEnqueuer(TimeOutSequence([3, 2, 2, 3]),
+                               use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        for _ in range(11):
+            next(gen_output)
+    assert "The input {} could not be retrieved.".format(
+        missing_idx) in str(w[-1].message)
 
 
 if __name__ == '__main__':
