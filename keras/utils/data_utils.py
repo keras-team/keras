@@ -598,8 +598,8 @@ class OrderedEnqueuer(SequenceEnqueuer):
             while self.is_running():
                 try:
                     future = self.queue.get(block=True)
-                    self.queue.task_done()
                     inputs = future.get(timeout=30)
+                    self.queue.task_done()
                 except mp.TimeoutError:
                     idx = future.idx
                     warnings.warn(
@@ -697,8 +697,8 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             while self.is_running():
                 try:
                     future = self.queue.get(block=True)
-                    self.queue.task_done()
                     inputs = future.get(timeout=30)
+                    self.queue.task_done()
                 except mp.TimeoutError:
                     warnings.warn(
                         "An input could not be retrieved."
