@@ -410,8 +410,8 @@ class Adadelta(Optimizer):
             self.updates.append(K.update(a, new_a))
 
             # use the new accumulator and the *old* delta_accumulator
-            update = g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
-            new_p = p - lr * update
+            update = lr * g * K.sqrt(d_a + self.epsilon) / K.sqrt(new_a + self.epsilon)
+            new_p = p - update
 
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
