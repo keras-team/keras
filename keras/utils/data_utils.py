@@ -720,11 +720,7 @@ class GeneratorManager(SyncManager):
     pass
 
 
-def _data_generator_task(**kwargs):
-    """Function used by both threaded and multiprocessed versions of
-        GeneratorEnqueuer to get data from a generator and send it to the parent
-        process via a synchronized queue
-    """
+def _data_generator_mp_task(**kwargs):
     generator = kwargs['generator']
     lock = kwargs['lock']
     stop_event = kwargs['stop_event']
@@ -732,7 +728,8 @@ def _data_generator_task(**kwargs):
 
     while not stop_event.is_set():
         try:
-            generator_output = next(generator)
+            with lock:
+                generator_output = next(generator)
             taskqueue.put((True, generator_output))
         except StopIteration:
             break
@@ -744,6 +741,27 @@ def _data_generator_task(**kwargs):
             traceback.print_exc()
             setattr(e, '__traceback__', None)
             taskqueue.put((False, e))
+            break
+
+
+def _data_generator_threaded_task(**kwargs):
+    generator = kwargs['generator']
+    stop_event = kwargs['stop_event']
+    taskqueue = kwargs['queue']
+
+    while not stop_event.is_set():
+        try:
+            generator_output = next(generator)
+            taskqueue.put((True, generator_output))
+        except StopIteration:
+            break
+        except Exception as e:    # pylint: disable=broad-except
+            # Can't pickle tracebacks.
+            # As a compromise, print the traceback and pickle None instead.
+            traceback.print_exc()
+            setattr(e, '__traceback__', None)
+            taskqueue.put((False, e))
+            stop_event.set()
             break
 
 
@@ -779,7 +797,9 @@ class MultiProcGeneratorEnqueuer(MultiProcEnqueuer):
         manager = GeneratorManager()
 
         super(MultiProcGeneratorEnqueuer, self).__init__(
-            manager, _data_generator_task, wait_time=wait_time)
+            manager,
+            _data_generator_mp_task,
+            wait_time=wait_time)
 
     def start(self, workers=1, max_queue_size=10):
         """Starts the Process Manager and intiailizes the Proxy generator"""
@@ -812,7 +832,9 @@ class ThreadedGeneratorEnqueuer(ThreadedEnqueuer):
         }
 
         super(ThreadedGeneratorEnqueuer, self).__init__(
-            _data_generator_task, task_kwargs=task_kwargs, wait_time=wait_time)
+            _data_generator_threaded_task,
+            task_kwargs=task_kwargs,
+            wait_time=wait_time)
 
 
 class SequenceWrapper(object):
