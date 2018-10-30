@@ -465,13 +465,6 @@ class SequenceEnqueuer(object):
         while not self._queue.empty():
             success, value = self._queue.get()
             if not success:
-                self.stop()
-                if 'generator already executing' in str(value):
-                    raise RuntimeError(
-                        "Your generator is NOT thread-safe."
-                        "Keras requires a thread-safe generator when"
-                        "`use_multiprocessing=False, workers > 1`."
-                        "For more information see issue #1638.")
                 six.reraise(value.__class__, value, value.__traceback__)
 
     def stop(self, timeout=None):
@@ -733,7 +726,8 @@ def _data_generator_task(**kwargs):
 
     while not stop_event.is_set():
         try:
-            generator_output = next(generator)
+            with lock:
+                generator_output = next(generator)
             taskqueue.put((True, generator_output))
         except StopIteration:
             break
