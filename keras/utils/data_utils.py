@@ -717,7 +717,8 @@ class GeneratorProxy(BaseProxy):
 class GeneratorManager(SyncManager):
     """Manager wrapper used to register and share Proxy objects across processes
     """
-    pass
+    def __del__(self):
+        print('Manager GC!!!!')
 
 
 def _data_generator_mp_task(**kwargs):
@@ -877,7 +878,8 @@ class SequenceManager(SyncManager):
     """Manager wrapper used to register and share
         Proxy objects across processes
     """
-    pass
+    def __del__(self):
+        print('Manager GC!!!!')
 
 
 def seq_next_i(seq_order):
