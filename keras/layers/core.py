@@ -592,10 +592,21 @@ class Lambda(Layer):
         model.add(Lambda(antirectifier,
                          output_shape=antirectifier_output_shape))
     ```
+    ```python
+        # add a layer that returns the hadamard product
+        # of the two input tensors
+
+        def hadamard_product(tensors):
+            return tensors[0]*tensors[1]
+
+        x1 = Dense(32, activation="relu", input_dim=3)(input_1)
+        x2 = Dense(32, activation="relu", input_dim=3)(input_2)
+        x = Lambda(hadamard_product)([x1, x2])
+    ```
 
     # Arguments
         function: The function to be evaluated.
-            Takes input tensor as first argument.
+            Takes input tensor or list of tensors as first argument.
         output_shape: Expected output shape from function.
             Only relevant when using Theano.
             Can be a tuple or function.
