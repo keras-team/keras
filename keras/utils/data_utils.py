@@ -1,28 +1,10 @@
-# Copyright 2018 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#         http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-# pylint: disable=g-import-not-at-top
 """Utilities for file download and caching."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from abc import abstractmethod
 import hashlib
-from itertools import cycle
-import multiprocessing
-from multiprocessing.managers import SyncManager, BaseProxy
+import multiprocessing as mp
 import os
 import random
 import shutil
@@ -30,43 +12,42 @@ import sys
 import tarfile
 import threading
 import time
-import traceback
-from uuid import uuid4
+import warnings
 import zipfile
+from abc import abstractmethod
+from contextlib import closing
+from multiprocessing.pool import ThreadPool
 
+import numpy as np
 import six
 from six.moves.urllib.error import HTTPError
 from six.moves.urllib.error import URLError
 from six.moves.urllib.request import urlopen
-
-from tensorflow.python.keras.utils.generic_utils import Progbar
-from tensorflow.python.util import tf_inspect
-from tensorflow.python.util.tf_export import tf_export
 
 try:
     import queue
 except ImportError:
     import Queue as queue
 
+from ..utils.generic_utils import Progbar
 
 if sys.version_info[0] == 2:
-
     def urlretrieve(url, filename, reporthook=None, data=None):
         """Replacement for `urlretrive` for Python 2.
 
         Under Python 2, `urlretrieve` relies on `FancyURLopener` from legacy
         `urllib` module, known to have issues with proxy management.
 
-        Arguments:
-                url: url to retrieve.
-                filename: where to store the retrieved data locally.
-                reporthook: a hook function that will be called once
-                    on establishment of the network connection and once
-                    after each block read thereafter.
-                    The hook will be passed three arguments;
-                    a count of blocks transferred so far,
-                    a block size in bytes, and the total size of the file.
-                data: `data` argument passed to `urlopen`.
+        # Arguments
+            url: url to retrieve.
+            filename: where to store the retrieved data locally.
+            reporthook: a hook function that will be called once
+                on establishment of the network connection and once
+                after each block read thereafter.
+                The hook will be passed three arguments;
+                a count of blocks transferred so far,
+                a block size in bytes, and the total size of the file.
+            data: `data` argument passed to `urlopen`.
         """
 
         def chunk_read(response, chunk_size=8192, reporthook=None):
@@ -85,32 +66,26 @@ if sys.version_info[0] == 2:
                 else:
                     break
 
-        response = urlopen(url, data)
-        with open(filename, 'wb') as fd:
-            for chunk in chunk_read(response, reporthook=reporthook):
-                fd.write(chunk)
+        with closing(urlopen(url, data)) as response, open(filename, 'wb') as fd:
+                for chunk in chunk_read(response, reporthook=reporthook):
+                    fd.write(chunk)
 else:
     from six.moves.urllib.request import urlretrieve
-
-
-def is_generator_or_sequence(x):
-    """Check if `x` is a Keras generator type."""
-    return tf_inspect.isgenerator(x) or isinstance(x, Sequence)
 
 
 def _extract_archive(file_path, path='.', archive_format='auto'):
     """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
 
-    Arguments:
-            file_path: path to the archive file
-            path: path to extract the archive file
-            archive_format: Archive format to try for extracting the file.
-                Options are 'auto', 'tar', 'zip', and None.
-                'tar' includes tar, tar.gz, and tar.bz files.
-                The default 'auto' is ['tar', 'zip'].
-                None or an empty list will return no matches found.
+    # Arguments
+        file_path: path to the archive file
+        path: path to extract the archive file
+        archive_format: Archive format to try for extracting the file.
+            Options are 'auto', 'tar', 'zip', and None.
+            'tar' includes tar, tar.gz, and tar.bz files.
+            The default 'auto' is ['tar', 'zip'].
+            None or an empty list will return no matches found.
 
-    Returns:
+    # Returns
         True if a match was found and an archive extraction was completed,
         False otherwise.
     """
@@ -133,7 +108,8 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
             with open_fn(file_path) as archive:
                 try:
                     archive.extractall(path)
-                except (tarfile.TarError, RuntimeError, KeyboardInterrupt):
+                except (tarfile.TarError, RuntimeError,
+                        KeyboardInterrupt):
                     if os.path.exists(path):
                         if os.path.isfile(path):
                             os.remove(path)
@@ -144,7 +120,6 @@ def _extract_archive(file_path, path='.', archive_format='auto'):
     return False
 
 
-@tf_export('keras.utils.get_file')
 def get_file(fname,
              origin,
              untar=False,
@@ -166,35 +141,34 @@ def get_file(fname,
     Passing a hash will verify the file after download. The command line
     programs `shasum` and `sha256sum` can compute the hash.
 
-    Arguments:
-            fname: Name of the file. If an absolute path `/path/to/file.txt` is
-                    specified the file will be saved at that location.
-            origin: Original URL of the file.
-            untar: Deprecated in favor of 'extract'.
-                    boolean, whether the file should be decompressed
-            md5_hash: Deprecated in favor of 'file_hash'.
-                    md5 hash of the file for verification
-            file_hash: The expected hash string of the file after download.
-                    The sha256 and md5 hash algorithms are both supported.
-            cache_subdir: Subdirectory under the Keras cache dir where the file is
-                    saved. If an absolute path `/path/to/folder` is
-                    specified the file will be saved at that location.
-            hash_algorithm: Select the hash algorithm to verify the file.
-                    options are 'md5', 'sha256', and 'auto'.
-                    The default 'auto' detects the hash algorithm in use.
-            extract: True tries extracting the file as an Archive, like tar or zip.
-            archive_format: Archive format to try for extracting the file.
-                    Options are 'auto', 'tar', 'zip', and None.
-                    'tar' includes tar, tar.gz, and tar.bz files.
-                    The default 'auto' is ['tar', 'zip'].
-                    None or an empty list will return no matches found.
-            cache_dir: Location to store cached files, when None it
-                    defaults to the [Keras
-                        Directory](/faq/#where-is-the-keras-configuration-filed-stored).
+    # Arguments
+        fname: Name of the file. If an absolute path `/path/to/file.txt` is
+            specified the file will be saved at that location.
+        origin: Original URL of the file.
+        untar: Deprecated in favor of 'extract'.
+            boolean, whether the file should be decompressed
+        md5_hash: Deprecated in favor of 'file_hash'.
+            md5 hash of the file for verification
+        file_hash: The expected hash string of the file after download.
+            The sha256 and md5 hash algorithms are both supported.
+        cache_subdir: Subdirectory under the Keras cache dir where the file is
+            saved. If an absolute path `/path/to/folder` is
+            specified the file will be saved at that location.
+        hash_algorithm: Select the hash algorithm to verify the file.
+            options are 'md5', 'sha256', and 'auto'.
+            The default 'auto' detects the hash algorithm in use.
+        extract: True tries extracting the file as an Archive, like tar or zip.
+        archive_format: Archive format to try for extracting the file.
+            Options are 'auto', 'tar', 'zip', and None.
+            'tar' includes tar, tar.gz, and tar.bz files.
+            The default 'auto' is ['tar', 'zip'].
+            None or an empty list will return no matches found.
+        cache_dir: Location to store cached files, when None it
+            defaults to the [Keras Directory](/faq/#where-is-the-keras-configuration-filed-stored).
 
-    Returns:
-            Path to the downloaded file
-    """
+    # Returns
+        Path to the downloaded file
+    """  # noqa
     if cache_dir is None:
         cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
@@ -218,13 +192,10 @@ def get_file(fname,
         # File found; verify integrity if a hash was provided.
         if file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
-                print(
-                    'A local file was found, but it seems to be '
-                    'incomplete or outdated because the '
-                    + hash_algorithm +
-                    ' file hash does not match the original value of '
-                    + file_hash +
-                    ' so we will re-download the data.')
+                print('A local file was found, but it seems to be '
+                      'incomplete or outdated because the ' + hash_algorithm +
+                      ' file hash does not match the original value of ' +
+                      file_hash + ' so we will re-download the data.')
                 download = True
     else:
         download = True
@@ -249,11 +220,11 @@ def get_file(fname,
         try:
             try:
                 urlretrieve(origin, fpath, dl_progress)
-            except URLError as e:
-                raise Exception(error_msg.format(origin, e.errno, e.reason))
             except HTTPError as e:
                 raise Exception(error_msg.format(origin, e.code, e.msg))
-        except (Exception, KeyboardInterrupt) as e:
+            except URLError as e:
+                raise Exception(error_msg.format(origin, e.errno, e.reason))
+        except (Exception, KeyboardInterrupt):
             if os.path.exists(fpath):
                 os.remove(fpath)
             raise
@@ -273,7 +244,7 @@ def get_file(fname,
 def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
     """Calculates a file sha256 or md5 hash.
 
-    Example:
+    # Example
 
     ```python
         >>> from keras.data_utils import _hash_file
@@ -281,14 +252,14 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
         'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
     ```
 
-    Arguments:
-            fpath: path to the file being validated
-            algorithm: hash algorithm, one of 'auto', 'sha256', or 'md5'.
-                The default 'auto' detects the hash algorithm in use.
-            chunk_size: Bytes to read at a time, important for large files.
+    # Arguments
+        fpath: path to the file being validated
+        algorithm: hash algorithm, one of 'auto', 'sha256', or 'md5'.
+            The default 'auto' detects the hash algorithm in use.
+        chunk_size: Bytes to read at a time, important for large files.
 
-    Returns:
-            The file hash
+    # Returns
+        The file hash
     """
     if (algorithm == 'sha256') or (algorithm == 'auto' and len(hash) == 64):
         hasher = hashlib.sha256()
@@ -305,18 +276,19 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
 def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
     """Validates a file against a sha256 or md5 hash.
 
-    Arguments:
-            fpath: path to the file being validated
-            file_hash:    The expected hash string of the file.
-                    The sha256 and md5 hash algorithms are both supported.
-            algorithm: Hash algorithm, one of 'auto', 'sha256', or 'md5'.
-                    The default 'auto' detects the hash algorithm in use.
-            chunk_size: Bytes to read at a time, important for large files.
+    # Arguments
+        fpath: path to the file being validated
+        file_hash:  The expected hash string of the file.
+            The sha256 and md5 hash algorithms are both supported.
+        algorithm: Hash algorithm, one of 'auto', 'sha256', or 'md5'.
+            The default 'auto' detects the hash algorithm in use.
+        chunk_size: Bytes to read at a time, important for large files.
 
-    Returns:
-            Whether the file is valid
+    # Returns
+        Whether the file is valid
     """
-    if (algorithm == 'sha256') or (algorithm == 'auto' and len(file_hash) == 64):
+    if ((algorithm == 'sha256') or
+            (algorithm == 'auto' and len(file_hash) == 64)):
         hasher = 'sha256'
     else:
         hasher = 'md5'
@@ -327,28 +299,25 @@ def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
         return False
 
 
-@tf_export('keras.utils.Sequence')
 class Sequence(object):
     """Base object for fitting to a sequence of data, such as a dataset.
 
     Every `Sequence` must implement the `__getitem__` and the `__len__` methods.
     If you want to modify your dataset between epochs you may implement
-    `on_epoch_end`.
-    The method `__getitem__` should return a complete batch.
+    `on_epoch_end`. The method `__getitem__` should return a complete batch.
 
-    Notes:
+    # Notes
 
     `Sequence` are a safer way to do multiprocessing. This structure guarantees
-    that the network will only train once
-     on each sample per epoch which is not the case with generators.
+    that the network will only train once on each sample per epoch which is not
+    the case with generators.
 
-    Examples:
+    # Examples
 
     ```python
         from skimage.io import imread
         from skimage.transform import resize
         import numpy as np
-        import math
 
         # Here, `x_set` is list of path to the images
         # and `y_set` are the associated classes.
@@ -360,28 +329,28 @@ class Sequence(object):
                 self.batch_size = batch_size
 
             def __len__(self):
-                return math.ceil(len(self.x) / self.batch_size)
+                return int(np.ceil(len(self.x) / float(self.batch_size)))
 
             def __getitem__(self, idx):
-                batch_x = self.x[idx * self.batch_size:(idx + 1) *
-                self.batch_size]
-                batch_y = self.y[idx * self.batch_size:(idx + 1) *
-                self.batch_size]
+                batch_x = self.x[idx * self.batch_size:(idx + 1) * self.batch_size]
+                batch_y = self.y[idx * self.batch_size:(idx + 1) * self.batch_size]
 
-                    return np.array([
-                        resize(imread(file_name), (200, 200))
-                        for file_name in batch_x]), np.array(batch_y)
+                return np.array([
+                    resize(imread(file_name), (200, 200))
+                       for file_name in batch_x]), np.array(batch_y)
     ```
     """
+
+    use_sequence_api = True
 
     @abstractmethod
     def __getitem__(self, index):
         """Gets batch at position `index`.
 
-        Arguments:
-                index: position of the batch in the Sequence.
+        # Arguments
+            index: position of the batch in the Sequence.
 
-        Returns:
+        # Returns
             A batch
         """
         raise NotImplementedError
@@ -390,7 +359,7 @@ class Sequence(object):
     def __len__(self):
         """Number of batch in the Sequence.
 
-        Returns:
+        # Returns
             The number of batches in the Sequence.
         """
         raise NotImplementedError
