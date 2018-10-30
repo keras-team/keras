@@ -709,7 +709,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
     else:
         raise "not supported yet"
 
-
+ 
 def _remove_repeats(inds):
     is_not_repeat = np.insert(np.diff(inds).astype(np.bool), 0, True)
     return inds[is_not_repeat]
