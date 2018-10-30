@@ -381,7 +381,7 @@ def test_finite_generator_enqueuer_processes():
     acc = []
     for output in gen_output:
         acc.append(int(output[0, 0, 0, 0]))
-    assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
+    assert acc == list(range(100)), ('Order was keep in GeneratorEnqueuer '
                                      'with processes')
     enqueuer.stop()
 
