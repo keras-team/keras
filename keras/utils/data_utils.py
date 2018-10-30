@@ -623,12 +623,12 @@ class MultiProcEnqueuer(SequenceEnqueuer):
         """
         try:
             self._stop_event = multiprocessing.Event()
-            self._queue = self._manager.Queue(maxsize=max_queue_size)
+            self._queue = multiprocessing.Queue(maxsize=max_queue_size)
 
             task = self._task
             task_kwargs = self._task_kwargs
 
-            task_kwargs['lock'] = self._manager.Lock()
+            task_kwargs['lock'] = multiprocessing.Lock()
             task_kwargs['stop_event'] = self._stop_event
             task_kwargs['queue'] = self._queue
 
@@ -968,7 +968,7 @@ class MultiProcOrderedEnqueuer(MultiProcEnqueuer):
         next_i_gen = getattr(manager, self._seq_next_i_typeid)(self._seq_order)
 
         self._task_kwargs = {
-            'counter': manager.Value('i', 0),
+            'counter': multiprocessing.Value('i', 0),
             'next_i_gen': next_i_gen,
             'sequence': sequence,
         }
