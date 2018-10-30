@@ -568,13 +568,16 @@ def process_docstring(docstring):
 def add_np_implementation(function, docstring):
     np_implementation = getattr(numpy_backend, function.__name__)
     np_impl_code = inspect.getsource(np_implementation)
+    header = '# Numpy implementation\n    ```python\n        '
+    footer = '```\n'
 
     # use the right indentation
     np_impl_code = np_impl_code.replace('\n', '\n        ')
 
     # removing the last empty line
-    np_impl_code = np_impl_code[:-9]
-    return docstring.replace('{{np_implementation}}', np_impl_code)
+    np_impl_code = np_impl_code[:-4]
+    section = header + np_impl_code + footer
+    return docstring.replace('{{np_implementation}}', section)
 
 
 print('Cleaning up existing sources directory.')

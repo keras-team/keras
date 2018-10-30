@@ -1285,10 +1285,7 @@ def gather(reference, indices):
     # Returns
         A tensor of same type as `reference`.
 
-    # Numpy implementation
-    ```python
-        {{np_implementation}}
-    ```
+    {{np_implementation}}
     """
     return tf.nn.embedding_lookup(reference, indices)
 
@@ -2434,10 +2431,7 @@ def reverse(x, axes):
     # Returns
         A tensor.
 
-    # Numpy implementation
-    ```python
-        {{np_implementation}}
-    ```
+    {{np_implementation}}
     """
     if isinstance(axes, int):
         axes = [axes]
