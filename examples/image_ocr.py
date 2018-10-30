@@ -309,7 +309,7 @@ class TextImageGenerator(keras.callbacks.Callback):
             ret = self.get_batch(self.cur_train_index,
                                  self.minibatch_size, train=True)
             self.cur_train_index += self.minibatch_size
-            if self.cur_train_index >= self.val_split:
+            if self.cur_train_index >= self.val_split - self.minibatch_size:
                 self.cur_train_index = self.cur_train_index % 32
                 (self.X_text, self.Y_data, self.Y_len) = shuffle_mats_or_lists(
                     [self.X_text, self.Y_data, self.Y_len], self.val_split)
@@ -320,7 +320,7 @@ class TextImageGenerator(keras.callbacks.Callback):
             ret = self.get_batch(self.cur_val_index,
                                  self.minibatch_size, train=False)
             self.cur_val_index += self.minibatch_size
-            if self.cur_val_index >= self.num_words:
+            if self.cur_val_index >= self.num_words - self.minibatch_size:
                 self.cur_val_index = self.val_split + self.cur_val_index % 32
             yield ret
 
