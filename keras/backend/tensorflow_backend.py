@@ -1287,7 +1287,7 @@ def gather(reference, indices):
 
     # Numpy implementation
     ```python
-        {np_implementation}
+        {{np_implementation}}
     ```
     """
     return tf.nn.embedding_lookup(reference, indices)
@@ -2436,7 +2436,7 @@ def reverse(x, axes):
 
     # Numpy implementation
     ```python
-        {np_implementation}
+        {{np_implementation}}
     ```
     """
     if isinstance(axes, int):

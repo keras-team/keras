@@ -81,7 +81,7 @@ from keras import models
 from keras import losses
 from keras import metrics
 from keras import backend
-from keras.backend import numpy_backend as KNP
+from keras.backend import numpy_backend
 from keras import constraints
 from keras import activations
 from keras import preprocessing
@@ -566,7 +566,7 @@ def process_docstring(docstring):
 
 
 def add_np_implementation(function, docstring):
-    np_implementation = getattr(KNP, function.__name__)
+    np_implementation = getattr(numpy_backend, function.__name__)
     np_impl_code = inspect.getsource(np_implementation)
 
     # use the right indentation
@@ -574,7 +574,7 @@ def add_np_implementation(function, docstring):
 
     # removing the last empty line
     np_impl_code = np_impl_code[:-9]
-    return docstring.format(np_implementation=np_impl_code)
+    return docstring.replace('{{np_implementation}}', np_impl_code)
 
 
 print('Cleaning up existing sources directory.')
@@ -620,7 +620,7 @@ def render_function(function, method=True):
     docstring = function.__doc__
     if docstring:
         if ('backend' in signature and
-                '{np_implementation}' in docstring):
+                '{{np_implementation}}' in docstring):
             docstring = add_np_implementation(function, docstring)
         subblocks.append(process_docstring(docstring))
     return '\n\n'.join(subblocks)
