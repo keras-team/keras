@@ -690,33 +690,33 @@ def one_hot(indices, num_classes):
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
-    decoded_dense, log_prob = [], []
+    num_samples = y_pred.shape[0]
+    num_classes = y_pred.shape[-1]
+    log_prob = np.zeros((num_samples, 1))
+    decoded_dense = -np.ones_like(y_pred[..., 0])
+    decoded_length = np.zeros((num_samples,), dtype=np.int)
     if greedy:
-        max_len = 0
-        for sample_num in range(y_pred.shape[0]):
-            top_ind_per_timestep = \
-                y_pred[sample_num, :input_length[
-                    sample_num], :].argmax(axis=-1)
-            log_prob.append(
-                -np.log(y_pred[sample_num, np.arange(input_length[sample_num]),
-                               top_ind_per_timestep]).sum())
-            decoded_with_null = remove_repeating_inds(top_ind_per_timestep)
-            decoded_without_null = decoded_with_null[decoded_with_null <
-                                                     (y_pred.shape[-1] - 1)]
-            decoded_dense.append(decoded_without_null)
-            max_len = np.maximum(len(decoded_without_null), max_len)
-        decoded_dense_mat = -np.ones(shape=(y_pred.shape[0], max_len))
-        for sample_num, decoded_sample in enumerate(decoded_dense):
-            decoded_dense_mat[sample_num, :len(decoded_sample)] =\
-                decoded_sample.reshape(1, -1)
-        return decoded_dense_mat, np.array(log_prob)[:, np.newaxis]
+        for i in range(num_samples):
+            prob = y_pred[i]
+            length = input_length[i]
+            decoded = np.argmax(prob[:length], axis=-1)
+            log_prob[i] = -np.sum(np.log(prob[np.arange(length), decoded]))
+            decoded = _remove_repeats(decoded)
+            decoded = _remove_blanks(decoded, num_classes)
+            decoded_length[i] = len(decoded)
+            decoded_dense[i, :len(decoded)] = decoded
+        return decoded_dense[:, :np.max(decoded_length)], log_prob
     else:
         raise "not supported yet"
 
 
-def remove_repeating_inds(inds):
+def _remove_repeats(inds):
     is_not_repeat = np.insert(np.diff(inds).astype(np.bool), 0, True)
     return inds[is_not_repeat]
+
+
+def _remove_blanks(inds, num_classes):
+    return inds[inds < (num_classes - 1)]
 
 
 square = np.square
