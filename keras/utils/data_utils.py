@@ -4,7 +4,6 @@ from __future__ import division
 from __future__ import print_function
 
 import hashlib
-import multiprocessing as mp
 import os
 import random
 import shutil
@@ -12,13 +11,13 @@ import sys
 import tarfile
 import threading
 import time
-import warnings
 import zipfile
 from abc import abstractmethod
 from contextlib import closing
-from multiprocessing.pool import ThreadPool
 
-import numpy as np
+import multiprocessing
+from multiprocessing.managers import SyncManager, BaseProxy
+
 import six
 from six.moves.urllib.error import HTTPError
 from six.moves.urllib.error import URLError
