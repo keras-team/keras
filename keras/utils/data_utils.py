@@ -622,7 +622,7 @@ class MultiProcEnqueuer(SequenceEnqueuer):
                     (when full, processes could block on `put()`).
         """
         try:
-            self._stop_event = self._manager.Event()
+            self._stop_event = multiprocessing.Event()
             self._queue = self._manager.Queue(maxsize=max_queue_size)
 
             task = self._task
