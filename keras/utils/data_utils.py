@@ -897,7 +897,7 @@ class MultiProcOrderedEnqueuer(MultiProcEnqueuer):
     and synchronizes them to build a stream of datas
 
     Arguments:
-        sequence: A `tf.keras.utils.data_utils.Sequence` object.
+        sequence: A `keras.utils.data_utils.Sequence` object.
         wait_time: time to sleep waiting for workers to generate data or exit
     """
 
@@ -962,7 +962,7 @@ class ThreadedOrderedEnqueuer(ThreadedEnqueuer):
     and synchronizes them to build a stream of datas
 
     Arguments:
-        sequence: A `tf.keras.utils.data_utils.Sequence` object.
+        sequence: A `keras.utils.data_utils.Sequence` object.
         wait_time: time to sleep waiting for workers to generate data or exit
     """
     def __init__(self, sequence, wait_time=0.05, shuffle=False):
