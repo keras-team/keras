@@ -737,12 +737,13 @@ def _data_generator_task(**kwargs):
         except StopIteration:
             break
         except Exception as e:    # pylint: disable=broad-except
+            stop_event.set()
+
             # Can't pickle tracebacks.
             # As a compromise, print the traceback and pickle None instead.
             traceback.print_exc()
             setattr(e, '__traceback__', None)
             taskqueue.put((False, e))
-            stop_event.set()
             break
 
 
