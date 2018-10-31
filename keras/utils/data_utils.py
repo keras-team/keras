@@ -487,10 +487,15 @@ class SequenceEnqueuer(object):
             # let the children know we're done
             self._stop_event.set()
 
+        child_errors = []
         for child in self._children:
             while child.is_alive():
                 # drain any remaining messages, otherwise join will block
-                self._drain_queue()
+                error = self._drain_queue()
+
+                if error:
+                    child_errors.append(error)
+
                 time.sleep(self._wait_time)
             child.join(timeout)
 
@@ -498,11 +503,18 @@ class SequenceEnqueuer(object):
         self._queue = None
         self._stop_event = None
 
+        if len(child_errors):
+            error = child_errors[0]
+            six.reraise(error.__class__, error, error.__traceback__)
+
     def _drain_queue(self):
+        error = None
         while not self._queue.empty():
             success, value = self._queue.get()
             if not success:
-                six.reraise(value.__class__, value, value.__traceback__)
+                error = value
+
+        return error
 
 
 class DelegateEnqueuer(object):
