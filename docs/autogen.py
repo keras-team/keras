@@ -73,7 +73,6 @@ from keras import layers
 from keras.layers import advanced_activations
 from keras.layers import noise
 from keras.layers import wrappers
-from keras.utils import generic_utils
 from keras import initializers
 from keras import optimizers
 from keras import callbacks
@@ -106,6 +105,7 @@ EXCLUDE = {
     'normalize_data_format',
     'image_dim_ordering',
     'get_variable_shape',
+    'Constraint'
 }
 
 
@@ -354,9 +354,9 @@ ROOT = 'http://keras.io/'
 def get_function_signature(function, method=True):
     wrapped = getattr(function, '_original_function', None)
     if wrapped is None:
-        signature = generic_utils.getargspec(function)
+        signature = inspect.getargspec(function)
     else:
-        signature = generic_utils.getargspec(wrapped)
+        signature = inspect.getargspec(wrapped)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]
@@ -449,12 +449,16 @@ def count_leading_spaces(s):
         return 0
 
 
-def process_list_block(docstring, starting_point, leading_spaces, marker):
+def process_list_block(docstring, starting_point, section_end,
+                       leading_spaces, marker):
     ending_point = docstring.find('\n\n', starting_point)
     block = docstring[starting_point:(None if ending_point == -1 else
                                       ending_point - 1)]
     # Place marker for later reinjection.
-    docstring = docstring.replace(block, marker)
+    docstring_slice = docstring[starting_point:section_end].replace(block, marker)
+    docstring = (docstring[:starting_point]
+                 + docstring_slice
+                 + docstring[section_end:])
     lines = block.split('\n')
     # Remove the computed number of leading white spaces from each line.
     lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
@@ -537,12 +541,20 @@ def process_docstring(docstring):
         anchor = section_idx.group(2)
         leading_spaces = len(section_idx.group(1))
         shift += section_idx.end()
+        next_section_idx = re.search(section_regex, docstring[shift:])
+        if next_section_idx is None:
+            section_end = -1
+        else:
+            section_end = shift + next_section_idx.start()
         marker = '$' + anchor.replace(' ', '_') + '$'
         docstring, content = process_list_block(docstring,
                                                 shift,
+                                                section_end,
                                                 leading_spaces,
                                                 marker)
         sections[marker] = content
+        # `docstring` has changed, so we can't use `next_section_idx` anymore
+        # we have to recompute it
         section_idx = re.search(section_regex, docstring[shift:])
 
     # Format docstring section titles.
