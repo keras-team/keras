@@ -609,7 +609,8 @@ class Lambda(Layer):
 
         x1 = Dense(32)(input_1)
         x2 = Dense(32)(input_2)
-        x, _ = Lambda(hadamard_product_sum, hadamard_product_sum_output_shape)([x1, x2])
+        layer = Lambda(hadamard_product_sum, hadamard_product_sum_output_shape)
+        x_hadamard, x_sum = layer([x1, x2])
     ```
 
     # Arguments
