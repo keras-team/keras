@@ -482,6 +482,9 @@ class SequenceEnqueuer(object):
 
         Arguments:
             timeout: maximum time to wait on `join()`
+
+        Returns:
+            A list of errors encountered by the children, if any
         """
         if self.is_running():
             # let the children know we're done
@@ -503,9 +506,7 @@ class SequenceEnqueuer(object):
         self._queue = None
         self._stop_event = None
 
-        if len(child_errors):
-            error = child_errors[0]
-            six.reraise(error.__class__, error, error.__traceback__)
+        return child_errors
 
     def _drain_queue(self):
         error = None
@@ -661,9 +662,14 @@ class MultiProcEnqueuer(SequenceEnqueuer):
         Arguments:
             timeout: maximum time to wait on `join()`
         """
-        super(MultiProcEnqueuer, self).stop(timeout)
+        child_errors = super(MultiProcEnqueuer, self).stop(timeout)
         self._manager.shutdown()
         self._manager.join()
+
+        if len(child_errors):
+            error = child_errors[0]
+            six.reraise(error.__class__, error, error.__traceback__)
+
 
 class ThreadedEnqueuer(SequenceEnqueuer):
     """Enqueuer that implements multithreaded workers
@@ -708,6 +714,18 @@ class ThreadedEnqueuer(SequenceEnqueuer):
         except:
             self.stop()
             raise
+
+    def stop(self, timeout=None):
+        """Stops background threads and shuts down the Process Manager
+
+        Arguments:
+            timeout: maximum time to wait on `join()`
+        """
+        child_errors = super(ThreadedEnqueuer, self).stop(timeout)
+
+        if len(child_errors):
+            error = child_errors[0]
+            six.reraise(error.__class__, error, error.__traceback__)
 
 
 class GeneratorProxy(BaseProxy):
