@@ -594,14 +594,22 @@ class Lambda(Layer):
     ```
     ```python
         # add a layer that returns the hadamard product
-        # of the two input tensors
+        # and sum of it from two input tensors
 
-        def hadamard_product(tensors):
-            return tensors[0]*tensors[1]
+        def hadamard_product_sum(tensors):
+            out1 = tensors[0] * tensors[1]
+            out2 = K.sum(out1, axis=-1)
+            return [out1, out2]
 
-        x1 = Dense(32, activation="relu", input_dim=3)(input_1)
-        x2 = Dense(32, activation="relu", input_dim=3)(input_2)
-        x = Lambda(hadamard_product)([x1, x2])
+        def hadamard_product_sum_output_shape(input_shapes):
+            shape1 = list(input_shapes[0])
+            shape2 = list(input_shapes[1])
+            assert shape1 == shape2  # else hadamard product isn't possible
+            return [tuple(shape1), tuple(shape2[:-1])]
+
+        x1 = Dense(32)(input_1)
+        x2 = Dense(32)(input_2)
+        x, _ = Lambda(hadamard_product_sum, hadamard_product_sum_output_shape)([x1, x2])
     ```
 
     # Arguments
