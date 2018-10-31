@@ -450,6 +450,7 @@ class SequenceEnqueuer(object):
                 success, value = self._queue.get()
                 # Rethrow any exceptions found in the queue
                 if not success:
+                    self.stop()
                     six.reraise(value.__class__, value, value.__traceback__)
                 # Yield regular values
                 if value is not None:
@@ -465,6 +466,13 @@ class SequenceEnqueuer(object):
         while not self._queue.empty():
             success, value = self._queue.get()
             if not success:
+                self.stop()
+                if 'generator already executing' in str(value):
+                    raise RuntimeError(
+                        "Your generator is NOT thread-safe."
+                        "Keras requires a thread-safe generator when"
+                        "`use_multiprocessing=False, workers > 1`."
+                        "For more information see issue #1638.")
                 six.reraise(value.__class__, value, value.__traceback__)
 
     def stop(self, timeout=None):
@@ -615,13 +623,13 @@ class MultiProcEnqueuer(SequenceEnqueuer):
                     (when full, processes could block on `put()`).
         """
         try:
-            self._stop_event = self._manager.Event()
-            self._queue = self._manager.Queue(maxsize=max_queue_size)
+            self._stop_event = multiprocessing.Event()
+            self._queue = multiprocessing.Queue(maxsize=max_queue_size)
 
             task = self._task
             task_kwargs = self._task_kwargs
 
-            task_kwargs['lock'] = self._manager.Lock()
+            task_kwargs['lock'] = multiprocessing.Lock()
             task_kwargs['stop_event'] = self._stop_event
             task_kwargs['queue'] = self._queue
 
@@ -643,7 +651,7 @@ class MultiProcEnqueuer(SequenceEnqueuer):
         """
         super(MultiProcEnqueuer, self).stop(timeout)
         self._manager.shutdown()
-
+        self._manager.join()
 
 class ThreadedEnqueuer(SequenceEnqueuer):
     """Enqueuer that implements multithreaded workers
@@ -710,8 +718,7 @@ class GeneratorProxy(BaseProxy):
 class GeneratorManager(SyncManager):
     """Manager wrapper used to register and share Proxy objects across processes
     """
-    def __del__(self):
-        print('Manager GC!!!!')
+    pass
 
 
 def _data_generator_task(**kwargs):
@@ -719,6 +726,7 @@ def _data_generator_task(**kwargs):
         GeneratorEnqueuer to get data from a generator and send it to the parent
         process via a synchronized queue
     """
+    use_mp = kwargs['use_mp']
     generator = kwargs['generator']
     lock = kwargs['lock']
     stop_event = kwargs['stop_event']
@@ -726,7 +734,10 @@ def _data_generator_task(**kwargs):
 
     while not stop_event.is_set():
         try:
-            with lock:
+            if use_mp:
+                with lock:
+                    generator_output = next(generator)
+            else:
                 generator_output = next(generator)
             taskqueue.put((True, generator_output))
         except StopIteration:
@@ -782,6 +793,7 @@ class MultiProcGeneratorEnqueuer(MultiProcEnqueuer):
         generator = getattr(self._manager, self._generator_typeid)()
 
         self._task_kwargs = {
+            'use_mp': True,
             'generator': generator,
         }
 
@@ -802,6 +814,7 @@ class ThreadedGeneratorEnqueuer(ThreadedEnqueuer):
     def __init__(self, generator, wait_time=0.05):
 
         task_kwargs = {
+            'use_mp': False,
             'generator': generator,
         }
 
@@ -849,8 +862,6 @@ class SequenceManager(SyncManager):
     """Manager wrapper used to register and share
         Proxy objects across processes
     """
-    def __del__(self):
-        print('Manager GC!!!!')
 
 
 def seq_next_i(seq_order):
