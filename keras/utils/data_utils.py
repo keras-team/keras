@@ -450,8 +450,7 @@ class SequenceEnqueuer(object):
                 success, value = self._queue.get()
                 # Rethrow any exceptions found in the queue
                 if not success:
-                    self.stop()
-                    six.reraise(value.__class__, value, value.__traceback__)
+                    self._shutdown_and_reraise(value)
                 # Yield regular values
                 if value is not None:
                     yield value
@@ -466,14 +465,17 @@ class SequenceEnqueuer(object):
         while not self._queue.empty():
             success, value = self._queue.get()
             if not success:
-                self.stop()
-                if 'generator already executing' in str(value):
-                    raise RuntimeError(
-                        "Your generator is NOT thread-safe."
-                        "Keras requires a thread-safe generator when"
-                        "`use_multiprocessing=False, workers > 1`."
-                        "For more information see issue #1638.")
-                six.reraise(value.__class__, value, value.__traceback__)
+                self._shutdown_and_reraise(value)
+
+    def _shutdown_and_reraise(self, error):
+        self.stop()
+        if 'generator already executing' in str(error):
+            raise RuntimeError(
+                "Your generator is NOT thread-safe."
+                "Keras requires a thread-safe generator when"
+                "`use_multiprocessing=False, workers > 1`."
+                "For more information see issue #1638.")
+        six.reraise(error.__class__, error, error.__traceback__)
 
     def stop(self, timeout=None):
         """Stops background workers and waits for them to exit, if necessary.
