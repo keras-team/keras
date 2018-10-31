@@ -585,14 +585,14 @@ template_np_implementation = """# Numpy implementation
 """
 
 template_hidden_np_implementation = """# Numpy implementation
-    
+
     <details>
     <summary>Show the Numpy implementation</summary>
-    
+
     ```python
 {{code}}
     ```
-    
+
     </details>
 """
 
