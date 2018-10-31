@@ -1150,6 +1150,8 @@ def batch_dot(x, y, axes=None):
         >>> K.int_shape(xy_batch_dot)
         (32, 1, 30)
     ```
+
+    {{np_implementation}}
     """
     x_shape = int_shape(x)
     y_shape = int_shape(y)

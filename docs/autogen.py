@@ -577,18 +577,40 @@ def process_docstring(docstring):
     return docstring
 
 
+template_np_implementation = """# Numpy implementation
+
+    ```python
+{{code}}
+    ```
+"""
+
+template_hidden_np_implementation = """# Numpy implementation
+    
+    <details>
+    <summary>Show the Numpy implementation</summary>
+    
+    ```python
+{{code}}
+    ```
+    
+    </details>
+"""
+
+
 def add_np_implementation(function, docstring):
     np_implementation = getattr(numpy_backend, function.__name__)
-    np_impl_code = inspect.getsource(np_implementation)
-    header = '# Numpy implementation\n    ```python\n        '
-    footer = '```\n'
+    code = inspect.getsource(np_implementation)
+    code_lines = code.split('\n')
+    for i in range(len(code_lines)):
+        if code_lines[i]:
+            # if there is something on the line, add 8 spaces.
+            code_lines[i] = '        ' + code_lines[i]
+    code = '\n'.join(code_lines[:-1])
 
-    # use the right indentation
-    np_impl_code = np_impl_code.replace('\n', '\n        ')
-
-    # removing the last empty line
-    np_impl_code = np_impl_code[:-4]
-    section = header + np_impl_code + footer
+    if len(code_lines) < 10:
+        section = template_np_implementation.replace('{{code}}', code)
+    else:
+        section = template_hidden_np_implementation.replace('{{code}}', code)
     return docstring.replace('{{np_implementation}}', section)
 
 
