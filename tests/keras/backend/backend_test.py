@@ -1783,30 +1783,25 @@ class TestBackend(object):
                   for t in range(max_time_steps)]
 
         # change tensorflow order to keras backend order
-        inputs = K.variable(np.asarray(inputs).transpose((1, 0, 2)))
+        inputs = np.asarray(inputs).transpose((1, 0, 2))
+
         # batch_size length vector of sequence_lengths
-        input_length = K.variable(np.array([seq_len_0, seq_len_1], dtype=np.int32))
+        input_length = np.array([seq_len_0, seq_len_1], dtype=np.int32)
 
-        # batch_size length vector of negative log probabilities
-        log_prob_truth = np.array([
-            np.sum(-np.log([1.0, 0.6, 0.6, 0.9])),
-            np.sum(-np.log([0.9, 0.9, 0.9, 0.9, 0.9]))
-        ], np.float32)[:, np.newaxis]
-
-        # keras output, unlike tensorflow, is a dense (not sparse) tensor
-        decode_truth = np.array([[0, 1, -1], [1, 1, 0]])
-
+        decode_pred_np, log_prob_pred_np = KNP.ctc_decode(inputs,
+                                                          input_length, greedy=True)
+        inputs = K.variable(inputs)
+        input_length = K.variable(input_length)
         decode_pred_tf, log_prob_pred_tf = K.ctc_decode(inputs,
-                                                        input_length,
-                                                        greedy=True)
+                                                        input_length, greedy=True)
 
         assert len(decode_pred_tf) == 1
 
         decode_pred = K.eval(decode_pred_tf[0])
         log_prob_pred = K.eval(log_prob_pred_tf)
 
-        assert np.alltrue(decode_truth == decode_pred)
-        assert np.allclose(log_prob_truth, log_prob_pred)
+        assert np.alltrue(decode_pred_np == decode_pred)
+        assert np.allclose(log_prob_pred_np, log_prob_pred)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Beam search is only implemented with '
