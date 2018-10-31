@@ -670,6 +670,12 @@ class MultiProcEnqueuer(SequenceEnqueuer):
 
         if len(child_errors):
             error = child_errors[0]
+            if 'generator already executing' in str(error):
+                raise RuntimeError(
+                    "Your generator is NOT thread-safe."
+                    "Keras requires a thread-safe generator when"
+                    "`use_multiprocessing=False, workers > 1`."
+                    "For more information see issue #1638.")
             six.reraise(error.__class__, error, error.__traceback__)
 
 
@@ -727,6 +733,12 @@ class ThreadedEnqueuer(SequenceEnqueuer):
 
         if len(child_errors):
             error = child_errors[0]
+            if 'generator already executing' in str(error):
+                raise RuntimeError(
+                    "Your generator is NOT thread-safe."
+                    "Keras requires a thread-safe generator when"
+                    "`use_multiprocessing=False, workers > 1`."
+                    "For more information see issue #1638.")
             six.reraise(error.__class__, error, error.__traceback__)
 
 
