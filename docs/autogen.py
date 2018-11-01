@@ -80,6 +80,7 @@ from keras import models
 from keras import losses
 from keras import metrics
 from keras import backend
+from keras.backend import numpy_backend
 from keras import constraints
 from keras import activations
 from keras import preprocessing
@@ -575,6 +576,44 @@ def process_docstring(docstring):
             '$CODE_BLOCK_%d' % i, code_block)
     return docstring
 
+
+template_np_implementation = """# Numpy implementation
+
+    ```python
+{{code}}
+    ```
+"""
+
+template_hidden_np_implementation = """# Numpy implementation
+
+    <details>
+    <summary>Show the Numpy implementation</summary>
+
+    ```python
+{{code}}
+    ```
+
+    </details>
+"""
+
+
+def add_np_implementation(function, docstring):
+    np_implementation = getattr(numpy_backend, function.__name__)
+    code = inspect.getsource(np_implementation)
+    code_lines = code.split('\n')
+    for i in range(len(code_lines)):
+        if code_lines[i]:
+            # if there is something on the line, add 8 spaces.
+            code_lines[i] = '        ' + code_lines[i]
+    code = '\n'.join(code_lines[:-1])
+
+    if len(code_lines) < 10:
+        section = template_np_implementation.replace('{{code}}', code)
+    else:
+        section = template_hidden_np_implementation.replace('{{code}}', code)
+    return docstring.replace('{{np_implementation}}', section)
+
+
 print('Cleaning up existing sources directory.')
 if os.path.exists('sources'):
     shutil.rmtree('sources')
@@ -617,6 +656,9 @@ def render_function(function, method=True):
     subblocks.append(code_snippet(signature))
     docstring = function.__doc__
     if docstring:
+        if ('backend' in signature and
+                '{{np_implementation}}' in docstring):
+            docstring = add_np_implementation(function, docstring)
         subblocks.append(process_docstring(docstring))
     return '\n\n'.join(subblocks)
 
