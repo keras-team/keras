@@ -1480,5 +1480,27 @@ def test_dynamic_set_inputs():
     assert preds4.shape == (1, 19)
 
 
+@keras_test
+def test_elementwise_weights():
+
+    im = np.zeros((10, 5, 5, 3))
+    out1 = np.ones((10, 5, 5, 1))
+    out2 = np.ones((10, 5, 5, 2))
+
+    input_tensor = Input(shape=im.shape[1:])
+    main_output = Conv2D(filters=1, kernel_size=(1, 1), strides=1, padding='same',
+                         name='main_output')(input_tensor)
+    aux_output = Conv2D(filters=2, kernel_size=(1, 1), strides=3, padding='same',
+                        name='aux_output')(input_tensor)
+    model = Model(inputs=input_tensor, outputs=[main_output, aux_output])
+
+    model.compile(loss='mae', optimizer='sgd',
+                  sample_weight_mode=['element', 'element'])
+
+    model.fit(im, [out1, out2],
+              sample_weight=[out1, out2],
+              batch_size=3, epochs=3)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
