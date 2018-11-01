@@ -1486,11 +1486,13 @@ def test_elementwise_weights():
     im = np.zeros((10, 5, 5, 3))
     out1 = np.ones((10, 5, 5, 1))
     out2 = np.ones((10, 5, 5, 2))
+    weights1 = np.ones((10, 5, 5))
+    weights2 = np.ones((10, 5, 5))
 
     input_tensor = Input(shape=im.shape[1:])
     main_output = Conv2D(filters=1, kernel_size=(1, 1), strides=1, padding='same',
                          name='main_output')(input_tensor)
-    aux_output = Conv2D(filters=2, kernel_size=(1, 1), strides=3, padding='same',
+    aux_output = Conv2D(filters=2, kernel_size=(1, 1), strides=1, padding='same',
                         name='aux_output')(input_tensor)
     model = Model(inputs=input_tensor, outputs=[main_output, aux_output])
 
@@ -1498,7 +1500,7 @@ def test_elementwise_weights():
                   sample_weight_mode=['element', 'element'])
 
     model.fit(im, [out1, out2],
-              sample_weight=[out1, out2],
+              sample_weight=[weights1, weights2],
               batch_size=3, epochs=3)
 
 
