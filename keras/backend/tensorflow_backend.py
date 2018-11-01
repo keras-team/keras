@@ -1150,6 +1150,8 @@ def batch_dot(x, y, axes=None):
         >>> K.int_shape(xy_batch_dot)
         (32, 1, 30)
     ```
+
+    {{np_implementation}}
     """
     x_shape = int_shape(x)
     y_shape = int_shape(y)
@@ -1291,6 +1293,8 @@ def gather(reference, indices):
 
     # Returns
         A tensor of same type as `reference`.
+
+    {{np_implementation}}
     """
     return tf.nn.embedding_lookup(reference, indices)
 
@@ -2442,6 +2446,8 @@ def reverse(x, axes):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     if isinstance(axes, int):
         axes = [axes]
