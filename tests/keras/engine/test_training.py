@@ -1482,7 +1482,6 @@ def test_dynamic_set_inputs():
 
 @keras_test
 def test_elementwise_weights():
-
     im = np.zeros((10, 5, 5, 3))
     out1 = np.ones((10, 5, 5, 1))
     out2 = np.ones((10, 5, 5, 2))
