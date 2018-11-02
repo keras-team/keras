@@ -1548,6 +1548,22 @@ def test_dynamic_set_inputs():
 
 def test_elementwise_weights():
     im = np.zeros((10, 5, 5, 3))
+    out = np.ones((10, 5, 5, 1))
+    weights = np.ones((10, 5, 5))
+
+    input_tensor = Input(shape=im.shape[1:])
+    main_output = Conv2D(1, (1, 1), strides=1, padding='same')(input_tensor)
+    model = Model(input_tensor, main_output)
+
+    model.compile('sgd', 'mae', sample_weight_mode='element')
+
+    model.fit(im, out,
+              sample_weight=weights,
+              batch_size=3, epochs=3)
+
+
+def test_elementwise_weights_multi_outputs():
+    im = np.zeros((10, 5, 5, 3))
     out1 = np.ones((10, 5, 5, 1))
     out2 = np.ones((10, 5, 5, 2))
     weights1 = np.ones((10, 5, 5))

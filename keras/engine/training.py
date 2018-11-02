@@ -271,10 +271,8 @@ class Model(Network):
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('temporal')
                     elif sample_weight_mode.get(name) == 'element':
-                        if isinstance(self.output_shape, list):
-                            ndim = len(self.output_shape[i]) - 1
-                        else:
-                            ndim = len(self.output_shape) - 1
+                        output_shapes = to_list(self.output_shape)
+                        ndim = len(output_shapes[i]) - 1
                         weight = K.placeholder(ndim=ndim,
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('element')
@@ -303,10 +301,8 @@ class Model(Network):
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('temporal')
                     elif mode == 'element':
-                        if isinstance(self.output_shape, list):
-                            ndim = len(self.output_shape[i]) - 1
-                        else:
-                            ndim = len(self.output_shape) - 1
+                        output_shapes = to_list(self.output_shape)
+                        ndim = len(output_shapes[i]) - 1
                         weight = K.placeholder(ndim=ndim,
                                                name=name + '_sample_weights')
                         sample_weight_modes.append('element')
@@ -327,10 +323,8 @@ class Model(Network):
                                           name=name + '_sample_weights'))
                         sample_weight_modes.append('temporal')
                     elif sample_weight_mode == 'element':
-                        if isinstance(self.output_shape, list):
-                            ndim = len(self.output_shape[i]) - 1
-                        else:
-                            ndim = len(self.output_shape) - 1
+                        output_shapes = to_list(self.output_shape)
+                        ndim = len(output_shapes[i]) - 1
                         sample_weights.append(
                             K.placeholder(ndim=ndim,
                                           name=name + '_sample_weights'))
