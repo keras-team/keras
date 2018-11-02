@@ -1278,7 +1278,7 @@ class TestBackend(object):
         kernel_shape = (3, 2, 3)
         for strides in [1, 2]:
             check_two_tensor_operation('conv1d', input_shape, kernel_shape,
-                                       BACKENDS, cntk_dynamicity=True,
+                                       WITH_NP, cntk_dynamicity=True,
                                        strides=strides,
                                        data_format='channels_last')
 
@@ -1291,7 +1291,7 @@ class TestBackend(object):
             ((1, 6, 5, 3), (3, 3, 3, 2), 'channels_last')
         ]:
             check_two_tensor_operation('conv2d', input_shape, kernel_shape,
-                                       BACKENDS, cntk_dynamicity=True,
+                                       WITH_NP, cntk_dynamicity=True,
                                        data_format=data_format)
 
     def test_legacy_depthwise_conv_2d(self):
@@ -1304,7 +1304,7 @@ class TestBackend(object):
         ]:
             check_two_tensor_operation('depthwise_conv2d',
                                        input_shape, kernel_shape,
-                                       BACKENDS, cntk_dynamicity=True,
+                                       WITH_NP, cntk_dynamicity=True,
                                        data_format=data_format)
 
     def test_legacy_conv3d(self):
@@ -1318,7 +1318,7 @@ class TestBackend(object):
             ((1, 2, 2, 2, 1), (2, 2, 2, 1, 1), 'channels_last')
         ]:
             check_two_tensor_operation('conv3d', input_shape, kernel_shape,
-                                       BACKENDS, cntk_dynamicity=True,
+                                       WITH_NP, cntk_dynamicity=True,
                                        data_format=data_format)
 
     @pytest.mark.parametrize(

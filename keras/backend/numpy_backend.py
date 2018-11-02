@@ -39,7 +39,15 @@ def normalize_conv(func):
                 for j in range(w.shape[2 + i] - 1):
                     w = np.insert(w, 2 * j + 1, 0, axis=2 + i)
 
+        strides = kwargs.pop('strides', 1)
+        if isinstance(strides, int):
+            strides = [1, 1] + [strides] * (x.ndim - 2)
+
         y = func(x, w, **kwargs)
+
+        slices = tuple(slice(None, None, stride) for stride in strides)
+
+        y = y[slices]
 
         if kwargs['data_format'] == 'channels_last':
             if y.ndim == 3:
@@ -55,7 +63,7 @@ def normalize_conv(func):
 
 
 @normalize_conv
-def conv(x, w, padding, data_format):
+def conv(x, w, padding='valid', data_format=None):
     y = []
     for i in range(x.shape[0]):
         _y = []
@@ -70,7 +78,7 @@ def conv(x, w, padding, data_format):
 
 
 @normalize_conv
-def depthwise_conv(x, w, padding, data_format):
+def depthwise_conv(x, w, padding='valid', data_format=None):
     y = []
     for i in range(x.shape[0]):
         _y = []
