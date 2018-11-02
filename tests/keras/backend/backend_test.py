@@ -1399,9 +1399,10 @@ class TestBackend(object):
             'pool3d', (5, 9, 11, 5, 3), WITH_NP, cntk_dynamicity=True,
             pool_size=(2, 3, 2), strides=(1, 1, 1), padding='valid')
 
-        check_single_tensor_operation(
-            'pool3d', (2, 6, 6, 6, 3), WITH_NP,
-            pool_size=(3, 3, 3), strides=(1, 1, 1), padding='same', pool_mode='avg')
+        if K.backend() != 'cntk':
+            check_single_tensor_operation(
+                'pool3d', (2, 6, 6, 6, 3), WITH_NP,
+                pool_size=(3, 3, 3), strides=(1, 1, 1), padding='same', pool_mode='avg')
 
     def test_random_normal(self):
         # test standard normal as well as a normal with a different set of parameters
