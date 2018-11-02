@@ -1556,10 +1556,7 @@ def test_elementwise_weights():
     model = Model(input_tensor, main_output)
 
     model.compile('sgd', 'mae', sample_weight_mode='element')
-
-    model.fit(im, out,
-              sample_weight=weights,
-              batch_size=3, epochs=3)
+    model.fit(im, out, sample_weight=weights, batch_size=3, epochs=3)
 
 
 def test_elementwise_weights_multi_outputs():
