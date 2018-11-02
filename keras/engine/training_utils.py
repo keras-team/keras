@@ -453,11 +453,19 @@ def standardize_weights(y,
     # Raises
         ValueError: In case of invalid user-provided arguments.
     """
-    if sample_weight_mode is not None:
-        if sample_weight_mode not in ('temporal', 'element'):
-            raise ValueError('"sample_weight_mode '
-                             'should be None, "element" or "temporal". '
-                             'Found: ' + str(sample_weight_mode))
+
+    if sample_weight_mode is None:
+        if sample_weight is not None and sample_weight.ndim != 1:
+            raise ValueError('Found a sample_weight array with shape ' +
+                             str(sample_weight.shape) + '. '
+                             'In order to use timestep-wise sample weights, '
+                             'you should specify '
+                             'sample_weight_mode="temporal" '
+                             'in compile(). If you just mean to use '
+                             'sample-wise weights, make sure your '
+                             'sample_weight array is 1D.')
+
+    elif sample_weight_mode is 'temporal':
         if len(y.shape) < 3:
             raise ValueError('Found a sample_weight array for '
                              'an input with shape ' +
@@ -466,40 +474,33 @@ def standardize_weights(y,
                              'sample_weight_mode="temporal") is restricted to '
                              'outputs that are at least 3D, i.e. that have '
                              'a time dimension.')
-        if sample_weight is 'temporal' and len(sample_weight.shape) != 2:
-            raise ValueError('Found a temporal sample_weight array with shape ' +
+        if sample_weight is not None and sample_weight.ndim != 2:
+            raise ValueError('Found a sample_weight array with shape ' +
                              str(sample_weight.shape) + '. '
                              'In order to use timestep-wise sample weighting, '
                              'you should pass a 2D sample_weight array.')
-    elif sample_weight_mode is 'temporal':
-        if sample_weight is not None and len(sample_weight.shape) != 1:
-            raise ValueError('Found a sample_weight array with shape ' +
-                             str(sample_weight.shape) + '. '
-                             'In order to use timestep-wise sample weights, '
-                             'you should specify '
-                             'sample_weight_mode="temporal" '
-                             'in compile(). If you just mean to use '
-                             'sample-wise weights, make sure your '
-                             'sample_weight array is 1D (sample_weight_mode=None) '
-                             'or the same size as the `score_array` '
-                             '(sample_weight_mode="element").')
+
     elif sample_weight_mode is 'element':
-        if sample_weight is not None:
-            score_array_shape = list(y.shape)
-            if K.image_data_format() == 'channels_first':
-                score_array_shape.pop(1)
-            elif K.image_data_format() == 'channels_last':
-                score_array_shape.pop(-1)
-            else:
-                raise ValueError('Data format is neither channels_first ' +
-                                 'nor channels_last')
-            if sample_weight.shape != tuple(score_array_shape):
-                raise ValueError('Found a sample_weight array with shape ' +
-                                 str(sample_weight.shape) +
-                                 ' for output with shape ' +
-                                 str(y.shape) +
-                                 '. When sample_weight_mode="element", ' +
-                                 'weights and score_array must have the same size.')
+        if K.image_data_format() == 'channels_first':
+            score_array_shape = y.shape[:1] + y.shape[2:]
+        elif K.image_data_format() == 'channels_last':
+            score_array_shape = y.shape[:-1]
+        else:
+            raise ValueError('Data format is neither channels_first ' +
+                             'nor channels_last')
+        if sample_weight is not None and sample_weight.shape != score_array_shape:
+            raise ValueError('Found a `sample_weight` array with shape ' +
+                             str(sample_weight.shape) +
+                             ' for output with shape ' +
+                             str(y.shape) +
+                             '. When sample_weight_mode="element", ' +
+                             'weights and score_array must have the same size.'
+                             'Your `sample_weight` array should have the '
+                             'following shape: ' + str(score_array_shape))
+    else:
+        raise ValueError('"sample_weight_mode '
+                         'should be `None`, "element" or "temporal". '
+                         'Found: ' + str(sample_weight_mode))
 
     if sample_weight is not None and class_weight is not None:
         warnings.warn('Found both `sample_weight` and `class_weight`: '
@@ -547,14 +548,6 @@ def standardize_weights(y,
         if sample_weight_mode is None:
             return np.ones((y.shape[0],), dtype=K.floatx())
         elif sample_weight_mode == 'element':
-            score_array_shape = list(y.shape)
-            if K.image_data_format() == 'channels_first':
-                score_array_shape.pop(1)
-            elif K.image_data_format() == 'channels_last':
-                score_array_shape.pop(-1)
-            else:
-                raise ValueError('Data format is neither channels_first ' +
-                                 'nor channels_last')
             return np.ones(score_array_shape, dtype=K.floatx())
         else:
             return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
