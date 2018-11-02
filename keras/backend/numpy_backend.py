@@ -7,6 +7,7 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 from keras.backend import floatx
+from keras.backend import normalize_data_format
 from keras.utils.generic_utils import transpose_shape
 from keras.utils import to_categorical
 
@@ -117,7 +118,8 @@ conv2d_transpose = conv_transpose
 conv3d_transpose = conv_transpose
 
 
-def pool(x, pool_size, strides, padding, data_format, pool_mode):
+def pool(x, pool_size, strides, padding='valid', data_format=None, pool_mode='max'):
+    data_format = normalize_data_format(data_format)
     if data_format == 'channels_last':
         if x.ndim == 3:
             x = np.transpose(x, (0, 2, 1))
