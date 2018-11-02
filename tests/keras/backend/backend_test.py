@@ -971,7 +971,7 @@ class TestBackend(object):
         assert_list_pairwise(outputs_list, shape=False)
 
     def test_rnn_output_and_state_masking_independent(self):
-        num_samples = 3
+        num_samples = 2
         num_timesteps = 4
         state_and_io_size = 5
 
@@ -979,10 +979,13 @@ class TestBackend(object):
             return inputs, [s + 1 for s in states]
 
         inputs_vals = np.ones((num_samples, num_timesteps, state_and_io_size))
-        inputs_vals[:, -1] = 0  # this should be ignored due to mask
+        inputs_vals[1] += 1.
+        inputs_vals[:, -1] = 0  # should be ignored for first sample due to mask
+
         initial_state_vals = [np.zeros((num_samples, state_and_io_size))]
+
         mask_vals = np.ones((num_samples, num_timesteps))
-        mask_vals[:, -1] = 0  # final timestep masked
+        mask_vals[0, -1] = 0  # final timestep masked for sample 1
 
         inputs = K.variable(inputs_vals)
         initial_state = [K.variable(initial_state_vals[0])]
@@ -993,15 +996,23 @@ class TestBackend(object):
                 inputs,
                 initial_state,
                 mask=mask,
-                unroll=unroll)
+                unroll=unroll,
+                input_length=num_timesteps if unroll else None)
 
             expected_outputs = np.ones((num_samples, num_timesteps, 5))
+            expected_outputs[1] += 1.
+            expected_outputs[1, -1] = 0  # only second sample gets the zero
             assert_allclose(K.eval(outputs), expected_outputs)
 
             expected_states = [
-                np.ones((num_samples, state_and_io_size)) * (num_timesteps - 1)]
+                np.concatenate([
+                    np.ones((1, state_and_io_size)) * (num_timesteps - 1),
+                    np.ones((1, state_and_io_size)) * num_timesteps
+                ])
+            ]
             assert_allclose(K.eval(last_states[0]), expected_states[0])
 
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
     def test_rnn_output_num_dim_larger_than_2_masking(self):
         num_samples = 3
         num_timesteps = 4
@@ -1025,11 +1036,13 @@ class TestBackend(object):
                 inputs,
                 initial_state,
                 mask=mask,
-                unroll=unroll)
+                unroll=unroll,
+                input_length=num_timesteps if unroll else None)
 
             expected_outputs = np.ones((num_samples, num_timesteps, 5, 2))
             assert_allclose(K.eval(outputs), expected_outputs)
 
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
     def test_rnn_state_num_dim_larger_than_2_masking(self):
         num_samples = 3
         num_timesteps = 4
@@ -1051,7 +1064,9 @@ class TestBackend(object):
                 inputs,
                 initial_state,
                 mask=mask,
-                unroll=unroll)
+                unroll=unroll,
+                input_length=num_timesteps if unroll else None)
+
             # not updated last timestep:
             expected_last_state = np.ones((num_samples, 6, 6)) * (num_timesteps - 1)
             assert_allclose(K.eval(last_states[0]), expected_last_state)
