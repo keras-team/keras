@@ -970,6 +970,38 @@ class TestBackend(object):
         assert_list_pairwise(last_output_list, shape=False)
         assert_list_pairwise(outputs_list, shape=False)
 
+    def test_rnn_output_and_state_masking_independent(self):
+        num_samples = 3
+        num_timesteps = 4
+        state_and_io_size = 5
+
+        def step_function(inputs, states):
+            return inputs, [s + 1 for s in states]
+
+        inputs_vals = np.ones((num_samples, num_timesteps, state_and_io_size))
+        inputs_vals[:, -1] = 0  # this should be ignored due to mask
+        initial_state_vals = [np.zeros((num_samples, state_and_io_size))]
+        mask_vals = np.ones((num_samples, num_timesteps))
+        mask_vals[:, -1] = 0  # final timestep masked
+
+        inputs = K.variable(inputs_vals)
+        initial_state = [K.variable(initial_state_vals[0])]
+        mask = K.variable(mask_vals)
+        for unroll in [True, False]:
+            last_output, outputs, last_states = K.rnn(
+                step_function,
+                inputs,
+                initial_state,
+                mask=mask,
+                unroll=unroll)
+
+            expected_outputs = np.ones((num_samples, num_timesteps, 5))
+            assert_allclose(K.eval(outputs), expected_outputs)
+
+            expected_states = [
+                np.ones((num_samples, state_and_io_size)) * (num_timesteps - 1)]
+            assert_allclose(K.eval(last_states[0]), expected_states[0])
+
     def test_rnn_output_num_dim_larger_than_2_masking(self):
         num_samples = 3
         num_timesteps = 4
