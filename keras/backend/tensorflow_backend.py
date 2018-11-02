@@ -2910,7 +2910,7 @@ def rnn(step_function, inputs, initial_states,
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
     """
-    ndim = len(inputs.get_shape())
+    ndim = len(inputs.shape)
     if ndim < 3:
         raise ValueError('Input should be at least 3D.')
 
@@ -2922,17 +2922,17 @@ def rnn(step_function, inputs, initial_states,
     if mask is not None:
         if mask.dtype != tf.bool:
             mask = tf.cast(mask, tf.bool)
-        if len(mask.get_shape()) != 2:
+        if len(mask.shape) != 2:
             raise ValueError(
-                "mask should have shape=(samples, time), "
-                "got {}".format(mask.get_shape()))
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
         mask = tf.transpose(mask, [1, 0])
 
         def get_matching_mask(mask_t, ref_tensor_t):
             # tf.where needs its condition tensor
             # to be the same shape as its two
             # result tensors
-            ndim = len(ref_tensor_t.get_shape())
+            ndim = len(ref_tensor_t.shape)
             for _ in range(ndim - 1):
                 mask_t = expand_dims(mask_t)
             add_shape = tf.shape(ref_tensor_t)[1:]
@@ -2946,7 +2946,7 @@ def rnn(step_function, inputs, initial_states,
     uses_learning_phase = False
 
     if unroll:
-        if not inputs.get_shape()[0]:
+        if not inputs.shape[0]:
             raise ValueError('Unrolling requires a '
                              'fixed number of timesteps.')
         states = initial_states
@@ -3017,11 +3017,11 @@ def rnn(step_function, inputs, initial_states,
             tensor_array_name='input_ta')
         input_ta = input_ta.unstack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
-        while_loop_kwargs = dict(
-            cond=lambda time, *_: time < time_steps,
-            parallel_iterations=32,
-            swap_memory=True,
-            maximum_iterations=input_length)
+        while_loop_kwargs = {
+            'cond': lambda time, *_: time < time_steps,
+            'parallel_iterations': 32,
+            'swap_memory': True,
+            'maximum_iterations': input_length}
 
         if mask is not None:
             if not states:
@@ -3058,7 +3058,7 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
-                    new_state.set_shape(state.get_shape())
+                    new_state.set_shape(state.shape)
 
                 output_mask_t = get_matching_mask(mask_t, output)
                 output = tf.where(output_mask_t, output, output_tm1)
@@ -3095,7 +3095,7 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
-                    new_state.set_shape(state.get_shape())
+                    new_state.set_shape(state.shape)
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
 
@@ -3110,7 +3110,7 @@ def rnn(step_function, inputs, initial_states,
         outputs = output_ta.stack()
         last_output = output_ta.read(last_time - 1)
 
-    axes = [1, 0] + list(range(2, len(outputs.get_shape())))
+    axes = [1, 0] + list(range(2, len(outputs.shape)))
     outputs = tf.transpose(outputs, axes)
     last_output._uses_learning_phase = uses_learning_phase
     return last_output, outputs, new_states
