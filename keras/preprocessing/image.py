@@ -4,10 +4,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import inspect
-
 from .. import backend
 from .. import utils
+from ..utils import generic_utils
+
 from keras_preprocessing import image
 
 random_rotation = image.random_rotation
@@ -25,7 +25,7 @@ load_img = image.load_img
 def array_to_img(x, data_format=None, scale=True, dtype=None):
     if data_format is None:
         data_format = backend.image_data_format()
-    if 'dtype' in inspect.getargspec(image.array_to_img).args:
+    if 'dtype' in generic_utils.getargspec(image.array_to_img).args:
         if dtype is None:
             dtype = backend.floatx()
         return image.array_to_img(x,
@@ -40,7 +40,7 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 def img_to_array(img, data_format=None, dtype=None):
     if data_format is None:
         data_format = backend.image_data_format()
-    if 'dtype' in inspect.getargspec(image.img_to_array).args:
+    if 'dtype' in generic_utils.getargspec(image.img_to_array).args:
         if dtype is None:
             dtype = backend.floatx()
         return image.img_to_array(img, data_format=data_format, dtype=dtype)
@@ -142,7 +142,7 @@ class DirectoryIterator(image.DirectoryIterator, Iterator):
         if data_format is None:
             data_format = backend.image_data_format()
         kwargs = {}
-        if 'dtype' in inspect.getargspec(
+        if 'dtype' in generic_utils.getargspec(
                 image.ImageDataGenerator.__init__).args:
             if dtype is None:
                 dtype = backend.floatx()
@@ -210,7 +210,7 @@ class NumpyArrayIterator(image.NumpyArrayIterator, Iterator):
         if data_format is None:
             data_format = backend.image_data_format()
         kwargs = {}
-        if 'dtype' in inspect.getargspec(
+        if 'dtype' in generic_utils.getargspec(
                 image.NumpyArrayIterator.__init__).args:
             if dtype is None:
                 dtype = backend.floatx()
@@ -436,7 +436,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
         if data_format is None:
             data_format = backend.image_data_format()
         kwargs = {}
-        if 'dtype' in inspect.getargspec(
+        if 'dtype' in generic_utils.getargspec(
                 image.ImageDataGenerator.__init__).args:
             if dtype is None:
                 dtype = backend.floatx()
