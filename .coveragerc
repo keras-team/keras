@@ -1,6 +1,7 @@
 [report]
 # Regexes for lines to exclude from consideration
 exclude_lines =
+    pragma: no cover
     os.remove
     except ImportError
     # Don't complain if tests don't hit defensive assertion code:
@@ -14,6 +15,7 @@ fail_under = 85
 show_missing = True
 omit =
     keras/applications/*
+    keras/preprocessing/*
     keras/datasets/*
     keras/layers/cudnn_recurrent.py
     keras/legacy/*

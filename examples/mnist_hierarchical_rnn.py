@@ -12,12 +12,14 @@ the word-level and sentence-level structure of the context.
 
 # References
 
-- [A Hierarchical Neural Autoencoder for Paragraphs and Documents](https://arxiv.org/abs/1506.01057)
+- [A Hierarchical Neural Autoencoder for Paragraphs and Documents]
+    (https://arxiv.org/abs/1506.01057)
     Encodes paragraphs and documents with HRNN.
     Results have shown that HRNN outperforms standard
     RNNs and may play some role in more sophisticated generation tasks like
     summarization or question answering.
-- [Hierarchical recurrent neural network for skeleton based action recognition](http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7298714)
+- [Hierarchical recurrent neural network for skeleton based action recognition]
+    (http://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=7298714)
     Achieved state-of-the-art results on
     skeleton based action recognition with 3 levels
     of bidirectional HRNN combined with fully connected layers.

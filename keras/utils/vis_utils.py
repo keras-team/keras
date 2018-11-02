@@ -34,7 +34,10 @@ def _check_pydot():
 def model_to_dot(model,
                  show_shapes=False,
                  show_layer_names=True,
-                 rankdir='TB'):
+                 rankdir='TB',
+                 expand_nested=False,
+                 dpi=96,
+                 subgraph=False):
     """Convert a Keras model to dot format.
 
     # Arguments
@@ -45,35 +48,60 @@ def model_to_dot(model,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
+        expand_nested: whether to expand nested models into clusters.
+        dpi: dot DPI.
+        subgraph: whether to return a pydot.Cluster instance.
 
     # Returns
-        A `pydot.Dot` instance representing the Keras model.
+        A `pydot.Dot` instance representing the Keras model or
+        a `pydot.Cluster` instance representing nested model if
+        `subgraph=True`.
     """
     from ..layers.wrappers import Wrapper
+    from ..models import Model
     from ..models import Sequential
 
     _check_pydot()
-    dot = pydot.Dot()
-    dot.set('rankdir', rankdir)
-    dot.set('concentrate', True)
-    dot.set_node_defaults(shape='record')
+    if subgraph:
+        dot = pydot.Cluster(style='dashed')
+        dot.set('label', model.name)
+        dot.set('labeljust', 'l')
+    else:
+        dot = pydot.Dot()
+        dot.set('rankdir', rankdir)
+        dot.set('concentrate', True)
+        dot.set('dpi', dpi)
+        dot.set_node_defaults(shape='record')
 
     if isinstance(model, Sequential):
         if not model.built:
             model.build()
-    layers = model.layers
+    layers = model._layers
 
     # Create graph nodes.
-    for layer in layers:
+    for i, layer in enumerate(layers):
         layer_id = str(id(layer))
 
         # Append a wrapped layer's label to node's label, if it exists.
         layer_name = layer.name
         class_name = layer.__class__.__name__
         if isinstance(layer, Wrapper):
-            layer_name = '{}({})'.format(layer_name, layer.layer.name)
-            child_class_name = layer.layer.__class__.__name__
-            class_name = '{}({})'.format(class_name, child_class_name)
+            if expand_nested and isinstance(layer.layer, Model):
+                submodel = model_to_dot(layer.layer, show_shapes,
+                                        show_layer_names, rankdir, expand_nested,
+                                        subgraph=True)
+                model_nodes = submodel.get_nodes()
+                dot.add_edge(pydot.Edge(layer_id, model_nodes[0].get_name()))
+                if len(layers) > i + 1:
+                    next_layer_id = str(id(layers[i + 1]))
+                    dot.add_edge(pydot.Edge(
+                        model_nodes[len(model_nodes) - 1].get_name(),
+                        next_layer_id))
+                dot.add_subgraph(submodel)
+            else:
+                layer_name = '{}({})'.format(layer_name, layer.layer.name)
+                child_class_name = layer.layer.__class__.__name__
+                class_name = '{}({})'.format(class_name, child_class_name)
 
         # Create node's label.
         if show_layer_names:
@@ -107,9 +135,16 @@ def model_to_dot(model,
             node_key = layer.name + '_ib-' + str(i)
             if node_key in model._network_nodes:
                 for inbound_layer in node.inbound_layers:
-                    inbound_layer_id = str(id(inbound_layer))
-                    layer_id = str(id(layer))
-                    dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
+                    if not expand_nested or not (
+                            isinstance(inbound_layer, Wrapper) and
+                            isinstance(inbound_layer.layer, Model)):
+                        inbound_layer_id = str(id(inbound_layer))
+                        # Make sure that both nodes exist before connecting them with
+                        # an edge, as add_edge would otherwise
+                        # create any missing node.
+                        assert dot.get_node(inbound_layer_id)
+                        assert dot.get_node(layer_id)
+                        dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
     return dot
 
 
@@ -117,7 +152,9 @@ def plot_model(model,
                to_file='model.png',
                show_shapes=False,
                show_layer_names=True,
-               rankdir='TB'):
+               rankdir='TB',
+               expand_nested=False,
+               dpi=96):
     """Converts a Keras model to dot format and save to a file.
 
     # Arguments
@@ -129,8 +166,11 @@ def plot_model(model,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
+        expand_nested: whether to expand nested models into clusters.
+        dpi: dot DPI.
     """
-    dot = model_to_dot(model, show_shapes, show_layer_names, rankdir)
+    dot = model_to_dot(model, show_shapes, show_layer_names, rankdir,
+                       expand_nested, dpi)
     _, extension = os.path.splitext(to_file)
     if not extension:
         extension = 'png'

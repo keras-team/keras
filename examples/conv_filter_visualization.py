@@ -129,8 +129,11 @@ stitched_filters = np.zeros((width, height, 3))
 for i in range(n):
     for j in range(n):
         img, loss = kept_filters[i * n + j]
-        stitched_filters[(img_width + margin) * i: (img_width + margin) * i + img_width,
-                         (img_height + margin) * j: (img_height + margin) * j + img_height, :] = img
+        width_margin = (img_width + margin) * i
+        height_margin = (img_height + margin) * j
+        stitched_filters[
+            width_margin: width_margin + img_width,
+            height_margin: height_margin + img_height, :] = img
 
 # save the result to disk
 save_img('stitched_filters_%dx%d.png' % (n, n), stitched_filters)

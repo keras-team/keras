@@ -13,6 +13,7 @@ from .. import constraints
 from ..engine.base_layer import Layer
 from ..engine.base_layer import InputSpec
 from ..utils import conv_utils
+from ..utils.generic_utils import transpose_shape
 from ..legacy import interfaces
 
 # imports for backwards namespace compatibility
@@ -104,11 +105,13 @@ class _Conv(Layer):
         super(_Conv, self).__init__(**kwargs)
         self.rank = rank
         self.filters = filters
-        self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank, 'kernel_size')
+        self.kernel_size = conv_utils.normalize_tuple(kernel_size, rank,
+                                                      'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, rank, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
-        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, rank, 'dilation_rate')
+        self.data_format = K.normalize_data_format(data_format)
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, rank,
+                                                        'dilation_rate')
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -226,7 +229,8 @@ class _Conv(Layer):
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
@@ -245,10 +249,11 @@ class Conv1D(_Conv):
     it is applied to the outputs as well.
 
     When using this layer as the first layer in a model,
-    provide an `input_shape` argument
-    (tuple of integers or `None`, e.g.
-    `(10, 128)` for sequences of 10 vectors of 128-dimensional vectors,
-    or `(None, 128)` for variable-length sequences of 128-dimensional vectors.
+    provide an `input_shape` argument (tuple of integers or `None`, does not
+    include the batch axis), e.g. `input_shape=(10, 128)` for time series
+    sequences of 10 time steps with 128 features per step in
+    `data_format="channels_last"`, or `(None, 128)` for variable-length
+    sequences with 128 features per step.
 
     # Arguments
         filters: Integer, the dimensionality of the output space
@@ -263,18 +268,22 @@ class Conv1D(_Conv):
             `"valid"` means "no padding".
             `"same"` results in padding the input such that
             the output has the same length as the original input.
-            `"causal"` results in causal (dilated) convolutions, e.g. output[t]
-            does not depend on input[t+1:]. Useful when modeling temporal data
-            where the model should not violate the temporal order.
-            See [WaveNet: A Generative Model for Raw Audio, section 2.1](https://arxiv.org/abs/1609.03499).
+            `"causal"` results in causal (dilated) convolutions,
+            e.g. `output[t]` does not depend on `input[t + 1:]`.
+            A zero padding is used such that
+            the output has the same length as the original input.
+            Useful when modeling temporal data where the model
+            should not violate the temporal order. See
+            [WaveNet: A Generative Model for Raw Audio, section 2.1](
+            https://arxiv.org/abs/1609.03499).
         data_format: A string,
             one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, length, channels)`
+            `(batch, steps, channels)`
             (default format for temporal data in Keras)
             while `"channels_first"` corresponds to inputs
-            with shape `(batch, channels, length)`.
+            with shape `(batch, channels, steps)`.
         dilation_rate: an integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -302,10 +311,10 @@ class Conv1D(_Conv):
             (see [constraints](../constraints.md)).
 
     # Input shape
-        3D tensor with shape: `(batch_size, steps, input_dim)`
+        3D tensor with shape: `(batch, steps, channels)`
 
     # Output shape
-        3D tensor with shape: `(batch_size, new_steps, filters)`
+        3D tensor with shape: `(batch, new_steps, filters)`
         `steps` value might have changed due to padding or strides.
     """
 
@@ -349,7 +358,6 @@ class Conv1D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=3)
 
     def get_config(self):
         config = super(Conv1D, self).get_config()
@@ -368,7 +376,7 @@ class Conv2D(_Conv):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
     in `data_format="channels_last"`.
 
@@ -430,18 +438,18 @@ class Conv2D(_Conv):
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)`
+        `(batch, channels, rows, cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)`
+        `(batch, rows, cols, channels)`
         if `data_format` is `"channels_last"`.
 
     # Output shape
         4D tensor with shape:
-        `(samples, filters, new_rows, new_cols)`
+        `(batch, filters, new_rows, new_cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, filters)`
+        `(batch, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
     """
@@ -481,7 +489,6 @@ class Conv2D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=4)
 
     def get_config(self):
         config = super(Conv2D, self).get_config()
@@ -500,7 +507,7 @@ class Conv3D(_Conv):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 128, 1)` for 128x128x128 volumes
     with a single channel,
     in `data_format="channels_last"`.
@@ -559,20 +566,21 @@ class Conv3D(_Conv):
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, conv_dim1, conv_dim2, conv_dim3)`
+        `(batch, channels, conv_dim1, conv_dim2, conv_dim3)`
         if `data_format` is `"channels_first"`
         or 5D tensor with shape:
-        `(samples, conv_dim1, conv_dim2, conv_dim3, channels)`
+        `(batch, conv_dim1, conv_dim2, conv_dim3, channels)`
         if `data_format` is `"channels_last"`.
 
     # Output shape
         5D tensor with shape:
-        `(samples, filters, new_conv_dim1, new_conv_dim2, new_conv_dim3)`
+        `(batch, filters, new_conv_dim1, new_conv_dim2, new_conv_dim3)`
         if `data_format` is `"channels_first"`
         or 5D tensor with shape:
-        `(samples, new_conv_dim1, new_conv_dim2, new_conv_dim3, filters)`
+        `(batch, new_conv_dim1, new_conv_dim2, new_conv_dim3, filters)`
         if `data_format` is `"channels_last"`.
-        `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have changed due to padding.
+        `new_conv_dim1`, `new_conv_dim2` and `new_conv_dim3` values might have
+        changed due to padding.
     """
 
     @interfaces.legacy_conv3d_support
@@ -610,7 +618,6 @@ class Conv3D(_Conv):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=5)
 
     def get_config(self):
         config = super(Conv3D, self).get_config()
@@ -630,7 +637,7 @@ class Conv2DTranspose(Conv2D):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 3)` for 128x128 RGB pictures
     in `data_format="channels_last"`.
 
@@ -714,13 +721,17 @@ class Conv2DTranspose(Conv2D):
         If `output_padding` is specified:
 
         ```
-        new_rows = (rows - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]
-        new_cols = (cols - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]
+        new_rows = ((rows - 1) * strides[0] + kernel_size[0]
+                    - 2 * padding[0] + output_padding[0])
+        new_cols = ((cols - 1) * strides[1] + kernel_size[1]
+                    - 2 * padding[1] + output_padding[1])
         ```
 
     # References
-        - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
-        - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+        - [A guide to convolution arithmetic for deep learning](
+           https://arxiv.org/abs/1603.07285v1)
+        - [Deconvolutional Networks](
+           http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
     @interfaces.legacy_deconv2d_support
@@ -730,6 +741,7 @@ class Conv2DTranspose(Conv2D):
                  padding='valid',
                  output_padding=None,
                  data_format=None,
+                 dilation_rate=(1, 1),
                  activation=None,
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
@@ -746,6 +758,7 @@ class Conv2DTranspose(Conv2D):
             strides=strides,
             padding=padding,
             data_format=data_format,
+            dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
             kernel_initializer=kernel_initializer,
@@ -756,7 +769,6 @@ class Conv2DTranspose(Conv2D):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=4)
 
         self.output_padding = output_padding
         if self.output_padding is not None:
@@ -820,11 +832,13 @@ class Conv2DTranspose(Conv2D):
         out_height = conv_utils.deconv_length(height,
                                               stride_h, kernel_h,
                                               self.padding,
-                                              out_pad_h)
+                                              out_pad_h,
+                                              self.dilation_rate[0])
         out_width = conv_utils.deconv_length(width,
                                              stride_w, kernel_w,
                                              self.padding,
-                                             out_pad_w)
+                                             out_pad_w,
+                                             self.dilation_rate[1])
         if self.data_format == 'channels_first':
             output_shape = (batch_size, self.filters, out_height, out_width)
         else:
@@ -836,7 +850,8 @@ class Conv2DTranspose(Conv2D):
             output_shape,
             self.strides,
             padding=self.padding,
-            data_format=self.data_format)
+            data_format=self.data_format,
+            dilation_rate=self.dilation_rate)
 
         if self.use_bias:
             outputs = K.bias_add(
@@ -867,17 +882,18 @@ class Conv2DTranspose(Conv2D):
                                                         stride_h,
                                                         kernel_h,
                                                         self.padding,
-                                                        out_pad_h)
+                                                        out_pad_h,
+                                                        self.dilation_rate[0])
         output_shape[w_axis] = conv_utils.deconv_length(output_shape[w_axis],
                                                         stride_w,
                                                         kernel_w,
                                                         self.padding,
-                                                        out_pad_w)
+                                                        out_pad_w,
+                                                        self.dilation_rate[1])
         return tuple(output_shape)
 
     def get_config(self):
         config = super(Conv2DTranspose, self).get_config()
-        config.pop('dilation_rate')
         config['output_padding'] = self.output_padding
         return config
 
@@ -894,7 +910,7 @@ class Conv3DTranspose(Conv3D):
 
     When using this layer as the first layer in a model,
     provide the keyword argument `input_shape`
-    (tuple of integers, does not include the sample axis),
+    (tuple of integers, does not include the batch axis),
     e.g. `input_shape=(128, 128, 128, 3)` for a 128x128x128 volume with 3 channels
     if `data_format="channels_last"`.
 
@@ -978,14 +994,19 @@ class Conv3DTranspose(Conv3D):
         If `output_padding` is specified::
 
         ```
-        new_depth = (depth - 1) * strides[0] + kernel_size[0] - 2 * padding[0] + output_padding[0]
-        new_rows = (rows - 1) * strides[1] + kernel_size[1] - 2 * padding[1] + output_padding[1]
-        new_cols = (cols - 1) * strides[2] + kernel_size[2] - 2 * padding[2] + output_padding[2]
+        new_depth = ((depth - 1) * strides[0] + kernel_size[0]
+                     - 2 * padding[0] + output_padding[0])
+        new_rows = ((rows - 1) * strides[1] + kernel_size[1]
+                    - 2 * padding[1] + output_padding[1])
+        new_cols = ((cols - 1) * strides[2] + kernel_size[2]
+                    - 2 * padding[2] + output_padding[2])
         ```
 
     # References
-        - [A guide to convolution arithmetic for deep learning](https://arxiv.org/abs/1603.07285v1)
-        - [Deconvolutional Networks](http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
+        - [A guide to convolution arithmetic for deep learning](
+           https://arxiv.org/abs/1603.07285v1)
+        - [Deconvolutional Networks](
+           http://www.matthewzeiler.com/pubs/cvpr2010/cvpr2010.pdf)
     """
 
     def __init__(self, filters,
@@ -1020,7 +1041,7 @@ class Conv3DTranspose(Conv3D):
             kernel_constraint=kernel_constraint,
             bias_constraint=bias_constraint,
             **kwargs)
-        self.input_spec = InputSpec(ndim=5)
+
         self.output_padding = output_padding
         if self.output_padding is not None:
             self.output_padding = conv_utils.normalize_tuple(
@@ -1097,9 +1118,11 @@ class Conv3DTranspose(Conv3D):
                                              out_pad_w)
 
         if self.data_format == 'channels_first':
-            output_shape = (batch_size, self.filters, out_depth, out_height, out_width)
+            output_shape = (batch_size, self.filters,
+                            out_depth, out_height, out_width)
         else:
-            output_shape = (batch_size, out_depth, out_height, out_width, self.filters)
+            output_shape = (batch_size, out_depth,
+                            out_height, out_width, self.filters)
 
         outputs = K.conv3d_transpose(inputs,
                                      self.kernel,
@@ -1289,6 +1312,7 @@ class _SeparableConv(_Conv):
             dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
+            bias_initializer=bias_initializer,
             bias_regularizer=bias_regularizer,
             activity_regularizer=activity_regularizer,
             bias_constraint=bias_constraint,
@@ -1311,8 +1335,10 @@ class _SeparableConv(_Conv):
             raise ValueError('The channel dimension of the inputs '
                              'should be defined. Found `None`.')
         input_dim = int(input_shape[channel_axis])
-        depthwise_kernel_shape = self.kernel_size + (input_dim, self.depth_multiplier)
-        pointwise_kernel_shape = (1,) * self.rank + (self.depth_multiplier * input_dim, self.filters)
+        depthwise_kernel_shape = (input_dim, self.depth_multiplier)
+        depthwise_kernel_shape = self.kernel_size + depthwise_kernel_shape
+        pointwise_kernel_shape = (self.depth_multiplier * input_dim, self.filters)
+        pointwise_kernel_shape = (1,) * self.rank + pointwise_kernel_shape
 
         self.depthwise_kernel = self.add_weight(
             shape=depthwise_kernel_shape,
@@ -1377,12 +1403,18 @@ class _SeparableConv(_Conv):
         config.pop('kernel_regularizer')
         config.pop('kernel_constraint')
         config['depth_multiplier'] = self.depth_multiplier
-        config['depthwise_initializer'] = initializers.serialize(self.depthwise_initializer)
-        config['pointwise_initializer'] = initializers.serialize(self.pointwise_initializer)
-        config['depthwise_regularizer'] = regularizers.serialize(self.depthwise_regularizer)
-        config['pointwise_regularizer'] = regularizers.serialize(self.pointwise_regularizer)
-        config['depthwise_constraint'] = constraints.serialize(self.depthwise_constraint)
-        config['pointwise_constraint'] = constraints.serialize(self.pointwise_constraint)
+        config['depthwise_initializer'] = (
+            initializers.serialize(self.depthwise_initializer))
+        config['pointwise_initializer'] = (
+            initializers.serialize(self.pointwise_initializer))
+        config['depthwise_regularizer'] = (
+            regularizers.serialize(self.depthwise_regularizer))
+        config['pointwise_regularizer'] = (
+            regularizers.serialize(self.pointwise_regularizer))
+        config['depthwise_constraint'] = (
+            constraints.serialize(self.depthwise_constraint))
+        config['pointwise_constraint'] = (
+            constraints.serialize(self.pointwise_constraint))
         return config
 
 
@@ -1414,12 +1446,9 @@ class SeparableConv1D(_SeparableConv):
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
             `"channels_last"` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `"channels_first"`
+            `(batch, steps, channels)` while `"channels_first"`
             corresponds to inputs with shape
-            `(batch, channels, height, width)`.
-            It defaults to the `image_data_format` value found in your
-            Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            `(batch, channels, steps)`.
         dilation_rate: An integer or tuple/list of a single integer, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -1481,7 +1510,7 @@ class SeparableConv1D(_SeparableConv):
                  kernel_size,
                  strides=1,
                  padding='valid',
-                 data_format=None,
+                 data_format='channels_last',
                  dilation_rate=1,
                  depth_multiplier=1,
                  activation=None,
@@ -1683,7 +1712,7 @@ class DepthwiseConv2D(Conv2D):
             all spatial dimensions.
             Specifying any stride value != 1 is incompatible with specifying
             any `dilation_rate` value != 1.
-        padding: one of `'valid'` or `'same'` (case-insensitive).
+        padding: one of `"valid"` or `"same"` (case-insensitive).
         depth_multiplier: The number of depthwise convolution output channels
             for each input channel.
             The total number of depthwise convolution output
@@ -1723,18 +1752,18 @@ class DepthwiseConv2D(Conv2D):
 
     # Input shape
         4D tensor with shape:
-        `[batch, channels, rows, cols]`
+        `(batch, channels, rows, cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `[batch, rows, cols, channels]`
+        `(batch, rows, cols, channels)`
         if `data_format` is `"channels_last"`.
 
     # Output shape
         4D tensor with shape:
-        `[batch, filters, new_rows, new_cols]`
+        `(batch, filters, new_rows, new_cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `[batch, new_rows, new_cols, filters]`
+        `(batch, new_rows, new_cols, filters)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
     """
@@ -1858,13 +1887,61 @@ class DepthwiseConv2D(Conv2D):
         config.pop('kernel_regularizer')
         config.pop('kernel_constraint')
         config['depth_multiplier'] = self.depth_multiplier
-        config['depthwise_initializer'] = initializers.serialize(self.depthwise_initializer)
-        config['depthwise_regularizer'] = regularizers.serialize(self.depthwise_regularizer)
-        config['depthwise_constraint'] = constraints.serialize(self.depthwise_constraint)
+        config['depthwise_initializer'] = (
+            initializers.serialize(self.depthwise_initializer))
+        config['depthwise_regularizer'] = (
+            regularizers.serialize(self.depthwise_regularizer))
+        config['depthwise_constraint'] = (
+            constraints.serialize(self.depthwise_constraint))
         return config
 
 
-class UpSampling1D(Layer):
+class _UpSampling(Layer):
+    """Abstract nD UpSampling layer (private, used as implementation base).
+
+    # Arguments
+        size: Tuple of ints.
+        data_format: A string,
+            one of `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, ..., channels)` while `"channels_first"` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+    """
+    def __init__(self, size, data_format=None, **kwargs):
+        # self.rank is 1 for UpSampling1D, 2 for UpSampling2D.
+        self.rank = len(size)
+        self.size = size
+        self.data_format = K.normalize_data_format(data_format)
+        self.input_spec = InputSpec(ndim=self.rank + 2)
+        super(_UpSampling, self).__init__(**kwargs)
+
+    def call(self, inputs):
+        raise NotImplementedError
+
+    def compute_output_shape(self, input_shape):
+        size_all_dims = (1,) + self.size + (1,)
+        spatial_axes = list(range(1, 1 + self.rank))
+        size_all_dims = transpose_shape(size_all_dims,
+                                        self.data_format,
+                                        spatial_axes)
+        output_shape = list(input_shape)
+        for dim in range(len(output_shape)):
+            if output_shape[dim] is not None:
+                output_shape[dim] *= size_all_dims[dim]
+        return tuple(output_shape)
+
+    def get_config(self):
+        config = {'size': self.size,
+                  'data_format': self.data_format}
+        base_config = super(_UpSampling, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class UpSampling1D(_UpSampling):
     """Upsampling layer for 1D inputs.
 
     Repeats each temporal step `size` times along the time axis.
@@ -1881,25 +1958,20 @@ class UpSampling1D(Layer):
 
     @interfaces.legacy_upsampling1d_support
     def __init__(self, size=2, **kwargs):
-        super(UpSampling1D, self).__init__(**kwargs)
-        self.size = int(size)
-        self.input_spec = InputSpec(ndim=3)
-
-    def compute_output_shape(self, input_shape):
-        size = self.size * input_shape[1] if input_shape[1] is not None else None
-        return (input_shape[0], size, input_shape[2])
+        super(UpSampling1D, self).__init__((int(size),), 'channels_last', **kwargs)
 
     def call(self, inputs):
-        output = K.repeat_elements(inputs, self.size, axis=1)
+        output = K.repeat_elements(inputs, self.size[0], axis=1)
         return output
 
     def get_config(self):
-        config = {'size': self.size}
-        base_config = super(UpSampling1D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(UpSampling1D, self).get_config()
+        config['size'] = self.size[0]
+        config.pop('data_format')
+        return config
 
 
-class UpSampling2D(Layer):
+class UpSampling2D(_UpSampling):
     """Upsampling layer for 2D inputs.
 
     Repeats the rows and columns of the data
@@ -1918,6 +1990,9 @@ class UpSampling2D(Layer):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
+        interpolation: A string, one of `nearest` or `bilinear`.
+            Note that CNTK does not support yet the `bilinear` upscaling
+            and that with Theano, only `size=(2, 2)` is possible.
 
     # Input shape
         4D tensor with shape:
@@ -1935,40 +2010,26 @@ class UpSampling2D(Layer):
     """
 
     @interfaces.legacy_upsampling2d_support
-    def __init__(self, size=(2, 2), data_format=None, **kwargs):
-        super(UpSampling2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
-        self.size = conv_utils.normalize_tuple(size, 2, 'size')
-        self.input_spec = InputSpec(ndim=4)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            height = self.size[0] * input_shape[2] if input_shape[2] is not None else None
-            width = self.size[1] * input_shape[3] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    height,
-                    width)
-        elif self.data_format == 'channels_last':
-            height = self.size[0] * input_shape[1] if input_shape[1] is not None else None
-            width = self.size[1] * input_shape[2] if input_shape[2] is not None else None
-            return (input_shape[0],
-                    height,
-                    width,
-                    input_shape[3])
+    def __init__(self, size=(2, 2), data_format=None, interpolation='nearest',
+                 **kwargs):
+        normalized_size = conv_utils.normalize_tuple(size, 2, 'size')
+        super(UpSampling2D, self).__init__(normalized_size, data_format, **kwargs)
+        if interpolation not in ['nearest', 'bilinear']:
+            raise ValueError('interpolation should be one '
+                             'of "nearest" or "bilinear".')
+        self.interpolation = interpolation
 
     def call(self, inputs):
         return K.resize_images(inputs, self.size[0], self.size[1],
-                               self.data_format)
+                               self.data_format, self.interpolation)
 
     def get_config(self):
-        config = {'size': self.size,
-                  'data_format': self.data_format}
-        base_config = super(UpSampling2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(UpSampling2D, self).get_config()
+        config['interpolation'] = self.interpolation
+        return config
 
 
-class UpSampling3D(Layer):
+class UpSampling3D(_UpSampling):
     """Upsampling layer for 3D inputs.
 
     Repeats the 1st, 2nd and 3rd dimensions
@@ -2005,44 +2066,62 @@ class UpSampling3D(Layer):
 
     @interfaces.legacy_upsampling3d_support
     def __init__(self, size=(2, 2, 2), data_format=None, **kwargs):
-        self.data_format = conv_utils.normalize_data_format(data_format)
-        self.size = conv_utils.normalize_tuple(size, 3, 'size')
-        self.input_spec = InputSpec(ndim=5)
-        super(UpSampling3D, self).__init__(**kwargs)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            dim1 = self.size[0] * input_shape[2] if input_shape[2] is not None else None
-            dim2 = self.size[1] * input_shape[3] if input_shape[3] is not None else None
-            dim3 = self.size[2] * input_shape[4] if input_shape[4] is not None else None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
-            dim1 = self.size[0] * input_shape[1] if input_shape[1] is not None else None
-            dim2 = self.size[1] * input_shape[2] if input_shape[2] is not None else None
-            dim3 = self.size[2] * input_shape[3] if input_shape[3] is not None else None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
+        normalized_size = conv_utils.normalize_tuple(size, 3, 'size')
+        super(UpSampling3D, self).__init__(normalized_size, data_format, **kwargs)
 
     def call(self, inputs):
         return K.resize_volumes(inputs,
                                 self.size[0], self.size[1], self.size[2],
                                 self.data_format)
 
+
+class _ZeroPadding(Layer):
+    """Abstract nD ZeroPadding layer (private, used as implementation base).
+
+    # Arguments
+        padding: Tuple of tuples of two ints. Can be a tuple of ints when
+            rank is 1.
+        data_format: A string,
+            one of `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, ..., channels)` while `"channels_first"` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+    """
+    def __init__(self, padding, data_format=None, **kwargs):
+        # self.rank is 1 for ZeroPadding1D, 2 for ZeroPadding2D.
+        self.rank = len(padding)
+        self.padding = padding
+        self.data_format = K.normalize_data_format(data_format)
+        self.input_spec = InputSpec(ndim=self.rank + 2)
+        super(_ZeroPadding, self).__init__(**kwargs)
+
+    def call(self, inputs):
+        raise NotImplementedError
+
+    def compute_output_shape(self, input_shape):
+        padding_all_dims = ((0, 0),) + self.padding + ((0, 0),)
+        spatial_axes = list(range(1, 1 + self.rank))
+        padding_all_dims = transpose_shape(padding_all_dims,
+                                           self.data_format,
+                                           spatial_axes)
+        output_shape = list(input_shape)
+        for dim in range(len(output_shape)):
+            if output_shape[dim] is not None:
+                output_shape[dim] += sum(padding_all_dims[dim])
+        return tuple(output_shape)
+
     def get_config(self):
-        config = {'size': self.size,
+        config = {'padding': self.padding,
                   'data_format': self.data_format}
-        base_config = super(UpSampling3D, self).get_config()
+        base_config = super(_ZeroPadding, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class ZeroPadding1D(Layer):
+class ZeroPadding1D(_ZeroPadding):
     """Zero-padding layer for 1D input (e.g. temporal sequence).
 
     # Arguments
@@ -2062,29 +2141,22 @@ class ZeroPadding1D(Layer):
     """
 
     def __init__(self, padding=1, **kwargs):
-        super(ZeroPadding1D, self).__init__(**kwargs)
-        self.padding = conv_utils.normalize_tuple(padding, 2, 'padding')
-        self.input_spec = InputSpec(ndim=3)
-
-    def compute_output_shape(self, input_shape):
-        if input_shape[1] is not None:
-            length = input_shape[1] + self.padding[0] + self.padding[1]
-        else:
-            length = None
-        return (input_shape[0],
-                length,
-                input_shape[2])
+        normalized_padding = (conv_utils.normalize_tuple(padding, 2, 'padding'),)
+        super(ZeroPadding1D, self).__init__(normalized_padding,
+                                            'channels_last',
+                                            **kwargs)
 
     def call(self, inputs):
-        return K.temporal_padding(inputs, padding=self.padding)
+        return K.temporal_padding(inputs, padding=self.padding[0])
 
     def get_config(self):
-        config = {'padding': self.padding}
-        base_config = super(ZeroPadding1D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(ZeroPadding1D, self).get_config()
+        config['padding'] = config['padding'][0]
+        config.pop('data_format')
+        return config
 
 
-class ZeroPadding2D(Layer):
+class ZeroPadding2D(_ZeroPadding):
     """Zero-padding layer for 2D input (e.g. picture).
 
     This layer can add rows and columns of zeros
@@ -2132,10 +2204,8 @@ class ZeroPadding2D(Layer):
                  padding=(1, 1),
                  data_format=None,
                  **kwargs):
-        super(ZeroPadding2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
         if isinstance(padding, int):
-            self.padding = ((padding, padding), (padding, padding))
+            normalized_padding = ((padding, padding), (padding, padding))
         elif hasattr(padding, '__len__'):
             if len(padding) != 2:
                 raise ValueError('`padding` should have two elements. '
@@ -2144,7 +2214,7 @@ class ZeroPadding2D(Layer):
                                                         '1st entry of padding')
             width_padding = conv_utils.normalize_tuple(padding[1], 2,
                                                        '2nd entry of padding')
-            self.padding = (height_padding, width_padding)
+            normalized_padding = (height_padding, width_padding)
         else:
             raise ValueError('`padding` should be either an int, '
                              'a tuple of 2 ints '
@@ -2152,49 +2222,17 @@ class ZeroPadding2D(Layer):
                              'or a tuple of 2 tuples of 2 ints '
                              '((top_pad, bottom_pad), (left_pad, right_pad)). '
                              'Found: ' + str(padding))
-        self.input_spec = InputSpec(ndim=4)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                rows = input_shape[2] + self.padding[0][0] + self.padding[0][1]
-            else:
-                rows = None
-            if input_shape[3] is not None:
-                cols = input_shape[3] + self.padding[1][0] + self.padding[1][1]
-            else:
-                cols = None
-            return (input_shape[0],
-                    input_shape[1],
-                    rows,
-                    cols)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                rows = input_shape[1] + self.padding[0][0] + self.padding[0][1]
-            else:
-                rows = None
-            if input_shape[2] is not None:
-                cols = input_shape[2] + self.padding[1][0] + self.padding[1][1]
-            else:
-                cols = None
-            return (input_shape[0],
-                    rows,
-                    cols,
-                    input_shape[3])
+        super(ZeroPadding2D, self).__init__(normalized_padding,
+                                            data_format,
+                                            **kwargs)
 
     def call(self, inputs):
         return K.spatial_2d_padding(inputs,
                                     padding=self.padding,
                                     data_format=self.data_format)
 
-    def get_config(self):
-        config = {'padding': self.padding,
-                  'data_format': self.data_format}
-        base_config = super(ZeroPadding2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
 
-
-class ZeroPadding3D(Layer):
+class ZeroPadding3D(_ZeroPadding):
     """Zero-padding layer for 3D data (spatial or spatio-temporal).
 
     # Arguments
@@ -2207,7 +2245,9 @@ class ZeroPadding3D(Layer):
                 `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
-                `((left_dim1_pad, right_dim1_pad), (left_dim2_pad, right_dim2_pad), (left_dim3_pad, right_dim3_pad))`
+                `((left_dim1_pad, right_dim1_pad),
+                  (left_dim2_pad, right_dim2_pad),
+                  (left_dim3_pad, right_dim3_pad))`
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -2222,24 +2262,26 @@ class ZeroPadding3D(Layer):
     # Input shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad, depth)`
+            `(batch, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_axis_to_pad, second_axis_to_pad, third_axis_to_pad)`
+            `(batch, depth,
+              first_axis_to_pad, second_axis_to_pad, third_axis_to_pad)`
 
     # Output shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_padded_axis, second_padded_axis, third_axis_to_pad, depth)`
+            `(batch, first_padded_axis, second_padded_axis, third_axis_to_pad,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_padded_axis, second_padded_axis, third_axis_to_pad)`
+            `(batch, depth,
+              first_padded_axis, second_padded_axis, third_axis_to_pad)`
     """
 
     @interfaces.legacy_zeropadding3d_support
     def __init__(self, padding=(1, 1, 1), data_format=None, **kwargs):
-        super(ZeroPadding3D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
         if isinstance(padding, int):
-            self.padding = ((padding, padding), (padding, padding), (padding, padding))
+            normalized_padding = 3 * ((padding, padding),)
         elif hasattr(padding, '__len__'):
             if len(padding) != 3:
                 raise ValueError('`padding` should have 3 elements. '
@@ -2250,69 +2292,88 @@ class ZeroPadding3D(Layer):
                                                       '2nd entry of padding')
             dim3_padding = conv_utils.normalize_tuple(padding[2], 2,
                                                       '3rd entry of padding')
-            self.padding = (dim1_padding, dim2_padding, dim3_padding)
+            normalized_padding = (dim1_padding, dim2_padding, dim3_padding)
         else:
-            raise ValueError('`padding` should be either an int, '
-                             'a tuple of 3 ints '
-                             '(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad), '
-                             'or a tuple of 3 tuples of 2 ints '
-                             '((left_dim1_pad, right_dim1_pad),'
-                             ' (left_dim2_pad, right_dim2_pad),'
-                             ' (left_dim3_pad, right_dim2_pad)). '
-                             'Found: ' + str(padding))
-        self.input_spec = InputSpec(ndim=5)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                dim1 = input_shape[2] + self.padding[0][0] + self.padding[0][1]
-            else:
-                dim1 = None
-            if input_shape[3] is not None:
-                dim2 = input_shape[3] + self.padding[1][0] + self.padding[1][1]
-            else:
-                dim2 = None
-            if input_shape[4] is not None:
-                dim3 = input_shape[4] + self.padding[2][0] + self.padding[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                dim1 = input_shape[1] + self.padding[0][0] + self.padding[0][1]
-            else:
-                dim1 = None
-            if input_shape[2] is not None:
-                dim2 = input_shape[2] + self.padding[1][0] + self.padding[1][1]
-            else:
-                dim2 = None
-            if input_shape[3] is not None:
-                dim3 = input_shape[3] + self.padding[2][0] + self.padding[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
+            raise ValueError(
+                '`padding` should be either an int, a tuple of 3 ints '
+                '(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad), '
+                'or a tuple of 3 tuples of 2 ints '
+                '((left_dim1_pad, right_dim1_pad),'
+                ' (left_dim2_pad, right_dim2_pad),'
+                ' (left_dim3_pad, right_dim2_pad)). '
+                'Found: ' + str(padding))
+        super(ZeroPadding3D, self).__init__(normalized_padding,
+                                            data_format,
+                                            **kwargs)
 
     def call(self, inputs):
         return K.spatial_3d_padding(inputs,
                                     padding=self.padding,
                                     data_format=self.data_format)
 
+
+class _Cropping(Layer):
+    """Abstract nD copping layer (private, used as implementation base).
+
+    # Arguments
+        cropping: A tuple of tuples of 2 ints.
+        data_format: A string,
+            one of `"channels_last"` or `"channels_first"`.
+            The ordering of the dimensions in the inputs.
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, ..., channels)` while `"channels_first"` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
+            For Cropping1D, the data format is always `"channels_last"`.
+    """
+
+    def __init__(self, cropping,
+                 data_format=None,
+                 **kwargs):
+        super(_Cropping, self).__init__(**kwargs)
+        # self.rank is 1 for Cropping1D, 2 for Cropping2D...
+        self.rank = len(cropping)
+        self.cropping = cropping
+        self.data_format = K.normalize_data_format(data_format)
+        self.input_spec = InputSpec(ndim=2 + self.rank)
+
+    def call(self, inputs):
+        slices_dims = []
+        for start, end in self.cropping:
+            if end == 0:
+                end = None
+            else:
+                end = -end
+            slices_dims.append(slice(start, end))
+
+        slices = [slice(None)] + slices_dims + [slice(None)]
+        slices = tuple(slices)
+        spatial_axes = list(range(1, 1 + self.rank))
+        slices = transpose_shape(slices, self.data_format, spatial_axes)
+        return inputs[slices]
+
+    def compute_output_shape(self, input_shape):
+        cropping_all_dims = ((0, 0),) + self.cropping + ((0, 0),)
+        spatial_axes = list(range(1, 1 + self.rank))
+        cropping_all_dims = transpose_shape(cropping_all_dims,
+                                            self.data_format,
+                                            spatial_axes)
+        output_shape = list(input_shape)
+        for dim in range(len(output_shape)):
+            if output_shape[dim] is not None:
+                output_shape[dim] -= sum(cropping_all_dims[dim])
+        return tuple(output_shape)
+
     def get_config(self):
-        config = {'padding': self.padding,
+        config = {'cropping': self.cropping,
                   'data_format': self.data_format}
-        base_config = super(ZeroPadding3D, self).get_config()
+        base_config = super(_Cropping, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class Cropping1D(Layer):
+class Cropping1D(_Cropping):
     """Cropping layer for 1D input (e.g. temporal sequence).
 
     It crops along the time dimension (axis 1).
@@ -2332,32 +2393,19 @@ class Cropping1D(Layer):
     """
 
     def __init__(self, cropping=(1, 1), **kwargs):
-        super(Cropping1D, self).__init__(**kwargs)
-        self.cropping = conv_utils.normalize_tuple(cropping, 2, 'cropping')
-        self.input_spec = InputSpec(ndim=3)
-
-    def compute_output_shape(self, input_shape):
-        if input_shape[1] is not None:
-            length = input_shape[1] - self.cropping[0] - self.cropping[1]
-        else:
-            length = None
-        return (input_shape[0],
-                length,
-                input_shape[2])
-
-    def call(self, inputs):
-        if self.cropping[1] == 0:
-            return inputs[:, self.cropping[0]:, :]
-        else:
-            return inputs[:, self.cropping[0]: -self.cropping[1], :]
+        normalized_cropping = (conv_utils.normalize_tuple(cropping, 2, 'cropping'),)
+        super(Cropping1D, self).__init__(normalized_cropping,
+                                         'channels_last',
+                                         **kwargs)
 
     def get_config(self):
-        config = {'cropping': self.cropping}
         base_config = super(Cropping1D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        base_config.pop('data_format')
+        base_config['cropping'] = base_config['cropping'][0]
+        return base_config
 
 
-class Cropping2D(Layer):
+class Cropping2D(_Cropping):
     """Cropping layer for 2D input (e.g. picture).
 
     It crops along spatial dimensions, i.e. height and width.
@@ -2415,10 +2463,8 @@ class Cropping2D(Layer):
     @interfaces.legacy_cropping2d_support
     def __init__(self, cropping=((0, 0), (0, 0)),
                  data_format=None, **kwargs):
-        super(Cropping2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
         if isinstance(cropping, int):
-            self.cropping = ((cropping, cropping), (cropping, cropping))
+            normalized_cropping = ((cropping, cropping), (cropping, cropping))
         elif hasattr(cropping, '__len__'):
             if len(cropping) != 2:
                 raise ValueError('`cropping` should have two elements. '
@@ -2429,7 +2475,7 @@ class Cropping2D(Layer):
             width_cropping = conv_utils.normalize_tuple(
                 cropping[1], 2,
                 '2nd entry of cropping')
-            self.cropping = (height_cropping, width_cropping)
+            normalized_cropping = (height_cropping, width_cropping)
         else:
             raise ValueError('`cropping` should be either an int, '
                              'a tuple of 2 ints '
@@ -2437,70 +2483,12 @@ class Cropping2D(Layer):
                              'or a tuple of 2 tuples of 2 ints '
                              '((top_crop, bottom_crop), (left_crop, right_crop)). '
                              'Found: ' + str(cropping))
-        self.input_spec = InputSpec(ndim=4)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            return (input_shape[0],
-                    input_shape[1],
-                    input_shape[2] - self.cropping[0][0] - self.cropping[0][1] if input_shape[2] else None,
-                    input_shape[3] - self.cropping[1][0] - self.cropping[1][1] if input_shape[3] else None)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0],
-                    input_shape[1] - self.cropping[0][0] - self.cropping[0][1] if input_shape[1] else None,
-                    input_shape[2] - self.cropping[1][0] - self.cropping[1][1] if input_shape[2] else None,
-                    input_shape[3])
-
-    def call(self, inputs):
-        if self.data_format == 'channels_first':
-            if self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1]]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:]
-            return inputs[:,
-                          :,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1]]
-        elif self.data_format == 'channels_last':
-            if self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              :]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              :]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              :]
-            return inputs[:,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1],
-                          :]
-
-    def get_config(self):
-        config = {'cropping': self.cropping,
-                  'data_format': self.data_format}
-        base_config = super(Cropping2D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        super(Cropping2D, self).__init__(normalized_cropping,
+                                         data_format,
+                                         **kwargs)
 
 
-class Cropping3D(Layer):
+class Cropping3D(_Cropping):
     """Cropping layer for 3D data (e.g. spatial or spatio-temporal).
 
     # Arguments
@@ -2513,7 +2501,9 @@ class Cropping3D(Layer):
                 `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
-                `((left_dim1_crop, right_dim1_crop), (left_dim2_crop, right_dim2_crop), (left_dim3_crop, right_dim3_crop))`
+                `((left_dim1_crop, right_dim1_crop),
+                  (left_dim2_crop, right_dim2_crop),
+                  (left_dim3_crop, right_dim3_crop))`
         data_format: A string,
             one of `"channels_last"` or `"channels_first"`.
             The ordering of the dimensions in the inputs.
@@ -2528,27 +2518,30 @@ class Cropping3D(Layer):
     # Input shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop, depth)`
+            `(batch, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_axis_to_crop, second_axis_to_crop, third_axis_to_crop)`
+            `(batch, depth,
+              first_axis_to_crop, second_axis_to_crop, third_axis_to_crop)`
 
     # Output shape
         5D tensor with shape:
         - If `data_format` is `"channels_last"`:
-            `(batch, first_cropped_axis, second_cropped_axis, third_cropped_axis, depth)`
+            `(batch, first_cropped_axis, second_cropped_axis, third_cropped_axis,
+              depth)`
         - If `data_format` is `"channels_first"`:
-            `(batch, depth, first_cropped_axis, second_cropped_axis, third_cropped_axis)`
+            `(batch, depth,
+              first_cropped_axis, second_cropped_axis, third_cropped_axis)`
     """
 
     @interfaces.legacy_cropping3d_support
     def __init__(self, cropping=((1, 1), (1, 1), (1, 1)),
                  data_format=None, **kwargs):
-        super(Cropping3D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         if isinstance(cropping, int):
-            self.cropping = ((cropping, cropping),
-                             (cropping, cropping),
-                             (cropping, cropping))
+            normalized_cropping = ((cropping, cropping),
+                                   (cropping, cropping),
+                                   (cropping, cropping))
         elif hasattr(cropping, '__len__'):
             if len(cropping) != 3:
                 raise ValueError('`cropping` should have 3 elements. '
@@ -2559,160 +2552,19 @@ class Cropping3D(Layer):
                                                        '2nd entry of cropping')
             dim3_cropping = conv_utils.normalize_tuple(cropping[2], 2,
                                                        '3rd entry of cropping')
-            self.cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
+            normalized_cropping = (dim1_cropping, dim2_cropping, dim3_cropping)
         else:
-            raise ValueError('`cropping` should be either an int, '
-                             'a tuple of 3 ints '
-                             '(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop), '
-                             'or a tuple of 3 tuples of 2 ints '
-                             '((left_dim1_crop, right_dim1_crop),'
-                             ' (left_dim2_crop, right_dim2_crop),'
-                             ' (left_dim3_crop, right_dim2_crop)). '
-                             'Found: ' + str(cropping))
-        self.input_spec = InputSpec(ndim=5)
-
-    def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            if input_shape[2] is not None:
-                dim1 = input_shape[2] - self.cropping[0][0] - self.cropping[0][1]
-            else:
-                dim1 = None
-            if input_shape[3] is not None:
-                dim2 = input_shape[3] - self.cropping[1][0] - self.cropping[1][1]
-            else:
-                dim2 = None
-            if input_shape[4] is not None:
-                dim3 = input_shape[4] - self.cropping[2][0] - self.cropping[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    input_shape[1],
-                    dim1,
-                    dim2,
-                    dim3)
-        elif self.data_format == 'channels_last':
-            if input_shape[1] is not None:
-                dim1 = input_shape[1] - self.cropping[0][0] - self.cropping[0][1]
-            else:
-                dim1 = None
-            if input_shape[2] is not None:
-                dim2 = input_shape[2] - self.cropping[1][0] - self.cropping[1][1]
-            else:
-                dim2 = None
-            if input_shape[3] is not None:
-                dim3 = input_shape[3] - self.cropping[2][0] - self.cropping[2][1]
-            else:
-                dim3 = None
-            return (input_shape[0],
-                    dim1,
-                    dim2,
-                    dim3,
-                    input_shape[4])
-
-    def call(self, inputs):
-        if self.data_format == 'channels_first':
-            if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:]
-            elif self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1]]
-            elif self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:]
-            elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]:]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]: -self.cropping[2][1]]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1]]
-            elif self.cropping[2][1] == 0:
-                return inputs[:,
-                              :,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]:]
-            return inputs[:,
-                          :,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1],
-                          self.cropping[2][0]: -self.cropping[2][1]]
-
-        elif self.data_format == 'channels_last':
-            if self.cropping[0][1] == self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:,
-                              :]
-            elif self.cropping[0][1] == self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1],
-                              :]
-            elif self.cropping[1][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]:,
-                              :]
-            elif self.cropping[0][1] == self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]:-self.cropping[1][1],
-                              self.cropping[2][0]:,
-                              :]
-            elif self.cropping[0][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]:,
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]: -self.cropping[2][1],
-                              :]
-            elif self.cropping[1][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]:,
-                              self.cropping[2][0]: -self.cropping[2][1],
-                              :]
-            elif self.cropping[2][1] == 0:
-                return inputs[:,
-                              self.cropping[0][0]: -self.cropping[0][1],
-                              self.cropping[1][0]: -self.cropping[1][1],
-                              self.cropping[2][0]:,
-                              :]
-            return inputs[:,
-                          self.cropping[0][0]: -self.cropping[0][1],
-                          self.cropping[1][0]: -self.cropping[1][1],
-                          self.cropping[2][0]: -self.cropping[2][1],
-                          :]
-
-    def get_config(self):
-        config = {'cropping': self.cropping,
-                  'data_format': self.data_format}
-        base_config = super(Cropping3D, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+            raise ValueError(
+                '`cropping` should be either an int, a tuple of 3 ints '
+                '(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop), '
+                'or a tuple of 3 tuples of 2 ints '
+                '((left_dim1_crop, right_dim1_crop),'
+                ' (left_dim2_crop, right_dim2_crop),'
+                ' (left_dim3_crop, right_dim2_crop)). '
+                'Found: ' + str(cropping))
+        super(Cropping3D, self).__init__(normalized_cropping,
+                                         data_format,
+                                         **kwargs)
 
 
 # Aliases

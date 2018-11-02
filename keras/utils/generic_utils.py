@@ -120,6 +120,8 @@ def serialize_keras_object(instance):
 def deserialize_keras_object(identifier, module_objects=None,
                              custom_objects=None,
                              printable_module_name='object'):
+    if identifier is None:
+        return None
     if isinstance(identifier, dict):
         # In this case we are dealing with a Keras config dictionary.
         config = identifier
@@ -239,6 +241,33 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      name=code.co_name,
                                      argdefs=defaults,
                                      closure=closure)
+
+
+def getargspec(fn):
+    """Python 2/3 compatible `getargspec`.
+
+    Calls `getfullargspec` and assigns args, varargs,
+    varkw, and defaults to a python 2/3 compatible `ArgSpec`.
+    The parameter name 'varkw' is changed to 'keywords' to fit the
+    `ArgSpec` struct.
+
+    # Arguments
+        fn: the target function to inspect.
+
+    # Returns
+        An ArgSpec with args, varargs, keywords, and defaults parameters
+        from FullArgSpec.
+    """
+    if sys.version_info < (3,):
+        arg_spec = inspect.getargspec(fn)
+    else:
+        full_arg_spec = inspect.getfullargspec(fn)
+        arg_spec = inspect.ArgSpec(
+            args=full_arg_spec.args,
+            varargs=full_arg_spec.varargs,
+            keywords=full_arg_spec.varkw,
+            defaults=full_arg_spec.defaults)
+    return arg_spec
 
 
 def has_arg(fn, name, accept_all=False):
@@ -444,7 +473,7 @@ class Progbar(object):
         self.update(self._seen_so_far + n, values)
 
 
-def to_list(x):
+def to_list(x, allow_tuple=False):
     """Normalizes a list/tensor into a list.
 
     If a tensor is passed, we return
@@ -452,13 +481,35 @@ def to_list(x):
 
     # Arguments
         x: target object to be normalized.
+        allow_tuple: If False and x is a tuple,
+            it will be converted into a list
+            with a single element (the tuple).
+            Else converts the tuple to a list.
 
     # Returns
         A list.
     """
     if isinstance(x, list):
         return x
+    if allow_tuple and isinstance(x, tuple):
+        return list(x)
     return [x]
+
+
+def unpack_singleton(x):
+    """Gets the first element if the iterable has only one value.
+
+    Otherwise return the iterable.
+
+    # Argument:
+        x: A list or tuple.
+
+    # Returns:
+        The same iterable or the first element.
+    """
+    if len(x) == 1:
+        return x[0]
+    return x
 
 
 def object_list_uid(object_list):
@@ -467,10 +518,7 @@ def object_list_uid(object_list):
 
 
 def is_all_none(iterable_or_element):
-    if not isinstance(iterable_or_element, (list, tuple)):
-        iterable = [iterable_or_element]
-    else:
-        iterable = iterable_or_element
+    iterable = to_list(iterable_or_element, allow_tuple=True)
     for element in iterable:
         if element is not None:
             return False
@@ -516,3 +564,52 @@ def slice_arrays(arrays, start=None, stop=None):
             return arrays[start:stop]
         else:
             return [None]
+
+
+def transpose_shape(shape, target_format, spatial_axes):
+    """Converts a tuple or a list to the correct `data_format`.
+
+    It does so by switching the positions of its elements.
+
+    # Arguments
+        shape: Tuple or list, often representing shape,
+            corresponding to `'channels_last'`.
+        target_format: A string, either `'channels_first'` or `'channels_last'`.
+        spatial_axes: A tuple of integers.
+            Correspond to the indexes of the spatial axes.
+            For example, if you pass a shape
+            representing (batch_size, timesteps, rows, cols, channels),
+            then `spatial_axes=(2, 3)`.
+
+    # Returns
+        A tuple or list, with the elements permuted according
+        to `target_format`.
+
+    # Example
+    ```python
+        >>> from keras.utils.generic_utils import transpose_shape
+        >>> transpose_shape((16, 128, 128, 32),'channels_first', spatial_axes=(1, 2))
+        (16, 32, 128, 128)
+        >>> transpose_shape((16, 128, 128, 32), 'channels_last', spatial_axes=(1, 2))
+        (16, 128, 128, 32)
+        >>> transpose_shape((128, 128, 32), 'channels_first', spatial_axes=(0, 1))
+        (32, 128, 128)
+    ```
+
+    # Raises
+        ValueError: if `value` or the global `data_format` invalid.
+    """
+    if target_format == 'channels_first':
+        new_values = shape[:spatial_axes[0]]
+        new_values += (shape[-1],)
+        new_values += tuple(shape[x] for x in spatial_axes)
+
+        if isinstance(shape, list):
+            return list(new_values)
+        return new_values
+    elif target_format == 'channels_last':
+        return shape
+    else:
+        raise ValueError('The `data_format` argument must be one of '
+                         '"channels_first", "channels_last". Received: ' +
+                         str(target_format))

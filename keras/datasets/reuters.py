@@ -97,9 +97,10 @@ def get_word_index(path='reuters_word_index.json'):
     # Returns
         The word index dictionary.
     """
-    path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json',
-                    file_hash='4d44cc38712099c9e383dc6e5f11a921')
+    path = get_file(
+        path,
+        origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json',
+        file_hash='4d44cc38712099c9e383dc6e5f11a921')
     f = open(path)
     data = json.load(f)
     f.close()

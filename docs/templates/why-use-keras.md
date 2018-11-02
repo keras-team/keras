@@ -14,15 +14,18 @@ There are countless deep learning frameworks available today. Why use Keras rath
 
 ## Keras has broad adoption in the industry and the research community
 
-With over 200,000 individual users as of November 2017, Keras has stronger adoption in both the industry and the research community than any other deep learning framework except TensorFlow itself (and Keras is commonly used in conjunction with TensorFlow).
+<a href='https://towardsdatascience.com/deep-learning-framework-power-scores-2018-23607ddf297a'>
+    <img style='width: 80%; margin-left: 10%;' src='https://s3.amazonaws.com/keras.io/img/dl_frameworks_power_scores.png'/>
+</a>
+<p style='font-style: italic; font-size: 10pt; text-align: center;'>
+    Deep learning frameworks ranking computed by Jeff Hale, based on 11 data sources across 7 categories
+</i>
+
+With over 250,000 individual users as of mid-2018, Keras has stronger adoption in both the industry and the research community than any other deep learning framework except TensorFlow itself (and the Keras API is the official frontend of TensorFlow, via the `tf.keras` module).
 
 You are already constantly interacting with features built with Keras -- it is in use at Netflix, Uber, Yelp, Instacart, Zocdoc, Square, and many others. It is especially popular among startups that place deep learning at the core of their products.
 
-Keras is also a favorite among deep learning researchers, coming in #2 in terms of mentions in scientific papers uploaded to the preprint server [arXiv.org](https://arxiv.org/archive/cs):
-
-<img src='/img/arxiv-mentions.png' style='width:500px; display: block; margin: 0 auto;'/>
-
-Keras has also been adopted by researchers at large scientific organizations, in particular CERN and NASA.
+Keras is also a favorite among deep learning researchers, coming in #2 in terms of mentions in scientific papers uploaded to the preprint server [arXiv.org](https://arxiv.org/archive/cs). Keras has also been adopted by researchers at large scientific organizations, in particular CERN and NASA.
 
 ---
 

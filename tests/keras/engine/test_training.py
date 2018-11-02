@@ -1,3 +1,5 @@
+import threading
+
 import pytest
 import numpy as np
 import pandas as pd
@@ -15,7 +17,6 @@ from keras.utils.generic_utils import slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
-from keras.utils.test_utils import keras_test
 from keras.callbacks import LambdaCallback
 
 
@@ -23,11 +24,13 @@ class RandomSequence(Sequence):
     def __init__(self, batch_size, sequence_length=12):
         self.batch_size = batch_size
         self.sequence_length = sequence_length
+        self.logs = []  # It will work for use_multiprocessing=False
 
     def __len__(self):
         return self.sequence_length
 
     def __getitem__(self, idx):
+        self.logs.append(idx)
         return ([np.random.random((self.batch_size, 3)),
                  np.random.random((self.batch_size, 3))],
                 [np.random.random((self.batch_size, 4)),
@@ -37,7 +40,36 @@ class RandomSequence(Sequence):
         pass
 
 
-@keras_test
+class threadsafe_iter:
+    """Takes an iterator/generator and makes it thread-safe by
+    serializing call to the `next` method of given iterator/generator.
+    """
+
+    def __init__(self, it):
+        self.it = it
+        self.lock = threading.Lock()
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.next()
+
+    def next(self):
+        with self.lock:
+            return next(self.it)
+
+
+def threadsafe_generator(f):
+    """A decorator that takes a generator function and makes it thread-safe.
+    """
+
+    def g(*a, **kw):
+        return threadsafe_iter(f(*a, **kw))
+
+    return g
+
+
 def test_check_array_length_consistency():
     training_utils.check_array_length_consistency(None, None, None)
     a_np = np.random.random((4, 3, 3))
@@ -59,7 +91,6 @@ def test_check_array_length_consistency():
         training_utils.check_array_length_consistency([a_np], None, [b_np])
 
 
-@keras_test
 def testslice_arrays():
     input_a = np.random.random((10, 3))
     slice_arrays(None)
@@ -80,7 +111,6 @@ def testslice_arrays():
     slice_arrays(input_a, stop=2)
 
 
-@keras_test
 def test_weighted_masked_objective():
     a = Input(shape=(3,), name='input_a')
 
@@ -93,7 +123,6 @@ def test_weighted_masked_objective():
     weighted_function(a, a, None)
 
 
-@keras_test
 def test_model_methods():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -262,6 +291,7 @@ def test_model_methods():
     # test starting from non-zero initial epoch for generator too
     trained_epochs = []
 
+    @threadsafe_generator
     def gen_data(batch_sz):
         while True:
             yield ([np.random.random((batch_sz, 3)),
@@ -307,9 +337,11 @@ def test_model_methods():
 
     # empty batch
     with pytest.raises(ValueError):
+        @threadsafe_generator
         def gen_data():
             while True:
                 yield (np.asarray([]), np.asarray([]))
+
         out = model.evaluate_generator(gen_data(), steps=1)
 
     # x is not a list of numpy arrays.
@@ -391,9 +423,10 @@ def test_model_methods():
 
     # the rank of weight arrays should be 1.
     with pytest.raises(ValueError):
-        out = model.train_on_batch([input_a_np, input_b_np],
-                                   [output_a_np, output_b_np],
-                                   sample_weight=[None, np.random.random((10, 20, 30))])
+        out = model.train_on_batch(
+            [input_a_np, input_b_np],
+            [output_a_np, output_b_np],
+            sample_weight=[None, np.random.random((10, 20, 30))])
 
     model.compile(optimizer, loss='mse',
                   sample_weight_mode={'dense_1': None, 'dropout': 'temporal'})
@@ -409,33 +442,53 @@ def test_model_methods():
                   sample_weight_mode=None)
     trained_epochs = []
     trained_batches = []
+    val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               steps_per_epoch=3,
                               epochs=5,
                               initial_epoch=0,
-                              validation_data=RandomSequence(4),
+                              validation_data=val_seq,
                               validation_steps=3,
+                              max_queue_size=1,
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(3)) * 5
+    assert len(val_seq.logs) <= 4 * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
     trained_epochs = []
     trained_batches = []
+    val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
                               initial_epoch=0,
-                              validation_data=RandomSequence(4),
+                              validation_data=val_seq,
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(12)) * 5
+    assert len(val_seq.logs) == 12 * 5
+
+    # test for workers = 0
+    trained_epochs = []
+    trained_batches = []
+    val_seq = RandomSequence(4)
+    out = model.fit_generator(generator=RandomSequence(3),
+                              epochs=5,
+                              validation_data=val_seq,
+                              callbacks=[tracker_cb],
+                              workers=0)
+    assert trained_epochs == [0, 1, 2, 3, 4]
+    assert trained_batches == list(range(12)) * 5
+    assert len(val_seq.logs) == 12 * 5
 
     # fit_generator will throw an exception
     # if steps is unspecified for regular generator
     with pytest.raises(ValueError):
+        @threadsafe_generator
         def gen_data():
             while True:
                 yield (np.asarray([]), np.asarray([]))
+
         out = model.fit_generator(generator=gen_data(), epochs=5,
                                   initial_epoch=0, validation_data=gen_data(),
                                   callbacks=[tracker_cb])
@@ -443,6 +496,7 @@ def test_model_methods():
     # Check if generator is only accessed an expected number of times
     gen_counters = [0, 0]
 
+    @threadsafe_generator
     def gen_data(i):
         while True:
             gen_counters[i] += 1
@@ -457,7 +511,9 @@ def test_model_methods():
 
     # Need range check here as filling
     # of the queue depends on sleep in the enqueuers
-    assert 6 <= gen_counters[0] <= 8
+    max_train = 3 * 2 + 2 * 2
+    min_train = 2 * 3
+    assert min_train <= gen_counters[0] <= max_train
     # 12 = (epoch * workers * validation steps * max_queue_size)
     assert 3 <= gen_counters[1] <= 12
 
@@ -517,7 +573,6 @@ def test_model_methods():
 
 @pytest.mark.skipif(sys.version_info < (3,),
                     reason='Cannot catch warnings in python 2')
-@keras_test
 def test_warnings():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -534,6 +589,7 @@ def test_warnings():
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
 
+    @threadsafe_generator
     def gen_data(batch_sz):
         while True:
             yield ([np.random.random((batch_sz, 3)),
@@ -554,10 +610,10 @@ def test_warnings():
                                   steps_per_epoch=4,
                                   use_multiprocessing=True,
                                   workers=2)
-    assert all(['Sequence' not in str(w_.message) for w_ in w]), 'A warning was raised for Sequence.'
+    assert all(['Sequence' not in str(w_.message) for w_ in w]), (
+        'A warning was raised for Sequence.')
 
 
-@keras_test
 def test_sparse_inputs_targets():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
@@ -573,8 +629,8 @@ def test_sparse_inputs_targets():
     model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='sparse operations supported only by TensorFlow')
-@keras_test
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='sparse operations supported only by TensorFlow')
 def test_sparse_placeholder_fit():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
@@ -590,7 +646,6 @@ def test_sparse_placeholder_fit():
     model.evaluate(test_inputs, test_outputs, batch_size=2)
 
 
-@keras_test
 def test_trainable_argument():
     x = np.random.random((5, 3))
     y = np.random.random((5, 2))
@@ -614,7 +669,6 @@ def test_trainable_argument():
     assert_allclose(out, out_2)
 
 
-@keras_test
 def test_with_list_as_targets():
     model = Sequential()
     model.add(Dense(1, input_dim=3, trainable=False))
@@ -625,7 +679,6 @@ def test_with_list_as_targets():
     model.train_on_batch(x, y)
 
 
-@keras_test
 def test_check_not_failing():
     a = np.random.random((2, 1, 3))
     training_utils.check_loss_and_target_compatibility(
@@ -634,7 +687,6 @@ def test_check_not_failing():
         [a], [losses.categorical_crossentropy], [(2, None, 3)])
 
 
-@keras_test
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
@@ -644,7 +696,6 @@ def test_check_last_is_one():
     assert 'You are passing a target array' in str(exc)
 
 
-@keras_test
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
@@ -654,8 +705,8 @@ def test_check_bad_shape():
     assert 'targets to have the same shape' in str(exc)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow backend')
-@keras_test
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='Requires TensorFlow backend')
 def test_model_with_input_feed_tensor():
     """We test building a model with a TF variable as input.
     We should be able to call fit, evaluate, predict,
@@ -797,7 +848,6 @@ def test_model_with_input_feed_tensor():
     assert out.shape == (10 * 3, 4)
 
 
-@keras_test
 def test_model_with_partial_loss():
     a = Input(shape=(3,), name='input_a')
     a_2 = Dense(4, name='dense_1')(a)
@@ -839,7 +889,6 @@ def test_model_with_partial_loss():
     out = model.evaluate(input_a_np, [output_a_np])
 
 
-@keras_test
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason='cntk does not support external loss yet')
 def test_model_with_external_loss():
@@ -912,6 +961,7 @@ def test_model_with_external_loss():
         out = model.fit(None, None, epochs=1, steps_per_epoch=1)
 
         # define a generator to produce x=None and y=None
+        @threadsafe_generator
         def data_tensors_generator():
             while True:
                 yield (None, None)
@@ -992,7 +1042,6 @@ def test_model_with_external_loss():
         assert out[1].shape == (10 * 3, 4)
 
 
-@keras_test
 def test_target_tensors():
     # single-output, as list
     model = keras.models.Sequential()
@@ -1006,6 +1055,11 @@ def test_target_tensors():
     # single-output, as dict
     model.compile(optimizer='rmsprop', loss='mse',
                   target_tensors={'dense': target})
+    model.train_on_batch(input_val, None)
+
+    # single-output, as tensor
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors=target)
     model.train_on_batch(input_val, None)
 
     # test invalid arguments
@@ -1044,6 +1098,20 @@ def test_target_tensors():
                                   'dense_b': target_b})
     model.train_on_batch(input_val, None)
 
+    # multi-output, not enough target tensors when `target_tensors` is not a dict
+    with pytest.raises(ValueError,
+                       match='When passing a list as `target_tensors`, it should '
+                             'have one entry per model output. The model has \d '
+                             'outputs, but you passed target_tensors='):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=[target_a])
+    with pytest.raises(ValueError,
+                       match='The model has \d outputs, but you passed a single '
+                             'tensor as `target_tensors`. Expected a list or '
+                             'a dict of tensors.'):
+        model.compile(optimizer='rmsprop', loss='mse',
+                      target_tensors=target_a)
+
     # test with sample weights
     model.compile(optimizer='rmsprop', loss='mse',
                   target_tensors=[target_a, target_b])
@@ -1051,7 +1119,6 @@ def test_target_tensors():
                          sample_weight={'dense_a': np.random.random((10,))})
 
 
-@keras_test
 def test_model_custom_target_tensors():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
@@ -1113,8 +1180,8 @@ def test_model_custom_target_tensors():
                              [output_a_np, output_b_np])
 
 
-@pytest.mark.skipif(sys.version_info < (3,), reason='Cannot catch warnings in python 2')
-@keras_test
+@pytest.mark.skipif(sys.version_info < (3,),
+                    reason='Cannot catch warnings in python 2')
 def test_trainable_weights_count_consistency():
     """Tests the trainable weights consistency check of Model.
 
@@ -1139,22 +1206,24 @@ def test_trainable_weights_count_consistency():
     with pytest.warns(UserWarning) as w:
         model2.summary()
     warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
-    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+    assert warning_raised, (
+        'No warning raised when trainable is modified without .compile.')
 
     # And on .fit()
     with pytest.warns(UserWarning) as w:
         model2.fit(x=np.zeros((5, 3)), y=np.zeros((5, 1)))
     warning_raised = any(['Discrepancy' in str(w_.message) for w_ in w])
-    assert warning_raised, 'No warning raised when trainable is modified without .compile.'
+    assert warning_raised, (
+        'No warning raised when trainable is modified without .compile.')
 
     # And shouldn't warn if we recompile
     model2.compile(optimizer='adam', loss='mse')
     with pytest.warns(None) as w:
         model2.summary()
-    assert len(w) == 0, "Warning raised even when .compile() is called after modifying .trainable"
+    assert len(w) == 0, (
+        'Warning raised even when .compile() is called after modifying .trainable')
 
 
-@keras_test
 def test_pandas_dataframe():
     input_a = Input(shape=(3,), name='input_a')
     input_b = Input(shape=(3,), name='input_b')
@@ -1234,7 +1303,6 @@ def test_pandas_dataframe():
                           [output_a_df, output_b_df])
 
 
-@keras_test
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
 @pytest.mark.skipif((K.backend() == 'tensorflow' and
                      not hasattr(K.get_session(),
@@ -1263,7 +1331,6 @@ def test_training_and_eval_methods_on_symbolic_tensors_single_io():
               validation_data=(inputs, targets), validation_steps=2)
 
 
-@keras_test
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
 @pytest.mark.skipif((K.backend() == 'tensorflow' and
                      not hasattr(K.get_session(),
@@ -1361,7 +1428,6 @@ def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
     model.test_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
 
 
-@keras_test
 def test_model_with_crossentropy_losses_channels_first():
     """Tests use of all crossentropy losses with `channels_first`.
 
@@ -1371,6 +1437,7 @@ def test_model_with_crossentropy_losses_channels_first():
     `channels_first` or `channels_last` image_data_format.
     Tests PR #9715.
     """
+
     def prepare_simple_model(input_tensor, loss_name, target):
         axis = 1 if K.image_data_format() == 'channels_first' else -1
         if loss_name == 'sparse_categorical_crossentropy':
@@ -1443,7 +1510,6 @@ def test_model_with_crossentropy_losses_channels_first():
                                           'channels_first and channels_last.'))
 
 
-@keras_test
 def test_dynamic_set_inputs():
     model = Sequential()
     model.add(Dense(16, input_dim=32))

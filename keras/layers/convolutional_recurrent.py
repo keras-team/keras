@@ -21,6 +21,8 @@ from ..legacy import interfaces
 from ..legacy.layers import Recurrent, ConvRecurrent2D
 from .recurrent import RNN
 from ..utils.generic_utils import has_arg
+from ..utils.generic_utils import to_list
+from ..utils.generic_utils import transpose_shape
 
 
 class ConvRNN2D(RNN):
@@ -29,17 +31,15 @@ class ConvRNN2D(RNN):
     # Arguments
         cell: A RNN cell instance. A RNN cell is a class that has:
             - a `call(input_at_t, states_at_t)` method, returning
-                `(output_at_t, states_at_t_plus_1)`. The call method of the
-                cell can also take the optional argument `constants`, see
-                section "Note on passing external constants" below.
-            - a `state_size` attribute. This can be a single integer
-                (single state) in which case it is
-                the number of channels of the recurrent state
-                (which should be the same as the number of channels of the cell output).
-                This can also be a list/tuple of integers
-                (one size per state). In this case, the first entry
-                (`state_size[0]`) should be the same as
-                the size of the cell output.
+              `(output_at_t, states_at_t_plus_1)`. The call method of the
+              cell can also take the optional argument `constants`, see
+              section "Note on passing external constants" below.
+            - a `state_size` attribute. This can be a single integer (single state)
+              in which case it is the number of channels of the recurrent state
+              (which should be the same as the number of channels of the cell
+              output). This can also be a list/tuple of integers
+              (one size per state). In this case, the first entry (`state_size[0]`)
+              should be the same as the size of the cell output.
         return_sequences: Boolean. Whether to return the last output.
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
@@ -63,14 +63,18 @@ class ConvRNN2D(RNN):
         - if `return_state`: a list of tensors. The first tensor is
             the output. The remaining tensors are the last states,
             each 5D tensor with shape:
-            `(samples, timesteps, filters, new_rows, new_cols)` if data_format='channels_first'
+            `(samples, timesteps,
+              filters, new_rows, new_cols)` if data_format='channels_first'
             or 5D tensor with shape:
-            `(samples, timesteps, new_rows, new_cols, filters)` if data_format='channels_last'.
+            `(samples, timesteps,
+              new_rows, new_cols, filters)` if data_format='channels_last'.
             `rows` and `cols` values might have changed due to padding.
         - if `return_sequences`: 5D tensor with shape:
-            `(samples, timesteps, filters, new_rows, new_cols)` if data_format='channels_first'
+            `(samples, timesteps,
+              filters, new_rows, new_cols)` if data_format='channels_first'
             or 5D tensor with shape:
-            `(samples, timesteps, new_rows, new_cols, filters)` if data_format='channels_last'.
+            `(samples, timesteps,
+              new_rows, new_cols, filters)` if data_format='channels_last'.
         - else, 4D tensor with shape:
             `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
             or 4D tensor with shape:
@@ -169,22 +173,18 @@ class ConvRNN2D(RNN):
                                              stride=cell.strides[1],
                                              dilation=cell.dilation_rate[1])
 
-        if cell.data_format == 'channels_first':
-            output_shape = input_shape[:2] + (cell.filters, rows, cols)
-        elif cell.data_format == 'channels_last':
-            output_shape = input_shape[:2] + (rows, cols, cell.filters)
+        output_shape = input_shape[:2] + (rows, cols, cell.filters)
+        output_shape = transpose_shape(output_shape, cell.data_format,
+                                       spatial_axes=(2, 3))
 
         if not self.return_sequences:
             output_shape = output_shape[:1] + output_shape[2:]
 
         if self.return_state:
             output_shape = [output_shape]
-            if cell.data_format == 'channels_first':
-                output_shape += [(input_shape[0], cell.filters, rows, cols)
-                                 for _ in range(2)]
-            elif cell.data_format == 'channels_last':
-                output_shape += [(input_shape[0], rows, cols, cell.filters)
-                                 for _ in range(2)]
+            base = (input_shape[0], rows, cols, cell.filters)
+            base = transpose_shape(base, cell.data_format, spatial_axes=(1, 2))
+            output_shape += [base[:] for _ in range(2)]
         return output_shape
 
     def build(self, input_shape):
@@ -226,7 +226,8 @@ class ConvRNN2D(RNN):
                     'An initial_state was passed that is not compatible with '
                     '`cell.state_size`. Received `state_spec`={}; '
                     'However `cell.state_size` is '
-                    '{}'.format([spec.shape for spec in self.state_spec], self.cell.state_size))
+                    '{}'.format([spec.shape for spec in self.state_spec],
+                                self.cell.state_size))
         else:
             if self.cell.data_format == 'channels_first':
                 self.state_spec = [InputSpec(shape=(None, dim, None, None))
@@ -390,10 +391,7 @@ class ConvRNN2D(RNN):
             output._uses_learning_phase = True
 
         if self.return_state:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
-            else:
-                states = list(states)
+            states = to_list(states, allow_tuple=True)
             return [output] + states
         else:
             return output
@@ -418,7 +416,8 @@ class ConvRNN2D(RNN):
                              '- If using the functional API, specify '
                              'the time dimension by passing a '
                              '`batch_shape` argument to your Input layer.\n'
-                             'The same thing goes for the number of rows and columns.')
+                             'The same thing goes for the number of rows '
+                             'and columns.')
 
         # helper function
         def get_tuple_shape(nb_channels):
@@ -446,12 +445,11 @@ class ConvRNN2D(RNN):
                 K.set_value(self.states[0],
                             np.zeros(get_tuple_shape(self.cell.state_size)))
         else:
-            if not isinstance(states, (list, tuple)):
-                states = [states]
+            states = to_list(states, allow_tuple=True)
             if len(states) != len(self.states):
                 raise ValueError('Layer ' + self.name + ' expects ' +
                                  str(len(self.states)) + ' states, '
-                                                         'but it received ' + str(len(states)) +
+                                 'but it received ' + str(len(states)) +
                                  ' state values. Input received: ' +
                                  str(states))
             for index, (value, state) in enumerate(zip(states, self.states)):
@@ -483,10 +481,10 @@ class ConvLSTM2DCell(Layer):
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -511,7 +509,8 @@ class ConvLSTM2DCell(Layer):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Use in combination with `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            This is recommended in [Jozefowicz et al. (2015)](
+            http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
             (see [regularizer](../regularizers.md)).
@@ -563,8 +562,9 @@ class ConvLSTM2DCell(Layer):
         self.kernel_size = conv_utils.normalize_tuple(kernel_size, 2, 'kernel_size')
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
-        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
+        self.data_format = K.normalize_data_format(data_format)
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2,
+                                                        'dilation_rate')
         self.activation = activations.get(activation)
         self.recurrent_activation = activations.get(recurrent_activation)
         self.use_bias = use_bias
@@ -642,9 +642,11 @@ class ConvLSTM2DCell(Layer):
         self.kernel_i = self.kernel[:, :, :, :self.filters]
         self.recurrent_kernel_i = self.recurrent_kernel[:, :, :, :self.filters]
         self.kernel_f = self.kernel[:, :, :, self.filters: self.filters * 2]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, :, :, self.filters: self.filters * 2]
+        self.recurrent_kernel_f = (
+            self.recurrent_kernel[:, :, :, self.filters: self.filters * 2])
         self.kernel_c = self.kernel[:, :, :, self.filters * 2: self.filters * 3]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, :, :, self.filters * 2: self.filters * 3]
+        self.recurrent_kernel_c = (
+            self.recurrent_kernel[:, :, :, self.filters * 2: self.filters * 3])
         self.kernel_o = self.kernel[:, :, :, self.filters * 3:]
         self.recurrent_kernel_o = self.recurrent_kernel[:, :, :, self.filters * 3:]
 
@@ -758,17 +760,24 @@ class ConvLSTM2DCell(Layer):
                   'data_format': self.data_format,
                   'dilation_rate': self.dilation_rate,
                   'activation': activations.serialize(self.activation),
-                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'recurrent_activation':
+                      activations.serialize(self.recurrent_activation),
                   'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'kernel_initializer':
+                      initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer':
+                      initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
                   'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'kernel_regularizer':
+                      regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer':
+                      regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'kernel_constraint':
+                      constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint':
+                      constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout}
@@ -793,15 +802,15 @@ class ConvLSTM2D(ConvRNN2D):
             any `dilation_rate` value != 1.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, time, ..., channels)`
-            while `channels_first` corresponds to
+            while `"channels_first"` corresponds to
             inputs with shape `(batch, time, channels, ...)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         dilation_rate: An integer or tuple/list of n integers, specifying
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
@@ -826,7 +835,8 @@ class ConvLSTM2D(ConvRNN2D):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Use in combination with `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            This is recommended in [Jozefowicz et al. (2015)](
+            http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
             (see [regularizer](../regularizers.md)).
@@ -877,7 +887,7 @@ class ConvLSTM2D(ConvRNN2D):
                 5D tensor with shape:
                 `(samples, time, output_row, output_col, filters)`
         - else
-            - if data_format ='channels_first'
+            - if data_format='channels_first'
                 4D tensor with shape:
                 `(samples, filters, output_row, output_col)`
             - if data_format='channels_last'
@@ -891,9 +901,9 @@ class ConvLSTM2D(ConvRNN2D):
 
     # References
         - [Convolutional LSTM Network: A Machine Learning Approach for
-        Precipitation Nowcasting](http://arxiv.org/abs/1506.04214v1)
-        The current implementation does not include the feedback loop on the
-        cells output
+          Precipitation Nowcasting](http://arxiv.org/abs/1506.04214v1)
+          The current implementation does not include the feedback loop on the
+          cells output
     """
 
     @interfaces.legacy_convlstm2d_support
@@ -1049,18 +1059,26 @@ class ConvLSTM2D(ConvRNN2D):
                   'data_format': self.data_format,
                   'dilation_rate': self.dilation_rate,
                   'activation': activations.serialize(self.activation),
-                  'recurrent_activation': activations.serialize(self.recurrent_activation),
+                  'recurrent_activation':
+                      activations.serialize(self.recurrent_activation),
                   'use_bias': self.use_bias,
-                  'kernel_initializer': initializers.serialize(self.kernel_initializer),
-                  'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+                  'kernel_initializer':
+                      initializers.serialize(self.kernel_initializer),
+                  'recurrent_initializer':
+                      initializers.serialize(self.recurrent_initializer),
                   'bias_initializer': initializers.serialize(self.bias_initializer),
                   'unit_forget_bias': self.unit_forget_bias,
-                  'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-                  'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+                  'kernel_regularizer':
+                      regularizers.serialize(self.kernel_regularizer),
+                  'recurrent_regularizer':
+                      regularizers.serialize(self.recurrent_regularizer),
                   'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
-                  'kernel_constraint': constraints.serialize(self.kernel_constraint),
-                  'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+                  'activity_regularizer':
+                      regularizers.serialize(self.activity_regularizer),
+                  'kernel_constraint':
+                      constraints.serialize(self.kernel_constraint),
+                  'recurrent_constraint':
+                      constraints.serialize(self.recurrent_constraint),
                   'bias_constraint': constraints.serialize(self.bias_constraint),
                   'dropout': self.dropout,
                   'recurrent_dropout': self.recurrent_dropout}

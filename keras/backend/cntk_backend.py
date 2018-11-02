@@ -4,7 +4,11 @@ from __future__ import print_function
 
 import cntk as C
 import numpy as np
-from .common import floatx, epsilon, image_dim_ordering, image_data_format
+from .common import floatx
+from .common import epsilon
+from .common import image_data_format
+from .common import normalize_data_format
+from ..utils.generic_utils import transpose_shape
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
@@ -26,8 +30,12 @@ if dev.type() == 0:
 # A learning phase is a bool tensor used to run Keras models in
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 # LEARNING_PHASE_PLACEHOLDER is the placeholder for dynamic learning phase
-_LEARNING_PHASE_PLACEHOLDER = C.constant(shape=(), dtype=np.float32, value=1.0, name='_keras_learning_phase')
-# static learning phase flag, if it is not 0 or 1, we will go with dynamic learning phase tensor.
+_LEARNING_PHASE_PLACEHOLDER = C.constant(
+    shape=(), dtype=np.float32,
+    value=1.0,
+    name='_keras_learning_phase')
+# static learning phase flag, if it is not 0 or 1, we will go with dynamic
+# learning phase tensor.
 _LEARNING_PHASE = -1
 _UID_PREFIXES = defaultdict(int)
 
@@ -54,7 +62,10 @@ def get_uid(prefix=''):
 
 def learning_phase():
     # If _LEARNING_PHASE is not 0 or 1, return dynamic learning phase tensor
-    return _LEARNING_PHASE if _LEARNING_PHASE in {0, 1} else _LEARNING_PHASE_PLACEHOLDER
+    if _LEARNING_PHASE in {0, 1}:
+        return _LEARNING_PHASE
+    else:
+        return _LEARNING_PHASE_PLACEHOLDER
 
 
 def set_learning_phase(value):
@@ -184,10 +195,7 @@ def variable(value, dtype=None, name=None, constraint=None):
 
 
 def bias_add(x, bias, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     dims = len(x.shape)
     if dims > 0 and x.shape[0] == C.InferredDimension:
@@ -239,7 +247,8 @@ def bias_add(x, bias, data_format=None):
 def eval(x):
     if isinstance(x, C.cntk_py.Function):
         return x.eval()
-    elif isinstance(x, C.variables.Constant) or isinstance(x, C.variables.Parameter):
+    elif (isinstance(x, C.variables.Constant) or isinstance(
+            x, C.variables.Parameter)):
         return x.value
     else:
         raise ValueError('CNTK Backend: `eval` method on '
@@ -262,7 +271,11 @@ def placeholder(
         if ndim:
             shape = tuple([None for _ in range(ndim)])
 
-    dynamic_dimension = C.FreeDimension if _get_cntk_version() >= 2.2 else C.InferredDimension
+    if _get_cntk_version() >= 2.2:
+        dynamic_dimension = C.FreeDimension
+    else:
+        dynamic_dimension = C.InferredDimension
+
     cntk_shape = [dynamic_dimension if s is None else s for s in shape]
     cntk_shape = tuple(cntk_shape)
 
@@ -270,7 +283,7 @@ def placeholder(
         raise ValueError('CNTK backend: creating placeholder with '
                          '%d dimension is not supported, at least '
                          '%d dimensions are needed.'
-                         % (len(cntk_shape, dynamic_axis_num)))
+                         % (len(cntk_shape), dynamic_axis_num))
 
     if name is None:
         name = ''
@@ -369,27 +382,21 @@ def constant(value, dtype=None, shape=None, name=None):
 
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
-    # use numpy workaround now
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
-        np.random.seed(seed)
     if dtype is None:
         dtype = np.float32
     else:
         dtype = _convert_string_dtype(dtype)
 
-    size = 1
     for _ in shape:
         if _ is None:
             raise ValueError('CNTK Backend: randomness op with '
                              'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
                              'instead of `None`.')
-        size *= _
-
-    binomial = np.random.binomial(1, p, size).astype(dtype).reshape(shape)
-    return variable(value=binomial, dtype=dtype)
+    return C.random.bernoulli(shape=shape, dtype=dtype, mean=p, seed=seed)
 
 
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
@@ -400,7 +407,15 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
                              'Please provide fixed dimension '
                              'instead of `None`.')
 
-    return random_uniform_variable(shape, minval, maxval, dtype, seed)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e3)
+    return C.random.uniform(
+        shape=shape,
+        dtype=dtype,
+        low=minval,
+        high=maxval,
+        seed=seed)
 
 
 def random_uniform_variable(shape, low, high,
@@ -450,13 +465,14 @@ def random_normal_variable(
     if name is None:
         name = ''
 
-    return C.parameter(
+    p = C.parameter(
         shape=shape,
         init=C.initializer.normal(
             scale=scale,
             seed=seed),
         dtype=dtype,
         name=name)
+    return variable(value=p.value + mean)
 
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -468,8 +484,13 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
                              'dynamic shape is not supported now. '
                              'Please provide fixed dimension '
                              'instead of `None`.')
-    # how to apply mean and stddev
-    return random_normal_variable(shape=shape, mean=mean, scale=1.0, seed=seed)
+    if seed is None:
+        # ensure that randomness is conditioned by the Numpy RNG
+        seed = np.random.randint(10e3)
+    return C.random.normal(
+        shape=shape, mean=mean,
+        scale=stddev, seed=seed,
+        dtype=dtype)
 
 
 def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
@@ -549,43 +570,142 @@ def batch_dot(x, y, axes=None):
     x_shape = int_shape(x)
     y_shape = int_shape(y)
 
+    x_ndim = len(x_shape)
+    y_ndim = len(y_shape)
+
+    if x_ndim < 2 or y_ndim < 2:
+        raise ValueError('Can not do batch_dot on inputs '
+                         'with rank < 2. '
+                         'Received inputs with shapes ' +
+                         str(x_shape) + ' and ' +
+                         str(y_shape) + '.')
+
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is not None and y_batch_size is not None:
+        if x_batch_size != y_batch_size:
+            raise ValueError('Can not do batch_dot on inputs '
+                             'with different batch sizes. '
+                             'Received inputs with shapes ' +
+                             str(x_shape) + ' and ' +
+                             str(y_shape) + '.')
+
     if isinstance(axes, int):
-        axes = (axes, axes)
+        axes = [axes, axes]
+
     if axes is None:
-        # behaves like tf.batch_matmul as default
-        axes = [len(x_shape) - 1, len(y_shape) - 2]
+        if y_ndim == 2:
+            axes = [x_ndim - 1, y_ndim - 1]
+        else:
+            axes = [x_ndim - 1, y_ndim - 2]
+
     if b_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
 
-    if len(x_shape) == 2 and len(y_shape) == 2:
-        if axes[0] == axes[1]:
-            result = sum(x * y, axis=axes[0], keepdims=True)
-            return result if axes[0] == 1 else transpose(result)
-        else:
-            return sum(x * transpose(y), axis=axes[0], keepdims=True)
-    else:
-        if len(y_shape) == 2:
-            y = expand_dims(y)
+    # if tuple, convert to list
+    axes = list(axes)
 
-        normalized_axis = []
-        normalized_axis.append(_normalize_axis(axes[0], x)[0])
-        normalized_axis.append(_normalize_axis(axes[1], y)[0])
-        # transpose
-        i = normalized_axis[0]
-        while i < len(x.shape) - 1:
-            x = C.swapaxes(x, i, i + 1)
-            i += 1
-        i = normalized_axis[1]
-        while i > 0:
-            y = C.swapaxes(y, i, i - 1)
-            i -= 1
-        result = C.times(x, y, output_rank=(len(y.shape) - 1)
-                         if len(y.shape) > 1 else 1)
-        if len(y_shape) == 2:
-            result = squeeze(result, -1)
-        return result
+    # convert negative indices
+    if axes[0] < 0:
+        axes[0] += x_ndim
+    if axes[1] < 0:
+        axes[1] += y_ndim
+
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0.'
+                         ' If your inputs are not batched,'
+                         ' add a dummy batch dimension to your '
+                         'inputs using K.expand_dims(x, 0)')
+    d1 = x_shape[axes[0]]
+    d2 = y_shape[axes[1]]
+
+    if d1 is not None and d2 is not None and d1 != d2:
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x_shape) + ' and ' + str(y_shape) +
+                         ' with axes=' + str(axes) + '. x.shape[%d] != '
+                         'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
+
+    # Input shapes:
+    # x: (b_size, x1, ..., d, ..., xn)
+    # y: (b_size, y1, ..., d, ..., yn)
+    # where d is the dimension to reduce.
+
+    # Bring d to the last dimension in x
+    # x: (b_size, ..., d)
+
+    permute_pattern = list(range(x_ndim))
+    for i in range(axes[0], x_ndim - 1):
+        permute_pattern[i] = permute_pattern[i + 1]
+    permute_pattern[-1] = axes[0]
+
+    x = permute_dimensions(x, permute_pattern)
+
+    # Bring d to the second dimension in y
+    # y: (b_size, d, ...)
+    permute_pattern = list(range(y_ndim))
+
+    for i in range(axes[1], 1, -1):
+        permute_pattern[i] = permute_pattern[i - 1]
+    permute_pattern[1] = axes[1]
+    y = permute_dimensions(y, permute_pattern)
+
+    # Expand to rank 3 if needed
+    if x_ndim == 2:
+        x = expand_dims(x, 1)
+        x_expanded = True
+    else:
+        x_expanded = False
+
+    if y_ndim == 2:
+        y = expand_dims(y, -1)
+        y_expanded = True
+    else:
+        y_expanded = False
+
+    x_shape = int_shape(x)
+    y_shape = int_shape(y)
+
+    # batch size might be lost at this point
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is None and y_batch_size is None:
+        dynamic_batch_size = True
+    elif x_batch_size is not None and y_batch_size is not None:
+        dynamic_batch_size = False
+    else:
+        raise ValueError('Can not perform batch_dot on inputs' +
+                         ' with both static and dynamic batch sizes.' +
+                         'You probably attempted to permform the ' +
+                         'operation on a placeholder and a variable, ' +
+                         'which is not yet supported on the CNTK backend.')
+
+    if dynamic_batch_size:
+        result = C.times(x, y, output_rank=y_ndim - 2 + int(y_expanded))
+    else:
+        result = []
+
+        for i in range(x_batch_size):
+            xi = x[i]
+            yi = y[i]
+            if ndim(xi) == ndim(x):  # for older versions of CNTK
+                xi = squeeze(xi, 0)
+                yi = squeeze(yi, 0)
+            result.append(C.times(xi, yi, output_rank=y_ndim - 2 + int(y_expanded)))
+        result = stack(result, 0)
+
+    if x_expanded:
+        result = squeeze(result, 1)
+
+    if y_expanded:
+        result = squeeze(result, -1)
+
+    if ndim(result) == 1:
+        return expand_dims(result)
+    return result
 
 
 def transpose(x):
@@ -601,7 +721,9 @@ def gather(reference, indices):
     else:
         num_classes = reference.shape[0]
         one_hot_matrix = C.ops.one_hot(indices, num_classes)
-        return C.times(one_hot_matrix, reference, output_rank=len(reference.shape) - 1)
+        return C.times(
+            one_hot_matrix, reference,
+            output_rank=len(reference.shape) - 1)
 
 
 def _remove_dims(x, axis, keepdims=False):
@@ -702,7 +824,16 @@ def squeeze(x, axis):
         del shape[_]
 
     new_shape = shape[nones:]
-    new_shape = tuple([C.InferredDimension if _ == C.FreeDimension else _ for _ in new_shape])
+
+    new_shape_temp = []
+    for _ in new_shape:
+        if _ == C.FreeDimension:
+            new_shape_temp.append(C.InferredDimension)
+        else:
+            new_shape_temp.append(_)
+
+    new_shape = tuple(new_shape_temp)
+
     return C.reshape(x, new_shape)
 
 
@@ -738,9 +869,11 @@ def _normalize_axis(axis, x):
     nones = _get_dynamic_axis_num(x)
 
     if nones > ndim:
-        raise ValueError('CNTK Backend: tensor with keras shape: `%s` has '
-                         '%d cntk dynamic axis, this is not expected, please '
-                         'double check the keras shape history.' % (str(shape), nones))
+        raise ValueError(
+            'CNTK Backend: tensor with keras shape: `%s` has '
+            '%d cntk dynamic axis, this is not expected, please '
+            'double check the keras shape history.'
+            % (str(shape), nones))
 
     # Current cntk does not support shape like (1, batch). so using the workaround
     # here to mapping the correct axis. Will remove this tricky after we add support
@@ -902,12 +1035,14 @@ def pow(x, a):
 
 
 def clip(x, min_value, max_value):
-    if max_value is not None and max_value < min_value:
-        max_value = min_value
-    if max_value is None:
-        max_value = np.inf
+    if (isinstance(min_value, (int, float)) and
+            isinstance(max_value, (int, float))):
+        if max_value < min_value:
+            max_value = min_value
     if min_value is None:
         min_value = -np.inf
+    if max_value is None:
+        max_value = np.inf
     return C.clip(x, min_value, max_value)
 
 
@@ -1097,12 +1232,25 @@ def concatenate(tensors, axis=-1):
     return C.splice(*tensors, axis=axis[0])
 
 
+def stack(x, axis=0):
+    x = [expand_dims(t, axis) for t in x]
+    return concatenate(x, axis)
+
+
 def flatten(x):
     return reshape(x, (-1,))
 
 
 def reshape(x, shape):
-    shape = tuple([C.InferredDimension if _ == C.FreeDimension else _ for _ in shape])
+    shape_temp = []
+    for _ in shape:
+        if _ == C.FreeDimension:
+            shape_temp.append(C.InferredDimension)
+        else:
+            shape_temp.append(_)
+
+    shape = tuple(shape_temp)
+
     if isinstance(x, C.variables.Parameter):
         return C.reshape(x, shape)
     else:
@@ -1143,11 +1291,12 @@ def permute_dimensions(x, pattern):
     else:
         current_layout = tuple([i for i in range(dims)])
 
-    if num_dynamic_axis > 0 and pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]:
-        raise ValueError('CNTK backend: the permute pattern %s '
-                         'requested permute on dynamic axis, '
-                         'which is not supported. Please do permute '
-                         'on static axis.' % pattern)
+    if (num_dynamic_axis > 0 and
+            pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]):
+                raise ValueError('CNTK backend: the permute pattern %s '
+                                 'requested permute on dynamic axis, '
+                                 'which is not supported. Please do permute '
+                                 'on static axis.' % pattern)
 
     axis = list(pattern)
     axis = axis[num_dynamic_axis:]
@@ -1155,17 +1304,21 @@ def permute_dimensions(x, pattern):
     return C.transpose(x, axis)
 
 
-def resize_images(x, height_factor, width_factor, data_format):
-    if data_format == 'channels_first':
-        output = repeat_elements(x, height_factor, axis=2)
-        output = repeat_elements(output, width_factor, axis=3)
-        return output
-    elif data_format == 'channels_last':
-        output = repeat_elements(x, height_factor, axis=1)
-        output = repeat_elements(output, width_factor, axis=2)
-        return output
+def resize_images(x, height_factor, width_factor, data_format,
+                  interpolation='nearest'):
+    if interpolation == 'nearest':
+        if data_format == 'channels_first':
+            output = repeat_elements(x, height_factor, axis=2)
+            output = repeat_elements(output, width_factor, axis=3)
+            return output
+        elif data_format == 'channels_last':
+            output = repeat_elements(x, height_factor, axis=1)
+            output = repeat_elements(output, width_factor, axis=2)
+            return output
+        else:
+            raise ValueError('CNTK Backend: Invalid data_format: %s' % data_format)
     else:
-        raise ValueError('CNTK Backend: Invalid data_format:', data_format)
+        raise NotImplementedError('CNTK only supports `nearest` interpolation.')
 
 
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
@@ -1180,7 +1333,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         output = repeat_elements(output, width_factor, axis=3)
         return output
     else:
-        raise ValueError('CNTK Backend: Invalid data_format:', data_format)
+        raise ValueError('CNTK Backend: Invalid data_format: %s' % data_format)
 
 
 def repeat_elements(x, rep, axis):
@@ -1377,9 +1530,10 @@ def rnn(step_function, inputs, initial_states,
 
     need_convert = not has_seq_axis(inputs)
     if go_backwards and need_convert is False:
-        raise NotImplementedError('CNTK Backend: `go_backwards` is not supported with '
-                                  'variable-length sequences. Please specify a '
-                                  'static length for your sequences.')
+        raise NotImplementedError(
+            'CNTK Backend: `go_backwards` is not supported with '
+            'variable-length sequences. Please specify a '
+            'static length for your sequences.')
 
     rnn_inputs = inputs
     if need_convert:
@@ -1400,7 +1554,9 @@ def rnn(step_function, inputs, initial_states,
                 rnn_constants.append(new_c)
             else:
                 if _get_dynamic_axis_num(constant) == 1:
-                    rnn_constants.append(C.sequence.broadcast_as(constant, rnn_inputs))
+                    rnn_constants.append(C.sequence.broadcast_as(
+                        constant,
+                        rnn_inputs))
                 else:
                     rnn_constants.append(constant)
     else:
@@ -1418,7 +1574,8 @@ def rnn(step_function, inputs, initial_states,
     with C.default_options(axis_offset=1):
         def _recurrence(x, states, m):
             # create place holder
-            place_holders = [C.placeholder(dynamic_axes=x.dynamic_axes) for _ in states]
+            place_holders = [C.placeholder(
+                dynamic_axes=x.dynamic_axes) for _ in states]
             past_values = []
             for s, p in zip(states, place_holders):
                 past_values.append(C.sequence.past_value(p, s))
@@ -1430,12 +1587,17 @@ def rnn(step_function, inputs, initial_states,
                 uses_learning_phase = True
 
             if m is not None:
-                new_states = [C.element_select(m, n, s) for n, s in zip(new_states, past_values)]
+                new_states_temp = []
+                for n, s in zip(new_states, past_values):
+                    new_states_temp.append(C.element_select(m, n, s))
+
+                new_states = new_states_temp
+
             n_s = []
             for o, p in zip(new_states, place_holders):
                 n_s.append(o.replace_placeholders({p: o.output}))
             if len(n_s) > 0:
-                new_output = n_s[0]
+                new_output = n_s[-1]
             return new_output, n_s
 
         final_output, final_states = _recurrence(rnn_inputs, states, mask)
@@ -1453,7 +1615,8 @@ def rnn(step_function, inputs, initial_states,
             if hasattr(C, 'unpack_batch'):
                 f_stats.append(C.unpack_batch(l_s))
             else:
-                f_stats.append(C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
+                f_stats.append(
+                    C.user_function(ConvertToStatic(l_s, batch_size=i_s.shape[0])))
         else:
             f_stats.append(l_s)
 
@@ -1480,10 +1643,7 @@ def hard_sigmoid(x):
 
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     if padding == 'causal':
         # causal (dilated) convolution:
@@ -1493,17 +1653,28 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
     if data_format == 'channels_last':
         x = C.swapaxes(x, 0, 1)
-        kernel = C.swapaxes(kernel, 0, 2)
+
+    # As of Keras 2.0.0, all kernels are normalized
+    # on the format `(steps, input_depth, depth)`,
+    # independently of `data_format`.
+    # CNTK expects `(depth, input_depth, steps)`.
+    kernel = C.swapaxes(kernel, 0, 2)
 
     padding = _preprocess_border_mode(padding)
-    strides = [strides]
+
+    if dev.type() == 0 and dilation_rate != 1:
+        raise ValueError(
+            'Dilated convolution on CPU is not supported by CNTK backend. '
+            'Please set `dilation_rate` to 1. You passed: %s' % (dilation_rate,))
+
+    dilation_rate = (1, dilation_rate)
+
     x = C.convolution(
         kernel,
         x,
-        strides=tuple(strides),
-        auto_padding=[
-            False,
-            padding])
+        strides=strides,
+        auto_padding=[False, padding],
+        dilation=dilation_rate)
 
     if data_format == 'channels_last':
         x = C.swapaxes(x, 0, 1)
@@ -1512,44 +1683,32 @@ def conv1d(x, kernel, strides=1, padding='valid',
 
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(padding)
-    if dilation_rate == (1, 1):
-        strides = (1,) + strides
-        x = C.convolution(
-            kernel,
-            x,
-            strides,
-            auto_padding=[
-                False,
-                padding,
-                padding])
-    else:
-        assert dilation_rate[0] == dilation_rate[1]
-        assert strides == (1, 1), 'Invalid strides for dilated convolution'
-        x = C.convolution(
-            kernel,
-            x,
-            strides=dilation_rate[0],
-            auto_padding=[
-                False,
-                padding,
-                padding])
+
+    if dev.type() == 0 and dilation_rate != (1, 1):
+        raise ValueError(
+            'Dilated convolution on CPU is not supported by CNTK backend. '
+            'Please set `dilation_rate` to (1, 1). '
+            'You passed: %s' % (dilation_rate,))
+
+    dilation_rate = (1,) + dilation_rate
+
+    x = C.convolution(kernel,
+                      x,
+                      strides,
+                      auto_padding=[False, padding, padding],
+                      dilation=dilation_rate)
+
     return _postprocess_conv2d_output(x, data_format)
 
 
 def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
                      padding='valid', data_format=None, dilation_rate=1):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
     if isinstance(strides, int):
         strides = (strides,)
     if isinstance(dilation_rate, int):
@@ -1599,10 +1758,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
 
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
@@ -1637,10 +1793,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
 
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     depthwise_kernel = _preprocess_conv2d_kernel(depthwise_kernel, data_format)
@@ -1668,34 +1821,33 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
 
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
     padding = _preprocess_border_mode(padding)
-    strides = strides + (strides[0],)
+
+    if dev.type() == 0 and dilation_rate != (1, 1, 1):
+        raise ValueError(
+            'Dilated convolution on CPU is not supported by CNTK backend. '
+            'Please set `dilation_rate` to (1, 1, 1). '
+            'You passed: %s' % (dilation_rate,))
+
+    dilation_rate = (1,) + dilation_rate
 
     x = C.convolution(
         kernel,
         x,
         strides,
-        auto_padding=[
-            False,
-            padding,
-            padding,
-            padding])
+        auto_padding=[False, padding, padding, padding],
+        dilation=dilation_rate)
+
     return _postprocess_conv3d_output(x, data_format)
 
 
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
                      padding='valid', data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv3d_input(x, data_format)
     kernel = _preprocess_conv3d_kernel(kernel, data_format)
@@ -1705,12 +1857,8 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        shape = list(output_shape)
-        shape[0] = output_shape[3]
-        shape[1] = output_shape[0]
-        shape[2] = output_shape[1]
-        shape[3] = output_shape[2]
-        output_shape = tuple(shape)
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1, 2))
 
     x = C.convolution_transpose(
         kernel,
@@ -1728,10 +1876,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
            pool_mode='max'):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     padding = _preprocess_border_mode(padding)
     strides = strides
@@ -1758,10 +1903,7 @@ def pool2d(x, pool_size, strides=(1, 1),
 
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     padding = _preprocess_border_mode(padding)
 
@@ -1787,14 +1929,25 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return _postprocess_conv3d_output(x, data_format)
 
 
-def relu(x, alpha=0., max_value=None):
+def relu(x, alpha=0., max_value=None, threshold=0.):
+
     if alpha != 0.:
-        negative_part = C.relu(-x)
-    x = C.relu(x)
+        if threshold != 0.:
+            negative_part = C.relu(-x + threshold)
+        else:
+            negative_part = C.relu(-x)
+
+    if threshold != 0.:
+        x = x * C.greater(x, threshold)
+    else:
+        x = C.relu(x)
+
     if max_value is not None:
         x = C.clip(x, 0.0, max_value)
+
     if alpha != 0.:
         x -= alpha * negative_part
+
     return x
 
 
@@ -1931,7 +2084,8 @@ class Function(object):
                 unrelated_updates.extend(u_ops)
 
             if len(unrelated_updates) > 0:
-                self.unrelated_updates = C.combine([_.output for _ in unrelated_updates])
+                self.unrelated_updates = C.combine(
+                    [_.output for _ in unrelated_updates])
 
         if self.trainer is None:
             self.metrics_outputs = [f.output for f in outputs]
@@ -1973,11 +2127,12 @@ class Function(object):
                 # in current version cntk can't support input with variable
                 # length. Will support it in next release.
                 if not self._is_input_shape_compatible(value, tensor):
-                    raise ValueError('CNTK backend: The placeholder has been resolved '
-                                     'to shape `%s`, but input shape is `%s`. Currently '
-                                     'CNTK can not take variable length inputs. Please '
-                                     'pass inputs that have a static shape.'
-                                     % (str(tensor.shape), str(value.shape)))
+                    raise ValueError(
+                        'CNTK backend: The placeholder has been resolved '
+                        'to shape `%s`, but input shape is `%s`. Currently '
+                        'CNTK can not take variable length inputs. Please '
+                        'pass inputs that have a static shape.'
+                        % (str(tensor.shape), str(value.shape)))
             feed_dict[tensor] = value
 
         updated = []
@@ -2015,7 +2170,8 @@ class Function(object):
             # But the assign ops won't be executed under this mode, that's why
             # we need this check.
             if (self.unrelated_updates is None and
-                    (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or _LEARNING_PHASE == 1)):
+                    (_LEARNING_PHASE_PLACEHOLDER.value == 1.0 or
+                        _LEARNING_PHASE == 1)):
                 _, output_values = self.metrics_func.forward(
                     input_dict,
                     self.metrics_func.outputs,
@@ -2058,7 +2214,7 @@ def temporal_padding(x, padding=(1, 1)):
     return pad(x, [padding], 'channels_last', num_dynamic_axis)
 
 
-def _padding(x, pattern, axis):
+def _padding(x, pattern, axis):  # pragma: no cover
     base_shape = x.shape
     if b_any([dim < 0 for dim in base_shape]):
         raise ValueError('CNTK Backend: padding input tensor with '
@@ -2089,7 +2245,7 @@ def pad(x, pad_info, data_format, num_dynamic_axis):
         if num_dynamic_axis == 0:
             pattern = [[0, 0]] + pattern
         return C.pad(x, pattern=pattern)
-    else:
+    else:  # pragma: no cover
         for (a, p) in enumerate(pad_info):
             x = _padding(x, p,
                          a + (1 if num_dynamic_axis == 0 else 0) +
@@ -2101,10 +2257,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     assert len(padding) == 2
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     assert len(x.shape) == 4 - (1 if num_dynamic_axis > 0 else 0)
@@ -2116,10 +2269,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     assert len(padding[0]) == 2
     assert len(padding[1]) == 2
     assert len(padding[2]) == 2
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     num_dynamic_axis = _get_dynamic_axis_num(x)
     assert len(x.shape) == 5 - (1 if num_dynamic_axis > 0 else 0)
@@ -2223,11 +2373,8 @@ def in_top_k(predictions, targets, k):
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
-                     padding='valid', data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+                     padding='valid', data_format=None, dilation_rate=(1, 1)):
+    data_format = normalize_data_format(data_format)
 
     x = _preprocess_conv2d_input(x, data_format)
     kernel = _preprocess_conv2d_kernel(kernel, data_format)
@@ -2237,11 +2384,10 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     output_shape = output_shape[1:]
     # in keras2, need handle output shape in different format
     if data_format == 'channels_last':
-        shape = list(output_shape)
-        shape[0] = output_shape[2]
-        shape[1] = output_shape[0]
-        shape[2] = output_shape[1]
-        output_shape = tuple(shape)
+        output_shape = transpose_shape(output_shape, 'channels_first',
+                                       spatial_axes=(0, 1))
+
+    dilation_rate = (1,) + dilation_rate
 
     x = C.convolution_transpose(
         kernel,
@@ -2251,7 +2397,8 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
             False,
             padding,
             padding],
-        output_shape=output_shape)
+        output_shape=output_shape,
+        dilation=dilation_rate)
     return _postprocess_conv2d_output(x, data_format)
 
 
@@ -2357,10 +2504,7 @@ def _reshape_sequence(x, time_step):
 
 
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride = strides[0]
     kernel_shape = int_shape(kernel)
@@ -2389,10 +2533,7 @@ def local_conv2d(inputs,
                  strides,
                  output_shape,
                  data_format=None):
-    if data_format is None:
-        data_format = image_data_format()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format ' + str(data_format))
+    data_format = normalize_data_format(data_format)
 
     stride_row, stride_col = strides
     output_row, output_col = output_shape
@@ -2493,7 +2634,8 @@ class ReshapeBatch(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         grad_array_view = root_gradients.data()
-        num_element = root_gradients.shape()[0] * np.prod(np.asarray(self.target_shape))
+        num_element = root_gradients.shape()[0] * np.prod(
+            np.asarray(self.target_shape))
         num_static_element = np.prod(np.asarray(self.from_shape))
         num_old_batch = int(num_element / num_static_element)
         return C.cntk_py.Value(

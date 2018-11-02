@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from keras.utils import conv_utils
+from keras import backend as K
 
 
 def test_normalize_tuple():
@@ -17,7 +18,7 @@ def test_normalize_tuple():
 
 def test_invalid_data_format():
     with pytest.raises(ValueError):
-        conv_utils.normalize_data_format('channels_middle')
+        K.normalize_data_format('channels_middle')
 
 
 def test_invalid_padding():

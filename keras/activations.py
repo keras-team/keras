@@ -49,7 +49,7 @@ def elu(x, alpha=1.0):
 
     # References
         - [Fast and Accurate Deep Network Learning by Exponential
-        Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
+           Linear Units (ELUs)](https://arxiv.org/abs/1511.07289)
     """
     return K.elu(x, alpha)
 
@@ -106,20 +106,26 @@ def softsign(x):
     return K.softsign(x)
 
 
-def relu(x, alpha=0., max_value=None):
+def relu(x, alpha=0., max_value=None, threshold=0.):
     """Rectified Linear Unit.
+
+    With default values, it returns element-wise `max(x, 0)`.
+
+    Otherwise, it follows:
+    `f(x) = max_value` for `x >= max_value`,
+    `f(x) = x` for `threshold <= x < max_value`,
+    `f(x) = alpha * (x - threshold)` otherwise.
 
     # Arguments
         x: Input tensor.
-        alpha: Slope of the negative part. Defaults to zero.
-        max_value: Maximum value for the output.
+        alpha: float. Slope of the negative part. Defaults to zero.
+        max_value: float. Saturation threshold.
+        threshold: float. Threshold value for thresholded activation.
 
     # Returns
-        The (leaky) rectified linear unit activation: `x` if `x > 0`,
-        `alpha * x` if `x < 0`. If `max_value` is defined, the result
-        is truncated to this value.
+        A tensor.
     """
-    return K.relu(x, alpha=alpha, max_value=max_value)
+    return K.relu(x, alpha=alpha, max_value=max_value, threshold=threshold)
 
 
 def tanh(x):
@@ -150,6 +156,12 @@ def hard_sigmoid(x):
         - `0.2 * x + 0.5` if `-2.5 <= x <= 2.5`.
     """
     return K.hard_sigmoid(x)
+
+
+def exponential(x):
+    """Exponential (base e) activation function.
+    """
+    return K.exp(x)
 
 
 def linear(x):

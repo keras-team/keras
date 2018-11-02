@@ -6,10 +6,10 @@ and 79% after 15 epochs, and overfitting after 20 epochs
 
 With Data Augmentation:
 It gets to 75% validation accuracy in 10 epochs,
-and 79% after 15 epochs, and 83% after 30 epcohs.
-In my test, highest validation accuracy is 83.79% after 50 epcohs.
+and 79% after 15 epochs, and 83% after 30 epochs.
+In my test, highest validation accuracy is 83.79% after 50 epochs.
 
-This is a fast Implement, just 20s/epcoh with a gtx 1070 gpu.
+This is a fast Implement, just 20s/epoch with a gtx 1070 gpu.
 """
 
 from __future__ import print_function
@@ -130,8 +130,6 @@ class Capsule(Layer):
         b = K.zeros_like(hat_inputs[:, :, :, 0])
         for i in range(self.routings):
             c = softmax(b, 1)
-            if K.backend() == 'theano':
-                o = K.sum(o, axis=1)
             o = self.activation(K.batch_dot(c, hat_inputs, [2, 2]))
             if i < self.routings - 1:
                 b = K.batch_dot(o, hat_inputs, [2, 3])
@@ -211,14 +209,19 @@ else:
         shear_range=0.,  # set range for random shear
         zoom_range=0.,  # set range for random zoom
         channel_shift_range=0.,  # set range for random channel shifts
-        fill_mode='nearest',  # set mode for filling points outside the input boundaries
+        # set mode for filling points outside the input boundaries
+        fill_mode='nearest',
         cval=0.,  # value used for fill_mode = "constant"
         horizontal_flip=True,  # randomly flip images
         vertical_flip=False,  # randomly flip images
-        rescale=None,  # set rescaling factor (applied before any other transformation)
-        preprocessing_function=None,  # set function that will be applied on each input
-        data_format=None,  # image data format, either "channels_first" or "channels_last"
-        validation_split=0.0)  # fraction of images reserved for validation (strictly between 0 and 1)
+        # set rescaling factor (applied before any other transformation)
+        rescale=None,
+        # set function that will be applied on each input
+        preprocessing_function=None,
+        # image data format, either "channels_first" or "channels_last"
+        data_format=None,
+        # fraction of images reserved for validation (strictly between 0 and 1)
+        validation_split=0.0)
 
     # Compute quantities required for feature-wise normalization
     # (std, mean, and principal components if ZCA whitening is applied).

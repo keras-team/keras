@@ -2,9 +2,6 @@ import pytest
 import random
 import os
 from multiprocessing import Process, Queue
-from keras.utils.test_utils import keras_test
-from keras.utils.test_utils import layer_test
-from keras.models import Sequential
 from keras import applications
 from keras import backend as K
 
@@ -26,10 +23,9 @@ MODEL_LIST = [
     (applications.MobileNetV2, 1280),
     (applications.DenseNet121, 1024),
     (applications.DenseNet169, 1664),
-    (applications.DenseNet201, 1920)
-    # TODO: enable nasnet tests if they support Theano and CNTK
-    # (applications.NASNetMobile, 1056),
-    # (applications.NASNetLarge, 4032)
+    (applications.DenseNet201, 1920),
+    # Note that NASNetLarge is too heavy to test on Travis.
+    (applications.NASNetMobile, 1056)
 ]
 
 
@@ -60,17 +56,22 @@ def _get_output_shape(model_fn):
         return model.output_shape
 
 
-@keras_test
 def _test_application_basic(app, last_dim=1000):
     output_shape = _get_output_shape(lambda: app(weights=None))
     assert output_shape == (None, last_dim)
 
 
-@keras_test
 def _test_application_notop(app, last_dim):
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False))
     assert output_shape == (None, None, None, last_dim)
+
+
+def test_mobilenet_v2_legacy_import():
+    from keras.applications import mobilenetv2
+    assert hasattr(mobilenetv2, 'MobileNetV2')
+    from keras.applications import mobilenet_v2
+    assert hasattr(mobilenet_v2, 'MobileNetV2')
 
 
 def test_applications():

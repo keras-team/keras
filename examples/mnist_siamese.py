@@ -29,7 +29,8 @@ epochs = 20
 
 def euclidean_distance(vects):
     x, y = vects
-    return K.sqrt(K.maximum(K.sum(K.square(x - y), axis=1, keepdims=True), K.epsilon()))
+    sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
+    return K.sqrt(K.maximum(sum_square, K.epsilon()))
 
 
 def eucl_dist_output_shape(shapes):
@@ -42,8 +43,9 @@ def contrastive_loss(y_true, y_pred):
     http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
     '''
     margin = 1
-    return K.mean(y_true * K.square(y_pred) +
-                  (1 - y_true) * K.square(K.maximum(margin - y_pred, 0)))
+    sqaure_pred = K.square(y_pred)
+    margin_square = K.square(K.maximum(margin - y_pred, 0))
+    return K.mean(y_true * sqaure_pred + (1 - y_true) * margin_square)
 
 
 def create_pairs(x, digit_indices):
