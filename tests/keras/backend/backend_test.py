@@ -164,39 +164,6 @@ def check_two_tensor_operation(function_name,
     assert_list_keras_shape(t_list, z_list)
 
 
-def check_three_or_more_tensor_operation(function_name,
-                                         shapes_or_vals,
-                                         backend_list,
-                                         assert_value_equality=True,
-                                         cntk_dynamicity=False,
-                                         **kwargs):
-
-    shapes_and_vals = [parse_shape_or_val(x) for x in shapes_or_vals]
-
-    t_list = []
-    z_list = []
-    for k in backend_list:
-
-        shapes = [x[0] for x in shapes_and_vals]
-        vals = [x[1] for x in shapes_and_vals]
-        variables = [k.variable(x) for x in vals]
-
-        if (k == KC) and cntk_dynamicity:
-            t, f = cntk_func_tensors(function_name, [shapes[0], vals[1]],
-                                     **kwargs)
-            z = f([vals[0]])[0]
-
-        else:
-            t = getattr(k, function_name)(*variables, **kwargs)
-            z = k.eval(t)
-
-        t_list += [t]
-        z_list += [z]
-
-    assert_list_pairwise(z_list, allclose=assert_value_equality)
-    assert_list_keras_shape(t_list, z_list)
-
-
 def check_composed_tensor_operations(first_function_name,
                                      first_function_args,
                                      second_function_name,
@@ -1688,9 +1655,33 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.bias_add(x, b, data_format='channels_middle')
 
-    def test_batch_normalization(self, ):
-
-
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='Theano behaves differently '
+                               'because of the broadcast.')
+    @pytest.mark.parametrize('axis', [1, -1])
+    @pytest.mark.parametrize('x_shape', [(3, 2, 4, 5), (3, 2, 4)])
+    def test_batch_normalization(self, axis, x_shape):
+        other_shape = [1] * len(x_shape)
+        other_shape[axis] = x_shape[axis]
+        other_shape = tuple(other_shape)
+        x_np = np.random.random(x_shape)
+        mean_np = np.random.random(other_shape)
+        var_np = np.random.random(other_shape)
+        beta_np = np.random.random(other_shape)
+        gamma_np = np.random.random(other_shape)
+        output_tensors = []
+        output_arrays = []
+        for k in WITH_NP:
+            x = k.variable(x_np)
+            mean = k.variable(mean_np)
+            var = k.variable(var_np)
+            beta = k.variable(beta_np)
+            gamma = k.variable(gamma_np)
+            output = k.batch_normalization(x, mean, var, beta, gamma, axis=axis)
+            output_tensors.append(output)
+            output_arrays.append(k.eval(output))
+        assert_list_pairwise(output_arrays)
+        assert_list_keras_shape(output_tensors)
 
     def test_batchnorm(self):
         shape = (2, 3)
