@@ -1429,13 +1429,14 @@ class TestBackend(object):
     @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
     def test_batchnorm_th(self, x_shape):
         x_val = np.random.random(x_shape).astype(np.float32)
-        xth = K.variable(x_val)
-        zth, _, _ = KTH.normalize_batch_in_training(
-            xth, None, None, reduction_axes='per-activation')
-        zth = KTH.eval(zth)
-        assert zth.shape == x_shape
+        x = K.variable(x_val)
+        z, _, _ = K.normalize_batch_in_training(
+            x, None, None, reduction_axes='per-activation')
+        z = K.eval(z)
+        assert z.shape == x_shape
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Specific to Tensorflow')
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='Specific to Tensorflow.')
     @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
     def test_batchnorm_tf(self, x_shape):
         x_val = np.random.random(x_shape).astype(np.float32)
@@ -1449,10 +1450,10 @@ class TestBackend(object):
     @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
     def test_batchnorm_cntk(self, x_shape):
         x_val = np.random.random(x_shape).astype(np.float32)
-        x = KC.placeholder(x_shape)
-        z, _, _ = KC.normalize_batch_in_training(
+        x = K.placeholder(x_shape)
+        z, _, _ = K.normalize_batch_in_training(
             x, None, None, reduction_axes=[0, 1, 2, 3])
-        z = KC.function([x], [z])([x_val])[0]
+        z = K.function([x], [z])([x_val])[0]
         assert z.shape == x_shape
 
     # the Theano and TensorFlow CTC code use different methods to ensure
