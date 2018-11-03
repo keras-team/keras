@@ -1681,7 +1681,7 @@ class TestBackend(object):
             output_tensors.append(output)
             output_arrays.append(k.eval(output))
         assert_list_pairwise(output_arrays)
-        assert_list_keras_shape(output_tensors)
+        assert_list_keras_shape(output_tensors, output_arrays)
 
     def test_batchnorm(self):
         shape = (2, 3)
