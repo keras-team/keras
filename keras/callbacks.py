@@ -793,7 +793,7 @@ class TensorBoard(Callback):
                 for weight in layer.weights:
                     mapped_weight_name = weight.name.replace(':', '_')
                     tf.summary.histogram(mapped_weight_name, weight)
-                    if self.write_grads:
+                    if self.write_grads and weight in layer.trainable_weights:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
 

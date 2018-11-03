@@ -465,7 +465,10 @@ def batch_dot(x, y, axes=None):
         axes = (axes, axes)
     if axes is None:
         # behaves like tf.batch_matmul as default
-        axes = [x.ndim - 1, y.ndim - 2]
+        if y.ndim == 2:
+            axes = [x.ndim - 1, y.ndim - 1]
+        else:
+            axes = [x.ndim - 1, y.ndim - 2]
     if py_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
@@ -473,14 +476,11 @@ def batch_dot(x, y, axes=None):
     if isinstance(axes, tuple):
         axes = list(axes)
 
-    # workaround because theano doesn't accept axes
-    # which contains the batch axis (0)
-    if axes[0] == 0:
-        x = transpose(x)
-        axes[0] = x.ndim - 1
-    if axes[1] == 0:
-        y = transpose(y)
-        axes[1] = y.ndim - 1
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0.'
+                         'If your inputs are not batched,'
+                         ' add a dummy batch dimension to your '
+                         'inputs using K.expand_dims(x, 0)')
 
     out = T.batched_tensordot(x, y, axes=axes)
     if ndim(out) == 1:

@@ -120,6 +120,8 @@ def serialize_keras_object(instance):
 def deserialize_keras_object(identifier, module_objects=None,
                              custom_objects=None,
                              printable_module_name='object'):
+    if identifier is None:
+        return None
     if isinstance(identifier, dict):
         # In this case we are dealing with a Keras config dictionary.
         config = identifier
@@ -239,6 +241,33 @@ def func_load(code, defaults=None, closure=None, globs=None):
                                      name=code.co_name,
                                      argdefs=defaults,
                                      closure=closure)
+
+
+def getargspec(fn):
+    """Python 2/3 compatible `getargspec`.
+
+    Calls `getfullargspec` and assigns args, varargs,
+    varkw, and defaults to a python 2/3 compatible `ArgSpec`.
+    The parameter name 'varkw' is changed to 'keywords' to fit the
+    `ArgSpec` struct.
+
+    # Arguments
+        fn: the target function to inspect.
+
+    # Returns
+        An ArgSpec with args, varargs, keywords, and defaults parameters
+        from FullArgSpec.
+    """
+    if sys.version_info < (3,):
+        arg_spec = inspect.getargspec(fn)
+    else:
+        full_arg_spec = inspect.getfullargspec(fn)
+        arg_spec = inspect.ArgSpec(
+            args=full_arg_spec.args,
+            varargs=full_arg_spec.varargs,
+            keywords=full_arg_spec.varkw,
+            defaults=full_arg_spec.defaults)
+    return arg_spec
 
 
 def has_arg(fn, name, accept_all=False):
