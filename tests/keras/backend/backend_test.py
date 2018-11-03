@@ -10,25 +10,20 @@ from keras.utils.conv_utils import convert_kernel
 from keras.backend import numpy_backend as KNP
 
 
-BACKENDS = []  # Holds a list of all available back-ends
-
 try:
     from keras.backend import cntk_backend as KC
-    BACKENDS.append(KC)
 except ImportError:
     KC = None
     warnings.warn('Could not import the CNTK backend')
 
 try:
     from keras.backend import tensorflow_backend as KTF
-    BACKENDS.append(KTF)
 except ImportError:
     KTF = None
     warnings.warn('Could not import the TensorFlow backend.')
 
 try:
     from keras.backend import theano_backend as KTH
-    BACKENDS.append(KTH)
 except ImportError:
     KTH = None
     warnings.warn('Could not import the Theano backend')
@@ -439,7 +434,6 @@ class TestBackend(object):
         check_single_tensor_operation('std', (4, 2), WITH_NP)
         check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
         check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
-        # check_single_tensor_operation('std', (4, 2, 3), BACKENDS, axis=[1, -1])
 
         check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
         check_single_tensor_operation('logsumexp', (4, 2),
