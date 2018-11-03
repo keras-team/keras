@@ -1360,51 +1360,6 @@ class TestBackend(object):
                 padding=padding, data_format=data_format))
         assert_allclose(y1, y2, atol=1e-05)
 
-    def test_legacy_pool2d(self):
-        check_single_tensor_operation(
-            'pool2d', (5, 10, 12, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 2), strides=(1, 1), padding='valid')
-
-        check_single_tensor_operation(
-            'pool2d', (5, 9, 11, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 2), strides=(1, 1), padding='valid')
-
-        check_single_tensor_operation(
-            'pool2d', (5, 9, 11, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 2), strides=(1, 1), pool_mode='avg')
-
-        check_single_tensor_operation(
-            'pool2d', (5, 9, 11, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 3), strides=(1, 1), padding='valid')
-
-        check_single_tensor_operation(
-            'pool2d', (2, 7, 7, 5), WITH_NP, cntk_dynamicity=True,
-            pool_size=(3, 3), strides=(1, 1),
-            padding='same', pool_mode='avg')
-
-    def test_legacy_pool3d(self):
-        check_single_tensor_operation(
-            'pool3d', (5, 10, 12, 5, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
-
-        check_single_tensor_operation(
-            'pool3d', (5, 9, 11, 5, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 2, 2), strides=(1, 1, 1), padding='valid')
-
-        check_single_tensor_operation(
-            'pool3d', (5, 9, 11, 5, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 2, 2), strides=(1, 1, 1), pool_mode='avg')
-
-        check_single_tensor_operation(
-            'pool3d', (5, 9, 11, 5, 3), WITH_NP, cntk_dynamicity=True,
-            pool_size=(2, 3, 2), strides=(1, 1, 1), padding='valid')
-
-        if K.backend() != 'cntk':
-            check_single_tensor_operation(
-                'pool3d', (2, 6, 6, 6, 3), WITH_NP,
-                pool_size=(3, 3, 3), strides=(1, 1, 1), padding='same',
-                pool_mode='avg')
-
     def test_random_normal(self):
         # test standard normal as well as a normal with a different set of parameters
         for mean, std in [(0., 1.), (-10., 5.)]:
