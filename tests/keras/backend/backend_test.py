@@ -1249,6 +1249,8 @@ class TestBackend(object):
              'valid', 'channels_last', 'avg'),
             ('pool2d', (3, 6, 7, 3), (3, 3), (1, 1),
              'same', 'channels_last', 'max'),
+            ('pool2d', (3, 6, 7, 3), (3, 3), (2, 1),
+             'same', 'channels_last', 'max'),
             ('pool3d', (2, 3, 7, 7, 7), (3, 3, 3), (1, 1, 1),
              'same', 'channels_first', 'avg'),
             ('pool3d', (3, 3, 8, 5, 9), (2, 3, 2), (1, 1, 1),
@@ -1256,6 +1258,8 @@ class TestBackend(object):
             ('pool3d', (2, 8, 9, 5, 3), (3, 2, 3), (1, 1, 1),
              'valid', 'channels_last', 'avg'),
             ('pool3d', (3, 5, 6, 7, 3), (3, 3, 3), (1, 1, 1),
+             'same', 'channels_last', 'max'),
+            ('pool3d', (3, 5, 6, 7, 3), (3, 3, 3), (1, 2, 1),
              'same', 'channels_last', 'max'),
         ])
     def test_pool(self,
