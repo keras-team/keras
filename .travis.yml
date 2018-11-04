@@ -68,7 +68,7 @@ install:
   - pip install cntk
 
   # Remove the current backend from the coverage exclusion.
-  - sed -i "/keras/backend/${KERAS_BACKEND}_backend.py/d" .coveragerc
+  - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
 
   # detect whether core files are changed or not
   - export CORE_CHANGED=False;
