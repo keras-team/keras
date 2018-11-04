@@ -285,9 +285,7 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     y = 0.2 * x + 0.5
-    y = np.minimum(y, 1.)
-    y = np.maximum(y, 0.)
-    return y
+    return np.clip(y, 0, 1)
 
 
 def tanh(x):

@@ -3493,6 +3493,8 @@ def hard_sigmoid(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     x = (0.2 * x) + 0.5
     zero = _to_tensor(0., x.dtype.base_dtype)
