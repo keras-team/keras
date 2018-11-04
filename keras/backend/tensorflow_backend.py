@@ -1321,6 +1321,8 @@ def max(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with maximum values of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_max(x, axis, keepdims)
 
@@ -1340,6 +1342,8 @@ def min(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with miminum values of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_min(x, axis, keepdims)
 
@@ -1359,6 +1363,8 @@ def sum(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with sum of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_sum(x, axis, keepdims)
 
@@ -1378,6 +1384,8 @@ def prod(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the product of elements of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_prod(x, axis, keepdims)
 
@@ -3319,6 +3327,8 @@ def elu(x, alpha=1.):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     res = tf.nn.elu(x)
     if alpha == 1:
@@ -3337,6 +3347,8 @@ def softmax(x, axis=-1):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.softmax(x, axis=axis)
 
@@ -3349,6 +3361,8 @@ def softplus(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.softplus(x)
 
@@ -3497,6 +3511,8 @@ def sigmoid(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.sigmoid(x)
 
@@ -3531,6 +3547,8 @@ def tanh(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.tanh(x)
 
@@ -3566,6 +3584,8 @@ def l2_normalize(x, axis=None):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.l2_normalize(x, axis=axis)
 
