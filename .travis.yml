@@ -57,7 +57,7 @@ install:
     fi
 
     # install pydot for visualization tests
-  - travis_retry conda install mkl mkl-service pydot graphviz $PIL
+  - travis_retry conda install pydot graphviz $PIL
 
   - pip install -e .[tests]
 
