@@ -502,22 +502,17 @@ class TestBackend(object):
                         reason='cntk doesn\'t support gradient in this way.')
     def test_gradient(self):
         val = np.random.random((4, 2))
-        x_list = [k.variable(val) for k in [KTH, KTF]]
-        z_list = []
-        zero_list = []
-        for x, k in zip(x_list, [KTH, KTF]):
-            exp = x * k.exp(x)
-            loss = k.sum(exp)
-            zero_loss = k.stop_gradient(loss)
-            grad = k.gradients(loss, [exp])
-            zero_grad = k.gradients(loss + zero_loss, [exp])
-            z_list.append(k.eval(grad[0]))
-            zero_list.append(k.eval(zero_grad[0]))
 
-        assert_list_pairwise(z_list)
-        assert_list_pairwise(zero_list)
-        for i in range(len(z_list)):
-            assert_allclose(zero_list[i], z_list[i], atol=1e-05)
+        x = K.variable(val)
+        exp = x * K.exp(x)
+        loss = K.sum(exp)
+        zero_loss = K.stop_gradient(loss)
+        grad = K.gradients(loss, [exp])
+        zero_grad = K.gradients(loss + zero_loss, [exp])
+        z = K.eval(grad[0])
+        zero = K.eval(zero_grad[0])
+
+        assert_allclose(zero, z, atol=1e-05)
 
     def test_stop_gradient(self):
         # This test checks the consistency of the stop_gradient backend API.
