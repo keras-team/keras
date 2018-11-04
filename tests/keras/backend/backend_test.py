@@ -1425,7 +1425,8 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.bias_add(x, b, data_format='channels_middle')
 
-    @pytest.mark.skipif(K.backend() != 'theano', reason='Specific to Theano.')
+    @pytest.mark.skipif(K.backend() != 'theano',
+                        reason='Specific to Theano.')
     @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
     def test_batchnorm_th(self, x_shape):
         x_val = np.random.random(x_shape).astype(np.float32)
