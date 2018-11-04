@@ -21,7 +21,7 @@ def standardize_single_array(x):
         shape = K.int_shape(x)
         if shape is None or shape[0] is None:
             raise ValueError(
-                'When feeding symbolic tensors to a model, we expect the'
+                'When feeding symbolic tensors to a model, we expect the '
                 'tensors to have a static batch size. '
                 'Got tensor with shape: %s' % str(shape))
         return x
