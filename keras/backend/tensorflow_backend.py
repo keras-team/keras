@@ -3281,6 +3281,8 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
 
     if alpha != 0.:
