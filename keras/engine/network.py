@@ -964,15 +964,15 @@ class Network(Layer):
                 unprocessed_nodes[layer].append(node_data)
 
         def process_node(layer, node_data):
-            """
-            
+            """            
+
             Args:
                 layer: layer to process
                 node_data: List of layer configs
-            
+
             Raises:
                 ValueError: For incorrect layer config
-            
+
             Returns:
                 bool: True if nodes added normally, False if an error
             """
