@@ -964,6 +964,18 @@ class Network(Layer):
                 unprocessed_nodes[layer].append(node_data)
 
         def process_node(layer, node_data):
+            """
+            
+            Args:
+                layer: layer to process
+                node_data: List of layer configs
+            
+            Raises:
+                ValueError: For incorrect layer config
+            
+            Returns:
+                bool: True if nodes added normally, False if an error
+            """
             input_tensors = []
             for input_data in node_data:
                 inbound_layer_name = input_data[0]
@@ -976,12 +988,10 @@ class Network(Layer):
                 else:
                     raise ValueError('Improperly formatted model config.')
                 if inbound_layer_name not in created_layers:
-                    add_unprocessed_node(layer, node_data)
-                    return
+                    return False
                 inbound_layer = created_layers[inbound_layer_name]
                 if len(inbound_layer._inbound_nodes) <= inbound_node_index:
-                    add_unprocessed_node(layer, node_data)
-                    return
+                    return False
                 inbound_node = inbound_layer._inbound_nodes[inbound_node_index]
                 input_tensors.append(
                     inbound_node.output_tensors[inbound_tensor_index])
@@ -989,6 +999,7 @@ class Network(Layer):
             # and building the layer if needed.
             if input_tensors:
                 layer(unpack_singleton(input_tensors), **kwargs)
+            return True
 
         def process_layer(layer_data):
             """Deserializes a layer, then call it on appropriate inputs.
@@ -1028,8 +1039,16 @@ class Network(Layer):
             for layer_data in config['layers']:
                 layer = created_layers[layer_data['name']]
                 if layer in unprocessed_nodes:
-                    for node_data in unprocessed_nodes.pop(layer):
-                        process_node(layer, node_data)
+                    # Process nodes in order, if an error save the
+                    # remaining nodes to process later.
+                    node_data_list = unprocessed_nodes.pop(layer)
+                    while node_data_list:
+                        node_data = node_data_list.pop(0)
+                        # If the node isn't ready save all remaining node_data
+                        # in order and continue
+                        if not process_node(layer, node_data):
+                            unprocessed_nodes[layer] = [node_data] + node_data_list
+                            break
 
         name = config.get('name')
         input_tensors = []
