@@ -884,7 +884,7 @@ class TestBackend(object):
             return outputs, states
 
         inputs_vals = np.random.random((num_samples, num_timesteps, num_features))
-        initial_state_vals = [np.ones((num_samples, 6))]
+        initial_state_vals = np.ones((num_samples, 6))
         mask_vals = np.ones((num_samples, num_timesteps))
         mask_vals[-1, -1] = 0  # final timestep masked for last sample
 
@@ -894,13 +894,13 @@ class TestBackend(object):
         expected_outputs[-1, -1] = expected_outputs[-1, -2]
 
         inputs = K.variable(inputs_vals)
-        initial_state = [K.variable(initial_state_vals[0])]
+        initial_states = [K.variable(initial_state_vals)]
         mask = K.variable(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
                 inputs,
-                initial_state,
+                initial_states,
                 mask=mask,
                 unroll=unroll,
                 input_length=num_timesteps if unroll else None)
@@ -916,22 +916,22 @@ class TestBackend(object):
             return inputs, [s + 1 for s in states]
 
         inputs_vals = np.ones((num_samples, num_timesteps, 5))
-        initial_state_vals = [np.random.random((num_samples, 6, 7))]
+        initial_state_vals = np.random.random((num_samples, 6, 7))
         mask_vals = np.ones((num_samples, num_timesteps))
-        mask_vals[0, -2] = 0  # final two timesteps masked for first sample
+        mask_vals[0, -2:] = 0  # final two timesteps masked for first sample
 
-        expected_last_state = initial_state_vals
+        expected_last_state = initial_state_vals.copy()
         expected_last_state[0] += (num_timesteps - 2)
         expected_last_state[1:] += num_timesteps
 
         inputs = K.variable(inputs_vals)
-        initial_state = [K.variable(initial_state_vals[0])]
+        initial_states = [K.variable(initial_state_vals)]
         mask = K.variable(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
                 inputs,
-                initial_state,
+                initial_states,
                 mask=mask,
                 unroll=unroll,
                 input_length=num_timesteps if unroll else None)
