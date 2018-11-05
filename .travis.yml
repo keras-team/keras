@@ -56,8 +56,13 @@ install:
       fi
     fi
 
+  # install mkl only for Theano.
+  - if [[ "$KERAS_BACKEND" == "theano" ]]; then
+      export MKL="mkl mkl-service";
+    fi
+
     # install pydot for visualization tests
-  - travis_retry conda install mkl mkl-service pydot graphviz $PIL
+  - travis_retry conda install $MKL pydot graphviz $PIL
 
   - pip install -e .[tests]
 
