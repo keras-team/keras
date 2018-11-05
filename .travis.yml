@@ -70,7 +70,9 @@ install:
   - pip install tensorflow==1.9
   
   # install cntk
-  - pip install cntk
+  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+      ./.travis/install_cntk.sh;
+    fi
 
   # Remove the current backend from the coverage exclusion.
   - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
@@ -81,14 +83,6 @@ install:
   - export APP_CHANGED=False;
   - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
 
-  #install open mpi
-  - rm -rf ~/mpi
-  - mkdir ~/mpi
-  - pushd ~/mpi
-  - wget http://cntk.ai/PythonWheel/ForKeras/depends/openmpi_1.10-3.zip
-  - unzip ./openmpi_1.10-3.zip
-  - sudo dpkg -i openmpi_1.10-3.deb
-  - popd
 
 # command to run tests
 script:
