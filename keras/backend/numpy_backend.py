@@ -257,11 +257,12 @@ def in_test_phase(x, alt, training=None):
 
 
 def relu(x, alpha=0., max_value=None, threshold=0.):
-    y = x * (x >= threshold)
-    if max_value is not None:
-        y = np.clip(y, 0.0, max_value)
-    y += alpha * (x - threshold) * (x < threshold)
-    return y
+    if max_value is None:
+        max_value = np.inf
+    above_threshold = x * (x >= threshold)
+    above_threshold = np.clip(above_threshold, 0.0, max_value)
+    below_threshold = alpha * (x - threshold) * (x < threshold)
+    return below_threshold + above_threshold
 
 
 def switch(condition, then_expression, else_expression):
