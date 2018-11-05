@@ -839,7 +839,7 @@ class TestBackend(object):
 
         inputs_vals = np.random.random(
             (num_samples, num_timesteps, state_and_io_size))
-        initial_state_vals = np.zeros((num_samples, state_and_io_size))
+        initial_state_vals = np.random.random((num_samples, state_and_io_size))
         # masking of two last timesteps for second sample only
         mask_vals = np.ones((num_samples, num_timesteps))
         mask_vals[1, -mask_last_num_timesteps:] = 0
@@ -884,7 +884,7 @@ class TestBackend(object):
             return outputs, states
 
         inputs_vals = np.random.random((num_samples, num_timesteps, num_features))
-        initial_state_vals = np.ones((num_samples, 6))
+        initial_state_vals = np.random.random((num_samples, 6))
         mask_vals = np.ones((num_samples, num_timesteps))
         mask_vals[-1, -1] = 0  # final timestep masked for last sample
 
@@ -915,7 +915,7 @@ class TestBackend(object):
         def step_function(inputs, states):
             return inputs, [s + 1 for s in states]
 
-        inputs_vals = np.ones((num_samples, num_timesteps, 5))
+        inputs_vals = np.random.random((num_samples, num_timesteps, 5))
         initial_state_vals = np.random.random((num_samples, 6, 7))
         mask_vals = np.ones((num_samples, num_timesteps))
         mask_vals[0, -2:] = 0  # final two timesteps masked for first sample
