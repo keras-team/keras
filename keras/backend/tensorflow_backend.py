@@ -255,7 +255,8 @@ def _is_current_explicit_device(device_type):
         device_type: A string containing `GPU` or `CPU` (case-insensitive).
 
     # Returns
-        A boolean indicating if the current device scope is explicitly set on the device type.
+        A boolean indicating if the current device
+        scope is explicitly set on the device type.
 
     # Raises
         ValueError: If the `device_type` string indicates an unsupported device.
@@ -282,8 +283,10 @@ def _get_available_gpus():
 def _has_nchw_support():
     """Check whether the current scope supports NCHW ops.
 
-    TensorFlow does not support NCHW on CPU. Therefore we check if we are not explicitly put on
-    CPU, and have GPUs available. In this case there will be soft-placing on the GPU device.
+    TensorFlow does not support NCHW on CPU.
+    Therefore we check if we are not explicitly put on
+    CPU, and have GPUs available.
+    In this case there will be soft-placing on the GPU device.
 
     # Returns
         bool: if the current scope device placement would support nchw
@@ -453,19 +456,23 @@ def is_keras_tensor(x):
         >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
         >>> k_var = tf.placeholder('float32', shape=(1,1))
-        >>> K.is_keras_tensor(k_var) # A variable indirectly created outside of keras is not a Keras tensor.
+        >>> # A variable indirectly created outside of keras is not a Keras tensor.
+        >>> K.is_keras_tensor(k_var)
         False
         >>> keras_var = K.variable(np_var)
-        >>> K.is_keras_tensor(keras_var)  # A variable created with the keras backend is not a Keras tensor.
+        >>> # A variable created with the keras backend is not a Keras tensor.
+        >>> K.is_keras_tensor(keras_var)
         False
         >>> keras_placeholder = K.placeholder(shape=(2, 4, 5))
-        >>> K.is_keras_tensor(keras_placeholder)  # A placeholder is not a Keras tensor.
+        >>> # A placeholder is not a Keras tensor.
+        >>> K.is_keras_tensor(keras_placeholder)
         False
         >>> keras_input = Input([10])
         >>> K.is_keras_tensor(keras_input) # An Input is a Keras tensor.
         True
         >>> keras_layer_output = Dense(10)(keras_input)
-        >>> K.is_keras_tensor(keras_layer_output) # Any Keras layer output is a Keras tensor.
+        >>> # Any Keras layer output is a Keras tensor.
+        >>> K.is_keras_tensor(keras_layer_output)
         True
     ```
     """
@@ -586,6 +593,8 @@ def int_shape(x):
         >>> K.int_shape(kvar)
         (2, 2)
     ```
+
+    {{np_implementation}}
     """
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
@@ -615,6 +624,8 @@ def ndim(x):
         >>> K.ndim(kvar)
         2
     ```
+
+    {{np_implementation}}
     """
     dims = x.get_shape()._dims
     if dims is not None:
@@ -1144,6 +1155,8 @@ def batch_dot(x, y, axes=None):
         >>> K.int_shape(xy_batch_dot)
         (32, 1, 30)
     ```
+
+    {{np_implementation}}
     """
     x_shape = int_shape(x)
     y_shape = int_shape(y)
@@ -1285,6 +1298,8 @@ def gather(reference, indices):
 
     # Returns
         A tensor of same type as `reference`.
+
+    {{np_implementation}}
     """
     return tf.nn.embedding_lookup(reference, indices)
 
@@ -1675,6 +1690,8 @@ def equal(x, y):
 
     # Returns
         A bool tensor.
+
+    {{np_implementation}}
     """
     return tf.equal(x, y)
 
@@ -1688,6 +1705,8 @@ def not_equal(x, y):
 
     # Returns
         A bool tensor.
+
+    {{np_implementation}}
     """
     return tf.not_equal(x, y)
 
@@ -1701,6 +1720,8 @@ def greater(x, y):
 
     # Returns
         A bool tensor.
+
+    {{np_implementation}}
     """
     return tf.greater(x, y)
 
@@ -1714,6 +1735,8 @@ def greater_equal(x, y):
 
     # Returns
         A bool tensor.
+
+    {{np_implementation}}
     """
     return tf.greater_equal(x, y)
 
@@ -1727,6 +1750,8 @@ def less(x, y):
 
     # Returns
         A bool tensor.
+
+    {{np_implementation}}
     """
     return tf.less(x, y)
 
@@ -1740,6 +1765,8 @@ def less_equal(x, y):
 
     # Returns
         A bool tensor.
+
+    {{np_implementation}}
     """
     return tf.less_equal(x, y)
 
@@ -1753,6 +1780,8 @@ def maximum(x, y):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.maximum(x, y)
 
@@ -1766,6 +1795,8 @@ def minimum(x, y):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.minimum(x, y)
 
@@ -1964,9 +1995,12 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
         else:
             tf_data_format = None
 
-        if tf_data_format == 'NHWC' or tf_data_format == 'NCHW' and _has_nchw_support():
+        if (tf_data_format == 'NHWC'
+                or tf_data_format == 'NCHW'
+                and _has_nchw_support()):
             # The mean / var / beta / gamma may be processed by broadcast
-            # so it may have extra axes with 1, it is not needed and should be removed
+            # so it may have extra axes with 1,
+            # it is not needed and should be removed
             if ndim(mean) > 1:
                 mean = tf.reshape(mean, [-1])
             if ndim(var) > 1:
@@ -2064,7 +2098,8 @@ def resize_images(x,
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `data_format` is
+        neither `"channels_last"` or `"channels_first"`.
     """
     if data_format == 'channels_first':
         rows, cols = 2, 3
@@ -2116,7 +2151,8 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         A tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `data_format` is
+        neither `"channels_last"` or `"channels_first"`.
     """
     if data_format == 'channels_first':
         output = repeat_elements(x, depth_factor, axis=2)
@@ -2335,7 +2371,8 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
         A padded 4D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `data_format` is
+        neither `"channels_last"` or `"channels_first"`.
     """
     assert len(padding) == 2
     assert len(padding[0]) == 2
@@ -2370,7 +2407,8 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
         A padded 5D tensor.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `data_format` is
+        neither `"channels_last"` or `"channels_first"`.
 
     """
     assert len(padding) == 3
@@ -2429,6 +2467,8 @@ def reverse(x, axes):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     if isinstance(axes, int):
         axes = [axes]
@@ -2448,9 +2488,10 @@ def slice(x, start, size):
             along each axis.
 
     # Returns
-        Tensor `x[start[0]: start[0] + size[0],
-                  ...,
-                  start[-1]: start[-1] + size[-1]]`
+        A sliced tensor:
+        ```python
+        new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
+        ```
     """
     return tf.slice(x, start, size)
 
@@ -2767,13 +2808,15 @@ class Function(object):
 
             # callable generated by Session._make_callable_from_options accepts
             # `run_metadata` keyword argument since TF 1.10
-            if (self.run_metadata and
-                    StrictVersion(tf.__version__.split('-')[0]) < StrictVersion('1.10.0')):
-                if py_any(is_tensor(x) for x in inputs):
-                    raise ValueError(
-                        'In order to feed symbolic tensors to a Keras model and set '
-                        '`run_metadata`, you need tensorflow 1.10 or higher.')
-                return self._legacy_call(inputs)
+            if self.run_metadata:
+                current_version = StrictVersion(tf.__version__.split('-')[0])
+                if current_version < StrictVersion('1.10.0'):
+                    if py_any(is_tensor(x) for x in inputs):
+                        raise ValueError(
+                            'In order to feed symbolic tensors '
+                            'to a Keras model and set '
+                            '`run_metadata`, you need tensorflow 1.10 or higher.')
+                    return self._legacy_call(inputs)
 
             return self._call(inputs)
         else:
@@ -2801,9 +2844,11 @@ def function(inputs, outputs, updates=None, **kwargs):
     """
     if kwargs:
         for key in kwargs:
-            if not (has_arg(tf.Session.run, key, True) or has_arg(Function.__init__, key, True)):
-                msg = 'Invalid argument "%s" passed to K.function with TensorFlow backend' % key
-                raise ValueError(msg)
+            session_has_key = has_arg(tf.Session.run, key, True)
+            function_has_key = has_arg(Function.__init__, key, True)
+            if not (session_has_key or function_has_key):
+                raise ValueError('Invalid argument "%s" passed to K.function '
+                                 'with TensorFlow backend' % key)
     return Function(inputs, outputs, updates=updates, **kwargs)
 
 
@@ -3035,10 +3080,12 @@ def rnn(step_function, inputs, initial_states,
                 tiled_mask_t = tf.tile(mask_t,
                                        tf.stack([1, tf.shape(output)[1]]))
                 output = tf.where(tiled_mask_t, output, states[0])
-                new_states = [
-                    tf.where(tf.tile(mask_t, tf.stack([1, tf.shape(new_states[i])[1]])),
-                             new_states[i], states[i]) for i in range(len(states))
-                ]
+                tmp = []
+                for i in range(len(states)):
+                    multiples = tf.stack([1, tf.shape(new_states[i])[1]])
+                    tiled = tf.tile(mask_t, multiples)
+                    tmp.append(tf.where(tiled, new_states[i], states[i]))
+                new_states = tmp
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
         else:
@@ -3140,7 +3187,8 @@ def switch(condition, then_expression, else_expression):
             condition = tf.reshape(condition, cond_shape)
             expr_shape = tf.shape(then_expression)
             shape_diff = expr_shape - cond_shape
-            tile_shape = tf.where(shape_diff > 0, expr_shape, tf.ones_like(expr_shape))
+            zero_expr_shape = tf.ones_like(expr_shape)
+            tile_shape = tf.where(shape_diff > 0, expr_shape, zero_expr_shape)
             condition = tf.tile(condition, tile_shape)
         x = tf.where(condition, then_expression, else_expression)
     return x
@@ -3466,6 +3514,8 @@ def hard_sigmoid(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     x = (0.2 * x) + 0.5
     zero = _to_tensor(0., x.dtype.base_dtype)
@@ -4021,7 +4071,8 @@ def pool2d(x, pool_size, strides=(1, 1),
         A tensor, result of 2D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `data_format` is
+        neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
     data_format = normalize_data_format(data_format)
@@ -4067,7 +4118,8 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
         A tensor, result of 3D pooling.
 
     # Raises
-        ValueError: if `data_format` is neither `"channels_last"` or `"channels_first"`.
+        ValueError: if `data_format` is
+        neither `"channels_last"` or `"channels_first"`.
         ValueError: if `pool_mode` is neither `"max"` or `"avg"`.
     """
     data_format = normalize_data_format(data_format)
@@ -4118,7 +4170,8 @@ def bias_add(x, bias, data_format=None):
     data_format = normalize_data_format(data_format)
     bias_shape = int_shape(bias)
     if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
-        raise ValueError('Unexpected bias dimensions %d, expect to be 1 or %d dimensions'
+        raise ValueError('Unexpected bias dimensions %d, '
+                         'expect to be 1 or %d dimensions'
                          % (len(bias_shape), ndim(x)))
     if ndim(x) == 5:
         if len(bias_shape) == 1:
@@ -4282,14 +4335,18 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
                              label_shape)
     label_ind = tf.boolean_mask(label_array, dense_mask)
 
-    batch_array = tf.transpose(tf.reshape(tf.tile(tf.range(label_shape[0]),
-                                                  max_num_labels_tns), reverse(label_shape, 0)))
+    tmp = tf.tile(tf.range(label_shape[0]), max_num_labels_tns)
+    batch_array = tf.transpose(tf.reshape(tmp, reverse(label_shape, 0)))
     batch_ind = tf.boolean_mask(batch_array, dense_mask)
-    indices = tf.transpose(tf.reshape(concatenate([batch_ind, label_ind], axis=0), [2, -1]))
+
+    indices = concatenate([batch_ind, label_ind], axis=0)
+    indices = tf.transpose(tf.reshape(indices, [2, -1]))
 
     vals_sparse = tf.gather_nd(labels, indices)
 
-    return tf.SparseTensor(tf.to_int64(indices), vals_sparse, tf.to_int64(label_shape))
+    indices = tf.to_int64(indices)
+    label_shape = tf.to_int64(label_shape)
+    return tf.SparseTensor(indices, vals_sparse, label_shape)
 
 
 def ctc_batch_cost(y_true, y_pred, input_length, label_length):
@@ -4362,8 +4419,13 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             sequence_length=input_length, beam_width=beam_width,
             top_paths=top_paths)
 
-    decoded_dense = [tf.sparse_to_dense(st.indices, st.dense_shape, st.values, default_value=-1)
-                     for st in decoded]
+    decoded_dense = []
+    for st in decoded:
+        dense_tensor = tf.sparse_to_dense(st.indices,
+                                          st.dense_shape,
+                                          st.values,
+                                          default_value=-1)
+        decoded_dense.append(dense_tensor)
     return (decoded_dense, log_prob)
 
 
@@ -4430,7 +4492,8 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
         data_format: the data format, channels_first or channels_last
 
     # Returns
-        the tensor after 1d conv with un-shared weights, with shape (batch_size, output_length, filters)
+        the tensor after 1d conv with un-shared weights,
+        with shape (batch_size, output_length, filters)
 
     # Raises
         ValueError: If `data_format` is neither
@@ -4454,7 +4517,12 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     return permute_dimensions(output, (1, 0, 2))
 
 
-def local_conv2d(inputs, kernel, kernel_size, strides, output_shape, data_format=None):
+def local_conv2d(inputs,
+                 kernel,
+                 kernel_size,
+                 strides,
+                 output_shape,
+                 data_format=None):
     """Apply 2D conv with un-shared weights.
 
     # Arguments

@@ -71,13 +71,6 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     weights = layer.get_weights()
     layer.set_weights(weights)
 
-    # test and instantiation from weights
-    # Checking for empty weights array to avoid a problem where some
-    # legacy layers return bad values from get_weights()
-    if has_arg(layer_cls.__init__, 'weights') and len(weights):
-        kwargs['weights'] = weights
-        layer = layer_cls(**kwargs)
-
     expected_output_shape = layer.compute_output_shape(input_shape)
 
     def _layer_in_model_test(model):
