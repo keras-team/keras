@@ -41,7 +41,7 @@ install:
 
   - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy matplotlib h5py theano pytest pytest-pep8 pandas
+  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas
   - pip install keras_applications keras_preprocessing
 
   # set library path
@@ -56,8 +56,13 @@ install:
       fi
     fi
 
+  # install mkl only for Theano.
+  - if [[ "$KERAS_BACKEND" == "theano" ]]; then
+      export MKL="mkl mkl-service";
+    fi
+
     # install pydot for visualization tests
-  - travis_retry conda install mkl mkl-service pydot graphviz $PIL
+  - travis_retry conda install $MKL pydot graphviz $PIL
 
   - pip install -e .[tests]
 

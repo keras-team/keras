@@ -285,9 +285,7 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     y = 0.2 * x + 0.5
-    y = np.minimum(y, 1.)
-    y = np.maximum(y, 0.)
-    return y
+    return np.clip(y, 0, 1)
 
 
 def tanh(x):
@@ -572,11 +570,9 @@ def transpose(x):
 
 
 def reverse(x, axes):
-    if isinstance(axes, int):
-        axes = [axes]
-    for a in axes:
-        x = np.flip(x, a)
-    return x
+    if isinstance(axes, list):
+        axes = tuple(axes)
+    return np.flip(x, axes)
 
 
 def variable(value, dtype=None, name=None, constraint=None):
