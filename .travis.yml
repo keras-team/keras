@@ -72,16 +72,8 @@ install:
   # install cntk
   - pip install cntk
 
-  # exclude different backends to measure a coverage for the designated backend only
-  - if [[ "$KERAS_BACKEND" != "tensorflow" ]]; then
-      echo '    keras/backend/tensorflow_backend.py' >> .coveragerc;
-    fi
-  - if [[ "$KERAS_BACKEND" != "theano" ]]; then
-      echo '    keras/backend/theano_backend.py' >> .coveragerc;
-    fi
-  - if [[ "$KERAS_BACKEND" != "cntk" ]]; then
-      echo '    keras/backend/cntk_backend.py' >> .coveragerc;
-    fi
+  # Remove the current backend from the coverage exclusion.
+  - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
 
   # detect whether core files are changed or not
   - export CORE_CHANGED=False;
