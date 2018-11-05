@@ -2930,7 +2930,7 @@ def rnn(step_function, inputs, initial_states,
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
     """
-    ndim = len(inputs.get_shape())
+    ndim = len(inputs.shape)
     if ndim < 3:
         raise ValueError('Input should be at least 3D.')
 
@@ -2942,9 +2942,22 @@ def rnn(step_function, inputs, initial_states,
     if mask is not None:
         if mask.dtype != tf.bool:
             mask = tf.cast(mask, tf.bool)
-        if len(mask.get_shape()) == ndim - 1:
-            mask = expand_dims(mask)
-        mask = tf.transpose(mask, axes)
+        if len(mask.shape) != 2:
+            raise ValueError(
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
+        mask = tf.transpose(mask, [1, 0])
+
+        def get_matching_mask(mask_t, ref_tensor_t):
+            # tf.where needs its condition tensor
+            # to be the same shape as its two
+            # result tensors
+            ndim = len(ref_tensor_t.shape)
+            for _ in range(ndim - 1):
+                mask_t = expand_dims(mask_t)
+            add_shape = tf.shape(ref_tensor_t)[1:]
+            multiple = tf.concat([[1], add_shape], 0)
+            return tf.tile(mask_t, multiple)
 
     if constants is None:
         constants = []
@@ -2953,7 +2966,7 @@ def rnn(step_function, inputs, initial_states,
     uses_learning_phase = False
 
     if unroll:
-        if not inputs.get_shape()[0]:
+        if not inputs.shape[0]:
             raise ValueError('Unrolling requires a '
                              'fixed number of timesteps.')
         states = initial_states
@@ -2974,32 +2987,18 @@ def rnn(step_function, inputs, initial_states,
                 if getattr(output, '_uses_learning_phase', False):
                     uses_learning_phase = True
 
-                # tf.where needs its condition tensor
-                # to be the same shape as its two
-                # result tensors, but in our case
-                # the condition (mask) tensor is
-                # (nsamples, 1), and A and B are (nsamples, ndimensions).
-                # So we need to
-                # broadcast the mask to match the shape of A and B.
-                # That's what the tile call does,
-                # it just repeats the mask along its second dimension
-                # n times.
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-
                 if not successive_outputs:
                     prev_output = zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = tf.where(tiled_mask_t, output, prev_output)
+                output_mask_t = get_matching_mask(mask_t, output)
+                output = tf.where(output_mask_t, output, prev_output)
 
                 return_states = []
                 for state, new_state in zip(states, new_states):
-                    # (see earlier comment for tile explanation)
-                    tiled_mask_t = tf.tile(mask_t,
-                                           tf.stack([1, tf.shape(new_state)[1]]))
-                    return_states.append(tf.where(tiled_mask_t,
+                    state_mask_t = get_matching_mask(mask_t, new_state)
+                    return_states.append(tf.where(state_mask_t,
                                                   new_state,
                                                   state))
                 states = return_states
@@ -3026,26 +3025,29 @@ def rnn(step_function, inputs, initial_states,
         states = tuple(initial_states)
 
         time_steps = tf.shape(inputs)[0]
-        outputs, _ = step_function(inputs[0], initial_states + constants)
+        output, _ = step_function(inputs[0], initial_states + constants)
         output_ta = tensor_array_ops.TensorArray(
-            dtype=outputs.dtype,
+            dtype=output.dtype,
             size=time_steps,
             tensor_array_name='output_ta')
+        initial_output = zeros_like(output)
         input_ta = tensor_array_ops.TensorArray(
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
         input_ta = input_ta.unstack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
+        while_loop_kwargs = {
+            'cond': lambda time, *_: time < time_steps,
+            'parallel_iterations': 32,
+            'swap_memory': True,
+            'maximum_iterations': input_length}
 
         if mask is not None:
             if not states:
                 raise ValueError('No initial states provided! '
                                  'When using masking in an RNN, you should '
-                                 'provide initial states '
-                                 '(and your step function should return '
-                                 'as its first state at time `t` '
-                                 'the output at time `t-1`).')
+                                 'provide initial states')
             if go_backwards:
                 mask = reverse(mask, 0)
 
@@ -3055,12 +3057,13 @@ def rnn(step_function, inputs, initial_states,
                 tensor_array_name='mask_ta')
             mask_ta = mask_ta.unstack(mask)
 
-            def _step(time, output_ta_t, *states):
+            def _step(time, output_ta_t, output_tm1, *states):
                 """RNN step function.
 
                 # Arguments
                     time: Current timestep value.
                     output_ta_t: TensorArray.
+                    output_tm1: output Tensor from previous timestep
                     *states: List of states.
 
                 # Returns
@@ -3075,18 +3078,23 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
-                    new_state.set_shape(state.get_shape())
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-                output = tf.where(tiled_mask_t, output, states[0])
-                tmp = []
-                for i in range(len(states)):
-                    multiples = tf.stack([1, tf.shape(new_states[i])[1]])
-                    tiled = tf.tile(mask_t, multiples)
-                    tmp.append(tf.where(tiled, new_states[i], states[i]))
-                new_states = tmp
+                    new_state.set_shape(state.shape)
+
+                output_mask_t = get_matching_mask(mask_t, output)
+                output = tf.where(output_mask_t, output, output_tm1)
+
+                new_states = [tf.where(get_matching_mask(mask_t, new_states[i]),
+                                       new_states[i],
+                                       states[i]) for i in range(len(states))]
+
                 output_ta_t = output_ta_t.write(time, output)
-                return (time + 1, output_ta_t) + tuple(new_states)
+                return (time + 1, output_ta_t, output) + tuple(new_states)
+
+            final_outputs = control_flow_ops.while_loop(
+                body=_step,
+                loop_vars=(time, output_ta, initial_output) + states,
+                **while_loop_kwargs)
+            new_states = final_outputs[3:]  # skip output_tm1
         else:
             def _step(time, output_ta_t, *states):
                 """RNN step function.
@@ -3107,25 +3115,22 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
-                    new_state.set_shape(state.get_shape())
+                    new_state.set_shape(state.shape)
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
 
-        final_outputs = control_flow_ops.while_loop(
-            cond=lambda time, *_: time < time_steps,
-            body=_step,
-            loop_vars=(time, output_ta) + states,
-            parallel_iterations=32,
-            swap_memory=True,
-            maximum_iterations=input_length)
+            final_outputs = control_flow_ops.while_loop(
+                body=_step,
+                loop_vars=(time, output_ta) + states,
+                **while_loop_kwargs)
+            new_states = final_outputs[2:]
+
         last_time = final_outputs[0]
         output_ta = final_outputs[1]
-        new_states = final_outputs[2:]
-
         outputs = output_ta.stack()
         last_output = output_ta.read(last_time - 1)
 
-    axes = [1, 0] + list(range(2, len(outputs.get_shape())))
+    axes = [1, 0] + list(range(2, len(outputs.shape)))
     outputs = tf.transpose(outputs, axes)
     last_output._uses_learning_phase = uses_learning_phase
     return last_output, outputs, new_states
