@@ -830,58 +830,68 @@ class TestBackend(object):
         num_samples = 2
         num_timesteps = 4
         state_and_io_size = 5
+        mask_last_num_timesteps = 2  # for second sample only
 
+        # a step function that just outputs inputs,
+        # but increments states +1 per timestep
         def step_function(inputs, states):
             return inputs, [s + 1 for s in states]
 
-        inputs_vals = np.ones((num_samples, num_timesteps, state_and_io_size))
-        inputs_vals[1] += 1.
-        inputs_vals[:, -1] = 0  # should be ignored for first sample due to mask
-
-        initial_state_vals = [np.zeros((num_samples, state_and_io_size))]
-
+        inputs_vals = np.random.random(
+            (num_samples, num_timesteps, state_and_io_size))
+        initial_state_vals = np.zeros((num_samples, state_and_io_size))
+        # masking of two last timesteps for second sample only
         mask_vals = np.ones((num_samples, num_timesteps))
-        mask_vals[0, -1] = 0  # final timestep masked for sample 1
+        mask_vals[1, -mask_last_num_timesteps:] = 0
 
+        # outputs expected to be same as inputs for the first sample
+        expected_outputs = inputs_vals.copy()
+        # but for the second sample all outputs in masked region should be the same
+        # as last output before masked region
+        expected_outputs[1, -mask_last_num_timesteps:] = \
+            expected_outputs[1, -(mask_last_num_timesteps + 1)]
+
+        expected_state = initial_state_vals.copy()
+        # first state should be incremented for every timestep (no masking)
+        expected_state[0] += num_timesteps
+        # second state should not be incremented for last two timesteps
+        expected_state[1] += (num_timesteps - mask_last_num_timesteps)
+
+        # verify same expected output for `unroll=true/false`
         inputs = K.variable(inputs_vals)
-        initial_state = [K.variable(initial_state_vals[0])]
+        initial_states = [K.variable(initial_state_vals)]
         mask = K.variable(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
                 inputs,
-                initial_state,
+                initial_states,
                 mask=mask,
                 unroll=unroll,
                 input_length=num_timesteps if unroll else None)
 
-            expected_outputs = np.ones((num_samples, num_timesteps, 5))
-            expected_outputs[1] += 1.
-            expected_outputs[1, -1] = 0  # only second sample gets the zero
             assert_allclose(K.eval(outputs), expected_outputs)
-
-            expected_states = [
-                np.concatenate([
-                    np.ones((1, state_and_io_size)) * (num_timesteps - 1),
-                    np.ones((1, state_and_io_size)) * num_timesteps
-                ])
-            ]
-            assert_allclose(K.eval(last_states[0]), expected_states[0])
+            assert_allclose(K.eval(last_states[0]), expected_state)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
     def test_rnn_output_num_dim_larger_than_2_masking(self):
         num_samples = 3
         num_timesteps = 4
+        num_features = 5
 
         def step_function(inputs, states):
             outputs = K.tile(K.expand_dims(inputs), [1, 1, 2])
             return outputs, states
 
-        inputs_vals = np.ones((num_samples, num_timesteps, 5))
-        inputs_vals[:, -1] = 0  # this should be ignored due to mask
+        inputs_vals = np.random.random((num_samples, num_timesteps, num_features))
         initial_state_vals = [np.ones((num_samples, 6))]
         mask_vals = np.ones((num_samples, num_timesteps))
-        mask_vals[:, -1] = 0  # final timestep masked
+        mask_vals[-1, -1] = 0  # final timestep masked for last sample
+
+        expected_outputs = np.repeat(inputs_vals[..., None], repeats=2, axis=-1)
+        # for the last sample, the final timestep (in masked region) should be the
+        # same as the second to final output (before masked region)
+        expected_outputs[-1, -1] = expected_outputs[-1, -2]
 
         inputs = K.variable(inputs_vals)
         initial_state = [K.variable(initial_state_vals[0])]
@@ -895,7 +905,6 @@ class TestBackend(object):
                 unroll=unroll,
                 input_length=num_timesteps if unroll else None)
 
-            expected_outputs = np.ones((num_samples, num_timesteps, 5, 2))
             assert_allclose(K.eval(outputs), expected_outputs)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
@@ -907,9 +916,13 @@ class TestBackend(object):
             return inputs, [s + 1 for s in states]
 
         inputs_vals = np.ones((num_samples, num_timesteps, 5))
-        initial_state_vals = [np.zeros((num_samples, 6, 6))]
+        initial_state_vals = [np.random.random((num_samples, 6, 7))]
         mask_vals = np.ones((num_samples, num_timesteps))
-        mask_vals[:, -1] = 0  # final timestep masked
+        mask_vals[0, -2] = 0  # final two timesteps masked for first sample
+
+        expected_last_state = initial_state_vals
+        expected_last_state[0] += (num_timesteps - 2)
+        expected_last_state[1:] += num_timesteps
 
         inputs = K.variable(inputs_vals)
         initial_state = [K.variable(initial_state_vals[0])]
@@ -924,7 +937,6 @@ class TestBackend(object):
                 input_length=num_timesteps if unroll else None)
 
             # not updated last timestep:
-            expected_last_state = np.ones((num_samples, 6, 6)) * (num_timesteps - 1)
             assert_allclose(K.eval(last_states[0]), expected_last_state)
 
     @pytest.mark.parametrize('x_np,axis,keepdims', [
