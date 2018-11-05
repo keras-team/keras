@@ -1990,7 +1990,7 @@ class UpSampling2D(_UpSampling):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
-        interpolation: A string, one of `nearest` or `bilinear`.
+        interpolation: A string, one of `nearest`, `bilinear`, or `bicubic`.
             Note that CNTK does not support yet the `bilinear` upscaling
             and that with Theano, only `size=(2, 2)` is possible.
 
@@ -2014,9 +2014,9 @@ class UpSampling2D(_UpSampling):
                  **kwargs):
         normalized_size = conv_utils.normalize_tuple(size, 2, 'size')
         super(UpSampling2D, self).__init__(normalized_size, data_format, **kwargs)
-        if interpolation not in ['nearest', 'bilinear']:
+        if interpolation not in ['nearest', 'bilinear', 'bicubic']:
             raise ValueError('interpolation should be one '
-                             'of "nearest" or "bilinear".')
+                             'of "nearest", "bilinear", or "bicubic".')
         self.interpolation = interpolation
 
     def call(self, inputs):

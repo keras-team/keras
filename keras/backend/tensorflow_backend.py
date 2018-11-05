@@ -2091,7 +2091,7 @@ def resize_images(x,
         height_factor: Positive integer.
         width_factor: Positive integer.
         data_format: string, `"channels_last"` or `"channels_first"`.
-        interpolation: A string, one of `nearest` or `bilinear`.
+        interpolation: A string, one of `nearest`, `bilinear`, or `bicubic`.
 
     # Returns
         A tensor.
@@ -2115,9 +2115,11 @@ def resize_images(x,
         x = tf.image.resize_nearest_neighbor(x, new_shape)
     elif interpolation == 'bilinear':
         x = tf.image.resize_bilinear(x, new_shape)
+    elif interpolation == 'bicubic':
+        x = tf.image.resize_bicubic(x, new_shape)
     else:
         raise ValueError('interpolation should be one '
-                         'of "nearest" or "bilinear".')
+                         'of "nearest", "bilinear", or "bicubic".')
     if data_format == 'channels_first':
         x = permute_dimensions(x, [0, 3, 1, 2])
 
