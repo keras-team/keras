@@ -1446,7 +1446,8 @@ class TestBackend(object):
         with pytest.raises(NotImplementedError):
             self._helper_bilinear(data_format, 4, 4)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='Specific to Tensorflow.')
     @pytest.mark.parametrize('data_format', ['channels_first', 'channels_last'])
     def test_resize_images_bicubic(self, data_format):
         self._helper_bicubic(data_format, 2, 2)
