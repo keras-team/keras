@@ -1008,6 +1008,8 @@ def resize_images(x,
             output._keras_shape[axis_1] *= height_factor
             output._keras_shape[axis_2] *= width_factor
             output._keras_shape = tuple(output._keras_shape)
+    elif interpolation == 'bicubic':
+        resize_images(x, height_factor, width_factor, data_format, interpolation='nearest')
     else:
         raise ValueError('interpolation should be one of "nearest" or "bilinear".')
 

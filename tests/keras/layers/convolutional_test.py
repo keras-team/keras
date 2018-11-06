@@ -908,8 +908,8 @@ def test_upsampling_2d_bilinear(data_format):
                 assert np_output.shape[2] == length_col * input_num_col
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='cntk does not support it yet')
+@pytest.mark.skipif(K.backend() != 'tensorflow',
+                    reason='Specific to Tensorflow.')
 @pytest.mark.parametrize('data_format',
                          ['channels_first', 'channels_last'])
 def test_upsampling_2d_bicubic(data_format):
@@ -946,7 +946,6 @@ def test_upsampling_2d_bicubic(data_format):
             else:  # tf
                 assert np_output.shape[1] == length_row * input_num_row
                 assert np_output.shape[2] == length_col * input_num_col
-
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
