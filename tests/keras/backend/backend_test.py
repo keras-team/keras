@@ -1433,7 +1433,7 @@ class TestBackend(object):
     def _helper_bicubic(data_format, height_factor, width_factor):
         x_shape = (2, 3, 4, 5)
         check_single_tensor_operation('resize_images', x_shape,
-                                      [KTF, KTH],
+                                      [KTF],
                                       height_factor=height_factor,
                                       width_factor=width_factor,
                                       data_format=data_format,
