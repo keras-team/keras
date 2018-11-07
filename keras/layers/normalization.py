@@ -188,7 +188,7 @@ class BatchNormalization(Layer):
             sample_size = K.prod([K.shape(inputs)[axis]
                                   for axis in reduction_axes])
             sample_size = K.cast(sample_size, dtype=K.dtype(inputs))
-            if K.backend() == 'tensorflow':
+            if K.backend() == 'tensorflow' and sample_size.dtype != 'float32':
                 sample_size = K.cast(sample_size, dtype='float32')
 
             # sample variance - unbiased estimator of population variance
