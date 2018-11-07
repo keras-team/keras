@@ -22,6 +22,10 @@ matrix:
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.6
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+    allow_failures:
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow TF_VERSION=latest
+
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
   # We do this conditionally because it saves us some downloading if the
@@ -53,8 +57,12 @@ install:
   - pip install -e .[tests]
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow==1.9
-  
+  - if [[ "$TF_VERSION" == "latest" ]]; then
+      pip install tensorflow
+    else
+      pip install tensorflow==1.9
+    fi
+
   # install cntk
   - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
       ./.travis/install_cntk.sh;
