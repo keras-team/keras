@@ -4,6 +4,7 @@ language: python
 cache:
   directories:
     - $HOME/.theano
+env: # important to allow failure.
 matrix:
     include:
         - python: 2.7
@@ -14,6 +15,8 @@ matrix:
           env: KERAS_BACKEND=tensorflow
         - python: 3.6
           env: KERAS_BACKEND=tensorflow
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow TF_VERSION=latest
         - python: 2.7
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
         - python: 3.6
@@ -23,8 +26,7 @@ matrix:
         - python: 3.6
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
     allow_failures:
-        - python: 3.6
-          env: KERAS_BACKEND=tensorflow TF_VERSION=latest
+        - env: KERAS_BACKEND=tensorflow TF_VERSION=latest
 
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
@@ -58,9 +60,9 @@ install:
 
   # install TensorFlow (CPU version).
   - if [[ "$TF_VERSION" == "latest" ]]; then
-      pip install tensorflow
+      pip install tensorflow;
     else
-      pip install tensorflow==1.9
+      pip install tensorflow==1.9;
     fi
 
   # install cntk
