@@ -257,11 +257,12 @@ def in_test_phase(x, alt, training=None):
 
 
 def relu(x, alpha=0., max_value=None, threshold=0.):
-    y = x * (x >= threshold)
-    if max_value is not None:
-        y = np.clip(y, 0.0, max_value)
-    y += alpha * (x - threshold) * (x < threshold)
-    return y
+    if max_value is None:
+        max_value = np.inf
+    above_threshold = x * (x >= threshold)
+    above_threshold = np.clip(above_threshold, 0.0, max_value)
+    below_threshold = alpha * (x - threshold) * (x < threshold)
+    return below_threshold + above_threshold
 
 
 def switch(condition, then_expression, else_expression):
@@ -285,9 +286,7 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     y = 0.2 * x + 0.5
-    y = np.minimum(y, 1.)
-    y = np.maximum(y, 0.)
-    return y
+    return np.clip(y, 0, 1)
 
 
 def tanh(x):
@@ -576,11 +575,9 @@ def transpose(x):
 
 
 def reverse(x, axes):
-    if isinstance(axes, int):
-        axes = [axes]
-    for a in axes:
-        x = np.flip(x, a)
-    return x
+    if isinstance(axes, list):
+        axes = tuple(axes)
+    return np.flip(x, axes)
 
 
 def variable(value, dtype=None, name=None, constraint=None):
