@@ -826,6 +826,119 @@ class TestBackend(object):
         assert_allclose(last_y1, last_y2, atol=1e-05)
         assert_allclose(y1, y2, atol=1e-05)
 
+    def test_rnn_output_and_state_masking_independent(self):
+        num_samples = 2
+        num_timesteps = 4
+        state_and_io_size = 5
+        mask_last_num_timesteps = 2  # for second sample only
+
+        # a step function that just outputs inputs,
+        # but increments states +1 per timestep
+        def step_function(inputs, states):
+            return inputs, [s + 1 for s in states]
+
+        inputs_vals = np.random.random(
+            (num_samples, num_timesteps, state_and_io_size))
+        initial_state_vals = np.random.random((num_samples, state_and_io_size))
+        # masking of two last timesteps for second sample only
+        mask_vals = np.ones((num_samples, num_timesteps))
+        mask_vals[1, -mask_last_num_timesteps:] = 0
+
+        # outputs expected to be same as inputs for the first sample
+        expected_outputs = inputs_vals.copy()
+        # but for the second sample all outputs in masked region should be the same
+        # as last output before masked region
+        expected_outputs[1, -mask_last_num_timesteps:] = \
+            expected_outputs[1, -(mask_last_num_timesteps + 1)]
+
+        expected_state = initial_state_vals.copy()
+        # first state should be incremented for every timestep (no masking)
+        expected_state[0] += num_timesteps
+        # second state should not be incremented for last two timesteps
+        expected_state[1] += (num_timesteps - mask_last_num_timesteps)
+
+        # verify same expected output for `unroll=true/false`
+        inputs = K.variable(inputs_vals)
+        initial_states = [K.variable(initial_state_vals)]
+        mask = K.variable(mask_vals)
+        for unroll in [True, False]:
+            last_output, outputs, last_states = K.rnn(
+                step_function,
+                inputs,
+                initial_states,
+                mask=mask,
+                unroll=unroll,
+                input_length=num_timesteps if unroll else None)
+
+            assert_allclose(K.eval(outputs), expected_outputs)
+            assert_allclose(K.eval(last_states[0]), expected_state)
+
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
+    def test_rnn_output_num_dim_larger_than_2_masking(self):
+        num_samples = 3
+        num_timesteps = 4
+        num_features = 5
+
+        def step_function(inputs, states):
+            outputs = K.tile(K.expand_dims(inputs), [1, 1, 2])
+            return outputs, states
+
+        inputs_vals = np.random.random((num_samples, num_timesteps, num_features))
+        initial_state_vals = np.random.random((num_samples, 6))
+        mask_vals = np.ones((num_samples, num_timesteps))
+        mask_vals[-1, -1] = 0  # final timestep masked for last sample
+
+        expected_outputs = np.repeat(inputs_vals[..., None], repeats=2, axis=-1)
+        # for the last sample, the final timestep (in masked region) should be the
+        # same as the second to final output (before masked region)
+        expected_outputs[-1, -1] = expected_outputs[-1, -2]
+
+        inputs = K.variable(inputs_vals)
+        initial_states = [K.variable(initial_state_vals)]
+        mask = K.variable(mask_vals)
+        for unroll in [True, False]:
+            last_output, outputs, last_states = K.rnn(
+                step_function,
+                inputs,
+                initial_states,
+                mask=mask,
+                unroll=unroll,
+                input_length=num_timesteps if unroll else None)
+
+            assert_allclose(K.eval(outputs), expected_outputs)
+
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
+    def test_rnn_state_num_dim_larger_than_2_masking(self):
+        num_samples = 3
+        num_timesteps = 4
+
+        def step_function(inputs, states):
+            return inputs, [s + 1 for s in states]
+
+        inputs_vals = np.random.random((num_samples, num_timesteps, 5))
+        initial_state_vals = np.random.random((num_samples, 6, 7))
+        mask_vals = np.ones((num_samples, num_timesteps))
+        mask_vals[0, -2:] = 0  # final two timesteps masked for first sample
+
+        expected_last_state = initial_state_vals.copy()
+        expected_last_state[0] += (num_timesteps - 2)
+        expected_last_state[1:] += num_timesteps
+
+        inputs = K.variable(inputs_vals)
+        initial_states = [K.variable(initial_state_vals)]
+        mask = K.variable(mask_vals)
+        for unroll in [True, False]:
+            last_output, outputs, last_states = K.rnn(
+                step_function,
+                inputs,
+                initial_states,
+                mask=mask,
+                unroll=unroll,
+                input_length=num_timesteps if unroll else None)
+
+            # not updated last timestep:
+            assert_allclose(K.eval(last_states[0]), expected_last_state)
+
     @pytest.mark.parametrize('x_np,axis,keepdims', [
         (np.array([1.1, 0.8, 0.9]), 0, False),
         (np.array([[1.1, 0.8, 0.9]]), 0, False),
@@ -1419,28 +1532,37 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.bias_add(x, b, data_format='channels_middle')
 
-    def test_batchnorm(self):
-        shape = (2, 3)
-        for data_format in ['channels_first', 'channels_last']:
-            if data_format == 'channels_first':
-                x_shape = (1, 4) + shape
-            else:
-                x_shape = (1,) + shape + (4,)
-            x_val = np.random.random(x_shape).astype(np.float32)
-            xth = KTH.variable(x_val)
-            xtf = KTF.variable(x_val)
-            xc = KC.placeholder(x_shape)
-            zth, _, _ = KTH.normalize_batch_in_training(
-                xth, None, None, reduction_axes='per-activation')
-            ztf, _, _ = KTF.normalize_batch_in_training(
-                xtf, None, None, reduction_axes=[0, 1, 2, 3])
-            zc, _, _ = KC.normalize_batch_in_training(
-                xc, None, None, reduction_axes=[0, 1, 2, 3])
-            zth = KTH.eval(zth)
-            ztf = KTF.eval(ztf)
-            zc = KC.function([xc], [zc])([x_val])[0]
-            assert zth.shape == ztf.shape
-            assert zth.shape == zc.shape
+    @pytest.mark.skipif(K.backend() != 'theano',
+                        reason='Specific to Theano.')
+    @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
+    def test_batchnorm_th(self, x_shape):
+        x_val = np.random.random(x_shape).astype(np.float32)
+        x = K.variable(x_val)
+        z, _, _ = K.normalize_batch_in_training(
+            x, None, None, reduction_axes='per-activation')
+        z = K.eval(z)
+        assert z.shape == x_shape
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='Specific to Tensorflow.')
+    @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
+    def test_batchnorm_tf(self, x_shape):
+        x_val = np.random.random(x_shape).astype(np.float32)
+        x = K.variable(x_val)
+        z, _, _ = K.normalize_batch_in_training(
+            x, None, None, reduction_axes=[0, 1, 2, 3])
+        z = K.eval(z)
+        assert z.shape == x_shape
+
+    @pytest.mark.skipif(K.backend() != 'cntk', reason='Specific to CNTK.')
+    @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])
+    def test_batchnorm_cntk(self, x_shape):
+        x_val = np.random.random(x_shape).astype(np.float32)
+        x = K.placeholder(x_shape)
+        z, _, _ = K.normalize_batch_in_training(
+            x, None, None, reduction_axes=[0, 1, 2, 3])
+        z = K.function([x], [z])([x_val])[0]
+        assert z.shape == x_shape
 
     # the Theano and TensorFlow CTC code use different methods to ensure
     # numerical stability.  The Theano code subtracts out the max
