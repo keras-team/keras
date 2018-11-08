@@ -918,7 +918,6 @@ def _data_sequence_task(**kwargs):
         OrderedEnqueuer to get data from a sequence and send it to the parent
         process via a synchronized queue
     """
-    counter = kwargs['counter']
     lock = kwargs['lock']
     next_i_gen = kwargs['next_i_gen']
     sequence = kwargs['sequence']
@@ -927,18 +926,13 @@ def _data_sequence_task(**kwargs):
 
     while not stop_event.is_set():
         try:
-            with lock:
-                # put call to queue.put in critical
-                # section since we need to maintain order
+            for _ in range(len(sequence)):
                 i = next(next_i_gen)
                 seq_output = sequence[i]
                 taskqueue.put((True, seq_output))
 
-                counter.value += 1
-                if counter.value % len(sequence) == 0:
-                    # saw every item in the sequence, end of epoch
-                    counter.value = 0
-                    sequence.on_epoch_end()
+            sequence.on_epoch_end()
+
         except Exception as e:    # pylint: disable=broad-except
             # Can't pickle tracebacks.
             # As a compromise, print the traceback and pickle None instead.
@@ -996,22 +990,12 @@ class MultiProcOrderedEnqueuer(MultiProcEnqueuer):
         next_i_gen = getattr(manager, self._seq_next_i_typeid)(self._seq_order)
 
         self._task_kwargs = {
-            'counter': manager.Value('i', 0),
             'next_i_gen': next_i_gen,
             'sequence': sequence,
         }
 
         super(MultiProcOrderedEnqueuer, self).start(
             workers=workers, max_queue_size=max_queue_size)
-
-
-class CounterWrapper(object):
-    """Simple wrapper around an integer counter to be used by threads
-
-    This is to provide a consistent counter interface to `_data_sequence_task`
-    """
-    def __init__(self):
-        self.value = 0
 
 
 class ThreadedOrderedEnqueuer(ThreadedEnqueuer):
@@ -1038,7 +1022,6 @@ class ThreadedOrderedEnqueuer(ThreadedEnqueuer):
             random.shuffle(self._seq_order)
 
         self._task_kwargs = {
-            'counter': CounterWrapper(),
             'next_i_gen': seq_next_i(self._seq_order),
             'sequence': self._sequence,
         }
