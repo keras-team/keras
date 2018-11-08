@@ -48,6 +48,7 @@ RUN conda install -y python=${python_version} && \
       h5py \
       matplotlib \
       mkl \
+      nltk \
       nose \
       notebook \
       Pillow \
