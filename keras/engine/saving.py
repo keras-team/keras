@@ -572,11 +572,14 @@ def save_weights_to_hdf5_group(group, layers):
     group.attrs['backend'] = K.backend().encode('utf8')
     group.attrs['keras_version'] = str(keras_version).encode('utf8')
 
+    accumulated_weight_values = K.batch_get_value([weight for layer in layers for weight in layer.weights])
+    anchor = 0
     for layer in layers:
         g = group.create_group(layer.name)
         symbolic_weights = layer.weights
-        weight_values = K.batch_get_value(symbolic_weights)
+        weight_values = accumulated_weight_values[anchor:anchor + len(symbolic_weights)]
         weight_names = []
+        anchor += len(symbolic_weights)
         for i, (w, val) in enumerate(zip(symbolic_weights, weight_values)):
             if hasattr(w, 'name') and w.name:
                 name = str(w.name)
