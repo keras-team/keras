@@ -453,7 +453,7 @@ def test_model_methods():
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(3)) * 5
-    assert len(val_seq.logs) <= 4 * 5
+    assert len(val_seq.logs) >= 4 * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
     trained_epochs = []
@@ -466,7 +466,7 @@ def test_model_methods():
                               callbacks=[tracker_cb])
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(12)) * 5
-    assert len(val_seq.logs) == 12 * 5
+    assert len(val_seq.logs) >= 12 * 5
 
     # test for workers = 0
     trained_epochs = []
@@ -479,7 +479,7 @@ def test_model_methods():
                               workers=0)
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(12)) * 5
-    assert len(val_seq.logs) == 12 * 5
+    assert len(val_seq.logs) >= 12 * 5
 
     # fit_generator will throw an exception
     # if steps is unspecified for regular generator
