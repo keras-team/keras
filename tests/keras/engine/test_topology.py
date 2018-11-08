@@ -4,6 +4,8 @@ import numpy as np
 
 from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
+from keras import losses
+from keras import optimizers
 from keras.engine import Input, Layer, saving, get_source_inputs
 from keras.models import Model, Sequential
 from keras import backend as K
@@ -801,6 +803,34 @@ def test_constant_initializer_with_numpy():
 
     yaml_str = model.to_yaml()
     model_from_yaml(yaml_str).summary()
+
+
+def test_wrong_inputs():
+    """ Test for #11602"""
+    inp = Input((None, 12))
+    conv = layers.Conv1D(48, kernel_size=1, activation='linear')(inp)
+    out = layers.Reshape((-1, 3, 16))(conv)
+    act = layers.Activation('softmax')(out)
+    model = Model(inputs=inp, outputs=act)
+    model.compile('adam', 'sparse_categorical_crossentropy', metrics=['acc'])
+    model.summary()
+
+    inp_data = np.random.rand(32, 10, 12)
+    out_data = np.random.randint(0, 16, size=(32, 10, 3, 1))
+    model.fit(inp_data, out_data)
+
+
+def test_expected_input_tensors():
+    """ Test for fchollet's ticker in request for contributions."""
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=['mse'],
+                  weighted_metrics=['mse'])
 
 
 if __name__ == '__main__':
