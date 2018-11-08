@@ -1103,7 +1103,9 @@ class Network(Layer):
                     storing the weight value, named after the weight tensor.
 
         # Arguments
-            filepath: String, path to the file to save the weights to.
+            filepath: one of the following:
+            - string, path where to save the model, or
+            - h5py.File object where to save the model
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
 
@@ -1112,14 +1114,24 @@ class Network(Layer):
         """
         if h5py is None:
             raise ImportError('`save_weights` requires h5py.')
-        # If file exists and should not be overwritten:
-        if not overwrite and os.path.isfile(filepath):
-            proceed = ask_to_proceed_with_overwrite(filepath)
-            if not proceed:
-                return
-        with h5py.File(filepath, 'w') as f:
+        if not isinstance(filepath, h5py.Group):
+            # If file exists and should not be overwritten:
+            if not overwrite and os.path.isfile(filepath):
+                proceed = ask_to_proceed_with_overwrite(filepath)
+                if not proceed:
+                    return
+
+            f = h5py.File(filepath, mode='w')
+            opened_new_file = True
+        else:
+            f = filepath
+            opened_new_file = False
+
+        try:
             saving.save_weights_to_hdf5_group(f, self.layers)
-            f.flush()
+        finally:
+            if opened_new_file:
+                f.flush()
 
     def load_weights(self, filepath, by_name=False,
                      skip_mismatch=False, reshape=False):
@@ -1138,7 +1150,9 @@ class Network(Layer):
         some of the layers have changed.
 
         # Arguments
-            filepath: String, path to the weights file to load.
+            filepath: one of the following:
+            - string, path to the saved model, or
+            - h5py.File object from which to load the model
             by_name: Boolean, whether to load weights by name
                 or by topological order.
             skip_mismatch: Boolean, whether to skip loading of layers
@@ -1154,7 +1168,14 @@ class Network(Layer):
         """
         if h5py is None:
             raise ImportError('`load_weights` requires h5py.')
-        with h5py.File(filepath, mode='r') as f:
+
+        opened_new_file = not isinstance(filepath, h5py.Group)
+        if opened_new_file:
+            f = h5py.File(filepath, mode='r')
+        else:
+            f = filepath
+
+        try:
             if 'layer_names' not in f.attrs and 'model_weights' in f:
                 f = f['model_weights']
             if by_name:
@@ -1164,6 +1185,9 @@ class Network(Layer):
             else:
                 saving.load_weights_from_hdf5_group(
                     f, self.layers, reshape=reshape)
+        finally:
+            if opened_new_file:
+                f.close()
 
     def _updated_config(self):
         """Util hared between different serialization methods.

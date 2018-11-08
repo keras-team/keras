@@ -440,6 +440,84 @@ def test_loading_weights_by_name_skip_mismatch():
         assert_raises(AssertionError, assert_allclose, old, new, atol=1e-05)
 
 
+def test_weight_saving_to_pre_created_h5py_file():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, mode='r+') as h5file:
+        model.save_weights(h5file)
+        model.load_weights(h5file)
+        out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    # test non-default options in h5
+    with h5py.File('does not matter', driver='core',
+                   backing_store=False) as h5file:
+        model.save_weights(h5file)
+        model.load_weights(h5file)
+        out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    with h5py.File(fname, mode='r+') as h5file:
+        g = h5file.create_group('weights')
+        model.save_weights(g)
+        model.load_weights(g)
+        out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+def test_weight_saving_to_binary_stream():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    out = model.predict(x)
+    _, fname = tempfile.mkstemp('.h5')
+    with h5py.File(fname, mode='r+') as h5file:
+        model.save_weights(h5file)
+        model.load_weights(h5file)
+        out2 = model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+    # Save the model to an in-memory-only h5 file.
+    with h5py.File('does not matter', driver='core',
+                   backing_store=False) as h5file:
+        model.save_weights(h5file)
+        h5file.flush()  # Very important! Otherwise you get all zeroes below.
+        binary_data = h5file.fid.get_file_image()
+
+        # Make sure the binary data is correct by saving it to a file manually
+        # and then loading it the usual way.
+        with open(fname, 'wb') as raw_file:
+            raw_file.write(binary_data)
+
+    # Load the manually-saved binary data, and make sure the model is intact.
+    with h5py.File(fname, mode='r') as h5file:
+        model.load_weights(h5file)
+        out2 = model.predict(x)
+
+    assert_allclose(out, out2, atol=1e-05)
+
+
 # a function to be called from the Lambda layer
 def square_fn(x):
     return x * x
