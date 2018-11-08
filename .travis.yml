@@ -4,7 +4,6 @@ language: python
 cache:
   directories:
     - $HOME/.theano
-env: # important to allow failure.
 matrix:
     include:
         - python: 2.7
