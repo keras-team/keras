@@ -1105,7 +1105,7 @@ class Network(Layer):
         # Arguments
             filepath: one of the following:
             - string, path where to save the model, or
-            - h5py.File object where to save the model
+            - h5py.Group object where to save the model
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
 
@@ -1152,7 +1152,7 @@ class Network(Layer):
         # Arguments
             filepath: one of the following:
             - string, path to the saved model, or
-            - h5py.File object from which to load the model
+            - h5py.Group object from which to load the model
             by_name: Boolean, whether to load weights by name
                 or by topological order.
             skip_mismatch: Boolean, whether to skip loading of layers
