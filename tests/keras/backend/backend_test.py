@@ -229,8 +229,8 @@ def check_rnn_operation(step_function_k,
     # compare unroll True/False
     assert_allclose(last_output_s[0], last_output_s[1], atol=1e-05)
     assert_allclose(output_s[0], output_s[1], atol=1e-05)
-    for s_k, s_unroll in zip(last_states_s[0], last_states_s[1]):
-        assert_allclose(s_k, s_unroll, atol=1e-05)
+    for s_unroll_true, s_unroll_false in zip(last_states_s[0], last_states_s[1]):
+        assert_allclose(s_unroll_true, s_unroll_false, atol=1e-05)
 
 
 class TestBackend(object):
