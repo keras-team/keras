@@ -185,43 +185,52 @@ def bias_add(x, y, data_format):
     return x + y
 
 
-def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
-    w_i, w_h, w_o = w
-    h = []
-    o = []
-
-    if go_backwards:
-        t_list = range(x.shape[1] - 1, -1, -1)
-    else:
-        t_list = range(x.shape[1])
+def rnn(step_function, inputs, initial_states,
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
 
     if mask is not None:
-        from keras import backend as K
-        np_mask = K.eval(mask)
+        if mask.dtype != np.bool:
+            mask = mask.astype(np.bool)
+        if len(mask.shape) != 2:
+            raise ValueError(
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
+
+        def apply_mask(mask_t, x_t, x_tm1):
+            # expand mask to match number of dimensions of tensor to mask
+            for _ in range(len(x_t.shape) - 1):
+                mask_t = expand_dims(mask_t)
+            return np.where(mask_t, x_t, x_tm1)
+
+    if constants is None:
+        constants = []
+
+    if input_length is None:
+        input_length = inputs.shape[1]
     else:
-        np_mask = None
+        assert input_length == inputs.shape[1]
 
-    for (i, t) in enumerate(t_list):
-        h_t = np.dot(x[:, t], w_i)
+    time_index = range(input_length)
+    if go_backwards:
+        time_index = time_index[::-1]
 
-        if w_h is not None:
-            prev = h[i - 1] if i > 0 else init
-            h_t1 = np.dot(prev, w_h)
-            if np_mask is not None:
-                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
-        else:
-            h_t1 = 0
+    output_0, _ = step_function(inputs[:, 0], initial_states + constants)
 
-        o_t = h_t + h_t1
-        if w_o is not None:
-            o_t = np.dot(o_t, w_o)
-        o.append(o_t)
+    output = []
+    states_tm1 = initial_states
+    output_tm1 = np.zeros(output_0.shape)
+    for t in time_index:
+        output_t, states_t = step_function(inputs[:, t], states_tm1)
+        if mask is not None:
+            output_t = apply_mask(mask[:, t], output_t, output_tm1)
+            states_t = [apply_mask(mask[:, t], state_t, state_tm1)
+                        for state_t, state_tm1 in zip(states_t, states_tm1)]
+        output.append(output_t)
+        states_tm1 = states_t
+        output_tm1 = output_t
 
-        if np_mask is not None:
-            h_t = h_t * np_mask[:, t].reshape(-1, 1)
-        h.append(h_t + h_t1)
-
-    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
+    return output[-1], np.stack(output, axis=1), states_tm1
 
 
 _LEARNING_PHASE = True
@@ -716,13 +725,16 @@ def _remove_blanks(inds, num_classes):
     return inds[inds < (num_classes - 1)]
 
 
+def expand_dims(x, axis=-1):
+    return np.expand_dims(x, axis=axis)
+
+
 square = np.square
 abs = np.abs
 exp = np.exp
 log = np.log
 round = np.round
 sign = np.sign
-expand_dims = np.expand_dims
 squeeze = np.squeeze
 cos = np.cos
 sin = np.sin

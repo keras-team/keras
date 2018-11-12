@@ -3052,10 +3052,6 @@ def rnn(step_function, inputs, initial_states,
             'maximum_iterations': input_length}
 
         if mask is not None:
-            if not states:
-                raise ValueError('No initial states provided! '
-                                 'When using masking in an RNN, you should '
-                                 'provide initial states')
             if go_backwards:
                 mask = reverse(mask, 0)
 
