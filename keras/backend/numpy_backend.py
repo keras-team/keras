@@ -200,7 +200,7 @@ def rnn(step_function, inputs, initial_states,
         def apply_mask(mask_t, x_t, x_tm1):
             # expand mask to match number of dimensions of tensor to mask
             for _ in range(len(x_t.shape) - 1):
-                mask_t = expand_dims(mask_t)
+                mask_t = np.expand_dims(mask_t, axis=-1)
             return np.where(mask_t, x_t, x_tm1)
 
     if constants is None:
@@ -208,16 +208,13 @@ def rnn(step_function, inputs, initial_states,
 
     if input_length is None:
         input_length = inputs.shape[1]
-    else:
-        assert input_length == inputs.shape[1]
-
+    assert input_length == inputs.shape[1]
     time_index = range(input_length)
     if go_backwards:
         time_index = time_index[::-1]
 
-    output_0, _ = step_function(inputs[:, 0], initial_states + constants)
-
     output = []
+    output_0, _ = step_function(inputs[:, 0], initial_states + constants)
     states_tm1 = initial_states
     output_tm1 = np.zeros(output_0.shape)
     for t in time_index:

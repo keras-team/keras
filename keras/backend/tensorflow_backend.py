@@ -2937,6 +2937,8 @@ def rnn(step_function, inputs, initial_states,
             but input timestep is not a fixed number.
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
+
+    {{np_implementation}}
     """
     ndim = len(inputs.shape)
     if ndim < 3:
