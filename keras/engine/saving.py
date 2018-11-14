@@ -12,6 +12,7 @@ import inspect
 import warnings
 import tempfile
 from six.moves import zip
+from functools import wraps
 
 from .. import backend as K
 from .. import optimizers
@@ -359,6 +360,7 @@ def parse_save_to_external_resource(save_function):
     Currently, Google Storage (GS) is supported for filepath:s starting with
     "gs://".
     """
+    @wraps(save_function)
     def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
         if isinstance(filepath, basestring) and filepath.startswith('gs://'):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
@@ -445,6 +447,7 @@ def parse_load_from_external_resource(load_function):
         else:
             raise ValueError('function {} has no argument {}'.format(f, name))
 
+    @wraps(load_function)
     def load_wrapper(*args, **kwargs):
         filepath, _args, _kwargs = extract_named_arg(
             load_function, 'filepath', args, kwargs)
