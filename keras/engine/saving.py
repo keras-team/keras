@@ -8,6 +8,7 @@ import numpy as np
 import os
 import json
 import yaml
+import inspect
 import warnings
 from six.moves import zip
 
@@ -22,6 +23,11 @@ try:
     HDF5_OBJECT_HEADER_LIMIT = 64512
 except ImportError:
     h5py = None
+
+try:
+    from tensorflow.python.lib.io import file_io as tf_file_io
+except ImportError:
+    tf_file_io = None
 
 
 def _serialize_model(model, h5dict, include_optimizer=True):
@@ -333,6 +339,40 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
     return model
 
 
+def _google_storage_transfer(source_filepath, target_filepath, overwrite=True):
+    """Transfers file to/from Google Cloud Storage"""
+    if tf_file_io is None:
+        raise ImportError('Google Storage file transfer requires tensorflow.')
+    if not overwrite:
+        if tf_file_io.file_exists(target_filepath):
+            raise IOError('Object {} already exists.'.format(target_filepath))
+    with tf_file_io.FileIO(source_filepath, mode='r') as source_f:
+        with tf_file_io.FileIO(target_filepath, mode='w') as target_f:
+            target_f.write(source_f.read())
+
+
+def parse_save_to_external_resource(save_function):
+    """Function decorator that parses `filepath` argument to the `save_function`
+    and saves the file to the inferred external resource.
+
+    Currently, Google Storage (GS) is supported for filepath:s starting with
+    "gs://".
+    """
+    def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
+        if filepath.startswith('gs://'):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            save_function(obj, tmp_filepath, True, *args, **kwargs)
+            try:
+                _google_storage_transfer(tmp_filepath, filepath, overwrite)
+            finally:
+                os.remove(tmp_filepath)
+        else:
+            save_function(obj, filepath, *args, **kwargs)
+    return save_wrapper
+
+
+@parse_save_to_external_resource
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
@@ -385,6 +425,42 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             h5dict.close()
 
 
+def parse_load_from_external_resource(load_function):
+    """Function decorator that parses `filepath` argument to the `load_function`
+    and loads the file from the inferred external resource.
+
+    Currently, Google Storage (GS) is supported for filepath:s starting with
+    "gs://"
+    """
+    def extract_named_arg(f, name, args, kwargs):
+        if name in kwargs:
+            arg = kwargs.pop(name)
+            return arg, args, kwargs
+        argnames = inspect.getargspec(f)[0]
+        for i, (argname, arg) in enumerate(zip(argnames, args)):
+            if argname == name:
+                return arg, args[:i] + args[i + 1:], kwargs
+        else:
+            raise ValueError('function {} has no argument {}'.format(f, name))
+
+    def load_wrapper(*args, **kwargs):
+        filepath, _args, _kwargs = extract_named_arg(
+            load_function, 'filepath', args, kwargs)
+        if filepath.startswith('gs://'):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            _google_storage_transfer(filepath, tmp_filepath)
+            _kwargs['filepath'] = tmp_filepath
+            try:
+                res = load_function(*_args, **_kwargs)
+            finally:
+                os.remove(tmp_filepath)
+            return res
+        return load_function(*args, **kwargs)
+    return load_wrapper
+
+
+@parse_load_from_external_resource
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
