@@ -10,6 +10,7 @@ import json
 import yaml
 import inspect
 import warnings
+import tempfile
 from six.moves import zip
 
 from .. import backend as K
@@ -359,7 +360,7 @@ def parse_save_to_external_resource(save_function):
     "gs://".
     """
     def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
-        if filepath.startswith('gs://'):
+        if isinstance(filepath, basestring) and filepath.startswith('gs://'):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
                                         os.path.basename(filepath))
             save_function(obj, tmp_filepath, True, *args, **kwargs)
@@ -369,6 +370,7 @@ def parse_save_to_external_resource(save_function):
                 os.remove(tmp_filepath)
         else:
             save_function(obj, filepath, *args, **kwargs)
+
     return save_wrapper
 
 
@@ -446,7 +448,7 @@ def parse_load_from_external_resource(load_function):
     def load_wrapper(*args, **kwargs):
         filepath, _args, _kwargs = extract_named_arg(
             load_function, 'filepath', args, kwargs)
-        if filepath.startswith('gs://'):
+        if isinstance(filepath, basestring) and filepath.startswith('gs://'):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
                                         os.path.basename(filepath))
             _google_storage_transfer(filepath, tmp_filepath)
@@ -457,6 +459,7 @@ def parse_load_from_external_resource(load_function):
                 os.remove(tmp_filepath)
             return res
         return load_function(*args, **kwargs)
+
     return load_wrapper
 
 
