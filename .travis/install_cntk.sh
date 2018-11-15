@@ -1,5 +1,5 @@
 set -e
-pip install cntk
+pip install cntk==2.5.1
 
 # open mpi is needed for cntk
 rm -rf ~/mpi
