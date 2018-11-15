@@ -15,9 +15,9 @@ matrix:
         - python: 3.6
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 3.6
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
         - python: 2.7
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.6
@@ -48,7 +48,7 @@ install:
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
     # install pydot for visualization tests
-  - travis_retry conda install $MKL pydot graphviz $PIL
+  - travis_retry conda install mkl mkl-service pydot graphviz $PIL
 
   - pip install -e .[tests]
 
