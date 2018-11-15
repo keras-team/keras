@@ -715,6 +715,8 @@ def _remove_repeats(inds):
 def _remove_blanks(inds, num_classes):
     return inds[inds < (num_classes - 1)]
 
+def stack(x, axis=0):
+    return np.stack(x, axis=axis)
 
 square = np.square
 abs = np.abs
@@ -726,4 +728,4 @@ expand_dims = np.expand_dims
 squeeze = np.squeeze
 cos = np.cos
 sin = np.sin
-stack = np.stack
+

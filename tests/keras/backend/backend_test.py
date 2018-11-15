@@ -1802,6 +1802,22 @@ class TestBackend(object):
         assert k_s_d.shape == k_d.shape
         assert_allclose(k_s_d, k_d, atol=1e-05)
 
+    def test_stack(self):
+        tensor_list = [np.random.randn(5, 4, 6, 10) for _ in range(5)]
+        stack_axis = 3
+        results = []
+        for K in WITH_NP:
+            if hasattr(K, 'backend') and K.backend() == 'cntk':
+                t, f = cntk_func_tensors("stack", tensor_list, axis=stack_axis)
+                out = f(tensor_list)[0]
+                results.append(out)
+            else:
+                tensor_list_var = [K.variable(tensor) for tensor in tensor_list]
+                out = K.eval(K.stack(tensor_list_var, axis=stack_axis))
+                results.append(out)
+
+        assert_list_pairwise(results)
+
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_map(self):
         x = np.random.rand(10, 3).astype(np.float32)
