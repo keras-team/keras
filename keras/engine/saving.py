@@ -12,6 +12,7 @@ import inspect
 import warnings
 import tempfile
 from six.moves import zip
+from six import string_types
 from functools import wraps
 
 from .. import backend as K
@@ -353,6 +354,11 @@ def _google_storage_transfer(source_filepath, target_filepath, overwrite=True):
             target_f.write(source_f.read())
 
 
+def _is_google_storage_location(filepath):
+    """Checks if `filepath` is referencing a google storage bucket"""
+    return isinstance(filepath, string_types) and filepath.startswith('gs://')
+
+
 def parse_save_to_external_resource(save_function):
     """Function decorator that parses `filepath` argument to the `save_function`
     and saves the file to the inferred external resource.
@@ -362,7 +368,7 @@ def parse_save_to_external_resource(save_function):
     """
     @wraps(save_function)
     def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
-        if isinstance(filepath, basestring) and filepath.startswith('gs://'):
+        if _is_google_storage_location(filepath):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
                                         os.path.basename(filepath))
             save_function(obj, tmp_filepath, True, *args, **kwargs)
@@ -374,6 +380,43 @@ def parse_save_to_external_resource(save_function):
             save_function(obj, filepath, *args, **kwargs)
 
     return save_wrapper
+
+
+def parse_load_from_external_resource(load_function):
+    """Function decorator that parses `filepath` argument to the `load_function`
+    and loads the file from the inferred external resource.
+
+    Currently, Google Storage (GS) is supported for filepath:s starting with
+    "gs://"
+    """
+    def extract_named_arg(f, name, args, kwargs):
+        if name in kwargs:
+            arg = kwargs.pop(name)
+            return arg, args, kwargs
+        argnames = inspect.getargspec(f)[0]
+        for i, (argname, arg) in enumerate(zip(argnames, args)):
+            if argname == name:
+                return arg, args[:i] + args[i + 1:], kwargs
+        else:
+            raise ValueError('function {} has no argument {}'.format(f, name))
+
+    @wraps(load_function)
+    def load_wrapper(*args, **kwargs):
+        filepath, _args, _kwargs = extract_named_arg(
+            load_function, 'filepath', args, kwargs)
+        if _is_google_storage_location(filepath):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            _google_storage_transfer(filepath, tmp_filepath)
+            _kwargs['filepath'] = tmp_filepath
+            try:
+                res = load_function(*_args, **_kwargs)
+            finally:
+                os.remove(tmp_filepath)
+            return res
+        return load_function(*args, **kwargs)
+
+    return load_wrapper
 
 
 @parse_save_to_external_resource
@@ -427,43 +470,6 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     finally:
         if opened_new_file:
             h5dict.close()
-
-
-def parse_load_from_external_resource(load_function):
-    """Function decorator that parses `filepath` argument to the `load_function`
-    and loads the file from the inferred external resource.
-
-    Currently, Google Storage (GS) is supported for filepath:s starting with
-    "gs://"
-    """
-    def extract_named_arg(f, name, args, kwargs):
-        if name in kwargs:
-            arg = kwargs.pop(name)
-            return arg, args, kwargs
-        argnames = inspect.getargspec(f)[0]
-        for i, (argname, arg) in enumerate(zip(argnames, args)):
-            if argname == name:
-                return arg, args[:i] + args[i + 1:], kwargs
-        else:
-            raise ValueError('function {} has no argument {}'.format(f, name))
-
-    @wraps(load_function)
-    def load_wrapper(*args, **kwargs):
-        filepath, _args, _kwargs = extract_named_arg(
-            load_function, 'filepath', args, kwargs)
-        if isinstance(filepath, basestring) and filepath.startswith('gs://'):
-            tmp_filepath = os.path.join(tempfile.gettempdir(),
-                                        os.path.basename(filepath))
-            _google_storage_transfer(filepath, tmp_filepath)
-            _kwargs['filepath'] = tmp_filepath
-            try:
-                res = load_function(*_args, **_kwargs)
-            finally:
-                os.remove(tmp_filepath)
-            return res
-        return load_function(*args, **kwargs)
-
-    return load_wrapper
 
 
 @parse_load_from_external_resource
