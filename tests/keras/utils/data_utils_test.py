@@ -212,6 +212,7 @@ def test_generator_enqueuer_threadsafe():
     enqueuer.stop()
 
 
+# TODO: resolve flakyness issue. Tracked with #11587
 @flaky(rerun_filter=lambda err, *args: not issubclass(err[0], StopIteration))
 def test_generator_enqueuer_fail_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
@@ -363,6 +364,7 @@ def create_finite_generator_from_sequence_pcs(ds):
         yield ds[i]
 
 
+# TODO: resolve flakyness issue. Tracked with #11586
 @flaky(rerun_filter=lambda err, *args: not issubclass(err[0], AssertionError))
 def test_finite_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_threads(

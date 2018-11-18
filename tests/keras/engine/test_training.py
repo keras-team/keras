@@ -124,6 +124,7 @@ def test_weighted_masked_objective():
     weighted_function(a, a, None)
 
 
+# TODO: resolve flakyness issue. Tracked with #11560
 @flaky(rerun_filter=lambda err, *args: not issubclass(err[0], AssertionError))
 def test_model_methods():
     a = Input(shape=(3,), name='input_a')
