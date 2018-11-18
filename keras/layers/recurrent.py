@@ -1782,8 +1782,8 @@ class LSTMCell(Layer):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Setting it to true will also force `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.]
-            (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
+            This is recommended in [Jozefowicz et al. (2015)](
+            http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
             (see [regularizer](../regularizers.md)).
@@ -2060,8 +2060,8 @@ class LSTM(RNN):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Setting it to true will also force `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.]
-            (http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
+            This is recommended in [Jozefowicz et al. (2015)](
+            http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         kernel_regularizer: Regularizer function applied to
             the `kernel` weights matrix
             (see [regularizer](../regularizers.md)).
@@ -2111,12 +2111,12 @@ class LSTM(RNN):
             Unrolling is only suitable for short sequences.
 
     # References
-        - [Long short-term memory]
-          (http://www.bioinf.jku.at/publications/older/2604.pdf)
-        - [Learning to forget: Continual prediction with LSTM]
-          (http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
-        - [Supervised sequence labeling with recurrent neural networks]
-          (http://www.cs.toronto.edu/~graves/preprint.pdf)
+        - [Long short-term memory](
+          http://www.bioinf.jku.at/publications/older/2604.pdf)
+        - [Learning to forget: Continual prediction with LSTM](
+          http://www.mitpressjournals.org/doi/pdf/10.1162/089976600300015015)
+        - [Supervised sequence labeling with recurrent neural networks](
+          http://www.cs.toronto.edu/~graves/preprint.pdf)
         - [A Theoretically Grounded Application of Dropout in
            Recurrent Neural Networks](https://arxiv.org/abs/1512.05287)
     """

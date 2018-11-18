@@ -135,7 +135,8 @@ class MaxoutDense(Layer):
                   'nb_feature': self.nb_feature,
                   'W_regularizer': regularizers.serialize(self.W_regularizer),
                   'b_regularizer': regularizers.serialize(self.b_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'activity_regularizer':
+                      regularizers.serialize(self.activity_regularizer),
                   'W_constraint': constraints.serialize(self.W_constraint),
                   'b_constraint': constraints.serialize(self.b_constraint),
                   'bias': self.bias,
@@ -269,7 +270,8 @@ class Highway(Layer):
                   'activation': activations.serialize(self.activation),
                   'W_regularizer': regularizers.serialize(self.W_regularizer),
                   'b_regularizer': regularizers.serialize(self.b_regularizer),
-                  'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+                  'activity_regularizer':
+                      regularizers.serialize(self.activity_regularizer),
                   'W_constraint': constraints.serialize(self.W_constraint),
                   'b_constraint': constraints.serialize(self.b_constraint),
                   'bias': self.bias,
@@ -485,7 +487,8 @@ class Recurrent(Layer):
         initial_state = K.zeros_like(inputs)  # (samples, timesteps, input_dim)
         initial_state = K.sum(initial_state, axis=(1, 2))  # (samples,)
         initial_state = K.expand_dims(initial_state)  # (samples, 1)
-        initial_state = K.tile(initial_state, [1, self.units])  # (samples, output_dim)
+        # (samples, output_dim)
+        initial_state = K.tile(initial_state, [1, self.units])
         initial_state = [initial_state for _ in range(len(self.states))]
         return initial_state
 
@@ -497,7 +500,8 @@ class Recurrent(Layer):
         # If there are multiple inputs, then
         # they should be the main input and `initial_state`
         # e.g. when loading model from file
-        if isinstance(inputs, (list, tuple)) and len(inputs) > 1 and initial_state is None:
+        if (isinstance(inputs, (list, tuple))
+                and len(inputs) > 1 and initial_state is None):
             initial_state = inputs[1:]
             inputs = inputs[0]
 
@@ -743,7 +747,8 @@ class ConvRecurrent2D(Recurrent):
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
         self.data_format = K.normalize_data_format(data_format)
-        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2, 'dilation_rate')
+        self.dilation_rate = conv_utils.normalize_tuple(dilation_rate, 2,
+                                                        'dilation_rate')
         self.return_sequences = return_sequences
         self.go_backwards = go_backwards
         self.stateful = stateful
@@ -784,9 +789,10 @@ class ConvRecurrent2D(Recurrent):
 
         if self.return_state:
             if self.data_format == 'channels_first':
-                output_shape = [output_shape] + [(input_shape[0], self.filters, rows, cols) for _ in range(2)]
+                state_shape = (input_shape[0], self.filters, rows, cols)
             elif self.data_format == 'channels_last':
-                output_shape = [output_shape] + [(input_shape[0], rows, cols, self.filters) for _ in range(2)]
+                state_shape = (input_shape[0], rows, cols, self.filters)
+            output_shape = [output_shape, state_shape, state_shape]
 
         return output_shape
 

@@ -629,11 +629,13 @@ class Network(Layer):
                             inbound_layer = node.inbound_layers[j]
                             node_index = node.node_indices[j]
                             tensor_index = node.tensor_indices[j]
-                            shape_key = inbound_layer.name + '_%s_%s' % (node_index, tensor_index)
+                            shape_key = inbound_layer.name
+                            shape_key += '_%s_%s' % (node_index, tensor_index)
                             input_shape = layers_to_output_shapes[shape_key]
                             input_shapes.append(input_shape)
 
-                        output_shape = layer.compute_output_shape(unpack_singleton(input_shapes))
+                        output_shape = layer.compute_output_shape(
+                            unpack_singleton(input_shapes))
 
                         output_shapes = to_list(output_shape)
                         node_index = layer._inbound_nodes.index(node)
@@ -715,7 +717,8 @@ class Network(Layer):
                             if has_arg(layer.call, 'mask'):
                                 if 'mask' not in kwargs:
                                     kwargs['mask'] = computed_mask
-                            output_tensors = to_list(layer.call(computed_tensor, **kwargs))
+                            output_tensors = to_list(
+                                layer.call(computed_tensor, **kwargs))
                             output_masks = layer.compute_mask(computed_tensor,
                                                               computed_mask)
                             if output_masks is None:
@@ -741,7 +744,8 @@ class Network(Layer):
                             else:
                                 output_masks = to_list(output_masks)
                         # Apply activity regularizer if any:
-                        if hasattr(layer, 'activity_regularizer') and layer.activity_regularizer is not None:
+                        if (hasattr(layer, 'activity_regularizer') and
+                                layer.activity_regularizer is not None):
                             with K.name_scope('activity_regularizer'):
                                 regularization_losses = [
                                     layer.activity_regularizer(x)
@@ -753,8 +757,8 @@ class Network(Layer):
                             raise Exception(
                                 'Layers should have equal number of output tensors '
                                 'and output masks. Layer ' + str(layer.name) + ' has'
-                                ' ' + str(len(output_tensors)) + ' output tensors and'
-                                ' ' + str(len(output_masks)) + ' output masks.')
+                                ' ' + str(len(output_tensors)) + ' output tensors '
+                                'and ' + str(len(output_masks)) + ' output masks.')
                     # Update model updates and losses:
                     # Keep track of updates that depend on the inputs
                     # (e.g. BN updates).
@@ -770,16 +774,21 @@ class Network(Layer):
 
                     # Update _keras_shape.
                     if all([hasattr(x, '_keras_shape') for x in computed_tensors]):
-                        input_shapes = unpack_singleton([x._keras_shape for x in computed_tensors])
+                        input_shapes = unpack_singleton(
+                            [x._keras_shape for x in computed_tensors])
                         shapes = to_list(layer.compute_output_shape(input_shapes))
-                        uses_learning_phase = any([x._uses_learning_phase for x in computed_tensors])
+                        uses_learning_phase = any(
+                            [x._uses_learning_phase for x in computed_tensors])
 
                         for x, s in zip(output_tensors, shapes):
                             x._keras_shape = s
-                            x._uses_learning_phase = getattr(x, '_uses_learning_phase', False) or uses_learning_phase
+                            _u = getattr(x, '_uses_learning_phase', False)
+                            x._uses_learning_phase = _u or uses_learning_phase
 
                     # Update tensor_map.
-                    for x, y, mask in zip(reference_output_tensors, output_tensors, output_masks):
+                    for x, y, mask in zip(reference_output_tensors,
+                                          output_tensors,
+                                          output_masks):
                         tensor_map[str(id(x))] = (y, mask)
 
         output_tensors = []
@@ -1240,10 +1249,11 @@ class Network(Layer):
         """
         if not self.built:
             raise ValueError(
-                'This model has never been called, thus its weights '
-                'have not yet been created, so no summary can be displayed. '
-                'Build the model first '
-                '(e.g. by calling it on some test data).')
+                'This model has not yet been built. '
+                'Build the model first by calling build() '
+                'or calling fit() with some data. '
+                'Or specify input_shape or batch_input_shape '
+                'in the first layer for automatic build. ')
         return print_layer_summary(self,
                                    line_length=line_length,
                                    positions=positions,

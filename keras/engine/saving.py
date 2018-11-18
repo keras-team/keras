@@ -14,7 +14,7 @@ from six.moves import zip
 from .. import backend as K
 from .. import optimizers
 from ..utils.io_utils import ask_to_proceed_with_overwrite
-from ..utils.io_utils import h5dict
+from ..utils.io_utils import H5Dict
 from ..utils import conv_utils
 
 try:
@@ -24,7 +24,7 @@ except ImportError:
     h5py = None
 
 
-def _serialize_model(model, f, include_optimizer=True):
+def _serialize_model(model, h5dict, include_optimizer=True):
     """Model serialization logic.
 
     This method is used for both writing to HDF5 file/group,
@@ -34,7 +34,7 @@ def _serialize_model(model, f, include_optimizer=True):
 
     # Arguments
         model: Keras model instance to be serialized.
-        f: keras.utils.hdf5.HD5Dict instance.
+        h5dict: keras.utils.io_utils.HD5Dict instance.
         include_optimizer: If True, serialize optimizer's state together.
 
     """
@@ -75,19 +75,20 @@ def _serialize_model(model, f, include_optimizer=True):
 
     from .. import __version__ as keras_version
 
-    f['keras_version'] = str(keras_version).encode('utf8')
-    f['backend'] = K.backend().encode('utf8')
+    h5dict['keras_version'] = str(keras_version).encode('utf8')
+    h5dict['backend'] = K.backend().encode('utf8')
 
     model_config = {}
     model_config['class_name'] = model.__class__.__name__
     model_config['config'] = model.get_config()
     model_config = json.dumps(model_config, default=get_json_type)
     model_config = model_config.encode('utf-8')
-    f['model_config'] = model_config
+    h5dict['model_config'] = model_config
 
-    model_weights_group = f['model_weights']
+    model_weights_group = h5dict['model_weights']
     model_layers = model.layers
-    model_weights_group['layer_names'] = [layer.name.encode('utf8') for layer in model_layers]
+    model_weights_group['layer_names'] = [layer.name.encode('utf8')
+                                          for layer in model_layers]
     model_weights_group['backend'] = K.backend().encode('utf8')
     model_weights_group['keras_version'] = str(keras_version).encode('utf8')
     for layer in model_layers:
@@ -125,19 +126,20 @@ def _serialize_model(model, f, include_optimizer=True):
                 'Prefer using a Keras optimizer instead '
                 '(see keras.io/optimizers).')
         else:
-            f['training_config'] = json.dumps({
+            h5dict['training_config'] = json.dumps({
                 'optimizer_config': {
                     'class_name': model.optimizer.__class__.__name__,
                     'config': model.optimizer.get_config()
                 },
                 'loss': model.loss,
                 'metrics': model.metrics,
+                'weighted_metrics': model.weighted_metrics,
                 'sample_weight_mode': model.sample_weight_mode,
                 'loss_weights': model.loss_weights,
             }, default=get_json_type).encode('utf8')
             symbolic_weights = getattr(model.optimizer, 'weights')
             if symbolic_weights:
-                optimizer_weights_group = f['optimizer_weights']
+                optimizer_weights_group = h5dict['optimizer_weights']
                 weight_values = K.batch_get_value(symbolic_weights)
                 weight_names = []
                 for i, (w, val) in enumerate(zip(symbolic_weights,
@@ -170,11 +172,11 @@ def _serialize_model(model, f, include_optimizer=True):
                     optimizer_weights_group[name] = val
 
 
-def _deserialize_model(f, custom_objects=None, compile=True):
+def _deserialize_model(h5dict, custom_objects=None, compile=True):
     """De-serializes a model serialized via _serialize_model
 
     # Arguments
-        f: `keras.utils.hdf5_utils.HFDict` instance.
+        h5dict: `keras.utils.hdf5_utils.HFDict` instance.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -217,12 +219,12 @@ def _deserialize_model(f, custom_objects=None, compile=True):
             return custom_objects[obj]
         return obj
 
-    model_config = f['model_config']
+    model_config = h5dict['model_config']
     if model_config is None:
         raise ValueError('No model found in config.')
     model_config = json.loads(model_config.decode('utf-8'))
     model = model_from_config(model_config, custom_objects=custom_objects)
-    model_weights_group = f['model_weights']
+    model_weights_group = h5dict['model_weights']
 
     if 'keras_version' in model_weights_group:
         original_keras_version = model_weights_group['keras_version'].decode('utf8')
@@ -286,7 +288,7 @@ def _deserialize_model(f, custom_objects=None, compile=True):
     K.batch_set_value(weight_value_tuples)
 
     if compile:
-        training_config = f.get('training_config')
+        training_config = h5dict.get('training_config')
         if training_config is None:
             warnings.warn('No training configuration found in save file: '
                           'the model was *not* compiled. '
@@ -311,10 +313,10 @@ def _deserialize_model(f, custom_objects=None, compile=True):
                       sample_weight_mode=sample_weight_mode)
 
         # Set optimizer weights.
-        if 'optimizer_weights' in f:
+        if 'optimizer_weights' in h5dict:
             # Build train function (to get weight updates).
             model._make_train_function()
-            optimizer_weights_group = f['optimizer_weights']
+            optimizer_weights_group = h5dict['optimizer_weights']
             optimizer_weight_names = [
                 n.decode('utf8') for n in
                 optimizer_weights_group['weight_names']]
@@ -375,13 +377,12 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     else:
         opened_new_file = False
 
-    f = h5dict(filepath, mode='w')
-
+    h5dict = H5Dict(filepath, mode='w')
     try:
-        _serialize_model(model, f, include_optimizer)
+        _serialize_model(model, h5dict, include_optimizer)
     finally:
         if opened_new_file:
-            f.close()
+            h5dict.close()
 
 
 def load_model(filepath, custom_objects=None, compile=True):
@@ -413,25 +414,25 @@ def load_model(filepath, custom_objects=None, compile=True):
         raise ImportError('`load_model` requires h5py.')
     model = None
     opened_new_file = not isinstance(filepath, h5py.Group)
-    f = h5dict(filepath, 'r')
+    h5dict = H5Dict(filepath, 'r')
     try:
-        model = _deserialize_model(f, custom_objects, compile)
+        model = _deserialize_model(h5dict, custom_objects, compile)
     finally:
         if opened_new_file:
-            f.close()
+            h5dict.close()
     return model
 
 
 def pickle_model(model):
     d = {}
-    f = h5dict(d)
-    _serialize_model(model, f)
+    h5dict = H5Dict(d)
+    _serialize_model(model, h5dict)
     return d
 
 
 def unpickle_model(state):
-    f = h5dict(state, mode='r')
-    return _deserialize_model(f)
+    h5dict = H5Dict(state, mode='r')
+    return _deserialize_model(h5dict)
 
 
 def model_from_config(config, custom_objects=None):
@@ -557,16 +558,22 @@ def load_attributes_from_hdf5_group(group, name):
     return data
 
 
-def save_weights_to_hdf5_group(f, layers):
+def save_weights_to_hdf5_group(group, layers):
+    """Saves weights into the HDF5 group.
+
+    # Arguments
+        group: A pointer to a HDF5 group.
+        layers: Layers to load.
+    """
     from .. import __version__ as keras_version
 
     save_attributes_to_hdf5_group(
-        f, 'layer_names', [layer.name.encode('utf8') for layer in layers])
-    f.attrs['backend'] = K.backend().encode('utf8')
-    f.attrs['keras_version'] = str(keras_version).encode('utf8')
+        group, 'layer_names', [layer.name.encode('utf8') for layer in layers])
+    group.attrs['backend'] = K.backend().encode('utf8')
+    group.attrs['keras_version'] = str(keras_version).encode('utf8')
 
     for layer in layers:
-        g = f.create_group(layer.name)
+        g = group.create_group(layer.name)
         symbolic_weights = layer.weights
         weight_values = K.batch_get_value(symbolic_weights)
         weight_names = []
@@ -591,7 +598,7 @@ def preprocess_weights_for_loading(layer, weights,
                                    original_keras_version=None,
                                    original_backend=None,
                                    reshape=False):
-    """Converts layers weights from Keras 1 format to Keras 2 and also weights of CuDNN layers in Keras 2.
+    """Converts layers weights from Keras 1 format to Keras 2.
 
     # Arguments
         layer: Layer instance.
@@ -606,7 +613,7 @@ def preprocess_weights_for_loading(layer, weights,
         A list of weights values (Numpy arrays).
     """
     def convert_nested_bidirectional(weights):
-        """Converts layers nested in `Bidirectional` wrapper by `preprocess_weights_for_loading()`.
+        """Converts layers nested in `Bidirectional` wrapper.
 
         # Arguments
             weights: List of weights values (Numpy arrays).
@@ -614,18 +621,20 @@ def preprocess_weights_for_loading(layer, weights,
             A list of weights values (Numpy arrays).
         """
         num_weights_per_layer = len(weights) // 2
-        forward_weights = preprocess_weights_for_loading(layer.forward_layer,
-                                                         weights[:num_weights_per_layer],
-                                                         original_keras_version,
-                                                         original_backend)
-        backward_weights = preprocess_weights_for_loading(layer.backward_layer,
-                                                          weights[num_weights_per_layer:],
-                                                          original_keras_version,
-                                                          original_backend)
+        forward_weights = preprocess_weights_for_loading(
+            layer.forward_layer,
+            weights[:num_weights_per_layer],
+            original_keras_version,
+            original_backend)
+        backward_weights = preprocess_weights_for_loading(
+            layer.backward_layer,
+            weights[num_weights_per_layer:],
+            original_keras_version,
+            original_backend)
         return forward_weights + backward_weights
 
     def convert_nested_time_distributed(weights):
-        """Converts layers nested in `TimeDistributed` wrapper by `preprocess_weights_for_loading()`.
+        """Converts layers nested in `TimeDistributed` wrapper.
 
         # Arguments
             weights: List of weights values (Numpy arrays).
@@ -636,7 +645,7 @@ def preprocess_weights_for_loading(layer, weights,
             layer.layer, weights, original_keras_version, original_backend)
 
     def convert_nested_model(weights):
-        """Converts layers nested in `Model` or `Sequential` by `preprocess_weights_for_loading()`.
+        """Converts layers nested in `Model` or `Sequential`.
 
         # Arguments
             weights: List of weights values (Numpy arrays).
@@ -691,7 +700,8 @@ def preprocess_weights_for_loading(layer, weights,
             if shape[:2] != (layer.kernel_size[0], 1) or shape[3] != layer.filters:
                 # Legacy shape:
                 # (filters, input_dim, filter_length, 1)
-                assert shape[0] == layer.filters and shape[2:] == (layer.kernel_size[0], 1)
+                assert (shape[0] == layer.filters and
+                        shape[2:] == (layer.kernel_size[0], 1))
                 weights[0] = np.transpose(weights[0], (2, 3, 1, 0))
             weights[0] = weights[0][:, 0, :, :]
 
@@ -908,14 +918,17 @@ def _convert_rnn_weights(layer, weights):
     # convert the weights between CuDNNGRU and GRU(reset_after=True)
     if target_class in ['GRU', 'CuDNNGRU'] and len(weights) == 3:
         # We can determine the source of the weights from the shape of the bias.
-        # If there is no bias we skip the conversion since CuDNNGRU always has biases.
+        # If there is no bias we skip the conversion
+        # since CuDNNGRU always has biases.
 
         units = weights[1].shape[0]
         bias_shape = weights[2].shape
         n_gates = 3
 
         def convert_weights(weights, from_cudnn=True):
-            kernels = transform_kernels(weights[0], transpose_input(from_cudnn), n_gates)
+            kernels = transform_kernels(weights[0],
+                                        transpose_input(from_cudnn),
+                                        n_gates)
             recurrent_kernels = transform_kernels(weights[1], lambda k: k.T, n_gates)
             biases = np.array(weights[2]).reshape((2, -1) if from_cudnn else -1)
             return [kernels, recurrent_kernels, biases]
@@ -954,7 +967,7 @@ def _need_convert_kernel(original_backend):
 
     The convolution operation is implemented differently in different backends.
     While TH implements convolution, TF and CNTK implement the correlation operation.
-    So the channel axis needs to be flipped when we're loading TF weights onto a TH model,
+    So the channel axis needs to be flipped when TF weights are loaded on a TH model,
     or vice versa. However, there's no conversion required between TF and CNTK.
 
     # Arguments
@@ -1108,9 +1121,10 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
                 reshape=reshape)
             if len(weight_values) != len(symbolic_weights):
                 if skip_mismatch:
-                    warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
-                                  ' due to mismatch in number of weights' +
-                                  ' ({} vs {}).'.format(len(symbolic_weights), len(weight_values)))
+                    warnings.warn('Skipping loading of weights for '
+                                  'layer {}'.format(layer.name) + ' due to mismatch '
+                                  'in number of weights ({} vs {}).'.format(
+                                      len(symbolic_weights), len(weight_values)))
                     continue
                 else:
                     raise ValueError('Layer #' + str(k) +
@@ -1122,11 +1136,12 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
                                      ' element(s).')
             # Set values.
             for i in range(len(weight_values)):
-                if K.int_shape(symbolic_weights[i]) != weight_values[i].shape:
+                symbolic_shape = K.int_shape(symbolic_weights[i])
+                if symbolic_shape != weight_values[i].shape:
                     if skip_mismatch:
-                        warnings.warn('Skipping loading of weights for layer {}'.format(layer.name) +
-                                      ' due to mismatch in shape' +
-                                      ' ({} vs {}).'.format(
+                        warnings.warn('Skipping loading of weights for '
+                                      'layer {}'.format(layer.name) + ' due to '
+                                      'mismatch in shape ({} vs {}).'.format(
                                           symbolic_weights[i].shape,
                                           weight_values[i].shape))
                         continue
@@ -1135,7 +1150,7 @@ def load_weights_from_hdf5_group_by_name(f, layers, skip_mismatch=False,
                                          ' (named "' + layer.name +
                                          '"), weight ' +
                                          str(symbolic_weights[i]) +
-                                         ' has shape {}'.format(K.int_shape(symbolic_weights[i])) +
+                                         ' has shape {}'.format(symbolic_shape) +
                                          ', but the saved weight has shape ' +
                                          str(weight_values[i].shape) + '.')
                 else:

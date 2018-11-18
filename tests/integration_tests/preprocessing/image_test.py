@@ -167,30 +167,6 @@ class TestImage(object):
             x2, y2 = seq[0]
             assert list(y) != list(y2)
 
-    def test_image_data_generator_with_validation_split(self):
-        for test_images in self.all_test_images:
-            img_list = []
-            for im in test_images:
-                img_list.append(image.img_to_array(im)[None, ...])
-
-            images = np.vstack(img_list)
-            generator = image.ImageDataGenerator(validation_split=0.5)
-            seq = generator.flow(images, np.arange(images.shape[0]),
-                                 shuffle=False, batch_size=3,
-                                 subset='validation')
-            x, y = seq[0]
-            assert list(y) == [0, 1, 2]
-            seq = generator.flow(images, np.arange(images.shape[0]),
-                                 shuffle=False, batch_size=3,
-                                 subset='training')
-            x2, y2 = seq[0]
-            assert list(y2) == [4, 5, 6]
-
-            with pytest.raises(ValueError):
-                generator.flow(images, np.arange(images.shape[0]),
-                               shuffle=False, batch_size=3,
-                               subset='foo')
-
     def test_image_data_generator_with_split_value_error(self):
         with pytest.raises(ValueError):
             generator = image.ImageDataGenerator(validation_split=5)

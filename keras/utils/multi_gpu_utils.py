@@ -59,7 +59,9 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         A Keras `Model` instance which can be used just like the initial
         `model` argument, but which distributes its workload on multiple GPUs.
 
-    # Example 1 - Training models with weights merge on CPU
+    # Examples
+
+    Example 1 - Training models with weights merge on CPU
 
     ```python
         import tensorflow as tf
@@ -100,7 +102,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         model.save('my_model.h5')
     ```
 
-    # Example 2 - Training models with weights merge on CPU using cpu_relocation
+    Example 2 - Training models with weights merge on CPU using cpu_relocation
 
     ```python
          ..
@@ -108,16 +110,16 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
          model = Xception(weights=None, ..)
 
          try:
-             model = multi_gpu_model(model, cpu_relocation=True)
+             parallel_model = multi_gpu_model(model, cpu_relocation=True)
              print("Training using multiple GPUs..")
-         except:
+         except ValueError:
+             parallel_model = model
              print("Training using single GPU or CPU..")
-
-         model.compile(..)
+         parallel_model.compile(..)
          ..
     ```
 
-    # Example 3 - Training models with weights merge on GPU (recommended for NV-link)
+    Example 3 - Training models with weights merge on GPU (recommended for NV-link)
 
     ```python
          ..
@@ -125,12 +127,13 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
          model = Xception(weights=None, ..)
 
          try:
-             model = multi_gpu_model(model, cpu_merge=False)
+             parallel_model = multi_gpu_model(model, cpu_merge=False)
              print("Training using multiple GPUs..")
          except:
+             parallel_model = model
              print("Training using single GPU or CPU..")
 
-         model.compile(..)
+         parallel_model.compile(..)
          ..
     ```
 

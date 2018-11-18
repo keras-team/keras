@@ -176,28 +176,40 @@ class H5Dict(object):
     There are lot of edge cases which have been hardcoded,
     and makes sense only in the context of model serialization/
     deserialization.
+
+    # Arguments
+        path: Either a string (path on disk), a Path, a dict, or a HDF5 Group.
+        mode: File open mode (one of `{"a", "r", "w"}`).
     """
 
     def __init__(self, path, mode='a'):
+        def is_path_instance(path):
+            # We can't use isinstance here because it would require
+            # us to add pathlib2 to the Python 2 dependencies.
+            class_name = type(path).__name__
+            return class_name == 'PosixPath' or class_name == 'WindowsPath'
+
         if isinstance(path, h5py.Group):
             self.data = path
             self._is_file = False
-        elif isinstance(path, str):
-            self.data = h5py.File(path,)
+        elif isinstance(path, six.string_types) or is_path_instance(path):
+            self.data = h5py.File(path, mode=mode)
             self._is_file = True
         elif isinstance(path, dict):
             self.data = path
             self._is_file = False
+            if mode == 'w':
+                self.data.clear()
             # Flag to check if a dict is user defined data or a sub group:
             self.data['_is_group'] = True
         else:
-            raise TypeError('Required Group, str or dict. '
+            raise TypeError('Required Group, str, Path or dict. '
                             'Received: {}.'.format(type(path)))
         self.read_only = mode == 'r'
 
     def __setitem__(self, attr, val):
         if self.read_only:
-            raise ValueError('Cannot set item in read only mode.')
+            raise ValueError('Cannot set item in read-only mode.')
         is_np = type(val).__module__ == np.__name__
         if isinstance(self.data, dict):
             if isinstance(attr, bytes):
@@ -209,7 +221,7 @@ class H5Dict(object):
             else:
                 self.data[attr] = val
             return
-        if attr in self:
+        if isinstance(self.data, h5py.Group) and attr in self.data:
             raise KeyError('Cannot set attribute. '
                            'Group with name "{}" exists.'.format(attr))
         if is_np:
@@ -219,20 +231,21 @@ class H5Dict(object):
                 dataset[()] = val
             else:
                 dataset[:] = val
-        if isinstance(val, list):
+        elif isinstance(val, (list, tuple)):
             # Check that no item in `data` is larger than `HDF5_OBJECT_HEADER_LIMIT`
             # because in that case even chunking the array would not make the saving
             # possible.
             bad_attributes = [x for x in val if len(x) > HDF5_OBJECT_HEADER_LIMIT]
 
             # Expecting this to never be true.
-            if len(bad_attributes) > 0:
+            if bad_attributes:
                 raise RuntimeError('The following attributes cannot be saved to '
                                    'HDF5 file because they are larger than '
                                    '%d bytes: %s' % (HDF5_OBJECT_HEADER_LIMIT,
                                                      ', '.join(bad_attributes)))
 
-            if val and sys.version_info[0] == 3 and isinstance(val[0], str):
+            if (val and sys.version_info[0] == 3 and isinstance(
+                    val[0], six.string_types)):
                 # convert to bytes
                 val = [x.encode('utf-8') for x in val]
 
@@ -268,7 +281,7 @@ class H5Dict(object):
                 return val
             else:
                 if self.read_only:
-                    raise ValueError('Cannot create group in read only mode.')
+                    raise ValueError('Cannot create group in read-only mode.')
                 val = {'_is_group': True}
                 self.data[attr] = val
                 return H5Dict(val)
@@ -297,7 +310,7 @@ class H5Dict(object):
                     chunk_attr = '%s%d' % (attr, chunk_id)
             else:
                 if self.read_only:
-                    raise ValueError('Cannot create group in read only mode.')
+                    raise ValueError('Cannot create group in read-only mode.')
                 val = H5Dict(self.data.create_group(attr))
         return val
 

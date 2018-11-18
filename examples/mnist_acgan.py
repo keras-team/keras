@@ -217,10 +217,10 @@ if __name__ == '__main__':
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
 
             # we don't want the discriminator to also maximize the classification
-            # accuracy of the auxilary classifier on generated images, so we
+            # accuracy of the auxiliary classifier on generated images, so we
             # don't train discriminator to produce class labels for generated
             # images (see https://openreview.net/forum?id=rJXTf9Bxg).
-            # To preserve sum of sample weights for the auxilary classifier,
+            # To preserve sum of sample weights for the auxiliary classifier,
             # we assign sample weight of 2 to the real images.
             disc_sample_weight = [np.ones(2 * len(image_batch)),
                                   np.concatenate((np.ones(len(image_batch)) * 2,

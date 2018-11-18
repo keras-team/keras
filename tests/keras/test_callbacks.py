@@ -12,10 +12,11 @@ from keras import initializers
 from keras import callbacks
 from keras.models import Sequential, Model
 from keras.layers import Input, Dense, Dropout, add, dot, Lambda, Layer
-from keras.layers.convolutional import Conv2D
-from keras.layers.pooling import MaxPooling2D
-from keras.layers.pooling import GlobalAveragePooling1D
-from keras.layers.pooling import GlobalAveragePooling2D
+from keras.layers import Conv2D
+from keras.layers import MaxPooling2D
+from keras.layers import GlobalAveragePooling1D
+from keras.layers import GlobalAveragePooling2D
+from keras.layers import BatchNormalization
 from keras.utils.test_utils import get_test_data
 from keras.utils.generic_utils import to_list
 from keras.utils.generic_utils import unpack_singleton
@@ -550,7 +551,8 @@ def test_CSVLogger(tmpdir):
     assert not tmpdir.listdir()
 
 
-def test_TensorBoard(tmpdir):
+@pytest.mark.parametrize('update_freq', ['batch', 'epoch', 9])
+def test_TensorBoard(tmpdir, update_freq):
     np.random.seed(np.random.randint(1, 1e7))
     filepath = str(tmpdir / 'logs')
 
@@ -574,6 +576,7 @@ def test_TensorBoard(tmpdir):
     inp = Input((input_dim,))
     hidden = Dense(num_hidden, activation='relu')(inp)
     hidden = Dropout(0.1)(hidden)
+    hidden = BatchNormalization()(hidden)
     output = Dense(num_classes, activation='softmax')(hidden)
     model = Model(inputs=inp, outputs=output)
     model.compile(loss='categorical_crossentropy',
@@ -588,7 +591,8 @@ def test_TensorBoard(tmpdir):
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
                                       embeddings_data=X_test,
-                                      batch_size=5)]
+                                      batch_size=5,
+                                      update_freq=update_freq)]
 
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,
@@ -755,6 +759,7 @@ def test_TensorBoard_convnet(tmpdir):
         MaxPooling2D(pool_size=2),
         Conv2D(filters=4, kernel_size=(3, 3),
                activation='relu', padding='same'),
+        BatchNormalization(),
         GlobalAveragePooling2D(),
         Dense(num_classes, activation='softmax')
     ])

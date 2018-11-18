@@ -10,6 +10,7 @@ import warnings
 
 from .. import backend as K
 from .. import losses
+from ..utils import Sequence
 from ..utils.generic_utils import to_list
 
 
@@ -20,7 +21,7 @@ def standardize_single_array(x):
         shape = K.int_shape(x)
         if shape is None or shape[0] is None:
             raise ValueError(
-                'When feeding symbolic tensors to a model, we expect the'
+                'When feeding symbolic tensors to a model, we expect the '
                 'tensors to have a static batch size. '
                 'Got tensor with shape: %s' % str(shape))
         return x
@@ -201,7 +202,7 @@ def standardize_sample_weights(sample_weight, output_names):
 
 
 def check_array_length_consistency(inputs, targets, weights=None):
-    """Checks if batch axes are the same for numpy arrays.
+    """Checks if batch axes are the same for Numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -443,7 +444,7 @@ def standardize_weights(y,
             the targets (i.e. we are weighting timesteps, not samples).
 
     # Returns
-        A numpy array of target weights, one entry per sample to weight.
+        A Numpy array of target weights, one entry per sample to weight.
 
     # Raises
         ValueError: In case of invalid user-provided arguments.
@@ -550,9 +551,9 @@ def check_num_samples(ins,
         exclusive.
 
     # Returns
-        When steps is `None`, returns the number of samples to be
+        When `steps` is `None`, returns the number of samples to be
         processed based on the size of the first dimension of the
-        first input numpy array. When steps is not `None` and
+        first input Numpy array. When `steps` is not `None` and
         `batch_size` is `None`, returns `None`.
 
     # Raises
@@ -589,3 +590,17 @@ def iter_sequence_infinite(seq):
     while True:
         for item in seq:
             yield item
+
+
+def is_sequence(seq):
+    """Determine if an object follows the Sequence API.
+
+    # Arguments
+        seq: a possible Sequence object
+
+    # Returns
+        boolean, whether the object follows the Sequence API.
+    """
+    # TODO Dref360: Decide which pattern to follow. First needs a new TF Version.
+    return (getattr(seq, 'use_sequence_api', False)
+            or set(dir(Sequence())).issubset(set(dir(seq) + ['use_sequence_api'])))
