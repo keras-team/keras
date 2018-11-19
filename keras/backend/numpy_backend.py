@@ -576,6 +576,14 @@ def reverse(x, axes):
     return np.flip(x, axes)
 
 
+_slice = slice
+
+
+def slice(x, start, size):
+    slices = [_slice(i, i+j) for i, j in zip(start, size)]
+    return x[tuple(slices)]
+
+
 def variable(value, dtype=None, name=None, constraint=None):
     if constraint is not None:
         raise TypeError("Constraint must be None when "
