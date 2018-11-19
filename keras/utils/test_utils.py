@@ -6,8 +6,6 @@ from __future__ import print_function
 import os
 from io import BytesIO
 
-from mock import patch, Mock, MagicMock
-
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -19,6 +17,11 @@ try:
     from tensorflow.python.lib.io import file_io as tf_file_io
 except ImportError:
     tf_file_io = None
+
+try:
+    from unittest.mock import patch, Mock, MagicMock
+except:
+    from mock import patch, Mock, MagicMock
 
 
 def get_test_data(num_train=1000, num_test=500, input_shape=(10,),

@@ -4,7 +4,6 @@ import os
 import h5py
 import tempfile
 import numpy as np
-from mock import mock
 from numpy.testing import assert_allclose
 from numpy.testing import assert_raises
 
@@ -21,6 +20,10 @@ from keras import losses
 from keras import metrics
 from keras.models import save_model, load_model
 from keras.utils.test_utils import tf_file_io_proxy
+try:
+    from unittest.mock import patch
+except:
+    from mock import patch
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
@@ -705,7 +708,7 @@ def test_saving_overwrite_option():
     save_model(model, fname)
     model.set_weights(new_weights)
 
-    with mock.patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
+    with patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
         ask.return_value = False
         save_model(model, fname, overwrite=False)
         ask.assert_called_once()
@@ -734,7 +737,7 @@ def test_saving_overwrite_option_gcs():
         save_model(model, gcp_filepath)
         model.set_weights(new_weights)
 
-        with mock.patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
+        with patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
             ask.return_value = False
             save_model(model, gcp_filepath, overwrite=False)
             ask.assert_called_once()

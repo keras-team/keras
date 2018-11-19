@@ -1089,7 +1089,7 @@ class Network(Layer):
         from ..models import save_model
         save_model(self, filepath, overwrite, include_optimizer)
 
-    @saving.parse_save_to_external_resource
+    @saving.allow_write_to_gcs
     def save_weights(self, filepath, overwrite=True):
         """Dumps all layer weights to a HDF5 file.
 
@@ -1122,7 +1122,7 @@ class Network(Layer):
             saving.save_weights_to_hdf5_group(f, self.layers)
             f.flush()
 
-    @saving.parse_load_from_external_resource
+    @saving.allow_read_from_gcs
     def load_weights(self, filepath, by_name=False,
                      skip_mismatch=False, reshape=False):
         """Loads all layer weights from a HDF5 save file.

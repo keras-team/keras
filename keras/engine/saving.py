@@ -346,7 +346,7 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
 def _google_storage_transfer(source_filepath, target_filepath, overwrite=True):
     """Transfers file to/from Google Cloud Storage"""
     if tf_file_io is None:
-        raise ImportError('Google Storage file transfer requires tensorflow.')
+        raise ImportError('Google Cloud Storage file transfer requires tensorflow.')
     if not overwrite and tf_file_io.file_exists(target_filepath):
         proceed = ask_to_proceed_with_overwrite(target_filepath)
         if not proceed:
@@ -361,11 +361,9 @@ def _is_google_storage_location(filepath):
     return isinstance(filepath, string_types) and filepath.startswith('gs://')
 
 
-def parse_save_to_external_resource(save_function):
+def allow_write_to_gcs(save_function):
     """Function decorator that parses `filepath` argument to the `save_function`
-    and saves the file to the inferred external resource.
-
-    Currently, Google Storage (GS) is supported for filepath:s starting with
+    and saves the file to Google Cloud Storage (GCS) if filepath starts with
     "gs://".
     """
     @wraps(save_function)
@@ -385,11 +383,9 @@ def parse_save_to_external_resource(save_function):
     return save_wrapper
 
 
-def parse_load_from_external_resource(load_function):
+def allow_read_from_gcs(load_function):
     """Function decorator that parses `filepath` argument to the `load_function`
-    and loads the file from the inferred external resource.
-
-    Currently, Google Storage (GS) is supported for filepath:s starting with
+    and loads the file from Google Cloud Storage (GCS) if filepath starts with
     "gs://"
     """
     def extract_named_arg(f, name, args, kwargs):
@@ -422,7 +418,7 @@ def parse_load_from_external_resource(load_function):
     return load_wrapper
 
 
-@parse_save_to_external_resource
+@allow_write_to_gcs
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
@@ -475,7 +471,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             h5dict.close()
 
 
-@parse_load_from_external_resource
+@allow_read_from_gcs
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
