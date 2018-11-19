@@ -343,7 +343,7 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
     return model
 
 
-def _google_storage_transfer(source_filepath, target_filepath, overwrite=True):
+def _gcs_transfer(source_filepath, target_filepath, overwrite=True):
     """Transfers file to/from Google Cloud Storage"""
     if tf_file_io is None:
         raise ImportError('Google Cloud Storage file transfer requires tensorflow.')
@@ -356,7 +356,7 @@ def _google_storage_transfer(source_filepath, target_filepath, overwrite=True):
             target_f.write(source_f.read())
 
 
-def _is_google_storage_location(filepath):
+def _is_gcs_location(filepath):
     """Checks if `filepath` is referencing a google storage bucket"""
     return isinstance(filepath, string_types) and filepath.startswith('gs://')
 
@@ -368,12 +368,12 @@ def allow_write_to_gcs(save_function):
     """
     @wraps(save_function)
     def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
-        if _is_google_storage_location(filepath):
+        if _is_gcs_location(filepath):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
                                         os.path.basename(filepath))
             save_function(obj, tmp_filepath, True, *args, **kwargs)
             try:
-                _google_storage_transfer(tmp_filepath, filepath, overwrite)
+                _gcs_transfer(tmp_filepath, filepath, overwrite)
             finally:
                 os.remove(tmp_filepath)
         else:
@@ -403,10 +403,10 @@ def allow_read_from_gcs(load_function):
     def load_wrapper(*args, **kwargs):
         filepath, _args, _kwargs = extract_named_arg(
             load_function, 'filepath', args, kwargs)
-        if _is_google_storage_location(filepath):
+        if _is_gcs_location(filepath):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
                                         os.path.basename(filepath))
-            _google_storage_transfer(filepath, tmp_filepath)
+            _gcs_transfer(filepath, tmp_filepath)
             _kwargs['filepath'] = tmp_filepath
             try:
                 res = load_function(*_args, **_kwargs)

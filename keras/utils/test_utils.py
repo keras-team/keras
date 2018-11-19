@@ -146,6 +146,8 @@ class tf_file_io_proxy(object):
 
     If a `bucket_name` is not provided, an identifier of the import of the file_io
     module to mock must be provided, using the `file_io_module` argument.
+    NOTE that only a subsets of the module is mocked and that the same Exceptions
+    are not raised in mock implementation.
 
     Since the bucket name can be provided using an environment variable it is
     recommended to use method `get_filepath(filename)` in test cases to make them
@@ -196,7 +198,7 @@ class tf_file_io_proxy(object):
             try:
                 # check that bucket exists and is accessible
                 tf_file_io.is_directory(self.bucket_path)
-            except Exception:  # TODO
+            except:
                 raise IOError(
                     'could not access provided bucket {}'.format(self.bucket_path))
             self.mock_gcs = False
@@ -229,7 +231,7 @@ class tf_file_io_proxy(object):
             mock_fio.__enter__ = Mock(return_value=mock_fio)
             if mode == 'rb':
                 if filepath not in self.local_objects:
-                    raise IOError('TODO')
+                    raise IOError('{} does not exist'.format(filepath))
                 self.local_objects[filepath].seek(0)
                 mock_fio.read = self.local_objects[filepath].read
             elif mode == 'wb':
