@@ -698,6 +698,22 @@ def test_saving_constant_initializer_with_numpy():
     os.remove(fname)
 
 
+def test_save_load_weights_gcs():
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    org_weights = model.get_weights()
+
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        model.save_weights(gcp_filepath)
+        model.set_weights([np.random.random(w.shape) for w in org_weights])
+        for w, org_w in zip(model.get_weights(), org_weights):
+            assert not (w == org_w).all()
+        model.load_weights(gcp_filepath)
+        for w, org_w in zip(model.get_weights(), org_weights):
+            assert_allclose(w, org_w)
+
+
 def test_saving_overwrite_option():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
