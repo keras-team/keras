@@ -363,7 +363,7 @@ def _is_gcs_location(filepath):
 
 def allow_write_to_gcs(save_function):
     """Function decorator that parses `filepath` argument to the `save_function`
-    and saves the file to Google Cloud Storage (GCS) if filepath starts with
+    and saves the file to Google Cloud Storage (GCS) if `filepath` starts with
     "gs://".
     """
     @wraps(save_function)
@@ -377,7 +377,6 @@ def allow_write_to_gcs(save_function):
             finally:
                 os.remove(tmp_filepath)
         else:
-
             save_function(obj, filepath, overwrite, *args, **kwargs)
 
     return save_wrapper
@@ -385,7 +384,7 @@ def allow_write_to_gcs(save_function):
 
 def allow_read_from_gcs(load_function):
     """Function decorator that parses `filepath` argument to the `load_function`
-    and loads the file from Google Cloud Storage (GCS) if filepath starts with
+    and loads the file from Google Cloud Storage (GCS) if `filepath` starts with
     "gs://"
     """
     def extract_named_arg(f, name, args, kwargs):

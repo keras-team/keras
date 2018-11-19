@@ -134,24 +134,24 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 class tf_file_io_proxy(object):
     """Context manager for mock patching `tensorflow.python.lib.io.file_io` in tests.
 
-    The main purpose of this class is to be able to tests model saving/loading
-    to/from Google Cloud Storage, for witch the tensorflow `file_io` package is used.
+    The purpose of this class is to be able to tests model saving/loading to/from
+    Google Cloud Storage, for witch the tensorflow `file_io` package is used.
 
     If a `bucket_name` is provided, either as an input argument or by setting the
     environment variable GCS_TEST_BUCKET, *NO mocking* will be done and files will be
     transferred to the real GCS bucket. For this to work, valid Google application
-    credentials must be available for the python process, see:
+    credentials must be available, see:
         https://cloud.google.com/video-intelligence/docs/common/auth
     for further details.
 
     If a `bucket_name` is not provided, an identifier of the import of the file_io
     module to mock must be provided, using the `file_io_module` argument.
-    NOTE that only a subsets of the module is mocked and that the same Exceptions
+    NOTE that only part of the module is mocked and that the same Exceptions
     are not raised in mock implementation.
 
-    Since the bucket name can be provided using an environment variable it is
-    recommended to use method `get_filepath(filename)` in test cases to make them
-    compatible with and without a real GCS bucket during testing. See example below.
+    Since the bucket name can be provided using an environment variable, it is
+    recommended to use method `get_filepath(filename)` in tests to make them
+    pass with and without a real GCS bucket during testing. See example below.
 
     Arguments:
         file_io_module: String identifier of the file_io module import to patch. E.g
@@ -269,7 +269,7 @@ class tf_file_io_proxy(object):
             os.remove(filename)
 
     def assert_exists(self, filepath):
-        """Convenience method to verfiy that a file exists after writing."""
+        """Convenience method for verifying that a file exists after writing."""
         self._check_started()
         if not self.file_exists(filepath):
             raise AssertionError('{} does not exist'.format(filepath))
