@@ -1021,7 +1021,7 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
-    if (value.dtype != x.dtype):
+    if value.dtype != x.dtype:
         value = tf.cast(value, x.dtype)
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=True)
