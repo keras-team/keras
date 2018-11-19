@@ -203,7 +203,7 @@ Assuming you have code for instantiating your model, you can then load the weigh
 model.load_weights('my_model_weights.h5')
 ```
 
-If you need to load the weights into a *different* architecture (with some layers in common), for instance for fine-tuning or transfer-learning, you can load the weights by *layer name*:
+If you need to load the weights into a *different* architecture (with some layers in common), for instance for fine-tuning or transfer-learning, you can load them by *layer name*:
 
 ```python
 model.load_weights('my_model_weights.h5', by_name=True)
