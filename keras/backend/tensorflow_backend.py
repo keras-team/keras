@@ -1110,7 +1110,7 @@ def batch_dot(x, y, axes=None):
     # Arguments
         x: Keras tensor or variable with `ndim >= 2`.
         y: Keras tensor or variable with `ndim >= 2`.
-        axes: int or tupe(int, int). Target dimensions to be reduced.
+        axes: int or tuple(int, int). Target dimensions to be reduced.
 
     # Returns
         A tensor with shape equal to the concatenation of `x`'s shape
@@ -1129,7 +1129,7 @@ def batch_dot(x, y, axes=None):
         inner_products = []
         for xi, yi in zip(x, y):
             inner_products.append(xi.dot(yi))
-        result = stack(inner_prodcuts)
+        result = stack(inner_products)
         ```
 
         Shape inference:
