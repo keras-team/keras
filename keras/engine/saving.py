@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import numpy as np
 import os
 import json
 import yaml
@@ -14,6 +13,8 @@ import tempfile
 from six.moves import zip
 from six import string_types
 from functools import wraps
+
+import numpy as np
 
 from .. import backend as K
 from .. import optimizers

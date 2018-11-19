@@ -1,4 +1,3 @@
-from io import BytesIO
 
 import pytest
 import os
@@ -7,8 +6,6 @@ import tempfile
 import numpy as np
 from numpy.testing import assert_allclose
 from numpy.testing import assert_raises
-
-from mock import patch, Mock, MagicMock
 
 from keras import backend as K
 from keras.engine.saving import preprocess_weights_for_loading
@@ -22,100 +19,13 @@ from keras import optimizers
 from keras import losses
 from keras import metrics
 from keras.models import save_model, load_model
+from keras.utils.test_utils import tf_file_io_proxy
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
     (K.backend() != 'tensorflow' or
      not K.tensorflow_backend._get_available_gpus()),
     reason='Requires TensorFlow backend and a GPU')
-
-
-class GCPTestProxy(object):
-
-    _gcp_prefix = 'gs://'
-
-    def __init__(self, file_io_module=None, bucket_name=None):
-        if bucket_name is None:
-            bucket_name = os.environ.get('GCP_TEST_BUCKET', None)
-        if bucket_name is None:
-            # will mock gcp locally for tests
-            self.bucket_name = 'mock_bucket'
-            self.mock_gcp = True
-            self.objects = {}
-        else:
-            # will use real bucket for tests
-            if bucket_name.startswith(self._gcp_prefix):
-                bucket_name = bucket_name[len(self._gcp_prefix):]
-            # TODO check that bucket exists and is accessible
-            self.bucket_name = bucket_name
-            self.mock_gcp = False
-            self.objects = None
-
-        if file_io_module is None:
-            raise ValueError(
-                'The tensorflow file_io module to proxy must be provided')
-        self.file_io_module = file_io_module
-        self.patched_file_io = None
-        self.entered = False
-
-    def get_bucket_path(self):
-        return self._gcp_prefix + self.bucket_name
-
-    def _complete_gcp_filepath(self, filepath):
-        # assert filepath.startswith(self._gcp_prefix + '{bucket_name}/')
-        return filepath.format(bucket_name=self.bucket_name)
-
-    def FileIO(self, filepath, mode):
-        if filepath.startswith(self._gcp_prefix):
-            filepath = self._complete_gcp_filepath(filepath)
-            if not self.mock_gcp:
-                return self.patched_file_io.get_original().FileIO(filepath, mode)
-
-            mock_fio = MagicMock()
-            mock_fio.__enter__ = Mock(return_value=mock_fio)
-            if mode == 'r':
-                if filepath not in self.objects:
-                    raise IOError('TODO')
-                self.objects[filepath].seek(0)
-                mock_fio.read = self.objects[filepath].read
-            elif mode == 'w':
-                self.objects[filepath] = BytesIO()
-                mock_fio.write = self.objects[filepath].write
-            else:
-                raise ValueError(
-                    '{} only supports wrapping of FileIO for `mode` "r" or "w"')
-            return mock_fio
-        else:
-            return open(filepath, mode)
-
-    def file_exists(self, filepath):
-        if filepath.startswith(self._gcp_prefix):
-            filepath = self._complete_gcp_filepath(filepath)
-            if not self.mock_gcp:
-                self.patched_file_io.get_original().file_exists(filepath)
-            return filepath in self.objects
-        else:
-            os.path.exists(filepath)
-
-    def assert_exists(self, filepath):
-        if not self.entered:
-            raise RuntimeError('TODO')
-        if not self.patched_file_io.new.file_exists(filepath):
-            raise AssertionError('TODO')
-
-    def __enter__(self):
-        mock_module = Mock()
-        mock_module.FileIO = self.FileIO
-        mock_module.file_exists = self.file_exists
-        patched_file_io = patch(self.file_io_module, new=mock_module)
-        self.patched_file_io = patched_file_io
-        self.patched_file_io.start()
-        self.entered = True
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.patched_file_io.stop()
-        self.entered = False
 
 
 def test_sequential_model_saving():
@@ -132,32 +42,30 @@ def test_sequential_model_saving():
     model.train_on_batch(x, y)
 
     out = model.predict(x)
+
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-
-    new_model = load_model(fname)
+    new_model_disk = load_model(fname)
     os.remove(fname)
 
-    with GCPTestProxy(file_io_module='keras.engine.saving.tf_file_io') as gcp_proxy:
-        gcp_filepath = 'gs://{bucket_name}/model.h5'
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
         save_model(model, gcp_filepath)
-        gcp_proxy.assert_exists(gcp_filepath)
+        file_io_proxy.assert_exists(gcp_filepath)
         new_model_gcp = load_model(gcp_filepath)
 
-    out2 = new_model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    x2 = np.random.random((1, 3))
+    y2 = np.random.random((1, 3, 3))
+    model.train_on_batch(x2, y2)
+    out_2 = model.predict(x2)
 
-    out3 = new_model_gcp.predict(x)
-    assert_allclose(out, out3, atol=1e-05)
-
-    # test that new updates are the same with both models
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3, 3))
-    model.train_on_batch(x, y)
-    new_model.train_on_batch(x, y)
-    out = model.predict(x)
-    out2 = new_model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    for new_model in [new_model_disk, new_model_gcp]:
+        new_out = new_model.predict(x)
+        assert_allclose(out, new_out, atol=1e-05)
+        # test that new updates are the same with both models
+        new_model.train_on_batch(x2, y2)
+        new_out_2 = new_model.predict(x2)
+        assert_allclose(out_2, new_out_2, atol=1e-05)
 
 
 def test_sequential_model_saving_2():
@@ -172,18 +80,24 @@ def test_sequential_model_saving_2():
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
     model.train_on_batch(x, y)
-
     out = model.predict(x)
+
+    load_kwargs = {'custom_objects': {'custom_opt': custom_opt,
+                                      'custom_loss': custom_loss}}
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-
-    model = load_model(fname,
-                       custom_objects={'custom_opt': custom_opt,
-                                       'custom_loss': custom_loss})
+    new_model_disk = load_model(fname, **load_kwargs)
     os.remove(fname)
 
-    out2 = model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        save_model(model, gcp_filepath)
+        file_io_proxy.assert_exists(gcp_filepath)
+        new_model_gcp = load_model(gcp_filepath, **load_kwargs)
+
+    for new_model in [new_model_disk, new_model_gcp]:
+        new_out = new_model.predict(x)
+        assert_allclose(out, new_out, atol=1e-05)
 
 
 def test_functional_model_saving():

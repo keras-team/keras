@@ -3,12 +3,22 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import os
+from io import BytesIO
+
+from mock import patch, Mock, MagicMock
+
 import numpy as np
 from numpy.testing import assert_allclose
 
 from .generic_utils import has_arg
 from ..engine import Model, Input
 from .. import backend as K
+
+try:
+    from tensorflow.python.lib.io import file_io as tf_file_io
+except ImportError:
+    tf_file_io = None
 
 
 def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
@@ -116,3 +126,125 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # for further checks in the caller function
     return actual_output
+
+
+class tf_file_io_proxy(object):
+    """TODO"""
+    _gcp_prefix = 'gs://'
+    _test_bucket_env_key = 'GCP_TEST_BUCKET'
+
+    def __init__(self, file_io_module=None, bucket_name=None):
+        if bucket_name is None:
+            bucket_name = os.environ.get(self._test_bucket_env_key, None)
+        if bucket_name is None:
+            # will mock gcp locally for tests
+            if file_io_module is None:
+                raise ValueError('`file_io_module` must be provided for mocking')
+            self.mock_gcp = True
+            self.file_io_module = file_io_module
+            self.objects = {}
+            self.bucket_name = 'mock-bucket'
+        else:
+            # will use real bucket for tests
+            if bucket_name.startswith(self._gcp_prefix):
+                bucket_name = bucket_name[len(self._gcp_prefix):]
+            self.bucket_name = bucket_name
+            if tf_file_io is None:
+                raise ImportError(
+                    'tensorflow must be installed to read/write to GCP')
+            try:
+                # check that bucket exists and is accessible
+                tf_file_io.is_directory(self.bucket_path)
+            except Exception:  # TODO
+                raise IOError(
+                    'could not access provided bucket {}'.format(self.bucket_path))
+            self.mock_gcp = False
+            self.file_io_module = None
+            self.objects = None
+
+        self.patched_file_io = None
+        self._is_started = False
+
+    @property
+    def bucket_path(self):
+        """Returns the full GCP bucket path"""
+        return self._gcp_prefix + self.bucket_name
+
+    def get_filepath(self, filename):
+        """Returns filename appended to bucketpath"""
+        return os.path.join(self.bucket_path, filename)
+
+    def FileIO(self, filepath, mode):
+        """Proxy for tensorflow.python.lib.io.file_io.FileIO class. Mocks the class
+        if a real GCP bucket is not available for testing.
+        """
+        self._check_started()
+        if filepath.startswith(self._gcp_prefix):
+            mock_fio = MagicMock()
+            mock_fio.__enter__ = Mock(return_value=mock_fio)
+            if mode == 'r':
+                if filepath not in self.objects:
+                    raise IOError('TODO')
+                self.objects[filepath].seek(0)
+                mock_fio.read = self.objects[filepath].read
+            elif mode == 'w':
+                self.objects[filepath] = BytesIO()
+                mock_fio.write = self.objects[filepath].write
+            else:
+                raise ValueError(
+                    '{} only supports wrapping of FileIO for `mode` "r" or "w"')
+            return mock_fio
+        else:
+            return open(filepath, mode)
+
+    def file_exists(self, filepath):
+        """Proxy for tensorflow.python.lib.io.file_io.file_exists class. Mocks the
+        function if a real GCP bucket is not available for testing.
+        """
+        self._check_started()
+        if not self.mock_gcp:
+            return tf_file_io.file_exists(filepath)
+
+        if filepath.startswith(self._gcp_prefix):
+            return filepath in self.objects
+        return os.path.exists(filepath)
+
+    def assert_exists(self, filepath):
+        """Convenience method to verfiy that a file exists after writing."""
+        self._check_started()
+        if not self.file_exists(filepath):
+            raise AssertionError('{} does not exist'.format(filepath))
+
+    def _check_started(self):
+        if not self._is_started:
+            raise RuntimeError('tf_file_io_proxy is not started')
+
+    def start(self):
+        """Start mocking of `self.file_io_module` if real bucket not
+        available for testing"""
+        if self._is_started:
+            raise RuntimeError('start called on already started tf_file_io_proxy')
+        if self.mock_gcp:
+            mock_module = Mock()
+            mock_module.FileIO = self.FileIO
+            mock_module.file_exists = self.file_exists
+            patched_file_io = patch(self.file_io_module, new=mock_module)
+            self.patched_file_io = patched_file_io
+            self.patched_file_io.start()
+        self._is_started = True
+
+    def stop(self):
+        """Stop mocking of `self.file_io_module` if real bucket not
+        available for testing"""
+        if not self._is_started:
+            raise RuntimeError('stop called on unstarted tf_file_io_proxy')
+        if self.mock_gcp:
+            self.patched_file_io.stop()
+        self._is_started = False
+
+    def __enter__(self):
+        self.start()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.stop()
