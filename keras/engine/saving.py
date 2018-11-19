@@ -347,9 +347,10 @@ def _google_storage_transfer(source_filepath, target_filepath, overwrite=True):
     """Transfers file to/from Google Cloud Storage"""
     if tf_file_io is None:
         raise ImportError('Google Storage file transfer requires tensorflow.')
-    if not overwrite:
-        if tf_file_io.file_exists(target_filepath):
-            raise IOError('Object {} already exists.'.format(target_filepath))
+    if not overwrite and tf_file_io.file_exists(target_filepath):
+        proceed = ask_to_proceed_with_overwrite(target_filepath)
+        if not proceed:
+            return
     with tf_file_io.FileIO(source_filepath, mode='r') as source_f:
         with tf_file_io.FileIO(target_filepath, mode='w') as target_f:
             target_f.write(source_f.read())
@@ -378,7 +379,8 @@ def parse_save_to_external_resource(save_function):
             finally:
                 os.remove(tmp_filepath)
         else:
-            save_function(obj, filepath, *args, **kwargs)
+
+            save_function(obj, filepath, overwrite, *args, **kwargs)
 
     return save_wrapper
 
