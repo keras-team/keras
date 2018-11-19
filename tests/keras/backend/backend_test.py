@@ -1702,7 +1702,7 @@ class TestBackend(object):
         test_3 = K.eval(K.slice(tft, [1, 0, 0], [2, 1, 3]))
         assert np.allclose(test_1, KNP.slice(npt, [1, 0, 0], [1, 1, 3]))
         assert np.allclose(test_2, KNP.slice(npt, [1, 0, 0], [1, 2, 3]))
-        assert np.allclose(test_, KNP.slice(npt, [1, 0, 0], [2, 1, 3]))
+        assert np.allclose(test_3, KNP.slice(npt, [1, 0, 0], [2, 1, 3]))
 
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
