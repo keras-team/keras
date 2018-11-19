@@ -71,8 +71,8 @@ def test_min_max_norm():
         normed = norm_instance(K.variable(array))
         value = K.eval(normed)
         l2 = np.sqrt(np.sum(np.square(value), axis=0))
-        assert not l2[l2 < m]
-        assert not l2[l2 > m * 2 + 1e-5]
+        assert l2[l2 < m].size == 0
+        assert l2[l2 > m * 2 + 1e-5].size == 0
 
 
 if __name__ == '__main__':

@@ -41,19 +41,19 @@ install:
 
   - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas
-  - pip install keras_applications keras_preprocessing
+  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
+  - pip install keras_applications keras_preprocessing --progress-bar off
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
     # install pydot for visualization tests
-  - travis_retry conda install $MKL pydot graphviz $PIL
+  - travis_retry conda install -q $MKL pydot graphviz $PIL
 
-  - pip install -e .[tests]
+  - pip install -e .[tests] --progress-bar off
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow==1.9
+  - pip install tensorflow==1.9 --progress-bar off
   
   # install cntk
   - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
