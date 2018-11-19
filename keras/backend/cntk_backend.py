@@ -290,7 +290,7 @@ def placeholder(
 
     cntk_shape = cntk_shape[dynamic_axis_num:]
 
-    x = C.input(
+    x = C.input_variable(
         shape=cntk_shape,
         dtype=_convert_string_dtype(dtype),
         is_sparse=sparse,
