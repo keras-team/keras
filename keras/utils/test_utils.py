@@ -227,17 +227,17 @@ class tf_file_io_proxy(object):
         if filepath.startswith(self._gcp_prefix):
             mock_fio = MagicMock()
             mock_fio.__enter__ = Mock(return_value=mock_fio)
-            if mode == 'r':
+            if mode == 'rb':
                 if filepath not in self.local_objects:
                     raise IOError('TODO')
                 self.local_objects[filepath].seek(0)
                 mock_fio.read = self.local_objects[filepath].read
-            elif mode == 'w':
+            elif mode == 'wb':
                 self.local_objects[filepath] = BytesIO()
                 mock_fio.write = self.local_objects[filepath].write
             else:
                 raise ValueError(
-                    '{} only supports wrapping of FileIO for `mode` "r" or "w"')
+                    '{} only supports wrapping of FileIO for `mode` "rb" or "wb"')
             return mock_fio
 
         return open(filepath, mode)
