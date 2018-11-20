@@ -580,7 +580,7 @@ _slice = slice
 
 
 def slice(x, start, size):
-    slices = [_slice(i, i+j) for i, j in zip(start, size)]
+    slices = [_slice(i, i + j) for i, j in zip(start, size)]
     return x[tuple(slices)]
 
 

@@ -1694,8 +1694,8 @@ class TestBackend(object):
                         'only supported in tensorflow.')
     def test_slice(self):
         npt = np.array([[[1, 1, 1], [2, 2, 2]],
-                 [[3, 3, 3], [4, 4, 4]],
-                 [[5, 5, 5], [6, 6, 6]]])
+                       [[3, 3, 3], [4, 4, 4]],
+                       [[5, 5, 5], [6, 6, 6]]])
         tft = K.constant(npt)
         test_1 = K.eval(K.slice(tft, [1, 0, 0], [1, 1, 3]))
         test_2 = K.eval(K.slice(tft, [1, 0, 0], [1, 2, 3]))
@@ -1703,7 +1703,6 @@ class TestBackend(object):
         assert np.allclose(test_1, KNP.slice(npt, [1, 0, 0], [1, 1, 3]))
         assert np.allclose(test_2, KNP.slice(npt, [1, 0, 0], [1, 2, 3]))
         assert np.allclose(test_3, KNP.slice(npt, [1, 0, 0], [2, 1, 3]))
-
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Beam search is only implemented with '
