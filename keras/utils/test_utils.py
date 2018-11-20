@@ -166,21 +166,21 @@ class tf_file_io_proxy(object):
     model.add(Dense(2, input_shape=(3,)))
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
-        save_model(model, gcp_filepath)
-        file_io_proxy.assert_exists(gcp_filepath)
-        new_model_gcp = load_model(gcp_filepath)
-        file_io_proxy.delete_file(gcp_filepath)  # cleanup
+        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
     ```
     """
-    _gcp_prefix = 'gs://'
+    _gcs_prefix = 'gs://'
     _test_bucket_env_key = 'GCS_TEST_BUCKET'
 
     def __init__(self, file_io_module=None, bucket_name=None):
         if bucket_name is None:
             bucket_name = os.environ.get(self._test_bucket_env_key, None)
         if bucket_name is None:
-            # will mock gcp locally for tests
+            # will mock gcs locally for tests
             if file_io_module is None:
                 raise ValueError('`file_io_module` must be provided for mocking')
             self.mock_gcs = True
@@ -189,12 +189,12 @@ class tf_file_io_proxy(object):
             self.bucket_name = 'mock-bucket'
         else:
             # will use real bucket for tests
-            if bucket_name.startswith(self._gcp_prefix):
-                bucket_name = bucket_name[len(self._gcp_prefix):]
+            if bucket_name.startswith(self._gcs_prefix):
+                bucket_name = bucket_name[len(self._gcs_prefix):]
             self.bucket_name = bucket_name
             if tf_file_io is None:
                 raise ImportError(
-                    'tensorflow must be installed to read/write to GCP')
+                    'tensorflow must be installed to read/write to GCS')
             try:
                 # check that bucket exists and is accessible
                 tf_file_io.is_directory(self.bucket_path)
@@ -210,8 +210,8 @@ class tf_file_io_proxy(object):
 
     @property
     def bucket_path(self):
-        """Returns the full GCP bucket path"""
-        return self._gcp_prefix + self.bucket_name
+        """Returns the full GCS bucket path"""
+        return self._gcs_prefix + self.bucket_name
 
     def get_filepath(self, filename):
         """Returns filename appended to bucketpath"""
@@ -219,14 +219,14 @@ class tf_file_io_proxy(object):
 
     def FileIO(self, name, mode):
         """Proxy for tensorflow.python.lib.io.file_io.FileIO class. Mocks the class
-        if a real GCP bucket is not available for testing.
+        if a real GCS bucket is not available for testing.
         """
         self._check_started()
         if not self.mock_gcs:
             return tf_file_io.FileIO(name, mode)
 
         filepath = name
-        if filepath.startswith(self._gcp_prefix):
+        if filepath.startswith(self._gcs_prefix):
             mock_fio = MagicMock()
             mock_fio.__enter__ = Mock(return_value=mock_fio)
             if mode == 'rb':
@@ -246,24 +246,24 @@ class tf_file_io_proxy(object):
 
     def file_exists(self, filename):
         """Proxy for tensorflow.python.lib.io.file_io.file_exists class. Mocks the
-        function if a real GCP bucket is not available for testing.
+        function if a real GCS bucket is not available for testing.
         """
         self._check_started()
         if not self.mock_gcs:
             return tf_file_io.file_exists(filename)
 
-        if filename.startswith(self._gcp_prefix):
+        if filename.startswith(self._gcs_prefix):
             return filename in self.local_objects
 
         return os.path.exists(filename)
 
     def delete_file(self, filename):
         """Proxy for tensorflow.python.lib.io.file_io.delete_file function. Mocks
-        the function if a real GCP bucket is not available for testing.
+        the function if a real GCS bucket is not available for testing.
         """
         if not self.mock_gcs:
             tf_file_io.delete_file(filename)
-        elif filename.startswith(self._gcp_prefix):
+        elif filename.startswith(self._gcs_prefix):
             self.local_objects.pop(filename)
         else:
             os.remove(filename)

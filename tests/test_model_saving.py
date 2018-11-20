@@ -53,18 +53,18 @@ def test_sequential_model_saving():
     os.remove(fname)
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
-        save_model(model, gcp_filepath)
-        file_io_proxy.assert_exists(gcp_filepath)
-        new_model_gcp = load_model(gcp_filepath)
-        file_io_proxy.delete_file(gcp_filepath)  # cleanup
+        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
 
     x2 = np.random.random((1, 3))
     y2 = np.random.random((1, 3, 3))
     model.train_on_batch(x2, y2)
     out_2 = model.predict(x2)
 
-    for new_model in [new_model_disk, new_model_gcp]:
+    for new_model in [new_model_disk, new_model_gcs]:
         new_out = new_model.predict(x)
         assert_allclose(out, new_out, atol=1e-05)
         # test that new updates are the same with both models
@@ -95,13 +95,13 @@ def test_sequential_model_saving_2():
     os.remove(fname)
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
-        save_model(model, gcp_filepath)
-        file_io_proxy.assert_exists(gcp_filepath)
-        new_model_gcp = load_model(gcp_filepath, **load_kwargs)
-        file_io_proxy.delete_file(gcp_filepath)  # cleanup
+        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath, **load_kwargs)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
 
-    for new_model in [new_model_disk, new_model_gcp]:
+    for new_model in [new_model_disk, new_model_gcs]:
         new_out = new_model.predict(x)
         assert_allclose(out, new_out, atol=1e-05)
 
@@ -126,13 +126,13 @@ def test_functional_model_saving():
     os.remove(fname)
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
-        save_model(model, gcp_filepath)
-        file_io_proxy.assert_exists(gcp_filepath)
-        new_model_gcp = load_model(gcp_filepath)
-        file_io_proxy.delete_file(gcp_filepath)  # cleanup
+        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
 
-    for new_model in [new_model_disk, new_model_gcp]:
+    for new_model in [new_model_disk, new_model_gcs]:
         new_out = new_model.predict(x)
         assert_allclose(out, new_out, atol=1e-05)
 
@@ -704,12 +704,12 @@ def test_save_load_weights_gcs():
     org_weights = model.get_weights()
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
-        model.save_weights(gcp_filepath)
+        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        model.save_weights(gcs_filepath)
         model.set_weights([np.random.random(w.shape) for w in org_weights])
         for w, org_w in zip(model.get_weights(), org_weights):
             assert not (w == org_w).all()
-        model.load_weights(gcp_filepath)
+        model.load_weights(gcs_filepath)
         for w, org_w in zip(model.get_weights(), org_weights):
             assert_allclose(w, org_w)
 
@@ -749,26 +749,26 @@ def test_saving_overwrite_option_gcs():
     new_weights = [np.random.random(w.shape) for w in org_weights]
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcp_filepath = file_io_proxy.get_filepath(filename='model.h5')
-        save_model(model, gcp_filepath)
+        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        save_model(model, gcs_filepath)
         model.set_weights(new_weights)
 
         with patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
             ask.return_value = False
-            save_model(model, gcp_filepath, overwrite=False)
+            save_model(model, gcs_filepath, overwrite=False)
             ask.assert_called_once()
-            new_model = load_model(gcp_filepath)
+            new_model = load_model(gcs_filepath)
             for w, org_w in zip(new_model.get_weights(), org_weights):
                 assert_allclose(w, org_w)
 
             ask.return_value = True
-            save_model(model, gcp_filepath, overwrite=False)
+            save_model(model, gcs_filepath, overwrite=False)
             assert ask.call_count == 2
-            new_model = load_model(gcp_filepath)
+            new_model = load_model(gcs_filepath)
             for w, new_w in zip(new_model.get_weights(), new_weights):
                 assert_allclose(w, new_w)
 
-        file_io_proxy.delete_file(gcp_filepath)  # cleanup
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
 
 
 @pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
