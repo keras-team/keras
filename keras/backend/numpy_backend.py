@@ -192,14 +192,14 @@ def rnn(step_function, inputs, initial_states,
     if mask is not None:
         if mask.dtype != np.bool:
             mask = mask.astype(np.bool)
-        if len(mask.shape) != 2:
+        if mask.shape != inputs.shape[:2]:
             raise ValueError(
                 'mask should have `shape=(samples, time)`, '
                 'got {}'.format(mask.shape))
 
         def apply_mask(mask_t, x_t, x_tm1):
             # expand mask to match number of dimensions of tensor to mask
-            for _ in range(len(x_t.shape) - 1):
+            while mask_t.ndim < x_t.ndim:
                 mask_t = np.expand_dims(mask_t, axis=-1)
             return np.where(mask_t, x_t, x_tm1)
 
@@ -722,10 +722,6 @@ def _remove_blanks(inds, num_classes):
     return inds[inds < (num_classes - 1)]
 
 
-def expand_dims(x, axis=-1):
-    return np.expand_dims(x, axis=axis)
-
-
 square = np.square
 abs = np.abs
 exp = np.exp
@@ -735,3 +731,4 @@ sign = np.sign
 squeeze = np.squeeze
 cos = np.cos
 sin = np.sin
+expand_dims = np.expand_dims
