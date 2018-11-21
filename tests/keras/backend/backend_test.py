@@ -195,19 +195,16 @@ def check_rnn_operation(step_function_k,
     else:
         constants_k = None
 
-    last_output_s = []
-    output_s = []
-    last_states_s = []
+    last_output_np, output_np, last_states_np = KNP.rnn(
+        step_function_np,
+        inputs_np,
+        initial_states_np,
+        mask=mask_np,
+        constants=constants_np,
+        **kwargs)
+    # note that numpy reference implementation is independent of `unroll` argument
+
     for unroll in [True, False]:
-        last_output_np, output_np, last_states_np = KNP.rnn(
-            step_function_np,
-            inputs_np,
-            initial_states_np,
-            mask=mask_np,
-            constants=constants_np,
-            unroll=unroll,
-            input_length=inputs_np.shape[1] if unroll else None,
-            **kwargs)
         last_output_k, output_k, last_states_k = K.rnn(
             step_function_k,
             inputs_k,
@@ -218,26 +215,15 @@ def check_rnn_operation(step_function_k,
             input_length=inputs_np.shape[1] if unroll else None,
             **kwargs)
 
-        assert len(last_states_np) == len(initial_states_np)
-        assert len(last_states_k) == len(initial_states_k)
         last_states_k = [K.eval(s) for s in last_states_k]
         last_output_k = K.eval(last_output_k)
         output_k = K.eval(output_k)
 
         assert_allclose(last_output_k, last_output_np, atol=1e-05)
         assert_allclose(output_k, output_np, atol=1e-05)
+        assert len(last_states_k) == len(last_states_np)
         for s_k, s_np in zip(last_states_k, last_states_np):
             assert_allclose(s_k, s_np, atol=1e-05)
-
-        last_output_s.append(last_output_k)
-        output_s.append(output_k)
-        last_states_s.append(last_states_k)
-
-    # compare unroll True/False
-    assert_allclose(last_output_s[0], last_output_s[1], atol=1e-05)
-    assert_allclose(output_s[0], output_s[1], atol=1e-05)
-    for s_unroll_true, s_unroll_false in zip(last_states_s[0], last_states_s[1]):
-        assert_allclose(s_unroll_true, s_unroll_false, atol=1e-05)
 
 
 class TestBackend(object):
@@ -844,13 +830,13 @@ class TestBackend(object):
 
         def get_step_function(backend, w_i, w_h):
 
-            def simple_rnn(inputs, states_and_constants):
+            def simple_rnn_add_constant(inputs, states_and_constants):
                 # constants are appended to states in K.rnn
                 [h, c] = states_and_constants
                 y = backend.dot(inputs, w_i) + backend.dot(h, w_h) + c
                 return y, [y]
 
-            return simple_rnn
+            return simple_rnn_add_constant
 
         kwargs_list = [
             {'go_backwards': False, 'mask': None},
