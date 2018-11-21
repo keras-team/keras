@@ -202,7 +202,7 @@ def rnn(step_function, inputs, initial_states,
                 'got {}'.format(mask.shape))
 
         def expand_mask(mask_, x):
-            # extend mask with size one dimensions so that mask[:, t].ndim == x.ndim
+            # expand mask so that `mask[:, t].ndim == x.ndim`
             while mask_.ndim < x.ndim + 1:
                 mask_ = np.expand_dims(mask_, axis=-1)
             return mask_
