@@ -148,7 +148,7 @@ EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
-EPOCHS = 40
+EPOCHS = 20
 print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
                                                            EMBED_HIDDEN_SIZE,
                                                            SENT_HIDDEN_SIZE,
@@ -201,7 +201,7 @@ print('Build model...')
 
 sentence = layers.Input(shape=(story_maxlen,), dtype='int32')
 encoded_sentence = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(sentence)
-encoded_question = RNN(SENT_HIDDEN_SIZE)(encoded_question)
+encoded_sentence = RNN(SENT_HIDDEN_SIZE)(encoded_sentence)
 
 question = layers.Input(shape=(query_maxlen,), dtype='int32')
 encoded_question = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(question)
