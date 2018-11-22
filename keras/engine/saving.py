@@ -360,6 +360,8 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         filepath: one of the following:
             - string, path where to save the model, or
             - h5py.File or h5py.Group object where to save the model
+            - Any file-like object implementing the method `write` that accepts
+            `bytes` data (e.g. `io.BytesIO`).
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
@@ -399,6 +401,8 @@ def load_model(filepath, custom_objects=None, compile=True):
         filepath: one of the following:
             - string, path to the saved model, or
             - h5py.File or h5py.Group object from which to load the model
+            - Any file-like object implementing the method `read` that returns
+            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.

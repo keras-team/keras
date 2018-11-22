@@ -385,7 +385,18 @@ h5dict = H5Dict
 
 
 def load_from_binary_h5py(load_function, stream):
-    """TODO"""
+    """Applies a loading function to a `h5py.File` that is opened in memory from the
+    provided file-like object `stream`.
+
+    # Arguments:
+        load_function: A function that takes a `h5py.File`, reads from it, and
+            returns any object.
+        stream: Any file-like object implementing the method `read` that returns
+            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
+
+    # Returns:
+        The object returned by `load_function`.
+    """
     binary_data = stream.read()
     file_access_property_list = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
     file_access_property_list.set_fapl_core(backing_store=False)
@@ -402,9 +413,20 @@ def load_from_binary_h5py(load_function, stream):
 
 
 def save_to_binary_h5py(save_function, stream):
-    """TODO"""
-    with h5py.File('does not matter', driver='core', backing_store=False) as h5file:
-        save_function(h5file)
+    """Applies a saving function to a `h5py.File` that is opened in memory and which
+     binary file image is written to the file-like object `stream`
+
+     # Arguments:
+        save_function: A function that takes a `h5py.File`, writes to it and
+            (optionally) returns any object.
+        stream: Any file-like object implementing the method `write` that accepts
+            `bytes` data (e.g. `io.BytesIO`).
+     """
+    with h5py.File('in-memory-h5py', driver='core', backing_store=False) as h5file:
+        # note that filename does not matter here.
+        return_value = save_function(h5file)
         h5file.flush()
         binary_data = h5file.fid.get_file_image()
     stream.write(binary_data)
+
+    return return_value
