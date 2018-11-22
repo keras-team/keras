@@ -8,15 +8,17 @@ from __future__ import division
 import numpy as np
 import os
 import json
+
 import yaml
 import warnings
-import contextlib
 from six.moves import zip
 
 from .. import backend as K
 from .. import optimizers
-from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.io_utils import H5Dict
+from ..utils.io_utils import ask_to_proceed_with_overwrite
+from ..utils.io_utils import save_to_binary_h5py
+from ..utils.io_utils import load_from_binary_h5py
 from ..utils import conv_utils
 
 try:
@@ -335,30 +337,6 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
     return model
 
 
-def load_from_binary_h5py(load_function, file):
-    binary_data = file.read()
-    file_access_property_list = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
-    file_access_property_list.set_fapl_core(backing_store=False)
-    file_access_property_list.set_file_image(binary_data)
-    file_id_args = {'fapl': file_access_property_list,
-                    'flags': h5py.h5f.ACC_RDONLY,
-                    'name': b'this should never matter'}
-    h5_file_args = {'backing_store': False,
-                    'driver': 'core',
-                    'mode': 'r'}
-    with contextlib.closing(h5py.h5f.open(**file_id_args)) as file_id:
-        with h5py.File(file_id, **h5_file_args) as h5_file:
-            return load_function(h5_file)
-
-
-def save_to_binary_h5py(save_function, file):
-    with h5py.File('does not matter', driver='core', backing_store=False) as h5file:
-        save_function(h5file)
-        h5file.flush()
-        binary_data = h5file.fid.get_file_image()
-    file.write(binary_data)
-
-
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
@@ -393,22 +371,25 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
 
-    if not isinstance(filepath, h5py.Group):
-        # If file exists and should not be overwritten.
-        if not overwrite and os.path.isfile(filepath):
+    if H5Dict.is_supported_type(filepath):
+        if (
+            not overwrite and H5Dict.opens_file(filepath)
+            and os.path.isfile(filepath)
+        ):
             proceed = ask_to_proceed_with_overwrite(filepath)
             if not proceed:
                 return
-        opened_new_file = True
-    else:
-        opened_new_file = False
+        with H5Dict(filepath, mode='w') as h5dict:
+            _serialize_model(model, h5dict, include_optimizer)
 
-    h5dict = H5Dict(filepath, mode='w')
-    try:
-        _serialize_model(model, h5dict, include_optimizer)
-    finally:
-        if opened_new_file:
-            h5dict.close()
+    elif hasattr(filepath, 'write') and callable(filepath.write):
+        # write as binary stream
+        def save_function(h5file):
+            _serialize_model(model, H5Dict(h5file), include_optimizer)
+        save_to_binary_h5py(save_function, filepath)
+
+    else:
+        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
 
 
 def load_model(filepath, custom_objects=None, compile=True):
@@ -438,14 +419,19 @@ def load_model(filepath, custom_objects=None, compile=True):
     """
     if h5py is None:
         raise ImportError('`load_model` requires h5py.')
-    model = None
-    opened_new_file = not isinstance(filepath, h5py.Group)
-    h5dict = H5Dict(filepath, 'r')
-    try:
-        model = _deserialize_model(h5dict, custom_objects, compile)
-    finally:
-        if opened_new_file:
-            h5dict.close()
+
+    if H5Dict.is_supported_type(filepath):
+        with H5Dict(filepath, mode='r') as h5dict:
+            model = _deserialize_model(h5dict, custom_objects, compile)
+
+    elif hasattr(filepath, 'write') and callable(filepath.write):
+        def load_function(h5file):
+            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
+        model = load_from_binary_h5py(load_function, filepath)
+
+    else:
+        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
+
     return model
 
 

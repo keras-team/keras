@@ -3,6 +3,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import contextlib
+
 import numpy as np
 from collections import defaultdict
 import sys
@@ -166,6 +168,13 @@ def ask_to_proceed_with_overwrite(filepath):
     return True
 
 
+def is_path_instance(path):
+    # We can't use isinstance here because it would require
+    # us to add pathlib2 to the Python 2 dependencies.
+    class_name = type(path).__name__
+    return class_name == 'PosixPath' or class_name == 'WindowsPath'
+
+
 class H5Dict(object):
     """ A dict-like wrapper around h5py groups (or dicts).
 
@@ -183,12 +192,6 @@ class H5Dict(object):
     """
 
     def __init__(self, path, mode='a'):
-        def is_path_instance(path):
-            # We can't use isinstance here because it would require
-            # us to add pathlib2 to the Python 2 dependencies.
-            class_name = type(path).__name__
-            return class_name == 'PosixPath' or class_name == 'WindowsPath'
-
         if isinstance(path, h5py.Group):
             self.data = path
             self._is_file = False
@@ -206,6 +209,19 @@ class H5Dict(object):
             raise TypeError('Required Group, str, Path or dict. '
                             'Received: {}.'.format(type(path)))
         self.read_only = mode == 'r'
+
+    @staticmethod
+    def is_supported_type(path):
+        return (
+            isinstance(path, h5py.Group) or
+            isinstance(path, dict) or
+            isinstance(path, six.string_types) or
+            is_path_instance(path)
+        )
+
+    @staticmethod
+    def opens_file(path):
+        return isinstance(path, six.string_types) or is_path_instance(path)
 
     def __setitem__(self, attr, val):
         if self.read_only:
@@ -358,5 +374,37 @@ class H5Dict(object):
             return self[key]
         return default
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 
 h5dict = H5Dict
+
+
+def load_from_binary_h5py(load_function, stream):
+    """TODO"""
+    binary_data = stream.read()
+    file_access_property_list = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
+    file_access_property_list.set_fapl_core(backing_store=False)
+    file_access_property_list.set_file_image(binary_data)
+    file_id_args = {'fapl': file_access_property_list,
+                    'flags': h5py.h5f.ACC_RDONLY,
+                    'name': b'this should never matter'}
+    h5_file_args = {'backing_store': False,
+                    'driver': 'core',
+                    'mode': 'r'}
+    with contextlib.closing(h5py.h5f.open(**file_id_args)) as file_id:
+        with h5py.File(file_id, **h5_file_args) as h5_file:
+            return load_function(h5_file)
+
+
+def save_to_binary_h5py(save_function, stream):
+    """TODO"""
+    with h5py.File('does not matter', driver='core', backing_store=False) as h5file:
+        save_function(h5file)
+        h5file.flush()
+        binary_data = h5file.fid.get_file_image()
+    stream.write(binary_data)
