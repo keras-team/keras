@@ -4,11 +4,13 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
+
 import numpy as np
 import os
 import json
 import yaml
 import warnings
+import contextlib
 from six.moves import zip
 
 from .. import backend as K
@@ -331,6 +333,30 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
                               'optimizer.')
 
     return model
+
+
+def load_from_binary_h5py(load_function, file):
+    binary_data = file.read()
+    file_access_property_list = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
+    file_access_property_list.set_fapl_core(backing_store=False)
+    file_access_property_list.set_file_image(binary_data)
+    file_id_args = {'fapl': file_access_property_list,
+                    'flags': h5py.h5f.ACC_RDONLY,
+                    'name': b'this should never matter'}
+    h5_file_args = {'backing_store': False,
+                    'driver': 'core',
+                    'mode': 'r'}
+    with contextlib.closing(h5py.h5f.open(**file_id_args)) as file_id:
+        with h5py.File(file_id, **h5_file_args) as h5_file:
+            return load_function(h5_file)
+
+
+def save_to_binary_h5py(save_function, file):
+    with h5py.File('does not matter', driver='core', backing_store=False) as h5file:
+        save_function(h5file)
+        h5file.flush()
+        binary_data = h5file.fid.get_file_image()
+    file.write(binary_data)
 
 
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
