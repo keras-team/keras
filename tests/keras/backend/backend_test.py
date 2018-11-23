@@ -292,7 +292,7 @@ class TestBackend(object):
             assert_allclose(f([x_np, y_np])[0], z_np, atol=1e-05)
 
             # test with placeholders (no shape info)
-            if K != KC:
+            if K.backend() != 'cntk':
                 x = K.placeholder(ndim=len(x_shape))
                 y = K.placeholder(ndim=len(y_shape))
                 z = K.batch_dot(x, y, axes)
