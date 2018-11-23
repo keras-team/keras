@@ -1346,7 +1346,9 @@ def batch_dot(x, y, axes=None):
         y_shape = tf.shape(y)
 
         new_x_shape = tf.concat([x_shape, tf.ones_like(y_shape[2:])], 0)
-        new_y_shape = tf.concat([y_shape[:2], tf.ones_like(x_shape[2:]), y_shape[2:]], 0)
+        new_y_shape = tf.concat([y_shape[:2],
+                                tf.ones_like(x_shape[2:]),
+                                y_shape[2:]], 0)
 
         x = reshape(x, new_x_shape)
         y = reshape(y, new_y_shape)
