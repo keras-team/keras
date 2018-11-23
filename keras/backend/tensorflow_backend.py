@@ -1221,7 +1221,6 @@ def batch_dot(x, y, axes=None):
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
                          'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
 
-
     # There are 2 ways to perform theano's batched_tensordot in tensorflow:
     # 1) Elementwise multiplication followed by tf.reduce_sum. This requires
     # more memory but works with partial shape information.
@@ -1235,7 +1234,7 @@ def batch_dot(x, y, axes=None):
             x_matmullabe = True
     else:
         x_matmullabe = True
-    
+
     if y_ndim > 3:
         if None in y_shape[1:]:
             y_matmullabe = False
@@ -1243,7 +1242,7 @@ def batch_dot(x, y, axes=None):
             y_matmullabe = True
     else:
         y_matmullabe = True
-    
+
     if x_matmullabe and y_matmullabe:
         use_matmul = True
     else:
@@ -1275,7 +1274,7 @@ def batch_dot(x, y, axes=None):
         if a1 != 1:
             pattern = list(range(y_ndim))
             for i in range(a1, 1, -1):
-                pattern[i] = pattern[i- 1]
+                pattern[i] = pattern[i - 1]
             pattern[1] = a1
             y = tf.transpose(y, pattern)
 
@@ -1326,7 +1325,7 @@ def batch_dot(x, y, axes=None):
         elif orig_y_ndim == 2:
             result = tf.squeeze(result, -1)
     else:
-        
+
         # bring the dimension to be reduced to axis 1.
         if a0 != 1:
             pattern = list(range(x_ndim))
