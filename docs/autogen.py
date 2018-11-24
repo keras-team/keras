@@ -8,6 +8,7 @@ import os
 import shutil
 
 import keras
+from keras import backend as K
 from keras.backend import numpy_backend
 
 from docs.structure import EXCLUDE
@@ -319,6 +320,11 @@ def read_page_data(page_data, type):
 
 
 def generate():
+    if K.backend() != 'tensorflow':
+        raise ModuleNotFoundError('The documentation must be built '
+                                  'with the TensorFlow backend because this '
+                                  'is the only backend with docstrings.')
+
     print('Cleaning up existing sources directory.')
     if os.path.exists('sources'):
         shutil.rmtree('sources')

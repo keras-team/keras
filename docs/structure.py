@@ -75,10 +75,6 @@ from keras import constraints
 from keras import activations
 from keras import preprocessing
 
-if backend.backend() != 'tensorflow':
-    raise ModuleNotFoundError('The documentation must be built '
-                              'with the TensorFlow backend because this '
-                              'is the only backend with docstrings.')
 
 EXCLUDE = {
     'Optimizer',
