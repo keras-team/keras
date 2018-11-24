@@ -2096,7 +2096,8 @@ class LSTM(RNN):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
-            in addition to the output.
+            in addition to the output. The returned elements of the
+            states list are the hidden state and the cell state, respectively.
         go_backwards: Boolean (default False).
             If True, process the input sequence backwards and return the
             reversed sequence.
