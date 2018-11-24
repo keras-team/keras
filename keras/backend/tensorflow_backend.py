@@ -1243,10 +1243,7 @@ def batch_dot(x, y, axes=None):
     else:
         y_matmullabe = True
 
-    if x_matmullabe and y_matmullabe:
-        use_matmul = True
-    else:
-        use_matmul = False
+    use_matmul = x_matmullabe and y_matmullabe
 
     if use_matmul:
         # backup ndims. Need them later.
