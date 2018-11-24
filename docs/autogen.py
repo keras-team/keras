@@ -10,11 +10,11 @@ import shutil
 import keras
 from keras.backend import numpy_backend
 
-from structure import EXCLUDE
-from structure import PAGES
-from structure import ROOT
-from structure import template_np_implementation
-from structure import template_hidden_np_implementation
+from .structure import EXCLUDE
+from .structure import PAGES
+from .structure import ROOT
+from .structure import template_np_implementation
+from .structure import template_hidden_np_implementation
 
 import sys
 if sys.version[0] == '2':
@@ -318,8 +318,7 @@ def read_page_data(page_data, type):
     return data
 
 
-if __name__ == '__main__':
-
+def generate():
     print('Cleaning up existing sources directory.')
     if os.path.exists('sources'):
         shutil.rmtree('sources')
