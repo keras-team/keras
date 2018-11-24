@@ -10,11 +10,11 @@ import shutil
 import keras
 from keras.backend import numpy_backend
 
-from .structure import EXCLUDE
-from .structure import PAGES
-from .structure import ROOT
-from .structure import template_np_implementation
-from .structure import template_hidden_np_implementation
+from docs.structure import EXCLUDE
+from docs.structure import PAGES
+from docs.structure import ROOT
+from docs.structure import template_np_implementation
+from docs.structure import template_hidden_np_implementation
 
 import sys
 if sys.version[0] == '2':
@@ -405,3 +405,7 @@ def generate():
             f.write(mkdown)
 
     shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')
+
+
+if __name__ == '__main__':
+    generate()
