@@ -137,7 +137,7 @@ input_tensor = K.concatenate([base_image,
                               style_reference_image,
                               combination_image], axis=0)
 
-# build the VGG16 network with our 3 images as input
+# build the VGG19 network with our 3 images as input
 # the model will be loaded with pre-trained ImageNet weights
 model = vgg19.VGG19(input_tensor=input_tensor,
                     weights='imagenet', include_top=False)
@@ -175,7 +175,7 @@ def style_loss(style, combination):
     C = gram_matrix(combination)
     channels = 3
     size = img_nrows * img_ncols
-    return K.sum(K.square(S - C)) / (4. * (channels ** 2) * (size ** 2))
+    return K.sum(K.square(S - C)) / (4.0 * (channels ** 2) * (size ** 2))
 
 # an auxiliary loss function
 # designed to maintain the "content" of the
@@ -204,7 +204,7 @@ def total_variation_loss(x):
     return K.sum(K.pow(a + b, 1.25))
 
 # combine these loss functions into a single scalar
-loss = K.variable(0.)
+loss = K.variable(0.0)
 layer_features = outputs_dict['block5_conv2']
 base_image_features = layer_features[0, :, :, :]
 combination_features = layer_features[2, :, :, :]

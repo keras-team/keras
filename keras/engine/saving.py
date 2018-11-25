@@ -249,7 +249,7 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
     for name in layer_names:
         layer_weights = model_weights_group[name]
         weight_names = layer_weights['weight_names']
-        if weight_names:
+        if len(weight_names) > 0:
             filtered_layer_names.append(name)
 
     layer_names = filtered_layer_names
