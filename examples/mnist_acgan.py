@@ -76,8 +76,8 @@ def build_generator(latent_size):
     # this will be our label
     image_class = Input(shape=(1,), dtype='int32')
 
-    cls = Flatten()(Embedding(num_classes, latent_size,
-                              embeddings_initializer='glorot_normal')(image_class))
+    cls = Embedding(num_classes, latent_size,
+                    embeddings_initializer='glorot_normal')(image_class)
 
     # hadamard product between z-space and a class conditional embedding
     h = layers.multiply([latent, cls])

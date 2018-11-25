@@ -291,6 +291,21 @@ class TestBackend(object):
 
             assert_allclose(f([x_np, y_np])[0], z_np, atol=1e-05)
 
+            # test with placeholders (no shape info)
+            if K.backend() != 'cntk':
+                x = K.placeholder(ndim=len(x_shape))
+                y = K.placeholder(ndim=len(y_shape))
+                z = K.batch_dot(x, y, axes)
+
+                z_shape = K.int_shape(z)
+                if z_shape is not None:
+                    assert len(z_shape) == z_np.ndim
+                    assert set(z_shape) <= set((None, 1))
+
+                f = K.function([x, y], [z])
+
+                assert_allclose(f([x_np, y_np])[0], z_np, atol=1e-05)
+
             # test with variables
             x = K.variable(x_np)
             y = K.variable(y_np)

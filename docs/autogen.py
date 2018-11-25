@@ -175,6 +175,7 @@ PAGES = [
             layers.Conv2D,
             layers.SeparableConv1D,
             layers.SeparableConv2D,
+            layers.DepthwiseConv2D,
             layers.Conv2DTranspose,
             layers.Conv3D,
             layers.Conv3DTranspose,
