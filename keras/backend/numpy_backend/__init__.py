@@ -29,7 +29,6 @@ from .elementwise import argmax
 from .elementwise import argmin
 from .elementwise import sqrt
 from .elementwise import logsumexp
-from .elementwise import pow
 from .elementwise import clip
 from .elementwise import equal
 from .elementwise import not_equal
@@ -70,6 +69,7 @@ from .overrides import max
 from .overrides import min
 from .overrides import abs
 from .overrides import round
+from .overrides import pow
 
 from .shape_operations import int_shape
 from .shape_operations import ndim

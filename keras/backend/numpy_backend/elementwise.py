@@ -54,10 +54,6 @@ def logsumexp(x, axis=None, keepdims=False):
     return sp.misc.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
-def pow(x, a=1.):
-    return np.power(x, a)
-
-
 def clip(x, min_value, max_value):
     return np.clip(x, min_value, max_value)
 

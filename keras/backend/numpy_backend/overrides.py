@@ -33,5 +33,9 @@ def min(x, axis=None, keepdims=False):
     return np.min(x, axis=axis, keepdims=keepdims)
 
 
+def pow(x, a=1.):
+    return np.power(x, a)
+
+
 abs = np.abs
 round = np.round
