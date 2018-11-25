@@ -1807,13 +1807,13 @@ class TestBackend(object):
         stack_axis = 3
         results = []
         for k in WITH_NP:
-            if hasattr(K, 'backend') and K.backend() == 'cntk':
+            if hasattr(k, 'backend') and k.backend() == 'cntk':
                 t, f = cntk_func_tensors("stack", tensor_list, axis=stack_axis)
                 out = f(tensor_list)[0]
                 results.append(out)
             else:
-                tensor_list_var = [K.variable(tensor) for tensor in tensor_list]
-                out = K.eval(K.stack(tensor_list_var, axis=stack_axis))
+                tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
+                out = k.eval(k.stack(tensor_list_var, axis=stack_axis))
                 results.append(out)
 
         assert_list_pairwise(results)
