@@ -1807,7 +1807,7 @@ class TestBackend(object):
         stack_axis = 3
         results = []
         for k in WITH_NP:
-            if hasattr(k, 'backend') and k.backend() == 'cntk':
+            if k == KC:
                 t, f = cntk_func_tensors("stack", tensor_list, axis=stack_axis)
                 out = f(tensor_list)[0]
                 results.append(out)
