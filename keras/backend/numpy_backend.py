@@ -704,7 +704,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
             decoded_dense[i, :len(decoded)] = decoded
         return decoded_dense[:, :np.max(decoded_length)], log_prob
     else:
-        raise "not supported yet"
+        raise Exception("not supported yet")
 
 
 def _remove_repeats(inds):
