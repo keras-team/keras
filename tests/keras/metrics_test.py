@@ -1,6 +1,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_allclose
+from flaky import flaky
 
 import keras
 from keras import metrics
@@ -120,7 +121,9 @@ def test_sparse_top_k_categorical_accuracy(y_pred, y_true):
     assert failure_result == 0
 
 
+# TODO: resolve flakyness issue. Tracked with #11064
 @pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
+@flaky(rerun_filter=lambda err, *args: not issubclass(err[0], AssertionError))
 def test_stateful_metrics(metrics_mode):
     np.random.seed(1334)
 

@@ -216,7 +216,7 @@ def get_file(fname,
             else:
                 ProgressTracker.progbar.update(count * block_size)
 
-        error_msg = 'URL fetch failure on {}: {} -- {}'
+        error_msg = 'URL fetch failure on {} : {} -- {}'
         try:
             try:
                 urlretrieve(origin, fpath, dl_progress)
