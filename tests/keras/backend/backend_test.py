@@ -1806,7 +1806,7 @@ class TestBackend(object):
         tensor_list = [np.random.randn(5, 4, 6, 10) for _ in range(5)]
         stack_axis = 3
         results = []
-        for K in WITH_NP:
+        for k in WITH_NP:
             if hasattr(K, 'backend') and K.backend() == 'cntk':
                 t, f = cntk_func_tensors("stack", tensor_list, axis=stack_axis)
                 out = f(tensor_list)[0]
