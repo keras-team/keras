@@ -1266,8 +1266,8 @@ class TestBackend(object):
                                           (input_depth, depth_multiplier))
         _, pointwise = parse_shape_or_val((1,) * len(kernel_shape) +
                                           (input_depth * depth_multiplier, 7))
-        y1 = KNP.separable_conv(x, depthwise, pointwise,
-                                padding=padding, data_format=data_format)
+        y1 = getattr(KNP, op)(x, depthwise, pointwise,
+                              padding=padding, data_format=data_format)
         if K.backend() == 'cntk':
             _, cntk_func = cntk_func_tensors(
                 op, [input_shape, depthwise, pointwise],
