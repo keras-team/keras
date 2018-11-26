@@ -1808,9 +1808,8 @@ class TestBackend(object):
         results = []
         for k in WITH_NP:
             if k == KC:
-                t, f = cntk_func_tensors("stack", tensor_list, axis=stack_axis)
-                out = f(tensor_list)[0]
-                results.append(out)
+                check_two_tensor_operation('stack', (4, 3), (4, 2), WITH_NP,
+                                           axis=-1, concat_args=True)
             else:
                 tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
                 out = k.eval(k.stack(tensor_list_var, axis=stack_axis))

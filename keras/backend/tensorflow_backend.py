@@ -2445,6 +2445,8 @@ def stack(x, axis=0):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.stack(x, axis=axis)
 
