@@ -1808,7 +1808,8 @@ class TestBackend(object):
         results = []
         for k in WITH_NP:
             if k == KC:
-                check_two_tensor_operation('stack', (5, 4, 6, 10), (5, 4, 6, 10), WITH_NP,
+                check_two_tensor_operation('stack', (5, 4, 6, 10),
+                                           (5, 4, 6, 10), WITH_NP,
                                            axis=stack_axis, concat_args=True)
             else:
                 tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
