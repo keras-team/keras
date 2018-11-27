@@ -1066,7 +1066,11 @@ class Network(Layer):
         was never compiled in the first place).
 
         # Arguments
-            filepath: String, path to the file to save the weights to.
+            filepath: one of the following:
+                - String, path to the file to save the weights to
+                - h5py.File or h5py.Group object where to save the model
+                - Any file-like object implementing the method `write` that accepts
+                    `bytes` data (e.g. `io.BytesIO`).
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
             include_optimizer: If True, save optimizer's state together.

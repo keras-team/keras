@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-
 import numpy as np
 import os
 import json
@@ -358,10 +357,10 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     # Arguments
         model: Keras model instance to be saved.
         filepath: one of the following:
-            - string, path where to save the model, or
+            - String, path to the file to save the weights to
             - h5py.File or h5py.Group object where to save the model
             - Any file-like object implementing the method `write` that accepts
-            `bytes` data (e.g. `io.BytesIO`).
+                `bytes` data (e.g. `io.BytesIO`).
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
@@ -383,13 +382,11 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
                 return
         with H5Dict(filepath, mode='w') as h5dict:
             _serialize_model(model, h5dict, include_optimizer)
-
     elif hasattr(filepath, 'write') and callable(filepath.write):
         # write as binary stream
         def save_function(h5file):
             _serialize_model(model, H5Dict(h5file), include_optimizer)
         save_to_binary_h5py(save_function, filepath)
-
     else:
         raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
 

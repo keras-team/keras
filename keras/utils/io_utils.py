@@ -3,11 +3,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import contextlib
-
 import numpy as np
 from collections import defaultdict
 import sys
+import contextlib
 
 
 import six
@@ -168,7 +167,7 @@ def ask_to_proceed_with_overwrite(filepath):
     return True
 
 
-def is_path_instance(path):
+def _is_path_instance(path):
     # We can't use isinstance here because it would require
     # us to add pathlib2 to the Python 2 dependencies.
     class_name = type(path).__name__
@@ -195,7 +194,7 @@ class H5Dict(object):
         if isinstance(path, h5py.Group):
             self.data = path
             self._is_file = False
-        elif isinstance(path, six.string_types) or is_path_instance(path):
+        elif isinstance(path, six.string_types) or _is_path_instance(path):
             self.data = h5py.File(path, mode=mode)
             self._is_file = True
         elif isinstance(path, dict):
@@ -212,16 +211,20 @@ class H5Dict(object):
 
     @staticmethod
     def is_supported_type(path):
+        """Check if `path` is of supported type for instantiating a `H5Dict`"""
         return (
             isinstance(path, h5py.Group) or
             isinstance(path, dict) or
             isinstance(path, six.string_types) or
-            is_path_instance(path)
+            _is_path_instance(path)
         )
 
     @staticmethod
     def opens_file(path):
-        return isinstance(path, six.string_types) or is_path_instance(path)
+        """Check if `path`, when used for instantiation of a `H5Dict`, will cause
+        `H5Dict` to open a file.
+        """
+        return isinstance(path, six.string_types) or _is_path_instance(path)
 
     def __setitem__(self, attr, val):
         if self.read_only:
@@ -397,13 +400,15 @@ def load_from_binary_h5py(load_function, stream):
     # Returns:
         The object returned by `load_function`.
     """
+    # Implementation based on suggestion solution here:
+    #   https://github.com/keras-team/keras/issues/9343#issuecomment-440903847
     binary_data = stream.read()
     file_access_property_list = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
     file_access_property_list.set_fapl_core(backing_store=False)
     file_access_property_list.set_file_image(binary_data)
     file_id_args = {'fapl': file_access_property_list,
                     'flags': h5py.h5f.ACC_RDONLY,
-                    'name': b'this should never matter'}
+                    'name': b'in-memory-h5py'}  # name does not matter
     h5_file_args = {'backing_store': False,
                     'driver': 'core',
                     'mode': 'r'}
