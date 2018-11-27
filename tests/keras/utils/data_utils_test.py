@@ -25,8 +25,12 @@ from keras.utils.data_utils import validate_file
 from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
-    K.backend() == 'tensorflow' and 'TRAVIS_PYTHON_VERSION' in os.environ,
+    six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
+
+skip_generators = pytest.mark.skipif(K.backend() in ['tensorflow', 'cntk'] and
+                                     'TRAVIS_PYTHON_VERSION' in os.environ,
+                                     reason='Generators do not work with `spawn`.')
 
 if sys.version_info < (3,):
     def next(x):
@@ -38,11 +42,12 @@ def use_spawn(func):
 
     @six.wraps(func)
     def wrapper(*args, **kwargs):
-        out = func(*args, **kwargs)
         if sys.version_info > (3, 4):
             mp.set_start_method('spawn', force=True)
-            func(*args, **kwargs)
+            out = func(*args, **kwargs)
             mp.set_start_method('fork', force=True)
+        else:
+            out = func(*args, **kwargs)
         return out
 
     return wrapper
@@ -191,6 +196,7 @@ def test_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@skip_generators
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
@@ -224,6 +230,7 @@ def test_generator_enqueuer_fail_threads():
         next(gen_output)
 
 
+@skip_generators
 def test_generator_enqueuer_fail_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         FaultSequence()), use_multiprocessing=True)
@@ -377,6 +384,7 @@ def test_finite_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@skip_generators
 def test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=True)

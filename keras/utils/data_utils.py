@@ -570,8 +570,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
                         return
                     future = executor.apply_async(get_index, (self.uid, i))
                     future.idx = i
-                    self.queue.put(
-                        future, block=True)
+                    self.queue.put(future, block=True)
 
                 # Done with the current epoch, waiting for the final batches
                 self._wait_queue()
@@ -603,10 +602,10 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 except mp.TimeoutError:
                     idx = future.idx
                     warnings.warn(
-                        "The input {} could not be retrieved."
-                        " It could be because a worker has died.".format(idx),
+                        'The input {} could not be retrieved.'
+                        ' It could be because a worker has died.'.format(idx),
                         UserWarning)
-                    continue
+                    inputs = self.sequence[idx]
                 if inputs is not None:
                     yield inputs
         except Exception:
@@ -701,10 +700,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
                     self.queue.task_done()
                 except mp.TimeoutError:
                     warnings.warn(
-                        "An input could not be retrieved."
-                        " It could be because a worker has died."
-                        "We do not have any information on the lost sample."
-                            .format(),
+                        'An input could not be retrieved.'
+                        ' It could be because a worker has died.'
+                        'We do not have any information on the lost sample.',
                         UserWarning)
                     continue
                 if inputs is not None:
