@@ -293,7 +293,8 @@ class RNN(Layer):
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
             the output. The remaining tensors are the last states,
-            each with shape `(batch_size, units)`.
+            each with shape `(batch_size, units)`. For example, the number of
+            state tensors is 1 (for RNN and GRU) or 2 (for LSTM).
         - if `return_sequences`: 3D tensor with shape
             `(batch_size, timesteps, units)`.
         - else, 2D tensor with shape `(batch_size, units)`.
