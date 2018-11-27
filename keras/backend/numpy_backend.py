@@ -257,11 +257,12 @@ def in_test_phase(x, alt, training=None):
 
 
 def relu(x, alpha=0., max_value=None, threshold=0.):
-    y = x * (x >= threshold)
-    if max_value is not None:
-        y = np.clip(y, 0.0, max_value)
-    y += alpha * (x - threshold) * (x < threshold)
-    return y
+    if max_value is None:
+        max_value = np.inf
+    above_threshold = x * (x >= threshold)
+    above_threshold = np.clip(above_threshold, 0.0, max_value)
+    below_threshold = alpha * (x - threshold) * (x < threshold)
+    return below_threshold + above_threshold
 
 
 def switch(condition, then_expression, else_expression):
@@ -285,9 +286,7 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     y = 0.2 * x + 0.5
-    y = np.minimum(y, 1.)
-    y = np.maximum(y, 0.)
-    return y
+    return np.clip(y, 0, 1)
 
 
 def tanh(x):
@@ -572,11 +571,9 @@ def transpose(x):
 
 
 def reverse(x, axes):
-    if isinstance(axes, int):
-        axes = [axes]
-    for a in axes:
-        x = np.flip(x, a)
-    return x
+    if isinstance(axes, list):
+        axes = tuple(axes)
+    return np.flip(x, axes)
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -687,6 +684,37 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
 
 def one_hot(indices, num_classes):
     return to_categorical(indices, num_classes)
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    num_samples = y_pred.shape[0]
+    num_classes = y_pred.shape[-1]
+    log_prob = np.zeros((num_samples, 1))
+    decoded_dense = -np.ones_like(y_pred[..., 0])
+    decoded_length = np.zeros((num_samples,), dtype=np.int)
+    if greedy:
+        for i in range(num_samples):
+            prob = y_pred[i]
+            length = input_length[i]
+            decoded = np.argmax(prob[:length], axis=-1)
+            log_prob[i] = -np.sum(np.log(prob[np.arange(length), decoded]))
+            decoded = _remove_repeats(decoded)
+            decoded = _remove_blanks(decoded, num_classes)
+            decoded_length[i] = len(decoded)
+            decoded_dense[i, :len(decoded)] = decoded
+        return decoded_dense[:, :np.max(decoded_length)], log_prob
+    else:
+        raise "not supported yet"
+
+
+def _remove_repeats(inds):
+    is_not_repeat = np.insert(np.diff(inds).astype(np.bool), 0, True)
+    return inds[is_not_repeat]
+
+
+def _remove_blanks(inds, num_classes):
+    return inds[inds < (num_classes - 1)]
+
 
 square = np.square
 abs = np.abs

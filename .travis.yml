@@ -7,17 +7,17 @@ cache:
 matrix:
     include:
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS
+          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS PIL=Pil
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8_DOC
+          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8_DOC PIL=Pillow
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.6
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
         - python: 3.6
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
         - python: 2.7
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
         - python: 3.6
@@ -41,42 +41,27 @@ install:
 
   - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy matplotlib h5py theano pytest pytest-pep8 pandas
-  - pip install keras_applications keras_preprocessing
+  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
+  - pip install keras_applications keras_preprocessing --progress-bar off
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
-  # install PIL for preprocessing tests (they are integration tests).
-  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
-      if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-        export PIL=Pil;
-      else
-        export PIL=Pillow;
-      fi
-    fi
-
     # install pydot for visualization tests
-  - travis_retry conda install mkl mkl-service pydot graphviz $PIL
+  - travis_retry conda install -q $MKL pydot graphviz $PIL
 
-  - pip install -e .[tests]
+  - pip install -e .[tests] --progress-bar off
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow==1.9
+  - pip install tensorflow==1.9 --progress-bar off
   
   # install cntk
-  - pip install cntk
+  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+      ./.travis/install_cntk.sh;
+    fi
 
-  # exclude different backends to measure a coverage for the designated backend only
-  - if [[ "$KERAS_BACKEND" != "tensorflow" ]]; then
-      echo '    keras/backend/tensorflow_backend.py' >> .coveragerc;
-    fi
-  - if [[ "$KERAS_BACKEND" != "theano" ]]; then
-      echo '    keras/backend/theano_backend.py' >> .coveragerc;
-    fi
-  - if [[ "$KERAS_BACKEND" != "cntk" ]]; then
-      echo '    keras/backend/cntk_backend.py' >> .coveragerc;
-    fi
+  # Remove the current backend from the coverage exclusion.
+  - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
 
   # detect whether core files are changed or not
   - export CORE_CHANGED=False;
@@ -84,14 +69,6 @@ install:
   - export APP_CHANGED=False;
   - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
 
-  #install open mpi
-  - rm -rf ~/mpi
-  - mkdir ~/mpi
-  - pushd ~/mpi
-  - wget http://cntk.ai/PythonWheel/ForKeras/depends/openmpi_1.10-3.zip
-  - unzip ./openmpi_1.10-3.zip
-  - sudo dpkg -i openmpi_1.10-3.deb
-  - popd
 
 # command to run tests
 script:

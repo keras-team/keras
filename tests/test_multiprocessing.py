@@ -8,9 +8,9 @@ from keras.layers.core import Dense
 from keras.utils import Sequence
 from keras import backend as K
 
-pytestmark = pytest.mark.skipif('TRAVIS_PYTHON_VERSION' in os.environ,
-                                reason='Temporarily disabled until' 
-                                       'the use_multiprocessing problem is solved')
+pytestmark = pytest.mark.skipif(
+    K.backend() in {'tensorflow', 'cntk'} and 'TRAVIS_PYTHON_VERSION' in os.environ,
+    reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
 STEPS_PER_EPOCH = 100
 STEPS = 100

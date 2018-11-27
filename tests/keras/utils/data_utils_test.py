@@ -13,8 +13,9 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
-import time
 import warnings
+
+from flaky import flaky
 
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
@@ -28,7 +29,7 @@ pytestmark = pytest.mark.skipif(
     six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
-skip_generators = pytest.mark.skipif(K.backend() in ['tensorflow', 'cntk'] and
+skip_generators = pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'} and
                                      'TRAVIS_PYTHON_VERSION' in os.environ,
                                      reason='Generators do not work with `spawn`.')
 
@@ -221,6 +222,8 @@ def test_generator_enqueuer_threadsafe():
     enqueuer.stop()
 
 
+# TODO: resolve flakyness issue. Tracked with #11587
+@flaky(rerun_filter=lambda err, *args: not issubclass(err[0], StopIteration))
 def test_generator_enqueuer_fail_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
         FaultSequence()), use_multiprocessing=False)
@@ -372,6 +375,8 @@ def create_finite_generator_from_sequence_pcs(ds):
         yield ds[i]
 
 
+# TODO: resolve flakyness issue. Tracked with #11586
+@flaky(rerun_filter=lambda err, *args: not issubclass(err[0], AssertionError))
 def test_finite_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_threads(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
