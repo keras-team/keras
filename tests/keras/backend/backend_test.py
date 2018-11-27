@@ -1806,17 +1806,17 @@ class TestBackend(object):
         tensor_list = [np.random.randn(5, 4, 6, 10) for _ in range(5)]
         stack_axis = 3
         results = []
-        for k in WITH_NP:
-            if k == KC:
-                check_two_tensor_operation('stack', (5, 4, 6, 10),
-                                           (5, 4, 6, 10), WITH_NP,
-                                           axis=stack_axis, concat_args=True)
-            else:
+        if WITH_NP[0] == KC:
+            check_two_tensor_operation('stack', (5, 4, 6, 10),
+                                       (5, 4, 6, 10), WITH_NP,
+                                       axis=stack_axis, concat_args=True)
+        else:
+            for k in WITH_NP:
                 tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
                 out = k.eval(k.stack(tensor_list_var, axis=stack_axis))
                 results.append(out)
 
-        assert_list_pairwise(results)
+            assert_list_pairwise(results)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_map(self):
