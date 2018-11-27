@@ -470,7 +470,7 @@ def test_model_methods():
                               max_queue_size=1)
     assert trained_epochs == [0, 1, 2, 3, 4]
     assert trained_batches == list(range(12)) * 5
-    assert 12 * 5 <= len(val_seq.logs) <= (12 * 5) + 1  # the queue may be full.
+    assert 12 * 5 <= len(val_seq.logs) <= (12 * 5) + 2  # the queue may be full.
 
     # test for workers = 0
     trained_epochs = []
