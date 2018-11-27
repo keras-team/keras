@@ -424,12 +424,10 @@ def load_model(filepath, custom_objects=None, compile=True):
     if H5Dict.is_supported_type(filepath):
         with H5Dict(filepath, mode='r') as h5dict:
             model = _deserialize_model(h5dict, custom_objects, compile)
-
     elif hasattr(filepath, 'write') and callable(filepath.write):
         def load_function(h5file):
             return _deserialize_model(H5Dict(h5file), custom_objects, compile)
         model = load_from_binary_h5py(load_function, filepath)
-
     else:
         raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
 
