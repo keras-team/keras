@@ -1811,7 +1811,7 @@ class TestBackend(object):
                                        (5, 4, 6, 10), WITH_NP,
                                        axis=stack_axis, concat_args=True)
         else:
-            for k in WITH_NP: 
+            for k in WITH_NP:
                 tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
                 out = k.eval(k.stack(tensor_list_var, axis=stack_axis))
                 results.append(out)
