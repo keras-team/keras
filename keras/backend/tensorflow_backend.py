@@ -3042,6 +3042,8 @@ def rnn(step_function, inputs, initial_states,
             but input timestep is not a fixed number.
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
+
+    {{np_implementation}}
     """
     ndim = len(inputs.shape)
     if ndim < 3:
@@ -3157,10 +3159,6 @@ def rnn(step_function, inputs, initial_states,
             'maximum_iterations': input_length}
 
         if mask is not None:
-            if not states:
-                raise ValueError('No initial states provided! '
-                                 'When using masking in an RNN, you should '
-                                 'provide initial states')
             if go_backwards:
                 mask = reverse(mask, 0)
 
