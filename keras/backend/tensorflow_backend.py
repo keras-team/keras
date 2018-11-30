@@ -1021,6 +1021,8 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
+    if value.dtype != x.dtype:
+        value = tf.cast(value, x.dtype)
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=True)
 
@@ -2037,6 +2039,11 @@ def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
                            dtype=x.dtype,
                            shape=[x.get_shape()[normalization_axis]])
 
+    if gamma.dtype != tf.float32:
+        gamma = tf.cast(gamma, tf.float32)
+    if beta.dtype != tf.float32:
+        beta = tf.cast(beta, tf.float32)
+
     return tf.nn.fused_batch_norm(
         x,
         gamma,
@@ -2125,6 +2132,16 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
                 gamma = ones_like(mean)
             elif ndim(gamma) > 1:
                 gamma = tf.reshape(gamma, [-1])
+
+            if gamma.dtype != tf.float32:
+                gamma = tf.cast(gamma, tf.float32)
+            if beta.dtype != tf.float32:
+                beta = tf.cast(beta, tf.float32)
+            if mean.dtype != tf.float32:
+                mean = tf.cast(mean, tf.float32)
+            if var.dtype != tf.float32:
+                var = tf.cast(var, tf.float32)
+
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
