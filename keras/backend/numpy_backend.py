@@ -185,43 +185,52 @@ def bias_add(x, y, data_format):
     return x + y
 
 
-def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
-    w_i, w_h, w_o = w
-    h = []
-    o = []
+def rnn(step_function, inputs, initial_states,
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
 
-    if go_backwards:
-        t_list = range(x.shape[1] - 1, -1, -1)
-    else:
-        t_list = range(x.shape[1])
+    if constants is None:
+        constants = []
 
+    output_sample, _ = step_function(inputs[:, 0], initial_states + constants)
     if mask is not None:
-        from keras import backend as K
-        np_mask = K.eval(mask)
-    else:
-        np_mask = None
+        if mask.dtype != np.bool:
+            mask = mask.astype(np.bool)
+        if mask.shape != inputs.shape[:2]:
+            raise ValueError(
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
 
-    for (i, t) in enumerate(t_list):
-        h_t = np.dot(x[:, t], w_i)
+        def expand_mask(mask_, x):
+            # expand mask so that `mask[:, t].ndim == x.ndim`
+            while mask_.ndim < x.ndim + 1:
+                mask_ = np.expand_dims(mask_, axis=-1)
+            return mask_
+        output_mask = expand_mask(mask, output_sample)
+        states_masks = [expand_mask(mask, state) for state in initial_states]
 
-        if w_h is not None:
-            prev = h[i - 1] if i > 0 else init
-            h_t1 = np.dot(prev, w_h)
-            if np_mask is not None:
-                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
-        else:
-            h_t1 = 0
+    if input_length is None:
+        input_length = inputs.shape[1]
+    assert input_length == inputs.shape[1]
+    time_index = range(input_length)
+    if go_backwards:
+        time_index = time_index[::-1]
 
-        o_t = h_t + h_t1
-        if w_o is not None:
-            o_t = np.dot(o_t, w_o)
-        o.append(o_t)
+    outputs = []
+    states_tm1 = initial_states  # tm1 means "t minus one" as in "previous timestep"
+    output_tm1 = np.zeros(output_sample.shape)
+    for t in time_index:
+        output_t, states_t = step_function(inputs[:, t], states_tm1 + constants)
+        if mask is not None:
+            output_t = np.where(output_mask[:, t], output_t, output_tm1)
+            states_t = [np.where(state_mask[:, t], state_t, state_tm1)
+                        for state_mask, state_t, state_tm1
+                        in zip(states_masks, states_t, states_tm1)]
+        outputs.append(output_t)
+        states_tm1 = states_t
+        output_tm1 = output_t
 
-        if np_mask is not None:
-            h_t = h_t * np_mask[:, t].reshape(-1, 1)
-        h.append(h_t + h_t1)
-
-    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
+    return outputs[-1], np.stack(outputs, axis=1), states_tm1
 
 
 _LEARNING_PHASE = True
