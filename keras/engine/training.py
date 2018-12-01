@@ -801,7 +801,8 @@ class Model(Network):
                     feed_sample_weight_modes)
             ]
             # Check that all arrays have the same length.
-            check_array_length_consistency(x, y, sample_weights)
+            if check_array_lengths:
+                check_array_length_consistency(x, y, sample_weights)
             if self._is_graph_network:
                 # Additional checks to avoid users mistakenly
                 # using improper loss fns.

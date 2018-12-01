@@ -80,6 +80,8 @@ from keras import models
 from keras import losses
 from keras import metrics
 from keras import backend
+from keras.backend import numpy_backend
+from keras import constraints
 from keras import activations
 from keras import preprocessing
 
@@ -103,6 +105,7 @@ EXCLUDE = {
     'normalize_data_format',
     'image_dim_ordering',
     'get_variable_shape',
+    'Constraint'
 }
 
 
@@ -172,6 +175,7 @@ PAGES = [
             layers.Conv2D,
             layers.SeparableConv1D,
             layers.SeparableConv2D,
+            layers.DepthwiseConv2D,
             layers.Conv2DTranspose,
             layers.Conv3D,
             layers.Conv3DTranspose,
@@ -328,6 +332,10 @@ PAGES = [
         'all_module_functions': [backend],
     },
     {
+        'page': 'constraints.md',
+        'all_module_classes': [constraints],
+    },
+    {
         'page': 'utils.md',
         'functions': [utils.to_categorical,
                       utils.normalize,
@@ -442,12 +450,16 @@ def count_leading_spaces(s):
         return 0
 
 
-def process_list_block(docstring, starting_point, leading_spaces, marker):
+def process_list_block(docstring, starting_point, section_end,
+                       leading_spaces, marker):
     ending_point = docstring.find('\n\n', starting_point)
     block = docstring[starting_point:(None if ending_point == -1 else
                                       ending_point - 1)]
     # Place marker for later reinjection.
-    docstring = docstring.replace(block, marker)
+    docstring_slice = docstring[starting_point:section_end].replace(block, marker)
+    docstring = (docstring[:starting_point]
+                 + docstring_slice
+                 + docstring[section_end:])
     lines = block.split('\n')
     # Remove the computed number of leading white spaces from each line.
     lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
@@ -530,12 +542,20 @@ def process_docstring(docstring):
         anchor = section_idx.group(2)
         leading_spaces = len(section_idx.group(1))
         shift += section_idx.end()
+        next_section_idx = re.search(section_regex, docstring[shift:])
+        if next_section_idx is None:
+            section_end = -1
+        else:
+            section_end = shift + next_section_idx.start()
         marker = '$' + anchor.replace(' ', '_') + '$'
         docstring, content = process_list_block(docstring,
                                                 shift,
+                                                section_end,
                                                 leading_spaces,
                                                 marker)
         sections[marker] = content
+        # `docstring` has changed, so we can't use `next_section_idx` anymore
+        # we have to recompute it
         section_idx = re.search(section_regex, docstring[shift:])
 
     # Format docstring section titles.
@@ -556,6 +576,44 @@ def process_docstring(docstring):
         docstring = docstring.replace(
             '$CODE_BLOCK_%d' % i, code_block)
     return docstring
+
+
+template_np_implementation = """# Numpy implementation
+
+    ```python
+{{code}}
+    ```
+"""
+
+template_hidden_np_implementation = """# Numpy implementation
+
+    <details>
+    <summary>Show the Numpy implementation</summary>
+
+    ```python
+{{code}}
+    ```
+
+    </details>
+"""
+
+
+def add_np_implementation(function, docstring):
+    np_implementation = getattr(numpy_backend, function.__name__)
+    code = inspect.getsource(np_implementation)
+    code_lines = code.split('\n')
+    for i in range(len(code_lines)):
+        if code_lines[i]:
+            # if there is something on the line, add 8 spaces.
+            code_lines[i] = '        ' + code_lines[i]
+    code = '\n'.join(code_lines[:-1])
+
+    if len(code_lines) < 10:
+        section = template_np_implementation.replace('{{code}}', code)
+    else:
+        section = template_hidden_np_implementation.replace('{{code}}', code)
+    return docstring.replace('{{np_implementation}}', section)
+
 
 print('Cleaning up existing sources directory.')
 if os.path.exists('sources'):
@@ -599,6 +657,9 @@ def render_function(function, method=True):
     subblocks.append(code_snippet(signature))
     docstring = function.__doc__
     if docstring:
+        if ('backend' in signature and
+                '{{np_implementation}}' in docstring):
+            docstring = add_np_implementation(function, docstring)
         subblocks.append(process_docstring(docstring))
     return '\n\n'.join(subblocks)
 

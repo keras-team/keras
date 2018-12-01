@@ -1,6 +1,7 @@
 """Tests for functions in data_utils.py.
 """
 import os
+import time
 import sys
 import tarfile
 import threading
@@ -12,6 +13,7 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
+from flaky import flaky
 
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
@@ -22,7 +24,7 @@ from keras.utils.data_utils import validate_file
 from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
-    K.backend() == 'tensorflow',
+    K.backend() in {'tensorflow', 'cntk'} and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
 if sys.version_info < (3,):
@@ -136,6 +138,7 @@ class DummySequence(Sequence):
         self.inner = value
 
     def __getitem__(self, item):
+        time.sleep(0.05)
         return np.ones(self.shape, dtype=np.uint32) * item * self.inner
 
     def __len__(self):
@@ -169,7 +172,7 @@ def create_generator_from_sequence_pcs(ds):
 
 def test_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -187,7 +190,7 @@ def test_generator_enqueuer_threads():
 
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -200,7 +203,7 @@ def test_generator_enqueuer_processes():
 
 def test_generator_enqueuer_threadsafe():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(RuntimeError) as e:
@@ -209,6 +212,8 @@ def test_generator_enqueuer_threadsafe():
     enqueuer.stop()
 
 
+# TODO: resolve flakyness issue. Tracked with #11587
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], StopIteration))
 def test_generator_enqueuer_fail_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
         FaultSequence()), use_multiprocessing=False)
@@ -228,7 +233,7 @@ def test_generator_enqueuer_fail_processes():
 
 
 def test_ordered_enqueuer_threads():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -241,7 +246,7 @@ def test_ordered_enqueuer_threads():
 
 
 def test_ordered_enqueuer_threads_not_ordered():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=False,
                                shuffle=True)
     enqueuer.start(3, 10)
@@ -256,7 +261,7 @@ def test_ordered_enqueuer_threads_not_ordered():
 
 @use_spawn
 def test_ordered_enqueuer_processes():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -278,7 +283,7 @@ def test_ordered_enqueuer_fail_threads():
 
 @use_spawn
 def test_on_epoch_end_processes():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -292,9 +297,9 @@ def test_on_epoch_end_processes():
 
 @use_spawn
 def test_context_switch():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=True)
-    enqueuer2 = OrderedEnqueuer(DummySequence([3, 200, 200, 3], value=15),
+    enqueuer2 = OrderedEnqueuer(DummySequence([3, 10, 10, 3], value=15),
                                 use_multiprocessing=True)
     enqueuer.start(3, 10)
     enqueuer2.start(3, 10)
@@ -324,7 +329,7 @@ def test_context_switch():
 
 
 def test_on_epoch_end_threads():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -359,9 +364,11 @@ def create_finite_generator_from_sequence_pcs(ds):
         yield ds[i]
 
 
+# TODO: resolve flakyness issue. Tracked with #11586
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
 def test_finite_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_threads(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -373,7 +380,7 @@ def test_finite_generator_enqueuer_threads():
 
 def test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []

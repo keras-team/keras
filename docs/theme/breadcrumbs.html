@@ -1,0 +1,41 @@
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="{{ nav.homepage.url|url }}">Docs</a> &raquo;</li>
+    {% if page %}
+      {% for doc in page.ancestors %}
+        {% if doc.link %}
+          <li><a href="{{ doc.link|e }}">{{ doc.title }}</a> &raquo;</li>
+        {% else %}
+          <li>{{ doc.title }} &raquo;</li>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    {% if page %}<li>{{ page.title }}</li>{% endif %}
+    <li class="wy-breadcrumbs-aside">
+      {%- block repo %}
+      {% if page and page.edit_url %}
+        <a href="{{ page.edit_url }}"
+        {%- if config.repo_name|lower == 'github' %}
+          class="icon icon-github"
+        {%- elif config.repo_name|lower == 'bitbucket' %}
+          class="icon icon-bitbucket"
+        {%- elif config.repo_name|lower == 'gitlab' %}
+          class="icon icon-gitlab"
+        {% endif %}> Edit on {{ config.repo_name }}</a>
+      {% endif %}
+      {%- endblock %}
+    </li>
+  </ul>
+  {% if config.theme.prev_next_buttons_location|lower in ['top', 'both']
+        and page and (page.next_page or page.previous_page) %}
+    <div class="rst-breadcrumbs-buttons" role="navigation" aria-label="breadcrumb navigation">
+      {%- if page.next_page %}
+        <a href="{{ page.next_page.url|url }}" class="btn btn-neutral float-right" title="{{ page.next_page.title }}">Next <span class="icon icon-circle-arrow-right"></span></a>
+      {%- endif %}
+      {%- if page.previous_page %}
+        <a href="{{ page.previous_page.url|url }}" class="btn btn-neutral" title="{{ page.previous_page.title }}"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+      {%- endif %}
+    </div>
+  {% endif %}
+  <hr/>
+</div>

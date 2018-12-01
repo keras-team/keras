@@ -6,6 +6,7 @@ import pandas as pd
 from numpy.testing import assert_allclose
 import sys
 import scipy.sparse as sparse
+from flaky import flaky
 
 import keras
 from keras import losses
@@ -155,6 +156,8 @@ class TrackerCallback(Callback):
         self.trained_batches.append(batch)
 
 
+# TODO: resolve flakyness issue. Tracked with #11560
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
 def test_model_methods():
     model = get_model(num_outputs=2)
 
@@ -452,6 +455,8 @@ def test_model_methods():
                                    sample_weight=sample_weight)
 
 
+# TODO: resolve flakyness issue. Tracked with #11560
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
 def test_fit_generator():
     model = get_model(num_outputs=2)
     optimizer = 'rmsprop'
