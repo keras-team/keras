@@ -1195,10 +1195,10 @@ def batch_dot(x, y, axes=None):
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
 
-    # if tuple, convert to list
+    # if tuple, convert to list.
     axes = list(axes)
 
-    # convert negative indices
+    # convert negative indices.
     if axes[0] < 0:
         axes[0] += x_ndim
     if axes[1] < 0:
@@ -1256,18 +1256,17 @@ def batch_dot(x, y, axes=None):
         x_shape = shape(x)
         x_mid_dims = x_shape[1:-1]
         x_squashed_dim = tf.reduce_prod(x_mid_dims)
-        x_batch_size = x_shape[0]
         x_squashed_shape = tf.stack([x_shape[0], x_squashed_dim, x_shape[-1]])
         x = tf.reshape(x, x_squashed_shape)
         x_squashed = True
     else:
         x_squashed = False
+
     if y_ndim > 3:
-        # squash trailing dimensions of y
+        # squash trailing dimensions of y.
         y_shape = shape(y)
         y_trail_dims = y_shape[2:]
         y_squashed_dim = tf.reduce_prod(y_trail_dims)
-        y_batch_size = y_shape[0]
         y_squashed_shape = tf.stack([y_shape[0], y_shape[1], y_squashed_dim])
         y = tf.reshape(y, y_squashed_shape)
         y_squashed = True
@@ -1279,11 +1278,13 @@ def batch_dot(x, y, axes=None):
     # if inputs were squashed, we have to reshape the matmul output.
     output_shape = tf.shape(result)
     do_reshape = False
+
     if x_squashed:
         output_shape = tf.concat([output_shape[:1],
-                                    x_mid_dims, 
-                                    output_shape[-1:]], 0)
+                                  x_mid_dims,
+                                  output_shape[-1:]], 0)
         do_reshape = True
+
     if y_squashed:
         output_shape = tf.concat([output_shape[:-1], y_trail_dims], 0)
         do_reshape = True
