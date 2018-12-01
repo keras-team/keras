@@ -123,7 +123,7 @@ def test_sparse_top_k_categorical_accuracy(y_pred, y_true):
 
 # TODO: resolve flakyness issue. Tracked with #11064
 @pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
-@flaky(rerun_filter=lambda err, *args: not issubclass(err[0], AssertionError))
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
 def test_stateful_metrics(metrics_mode):
     np.random.seed(1334)
 
