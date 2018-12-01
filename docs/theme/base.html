@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  {%- block site_meta %}
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {% if page and page.is_homepage %}<meta name="description" content="{{ config.site_description }}">{% endif %}
+  {% if config.site_author %}<meta name="author" content="{{ config.site_author }}">{% endif %}
+  {% if page and page.canonical_url %}<link rel="canonical" href="{{ page.canonical_url }}">{% endif %}
+  {% if config.site_favicon %}<link rel="shortcut icon" href="{{ config.site_favicon|url }}">
+  {% else %}<link rel="shortcut icon" href="{{ 'img/favicon.ico'|url }}">{% endif %}
+  {%- endblock %}
+
+  {%- block htmltitle %}
+  <title>{% if page and page.title and not page.is_hompage %}{{ page.title }} - {% endif %}{{ config.site_name }}</title>
+  {%- endblock %}
+
+  {%- block styles %}
+  <link href='https://fonts.googleapis.com/css?family=Lato:400,700|Source+Sans+Pro:400,700|Inconsolata:400,700' rel='stylesheet' type='text/css'>
+
+  <link rel="stylesheet" href="{{ 'css/theme.css'|url }}" type="text/css" />
+  <link rel="stylesheet" href="{{ 'css/theme_extra.css'|url }}" type="text/css" />
+  {%- if config.theme.highlightjs %}
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/github.min.css">
+  {%- endif %}
+  {%- for path in config['extra_css'] %}
+  <link href="{{ path|url }}" rel="stylesheet">
+  {%- endfor %}
+  {%- endblock %}
+
+  {%- block libs %}
+  {% if page %}
+  <script>
+    // Current page data
+    var mkdocs_page_name = {{ page.title|tojson|safe }};
+    var mkdocs_page_input_path = {{ page.file.src_path|string|tojson|safe }};
+    var mkdocs_page_url = {{ page.abs_url|tojson|safe }};
+  </script>
+  {% endif %}
+  <script src="{{ 'js/jquery-2.1.1.min.js'|url }}" defer></script>
+  <script src="{{ 'js/modernizr-2.8.3.min.js'|url }}" defer></script>
+  {%- if config.theme.highlightjs %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
+  {%- for lang in config.theme.hljs_languages %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/languages/{{lang}}.min.js"></script>
+  {%- endfor %}
+  <script>hljs.initHighlightingOnLoad();</script>
+  {%- endif %}
+  {%- endblock %}
+
+  {%- block extrahead %} {% endblock %}
+
+  {%- block analytics %}
+  {% if config.google_analytics %}
+  <script>
+      (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+      })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+      ga('create', '{{ config.google_analytics[0] }}', '{{ config.google_analytics[1] }}');
+      ga('send', 'pageview');
+  </script>
+  {% endif %}
+  {%- endblock %}
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    {# SIDE NAV, TOGGLES ON MOBILE #}
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <a href="{{ homepage_url }}">
+        <div class="keras-logo">
+          <img src="/img/keras-logo-small.jpg" class="keras-logo-img">
+          Keras Documentation
+        </div>
+      </a>
+
+      <div class="wy-side-nav-search">
+
+	  {%- block search_button %}
+        {% if 'search' in config['plugins'] %}{% include "searchbox.html" %}{% endif %}
+	  {%- endblock %}
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+        {%- block site_nav %}
+        {%- set navlevel = 1 %}
+        {%- for nav_item in nav %}
+            {%- if nav_item.is_section %}
+                <p class="caption"><span class="caption-text">{{ nav_item.title }}</span></p>
+                <ul{% if nav_item.active %} class="current"{% endif %}>
+                    {%- for nav_item in nav_item.children %}
+                    <li class="toctree-l{{ navlevel }}{% if nav_item.active %} current{% endif %}">
+                        {%- include 'nav.html' %}
+                    </li>
+                    {%- endfor %}
+                </ul>
+            {%- elif config.theme.include_homepage_in_sidebar or (not nav_item == nav.homepage) %}
+                <ul{% if nav_item.active %} class="current"{% endif %}>
+                    <li class="toctree-l{{ navlevel }}{% if nav_item.active %} current{% endif %}">
+                        {%- include 'nav.html' %}
+                    </li>
+                </ul>
+            {%- endif %}
+        {%- endfor %}
+    {%- endblock %}
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      {# MOBILE NAV, TRIGGLES SIDE NAV ON TOGGLE #}
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="{{ nav.homepage.url|url }}">{{ config.site_name }}</a>
+      </nav>
+
+      {# PAGE CONTENT #}
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          {% include "breadcrumbs.html" %}
+          <div role="main">
+            <div class="section">
+              {% block content %}
+                {{ page.content }}
+              {% endblock %}
+            </div>
+          </div>
+      {%- block footer %}
+          {% include "footer.html" %}
+      {% endblock %}
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  {% include "versions.html" %}
+
+  {%- block scripts %}
+    <script>var base_url = '{{ base_url }}';</script>
+    <script src="{{ 'js/theme.js'|url }}" defer></script>
+    {%- for path in config['extra_javascript'] %}
+      <script src="{{ path|url }}" defer></script>
+    {%- endfor %}
+    <script type="text/javascript" defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable({{ 'true' if config.theme.sticky_navigation else 'false' }});
+        };
+    </script>
+  {%- endblock %}
+
+</body>
+</html>
+{% if page and page.is_homepage %}
+<!--
+MkDocs version : {{ mkdocs_version }}
+Build Date UTC : {{ build_date_utc }}
+-->
+{% endif %}
