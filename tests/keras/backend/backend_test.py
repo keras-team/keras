@@ -362,7 +362,7 @@ class TestBackend(object):
 
             z_shape = K.int_shape(z)
             if z_shape is not None:
-                assert z_shape == z_np.shape
+                assert z_shape[1:] == z_np.shape[1:]
 
             z = K.eval(z)
             assert_allclose(z, z_np, atol=1e-05)
