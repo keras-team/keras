@@ -51,7 +51,7 @@ Your Keras models can be developed with a range of different [deep learning back
 - The CNTK backend (from Microsoft)
 - The Theano backend
 
-Amazon also have [a fork of Keras which uses MXNet as backend](https://github.com/awslabs/keras-apache-mxnet).
+Amazon also has [a fork of Keras which uses MXNet as backend](https://github.com/awslabs/keras-apache-mxnet).
 
 As such, your Keras model can be trained on a number of different hardware platforms beyond CPUs:
 
