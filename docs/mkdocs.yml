@@ -1,6 +1,20 @@
 site_name: Keras Documentation
-theme: readthedocs
-# theme_dir: theme
+theme:
+  name: null
+  custom_dir: theme
+  static_templates:
+    - 404.html
+  include_search_page: true
+  search_index_only: false
+  highlightjs: true
+  hljs_languages: []
+  include_homepage_in_sidebar: true
+  prev_next_buttons_location: bottom
+  navigation_depth: 4
+  titles_only: false
+  sticky_navigation: true
+  collapse_navigation: true
+
 docs_dir: sources
 repo_url: http://github.com/keras-team/keras
 site_url: http://keras.io/
