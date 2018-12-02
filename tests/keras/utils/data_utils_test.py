@@ -418,22 +418,18 @@ def test_missing_inputs():
         TimeOutSequence([3, 2, 2, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    with pytest.warns(UserWarning, match='An input could not be retrieved.'):
         for _ in range(4 * missing_idx):
             next(gen_output)
-    assert 'An input could not be retrieved.' in str(w[-1].message)
 
     enqueuer = OrderedEnqueuer(TimeOutSequence([3, 2, 2, 3]),
                                use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    warning_msg = "The input {} could not be retrieved.".format(missing_idx)
+    with pytest.warns(UserWarning, match=warning_msg):
         for _ in range(11):
             next(gen_output)
-    assert "The input {} could not be retrieved.".format(
-        missing_idx) in str(w[-1].message)
 
 
 if __name__ == '__main__':
