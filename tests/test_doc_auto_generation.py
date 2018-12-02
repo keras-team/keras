@@ -1,3 +1,4 @@
+from markdown import markdown
 from docs import autogen
 import pytest
 
@@ -327,7 +328,7 @@ y = layer(x)
 
 def test_doc_lists():
     docstring = autogen.process_docstring(test_doc1['doc'])
-    assert docstring == test_doc1['result']
+    assert markdown(docstring) == markdown(test_doc1['result'])
 
 
 dummy_docstring = """Multiplies 2 tensors (and/or variables) and returns a *tensor*.
