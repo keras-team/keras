@@ -24,7 +24,7 @@ Four digits reversed:
 
 Five digits reversed:
 + One layer LSTM (128 HN), 550k training examples = 99% train/test accuracy in 30 epochs
-'''
+'''  # noqa
 
 from __future__ import print_function
 from keras.models import Sequential
@@ -35,8 +35,8 @@ from six.moves import range
 
 class CharacterTable(object):
     """Given a set of characters:
-    + Encode them to a one hot integer representation
-    + Decode the one hot integer representation to their character output
+    + Encode them to a one-hot integer representation
+    + Decode the one-hot or integer representation to their character output
     + Decode a vector of probabilities to their character output
     """
     def __init__(self, chars):
@@ -50,10 +50,11 @@ class CharacterTable(object):
         self.indices_char = dict((i, c) for i, c in enumerate(self.chars))
 
     def encode(self, C, num_rows):
-        """One hot encode given string C.
+        """One-hot encode given string C.
 
         # Arguments
-            num_rows: Number of rows in the returned one hot encoding. This is
+            C: string, to be encoded.
+            num_rows: Number of rows in the returned one-hot encoding. This is
                 used to keep the # of rows for each data the same.
         """
         x = np.zeros((num_rows, len(self.chars)))
@@ -62,6 +63,14 @@ class CharacterTable(object):
         return x
 
     def decode(self, x, calc_argmax=True):
+        """Decode the given vector or 2D array to their character output.
+
+        # Arguments
+            x: A vector or a 2D array of probabilities or one-hot representations;
+                or a vector of character indices (used with `calc_argmax=False`).
+            calc_argmax: Whether to find the character index with maximum
+                probability, defaults to `True`.
+        """
         if calc_argmax:
             x = x.argmax(axis=-1)
         return ''.join(self.indices_char[x] for x in x)
@@ -153,7 +162,7 @@ model = Sequential()
 # Note: In a situation where your input sequences have a variable length,
 # use input_shape=(None, num_feature).
 model.add(RNN(HIDDEN_SIZE, input_shape=(MAXLEN, len(chars))))
-# As the decoder RNN's input, repeatedly provide with the last hidden state of
+# As the decoder RNN's input, repeatedly provide with the last output of
 # RNN for each time step. Repeat 'DIGITS + 1' times as that's the maximum
 # length of output, e.g., when DIGITS=3, max output is 999+999=1998.
 model.add(layers.RepeatVector(DIGITS + 1))
@@ -167,8 +176,7 @@ for _ in range(LAYERS):
 
 # Apply a dense layer to the every temporal slice of an input. For each of step
 # of the output sequence, decide which character should be chosen.
-model.add(layers.TimeDistributed(layers.Dense(len(chars))))
-model.add(layers.Activation('softmax'))
+model.add(layers.TimeDistributed(layers.Dense(len(chars), activation='softmax')))
 model.compile(loss='categorical_crossentropy',
               optimizer='adam',
               metrics=['accuracy'])

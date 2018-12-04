@@ -55,15 +55,27 @@ class TestImage(object):
                 vertical_flip=True)
             generator.fit(images, augment=True)
 
-            for x, y in generator.flow(images, np.arange(images.shape[0]),
+            num_samples = images.shape[0]
+            for x, y in generator.flow(images, np.arange(num_samples),
                                        shuffle=False, save_to_dir=str(tmpdir),
                                        batch_size=3):
                 assert x.shape == images[:3].shape
                 assert list(y) == [0, 1, 2]
                 break
 
+            # Test with sample weights
+            for x, y, w in generator.flow(images, np.arange(num_samples),
+                                          shuffle=False,
+                                          sample_weight=np.arange(num_samples) + 1,
+                                          save_to_dir=str(tmpdir),
+                                          batch_size=3):
+                assert x.shape == images[:3].shape
+                assert list(y) == [0, 1, 2]
+                assert list(w) == [1, 2, 3]
+                break
+
             # Test with `shuffle=True`
-            for x, y in generator.flow(images, np.arange(images.shape[0]),
+            for x, y in generator.flow(images, np.arange(num_samples),
                                        shuffle=True, save_to_dir=str(tmpdir),
                                        batch_size=3):
                 assert x.shape == images[:3].shape
@@ -125,11 +137,13 @@ class TestImage(object):
 
             with pytest.raises(ValueError) as e_info:
                 generator.flow((images, x_misc_err), np.arange(dsize), batch_size=3)
-            assert str(e_info.value).find('All of the arrays in') != -1
+            assert 'All of the arrays in' in str(e_info.value)
 
             with pytest.raises(ValueError) as e_info:
-                generator.flow((images, x_misc1), np.arange(dsize + 1), batch_size=3)
-            assert str(e_info.value).find('`x` (images tensor) and `y` (labels) ') != -1
+                generator.flow((images, x_misc1),
+                               np.arange(dsize + 1),
+                               batch_size=3)
+            assert '`x` (images tensor) and `y` (labels) ' in str(e_info.value)
 
             # Test `flow` behavior as Sequence
             seq = generator.flow(images, np.arange(images.shape[0]),
@@ -152,30 +166,6 @@ class TestImage(object):
             seq.on_epoch_end()
             x2, y2 = seq[0]
             assert list(y) != list(y2)
-
-    def test_image_data_generator_with_validation_split(self):
-        for test_images in self.all_test_images:
-            img_list = []
-            for im in test_images:
-                img_list.append(image.img_to_array(im)[None, ...])
-
-            images = np.vstack(img_list)
-            generator = image.ImageDataGenerator(validation_split=0.5)
-            seq = generator.flow(images, np.arange(images.shape[0]),
-                                 shuffle=False, batch_size=3,
-                                 subset='validation')
-            x, y = seq[0]
-            assert list(y) == [0, 1, 2]
-            seq = generator.flow(images, np.arange(images.shape[0]),
-                                 shuffle=False, batch_size=3,
-                                 subset='training')
-            x2, y2 = seq[0]
-            assert list(y2) == [4, 5, 6]
-
-            with pytest.raises(ValueError):
-                generator.flow(images, np.arange(images.shape[0]),
-                               shuffle=False, batch_size=3,
-                               subset='foo')
 
     def test_image_data_generator_with_split_value_error(self):
         with pytest.raises(ValueError):
@@ -260,7 +250,8 @@ class TestImage(object):
                 im_class = count % num_classes
                 # rotate subfolders
                 classpaths = paths[im_class]
-                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filename = os.path.join(classpaths[count % len(classpaths)],
+                                        'image-{}.jpg'.format(count))
                 filenames.append(filename)
                 im.save(str(tmpdir / filename))
                 count += 1
@@ -291,7 +282,8 @@ class TestImage(object):
             return np.zeros_like(x)
 
         # Test usage as Sequence
-        generator = image.ImageDataGenerator(preprocessing_function=preprocessing_function)
+        generator = image.ImageDataGenerator(
+            preprocessing_function=preprocessing_function)
         dir_seq = generator.flow_from_directory(str(tmpdir),
                                                 target_size=(26, 26),
                                                 color_mode='rgb',
@@ -320,7 +312,8 @@ class TestImage(object):
 
         # create iterator
         generator = image.ImageDataGenerator()
-        dir_iterator = generator.flow_from_directory(str(tmpdir), class_mode='input')
+        dir_iterator = generator.flow_from_directory(str(tmpdir),
+                                                     class_mode='input')
         batch = next(dir_iterator)
 
         # check if input and output have the same shape
@@ -336,7 +329,8 @@ class TestImage(object):
         (0.40, 10),
         (0.50, 8),
     ])
-    def test_directory_iterator_with_validation_split(self, validation_split, num_training):
+    def test_directory_iterator_with_validation_split(self, validation_split,
+                                                      num_training):
         num_classes = 2
         tmp_folder = tempfile.mkdtemp(prefix='test_images')
 
@@ -363,7 +357,8 @@ class TestImage(object):
                 im_class = count % num_classes
                 # rotate subfolders
                 classpaths = paths[im_class]
-                filename = os.path.join(classpaths[count % len(classpaths)], 'image-{}.jpg'.format(count))
+                filename = os.path.join(classpaths[count % len(classpaths)],
+                                        'image-{}.jpg'.format(count))
                 filenames.append(filename)
                 im.save(os.path.join(tmp_folder, filename))
                 count += 1
@@ -374,10 +369,12 @@ class TestImage(object):
         with pytest.raises(ValueError):
             generator.flow_from_directory(tmp_folder, subset='foo')
 
-        train_iterator = generator.flow_from_directory(tmp_folder, subset='training')
+        train_iterator = generator.flow_from_directory(tmp_folder,
+                                                       subset='training')
         assert train_iterator.samples == num_training
 
-        valid_iterator = generator.flow_from_directory(tmp_folder, subset='validation')
+        valid_iterator = generator.flow_from_directory(tmp_folder,
+                                                       subset='validation')
         assert valid_iterator.samples == count - num_training
 
         # check number of classes and images
@@ -420,17 +417,17 @@ class TestImage(object):
         with pytest.raises(ValueError):
             x = np.random.random((height, width))  # not 3D
             img = image.array_to_img(x, data_format='channels_first')
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError):  # unknown data_format
             x = np.random.random((height, width, 3))
-            img = image.array_to_img(x, data_format='channels')  # unknown data_format
-        with pytest.raises(ValueError):
-            x = np.random.random((height, width, 5))  # neither RGB nor gray-scale
+            img = image.array_to_img(x, data_format='channels')
+        with pytest.raises(ValueError):  # neither RGB nor gray-scale
+            x = np.random.random((height, width, 5))
             img = image.array_to_img(x, data_format='channels_last')
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError):  # unknown data_format
             x = np.random.random((height, width, 3))
-            img = image.img_to_array(x, data_format='channels')  # unknown data_format
-        with pytest.raises(ValueError):
-            x = np.random.random((height, width, 5, 3))  # neither RGB nor gray-scale
+            img = image.img_to_array(x, data_format='channels')
+        with pytest.raises(ValueError):  # neither RGB nor gray-scale
+            x = np.random.random((height, width, 5, 3))
             img = image.img_to_array(x, data_format='channels_last')
 
     def test_random_transforms(self):
@@ -440,6 +437,75 @@ class TestImage(object):
         assert image.random_shear(x, 20).shape == (2, 28, 28)
         assert image.random_zoom(x, (5, 5)).shape == (2, 28, 28)
         assert image.random_channel_shift(x, 20).shape == (2, 28, 28)
+
+        # Test get_random_transform with predefined seed
+        seed = 1
+        generator = image.ImageDataGenerator(
+            rotation_range=90.,
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            shear_range=0.5,
+            zoom_range=0.2,
+            channel_shift_range=0.1,
+            brightness_range=(1, 5),
+            horizontal_flip=True,
+            vertical_flip=True)
+        transform_dict = generator.get_random_transform(x.shape, seed)
+        transform_dict2 = generator.get_random_transform(x.shape, seed * 2)
+        assert transform_dict['theta'] != 0
+        assert transform_dict['theta'] != transform_dict2['theta']
+        assert transform_dict['tx'] != 0
+        assert transform_dict['tx'] != transform_dict2['tx']
+        assert transform_dict['ty'] != 0
+        assert transform_dict['ty'] != transform_dict2['ty']
+        assert transform_dict['shear'] != 0
+        assert transform_dict['shear'] != transform_dict2['shear']
+        assert transform_dict['zx'] != 0
+        assert transform_dict['zx'] != transform_dict2['zx']
+        assert transform_dict['zy'] != 0
+        assert transform_dict['zy'] != transform_dict2['zy']
+        assert transform_dict['channel_shift_intensity'] != 0
+        assert (transform_dict['channel_shift_intensity'] !=
+                transform_dict2['channel_shift_intensity'])
+        assert transform_dict['brightness'] != 0
+        assert transform_dict['brightness'] != transform_dict2['brightness']
+
+        # Test get_random_transform without any randomness
+        generator = image.ImageDataGenerator()
+        transform_dict = generator.get_random_transform(x.shape, seed)
+        assert transform_dict['theta'] == 0
+        assert transform_dict['tx'] == 0
+        assert transform_dict['ty'] == 0
+        assert transform_dict['shear'] == 0
+        assert transform_dict['zx'] == 1
+        assert transform_dict['zy'] == 1
+        assert transform_dict['channel_shift_intensity'] is None
+        assert transform_dict['brightness'] is None
+
+    def test_deterministic_transform(self):
+        x = np.ones((32, 32, 3))
+        generator = image.ImageDataGenerator(
+            rotation_range=90,
+            fill_mode='constant')
+        x = np.random.random((32, 32, 3))
+        assert np.allclose(generator.apply_transform(x, {'flip_vertical': True}),
+                           x[::-1, :, :])
+        assert np.allclose(generator.apply_transform(x, {'flip_horizontal': True}),
+                           x[:, ::-1, :])
+        x = np.ones((3, 3, 3))
+        x_rotated = np.array([[[0., 0., 0.],
+                               [0., 0., 0.],
+                               [1., 1., 1.]],
+                              [[0., 0., 0.],
+                               [1., 1., 1.],
+                               [1., 1., 1.]],
+                              [[0., 0., 0.],
+                               [0., 0., 0.],
+                               [1., 1., 1.]]])
+        assert np.allclose(generator.apply_transform(x, {'theta': 45}),
+                           x_rotated)
+        assert np.allclose(image.apply_affine_transform(
+            x, theta=45, channel_axis=2, fill_mode='constant'), x_rotated)
 
     def test_batch_standardize(self):
         # ImageDataGenerator.standardize should work on batches

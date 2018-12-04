@@ -34,9 +34,13 @@ def categorical_accuracy(y_true, y_pred):
 
 
 def sparse_categorical_accuracy(y_true, y_pred):
-    return K.cast(K.equal(K.max(y_true, axis=-1),
-                          K.cast(K.argmax(y_pred, axis=-1), K.floatx())),
-                  K.floatx())
+    # reshape in case it's in shape (num_samples, 1) instead of (num_samples,)
+    if K.ndim(y_true) == K.ndim(y_pred):
+        y_true = K.squeeze(y_true, -1)
+    # convert dense predictions to labels
+    y_pred_labels = K.argmax(y_pred, axis=-1)
+    y_pred_labels = K.cast(y_pred_labels, K.floatx())
+    return K.cast(K.equal(y_true, y_pred_labels), K.floatx())
 
 
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
@@ -44,7 +48,9 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
 
 
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
-    return K.mean(K.in_top_k(y_pred, K.cast(K.max(y_true, axis=-1), 'int32'), k), axis=-1)
+    # If the shape of y_true is (num_samples, 1), flatten to (num_samples,)
+    return K.mean(K.in_top_k(y_pred, K.cast(K.flatten(y_true), 'int32'), k),
+                  axis=-1)
 
 
 # Aliases

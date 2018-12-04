@@ -9,6 +9,7 @@ from .. import backend as K
 from ..layers.core import Lambda
 from ..engine.training import Model
 from ..models import clone_model
+from ..utils.generic_utils import to_list
 
 
 def _get_available_devices():
@@ -58,7 +59,9 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         A Keras `Model` instance which can be used just like the initial
         `model` argument, but which distributes its workload on multiple GPUs.
 
-    # Example 1 - Training models with weights merge on CPU
+    # Examples
+
+    Example 1 - Training models with weights merge on CPU
 
     ```python
         import tensorflow as tf
@@ -99,7 +102,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
         model.save('my_model.h5')
     ```
 
-    # Example 2 - Training models with weights merge on CPU using cpu_relocation
+    Example 2 - Training models with weights merge on CPU using cpu_relocation
 
     ```python
          ..
@@ -107,16 +110,16 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
          model = Xception(weights=None, ..)
 
          try:
-             model = multi_gpu_model(model, cpu_relocation=True)
+             parallel_model = multi_gpu_model(model, cpu_relocation=True)
              print("Training using multiple GPUs..")
-         except:
+         except ValueError:
+             parallel_model = model
              print("Training using single GPU or CPU..")
-
-         model.compile(..)
+         parallel_model.compile(..)
          ..
     ```
 
-    # Example 3 - Training models with weights merge on GPU (recommended for NV-link)
+    Example 3 - Training models with weights merge on GPU (recommended for NV-link)
 
     ```python
          ..
@@ -124,12 +127,13 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
          model = Xception(weights=None, ..)
 
          try:
-             model = multi_gpu_model(model, cpu_merge=False)
+             parallel_model = multi_gpu_model(model, cpu_merge=False)
              print("Training using multiple GPUs..")
          except:
+             parallel_model = model
              print("Training using single GPU or CPU..")
 
-         model.compile(..)
+         parallel_model.compile(..)
          ..
     ```
 
@@ -144,10 +148,11 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                          'with the TensorFlow backend.')
 
     available_devices = _get_available_devices()
-    available_devices = [_normalize_device_name(name) for name in available_devices]
+    available_devices = [_normalize_device_name(name)
+                         for name in available_devices]
     if not gpus:
         # Using all visible GPUs when not specifying `gpus`
-        # e.g. CUDA_VISIBLE_DEVICES=0,2 python3 keras_mgpu.py
+        # e.g. CUDA_VISIBLE_DEVICES=0,2 python keras_mgpu.py
         gpus = len([x for x in available_devices if 'gpu' in x])
 
     if isinstance(gpus, (list, tuple)):
@@ -171,7 +176,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     for device in target_devices:
         if device not in available_devices:
             raise ValueError(
-                'To call `multi_gpu_model` with `gpus=%d`, '
+                'To call `multi_gpu_model` with `gpus=%s`, '
                 'we expect the following devices to be available: %s. '
                 'However this machine only has: %s. '
                 'Try reducing `gpus`.' % (gpus,
@@ -179,18 +184,18 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                                           available_devices))
 
     def get_slice(data, i, parts):
-        shape = tf.shape(data)
+        shape = K.shape(data)
         batch_size = shape[:1]
         input_shape = shape[1:]
         step = batch_size // parts
-        if i == num_gpus - 1:
+        if i == parts - 1:
             size = batch_size - step * i
         else:
             size = step
-        size = tf.concat([size, input_shape], axis=0)
-        stride = tf.concat([step, input_shape * 0], axis=0)
+        size = K.concatenate([size, input_shape], axis=0)
+        stride = K.concatenate([step, input_shape * 0], axis=0)
         start = stride * i
-        return tf.slice(data, start, size)
+        return K.slice(data, start, size)
 
     # Relocate the model definition under CPU device scope if needed
     if cpu_relocation:
@@ -209,27 +214,45 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
                 inputs = []
                 # Retrieve a slice of the input.
                 for x in model.inputs:
-                    input_shape = tuple(x.get_shape().as_list())[1:]
-                    slice_i = Lambda(get_slice,
-                                     output_shape=input_shape,
-                                     arguments={'i': i,
-                                                'parts': num_gpus})(x)
-                    inputs.append(slice_i)
+                    # In-place input splitting which is not only
+                    # 5% ~ 12% faster but also less GPU memory
+                    # duplication.
+                    with tf.device(x.device):
+                        input_shape = K.int_shape(x)[1:]
+                        slice_i = Lambda(get_slice,
+                                         output_shape=input_shape,
+                                         arguments={'i': i,
+                                                    'parts': num_gpus})(x)
+                        inputs.append(slice_i)
 
                 # Apply model on slice
                 # (creating a model replica on the target device).
                 outputs = model(inputs)
-                if not isinstance(outputs, list):
-                    outputs = [outputs]
+                outputs = to_list(outputs)
 
                 # Save the outputs for merging back together later.
                 for o in range(len(outputs)):
                     all_outputs[o].append(outputs[o])
 
+    # Deduplicate output names to handle Siamese networks.
+    occurrences = {}
+    for n in model.output_names:
+        if n not in occurrences:
+            occurrences[n] = 1
+        else:
+            occurrences[n] += 1
+    conflict_counter = {n: 0 for n, count in occurrences.items() if count > 1}
+    output_names = []
+    for n in model.output_names:
+        if n in conflict_counter:
+            conflict_counter[n] += 1
+            n += '_%d' % conflict_counter[n]
+        output_names.append(n)
+
     # Merge outputs under expected scope.
     with tf.device('/cpu:0' if cpu_merge else '/gpu:%d' % target_gpu_ids[0]):
         merged = []
-        for name, outputs in zip(model.output_names, all_outputs):
+        for name, outputs in zip(output_names, all_outputs):
             merged.append(concatenate(outputs,
                                       axis=0, name=name))
         return Model(model.inputs, merged)

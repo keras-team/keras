@@ -2,11 +2,6 @@
 
 To get started, read [this guide to the Keras Sequential model](/getting-started/sequential-model-guide).
 
-## Useful attributes of Model
-
-- `model.layers` is a list of the layers added to the model.
-
-
 ----
 
 ## Sequential model methods

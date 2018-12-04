@@ -6,9 +6,28 @@ from __future__ import print_function
 
 import copy
 import numpy as np
+import warnings
 
 from .. import backend as K
 from .. import losses
+from ..utils import Sequence
+from ..utils.generic_utils import to_list
+
+
+def standardize_single_array(x):
+    if x is None:
+        return None
+    elif K.is_tensor(x):
+        shape = K.int_shape(x)
+        if shape is None or shape[0] is None:
+            raise ValueError(
+                'When feeding symbolic tensors to a model, we expect the '
+                'tensors to have a static batch size. '
+                'Got tensor with shape: %s' % str(shape))
+        return x
+    elif x.ndim == 1:
+        x = np.expand_dims(x, 1)
+    return x
 
 
 def standardize_input_data(data,
@@ -49,23 +68,29 @@ def standardize_input_data(data,
 
     if isinstance(data, dict):
         try:
-            data = [data[x].values if data[x].__class__.__name__ == 'DataFrame'
-                    else data[x] for x in names]
+            data = [
+                data[x].values
+                if data[x].__class__.__name__ == 'DataFrame' else data[x]
+                for x in names
+            ]
         except KeyError as e:
-            raise ValueError(
-                'No data provided for "' + e.args[0] + '". Need data '
-                'for each key in: ' + str(names))
+            raise ValueError('No data provided for "' + e.args[0] +
+                             '". Need data '
+                             'for each key in: ' + str(names))
     elif isinstance(data, list):
-        if len(names) == 1 and data and isinstance(data[0], (float, int)):
+        if isinstance(data[0], list):
+            data = [np.asarray(d) for d in data]
+        elif len(names) == 1 and isinstance(data[0], (float, int)):
             data = [np.asarray(data)]
         else:
-            data = [x.values if x.__class__.__name__ == 'DataFrame'
-                    else x for x in data]
+            data = [
+                x.values if x.__class__.__name__ == 'DataFrame'
+                else x for x in data
+            ]
     else:
         data = data.values if data.__class__.__name__ == 'DataFrame' else data
         data = [data]
-    data = [np.expand_dims(x, 1) if x is not None and x.ndim == 1
-            else x for x in data]
+    data = [standardize_single_array(x) for x in data]
 
     if len(data) != len(names):
         if data and hasattr(data[0], 'shape'):
@@ -81,20 +106,19 @@ def standardize_input_data(data,
                 'Error when checking model ' + exception_prefix +
                 ': you are passing a list as input to your model, '
                 'but the model expects a list of ' + str(len(names)) +
-                ' Numpy arrays instead. The list you passed was: ' +
-                str(data)[:200])
+                ' Numpy arrays instead. '
+                'The list you passed was: ' + str(data)[:200])
         elif len(data) == 1 and not hasattr(data[0], 'shape'):
-            raise TypeError(
-                'Error when checking model ' + exception_prefix +
-                ': data should be a Numpy array, or list/dict of '
-                'Numpy arrays. Found: ' + str(data)[:200] + '...')
+            raise TypeError('Error when checking model ' + exception_prefix +
+                            ': data should be a Numpy array, or list/dict of '
+                            'Numpy arrays. Found: ' + str(data)[:200] + '...')
         elif len(names) == 1:
             data = [np.asarray(data)]
 
     # Check shapes compatibility.
     if shapes:
         for i in range(len(names)):
-            if shapes[i] is not None:
+            if shapes[i] is not None and not K.is_tensor(data[i]):
                 data_shape = data[i].shape
                 shape = shapes[i]
                 if data[i].ndim != len(shape):
@@ -178,7 +202,7 @@ def standardize_sample_weights(sample_weight, output_names):
 
 
 def check_array_length_consistency(inputs, targets, weights=None):
-    """Checks if batch axes are the same for numpy arrays.
+    """Checks if batch axes are the same for Numpy arrays.
 
     # Arguments
         inputs: list of Numpy arrays of inputs.
@@ -194,7 +218,7 @@ def check_array_length_consistency(inputs, targets, weights=None):
         if x is None:
             return {0}
         else:
-            return set([0 if y is None else y.shape[0] for y in x])
+            return set([0 if y is None else int(y.shape[0]) for y in x])
 
     set_x = set_of_lengths(inputs)
     set_y = set_of_lengths(targets)
@@ -300,8 +324,7 @@ def collect_metrics(metrics, output_names):
         nested_metrics = []
         for name in output_names:
             output_metrics = metrics.get(name, [])
-            if not isinstance(output_metrics, list):
-                output_metrics = [output_metrics]
+            output_metrics = to_list(output_metrics)
             nested_metrics.append(output_metrics)
         return nested_metrics
     else:
@@ -421,7 +444,7 @@ def standardize_weights(y,
             the targets (i.e. we are weighting timesteps, not samples).
 
     # Returns
-        A numpy array of target weights, one entry per sample to weight.
+        A Numpy array of target weights, one entry per sample to weight.
 
     # Raises
         ValueError: In case of invalid user-provided arguments.
@@ -454,6 +477,10 @@ def standardize_weights(y,
                              'in compile(). If you just mean to use '
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D.')
+
+    if sample_weight is not None and class_weight is not None:
+        warnings.warn('Found both `sample_weight` and `class_weight`: '
+                      '`class_weight` argument will be ignored.')
 
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
@@ -524,23 +551,56 @@ def check_num_samples(ins,
         exclusive.
 
     # Returns
-        When steps is `None`, returns the number of samples to be
+        When `steps` is `None`, returns the number of samples to be
         processed based on the size of the first dimension of the
-        first input numpy array. When steps is not `None` and
+        first input Numpy array. When `steps` is not `None` and
         `batch_size` is `None`, returns `None`.
 
     # Raises
         ValueError: In case of invalid arguments.
     """
-    if steps is not None:
-        num_samples = None
-        if batch_size is not None:
-            raise ValueError('If ' + steps_name +
-                             ' is set, the `batch_size` must be None.')
-    elif ins and hasattr(ins[0], 'shape'):
-        num_samples = ins[0].shape[0]
-    else:
-        raise ValueError('Either the input data should have '
-                         'a defined shape, or ' + steps_name +
-                         ' should be specified.')
-    return num_samples
+    if steps is not None and batch_size is not None:
+        raise ValueError(
+            'If ' + steps_name + ' is set, the `batch_size` must be None.')
+
+    if not ins or any(K.is_tensor(x) for x in ins):
+        if steps is None:
+            raise ValueError(
+                'If your data is in the form of symbolic tensors, '
+                'you should specify the `' + steps_name + '` argument '
+                '(instead of the `batch_size` argument, '
+                'because symbolic tensors are expected to produce '
+                'batches of input data).')
+        return None
+
+    if hasattr(ins[0], 'shape'):
+        return int(ins[0].shape[0])
+    return None  # Edge case where ins == [static_learning_phase]
+
+
+def iter_sequence_infinite(seq):
+    """Iterate indefinitely over a Sequence.
+
+    # Arguments
+        seq: Sequence object
+
+    # Returns
+        Generator yielding batches.
+    """
+    while True:
+        for item in seq:
+            yield item
+
+
+def is_sequence(seq):
+    """Determine if an object follows the Sequence API.
+
+    # Arguments
+        seq: a possible Sequence object
+
+    # Returns
+        boolean, whether the object follows the Sequence API.
+    """
+    # TODO Dref360: Decide which pattern to follow. First needs a new TF Version.
+    return (getattr(seq, 'use_sequence_api', False)
+            or set(dir(Sequence())).issubset(set(dir(seq) + ['use_sequence_api'])))

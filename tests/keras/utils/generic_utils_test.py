@@ -7,12 +7,10 @@ from keras.utils.generic_utils import has_arg
 from keras.utils.generic_utils import Progbar
 from keras.utils.generic_utils import func_dump
 from keras.utils.generic_utils import func_load
-from keras.utils.test_utils import keras_test
 from keras import activations
 from keras import regularizers
 
 
-@keras_test
 def test_progbar():
     values_s = [None,
                 [['key1', 1], ['key2', 1e-4]],
@@ -70,7 +68,8 @@ def test_has_arg(fn, name, accept_all, expected):
             if sys.version_info >= (3,):
                 raise
             pytest.skip('Function is not compatible with Python 2')
-        context.pop('__builtins__', None)  # Sometimes exec adds builtins to the context
+        # Sometimes exec adds builtins to the context
+        context.pop('__builtins__', None)
         fn, = context.values()
 
     assert has_arg(fn, name, accept_all) is expected
@@ -125,7 +124,8 @@ def test_func_dump_and_load_backwards_compat(test_func):
     # this test ensures that models serialized prior to version 2.1.2 can still be
     # deserialized
 
-    # see https://github.com/evhub/keras/blob/2.1.1/keras/utils/generic_utils.py#L166
+    # see:
+    # https://github.com/evhub/keras/blob/2.1.1/keras/utils/generic_utils.py#L166
     serialized = marshal.dumps(test_func.__code__).decode('raw_unicode_escape')
 
     deserialized = func_load(serialized, defaults=test_func.__defaults__)

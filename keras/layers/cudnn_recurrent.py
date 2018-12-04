@@ -308,21 +308,25 @@ class CuDNNGRU(_CuDNNRNN):
         config = {
             'units': self.units,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+            'recurrent_initializer':
+                initializers.serialize(self.recurrent_initializer),
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+            'recurrent_regularizer':
+                regularizers.serialize(self.recurrent_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
-            'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
+            'recurrent_constraint':
+                constraints.serialize(self.recurrent_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)}
         base_config = super(CuDNNGRU, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
 class CuDNNLSTM(_CuDNNRNN):
-    """Fast LSTM implementation backed by [CuDNN](https://developer.nvidia.com/cudnn).
+    """Fast LSTM implementation with [CuDNN](https://developer.nvidia.com/cudnn).
 
     Can only be run on GPU, with the TensorFlow backend.
 
@@ -334,7 +338,8 @@ class CuDNNLSTM(_CuDNNRNN):
         unit_forget_bias: Boolean.
             If True, add 1 to the bias of the forget gate at initialization.
             Setting it to true will also force `bias_initializer="zeros"`.
-            This is recommended in [Jozefowicz et al.](http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf)
+            This is recommended in [Jozefowicz et al. (2015)](
+            http://www.jmlr.org/proceedings/papers/v37/jozefowicz15.pdf).
         recurrent_initializer: Initializer for the `recurrent_kernel`
             weights matrix,
             used for the linear transformation of the recurrent state.
@@ -457,8 +462,10 @@ class CuDNNLSTM(_CuDNNRNN):
         self.kernel_o = self.kernel[:, self.units * 3:]
 
         self.recurrent_kernel_i = self.recurrent_kernel[:, :self.units]
-        self.recurrent_kernel_f = self.recurrent_kernel[:, self.units: self.units * 2]
-        self.recurrent_kernel_c = self.recurrent_kernel[:, self.units * 2: self.units * 3]
+        self.recurrent_kernel_f = (
+            self.recurrent_kernel[:, self.units: self.units * 2])
+        self.recurrent_kernel_c = (
+            self.recurrent_kernel[:, self.units * 2: self.units * 3])
         self.recurrent_kernel_o = self.recurrent_kernel[:, self.units * 3:]
 
         self.bias_i_i = self.bias[:self.units]
@@ -522,13 +529,16 @@ class CuDNNLSTM(_CuDNNRNN):
         config = {
             'units': self.units,
             'kernel_initializer': initializers.serialize(self.kernel_initializer),
-            'recurrent_initializer': initializers.serialize(self.recurrent_initializer),
+            'recurrent_initializer':
+                initializers.serialize(self.recurrent_initializer),
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'unit_forget_bias': self.unit_forget_bias,
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
-            'recurrent_regularizer': regularizers.serialize(self.recurrent_regularizer),
+            'recurrent_regularizer':
+                regularizers.serialize(self.recurrent_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'recurrent_constraint': constraints.serialize(self.recurrent_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)}

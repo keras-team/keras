@@ -88,16 +88,23 @@ def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
         context.paint()
         # this font list works in CentOS 7
         if multi_fonts:
-            fonts = ['Century Schoolbook', 'Courier', 'STIX', 'URW Chancery L', 'FreeMono']
-            context.select_font_face(np.random.choice(fonts), cairo.FONT_SLANT_NORMAL,
-                                     np.random.choice([cairo.FONT_WEIGHT_BOLD, cairo.FONT_WEIGHT_NORMAL]))
+            fonts = [
+                'Century Schoolbook', 'Courier', 'STIX',
+                'URW Chancery L', 'FreeMono']
+            context.select_font_face(
+                np.random.choice(fonts),
+                cairo.FONT_SLANT_NORMAL,
+                np.random.choice([cairo.FONT_WEIGHT_BOLD, cairo.FONT_WEIGHT_NORMAL]))
         else:
-            context.select_font_face('Courier', cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+            context.select_font_face('Courier',
+                                     cairo.FONT_SLANT_NORMAL,
+                                     cairo.FONT_WEIGHT_BOLD)
         context.set_font_size(25)
         box = context.text_extents(text)
         border_w_h = (4, 4)
         if box[2] > (w - 2 * border_w_h[1]) or box[3] > (h - 2 * border_w_h[0]):
-            raise IOError('Could not fit string into image. Max char count is too large for given image width.')
+            raise IOError(('Could not fit string into image.'
+                           'Max char count is too large for given image width.'))
 
         # teach the RNN translational invariance by
         # fitting text box randomly on canvas, with some room to rotate
@@ -211,13 +218,18 @@ class TextImageGenerator(keras.callbacks.Callback):
         self.X_text = []
         self.Y_len = [0] * self.num_words
 
+        def _is_length_of_word_valid(word):
+            return (max_string_len == -1 or
+                    max_string_len is None or
+                    len(word) <= max_string_len)
+
         # monogram file is sorted by frequency in english speech
         with codecs.open(self.monogram_file, mode='r', encoding='utf-8') as f:
             for line in f:
                 if len(tmp_string_list) == int(self.num_words * mono_fraction):
                     break
                 word = line.rstrip()
-                if max_string_len == -1 or max_string_len is None or len(word) <= max_string_len:
+                if _is_length_of_word_valid(word):
                     tmp_string_list.append(word)
 
         # bigram file contains common word pairings in english speech
@@ -228,11 +240,11 @@ class TextImageGenerator(keras.callbacks.Callback):
                     break
                 columns = line.lower().split()
                 word = columns[0] + ' ' + columns[1]
-                if is_valid_str(word) and \
-                        (max_string_len == -1 or max_string_len is None or len(word) <= max_string_len):
+                if is_valid_str(word) and _is_length_of_word_valid(word):
                     tmp_string_list.append(word)
         if len(tmp_string_list) != self.num_words:
-            raise IOError('Could not pull enough words from supplied monogram and bigram files. ')
+            raise IOError('Could not pull enough words'
+                          'from supplied monogram and bigram files.')
         # interlace to mix up the easy and hard words
         self.string_list[::2] = tmp_string_list[:self.num_words // 2]
         self.string_list[1::2] = tmp_string_list[self.num_words // 2:]
@@ -274,9 +286,11 @@ class TextImageGenerator(keras.callbacks.Callback):
                 source_str.append('')
             else:
                 if K.image_data_format() == 'channels_first':
-                    X_data[i, 0, 0:self.img_w, :] = self.paint_func(self.X_text[index + i])[0, :, :].T
+                    X_data[i, 0, 0:self.img_w, :] = (
+                        self.paint_func(self.X_text[index + i])[0, :, :].T)
                 else:
-                    X_data[i, 0:self.img_w, :, 0] = self.paint_func(self.X_text[index + i])[0, :, :].T
+                    X_data[i, 0:self.img_w, :, 0] = (
+                        self.paint_func(self.X_text[index + i])[0, :, :].T)
                 labels[i, :] = self.Y_data[index + i]
                 input_length[i] = self.img_w // self.downsample_factor - 2
                 label_length[i] = self.Y_len[index + i]
@@ -292,7 +306,8 @@ class TextImageGenerator(keras.callbacks.Callback):
 
     def next_train(self):
         while 1:
-            ret = self.get_batch(self.cur_train_index, self.minibatch_size, train=True)
+            ret = self.get_batch(self.cur_train_index,
+                                 self.minibatch_size, train=True)
             self.cur_train_index += self.minibatch_size
             if self.cur_train_index >= self.val_split:
                 self.cur_train_index = self.cur_train_index % 32
@@ -302,7 +317,8 @@ class TextImageGenerator(keras.callbacks.Callback):
 
     def next_val(self):
         while 1:
-            ret = self.get_batch(self.cur_val_index, self.minibatch_size, train=False)
+            ret = self.get_batch(self.cur_val_index,
+                                 self.minibatch_size, train=False)
             self.cur_val_index += self.minibatch_size
             if self.cur_val_index >= self.num_words:
                 self.cur_val_index = self.val_split + self.cur_val_index % 32
@@ -310,20 +326,24 @@ class TextImageGenerator(keras.callbacks.Callback):
 
     def on_train_begin(self, logs={}):
         self.build_word_list(16000, 4, 1)
-        self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                  rotate=False, ud=False, multi_fonts=False)
+        self.paint_func = lambda text: paint_text(
+            text, self.img_w, self.img_h,
+            rotate=False, ud=False, multi_fonts=False)
 
     def on_epoch_begin(self, epoch, logs={}):
         # rebind the paint function to implement curriculum learning
         if 3 <= epoch < 6:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=False, ud=True, multi_fonts=False)
+            self.paint_func = lambda text: paint_text(
+                text, self.img_w, self.img_h,
+                rotate=False, ud=True, multi_fonts=False)
         elif 6 <= epoch < 9:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=False, ud=True, multi_fonts=True)
+            self.paint_func = lambda text: paint_text(
+                text, self.img_w, self.img_h,
+                rotate=False, ud=True, multi_fonts=True)
         elif epoch >= 9:
-            self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-                                                      rotate=True, ud=True, multi_fonts=True)
+            self.paint_func = lambda text: paint_text(
+                text, self.img_w, self.img_h,
+                rotate=True, ud=True, multi_fonts=True)
         if epoch >= 21 and self.max_string_len < 12:
             self.build_word_list(32000, 12, 0.5)
 
@@ -371,22 +391,27 @@ class VizCallback(keras.callbacks.Callback):
         while num_left > 0:
             word_batch = next(self.text_img_gen)[0]
             num_proc = min(word_batch['the_input'].shape[0], num_left)
-            decoded_res = decode_batch(self.test_func, word_batch['the_input'][0:num_proc])
+            decoded_res = decode_batch(self.test_func,
+                                       word_batch['the_input'][0:num_proc])
             for j in range(num_proc):
-                edit_dist = editdistance.eval(decoded_res[j], word_batch['source_str'][j])
+                edit_dist = editdistance.eval(decoded_res[j],
+                                              word_batch['source_str'][j])
                 mean_ed += float(edit_dist)
                 mean_norm_ed += float(edit_dist) / len(word_batch['source_str'][j])
             num_left -= num_proc
         mean_norm_ed = mean_norm_ed / num
         mean_ed = mean_ed / num
-        print('\nOut of %d samples:  Mean edit distance: %.3f Mean normalized edit distance: %0.3f'
+        print('\nOut of %d samples:  Mean edit distance:'
+              '%.3f Mean normalized edit distance: %0.3f'
               % (num, mean_ed, mean_norm_ed))
 
     def on_epoch_end(self, epoch, logs={}):
-        self.model.save_weights(os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
+        self.model.save_weights(
+            os.path.join(self.output_dir, 'weights%02d.h5' % (epoch)))
         self.show_edit_distance(256)
         word_batch = next(self.text_img_gen)[0]
-        res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
+        res = decode_batch(self.test_func,
+                           word_batch['the_input'][0:self.num_display_words])
         if word_batch['the_input'][0].shape[0] < 256:
             cols = 2
         else:
@@ -398,7 +423,9 @@ class VizCallback(keras.callbacks.Callback):
             else:
                 the_input = word_batch['the_input'][i, :, :, 0]
             pylab.imshow(the_input.T, cmap='Greys_r')
-            pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (word_batch['source_str'][i], res[i]))
+            pylab.xlabel(
+                'Truth = \'%s\'\nDecoded = \'%s\'' %
+                (word_batch['source_str'][i], res[i]))
         fig = pylab.gcf()
         fig.set_size_inches(10, 13)
         pylab.savefig(os.path.join(self.output_dir, 'e%02d.png' % (epoch)))
@@ -425,17 +452,19 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     else:
         input_shape = (img_w, img_h, 1)
 
-    fdir = os.path.dirname(get_file('wordlists.tgz',
-                                    origin='http://www.mythic-ai.com/datasets/wordlists.tgz', untar=True))
+    fdir = os.path.dirname(
+        get_file('wordlists.tgz',
+                 origin='http://www.mythic-ai.com/datasets/wordlists.tgz',
+                 untar=True))
 
-    img_gen = TextImageGenerator(monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
-                                 bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
-                                 minibatch_size=minibatch_size,
-                                 img_w=img_w,
-                                 img_h=img_h,
-                                 downsample_factor=(pool_size ** 2),
-                                 val_split=words_per_epoch - val_words
-                                 )
+    img_gen = TextImageGenerator(
+        monogram_file=os.path.join(fdir, 'wordlist_mono_clean.txt'),
+        bigram_file=os.path.join(fdir, 'wordlist_bi_clean.txt'),
+        minibatch_size=minibatch_size,
+        img_w=img_w,
+        img_h=img_h,
+        downsample_factor=(pool_size ** 2),
+        val_split=words_per_epoch - val_words)
     act = 'relu'
     input_data = Input(name='the_input', shape=input_shape, dtype='float32')
     inner = Conv2D(conv_filters, kernel_size, padding='same',
@@ -447,7 +476,8 @@ def train(run_name, start_epoch, stop_epoch, img_w):
                    name='conv2')(inner)
     inner = MaxPooling2D(pool_size=(pool_size, pool_size), name='max2')(inner)
 
-    conv_to_rnn_dims = (img_w // (pool_size ** 2), (img_h // (pool_size ** 2)) * conv_filters)
+    conv_to_rnn_dims = (img_w // (pool_size ** 2),
+                        (img_h // (pool_size ** 2)) * conv_filters)
     inner = Reshape(target_shape=conv_to_rnn_dims, name='reshape')(inner)
 
     # cuts down input size going into RNN:
@@ -455,11 +485,16 @@ def train(run_name, start_epoch, stop_epoch, img_w):
 
     # Two layers of bidirectional GRUs
     # GRU seems to work as well, if not better than LSTM:
-    gru_1 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru1')(inner)
-    gru_1b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru1_b')(inner)
+    gru_1 = GRU(rnn_size, return_sequences=True,
+                kernel_initializer='he_normal', name='gru1')(inner)
+    gru_1b = GRU(rnn_size, return_sequences=True,
+                 go_backwards=True, kernel_initializer='he_normal',
+                 name='gru1_b')(inner)
     gru1_merged = add([gru_1, gru_1b])
-    gru_2 = GRU(rnn_size, return_sequences=True, kernel_initializer='he_normal', name='gru2')(gru1_merged)
-    gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True, kernel_initializer='he_normal', name='gru2_b')(gru1_merged)
+    gru_2 = GRU(rnn_size, return_sequences=True,
+                kernel_initializer='he_normal', name='gru2')(gru1_merged)
+    gru_2b = GRU(rnn_size, return_sequences=True, go_backwards=True,
+                 kernel_initializer='he_normal', name='gru2_b')(gru1_merged)
 
     # transforms RNN output to character activations:
     inner = Dense(img_gen.get_output_size(), kernel_initializer='he_normal',
@@ -467,39 +502,47 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     y_pred = Activation('softmax', name='softmax')(inner)
     Model(inputs=input_data, outputs=y_pred).summary()
 
-    labels = Input(name='the_labels', shape=[img_gen.absolute_max_string_len], dtype='float32')
+    labels = Input(name='the_labels',
+                   shape=[img_gen.absolute_max_string_len], dtype='float32')
     input_length = Input(name='input_length', shape=[1], dtype='int64')
     label_length = Input(name='label_length', shape=[1], dtype='int64')
     # Keras doesn't currently support loss funcs with extra parameters
     # so CTC loss is implemented in a lambda layer
-    loss_out = Lambda(ctc_lambda_func, output_shape=(1,), name='ctc')([y_pred, labels, input_length, label_length])
+    loss_out = Lambda(
+        ctc_lambda_func, output_shape=(1,),
+        name='ctc')([y_pred, labels, input_length, label_length])
 
     # clipnorm seems to speeds up convergence
     sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
 
-    model = Model(inputs=[input_data, labels, input_length, label_length], outputs=loss_out)
+    model = Model(inputs=[input_data, labels, input_length, label_length],
+                  outputs=loss_out)
 
     # the loss calc occurs elsewhere, so use a dummy lambda func for the loss
     model.compile(loss={'ctc': lambda y_true, y_pred: y_pred}, optimizer=sgd)
     if start_epoch > 0:
-        weight_file = os.path.join(OUTPUT_DIR, os.path.join(run_name, 'weights%02d.h5' % (start_epoch - 1)))
+        weight_file = os.path.join(
+            OUTPUT_DIR,
+            os.path.join(run_name, 'weights%02d.h5' % (start_epoch - 1)))
         model.load_weights(weight_file)
     # captures output of softmax so we can decode the output during visualization
     test_func = K.function([input_data], [y_pred])
 
     viz_cb = VizCallback(run_name, test_func, img_gen.next_val())
 
-    model.fit_generator(generator=img_gen.next_train(),
-                        steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
-                        epochs=stop_epoch,
-                        validation_data=img_gen.next_val(),
-                        validation_steps=val_words // minibatch_size,
-                        callbacks=[viz_cb, img_gen],
-                        initial_epoch=start_epoch)
+    model.fit_generator(
+        generator=img_gen.next_train(),
+        steps_per_epoch=(words_per_epoch - val_words) // minibatch_size,
+        epochs=stop_epoch,
+        validation_data=img_gen.next_val(),
+        validation_steps=val_words // minibatch_size,
+        callbacks=[viz_cb, img_gen],
+        initial_epoch=start_epoch)
 
 
 if __name__ == '__main__':
     run_name = datetime.datetime.now().strftime('%Y:%m:%d:%H:%M:%S')
     train(run_name, 0, 20, 128)
-    # increase to wider images and start at epoch 20. The learned weights are reloaded
+    # increase to wider images and start at epoch 20.
+    # The learned weights are reloaded
     train(run_name, 20, 25, 512)

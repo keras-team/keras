@@ -4,7 +4,6 @@ from numpy.testing import assert_allclose
 
 from keras import backend as K
 from keras import constraints
-from keras.utils.test_utils import keras_test
 
 
 def get_test_values():
@@ -30,7 +29,6 @@ def test_serialization():
         assert fn.__class__ == ref_fn.__class__
 
 
-@keras_test
 def test_max_norm():
     array = get_example_array()
     for m in get_test_values():
@@ -50,14 +48,12 @@ def test_max_norm():
     assert_allclose(x_normed_actual, x_normed_target, rtol=1e-05)
 
 
-@keras_test
 def test_non_neg():
     non_neg_instance = constraints.non_neg()
     normed = non_neg_instance(K.variable(get_example_array()))
     assert(np.all(np.min(K.eval(normed), axis=1) == 0.))
 
 
-@keras_test
 def test_unit_norm():
     unit_norm_instance = constraints.unit_norm()
     normalized = unit_norm_instance(K.variable(get_example_array()))
@@ -68,7 +64,6 @@ def test_unit_norm():
     assert(np.abs(largest_difference) < 10e-5)
 
 
-@keras_test
 def test_min_max_norm():
     array = get_example_array()
     for m in get_test_values():
@@ -76,8 +71,8 @@ def test_min_max_norm():
         normed = norm_instance(K.variable(array))
         value = K.eval(normed)
         l2 = np.sqrt(np.sum(np.square(value), axis=0))
-        assert not l2[l2 < m]
-        assert not l2[l2 > m * 2 + 1e-5]
+        assert l2[l2 < m].size == 0
+        assert l2[l2 > m * 2 + 1e-5].size == 0
 
 
 if __name__ == '__main__':

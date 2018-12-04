@@ -17,39 +17,51 @@ class _Pooling1D(Layer):
     """
 
     def __init__(self, pool_size=2, strides=None,
-                 padding='valid', **kwargs):
+                 padding='valid', data_format='channels_last', **kwargs):
         super(_Pooling1D, self).__init__(**kwargs)
         if strides is None:
             strides = pool_size
         self.pool_size = conv_utils.normalize_tuple(pool_size, 1, 'pool_size')
         self.strides = conv_utils.normalize_tuple(strides, 1, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=3)
 
     def compute_output_shape(self, input_shape):
-        length = conv_utils.conv_output_length(input_shape[1],
+        if self.data_format == 'channels_first':
+            steps = input_shape[2]
+            features = input_shape[1]
+        else:
+            steps = input_shape[1]
+            features = input_shape[2]
+        length = conv_utils.conv_output_length(steps,
                                                self.pool_size[0],
                                                self.padding,
                                                self.strides[0])
-        return (input_shape[0], length, input_shape[2])
+        if self.data_format == 'channels_first':
+            return (input_shape[0], features, length)
+        else:
+            return (input_shape[0], length, features)
 
     def _pooling_function(self, inputs, pool_size, strides,
                           padding, data_format):
         raise NotImplementedError
 
     def call(self, inputs):
-        inputs = K.expand_dims(inputs, 2)   # add dummy last dimension
+        dummy_axis = 2 if self.data_format == 'channels_last' else 3
+        inputs = K.expand_dims(inputs, dummy_axis)   # add dummy last dimension
         output = self._pooling_function(inputs=inputs,
                                         pool_size=self.pool_size + (1,),
                                         strides=self.strides + (1,),
                                         padding=self.padding,
-                                        data_format='channels_last')
-        return K.squeeze(output, 2)  # remove dummy last dimension
+                                        data_format=self.data_format)
+        return K.squeeze(output, dummy_axis)  # remove dummy last dimension
 
     def get_config(self):
         config = {'strides': self.strides,
                   'pool_size': self.pool_size,
-                  'padding': self.padding}
+                  'padding': self.padding,
+                  'data_format': self.data_format}
         base_config = super(_Pooling1D, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -63,19 +75,37 @@ class MaxPooling1D(_Pooling1D):
             E.g. 2 will halve the input.
             If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, steps, features)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, features, steps)`.
 
     # Input shape
-        3D tensor with shape: `(batch_size, steps, features)`.
+        - If `data_format='channels_last'`:
+            3D tensor with shape:
+            `(batch_size, steps, features)`
+        - If `data_format='channels_first'`:
+            3D tensor with shape:
+            `(batch_size, features, steps)`
 
     # Output shape
-        3D tensor with shape: `(batch_size, downsampled_steps, features)`.
+        - If `data_format='channels_last'`:
+            3D tensor with shape:
+            `(batch_size, downsampled_steps, features)`
+        - If `data_format='channels_first'`:
+            3D tensor with shape:
+            `(batch_size, features, downsampled_steps)`
     """
 
     @interfaces.legacy_pooling1d_support
     def __init__(self, pool_size=2, strides=None,
-                 padding='valid', **kwargs):
+                 padding='valid', data_format='channels_last', **kwargs):
         super(MaxPooling1D, self).__init__(pool_size, strides,
-                                           padding, **kwargs)
+                                           padding, data_format,
+                                           **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
                           padding, data_format):
@@ -93,19 +123,37 @@ class AveragePooling1D(_Pooling1D):
             E.g. 2 will halve the input.
             If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, steps, features)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, features, steps)`.
 
     # Input shape
-        3D tensor with shape: `(batch_size, steps, features)`.
+        - If `data_format='channels_last'`:
+            3D tensor with shape:
+            `(batch_size, steps, features)`
+        - If `data_format='channels_first'`:
+            3D tensor with shape:
+            `(batch_size, features, steps)`
 
     # Output shape
-        3D tensor with shape: `(batch_size, downsampled_steps, features)`.
+        - If `data_format='channels_last'`:
+            3D tensor with shape:
+            `(batch_size, downsampled_steps, features)`
+        - If `data_format='channels_first'`:
+            3D tensor with shape:
+            `(batch_size, features, downsampled_steps)`
     """
 
     @interfaces.legacy_pooling1d_support
     def __init__(self, pool_size=2, strides=None,
-                 padding='valid', **kwargs):
+                 padding='valid', data_format='channels_last', **kwargs):
         super(AveragePooling1D, self).__init__(pool_size, strides,
-                                               padding, **kwargs)
+                                               padding, data_format,
+                                               **kwargs)
 
     def _pooling_function(self, inputs, pool_size, strides,
                           padding, data_format):
@@ -121,13 +169,12 @@ class _Pooling2D(Layer):
     def __init__(self, pool_size=(2, 2), strides=None, padding='valid',
                  data_format=None, **kwargs):
         super(_Pooling2D, self).__init__(**kwargs)
-        data_format = conv_utils.normalize_data_format(data_format)
         if strides is None:
             strides = pool_size
         self.pool_size = conv_utils.normalize_tuple(pool_size, 2, 'pool_size')
         self.strides = conv_utils.normalize_tuple(strides, 2, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
@@ -288,7 +335,7 @@ class _Pooling3D(Layer):
         self.pool_size = conv_utils.normalize_tuple(pool_size, 3, 'pool_size')
         self.strides = conv_utils.normalize_tuple(strides, 3, 'strides')
         self.padding = conv_utils.normalize_padding(padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):
@@ -441,37 +488,91 @@ class _GlobalPooling1D(Layer):
     """Abstract class for different global pooling 1D layers.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, data_format='channels_last', **kwargs):
         super(_GlobalPooling1D, self).__init__(**kwargs)
         self.input_spec = InputSpec(ndim=3)
+        self.data_format = K.normalize_data_format(data_format)
 
     def compute_output_shape(self, input_shape):
-        return (input_shape[0], input_shape[2])
+        if self.data_format == 'channels_first':
+            return (input_shape[0], input_shape[1])
+        else:
+            return (input_shape[0], input_shape[2])
 
     def call(self, inputs):
         raise NotImplementedError
+
+    def get_config(self):
+        config = {'data_format': self.data_format}
+        base_config = super(_GlobalPooling1D, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
 
 
 class GlobalAveragePooling1D(_GlobalPooling1D):
     """Global average pooling operation for temporal data.
 
+    # Arguments
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, steps, features)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, features, steps)`.
+
     # Input shape
-        3D tensor with shape: `(batch_size, steps, features)`.
+        - If `data_format='channels_last'`:
+            3D tensor with shape:
+            `(batch_size, steps, features)`
+        - If `data_format='channels_first'`:
+            3D tensor with shape:
+            `(batch_size, features, steps)`
 
     # Output shape
         2D tensor with shape:
         `(batch_size, features)`
     """
 
-    def call(self, inputs):
-        return K.mean(inputs, axis=1)
+    def __init__(self, data_format='channels_last', **kwargs):
+        super(GlobalAveragePooling1D, self).__init__(data_format,
+                                                     **kwargs)
+        self.supports_masking = True
+
+    def call(self, inputs, mask=None):
+        steps_axis = 1 if self.data_format == 'channels_last' else 2
+        if mask is not None:
+            mask = K.cast(mask, K.floatx())
+            input_shape = K.int_shape(inputs)
+            broadcast_shape = [-1, input_shape[steps_axis], 1]
+            mask = K.reshape(mask, broadcast_shape)
+            inputs *= mask
+            return K.sum(inputs, axis=steps_axis) / K.sum(mask, axis=steps_axis)
+        else:
+            return K.mean(inputs, axis=steps_axis)
+
+    def compute_mask(self, inputs, mask=None):
+        return None
 
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
     """Global max pooling operation for temporal data.
 
+    # Arguments
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            `channels_last` corresponds to inputs with shape
+            `(batch, steps, features)` while `channels_first`
+            corresponds to inputs with shape
+            `(batch, features, steps)`.
+
     # Input shape
-        3D tensor with shape: `(batch_size, steps, features)`.
+        - If `data_format='channels_last'`:
+            3D tensor with shape:
+            `(batch_size, steps, features)`
+        - If `data_format='channels_first'`:
+            3D tensor with shape:
+            `(batch_size, features, steps)`
 
     # Output shape
         2D tensor with shape:
@@ -479,7 +580,8 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
     """
 
     def call(self, inputs):
-        return K.max(inputs, axis=1)
+        steps_axis = 1 if self.data_format == 'channels_last' else 2
+        return K.max(inputs, axis=steps_axis)
 
 
 class _GlobalPooling2D(Layer):
@@ -489,7 +591,7 @@ class _GlobalPooling2D(Layer):
     @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling2D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def compute_output_shape(self, input_shape):
@@ -584,7 +686,7 @@ class _GlobalPooling3D(Layer):
     @interfaces.legacy_global_pooling_support
     def __init__(self, data_format=None, **kwargs):
         super(_GlobalPooling3D, self).__init__(**kwargs)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def compute_output_shape(self, input_shape):

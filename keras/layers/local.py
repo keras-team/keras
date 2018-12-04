@@ -101,7 +101,7 @@ class LocallyConnected1D(Layer):
         if self.padding != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected1D '
                              '(only "valid" is supported): ' + padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -170,7 +170,8 @@ class LocallyConnected1D(Layer):
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
@@ -188,12 +189,13 @@ class LocallyConnected2D(Layer):
 
     # Examples
     ```python
-        # apply a 3x3 unshared weights convolution with 64 output filters on a 32x32 image
-        # with `data_format="channels_last"`:
+        # apply a 3x3 unshared weights convolution with 64 output filters
+        # on a 32x32 image with `data_format="channels_last"`:
         model = Sequential()
         model.add(LocallyConnected2D(64, (3, 3), input_shape=(32, 32, 3)))
         # now model.output_shape == (None, 30, 30, 64)
-        # notice that this layer will consume (30*30)*(3*3*3*64) + (30*30)*64 parameters
+        # notice that this layer will consume (30*30)*(3*3*3*64)
+        # + (30*30)*64 parameters
 
         # add a 3x3 unshared weights convolution on top, with 32 output filters:
         model.add(LocallyConnected2D(32, (3, 3)))
@@ -283,7 +285,7 @@ class LocallyConnected2D(Layer):
         if self.padding != 'valid':
             raise ValueError('Invalid border mode for LocallyConnected2D '
                              '(only "valid" is supported): ' + padding)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
         self.activation = activations.get(activation)
         self.use_bias = use_bias
         self.kernel_initializer = initializers.get(kernel_initializer)
@@ -313,9 +315,10 @@ class LocallyConnected2D(Layer):
                                                    self.padding, self.strides[1])
         self.output_row = output_row
         self.output_col = output_col
-        self.kernel_shape = (output_row * output_col,
-                             self.kernel_size[0] * self.kernel_size[1] * input_filter,
-                             self.filters)
+        self.kernel_shape = (
+            output_row * output_col,
+            self.kernel_size[0] * self.kernel_size[1] * input_filter,
+            self.filters)
         self.kernel = self.add_weight(shape=self.kernel_shape,
                                       initializer=self.kernel_initializer,
                                       name='kernel',
@@ -380,7 +383,8 @@ class LocallyConnected2D(Layer):
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }
