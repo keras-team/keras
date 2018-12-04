@@ -127,15 +127,17 @@ You may also consider installing the following **optional dependencies**:
 Then, you can install Keras itself. There are two ways to install Keras:
 
 - **Install Keras from PyPI (recommended):**
+Create a virtual environment to install Keras into, and then install with `pip`:
 
+Using python 3.3+:
 ```sh
-sudo pip install keras
+python3 -m venv ./keras-venv
+./keras-venv/bin/pip install keras
 ```
-
-If you are using a virtualenv, you may want to avoid using sudo:
-
+Using python 2.x:
 ```sh
-pip install keras
+virtualenv ./keras-venv
+./keras-venv/bin/pip install keras
 ```
 
 - **Alternatively: install Keras from the GitHub source:**
@@ -145,13 +147,18 @@ First, clone Keras using `git`:
 ```sh
 git clone https://github.com/keras-team/keras.git
 ```
+Then, create a venv as shown above.
 
- Then, `cd` to the Keras folder and run the install command:
+Then, `cd` to the Keras folder and run the install command, where `/path/to/venv/bin/pip` is the full path to the virtualenv  you just created:
 ```sh
 cd keras
-sudo python setup.py install
+/path/to/venv/bin/pip install .
 ```
-
+If you would like to make changes to Keras and see them reflected in your installed version as you work, use `pip install -e .`:
+```sh
+cd keras
+/path/to/venv/bin/pip install -e .
+```
 ------------------
 
 
