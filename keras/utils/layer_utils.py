@@ -166,8 +166,6 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
             print_layer_summary_with_connections(layers[i])
         if i == len(layers) - 1:
             print_fn('=' * line_length)
-        else:
-            print_fn('_' * line_length)
 
     model._check_trainable_weights_consistency()
     if hasattr(model, '_collected_trainable_weights'):
