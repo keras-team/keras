@@ -78,7 +78,8 @@ class CallbackList(object):
 
         delta_t_median = np.median(self._delta_ts[hook_name])
         if (self._delta_t_batch > 0. and
-            delta_t_median > 0.95 * self._delta_t_batch and delta_t_median > 0.1):
+           delta_t_median > 0.95 * self._delta_t_batch and
+           delta_t_median > 0.1):
             logging.warning(
                 'Method (%s) is slow compared '
                 'to the batch update (%f). Check your callbacks.', hook_name,
@@ -150,7 +151,7 @@ class CallbackList(object):
             logs: dictionary of logs.
         """
         self._call_batch_hook('train', 'end', batch, logs=logs)
-        
+
     def on_train_begin(self, logs=None):
         """Called at the beginning of training.
 
@@ -253,7 +254,7 @@ class BaseLogger(Callback):
 
     def __init__(self, stateful_metrics=None):
         self.stateful_metrics = set(stateful_metrics or [])
-        
+
     def on_epoch_begin(self, epoch, logs=None):
         self.seen = 0
         self.totals = {}
@@ -321,7 +322,7 @@ class ProgbarLogger(Callback):
         else:
             raise ValueError('Unknown `count_mode`: ' + str(count_mode))
         self.stateful_metrics = set(stateful_metrics or [])
-        
+
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
         self.epochs = self.params['epochs']
