@@ -6,9 +6,13 @@ import matplotlib.pyplot as plt
 import argparse
 
 from keras.models import Model
-from keras.applications.resnet50 import ResNet50, preprocess_input as resnet_preprocess
-from keras.applications.inception_resnet_v2 import InceptionResNetV2, preprocess_input as inception_resnet_preprocess
-from keras.applications.nasnet import NASNetLarge, preprocess_input as nasnet_preprocess
+from keras.applications.resnet50 import ResNet50, preprocess_input \
+    as resnet_preprocess
+from keras.applications.inception_resnet_v2 \
+    import InceptionResNetV2, preprocess_input \
+    as inception_resnet_preprocess
+from keras.applications.nasnet import NASNetLarge, preprocess_input \
+    as nasnet_preprocess
 from keras.layers import UpSampling2D, Conv2D
 
 
