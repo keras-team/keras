@@ -108,7 +108,7 @@ if __name__ == "__main__":
     elif args.base_network == "inception":
         cam_builder = BackendInceptionResNetV2()
     else:
-        pass
+        raise ValueError("The base network should be one of resnet, nasnet, or inception.")
         
 
     # 2. load image
