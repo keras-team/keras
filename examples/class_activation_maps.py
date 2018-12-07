@@ -3,6 +3,7 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import argparse
 
 from keras.models import Model
 from keras.applications.resnet50 import ResNet50, preprocess_input as resnet_preprocess
@@ -12,6 +13,16 @@ from keras.layers import UpSampling2D, Conv2D
 
 
 N_CLASSES = 1000
+
+# python main.py dog.png resnet
+parser = argparse.ArgumentParser(description='Class Activation Mapping with Keras.')
+parser.add_argument('input_image_file', metavar='image', type=str,
+                    help='Input image file path.')
+parser.add_argument('base_network', metavar='base', type=str,
+                    default="resnet50",
+                    help='Base network model for Class Activation Mapping.')
+
+args = parser.parse_args()
 
 
 class _Backend(object):
@@ -90,10 +101,18 @@ def postprocess(preds, cams, top_k=1):
 if __name__ == "__main__":
     
     # 1. create keras-cam model
-    cam_builder = BackendResNet50()
+    if args.base_network == "resnet":
+        cam_builder = BackendResNet50()
+    elif args.base_network == "nasnet":
+        cam_builder = BackendNASNetLarge()
+    elif args.base_network == "inception":
+        cam_builder = BackendInceptionResNetV2()
+    else:
+        pass
+        
 
     # 2. load image
-    imgs, original_img, original_size = cam_builder.load_img("dog.png")
+    imgs, original_img, original_size = cam_builder.load_img(args.input_image_file)
     
     # 3. run model
     preds, cams = cam_builder.predict(imgs)
