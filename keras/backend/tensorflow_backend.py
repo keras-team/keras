@@ -2564,6 +2564,8 @@ def slice(x, start, size):
         ```python
         new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
         ```
+
+    {{np_implementation}}
     """
     return tf.slice(x, start, size)
 
