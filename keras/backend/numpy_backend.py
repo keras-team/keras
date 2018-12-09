@@ -576,11 +576,11 @@ def reverse(x, axes):
     return np.flip(x, axes)
 
 
-_slice = slice
+py_slice = slice
 
 
 def slice(x, start, size):
-    slices = [_slice(i, i + j) for i, j in zip(start, size)]
+    slices = [py_slice(i, i + j) for i, j in zip(start, size)]
     return x[tuple(slices)]
 
 
