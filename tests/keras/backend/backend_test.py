@@ -1692,15 +1692,16 @@ class TestBackend(object):
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='tensorflow-way slice is '
                         'only supported in tensorflow.')
-    @pytest.mark.parametrize('x_start,x_size', [
-        ([1, 0, 0], [1, 1, 3]),
-        ([1, 0, 0], [1, 2, 3]),
-        ([1, 0, 0], [2, 1, 3])
+    @pytest.mark.parametrize('x_size', [
+        [1, 1, 3],
+        [1, 2, 3],
+        [2, 1, 3]
     ])
-    def test_slice(self, x_start, x_size):
+    def test_slice(self, x_size):
         npt = np.array([[[1, 1, 1], [2, 2, 2]],
                        [[3, 3, 3], [4, 4, 4]],
                        [[5, 5, 5], [6, 6, 6]]])
+        x_start = [1, 0, 0]
         tft = K.constant(npt)
         test_input = K.eval(K.slice(tft, x_start, x_size))
         expected = KNP.slice(npt, x_start, x_size)
