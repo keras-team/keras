@@ -975,9 +975,6 @@ class Network(Layer):
                     kwargs = input_data[3]
                 else:
                     raise ValueError('Improperly formatted model config.')
-                if inbound_layer_name not in created_layers:
-                    add_unprocessed_node(layer, node_data)
-                    return
                 inbound_layer = created_layers[inbound_layer_name]
                 if len(inbound_layer._inbound_nodes) <= inbound_node_index:
                     add_unprocessed_node(layer, node_data)
