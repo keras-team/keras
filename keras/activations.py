@@ -140,6 +140,27 @@ def sigmoid(x):
     return K.sigmoid(x)
 
 
+def gelu(x):
+    """Gaussian Error Linear Unit.
+       Slow, but more accurate.
+    """
+    if K.backend() == 'tensorflow' or K.backend() == 'theano':
+        return 0.5 * x * (1 + K.tanh(x * 0.7978845608 * (1 + 0.044715 * x * x)))
+    
+    else:
+        return cntk.times(0.5, cntk.times(x, (1 + K.tanh(cntk.times(cntk.times(0.7978845608, x) , (1 + cntk.times(x, cntk.times(0.044715, x)))))))))
+        
+def gelu(x):
+    """Gaussian Error Linear Unit.
+       Fast, but less accurate.
+    """
+    if K.backend() == 'tensorflow' or K.backend() == 'theano':
+        return K.sigmoid(1.702 * x) * x
+    
+    else:
+        return cntk.times(K.sigmoid(cntk.times(1.702, x)), x)
+
+
 def hard_sigmoid(x):
     """Hard sigmoid activation function.
 
