@@ -139,6 +139,18 @@ def sigmoid(x):
     """
     return K.sigmoid(x)
 
+def fast_gelu(x):
+    """Gaussian Error Linear Unit.
+       Fatser but more inaccurate"""
+    
+    return K.sigmoid(1.702 * x) * x
+
+def gelu(x):
+    """Gaussian Error Linear Unit.
+       Slower but more accurate"""
+    
+    return 0.5 * x * (1 + K.tanh(x * 0.7978845608 * (1 + 0.044715 * x * x)))
+
 
 def hard_sigmoid(x):
     """Hard sigmoid activation function.
