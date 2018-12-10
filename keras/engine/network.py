@@ -987,19 +987,21 @@ class Network(Layer):
                     kwargs = input_data[3]
                 else:
                     raise ValueError('Improperly formatted model config.')
+                # Raise an error if the layer has not been created yet
                 if inbound_layer_name not in created_layers:
-                    return False
+                    raise AttributeError
                 inbound_layer = created_layers[inbound_layer_name]
+                # Raise an error if the corresponding layer node has not been created yet
                 if len(inbound_layer._inbound_nodes) <= inbound_node_index:
-                    return False
+                    raise AttributeError
                 inbound_node = inbound_layer._inbound_nodes[inbound_node_index]
                 input_tensors.append(
                     inbound_node.output_tensors[inbound_tensor_index])
+
             # Call layer on its inputs, thus creating the node
             # and building the layer if needed.
             if input_tensors:
                 layer(unpack_singleton(input_tensors), **kwargs)
-            return True
 
         def process_layer(layer_data):
             """Deserializes a layer, then call it on appropriate inputs.
@@ -1031,6 +1033,7 @@ class Network(Layer):
         # First, we create all layers and enqueue nodes to be processed
         for layer_data in config['layers']:
             process_layer(layer_data)
+
         # Then we process nodes in order of layer depth.
         # Nodes that cannot yet be processed (if the inbound node
         # does not yet exist) are re-enqueued, and the process
@@ -1038,17 +1041,31 @@ class Network(Layer):
         while unprocessed_nodes:
             for layer_data in config['layers']:
                 layer = created_layers[layer_data['name']]
+
+                # Process all nodes in layer, if not yet processed
                 if layer in unprocessed_nodes:
-                    # Process nodes in order, if an error save the
-                    # remaining nodes to process later.
-                    node_data_list = unprocessed_nodes.pop(layer)
-                    while node_data_list:
-                        node_data = node_data_list.pop(0)
-                        # If the node isn't ready save all remaining node_data
-                        # in order and continue
-                        if not process_node(layer, node_data):
-                            unprocessed_nodes[layer] = [node_data] + node_data_list
+                    node_data_list = unprocessed_nodes[layer]
+                    
+                    # Process nodes in order
+                    current_node_index = 0
+                    while current_node_index < len(node_data_list):
+                        node_data = node_data_list[current_node_index]
+                        try:
+                            process_node(layer, node_data)
+                        
+                        # If the node does not have all inbound layers
+                        # available, stop processing and continue later
+                        except AttributeError:
                             break
+                    
+                    # If not all nodes processed then store unprocessed nodes
+                    if current_node_index < len(node_data_list):
+                        unprocessed_nodes[layer] = node_data_list[current_node_index:]
+                    # If all nodes processed remove the layer
+                    else:
+                        del unprocessed_nodes[layer]
+
+                    
 
         name = config.get('name')
         input_tensors = []
