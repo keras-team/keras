@@ -143,15 +143,21 @@ def fast_gelu(x):
     """Gaussian Error Linear Unit.
        Fatser but more inaccurate
     """
+    if keras.backend.backend() == 'tensorflow' or keras.backend.backend() == 'theano':
+        return K.sigmoid(1.702 * x) * x
     
-    return K.sigmoid(1.702 * x) * x
+    if K.backend.backend() == 'cntk':
+        return cntk.times(K.sigmoid(cntk.times(1.702, x)), x)
 
 def gelu(x):
     """Gaussian Error Linear Unit.
        Slower but more accurate
     """
+    if K.backend.backend() == 'tensorflow' or K.backend.backend() == 'theano':
+        return 0.5 * x * (1 + K.tanh(x * 0.7978845608 * (1 + 0.044715 * x * x)))
     
-    return 0.5 * x * (1 + K.tanh(x * 0.7978845608 * (1 + 0.044715 * x * x)))
+    if K.backend.backend() == 'cntk':
+        return cntk.times(0.5, cntk.times(x, 1 + K.tanh(cntk.times(x, cntk.times(0.7978845608, (1 + cntk.times(cntk.times(0.044715, x), x)))))))
 
 
 def hard_sigmoid(x):
