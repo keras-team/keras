@@ -958,23 +958,27 @@ class Network(Layer):
         unprocessed_nodes = {}
 
         def add_unprocessed_node(layer, node_data):
+            """Add node to layer list
+
+            Args:
+                layer: layer object
+                node_data: Node data specifying layer call
+            """
             if layer not in unprocessed_nodes:
                 unprocessed_nodes[layer] = [node_data]
             else:
                 unprocessed_nodes[layer].append(node_data)
 
         def process_node(layer, node_data):
-            """
+            """Reconstruct node by linking to inbound layers
 
             Args:
-                layer: layer to process
+                layer: Layer to process
                 node_data: List of layer configs
 
             Raises:
                 ValueError: For incorrect layer config
-
-            Returns:
-                bool: True if nodes added normally, False if an error
+                LookupError: If layer required is not found
             """
             input_tensors = []
             for input_data in node_data:
@@ -989,11 +993,12 @@ class Network(Layer):
                     raise ValueError('Improperly formatted model config.')
                 # Raise an error if the layer has not been created yet
                 if inbound_layer_name not in created_layers:
-                    raise AttributeError
+                    raise LookupError
                 inbound_layer = created_layers[inbound_layer_name]
-                # Raise an error if the corresponding layer node has not been created yet
+                # Raise an error if the corresponding layer node
+                # has not yet been created
                 if len(inbound_layer._inbound_nodes) <= inbound_node_index:
-                    raise AttributeError
+                    raise LookupError
                 inbound_node = inbound_layer._inbound_nodes[inbound_node_index]
                 input_tensors.append(
                     inbound_node.output_tensors[inbound_tensor_index])
@@ -1045,28 +1050,29 @@ class Network(Layer):
                 # Process all nodes in layer, if not yet processed
                 if layer in unprocessed_nodes:
                     node_data_list = unprocessed_nodes[layer]
-                    
+
                     # Process nodes in order
-                    current_node_index = 0
-                    while current_node_index < len(node_data_list):
-                        node_data = node_data_list[current_node_index]
+                    node_index = 0
+                    while node_index < len(node_data_list):
+                        node_data = node_data_list[node_index]
                         try:
                             process_node(layer, node_data)
-                        
+
                         # If the node does not have all inbound layers
                         # available, stop processing and continue later
-                        except AttributeError:
+                        except LookupError:
                             break
-                    
+
+                        node_index += 1
+
                     # If not all nodes processed then store unprocessed nodes
-                    if current_node_index < len(node_data_list):
-                        unprocessed_nodes[layer] = node_data_list[current_node_index:]
+                    if node_index < len(node_data_list):
+                        unprocessed_nodes[layer] = node_data_list[node_index:]
                     # If all nodes processed remove the layer
                     else:
                         del unprocessed_nodes[layer]
 
-                    
-
+        # Create lits of input and output tensors and return new class
         name = config.get('name')
         input_tensors = []
         output_tensors = []

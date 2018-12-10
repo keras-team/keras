@@ -770,7 +770,7 @@ def test_layer_sharing_at_heterogeneous_depth_order():
     input_shape = (1, 12)
     input_layer = Input(shape=input_shape)
 
-    A = Dense(12, name='dense_A')
+    A = Dense(12, name='layer_a')
     r1 = layers.Reshape((12,))(input_layer)
     Aout1 = A(r1)
 
@@ -780,8 +780,7 @@ def test_layer_sharing_at_heterogeneous_depth_order():
     # Note: if the order of the layers in the concat is
     # changed to ([Aout1, Aout2]) the bug doesn't trigger
     c1 = layers.concatenate([Aout2, Aout1])
-    B = Dense(2, name='dense_B')
-    output = B(c1)
+    output = Dense(2, name='layer_b')(c1)
 
     M = Model(inputs=input_layer, outputs=output)
 
