@@ -157,6 +157,18 @@ def hard_sigmoid(x):
     """
     return K.hard_sigmoid(x)
 
+def fast_gelu(x):
+    """Gaussian Error Linear Unit.
+       Fast, but less accurate."""
+    
+    return K.dot(K.sigmoid(1.702 * x))
+
+def gelu(x):
+    """Gaussian Error Linear Unit.
+       Slow, but more` accurate."""
+    
+    return 0.5 * K.dot(x, (1 + K.tanh(x * 0.7978845608 * (1 + 0.044715 * x * x))))
+
 
 def exponential(x):
     """Exponential (base e) activation function.
