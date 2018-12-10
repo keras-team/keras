@@ -1021,6 +1021,8 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
+    if value.dtype != x.dtype:
+        value = tf.cast(value, x.dtype)
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=True)
 
@@ -1110,7 +1112,7 @@ def batch_dot(x, y, axes=None):
     # Arguments
         x: Keras tensor or variable with `ndim >= 2`.
         y: Keras tensor or variable with `ndim >= 2`.
-        axes: int or tupe(int, int). Target dimensions to be reduced.
+        axes: int or tuple(int, int). Target dimensions to be reduced.
 
     # Returns
         A tensor with shape equal to the concatenation of `x`'s shape
@@ -1129,7 +1131,7 @@ def batch_dot(x, y, axes=None):
         inner_products = []
         for xi, yi in zip(x, y):
             inner_products.append(xi.dot(yi))
-        result = stack(inner_prodcuts)
+        result = stack(inner_products)
         ```
 
         Shape inference:
@@ -1195,10 +1197,10 @@ def batch_dot(x, y, axes=None):
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
 
-    # if tuple, convert to list
+    # if tuple, convert to list.
     axes = list(axes)
 
-    # convert negative indices
+    # convert negative indices.
     if axes[0] < 0:
         axes[0] += x_ndim
     if axes[1] < 0:
@@ -1221,34 +1223,82 @@ def batch_dot(x, y, axes=None):
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
                          'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
 
-    # bring the dimensions to be reduced to axis 1
-    if a0 != 1:
+    # backup ndims. Need them later.
+    orig_x_ndim = x_ndim
+    orig_y_ndim = y_ndim
+
+    # if rank is 2, expand to 3.
+    if x_ndim == 2:
+        x = tf.expand_dims(x, 1)
+        a0 += 1
+        x_ndim += 1
+    if y_ndim == 2:
+        y = tf.expand_dims(y, 2)
+        y_ndim += 1
+
+    # bring x's dimension to be reduced to last axis.
+    if a0 != x_ndim - 1:
         pattern = list(range(x_ndim))
-        for i in range(a0, 1, -1):
-            pattern[i] = pattern[i - 1]
-        pattern[1] = a0
-        x = permute_dimensions(x, pattern)
+        for i in range(a0, x_ndim - 1):
+            pattern[i] = pattern[i + 1]
+        pattern[-1] = a0
+        x = tf.transpose(x, pattern)
+
+    # bring y's dimension to be reduced to axis 1.
     if a1 != 1:
         pattern = list(range(y_ndim))
         for i in range(a1, 1, -1):
             pattern[i] = pattern[i - 1]
         pattern[1] = a1
-        y = permute_dimensions(y, pattern)
+        y = tf.transpose(y, pattern)
 
-    # reshape to closest broadcastable shape
-    x_shape = tf.shape(x)
-    y_shape = tf.shape(y)
+    # normalize both inputs to rank 3.
+    if x_ndim > 3:
+        # squash middle dimensions of x.
+        x_shape = shape(x)
+        x_mid_dims = x_shape[1:-1]
+        x_squashed_dim = tf.reduce_prod(x_mid_dims)
+        x_squashed_shape = tf.stack([x_shape[0], x_squashed_dim, x_shape[-1]])
+        x = tf.reshape(x, x_squashed_shape)
+        x_squashed = True
+    else:
+        x_squashed = False
 
-    new_x_shape = tf.concat([x_shape, tf.ones_like(y_shape[2:])], 0)
-    new_y_shape = tf.concat([y_shape[:2], tf.ones_like(x_shape[2:]), y_shape[2:]], 0)
+    if y_ndim > 3:
+        # squash trailing dimensions of y.
+        y_shape = shape(y)
+        y_trail_dims = y_shape[2:]
+        y_squashed_dim = tf.reduce_prod(y_trail_dims)
+        y_squashed_shape = tf.stack([y_shape[0], y_shape[1], y_squashed_dim])
+        y = tf.reshape(y, y_squashed_shape)
+        y_squashed = True
+    else:
+        y_squashed = False
 
-    x = reshape(x, new_x_shape)
-    y = reshape(y, new_y_shape)
+    result = tf.matmul(x, y)
 
-    result = tf.reduce_sum(x * y, 1)
+    # if inputs were squashed, we have to reshape the matmul output.
+    output_shape = tf.shape(result)
+    do_reshape = False
 
-    if ndim(result) == 1:
-        result = tf.expand_dims(result, -1)
+    if x_squashed:
+        output_shape = tf.concat([output_shape[:1],
+                                  x_mid_dims,
+                                  output_shape[-1:]], 0)
+        do_reshape = True
+
+    if y_squashed:
+        output_shape = tf.concat([output_shape[:-1], y_trail_dims], 0)
+        do_reshape = True
+
+    if do_reshape:
+        result = tf.reshape(result, output_shape)
+
+    # if the inputs were originally rank 2, we remove the added 1 dim.
+    if orig_x_ndim == 2:
+        result = tf.squeeze(result, 1)
+    elif orig_y_ndim == 2:
+        result = tf.squeeze(result, -1)
 
     return result
 
@@ -1321,6 +1371,8 @@ def max(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with maximum values of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_max(x, axis, keepdims)
 
@@ -1340,6 +1392,8 @@ def min(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with miminum values of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_min(x, axis, keepdims)
 
@@ -1359,6 +1413,8 @@ def sum(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with sum of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_sum(x, axis, keepdims)
 
@@ -1378,6 +1434,8 @@ def prod(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the product of elements of `x`.
+
+    {{np_implementation}}
     """
     return tf.reduce_prod(x, axis, keepdims)
 
@@ -1924,6 +1982,11 @@ def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
                            dtype=x.dtype,
                            shape=[x.get_shape()[normalization_axis]])
 
+    if gamma.dtype != tf.float32:
+        gamma = tf.cast(gamma, tf.float32)
+    if beta.dtype != tf.float32:
+        beta = tf.cast(beta, tf.float32)
+
     return tf.nn.fused_batch_norm(
         x,
         gamma,
@@ -2012,6 +2075,16 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
                 gamma = ones_like(mean)
             elif ndim(gamma) > 1:
                 gamma = tf.reshape(gamma, [-1])
+
+            if gamma.dtype != tf.float32:
+                gamma = tf.cast(gamma, tf.float32)
+            if beta.dtype != tf.float32:
+                beta = tf.cast(beta, tf.float32)
+            if mean.dtype != tf.float32:
+                mean = tf.cast(mean, tf.float32)
+            if var.dtype != tf.float32:
+                var = tf.cast(var, tf.float32)
+
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
@@ -2491,6 +2564,8 @@ def slice(x, start, size):
         ```python
         new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
         ```
+
+    {{np_implementation}}
     """
     return tf.slice(x, start, size)
 
@@ -2929,8 +3004,10 @@ def rnn(step_function, inputs, initial_states,
             but input timestep is not a fixed number.
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
+
+    {{np_implementation}}
     """
-    ndim = len(inputs.get_shape())
+    ndim = len(inputs.shape)
     if ndim < 3:
         raise ValueError('Input should be at least 3D.')
 
@@ -2942,9 +3019,22 @@ def rnn(step_function, inputs, initial_states,
     if mask is not None:
         if mask.dtype != tf.bool:
             mask = tf.cast(mask, tf.bool)
-        if len(mask.get_shape()) == ndim - 1:
-            mask = expand_dims(mask)
-        mask = tf.transpose(mask, axes)
+        if len(mask.shape) != 2:
+            raise ValueError(
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
+        mask = tf.transpose(mask, [1, 0])
+
+        def get_matching_mask(mask_t, ref_tensor_t):
+            # tf.where needs its condition tensor
+            # to be the same shape as its two
+            # result tensors
+            ndim = len(ref_tensor_t.shape)
+            for _ in range(ndim - 1):
+                mask_t = expand_dims(mask_t)
+            add_shape = tf.shape(ref_tensor_t)[1:]
+            multiple = tf.concat([[1], add_shape], 0)
+            return tf.tile(mask_t, multiple)
 
     if constants is None:
         constants = []
@@ -2953,7 +3043,7 @@ def rnn(step_function, inputs, initial_states,
     uses_learning_phase = False
 
     if unroll:
-        if not inputs.get_shape()[0]:
+        if not inputs.shape[0]:
             raise ValueError('Unrolling requires a '
                              'fixed number of timesteps.')
         states = initial_states
@@ -2974,32 +3064,18 @@ def rnn(step_function, inputs, initial_states,
                 if getattr(output, '_uses_learning_phase', False):
                     uses_learning_phase = True
 
-                # tf.where needs its condition tensor
-                # to be the same shape as its two
-                # result tensors, but in our case
-                # the condition (mask) tensor is
-                # (nsamples, 1), and A and B are (nsamples, ndimensions).
-                # So we need to
-                # broadcast the mask to match the shape of A and B.
-                # That's what the tile call does,
-                # it just repeats the mask along its second dimension
-                # n times.
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-
                 if not successive_outputs:
                     prev_output = zeros_like(output)
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = tf.where(tiled_mask_t, output, prev_output)
+                output_mask_t = get_matching_mask(mask_t, output)
+                output = tf.where(output_mask_t, output, prev_output)
 
                 return_states = []
                 for state, new_state in zip(states, new_states):
-                    # (see earlier comment for tile explanation)
-                    tiled_mask_t = tf.tile(mask_t,
-                                           tf.stack([1, tf.shape(new_state)[1]]))
-                    return_states.append(tf.where(tiled_mask_t,
+                    state_mask_t = get_matching_mask(mask_t, new_state)
+                    return_states.append(tf.where(state_mask_t,
                                                   new_state,
                                                   state))
                 states = return_states
@@ -3026,26 +3102,25 @@ def rnn(step_function, inputs, initial_states,
         states = tuple(initial_states)
 
         time_steps = tf.shape(inputs)[0]
-        outputs, _ = step_function(inputs[0], initial_states + constants)
+        output, _ = step_function(inputs[0], initial_states + constants)
         output_ta = tensor_array_ops.TensorArray(
-            dtype=outputs.dtype,
+            dtype=output.dtype,
             size=time_steps,
             tensor_array_name='output_ta')
+        initial_output = zeros_like(output)
         input_ta = tensor_array_ops.TensorArray(
             dtype=inputs.dtype,
             size=time_steps,
             tensor_array_name='input_ta')
         input_ta = input_ta.unstack(inputs)
         time = tf.constant(0, dtype='int32', name='time')
+        while_loop_kwargs = {
+            'cond': lambda time, *_: time < time_steps,
+            'parallel_iterations': 32,
+            'swap_memory': True,
+            'maximum_iterations': input_length}
 
         if mask is not None:
-            if not states:
-                raise ValueError('No initial states provided! '
-                                 'When using masking in an RNN, you should '
-                                 'provide initial states '
-                                 '(and your step function should return '
-                                 'as its first state at time `t` '
-                                 'the output at time `t-1`).')
             if go_backwards:
                 mask = reverse(mask, 0)
 
@@ -3055,12 +3130,13 @@ def rnn(step_function, inputs, initial_states,
                 tensor_array_name='mask_ta')
             mask_ta = mask_ta.unstack(mask)
 
-            def _step(time, output_ta_t, *states):
+            def _step(time, output_ta_t, output_tm1, *states):
                 """RNN step function.
 
                 # Arguments
                     time: Current timestep value.
                     output_ta_t: TensorArray.
+                    output_tm1: output Tensor from previous timestep
                     *states: List of states.
 
                 # Returns
@@ -3075,18 +3151,23 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
-                    new_state.set_shape(state.get_shape())
-                tiled_mask_t = tf.tile(mask_t,
-                                       tf.stack([1, tf.shape(output)[1]]))
-                output = tf.where(tiled_mask_t, output, states[0])
-                tmp = []
-                for i in range(len(states)):
-                    multiples = tf.stack([1, tf.shape(new_states[i])[1]])
-                    tiled = tf.tile(mask_t, multiples)
-                    tmp.append(tf.where(tiled, new_states[i], states[i]))
-                new_states = tmp
+                    new_state.set_shape(state.shape)
+
+                output_mask_t = get_matching_mask(mask_t, output)
+                output = tf.where(output_mask_t, output, output_tm1)
+
+                new_states = [tf.where(get_matching_mask(mask_t, new_states[i]),
+                                       new_states[i],
+                                       states[i]) for i in range(len(states))]
+
                 output_ta_t = output_ta_t.write(time, output)
-                return (time + 1, output_ta_t) + tuple(new_states)
+                return (time + 1, output_ta_t, output) + tuple(new_states)
+
+            final_outputs = control_flow_ops.while_loop(
+                body=_step,
+                loop_vars=(time, output_ta, initial_output) + states,
+                **while_loop_kwargs)
+            new_states = final_outputs[3:]  # skip output_tm1
         else:
             def _step(time, output_ta_t, *states):
                 """RNN step function.
@@ -3107,25 +3188,22 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 for state, new_state in zip(states, new_states):
-                    new_state.set_shape(state.get_shape())
+                    new_state.set_shape(state.shape)
                 output_ta_t = output_ta_t.write(time, output)
                 return (time + 1, output_ta_t) + tuple(new_states)
 
-        final_outputs = control_flow_ops.while_loop(
-            cond=lambda time, *_: time < time_steps,
-            body=_step,
-            loop_vars=(time, output_ta) + states,
-            parallel_iterations=32,
-            swap_memory=True,
-            maximum_iterations=input_length)
+            final_outputs = control_flow_ops.while_loop(
+                body=_step,
+                loop_vars=(time, output_ta) + states,
+                **while_loop_kwargs)
+            new_states = final_outputs[2:]
+
         last_time = final_outputs[0]
         output_ta = final_outputs[1]
-        new_states = final_outputs[2:]
-
         outputs = output_ta.stack()
         last_output = output_ta.read(last_time - 1)
 
-    axes = [1, 0] + list(range(2, len(outputs.get_shape())))
+    axes = [1, 0] + list(range(2, len(outputs.shape)))
     outputs = tf.transpose(outputs, axes)
     last_output._uses_learning_phase = uses_learning_phase
     return last_output, outputs, new_states
@@ -3276,6 +3354,8 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
 
     if alpha != 0.:
@@ -3319,6 +3399,8 @@ def elu(x, alpha=1.):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     res = tf.nn.elu(x)
     if alpha == 1:
@@ -3337,6 +3419,8 @@ def softmax(x, axis=-1):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.softmax(x, axis=axis)
 
@@ -3349,6 +3433,8 @@ def softplus(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.softplus(x)
 
@@ -3497,6 +3583,8 @@ def sigmoid(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.sigmoid(x)
 
@@ -3531,6 +3619,8 @@ def tanh(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.tanh(x)
 
@@ -3566,6 +3656,8 @@ def l2_normalize(x, axis=None):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.l2_normalize(x, axis=axis)
 

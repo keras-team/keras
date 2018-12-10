@@ -1490,6 +1490,12 @@ def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
         unroll=False, input_length=None):
 
+    if not unroll and mask is not None:
+        warnings.warn(
+            'CNTK Backend only supports accurate masking if '
+            '`output == new_states[0]` for '
+            '`output, new_states = step_function(inputs, states)`')
+
     shape = int_shape(inputs)
     dims = len(shape)
 
