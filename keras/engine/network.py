@@ -991,9 +991,6 @@ class Network(Layer):
                     kwargs = input_data[3]
                 else:
                     raise ValueError('Improperly formatted model config.')
-                # Raise an error if the layer has not been created yet
-                if inbound_layer_name not in created_layers:
-                    raise LookupError
                 inbound_layer = created_layers[inbound_layer_name]
                 # Raise an error if the corresponding layer node
                 # has not yet been created
