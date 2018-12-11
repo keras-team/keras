@@ -7,7 +7,6 @@ from __future__ import print_function
 import os
 import csv
 import six
-import sklearn
 
 import numpy as np
 import time
@@ -21,7 +20,6 @@ from collections import Iterable
 from .utils.generic_utils import Progbar
 from . import backend as K
 from .engine.training_utils import standardize_input_data
-from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 try:
     import requests
@@ -249,42 +247,23 @@ class BaseLogger(Callback):
                     else:
                         logs[k] = self.totals[k] / self.seen
                         
-class Precision(Callback):
+class BinaryClassificationMetrics(Callback):
     def on_train_begin(self, logs={}):
         self.val_precisions = []
-        
-    def on_epoch_end(self, epoch, logs={}):
-        val_predict = (np.asarray(self.model.predict(self.validation_data[0]))).round()
-        val_targ = self.validation_data[1]
-        _val_precision = precision_score(val_targ, val_predict)
-        self.val_precisions.append(_val_precision)
-        print(" - val_precision: " + str(_val_precision))
-        return  
-                        
-class Recall(Callback):
-    def on_train_begin(self, logs={}):
+        self.val_f1s = []
         self.val_recalls = []
         
     def on_epoch_end(self, epoch, logs={}):
         val_predict = (np.asarray(self.model.predict(self.validation_data[0]))).round()
         val_targ = self.validation_data[1]
-        _val_recall = recall_score(val_targ, val_predict)
+        _val_precision = np.dot(val_targ, val_predict)/sum(val_predict)
+        _val_recall = np.dot(val_targ, val_predict)/sum(val_targ)
+        _val_f1 = (2*_val_precision*_val_recall)/(_val_precision + _val_recall)
+        self.val_precisions.append(_val_precision)
         self.val_recalls.append(_val_recall)
-        print(" - val_recall: " + str(_val_recall))
-        return 
-                        
-
-class F1Score(Callback):
-    def on_train_begin(self, logs={}):
-        self.val_f1s = []
-        
-    def on_epoch_end(self, epoch, logs={}):
-        val_predict = (np.asarray(self.model.predict(self.validation_data[0]))).round()
-        val_targ = self.validation_data[1]
-        _val_f1 = f1_score(val_targ, val_predict)
         self.val_f1s.append(_val_f1)
-        print(" - val_f1: " + str(_val_f1))
-        return 
+        print(“ — val_f1: %f — val_precision: %f — val_recall %f” %(_val_f1, _val_precision, _val_recall))
+        return  
 
 class TerminateOnNaN(Callback):
     """Callback that terminates training when a NaN loss is encountered.
