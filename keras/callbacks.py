@@ -262,7 +262,7 @@ class BinaryClassificationMetrics(Callback):
         self.val_precisions.append(_val_precision)
         self.val_recalls.append(_val_recall)
         self.val_f1s.append(_val_f1)
-        print(“ — val_f1: %f — val_precision: %f — val_recall %f” %(_val_f1, _val_precision, _val_recall))
+        print(" — val_f1: %f — val_precision: %f — val_recall %f" %(_val_f1, _val_precision, _val_recall))
         return  
 
 class TerminateOnNaN(Callback):
