@@ -257,7 +257,10 @@ class BaseLogger(Callback):
     """
 
     def __init__(self, stateful_metrics=None):
-        self.stateful_metrics = set(stateful_metrics or [])
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
 
     def on_epoch_begin(self, epoch, logs=None):
         self.seen = 0
@@ -317,7 +320,8 @@ class ProgbarLogger(Callback):
         ValueError: In case of invalid `count_mode`.
     """
 
-    def __init__(self, count_mode='samples', stateful_metrics=None):
+    def __init__(self, count_mode='samples',
+                 stateful_metrics=None):
         super(ProgbarLogger, self).__init__()
         if count_mode == 'samples':
             self.use_steps = False
@@ -325,7 +329,10 @@ class ProgbarLogger(Callback):
             self.use_steps = True
         else:
             raise ValueError('Unknown `count_mode`: ' + str(count_mode))
-        self.stateful_metrics = set(stateful_metrics or [])
+        if stateful_metrics:
+            self.stateful_metrics = set(stateful_metrics)
+        else:
+            self.stateful_metrics = set()
 
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
@@ -624,7 +631,7 @@ class RemoteMonitor(Callback):
             The field is used only if the payload is sent within a form
             (i.e. send_as_json is set to False).
         headers: Dictionary; optional custom HTTP headers.
-        send_as_json: Boolean; whether the request should be sent as
+        send_as_json: Boolean; whether the request should be send as
             application/json.
     """
 
@@ -644,7 +651,8 @@ class RemoteMonitor(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if requests is None:
-            raise ImportError('RemoteMonitor requires the `requests` library.')
+            raise ImportError('RemoteMonitor requires '
+                              'the `requests` library.')
         logs = logs or {}
         send = {}
         send['epoch'] = epoch
@@ -1090,7 +1098,8 @@ class ReduceLROnPlateau(Callback):
 
         self.monitor = monitor
         if factor >= 1.0:
-            raise ValueError('ReduceLROnPlateau does not support a factor >= 1.0.')
+            raise ValueError('ReduceLROnPlateau '
+                             'does not support a factor >= 1.0.')
         if 'epsilon' in kwargs:
             min_delta = kwargs.pop('epsilon')
             warnings.warn('`epsilon` argument is deprecated and '
