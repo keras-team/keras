@@ -254,9 +254,9 @@ class BinaryClassificationMetrics(Callback):
         self.val_recalls = []
         
     def on_epoch_end(self, epoch, logs=None):
-        model = self.model
-        val_predict = (np.asarray(self.model.predict(self.validation_data[0]))).round()
-        val_targ = self.validation_data[1]
+        logs = logs or {}
+        val_predict = (np.asarray(self.model.predict(self.model.validation_data[0]))).round()
+        val_targ = self.model.validation_data[1]
         _val_precision = np.dot(val_targ, val_predict)/sum(val_predict)
         _val_recall = np.dot(val_targ, val_predict)/sum(val_targ)
         _val_f1 = (2*_val_precision*_val_recall)/(_val_precision + _val_recall)
