@@ -248,12 +248,13 @@ class BaseLogger(Callback):
                         logs[k] = self.totals[k] / self.seen
                         
 class BinaryClassificationMetrics(Callback):
-    def on_train_begin(self, logs={}):
+    def on_train_begin(self, logs=None):
         self.val_precisions = []
         self.val_f1s = []
         self.val_recalls = []
         
-    def on_epoch_end(self, epoch, logs={}):
+    def on_epoch_end(self, epoch, logs=None):
+        model = self.model
         val_predict = (np.asarray(self.model.predict(self.validation_data[0]))).round()
         val_targ = self.validation_data[1]
         _val_precision = np.dot(val_targ, val_predict)/sum(val_predict)
