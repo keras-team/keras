@@ -80,7 +80,7 @@ class CallbackList(object):
         if (self._delta_t_batch > 0. and
            delta_t_median > 0.95 * self._delta_t_batch and
            delta_t_median > 0.1):
-            logging.warning(
+            warnings.warn(
                 'Method (%s) is slow compared '
                 'to the batch update (%f). Check your callbacks.', hook_name,
                 delta_t_median)
