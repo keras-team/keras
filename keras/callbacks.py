@@ -62,7 +62,7 @@ class CallbackList(object):
         """Helper function for all batch_{begin | end} methods."""
         # only train mode is supported for now
         if mode != 'train':
-            return
+            raise NotImplementedError
 
         hook_name = 'on_{mode}_batch_{hook}'.format(mode=mode, hook=hook)
         if hook == 'end':
@@ -90,14 +90,16 @@ class CallbackList(object):
     def _call_begin_hook(self, mode):
         """Helper function for on_{train|test|predict}_begin methods."""
         # only train mode is supported for now
-        if mode == 'train':
-            self.on_train_begin()
+        if mode != 'train':
+            raise NotImplementedError
+        self.on_train_begin()
 
     def _call_end_hook(self, mode):
         """Helper function for on_{train|test|predict}_end methods."""
         # only train mode is supported for now
-        if mode == 'train':
-            self.on_train_end()
+        if mode != 'train':
+            raise NotImplementedError
+        self.on_train_end()
 
     def on_epoch_begin(self, epoch, logs=None, mode='train'):
         """Called at the start of an epoch.
@@ -108,10 +110,11 @@ class CallbackList(object):
             mode: one of 'train'/'test'/'predict'
         """
         # only train mode is supported for now
-        if mode == 'train':
-            logs = logs or {}
-            for callback in self.callbacks:
-                callback.on_epoch_begin(epoch, logs)
+        if mode != 'train':
+            raise NotImplementedError
+        logs = logs or {}
+        for callback in self.callbacks:
+            callback.on_epoch_begin(epoch, logs)
         self._reset_batch_timing()
 
     def on_epoch_end(self, epoch, logs=None, mode='train'):
@@ -123,10 +126,11 @@ class CallbackList(object):
             mode: one of 'train'/'test'/'predict'
         """
         # only train mode is supported for now
-        if mode == 'train':
-            logs = logs or {}
-            for callback in self.callbacks:
-                callback.on_epoch_end(epoch, logs)
+        if mode != 'train':
+            raise NotImplementedError
+        logs = logs or {}
+        for callback in self.callbacks:
+            callback.on_epoch_end(epoch, logs)
 
     def on_batch_begin(self, batch, logs=None):
         self._call_batch_hook('train', 'begin', batch, logs=logs)
