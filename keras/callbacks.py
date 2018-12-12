@@ -66,6 +66,8 @@ class CallbackList(object):
 
         hook_name = 'on_{mode}_batch_{hook}'.format(mode=mode, hook=hook)
         if hook == 'end':
+            if not hasattr(self, '_t_enter_batch'):
+                self._t_enter_batch = time.time()
             # batch is ending, calculate batch time
             self._delta_t_batch = time.time() - self._t_enter_batch
 
