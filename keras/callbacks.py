@@ -213,9 +213,9 @@ class BaseLogger(Callback):
             All others will be averaged in `on_epoch_end`.
     """
 
-    def __init__(self, stateful_metrics=['binary_precision', 'binary_recall', 'binary_f1_score']):
+    def __init__(self, stateful_metrics=None):
         if stateful_metrics:
-            self.stateful_metrics = set(stateful_metrics)
+            self.stateful_metrics = set(['binary_precision', 'binary_recall', 'binary_f1_score'])
         else:
             self.stateful_metrics = set()
 
@@ -286,7 +286,7 @@ class ProgbarLogger(Callback):
         else:
             raise ValueError('Unknown `count_mode`: ' + str(count_mode))
         if stateful_metrics:
-            self.stateful_metrics = set(stateful_metrics)
+            self.stateful_metrics = set(['binary_precision', 'binary_recall', 'binary_f1_score'])
         else:
             self.stateful_metrics = set()
 
