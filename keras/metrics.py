@@ -52,6 +52,16 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
     return K.mean(K.in_top_k(y_pred, K.cast(K.flatten(y_true), 'int32'), k),
                   axis=-1)
 
+def binary_precision(y_true, y_pred):
+    return K.dot(y_true, y_pred)/K.sum(pred)
+
+def binary_recall(y_true, y_pred):
+    return K.dot(y_true, y_pred)/K.sum(y_true)
+
+def binary_f1_score(y_true, y_pred):
+    p = binary_precision(y_true, y_pred)
+    r = binary_recall(y_true, y_pred)
+    return 2 * p * r/(p + r)
 
 # Aliases
 
