@@ -53,10 +53,10 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
                   axis=-1)
 
 def binary_precision(y_true, y_pred):
-    return K.dot(y_true, y_pred)/K.sum(y_pred)
+    return K.sum(y_true * y_pred, axis=-1, keepdims=True)/K.sum(y_pred)
 
 def binary_recall(y_true, y_pred):
-    return K.dot(y_true, y_pred)/K.sum(y_true)
+    return K.sum(y_true * y_pred, axis=-1, keepdims=True)/K.sum(y_true)
 
 def binary_f1_score(y_true, y_pred):
     p = binary_precision(y_true, y_pred)
