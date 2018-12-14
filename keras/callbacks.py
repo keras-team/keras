@@ -1131,25 +1131,26 @@ class ReduceLROnPlateau(Callback):
     def in_cooldown(self):
         return self.cooldown_counter > 0
 
+
 class ReduceLRWithEarlyStopping(ReduceLROnPlateau):
-    def __init__(self, *args,**kwargs):
+    def __init__(self, *args, **kwargs):
         super(ReduceLRWithEarlyStopping, self).__init__(*args, **kwargs)
         self.stopped_epoch = 0
-        
+
     def on_epoch_end(self, epoch, logs=None):
         super(ReduceLRWithEarlyStopping, self).on_epoch_end(epoch, logs)
         old_lr = float(K.get_value(self.model.optimizer.lr))
         if self.wait >= self.patience and old_lr <= self.min_lr:
-            #early stop training
+            # Stop training early
             self.stopped_epoch = epoch
             self.model.stop_training = True
-    
+
     def on_train_end(self, logs=None):
         super(ReduceLRWithEarlyStopping, self).on_epoch_end(logs)
         if self.stopped_epoch > 0 and self.verbose > 0:
             print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
-            
-            
+    
+     
 class CSVLogger(Callback):
     """Callback that streams epoch results to a csv file.
 
