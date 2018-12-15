@@ -70,16 +70,6 @@ To download the data run:
     "From here on, we omit all bias terms in order to increase
     readability". It is thus not fully clear which linear transformations
     also has bias terms, here all have.
-- TODO(3) A "cascading architecture" is use in [1] by feeding not only
-    the GRU output to the readout layer but also the attention encoding.
-    This can be done by:
-    A) Set `output_mode="concatenate"` in `DenseAnnotationAttention`,
-        currently blocked by this bug:
-        https://github.com/keras-team/keras/issues/11472
-    B) Add support for multiple outputs from the RNN cell or
-        "return_state_sequences" option to RNN - this way concatenation
-        can be done externally and it also offers much more flexibility
-        for inspecting "what is attended" by the attention mechanism.
 - TODO(4) This implementation is inefficient in how attention is applied,
     part of the computation can be done _once_ for the attended but is
     now done at every timestep. It is kept this way here for readability.
@@ -747,8 +737,8 @@ if __name__ == '__main__':
     cell = DenseAnnotationAttention(cell=GRUCell(RECURRENT_UNITS),
                                     units=DENSE_ATTENTION_UNITS,
                                     input_mode="concatenate",
-                                    output_mode="cell_output")
-    # TODO output_mode="concatenate", see TODO(3)/A
+                                    output_mode="concatenate")
+
     decoder_rnn = RNN(cell=cell, return_sequences=True, return_state=True)
     h1_and_state = decoder_rnn(y_emb, initial_state=initial_state, constants=x_enc)
     h1 = h1_and_state[0]
