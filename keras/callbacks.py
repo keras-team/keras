@@ -669,7 +669,7 @@ class LearningRateScheduler(Callback):
 class TensorBoard(Callback):
     """TensorBoard basic visualizations.
 
-    [TensorBoard](https://www.tensorflow.org/get_started/summaries_and_tensorboard)
+    [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard)
     is a visualization tool provided with TensorFlow.
 
     This callback writes a log for TensorBoard, which allows
@@ -711,14 +711,14 @@ class TensorBoard(Callback):
             None or empty list all the embedding layer will be watched.
         embeddings_metadata: a dictionary which maps layer name to a file name
             in which metadata for this embedding layer is saved. See the
-            [details](https://www.tensorflow.org/how_tos/embedding_viz/#metadata_optional)
+            [details](https://www.tensorflow.org/guide/embedding#metadata)
             about metadata files format. In case if the same metadata file is
             used for all embedding layers, string can be passed.
         embeddings_data: data to be embedded at layers specified in
             `embeddings_layer_names`. Numpy array (if the model has a single
             input) or list of Numpy arrays (if the model has multiple inputs).
             Learn [more about embeddings](
-            https://www.tensorflow.org/programmers_guide/embedding).
+            https://www.tensorflow.org/guide/embedding).
         update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`, writes
             the losses and metrics to TensorBoard after each batch. The same
             applies for `'epoch'`. If using an integer, let's say `10000`,
@@ -793,7 +793,7 @@ class TensorBoard(Callback):
                 for weight in layer.weights:
                     mapped_weight_name = weight.name.replace(':', '_')
                     tf.summary.histogram(mapped_weight_name, weight)
-                    if self.write_grads:
+                    if self.write_grads and weight in layer.trainable_weights:
                         grads = model.optimizer.get_gradients(model.total_loss,
                                                               weight)
 

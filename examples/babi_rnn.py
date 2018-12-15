@@ -8,8 +8,8 @@ http://arxiv.org/abs/1502.05698
 
 Task Number                  | FB LSTM Baseline | Keras QA
 ---                          | ---              | ---
-QA1 - Single Supporting Fact | 50               | 100.0
-QA2 - Two Supporting Facts   | 20               | 50.0
+QA1 - Single Supporting Fact | 50               | 52.1
+QA2 - Two Supporting Facts   | 20               | 37.0
 QA3 - Three Supporting Facts | 20               | 20.5
 QA4 - Two Arg. Relations     | 61               | 62.9
 QA5 - Three Arg. Relations   | 70               | 61.9
@@ -35,8 +35,8 @@ https://research.facebook.com/researchers/1543934539189348
 # Notes
 
 - With default word, sentence, and query vector sizes, the GRU model achieves:
-  - 100% test accuracy on QA1 in 20 epochs (2 seconds per epoch on CPU)
-  - 50% test accuracy on QA2 in 20 epochs (16 seconds per epoch on CPU)
+  - 52.1% test accuracy on QA1 in 20 epochs (2 seconds per epoch on CPU)
+  - 37.0% test accuracy on QA2 in 20 epochs (16 seconds per epoch on CPU)
 In comparison, the Facebook paper achieves 50% and 20% for the LSTM baseline.
 
 - The task does not traditionally parse the question separately. This likely
@@ -49,7 +49,7 @@ of only 1000. 1000 was used in order to be comparable to the original paper.
 
 - Experiment with GRU, LSTM, and JZS1-3 as they give subtly different results.
 
-- The length and noise (i.e. 'useless' story components) impact the ability for
+- The length and noise (i.e. 'useless' story components) impact the ability of
 LSTMs / GRUs to provide the correct answer. Given only the supporting facts,
 these RNNs can achieve 100% accuracy on many tasks. Memory networks and neural
 networks that use attentional processes can efficiently search through this
@@ -148,7 +148,7 @@ EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
-EPOCHS = 40
+EPOCHS = 20
 print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
                                                            EMBED_HIDDEN_SIZE,
                                                            SENT_HIDDEN_SIZE,
@@ -201,17 +201,13 @@ print('Build model...')
 
 sentence = layers.Input(shape=(story_maxlen,), dtype='int32')
 encoded_sentence = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(sentence)
-encoded_sentence = layers.Dropout(0.3)(encoded_sentence)
+encoded_sentence = RNN(SENT_HIDDEN_SIZE)(encoded_sentence)
 
 question = layers.Input(shape=(query_maxlen,), dtype='int32')
 encoded_question = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(question)
-encoded_question = layers.Dropout(0.3)(encoded_question)
-encoded_question = RNN(EMBED_HIDDEN_SIZE)(encoded_question)
-encoded_question = layers.RepeatVector(story_maxlen)(encoded_question)
+encoded_question = RNN(QUERY_HIDDEN_SIZE)(encoded_question)
 
-merged = layers.add([encoded_sentence, encoded_question])
-merged = RNN(EMBED_HIDDEN_SIZE)(merged)
-merged = layers.Dropout(0.3)(merged)
+merged = layers.concatenate([encoded_sentence, encoded_question])
 preds = layers.Dense(vocab_size, activation='softmax')(merged)
 
 model = Model([sentence, question], preds)
@@ -224,6 +220,8 @@ model.fit([x, xq], y,
           batch_size=BATCH_SIZE,
           epochs=EPOCHS,
           validation_split=0.05)
+
+print('Evaluation')
 loss, acc = model.evaluate([tx, txq], ty,
                            batch_size=BATCH_SIZE)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))

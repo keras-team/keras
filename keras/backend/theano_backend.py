@@ -465,7 +465,10 @@ def batch_dot(x, y, axes=None):
         axes = (axes, axes)
     if axes is None:
         # behaves like tf.batch_matmul as default
-        axes = [x.ndim - 1, y.ndim - 2]
+        if y.ndim == 2:
+            axes = [x.ndim - 1, y.ndim - 1]
+        else:
+            axes = [x.ndim - 1, y.ndim - 2]
     if py_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
@@ -473,14 +476,11 @@ def batch_dot(x, y, axes=None):
     if isinstance(axes, tuple):
         axes = list(axes)
 
-    # workaround because theano doesn't accept axes
-    # which contains the batch axis (0)
-    if axes[0] == 0:
-        x = transpose(x)
-        axes[0] = x.ndim - 1
-    if axes[1] == 0:
-        y = transpose(y)
-        axes[1] = y.ndim - 1
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0.'
+                         'If your inputs are not batched,'
+                         ' add a dummy batch dimension to your '
+                         'inputs using K.expand_dims(x, 0)')
 
     out = T.batched_tensordot(x, y, axes=axes)
     if ndim(out) == 1:
@@ -1503,10 +1503,22 @@ def rnn(step_function, inputs, initial_states,
     uses_learning_phase = False
 
     if mask is not None:
-        if mask.ndim == ndim - 1:
-            mask = expand_dims(mask)
-        assert mask.ndim == ndim
-        mask = mask.dimshuffle(axes)
+        if mask.ndim != 2:
+            raise ValueError(
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
+        mask = mask.dimshuffle([1, 0])
+
+        def get_matching_mask(mask_t, ref_tensor_t):
+            # tf.where needs its condition tensor
+            # to be the same shape as its two
+            # result tensors
+            ndim = ref_tensor_t.ndim
+            for _ in range(ndim - 1):
+                mask_t = expand_dims(mask_t)
+            add_shape = ref_tensor_t.shape[1:]
+            reps = T.concatenate([[1], add_shape], 0)
+            return T.tile(mask_t, reps, ndim=ndim)
 
         if unroll:
             indices = list(range(input_length))
@@ -1526,10 +1538,12 @@ def rnn(step_function, inputs, initial_states,
                 else:
                     prev_output = successive_outputs[-1]
 
-                output = T.switch(mask[i], output, prev_output)
+                output_mask = get_matching_mask(mask[i], output)
+                output = T.switch(output_mask, output, prev_output)
                 kept_states = []
                 for state, new_state in zip(states, new_states):
-                    kept_states.append(T.switch(mask[i], new_state, state))
+                    state_mask = get_matching_mask(mask[i], state)
+                    kept_states.append(T.switch(state_mask, new_state, state))
                 states = kept_states
 
                 successive_outputs.append(output)
@@ -1557,10 +1571,12 @@ def rnn(step_function, inputs, initial_states,
                     global uses_learning_phase
                     uses_learning_phase = True
                 # output previous output if masked.
-                outputs = T.switch(mask, outputs, output_tm1)
+                output_mask = get_matching_mask(mask, outputs)
+                outputs = T.switch(output_mask, outputs, output_tm1)
                 return_states = []
                 for state, new_state in zip(states, new_states):
-                    return_states.append(T.switch(mask, new_state, state))
+                    state_mask = get_matching_mask(mask, state)
+                    return_states.append(T.switch(state_mask, new_state, state))
                 return [outputs] + return_states
 
             results, _ = theano.scan(

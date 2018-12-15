@@ -570,43 +570,142 @@ def batch_dot(x, y, axes=None):
     x_shape = int_shape(x)
     y_shape = int_shape(y)
 
+    x_ndim = len(x_shape)
+    y_ndim = len(y_shape)
+
+    if x_ndim < 2 or y_ndim < 2:
+        raise ValueError('Can not do batch_dot on inputs '
+                         'with rank < 2. '
+                         'Received inputs with shapes ' +
+                         str(x_shape) + ' and ' +
+                         str(y_shape) + '.')
+
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is not None and y_batch_size is not None:
+        if x_batch_size != y_batch_size:
+            raise ValueError('Can not do batch_dot on inputs '
+                             'with different batch sizes. '
+                             'Received inputs with shapes ' +
+                             str(x_shape) + ' and ' +
+                             str(y_shape) + '.')
+
     if isinstance(axes, int):
-        axes = (axes, axes)
+        axes = [axes, axes]
+
     if axes is None:
-        # behaves like tf.batch_matmul as default
-        axes = [len(x_shape) - 1, len(y_shape) - 2]
+        if y_ndim == 2:
+            axes = [x_ndim - 1, y_ndim - 1]
+        else:
+            axes = [x_ndim - 1, y_ndim - 2]
+
     if b_any([isinstance(a, (list, tuple)) for a in axes]):
         raise ValueError('Multiple target dimensions are not supported. ' +
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
 
-    if len(x_shape) == 2 and len(y_shape) == 2:
-        if axes[0] == axes[1]:
-            result = sum(x * y, axis=axes[0], keepdims=True)
-            return result if axes[0] == 1 else transpose(result)
-        else:
-            return sum(x * transpose(y), axis=axes[0], keepdims=True)
-    else:
-        if len(y_shape) == 2:
-            y = expand_dims(y)
+    # if tuple, convert to list
+    axes = list(axes)
 
-        normalized_axis = []
-        normalized_axis.append(_normalize_axis(axes[0], x)[0])
-        normalized_axis.append(_normalize_axis(axes[1], y)[0])
-        # transpose
-        i = normalized_axis[0]
-        while i < len(x.shape) - 1:
-            x = C.swapaxes(x, i, i + 1)
-            i += 1
-        i = normalized_axis[1]
-        while i > 0:
-            y = C.swapaxes(y, i, i - 1)
-            i -= 1
-        result = C.times(x, y, output_rank=(len(y.shape) - 1)
-                         if len(y.shape) > 1 else 1)
-        if len(y_shape) == 2:
-            result = squeeze(result, -1)
-        return result
+    # convert negative indices
+    if axes[0] < 0:
+        axes[0] += x_ndim
+    if axes[1] < 0:
+        axes[1] += y_ndim
+
+    if 0 in axes:
+        raise ValueError('Can not perform batch_dot over axis 0.'
+                         ' If your inputs are not batched,'
+                         ' add a dummy batch dimension to your '
+                         'inputs using K.expand_dims(x, 0)')
+    d1 = x_shape[axes[0]]
+    d2 = y_shape[axes[1]]
+
+    if d1 is not None and d2 is not None and d1 != d2:
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x_shape) + ' and ' + str(y_shape) +
+                         ' with axes=' + str(axes) + '. x.shape[%d] != '
+                         'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
+
+    # Input shapes:
+    # x: (b_size, x1, ..., d, ..., xn)
+    # y: (b_size, y1, ..., d, ..., yn)
+    # where d is the dimension to reduce.
+
+    # Bring d to the last dimension in x
+    # x: (b_size, ..., d)
+
+    permute_pattern = list(range(x_ndim))
+    for i in range(axes[0], x_ndim - 1):
+        permute_pattern[i] = permute_pattern[i + 1]
+    permute_pattern[-1] = axes[0]
+
+    x = permute_dimensions(x, permute_pattern)
+
+    # Bring d to the second dimension in y
+    # y: (b_size, d, ...)
+    permute_pattern = list(range(y_ndim))
+
+    for i in range(axes[1], 1, -1):
+        permute_pattern[i] = permute_pattern[i - 1]
+    permute_pattern[1] = axes[1]
+    y = permute_dimensions(y, permute_pattern)
+
+    # Expand to rank 3 if needed
+    if x_ndim == 2:
+        x = expand_dims(x, 1)
+        x_expanded = True
+    else:
+        x_expanded = False
+
+    if y_ndim == 2:
+        y = expand_dims(y, -1)
+        y_expanded = True
+    else:
+        y_expanded = False
+
+    x_shape = int_shape(x)
+    y_shape = int_shape(y)
+
+    # batch size might be lost at this point
+    x_batch_size = x_shape[0]
+    y_batch_size = y_shape[0]
+
+    if x_batch_size is None and y_batch_size is None:
+        dynamic_batch_size = True
+    elif x_batch_size is not None and y_batch_size is not None:
+        dynamic_batch_size = False
+    else:
+        raise ValueError('Can not perform batch_dot on inputs' +
+                         ' with both static and dynamic batch sizes.' +
+                         'You probably attempted to permform the ' +
+                         'operation on a placeholder and a variable, ' +
+                         'which is not yet supported on the CNTK backend.')
+
+    if dynamic_batch_size:
+        result = C.times(x, y, output_rank=y_ndim - 2 + int(y_expanded))
+    else:
+        result = []
+
+        for i in range(x_batch_size):
+            xi = x[i]
+            yi = y[i]
+            if ndim(xi) == ndim(x):  # for older versions of CNTK
+                xi = squeeze(xi, 0)
+                yi = squeeze(yi, 0)
+            result.append(C.times(xi, yi, output_rank=y_ndim - 2 + int(y_expanded)))
+        result = stack(result, 0)
+
+    if x_expanded:
+        result = squeeze(result, 1)
+
+    if y_expanded:
+        result = squeeze(result, -1)
+
+    if ndim(result) == 1:
+        return expand_dims(result)
+    return result
 
 
 def transpose(x):
@@ -1133,6 +1232,11 @@ def concatenate(tensors, axis=-1):
     return C.splice(*tensors, axis=axis[0])
 
 
+def stack(x, axis=0):
+    x = [expand_dims(t, axis) for t in x]
+    return concatenate(x, axis)
+
+
 def flatten(x):
     return reshape(x, (-1,))
 
@@ -1385,6 +1489,12 @@ def _static_rnn(step_function, inputs, initial_states,
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
         unroll=False, input_length=None):
+
+    if not unroll and mask is not None:
+        warnings.warn(
+            'CNTK Backend only supports accurate masking if '
+            '`output == new_states[0]` for '
+            '`output, new_states = step_function(inputs, states)`')
 
     shape = int_shape(inputs)
     dims = len(shape)
