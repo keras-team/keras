@@ -101,7 +101,7 @@ def softsign(x):
         x: Input tensor.
 
     # Returns
-        The softplus activation: `x / (abs(x) + 1)`.
+        The softsign activation: `x / (abs(x) + 1)`.
     """
     return K.softsign(x)
 

@@ -216,7 +216,7 @@ def get_file(fname,
             else:
                 ProgressTracker.progbar.update(count * block_size)
 
-        error_msg = 'URL fetch failure on {}: {} -- {}'
+        error_msg = 'URL fetch failure on {} : {} -- {}'
         try:
             try:
                 urlretrieve(origin, fpath, dl_progress)
@@ -340,6 +340,8 @@ class Sequence(object):
                        for file_name in batch_x]), np.array(batch_y)
     ```
     """
+
+    use_sequence_api = True
 
     @abstractmethod
     def __getitem__(self, index):

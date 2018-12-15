@@ -20,3 +20,6 @@ omit =
     keras/layers/cudnn_recurrent.py
     keras/legacy/*
     keras/utils/multi_gpu_utils.py
+    keras/backend/theano_backend.py
+    keras/backend/tensorflow_backend.py
+    keras/backend/cntk_backend.py
