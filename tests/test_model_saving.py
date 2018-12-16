@@ -53,7 +53,7 @@ def test_sequential_model_saving():
     os.remove(fname)
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        gcs_filepath = file_io_proxy.get_filepath(filename=fname)
         save_model(model, gcs_filepath)
         file_io_proxy.assert_exists(gcs_filepath)
         new_model_gcs = load_model(gcs_filepath)
@@ -95,7 +95,7 @@ def test_sequential_model_saving_2():
     os.remove(fname)
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        gcs_filepath = file_io_proxy.get_filepath(filename=fname)
         save_model(model, gcs_filepath)
         file_io_proxy.assert_exists(gcs_filepath)
         new_model_gcs = load_model(gcs_filepath, **load_kwargs)
@@ -126,7 +126,7 @@ def test_functional_model_saving():
     os.remove(fname)
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        gcs_filepath = file_io_proxy.get_filepath(filename=fname)
         save_model(model, gcs_filepath)
         file_io_proxy.assert_exists(gcs_filepath)
         new_model_gcs = load_model(gcs_filepath)
@@ -704,7 +704,10 @@ def test_save_load_weights_gcs():
     org_weights = model.get_weights()
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        gcs_filepath = file_io_proxy.get_filepath(
+            filename='test_save_load_weights_gcs.h5')
+        # we should not use same filename in several tests to allow for parallel
+        # execution
         model.save_weights(gcs_filepath)
         model.set_weights([np.random.random(w.shape) for w in org_weights])
         for w, org_w in zip(model.get_weights(), org_weights):
@@ -712,6 +715,8 @@ def test_save_load_weights_gcs():
         model.load_weights(gcs_filepath)
         for w, org_w in zip(model.get_weights(), org_weights):
             assert_allclose(w, org_w)
+
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
 
 
 def test_saving_overwrite_option():
@@ -749,7 +754,10 @@ def test_saving_overwrite_option_gcs():
     new_weights = [np.random.random(w.shape) for w in org_weights]
 
     with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
-        gcs_filepath = file_io_proxy.get_filepath(filename='model.h5')
+        gcs_filepath = file_io_proxy.get_filepath(
+            filename='test_saving_overwrite_option_gcs.h5')
+        # we should not use same filename in several tests to allow for parallel
+        # execution
         save_model(model, gcs_filepath)
         model.set_weights(new_weights)
 
