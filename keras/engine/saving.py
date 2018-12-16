@@ -373,10 +373,8 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         raise ImportError('`save_model` requires h5py.')
 
     if H5Dict.is_supported_type(filepath):
-        if (
-            not overwrite and H5Dict.opens_file(filepath)
-            and os.path.isfile(filepath)
-        ):
+        opens_file = H5Dict.opens_file(filepath)
+        if opens_file and os.path.isfile(filepath) and not overwrite:
             proceed = ask_to_proceed_with_overwrite(filepath)
             if not proceed:
                 return
