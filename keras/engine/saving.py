@@ -343,10 +343,19 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
     return model
 
 
-def _gcs_transfer(source_filepath, target_filepath, overwrite=True):
-    """Transfers file to/from Google Cloud Storage"""
+def _gcs_copy(source_filepath, target_filepath, overwrite=True):
+    """Copies a file to/from/within Google Cloud Storage (GCS).
+
+    # Arguments
+        source_filepath: String, path to the file on filesystem or object on GCS to
+            copy from.
+        target_filepath: String, path to the file on filesystem or object on GCS to
+            copy to.
+        overwrite: Whether we should overwrite an existing file/object at the target
+            location, or instead ask the user with a manual prompt.
+    """
     if tf_file_io is None:
-        raise ImportError('Google Cloud Storage file transfer requires tensorflow.')
+        raise ImportError('Google Cloud Storage file transfer requires TensorFlow.')
     if not overwrite and tf_file_io.file_exists(target_filepath):
         proceed = ask_to_proceed_with_overwrite(target_filepath)
         if not proceed:
@@ -357,14 +366,28 @@ def _gcs_transfer(source_filepath, target_filepath, overwrite=True):
 
 
 def _is_gcs_location(filepath):
-    """Checks if `filepath` is referencing a google storage bucket"""
+    """Checks if `filepath` is referencing a google storage bucket.
+
+    # Arguments
+        filepath: The location to check.
+    """
     return isinstance(filepath, string_types) and filepath.startswith('gs://')
 
 
 def allow_write_to_gcs(save_function):
-    """Function decorator that parses `filepath` argument to the `save_function`
-    and saves the file to Google Cloud Storage (GCS) if `filepath` starts with
-    "gs://".
+    """Function decorator to support saving to Google Cloud Storage (GCS).
+
+    This decorator parses the `filepath` argument of the `save_function` and
+    transfers the file to GCS if `filepath` starts with "gs://".
+
+    Note: the file is temporarily writen to local filesystem before copied to GSC.
+
+    # Arguments
+        save_function: The function to wrap, with requirements:
+            - second positional argument should indicate the location to save to.
+            - third positional argument should be the `overwrite` option indicating
+            whether we should overwrite an existing file/object at the target
+            location, or instead ask the user with a manual prompt.
     """
     @wraps(save_function)
     def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
@@ -373,7 +396,7 @@ def allow_write_to_gcs(save_function):
                                         os.path.basename(filepath))
             save_function(obj, tmp_filepath, True, *args, **kwargs)
             try:
-                _gcs_transfer(tmp_filepath, filepath, overwrite)
+                _gcs_copy(tmp_filepath, filepath, overwrite)
             finally:
                 os.remove(tmp_filepath)
         else:
@@ -383,9 +406,17 @@ def allow_write_to_gcs(save_function):
 
 
 def allow_read_from_gcs(load_function):
-    """Function decorator that parses `filepath` argument to the `load_function`
-    and loads the file from Google Cloud Storage (GCS) if `filepath` starts with
-    "gs://"
+    """Function decorator to support loading from Google Cloud Storage (GCS).
+
+    This decorator parses the `filepath` argument of the `load_function` and
+    fetches the required object from GCS if `filepath` starts with "gs://".
+
+    Note: the file is temporarily copied to local filesystem from GCS before loaded.
+
+    # Arguments
+        load_function: The function to wrap, with requirements:
+            - should have one _named_ argument `filepath` indicating the location to
+            load from.
     """
     def extract_named_arg(f, name, args, kwargs):
         if name in kwargs:
@@ -405,7 +436,7 @@ def allow_read_from_gcs(load_function):
         if _is_gcs_location(filepath):
             tmp_filepath = os.path.join(tempfile.gettempdir(),
                                         os.path.basename(filepath))
-            _gcs_transfer(filepath, tmp_filepath)
+            _gcs_copy(filepath, tmp_filepath)
             _kwargs['filepath'] = tmp_filepath
             try:
                 res = load_function(*_args, **_kwargs)
