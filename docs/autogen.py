@@ -175,6 +175,7 @@ PAGES = [
             layers.Conv2D,
             layers.SeparableConv1D,
             layers.SeparableConv2D,
+            layers.DepthwiseConv2D,
             layers.Conv2DTranspose,
             layers.Conv3D,
             layers.Conv3DTranspose,
@@ -415,13 +416,6 @@ def clean_module_name(name):
         name = name.replace('keras_preprocessing', 'keras.preprocessing')
     assert name[:6] == 'keras.', 'Invalid module name: %s' % name
     return name
-
-
-def class_to_docs_link(cls):
-    module_name = clean_module_name(cls.__module__)
-    module_name = module_name[6:]
-    link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
-    return link
 
 
 def class_to_source_link(cls):
