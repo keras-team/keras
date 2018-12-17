@@ -410,7 +410,7 @@ def weighted_masked_objective(fn):
             score_array *= mask
             #  the loss per batch should be proportional
             #  to the number of unmasked samples.
-            score_array /= K.mean(mask)
+            score_array /= K.mean(mask) + K.epsilon()
 
         # apply sample weighting
         if weights is not None:

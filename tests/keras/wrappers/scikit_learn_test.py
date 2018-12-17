@@ -167,6 +167,24 @@ def assert_regression_works(reg):
     assert preds.shape == (num_test, )
 
 
+def test_regression_predict_shape_correct_num_test_0():
+    assert_regression_predict_shape_correct(num_test=0)
+
+
+def test_regression_predict_shape_correct_num_test_1():
+    assert_regression_predict_shape_correct(num_test=1)
+
+
+def assert_regression_predict_shape_correct(num_test):
+    reg = KerasRegressor(
+        build_fn=build_fn_reg, hidden_dims=hidden_dims,
+        batch_size=batch_size, epochs=epochs)
+    reg.fit(X_train, y_train, batch_size=batch_size, epochs=epochs)
+
+    preds = reg.predict(X_test[:num_test], batch_size=batch_size)
+    assert preds.shape == (num_test, )
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
 
