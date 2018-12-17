@@ -292,7 +292,7 @@ class Identity(Initializer):
             return self.gain * np.concatenate(
                 [
                     np.identity(shape[1]),
-                    np.zeros(shape[0] - shape[1], shape[1])
+                    np.zeros((shape[0] - shape[1], shape[1]))
                 ],
                 axis=0
             )
@@ -300,7 +300,7 @@ class Identity(Initializer):
             return self.gain * np.concatenate(
                 [
                     np.identity(shape[0]),
-                    np.zeros(shape[0], shape[1] - shape[0])
+                    np.zeros((shape[0], shape[1] - shape[0]))
                 ],
                 axis=1
             )
