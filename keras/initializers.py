@@ -290,10 +290,20 @@ class Identity(Initializer):
             return self.gain * np.identity(shape[0])
         elif shape[0] > shape[1]:
             return self.gain * np.concatenate(
-                [np.identity(shape[1])] * (shape[0] // shape[1]), axis=0)
+                [
+                    np.identity(shape[1]),
+                    np.zeros(shape[0] - shape[1], shape[1])
+                ],
+                axis=0
+            )
         else:
             return self.gain * np.concatenate(
-                [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+                [
+                    np.identity(shape[0]),
+                    np.zeros(shape[0], shape[1] - shape[0])
+                ],
+                axis=1
+            )
 
     def get_config(self):
         return {
