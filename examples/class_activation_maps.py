@@ -11,10 +11,10 @@ from keras.layers import UpSampling2D, Conv2D
 
 
 # Please set an appropriate image file
-INPUT_IMG_FILE = "dog.jpg" 
+INPUT_IMG_FILE = "dog.jpg"
 
 ################################################################
-# The following parameters can be changed to other models 
+# The following parameters can be changed to other models
 # that use global average pooling.
 # e.g.) InceptionResnetV2 / NASNetLarge
 NETWORK_INPUT_SIZE = 224
