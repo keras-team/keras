@@ -3447,6 +3447,8 @@ def softsign(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.softsign(x)
 

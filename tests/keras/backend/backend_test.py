@@ -1077,6 +1077,7 @@ class TestBackend(object):
                                       max_value=max_value, threshold=threshold)
 
     def test_nn_operations(self):
+        check_single_tensor_operation('softsign', (4, 10), WITH_NP)
         check_single_tensor_operation('softplus', (4, 10), WITH_NP)
         check_single_tensor_operation('elu', (4, 10), WITH_NP, alpha=0.5)
 
