@@ -388,8 +388,8 @@ h5dict = H5Dict
 
 
 def load_from_binary_h5py(load_function, stream):
-    """Applies a loading function to a `h5py.File` that is opened in memory from the
-    provided file-like object `stream`.
+    """Calls `load_function` on a in memory `h5py.File` read from the binary
+    `stream`.
 
     # Arguments:
         load_function: A function that takes a `h5py.File`, reads from it, and
@@ -418,8 +418,8 @@ def load_from_binary_h5py(load_function, stream):
 
 
 def save_to_binary_h5py(save_function, stream):
-    """Applies a saving function to a `h5py.File` that is opened in memory and which
-     binary file image is written to the file-like object `stream`
+    """Calls `save_function` on an in memory `h5py.File` which is subsequently
+    written to the binary `stream`.
 
      # Arguments:
         save_function: A function that takes a `h5py.File`, writes to it and
