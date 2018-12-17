@@ -78,16 +78,19 @@ from __future__ import print_function
 
 import os
 import heapq
+from collections import namedtuple
+
 import numpy as np
 
 from keras import backend as K
 from keras import initializers, regularizers, constraints
+from keras.engine import InputLayer
 from keras.engine.base_layer import _collect_previous_mask
 from keras.layers import Layer, InputSpec
 from keras.layers import Input, Embedding, Bidirectional, RNN, GRU, GRUCell
 from keras.layers import TimeDistributed, Dense, concatenate, Lambda
 from keras.models import Model
-from keras.optimizers import Adadelta
+from keras.optimizers import Adadelta, Adam
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils.generic_utils import has_arg
@@ -596,7 +599,7 @@ class DenseAnnotationAttention(AttentionCellWrapper):
                        attention_states,
                        attended_mask,
                        training=None):
-        # only one attended sequence (verified in build)
+        # there must be two attended sequences (verified in build)
         [attended, u] = attended
         attended_mask = attended_mask[0]
         h_cell_tm1 = cell_states[0]
@@ -681,7 +684,7 @@ if __name__ == '__main__':
         fpath = os.path.join(DATA_DIR, partion + '.' + language)
         with open(fpath, 'r') as f:
             sentences = f.readlines()
-        return ["{} {} {}".format(start_token, sentence, end_token)
+        return ["{} {} {}".format(start_token, sentence.replace('\n', ''), end_token)
                 for sentence in sentences]
 
     input_texts_train = get_sentences("train", FROM_LANGUAGE)
@@ -689,20 +692,27 @@ if __name__ == '__main__':
     target_texts_train = get_sentences("train", TO_LANGUAGE)
     target_texts_val = get_sentences("val", TO_LANGUAGE)
 
-    input_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS)
-    target_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS)
+    input_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS, oov_token='?')
+    target_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS, oov_token='?')
     input_tokenizer.fit_on_texts(input_texts_train + input_texts_val)
     target_tokenizer.fit_on_texts(target_texts_train + target_texts_val)
-    input_max_word_idx = max(input_tokenizer.word_index.values())
-    target_max_word_idx = max(target_tokenizer.word_index.values())
 
     input_seqs_train = input_tokenizer.texts_to_sequences(input_texts_train)
     input_seqs_val = input_tokenizer.texts_to_sequences(input_texts_val)
     target_seqs_train = target_tokenizer.texts_to_sequences(target_texts_train)
     target_seqs_val = target_tokenizer.texts_to_sequences(target_texts_val)
 
+    # we need to know the largest index to set size of embeddings and output layer
+    input_max_word_idx = max([max(s) for s in input_seqs_train + input_seqs_val])
+    target_max_word_idx = max([max(s) for s in target_seqs_train + target_seqs_val])
+    # Note that the Tokenizer does't have a property for this, but below also works:
+    # input_max_word_idx = min(
+    #     max(input_tokenizer.word_index.values()),
+    #     input_tokenizer.num_words - 1
+    # )
     input_seqs_train, input_seqs_val, target_seqs_train, target_seqs_val = (
-        pad_sequences(seq, maxlen=MAX_WORDS_PER_SENTENCE, padding='post')
+        pad_sequences(seq, maxlen=MAX_WORDS_PER_SENTENCE,
+                      padding='post', truncating='post')
         for seq in [input_seqs_train,
                     input_seqs_val,
                     target_seqs_train,
@@ -719,20 +729,21 @@ if __name__ == '__main__':
                                     return_state=True))
     x_enc, h_enc_fwd_final, h_enc_bkw_final = encoder_rnn(x_emb)
 
+    # half of the dense annotation can be computed one per input sequence sine it is
+    # independent of the RNN state
     u = TimeDistributed(Dense(DENSE_ATTENTION_UNITS, use_bias=False))(x_enc)
 
     # the final state of the backward-GRU (closest to the start of the input
     # sentence) is used to initialize the state of the decoder
     initial_state_gru = Dense(RECURRENT_UNITS, activation='tanh')(h_enc_bkw_final)
-    initial_attention_h = Lambda(lambda x: K.zeros_like(x)[:, 0, :])(x_enc)
+    initial_attention_h = Lambda(lambda _x: K.zeros_like(_x)[:, 0, :])(x_enc)
     initial_state = [initial_state_gru, initial_attention_h]
 
     cell = DenseAnnotationAttention(cell=GRUCell(RECURRENT_UNITS),
                                     input_mode="concatenate",
                                     output_mode="concatenate")
-    decoder_rnn = RNN(cell=cell, return_sequences=True, return_state=True)
-    h1_and_state = decoder_rnn(y_emb, initial_state=initial_state, constants=x_enc)
-    h1 = h1_and_state[0]
+    decoder_rnn = RNN(cell=cell, return_sequences=True)
+    h1 = decoder_rnn(y_emb, initial_state=initial_state, constants=[x_enc, u])
 
     def dense_maxout(x_):
         """Implements a dense maxout layer where max is taken
@@ -751,96 +762,6 @@ if __name__ == '__main__':
     model = Model([y, x], y_pred)
     model.compile(loss='sparse_categorical_crossentropy', optimizer=OPTIMIZER)
 
-<<<<<<< HEAD
-    # reduce data TODO temp
-    # input_seqs_train = input_seqs_train[:80]
-    # target_seqs_train = target_seqs_train[:80]
-    # input_seqs_val = input_seqs_val[:80]
-    # target_seqs_val = target_seqs_val[:80]
-
-    # Run training
-    # model.fit([target_seqs_train[:, :-1], input_seqs_train],
-    #           target_seqs_train[:, 1:, None],
-    #           batch_size=BATCH_SIZE,
-    #           epochs=EPOCHS,
-    #           validation_data=(
-    #               [target_seqs_val[:, :-1], input_seqs_val],
-    #               target_seqs_val[:, 1:, None]))
-
-    # Save model
-    model.save('rec_att_mt.h5')
-
-    # Inference, i.e. use to model to translate new sentences!
-    # To be able to do this efficiently we need to do two things in preparation:
-    #  1) Build separate model for the encoding that is only done _once_ per input
-    #     sequence.
-    #  2) Build a model for the decoder (and output layers) that takes input states
-    #     and returns updated states for the recurrent part of the model, so that
-    #     it can be run one time step at a time.
-
-    encoder_model = Model(x, [x_enc, u])
-
-    x_enc_new = Input(batch_shape=K.int_shape(x_enc))
-    u_new = Input(batch_shape=K.int_shape(u))
-    initial_state = [Input((size,)) for size in cell.state_size]
-    decoder_new = RNN(cell=cell, return_sequences=True, return_state=True)
-    h1_new_and_state = decoder_new(y_emb,
-                                   initial_state=initial_state,
-                                   constants=[x_enc_new, u_new])
-    h1_new = h1_new_and_state[0]
-    updated_state = h1_new_and_state[1:]
-    h2_new = maxout_layer(concatenate([h1_new, y_emb]))
-    y_pred_new = output_layer(h2_new)
-    decoder_output_model = Model([y, x_enc_new, u_new] + initial_state,
-                                 [y_pred_new] + updated_state)
-
-    def translate_greedy(input_text, t_max=None):
-        """Takes the most probable next token at each time step until the end-token
-        is predicted or t_max reached.
-        """
-        t = 0
-        y_t = np.array(target_tokenizer.texts_to_sequences([start_token]))
-        y_0_to_t = [y_t]
-        x_ = np.array(input_tokenizer.texts_to_sequences([input_text]))
-        state_t = [np.zeros((1, size)) for size in cell.state_size]
-        [x_enc_, u_] = encoder_model.predict(x_)
-
-        if t_max is None:
-            t_max = x_.shape[-1] * 2
-        end_idx = target_tokenizer.word_index[end_token]
-        score = 0  # track the cumulative log likelihood
-        while y_t[0, 0] != end_idx and t < t_max:
-            outputs = decoder_output_model.predict([y_t, x_enc_, u_] + state_t)
-            t += 1
-            state_t = outputs[1:]
-            y_pred_ = outputs[0]
-            y_t = np.argmax(y_pred_, axis=-1)
-            score += np.log(y_pred_[0, 0, y_t[0, 0]])
-            y_0_to_t.append(y_t)
-        y_ = np.hstack(y_0_to_t)
-        output_text = target_tokenizer.sequences_to_texts(y_)[0]
-        # length normalised score, skipping start token
-        score = score / (len(y_0_to_t) - 1)
-
-        return output_text, score
-
-    def translate_beam_search(input_text,
-                              search_width=20,
-                              branch_factor=None,
-                              t_max=None):
-        """Perform beam search to approximately find the translated sentence that
-        maximises the conditional probability given the input sequence.
-
-        Returns the completed sentences (reached end-token) in order of decreasing
-        score (the first is most probable) followed by incomplete sentences in order
-        of decreasing score - as well as the score for the respective sentence.
-
-        References:
-            [1] "Sequence to sequence learning with neural networks"
-            (https://arxiv.org/pdf/1409.3215.pdf)
-        """
-
-=======
     # Run training
     model.fit([target_seqs_train[:, :-1], input_seqs_train],
               target_seqs_train[:, 1:, None],
@@ -849,67 +770,47 @@ if __name__ == '__main__':
               validation_data=(
                   [target_seqs_val[:, :-1], input_seqs_val],
                   target_seqs_val[:, 1:, None]))
-
     # Save model
     model.save('rec_att_mt.h5')
 
-    # Inference
-    # Let's use the model to translate new sentences! To do this efficiently, two
-    # things must be done in preparation:
-    #  1) Build separate model for the encoding that is only done _once_ per input
-    #     sequence.
-    #  2) Build a model for the decoder (and output layers) that takes input states
-    #     and returns updated states for the recurrent part of the model, so that
-    #     it can be run one step at a time.
-    encoder_model = Model(x, [x_enc] + initial_state)
-
-    x_enc_new = Input(batch_shape=K.int_shape(x_enc))
-    initial_state_new = [Input((size,)) for size in cell.state_size]
-    h1_and_state_new = decoder_rnn(y_emb,
-                                   initial_state=initial_state_new,
-                                   constants=x_enc_new)
-    h1_new = h1_and_state_new[0]
-    updated_state = h1_and_state_new[1:]
-    h2_new = maxout_layer(concatenate([h1_new, y_emb]))
-    y_pred_new = output_layer(h2_new)
-    decoder_model = Model([y, x_enc_new] + initial_state_new,
-                          [y_pred_new] + updated_state)
+    # Inference: use to model to translate new sentences!
+    # Greedy and Beam Search inference is implemented below. Note that in both
+    # approaches the input and entire history of outputs are processed for every
+    # token that is generated. A more computationally efficient way is to decompose
+    # the model into one encoding model (that is ran once per input text) and one
+    # decoding model that returns its recurrent state, so that it can be applied
+    # iteratively on only the latest generated token. This is left out here for
+    # brevity.
 
     def translate_greedy(input_text, t_max=None):
-        """Takes the most probable next token at each time step until the end-token
-        is predicted or t_max reached.
+        """Select the next token highest predicted likelihood iteratively.
         """
         t = 0
-        y_t = np.array(target_tokenizer.texts_to_sequences([start_token]))
-        y_0_to_t = [y_t]
+        y_ = np.array(target_tokenizer.texts_to_sequences([start_token]))
         x_ = np.array(input_tokenizer.texts_to_sequences([input_text]))
-        encoder_output = encoder_model.predict(x_)
-        x_enc_ = encoder_output[0]
-        state_t = encoder_output[1:]
+
         if t_max is None:
             t_max = x_.shape[-1] * 2
         end_idx = target_tokenizer.word_index[end_token]
         score = 0  # track the cumulative log likelihood
-        while y_t[0, 0] != end_idx and t < t_max:
+        while y_[0, -1] != end_idx and t < t_max:
+            y_pred_ = model.predict([y_, x_])
             t += 1
-            decoder_output = decoder_model.predict([y_t, x_enc_] + state_t)
-            y_pred_ = decoder_output[0]
-            state_t = decoder_output[1:]
-            y_t = np.argmax(y_pred_, axis=-1)
+            y_t = np.argmax(y_pred_[:, -1:], axis=-1)
             score += np.log(y_pred_[0, 0, y_t[0, 0]])
-            y_0_to_t.append(y_t)
-        y_ = np.hstack(y_0_to_t)
+            y_ = np.hstack([y_, y_t])
         output_text = target_tokenizer.sequences_to_texts(y_)[0]
         # length normalised score, skipping start token
-        score = score / (len(y_0_to_t) - 1)
+        score = score / (y_.shape[1] - 1)
 
         return output_text, score
+
 
     def translate_beam_search(input_text,
                               search_width=20,
                               branch_factor=None,
                               t_max=None):
-        """Perform beam search to approximately find the translated sentence that
+        """Perform beam search to (approximately) find the translated sentence that
         maximises the conditional probability given the input sequence.
 
         Returns the completed sentences (reached end-token) in order of decreasing
@@ -921,7 +822,6 @@ if __name__ == '__main__':
             (https://arxiv.org/pdf/1409.3215.pdf)
         """
 
->>>>>>> recurrent_attention_standalone_example
         if branch_factor is None:
             branch_factor = search_width
         elif branch_factor > search_width:
@@ -935,124 +835,78 @@ if __name__ == '__main__':
             top_k = np.argpartition(a, -k)[-k:]
             return sorted(zip(a[top_k], top_k))[::-1]
 
-        # initialisation of search
-        t = 0
-        y_0 = np.array(target_tokenizer.texts_to_sequences([start_token]))[0]
-<<<<<<< HEAD
-        state_0 = [np.zeros((size,)) for size in cell.state_size]
-=======
->>>>>>> recurrent_attention_standalone_example
-        end_idx = target_tokenizer.word_index[end_token]
+        class Beam(object):
+            """A Beam holds the tokens seen so far and its accumulated score
+            (log likelihood).
+            """
+            def __init__(self, sequence, scores=(0,)):
+                self._sequence = list(sequence)
+                self.scores = list(scores)
 
-        # run input encoding once
+            @property
+            def sequence(self):
+                return np.array(self._sequence)
+
+            @property
+            def score(self):
+                return sum(self.scores)
+
+            def get_child(self, element, score):
+                return Beam(self._sequence + [element], self.scores + [score])
+
+            def __len__(self):
+                return len(self._sequence)
+
+            def __lt__(self, other):
+                return self.score < other.score
+
+            def __gt__(self, other):
+                return other.score > other.score
+
         x_ = np.array(input_tokenizer.texts_to_sequences([input_text]))
-<<<<<<< HEAD
-        [x_enc_, u_] = encoder_model.predict(x_)
-        # repeat to a batch of <search_width> samples
-        x_enc_ = np.repeat(x_enc_, search_width, axis=0)
-        u_ = np.repeat(u_, search_width, axis=0)
-=======
-        encoder_output = encoder_model.predict(x_)
-        x_enc_ = encoder_output[0]
-        state_t = encoder_output[1:]
-        # repeat to a batch of <search_width> samples
-        x_enc_ = np.repeat(x_enc_, search_width, axis=0)
->>>>>>> recurrent_attention_standalone_example
+        x_ = np.repeat(x_, search_width, axis=0)
 
         if t_max is None:
             t_max = x_.shape[-1] * 2
 
-<<<<<<< HEAD
-        # A "search beam" is represented as a tuple of:
-        #   (score, [y_0, ..., y_t], state)
-        # where the score is the average log likelihood of the output tokens
-        # (i.e. "length normalized") and the most recent state of the decoder at
-        # time step t.
-
-        # A short-list of the <search_width> number of beams with highest
-        # score is maintained through out the search. Initially there is only one
-        # beam.
-        incomplete_beams = [(0., [y_0], state_0)]
-=======
-        # A "search beam" is represented as the tuple:
-        #   (score, outputs, state)
-        # where:
-        #   score: the average log likelihood of the output tokens
-        #   outputs: the history of output tokens up to time t, [y_0, ..., y_t]
-        #   state: the most recent state of the decoder_rnn for this beam
+        start_idx = target_tokenizer.word_index[start_token]
+        end_idx = target_tokenizer.word_index[end_token]
 
         # A list of the <search_width> number of beams with highest score is
         # maintained through out the search. Initially there is only one beam.
-        incomplete_beams = [(0., [y_0], [s[0] for s in state_t])]
->>>>>>> recurrent_attention_standalone_example
+        incomplete_beams = [Beam(sequence=[start_idx], scores=[0])]
         # All beams that reached the end-token are kept separately.
         complete_beams = []
 
+        t = 0
         while len(complete_beams) < search_width and t < t_max:
             t += 1
             # create a batch of inputs representing the incomplete_beams
-            y_tm1 = np.vstack([beam[1][-1] for beam in incomplete_beams])
-            state_tm1 = [
-<<<<<<< HEAD
-                np.vstack([beam[2][s] for beam in incomplete_beams])
-                for s in range(len(state_0))
-            ]
+            y_ = np.vstack([beam.sequence for beam in incomplete_beams])
             # predict next tokes for every incomplete beam
             batch_size = len(incomplete_beams)
-            outputs = decoder_output_model.predict(
-                [y_tm1, x_enc_[:batch_size], u_[:batch_size]] + state_tm1)
-            state_t = outputs[1:]
-            y_pred_ = outputs[0]
-
-=======
-                np.vstack([beam[2][i] for beam in incomplete_beams])
-                for i in range(len(state_t))
-            ]
-
-            # predict next tokes for every incomplete beam
-            batch_size = len(incomplete_beams)
-            decoder_output = decoder_model.predict(
-                [y_tm1, x_enc_[:batch_size]] + state_tm1)
-            y_pred_ = decoder_output[0]
-            state_t = decoder_output[1:]
->>>>>>> recurrent_attention_standalone_example
+            y_pred_ = model.predict([y_, x_[:batch_size]])
             # from each previous beam create new candidate beams and save the once
             # with highest score for next iteration.
             beams_updated = []
             for i, beam in enumerate(incomplete_beams):
-                l = len(beam[1]) - 1  # don't count 'start' token
-                for proba, idx in k_largest_val_idx(y_pred_[i, 0], branch_factor):
-                    new_score = (beam[0] * l + np.log(proba)) / (l + 1)
-                    not_full = len(beams_updated) < search_width
-                    ended = idx == end_idx
-                    if not_full or ended or new_score > beams_updated[0][0]:
-                        # create new successor beam with next token=idx
-                        beam_new = (new_score,
-                                    beam[1] + [np.array([idx])],
-                                    [s[i] for s in state_t])
-                        if ended:
-<<<<<<< HEAD
-                            heapq.heappush(complete_beams, beam_new)
-=======
-                            complete_beams.append(beam_new)
->>>>>>> recurrent_attention_standalone_example
-                        elif not_full:
-                            heapq.heappush(beams_updated, beam_new)
-                        else:
-                            heapq.heapreplace(beams_updated, beam_new)
+                for proba, idx in k_largest_val_idx(y_pred_[i, -1], branch_factor):
+                    new_beam = beam.get_child(element=idx, score=np.log(proba))
+                    if idx == end_idx:
+                        # beam completed
+                        complete_beams.append(new_beam)
+                    elif len(beams_updated) < search_width:
+                        # not full search width
+                        heapq.heappush(beams_updated, new_beam)
+                    elif new_beam.score > beams_updated[0].score:
+                        # better than candidate with lowest score
+                        heapq.heapreplace(beams_updated, new_beam)
                     else:
-                        # if score is not among to candidates we abort search
-                        # for this ancestor beam (next token processed in order of
-                        # decreasing likelihood)
+                        # if score is worse that existing candidates we abort search
+                        # for children of this beam (since next token processed
+                        # in order of decreasing likelihood)
                         break
-<<<<<<< HEAD
-            # faster to process in order of decreasing score
-            incomplete_beams = sorted(beams_updated, reverse=True)
 
-        output_texts = []
-        scores = []
-        for beam in complete_beams[::-1] + incomplete_beams:
-=======
             # faster to process beams in order of decreasing score next iteration,
             # due to break above
             incomplete_beams = sorted(beams_updated, reverse=True)
@@ -1061,23 +915,22 @@ if __name__ == '__main__':
         complete_beams = sorted(complete_beams, reverse=True)
 
         output_texts = []
-        scores = []
+        output_scores = []
         for beam in complete_beams + incomplete_beams:
->>>>>>> recurrent_attention_standalone_example
-            output_texts.append(target_tokenizer.sequences_to_texts(
-                np.concatenate(beam[1])[None, :])[0])
-            scores.append(beam[0])
+            text = target_tokenizer.sequences_to_texts(beam.sequence[None])[0]
+            output_texts.append(text)
+            # average score, skipping start token
+            output_scores.append(beam.score / (len(beam) - 1))
 
-<<<<<<< HEAD
-        return output_texts, scores  # return scores as well for context
-=======
-        return output_texts, scores
+        return output_texts, output_scores
 
-    # Translate one of sentences from validation data
-    input_text = input_texts_val[0]
-    print("Translating:\n", input_text)
-    output_greedy, score_greedy = translate_greedy(input_text)
-    print("Greedy output:\n", output_greedy)
-    outputs_beam, scores_beam = translate_beam_search(input_text)
-    print("Beam search output:\n", outputs_beam[0])
->>>>>>> recurrent_attention_standalone_example
+    # Translate some sentences from validation data
+    for input_text, target_text in zip(input_texts_val[:5], target_texts_val[:5]):
+        print("Translating: ", input_text)
+        print("Expected: ", target_text)
+        output_greedy, score_greedy = translate_greedy(input_text)
+        print("Greedy output: ", output_greedy)
+        outputs_beam, scores_beam = translate_beam_search(input_text)
+        print("Beam search outputs (top 5):")
+        for beam in outputs_beam[:5]:
+            print("\t" + beam)
