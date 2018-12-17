@@ -268,8 +268,7 @@ class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
     Only use for 2D matrices.
-    If the long side of the matrix is a multiple of the short side,
-    multiple identity matrices are concatenated along the long side.
+    If the desired matrix is not square, it pads 0s on the additional rows/columns
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
@@ -282,9 +281,6 @@ class Identity(Initializer):
         if len(shape) != 2:
             raise ValueError(
                 'Identity matrix initializer can only be used for 2D matrices.')
-
-        if max(shape) % min(shape) != 0:
-            raise ValueError('Long side should be multiple of short side.')
 
         if shape[0] == shape[1]:
             return self.gain * np.identity(shape[0])
