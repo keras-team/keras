@@ -100,31 +100,29 @@ def postprocess(preds, cams, top_k=1):
     return class_activation_map
 
 
-if __name__ == "__main__":
-    
-    # 1. create keras-cam model
-    if BASE_NETWORK == "resnet":
-        cam_builder = BackendResNet50()
-    elif BASE_NETWORK == "nasnet":
-        cam_builder = BackendNASNetLarge()
-    elif BASE_NETWORK == "inception":
-        cam_builder = BackendInceptionResNetV2()
-    else:
-        raise ValueError(
-            "The base network should be one of resnet, nasnet, or inception.")
+# 1. create keras-cam model
+if BASE_NETWORK == "resnet":
+    cam_builder = BackendResNet50()
+elif BASE_NETWORK == "nasnet":
+    cam_builder = BackendNASNetLarge()
+elif BASE_NETWORK == "inception":
+    cam_builder = BackendInceptionResNetV2()
+else:
+    raise ValueError(
+        "The base network should be one of resnet, nasnet, or inception.")
 
-    # 2. load image
-    imgs, original_img, original_size = cam_builder.load_img(
-        INPUT_IMG_FILE)
+# 2. load image
+imgs, original_img, original_size = cam_builder.load_img(
+    INPUT_IMG_FILE)
 
-    # 3. run model
-    preds, cams = cam_builder.predict(imgs)
+# 3. run model
+preds, cams = cam_builder.predict(imgs)
 
-    # 4. postprocessing
-    class_activation_map = postprocess(preds, cams)
+# 4. postprocessing
+class_activation_map = postprocess(preds, cams)
 
-    # 5. plot image+cam to original size
-    plt.imshow(original_img, alpha=0.5)
-    plt.imshow(cv2.resize(class_activation_map,
-                          original_size), cmap='jet', alpha=0.5)
-    plt.show()
+# 5. plot image+cam to original size
+plt.imshow(original_img, alpha=0.5)
+plt.imshow(cv2.resize(class_activation_map,
+                      original_size), cmap='jet', alpha=0.5)
+plt.show()
