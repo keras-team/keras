@@ -13,6 +13,8 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
+import warnings
+
 from flaky import flaky
 
 from keras.utils import GeneratorEnqueuer
@@ -24,8 +26,12 @@ from keras.utils.data_utils import validate_file
 from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
-    K.backend() in {'tensorflow', 'cntk'} and 'TRAVIS_PYTHON_VERSION' in os.environ,
+    six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
+
+skip_generators = pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'} and
+                                     'TRAVIS_PYTHON_VERSION' in os.environ,
+                                     reason='Generators do not work with `spawn`.')
 
 if sys.version_info < (3,):
     def next(x):
@@ -34,14 +40,17 @@ if sys.version_info < (3,):
 
 def use_spawn(func):
     """Decorator to test both Unix (fork) and Windows (spawn)"""
+
     @six.wraps(func)
     def wrapper(*args, **kwargs):
-        out = func(*args, **kwargs)
         if sys.version_info > (3, 4):
             mp.set_start_method('spawn', force=True)
-            func(*args, **kwargs)
+            out = func(*args, **kwargs)
             mp.set_start_method('fork', force=True)
+        else:
+            out = func(*args, **kwargs)
         return out
+
     return wrapper
 
 
@@ -188,6 +197,7 @@ def test_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@skip_generators
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
@@ -223,6 +233,7 @@ def test_generator_enqueuer_fail_threads():
         next(gen_output)
 
 
+@skip_generators
 def test_generator_enqueuer_fail_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         FaultSequence()), use_multiprocessing=True)
@@ -378,6 +389,7 @@ def test_finite_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@skip_generators
 def test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
@@ -389,6 +401,35 @@ def test_finite_generator_enqueuer_processes():
     assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
                                      'with processes')
     enqueuer.stop()
+
+
+@pytest.mark.skipif('TRAVIS_PYTHON_VERSION' in os.environ,
+                    reason='Takes 150s to run')
+def test_missing_inputs():
+    missing_idx = 10
+
+    class TimeOutSequence(DummySequence):
+        def __getitem__(self, item):
+            if item == missing_idx:
+                time.sleep(120)
+            return super(TimeOutSequence, self).__getitem__(item)
+
+    enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
+        TimeOutSequence([3, 2, 2, 3])), use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    with pytest.warns(UserWarning, match='An input could not be retrieved.'):
+        for _ in range(4 * missing_idx):
+            next(gen_output)
+
+    enqueuer = OrderedEnqueuer(TimeOutSequence([3, 2, 2, 3]),
+                               use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    warning_msg = "The input {} could not be retrieved.".format(missing_idx)
+    with pytest.warns(UserWarning, match=warning_msg):
+        for _ in range(11):
+            next(gen_output)
 
 
 if __name__ == '__main__':
