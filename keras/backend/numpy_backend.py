@@ -285,6 +285,10 @@ def softplus(x):
     return np.log(1. + np.exp(x))
 
 
+def softsign(x):
+    return x / (1 + np.abs(x))
+
+
 def elu(x, alpha=1.):
     return x * (x > 0) + alpha * (np.exp(x) - 1.) * (x < 0)
 
