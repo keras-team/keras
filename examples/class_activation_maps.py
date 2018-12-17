@@ -10,14 +10,22 @@ import keras.applications.resnet50 as resnet
 from keras.layers import UpSampling2D, Conv2D
 
 
-N_CLASSES = 1000
-INPUT_IMG_FILE = "dog.jpg"
+# Please set an appropriate image file
+INPUT_IMG_FILE = "dog.jpg" 
+
+################################################################
+# The following parameters can be changed to other models 
+# that use global average pooling.
+# e.g.) InceptionResnetV2 / NASNetLarge
 NETWORK_INPUT_SIZE = 224
 MODEL_CLASS = resnet.ResNet50
 PREPROCESS_FN = resnet.preprocess_input
 LAST_CONV_LAYER = "activation_49"
 PRED_LAYER = "fc1000"
+################################################################
 
+# number of imagenet classes
+N_CLASSES = 1000
 
 
 def load_img(fname, input_size, preprocess_fn):
