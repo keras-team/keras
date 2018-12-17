@@ -6,13 +6,10 @@ import matplotlib.pyplot as plt
 import argparse
 
 from keras.models import Model
-from keras.applications.resnet50 import ResNet50, preprocess_input \
-    as resnet_preprocess
-from keras.applications.inception_resnet_v2 \
-    import InceptionResNetV2, preprocess_input \
-    as inception_resnet_preprocess
-from keras.applications.nasnet import NASNetLarge, preprocess_input \
-    as nasnet_preprocess
+
+import keras.applications.resnet50 as resnet
+import keras.applications.inception_resnet_v2 as inception
+import keras.applications.nasnet as nasnet
 from keras.layers import UpSampling2D, Conv2D
 
 
@@ -80,8 +77,8 @@ class BackendInceptionResNetV2(_Backend):
             input_size=299,
             last_conv_layer="conv_7b_ac",
             pred_layer="predictions",
-            preprocess_fn=inception_resnet_preprocess,
-            model_class=InceptionResNetV2)
+            preprocess_fn=inception.preprocess_input,
+            model_class=inception.InceptionResNetV2)
 
 
 class BackendResNet50(_Backend):
@@ -89,8 +86,8 @@ class BackendResNet50(_Backend):
         super(BackendResNet50, self).__init__(input_size=224,
                                               last_conv_layer="activation_49",
                                               pred_layer="fc1000",
-                                              preprocess_fn=resnet_preprocess,
-                                              model_class=ResNet50)
+                                              preprocess_fn=resnet.preprocess_input,
+                                              model_class=resnet.ResNet50)
 
 
 class BackendNASNetLarge(_Backend):
@@ -101,8 +98,8 @@ class BackendNASNetLarge(_Backend):
             input_size=331,
             last_conv_layer="activation_260",
             pred_layer="predictions",
-            preprocess_fn=nasnet_preprocess,
-            model_class=NASNetLarge)
+            preprocess_fn=nasnet.preprocess_input,
+            model_class=nasnet.NASNetLarge)
 
 
 def postprocess(preds, cams, top_k=1):
