@@ -737,6 +737,10 @@ def _remove_blanks(inds, num_classes):
     return inds[inds < (num_classes - 1)]
 
 
+def stack(x, axis=0):
+    return np.stack(x, axis=axis)
+
+
 square = np.square
 abs = np.abs
 exp = np.exp
