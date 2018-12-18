@@ -5,12 +5,9 @@ from __future__ import print_function
 
 import numpy as np
 from numpy.testing import assert_allclose
-import six
 
 from .generic_utils import has_arg
 from ..engine import Model, Input
-from ..models import Sequential
-from ..models import model_from_json
 from .. import backend as K
 
 
@@ -74,38 +71,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
     weights = layer.get_weights()
     layer.set_weights(weights)
 
-    # test and instantiation from weights
-    # Checking for empty weights array to avoid a problem where some
-    # legacy layers return bad values from get_weights()
-    if has_arg(layer_cls.__init__, 'weights') and len(weights):
-        kwargs['weights'] = weights
-        layer = layer_cls(**kwargs)
-
     expected_output_shape = layer.compute_output_shape(input_shape)
-
-    def _layer_in_model_test(model):
-        actual_output = model.predict(input_data)
-        actual_output_shape = actual_output.shape
-        for expected_dim, actual_dim in zip(expected_output_shape,
-                                            actual_output_shape):
-            if expected_dim is not None:
-                assert expected_dim == actual_dim
-        if expected_output is not None:
-            assert_allclose(actual_output, expected_output, rtol=1e-3)
-
-        # test serialization, weight setting at model level
-        model_config = model.get_config()
-        recovered_model = model.__class__.from_config(model_config)
-        if model.weights:
-            weights = model.get_weights()
-            recovered_model.set_weights(weights)
-            _output = recovered_model.predict(input_data)
-            assert_allclose(_output, actual_output, rtol=1e-3)
-
-        # test training mode (e.g. useful for dropout tests)
-        model.compile('rmsprop', 'mse')
-        model.train_on_batch(input_data, actual_output)
-        return actual_output
 
     # test in functional API
     if fixed_batch_size:
@@ -117,35 +83,36 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # check with the functional API
     model = Model(x, y)
-    _layer_in_model_test(model)
 
-    # test as first layer in Sequential API
+    actual_output = model.predict(input_data)
+    actual_output_shape = actual_output.shape
+    for expected_dim, actual_dim in zip(expected_output_shape,
+                                        actual_output_shape):
+        if expected_dim is not None:
+            assert expected_dim == actual_dim
+
+    if expected_output is not None:
+        assert_allclose(actual_output, expected_output, rtol=1e-3)
+
+    # test serialization, weight setting at model level
+    model_config = model.get_config()
+    recovered_model = model.__class__.from_config(model_config)
+    if model.weights:
+        weights = model.get_weights()
+        recovered_model.set_weights(weights)
+        _output = recovered_model.predict(input_data)
+        assert_allclose(_output, actual_output, rtol=1e-3)
+
+    # test training mode (e.g. useful when the layer has a
+    # different behavior at training and testing time).
+    if has_arg(layer.call, 'training'):
+        model.compile('rmsprop', 'mse')
+        model.train_on_batch(input_data, actual_output)
+
+    # test instantiation from layer config
     layer_config = layer.get_config()
     layer_config['batch_input_shape'] = input_shape
     layer = layer.__class__.from_config(layer_config)
 
-    # check with the sequential API
-    model = Sequential()
-    model.add(layer)
-    actual_output = _layer_in_model_test(model)
-
     # for further checks in the caller function
     return actual_output
-
-
-def keras_test(func):
-    """Function wrapper to clean up after TensorFlow tests.
-
-    # Arguments
-        func: test function to clean up after.
-
-    # Returns
-        A function wrapping the input function.
-    """
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        output = func(*args, **kwargs)
-        if K.backend() == 'tensorflow' or K.backend() == 'cntk':
-            K.clear_session()
-        return output
-    return wrapper

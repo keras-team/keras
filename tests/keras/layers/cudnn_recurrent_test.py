@@ -4,16 +4,15 @@ from numpy.testing import assert_allclose
 import keras
 import keras.backend as K
 from keras.utils.test_utils import layer_test
-from keras.utils.test_utils import keras_test
 import time
 
 
 skipif_no_tf_gpu = pytest.mark.skipif(
-    (K.backend() != 'tensorflow') or (not K.tensorflow_backend._get_available_gpus()),
+    (K.backend() != 'tensorflow' or
+     not K.tensorflow_backend._get_available_gpus()),
     reason='Requires TensorFlow backend and a GPU')
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_cudnn_rnn_canonical_to_params_lstm():
     units = 1
@@ -71,7 +70,6 @@ def test_cudnn_rnn_canonical_to_params_lstm():
     assert diff < 1e-8
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_cudnn_rnn_canonical_to_params_gru():
     units = 7
@@ -121,7 +119,6 @@ def test_cudnn_rnn_canonical_to_params_gru():
     assert diff < 1e-8
 
 
-@keras_test
 @pytest.mark.parametrize('rnn_type', ['lstm', 'gru'], ids=['LSTM', 'GRU'])
 @skipif_no_tf_gpu
 def test_cudnn_rnn_timing(rnn_type):
@@ -160,7 +157,6 @@ def test_cudnn_rnn_timing(rnn_type):
     assert speedup > 3
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_cudnn_rnn_basics():
     input_size = 10
@@ -188,7 +184,6 @@ def test_cudnn_rnn_basics():
                     input_shape=(num_samples, timesteps, input_size))
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_trainability():
     input_size = 10
@@ -209,7 +204,6 @@ def test_trainability():
         assert len(layer.non_trainable_weights) == 0
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_regularizer():
     input_size = 10
@@ -236,7 +230,6 @@ def test_regularizer():
         assert len(layer.get_losses_for(x)) == 1
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_return_state():
     input_size = 10
@@ -260,7 +253,6 @@ def test_return_state():
             keras.backend.eval(layer.states[0]), state, atol=1e-4)
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_specify_initial_state_keras_tensor():
     input_size = 10
@@ -289,7 +281,6 @@ def test_specify_initial_state_keras_tensor():
         model.fit([inputs] + initial_state, targets)
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_statefulness():
     input_size = 10
@@ -336,7 +327,6 @@ def test_statefulness():
         assert(out4.max() != out5.max())
 
 
-@keras_test
 @skipif_no_tf_gpu
 def test_cudnnrnn_bidirectional():
     rnn = keras.layers.CuDNNGRU

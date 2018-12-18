@@ -13,11 +13,11 @@ def normalize_tuple(value, n, name):
     """Transforms a single int or iterable of ints into an int tuple.
 
     # Arguments
-        value: The value to validate and convert. Could an int, or any iterable
+        value: The value to validate and convert. Could be an int, or any iterable
           of ints.
         n: The size of the tuple to be returned.
-        name: The name of the argument being validated, e.g. "strides" or
-          "kernel_size". This is only used to format error messages.
+        name: The name of the argument being validated, e.g. `strides` or
+          `kernel_size`. This is only used to format error messages.
 
     # Returns
         A tuple of n integers.
@@ -43,8 +43,8 @@ def normalize_tuple(value, n, name):
             except ValueError:
                 raise ValueError('The `' + name + '` argument must be a tuple of ' +
                                  str(n) + ' integers. Received: ' + str(value) + ' '
-                                 'including element ' + str(single_value) + ' of type' +
-                                 ' ' + str(type(single_value)))
+                                 'including element ' + str(single_value) + ' of '
+                                 'type ' + str(type(single_value)))
     return value_tuple
 
 
@@ -54,8 +54,8 @@ def normalize_padding(value):
     if K.backend() == 'theano':
         allowed.add('full')
     if padding not in allowed:
-        raise ValueError('The `padding` argument must be one of "valid", "same" (or "causal" for Conv1D). '
-                         'Received: ' + str(padding))
+        raise ValueError('The `padding` argument must be one of "valid", "same" '
+                         '(or "causal" for Conv1D). Received: ' + str(padding))
     return padding
 
 
@@ -89,7 +89,7 @@ def conv_output_length(input_length, filter_size,
     # Arguments
         input_length: integer.
         filter_size: integer.
-        padding: one of "same", "valid", "full".
+        padding: one of `"same"`, `"valid"`, `"full"`.
         stride: integer.
         dilation: dilation rate, integer.
 
@@ -117,7 +117,7 @@ def conv_input_length(output_length, filter_size, padding, stride):
     # Arguments
         output_length: integer.
         filter_size: integer.
-        padding: one of "same", "valid", "full".
+        padding: one of `"same"`, `"valid"`, `"full"`.
         stride: integer.
 
     # Returns
@@ -135,7 +135,8 @@ def conv_input_length(output_length, filter_size, padding, stride):
     return (output_length - 1) * stride - 2 * pad + filter_size
 
 
-def deconv_length(dim_size, stride_size, kernel_size, padding, output_padding):
+def deconv_length(dim_size, stride_size, kernel_size, padding,
+                  output_padding, dilation=1):
     """Determines output length of a transposed convolution given input length.
 
     # Arguments
@@ -146,6 +147,7 @@ def deconv_length(dim_size, stride_size, kernel_size, padding, output_padding):
         padding: One of `"same"`, `"valid"`, `"full"`.
         output_padding: Integer, amount of padding along the output dimension,
             Can be set to `None` in which case the output length is inferred.
+        dilation: dilation rate, integer.
 
     # Returns
         The output length (integer).
@@ -153,6 +155,9 @@ def deconv_length(dim_size, stride_size, kernel_size, padding, output_padding):
     assert padding in {'same', 'valid', 'full'}
     if dim_size is None:
         return None
+
+    # Get the dilated kernel size
+    kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
 
     # Infer length if output padding is None, else compute the exact length
     if output_padding is None:

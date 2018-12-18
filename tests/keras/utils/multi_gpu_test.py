@@ -11,7 +11,6 @@ import pytest
 import time
 import tempfile
 import tensorflow as tf
-from keras.utils.test_utils import keras_test
 from keras.preprocessing.image import ImageDataGenerator
 
 
@@ -25,7 +24,6 @@ if K.backend() == 'tensorflow':
                                     reason='Requires 8 GPUs.')
 
 
-@keras_test
 def test_multi_gpu_simple_model():
     print('####### test simple model')
     num_samples = 1000
@@ -52,7 +50,6 @@ def test_multi_gpu_simple_model():
     parallel_model.fit(x, y, epochs=epochs)
 
 
-@keras_test
 def test_multi_gpu_multi_io_model():
     print('####### test multi-io model')
     num_samples = 1000
@@ -88,7 +85,6 @@ def test_multi_gpu_multi_io_model():
     parallel_model.fit([a_x, b_x], [a_y, b_y], epochs=epochs)
 
 
-@keras_test
 def test_multi_gpu_invalid_devices():
     input_shape = (1000, 10)
     model = keras.models.Sequential()
@@ -120,7 +116,6 @@ def test_multi_gpu_invalid_devices():
         parallel_model.fit(x, y, epochs=2)
 
 
-@keras_test
 def test_serialization():
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(3,
@@ -270,6 +265,39 @@ def multi_gpu_application_folder_generator_benchmark():
             workers=4 * i)
         total_time = time.time() - start_time
         print('%d gpus training:' % i, total_time)
+
+
+def test_multi_gpu_with_multi_input_layers():
+    inputs = keras.Input((4, 3))
+    init_state = keras.Input((3,))
+    outputs = keras.layers.SimpleRNN(
+        3, return_sequences=True)(inputs, initial_state=init_state)
+    x = [np.random.randn(2, 4, 3), np.random.randn(2, 3)]
+    y = np.random.randn(2, 4, 3)
+    model = keras.models.Model([inputs, init_state], outputs)
+    parallel_model = multi_gpu_model(model, 2)
+    parallel_model.compile(loss='mean_squared_error', optimizer='adam')
+    parallel_model.train_on_batch(x, y)
+
+
+def test_multi_gpu_with_siamese():
+    input_shape = (3,)
+    nested_model = keras.models.Sequential([
+        keras.layers.Dense(32, input_shape=input_shape),
+        keras.layers.Dense(1)
+    ], name='nested')
+
+    input1 = keras.Input(input_shape)
+    input2 = keras.Input(input_shape)
+    score1 = nested_model(input1)
+    score2 = nested_model(input2)
+    score_sum = keras.layers.Add(name='add')([score1, score2])
+
+    siamese = keras.models.Model(inputs=[input1, input2],
+                                 outputs=[score_sum, score1, score2],
+                                 name='siamese')
+    parallel_siamese = multi_gpu_model(siamese, 2)
+    assert parallel_siamese.output_names == ['add', 'nested_1', 'nested_2']
 
 
 if __name__ == '__main__':

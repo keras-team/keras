@@ -102,10 +102,10 @@ y_val = labels[-num_validation_samples:]
 print('Preparing embedding matrix.')
 
 # prepare embedding matrix
-num_words = min(MAX_NUM_WORDS, len(word_index) + 1)
+num_words = min(MAX_NUM_WORDS, len(word_index)) + 1
 embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
 for word, i in word_index.items():
-    if i >= MAX_NUM_WORDS:
+    if i > MAX_NUM_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
     if embedding_vector is not None:

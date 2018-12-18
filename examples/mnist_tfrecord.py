@@ -206,9 +206,10 @@ test_model.compile(optimizer=keras.optimizers.RMSprop(lr=2e-3, decay=1e-5),
 coord = tf.train.Coordinator()
 threads = tf.train.start_queue_runners(sess, coord)
 
-train_model.fit(epochs=epochs,
-                steps_per_epoch=int(np.ceil(data.train.num_examples / float(batch_size))),
-                callbacks=[EvaluateInputTensor(test_model, steps=100)])
+train_model.fit(
+    epochs=epochs,
+    steps_per_epoch=int(np.ceil(data.train.num_examples / float(batch_size))),
+    callbacks=[EvaluateInputTensor(test_model, steps=100)])
 
 # Save the model weights.
 train_model.save_weights('saved_wt.h5')

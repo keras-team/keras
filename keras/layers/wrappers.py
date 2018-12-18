@@ -276,7 +276,8 @@ class TimeDistributed(Wrapper):
         If the output mask at each time step is not `None`:
         (E.g., inner layer is Masking or RNN)
         Concatenate all of them and return the concatenation.
-        If the output mask at each time step is `None` and the input mask is not `None`:
+        If the output mask at each time step is `None` and
+        the input mask is not `None`:
         (E.g., inner layer is Dense)
         Reduce the input_mask to 2 dimensions and return it.
         Otherwise (both the output mask and the input mask are `None`):
@@ -496,10 +497,27 @@ class Bidirectional(Wrapper):
             kwargs['constants'] = constants
 
         if initial_state is not None and has_arg(self.layer.call, 'initial_state'):
-            forward_state = initial_state[:len(initial_state) // 2]
-            backward_state = initial_state[len(initial_state) // 2:]
-            y = self.forward_layer.call(inputs, initial_state=forward_state, **kwargs)
-            y_rev = self.backward_layer.call(inputs, initial_state=backward_state, **kwargs)
+            forward_inputs = [inputs[0]]
+            backward_inputs = [inputs[0]]
+            pivot = len(initial_state) // 2 + 1
+            # add forward initial state
+            forward_state = inputs[1:pivot]
+            forward_inputs += forward_state
+            if self._num_constants is None:
+                # add backward initial state
+                backward_state = inputs[pivot:]
+                backward_inputs += backward_state
+            else:
+                # add backward initial state
+                backward_state = inputs[pivot:-self._num_constants]
+                backward_inputs += backward_state
+                # add constants for forward and backward layers
+                forward_inputs += inputs[-self._num_constants:]
+                backward_inputs += inputs[-self._num_constants:]
+            y = self.forward_layer.call(forward_inputs,
+                                        initial_state=forward_state, **kwargs)
+            y_rev = self.backward_layer.call(backward_inputs,
+                                             initial_state=backward_state, **kwargs)
         else:
             y = self.forward_layer.call(inputs, **kwargs)
             y_rev = self.backward_layer.call(inputs, **kwargs)
@@ -521,6 +539,9 @@ class Bidirectional(Wrapper):
             output = y * y_rev
         elif self.merge_mode is None:
             output = [y, y_rev]
+        else:
+            raise ValueError('Unrecognized value for argument '
+                             'merge_mode: %s' % (self.merge_mode))
 
         # Properly set learning phase
         if (getattr(y, '_uses_learning_phase', False) or

@@ -218,7 +218,7 @@ if __name__ == '__main__':
     plot_model(vae, to_file='vae_cnn.png', show_shapes=True)
 
     if args.weights:
-        vae = vae.load_weights(args.weights)
+        vae.load_weights(args.weights)
     else:
         # train the autoencoder
         vae.fit(x_train,

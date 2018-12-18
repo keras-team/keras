@@ -76,8 +76,8 @@ def build_generator(latent_size):
     # this will be our label
     image_class = Input(shape=(1,), dtype='int32')
 
-    cls = Flatten()(Embedding(num_classes, latent_size,
-                              embeddings_initializer='glorot_normal')(image_class))
+    cls = Embedding(num_classes, latent_size,
+                    embeddings_initializer='glorot_normal')(image_class)
 
     # hadamard product between z-space and a class conditional embedding
     h = layers.multiply([latent, cls])
@@ -182,36 +182,26 @@ if __name__ == '__main__':
     for epoch in range(1, epochs + 1):
         print('Epoch {}/{}'.format(epoch, epochs))
 
-        num_batches = int(x_train.shape[0] / batch_size)
+        num_batches = int(np.ceil(x_train.shape[0] / float(batch_size)))
         progress_bar = Progbar(target=num_batches)
-
-        # we don't want the discriminator to also maximize the classification
-        # accuracy of the auxiliary classifier on generated images, so we
-        # don't train discriminator to produce class labels for generated
-        # images (see https://openreview.net/forum?id=rJXTf9Bxg).
-        # To preserve sum of sample weights for the auxiliary classifier,
-        # we assign sample weight of 2 to the real images.
-        disc_sample_weight = [np.ones(2 * batch_size),
-                              np.concatenate((np.ones(batch_size) * 2,
-                                              np.zeros(batch_size)))]
 
         epoch_gen_loss = []
         epoch_disc_loss = []
 
         for index in range(num_batches):
-            # generate a new batch of noise
-            noise = np.random.uniform(-1, 1, (batch_size, latent_size))
-
             # get a batch of real images
             image_batch = x_train[index * batch_size:(index + 1) * batch_size]
             label_batch = y_train[index * batch_size:(index + 1) * batch_size]
 
+            # generate a new batch of noise
+            noise = np.random.uniform(-1, 1, (len(image_batch), latent_size))
+
             # sample some labels from p_c
-            sampled_labels = np.random.randint(0, num_classes, batch_size)
+            sampled_labels = np.random.randint(0, num_classes, len(image_batch))
 
             # generate a batch of fake images, using the generated labels as a
             # conditioner. We reshape the sampled labels to be
-            # (batch_size, 1) so that we can feed them into the embedding
+            # (len(image_batch), 1) so that we can feed them into the embedding
             # layer as a length one sequence
             generated_images = generator.predict(
                 [noise, sampled_labels.reshape((-1, 1))], verbose=0)
@@ -222,8 +212,19 @@ if __name__ == '__main__':
             # Salimans et al., 2016
             # https://arxiv.org/pdf/1606.03498.pdf (Section 3.4)
             soft_zero, soft_one = 0, 0.95
-            y = np.array([soft_one] * batch_size + [soft_zero] * batch_size)
+            y = np.array(
+                [soft_one] * len(image_batch) + [soft_zero] * len(image_batch))
             aux_y = np.concatenate((label_batch, sampled_labels), axis=0)
+
+            # we don't want the discriminator to also maximize the classification
+            # accuracy of the auxiliary classifier on generated images, so we
+            # don't train discriminator to produce class labels for generated
+            # images (see https://openreview.net/forum?id=rJXTf9Bxg).
+            # To preserve sum of sample weights for the auxiliary classifier,
+            # we assign sample weight of 2 to the real images.
+            disc_sample_weight = [np.ones(2 * len(image_batch)),
+                                  np.concatenate((np.ones(len(image_batch)) * 2,
+                                                  np.zeros(len(image_batch))))]
 
             # see if the discriminator can figure itself out...
             epoch_disc_loss.append(discriminator.train_on_batch(
@@ -232,13 +233,13 @@ if __name__ == '__main__':
             # make new noise. we generate 2 * batch size here such that we have
             # the generator optimize over an identical number of images as the
             # discriminator
-            noise = np.random.uniform(-1, 1, (2 * batch_size, latent_size))
-            sampled_labels = np.random.randint(0, num_classes, 2 * batch_size)
+            noise = np.random.uniform(-1, 1, (2 * len(image_batch), latent_size))
+            sampled_labels = np.random.randint(0, num_classes, 2 * len(image_batch))
 
             # we want to train the generator to trick the discriminator
             # For the generator, we want all the {fake, not-fake} labels to say
             # not-fake
-            trick = np.ones(2 * batch_size) * soft_one
+            trick = np.ones(2 * len(image_batch)) * soft_one
 
             epoch_gen_loss.append(combined.train_on_batch(
                 [noise, sampled_labels.reshape((-1, 1))],
