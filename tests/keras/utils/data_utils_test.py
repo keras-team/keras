@@ -7,6 +7,7 @@ import tarfile
 import threading
 import zipfile
 from itertools import cycle
+import multiprocessing as mp
 import numpy as np
 import pytest
 import six
@@ -22,7 +23,6 @@ from keras.utils.data_utils import _hash_file
 from keras.utils.data_utils import get_file
 from keras.utils.data_utils import validate_file
 from keras import backend as K
-from tests.test_multiprocessing import use_spawn
 
 pytestmark = pytest.mark.skipif(
     six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
@@ -31,6 +31,25 @@ pytestmark = pytest.mark.skipif(
 skip_generators = pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'} and
                                      'TRAVIS_PYTHON_VERSION' in os.environ,
                                      reason='Generators do not work with `spawn`.')
+
+
+def use_spawn(func):
+    """Decorator which uses `spawn` when possible.
+    This is useful on Travis to avoid memory issues.
+    """
+
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if sys.version_info > (3, 4) and os.name != 'nt':
+            mp.set_start_method('spawn', force=True)
+            out = func(*args, **kwargs)
+            mp.set_start_method('fork', force=True)
+        else:
+            out = func(*args, **kwargs)
+        return out
+
+    return wrapper
+
 
 if sys.version_info < (3,):
     def next(x):
