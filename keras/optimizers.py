@@ -624,9 +624,9 @@ class Yogi(Optimizer):
     def __init__(self, lr=0.01, beta_1=0.9, beta_2=0.999,
                  epsilon=1e-3, decay=0., **kwargs):
         super(Yogi, self).__init__(**kwargs)
-        if beta_1 <= 0 or beta_1 >=1:
+        if beta_1 <= 0 or beta_1 >= 1:
             raise ValueError("beta_1 has to be in ]0, 1[")
-        if beta_2 <= 0 or beta_2 >=1:
+        if beta_2 <= 0 or beta_2 >= 1:
             raise ValueError("beta_2 has to be in ]0, 1[")
 
         with K.name_scope(self.__class__.__name__):
