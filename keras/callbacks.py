@@ -192,7 +192,7 @@ class CallbackList(object):
             logs: dict, metric results for this batch.
         """
         self._call_batch_hook(_TEST, 'end', batch, logs=logs)
-    
+
     def on_predict_batch_begin(self, batch, logs=None):
         """Calls the `on_predict_batch_begin` methods of its callbacks.
 
@@ -202,7 +202,7 @@ class CallbackList(object):
                 batch number and the size of the batch.
         """
         self._call_batch_hook(_PREDICT, 'begin', batch, logs=logs)
-    
+
     def on_predict_batch_end(self, batch, logs=None):
         """Calls the `on_predict_batch_end` methods of its callbacks.
 
@@ -351,7 +351,7 @@ class Callback(object):
 
         # Arguments
             batch: integer, index of batch within the current epoch.
-            logs: dict, has keys `batch` and `size` representing the current 
+            logs: dict, has keys `batch` and `size` representing the current
                 batch number and the size of the batch.
         """
         # For backwards compatibility
@@ -368,7 +368,7 @@ class Callback(object):
         """
         # For backwards compatibility
         self.on_batch_end(batch, logs=logs)
-    
+
     def on_test_batch_begin(self, batch, logs=None):
         """Called at the beginning of a batch in `evaluate` methods.
 
@@ -379,16 +379,16 @@ class Callback(object):
 
         # Arguments
             batch: integer, index of batch within the current epoch.
-            logs: dict, has keys `batch` and `size` representing the current 
+            logs: dict, has keys `batch` and `size` representing the current
                 batch number and the size of the batch.
         """
 
     def on_test_batch_end(self, batch, logs=None):
         """Called at the end of a batch in `evaluate` methods.
-        
+
         Also called at the end of a validation batch in the `fit` methods,
         if validation data is provided.
-        
+
         Subclasses should override for any actions to run.
 
         # Arguments
@@ -403,20 +403,20 @@ class Callback(object):
 
         # Arguments
             batch: integer, index of batch within the current epoch.
-            logs: dict, has keys `batch` and `size` representing the current 
+            logs: dict, has keys `batch` and `size` representing the current
                 batch number and the size of the batch.
         """
 
     def on_predict_batch_end(self, batch, logs=None):
         """Called at the end of a batch in `predict` methods.
-        
+
         Subclasses should override for any actions to run.
 
         # Arguments
             batch: integer, index of batch within the current epoch.
             logs: dict, metric results for this batch.
         """
-    
+
     def on_train_begin(self, logs=None):
         """Called at the beginning of training.
 
