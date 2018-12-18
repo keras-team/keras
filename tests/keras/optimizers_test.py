@@ -116,6 +116,15 @@ def test_adamax():
 
 
 @keras_test
+def test_yogi():
+    _test_optimizer(optimizers.Yogi())
+    _test_optimizer(optimizers.Yogi(beta_1=0.9, beta_2=0.9))
+    _test_optimizer(optimizers.Yogi(beta_1=0.9, beta_2=0.99))
+    _test_optimizer(optimizers.Yogi(beta_1=0.9, beta_2=0.999))
+    _test_optimizer(optimizers.Yogi(beta_1=0.9, beta_2=0.999, lr=0.001))
+
+
+@keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
 
