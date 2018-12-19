@@ -389,7 +389,6 @@ def variable(value, dtype=None, name=None, constraint=None):
         array([[ 1.,  2.],
                [ 3.,  4.]])
     ```
-    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -428,7 +427,6 @@ def constant(value, dtype=None, shape=None, name=None):
 
     # Returns
         A Constant Tensor.
-    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -2557,7 +2555,6 @@ def one_hot(indices, num_classes):
     # Returns
         (n + 1)D one hot representation of the input
         with shape `(batch_size, dim1, dim2, ... dim(n-1), num_classes)`
-    {{np_implementation}}
     """
     return tf.one_hot(indices, depth=num_classes, axis=-1)
 
@@ -4531,7 +4528,6 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                 Important: blank labels are returned as `-1`.
             Tensor `(top_paths, )` that contains
                 the log probability of each decoded sequence.
-    {{np_implementation}}
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
     input_length = tf.to_int32(input_length)
