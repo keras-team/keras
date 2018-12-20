@@ -780,7 +780,7 @@ def test_multithreading_fit_error():
     good_batches = 3
 
     @threadsafe_generator
-    def custom_generator(use_weights=False):
+    def custom_generator():
         """Raises an exception after a few good batches"""
         for i in range(good_batches):
             batch_index = np.random.randint(0, n_samples - batch_size)
