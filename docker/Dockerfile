@@ -64,6 +64,9 @@ RUN conda install -y python=${python_version} && \
 
 ADD theanorc /home/keras/.theanorc
 
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
 ENV PYTHONPATH='/src/:$PYTHONPATH'
 
 WORKDIR /src
