@@ -1575,5 +1575,25 @@ def test_dynamic_set_inputs():
     assert preds4.shape == (1, 19)
 
 
+def test_sample_weights():
+    y = np.array([0, 1, 0, 0, 2])
+    sample_weights = np.array([0.5, 1., 1., 0., 2.])
+    class_weights = {0: 0.5, 1: 1., 2: 1.5}
+
+    # Only `sample_weights`.
+    weights = training_utils.standardize_weights(y, sample_weights)
+    assert np.allclose(weights, sample_weights)
+
+    # Only `class_weights`.
+    weights = training_utils.standardize_weights(y, class_weight=class_weights)
+    assert np.allclose(weights, np.array([0.5, 1., 0.5, 0.5, 1.5]))
+
+    # Both 'sample_weights` and 'class_weights`.
+    weights = training_utils.standardize_weights(y, sample_weights,
+                                                 class_weights)
+    expected = sample_weights * np.array([0.5, 1., 0.5, 0.5, 1.5])
+    assert np.allclose(weights, expected)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
