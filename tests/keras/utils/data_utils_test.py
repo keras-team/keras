@@ -13,7 +13,6 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
-import warnings
 
 from flaky import flaky
 
@@ -33,17 +32,15 @@ skip_generators = pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'} and
                                      'TRAVIS_PYTHON_VERSION' in os.environ,
                                      reason='Generators do not work with `spawn`.')
 
-if sys.version_info < (3,):
-    def next(x):
-        return x.next()
-
 
 def use_spawn(func):
-    """Decorator to test both Unix (fork) and Windows (spawn)"""
+    """Decorator which uses `spawn` when possible.
+    This is useful on Travis to avoid memory issues.
+    """
 
     @six.wraps(func)
     def wrapper(*args, **kwargs):
-        if sys.version_info > (3, 4):
+        if sys.version_info > (3, 4) and os.name != 'nt':
             mp.set_start_method('spawn', force=True)
             out = func(*args, **kwargs)
             mp.set_start_method('fork', force=True)
@@ -52,6 +49,11 @@ def use_spawn(func):
         return out
 
     return wrapper
+
+
+if sys.version_info < (3,):
+    def next(x):
+        return x.next()
 
 
 @pytest.fixture
