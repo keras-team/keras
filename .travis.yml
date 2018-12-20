@@ -48,7 +48,7 @@ install:
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
     # install pydot for visualization tests
-  - travis_retry conda install -q $MKL pydot graphviz $PIL mkdocs
+  - travis_retry conda install -q $MKL pydot graphviz $PIL
 
   - pip install -e .[tests] --progress-bar off
 
@@ -72,6 +72,9 @@ install:
   # set utf-8
   - export LC_ALL=C.UTF-8;
   - export LANG=C.UTF-8;
+
+  # install TensorFlow (CPU version).
+  - pip install mkdocs --progress-bar off
 
 # command to run tests
 script:
