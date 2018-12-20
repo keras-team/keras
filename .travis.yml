@@ -57,6 +57,7 @@ install:
 
   # install cntk
   - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+      ./.travis/install_cntk.sh;
     fi
 
   # Remove the current backend from the coverage exclusion.
