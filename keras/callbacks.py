@@ -33,17 +33,6 @@ _TEST = 'test'
 _PREDICT = 'predict'
 
 
-def make_logs(model, logs, outputs, mode, prefix=''):
-    """Computes logs for sending to `on_batch_end` methods."""
-    if mode in {_TRAIN, _TEST}:
-        if hasattr(model, 'metrics_names'):
-            for label, output in zip(model.metrics_names, outputs):
-                logs[prefix + label] = output
-    else:
-        logs['outputs'] = outputs
-    return logs
-
-
 class CallbackList(object):
     """Container abstracting a list of callbacks.
 
@@ -57,6 +46,8 @@ class CallbackList(object):
         callbacks = callbacks or []
         self.callbacks = [c for c in callbacks]
         self.queue_length = queue_length
+        self.params = {}
+        self.model = None
         self._reset_batch_timing()
 
     def _reset_batch_timing(self):
@@ -67,10 +58,12 @@ class CallbackList(object):
         self.callbacks.append(callback)
 
     def set_params(self, params):
+        self.params = params
         for callback in self.callbacks:
             callback.set_params(params)
 
     def set_model(self, model):
+        self.model = model
         for callback in self.callbacks:
             callback.set_model(model)
 
