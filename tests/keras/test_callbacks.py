@@ -204,6 +204,111 @@ class TestCallbackCounts(object):
                 'on_train_end': 0,
             })
 
+    def test_callback_hooks_are_called_in_fit_generator(self):
+        np.random.seed(1337)
+        (X_train, y_train), (X_test, y_test) = get_data_callbacks(num_train=10,
+                                                                  num_test=4)
+        y_train = np_utils.to_categorical(y_train)
+        y_test = np_utils.to_categorical(y_test)
+        train_generator = data_generator(X_train, y_train, batch_size=2)
+        validation_generator = data_generator(X_test, y_test, batch_size=2)
+
+        model = self._get_model()
+        counter = Counter()
+        model.fit_generator(train_generator, steps_per_epoch=len(X_train) // 2,
+                            epochs=5, validation_data=validation_generator,
+                            validation_steps=len(X_test) // 2, callbacks=[counter])
+
+        self._check_counts(
+            counter, {
+                'on_batch_begin': 25,
+                'on_batch_end': 25,
+                'on_epoch_begin': 5,
+                'on_epoch_end': 5,
+                'on_predict_batch_begin': 0,
+                'on_predict_batch_end': 0,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_test_batch_begin': 10,
+                'on_test_batch_end': 10,
+                'on_test_begin': 5,
+                'on_test_end': 5,
+                'on_train_batch_begin': 25,
+                'on_train_batch_end': 25,
+                'on_train_begin': 1,
+                'on_train_end': 1,
+            })
+
+    def test_callback_hooks_are_called_in_evaluate_generator(self):
+        np.random.seed(1337)
+        (_, _), (X_test, y_test) = get_data_callbacks(num_test=10)
+        y_test = np_utils.to_categorical(y_test)
+
+        model = self._get_model()
+        counter = Counter()
+        model.evaluate_generator(data_generator(X_test, y_test, batch_size=2),
+                                 steps=len(X_test) // 2, callbacks=[counter])
+        self._check_counts(
+            counter, {
+                'on_test_batch_begin': 5,
+                'on_test_batch_end': 5,
+                'on_test_begin': 1,
+                'on_test_end': 1,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_predict_batch_begin': 0,
+                'on_predict_batch_end': 0,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
+
+    def test_callback_hooks_are_called_in_predict_generator(self):
+        np.random.seed(1337)
+        (_, _), (X_test, _) = get_data_callbacks(num_test=10)
+
+        def data_generator(x, batch_size):
+            x = to_list(x)
+            max_batch_index = len(x[0]) // batch_size
+            i = 0
+            while 1:
+                x_batch = [
+                    array[i * batch_size: (i + 1) * batch_size] for array in x]
+                x_batch = unpack_singleton(x_batch)
+
+                yield x_batch
+                i += 1
+                i = i % max_batch_index
+
+        model = self._get_model()
+        counter = Counter()
+        model.predict_generator(data_generator(X_test, batch_size=2),
+                                steps=len(X_test) // 2, callbacks=[counter])
+        self._check_counts(
+            counter, {
+                'on_predict_batch_begin': 5,
+                'on_predict_batch_end': 5,
+                'on_predict_begin': 1,
+                'on_predict_end': 1,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_test_batch_begin': 0,
+                'on_test_batch_end': 0,
+                'on_test_begin': 0,
+                'on_test_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
+
     def test_callback_list_methods(self):
         counter = Counter()
         callback_list = callbacks.CallbackList([counter])
