@@ -69,10 +69,6 @@ install:
   - export APP_CHANGED=False;
   - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
 
-  # set utf-8
-  - export LC_ALL=C.UTF-8;
-  - export LANG=C.UTF-8;
-
   # install mkdocs
   - pip install mkdocs --progress-bar off
 
