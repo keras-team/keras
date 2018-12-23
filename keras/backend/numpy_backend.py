@@ -285,6 +285,10 @@ def softplus(x):
     return np.log(1. + np.exp(x))
 
 
+def softsign(x):
+    return x / (1 + np.abs(x))
+
+
 def elu(x, alpha=1.):
     return x * (x > 0) + alpha * (np.exp(x) - 1.) * (x < 0)
 
@@ -721,7 +725,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
             decoded_dense[i, :len(decoded)] = decoded
         return decoded_dense[:, :np.max(decoded_length)], log_prob
     else:
-        raise "not supported yet"
+        raise NotImplementedError
 
 
 def _remove_repeats(inds):
@@ -731,6 +735,10 @@ def _remove_repeats(inds):
 
 def _remove_blanks(inds, num_classes):
     return inds[inds < (num_classes - 1)]
+
+
+def stack(x, axis=0):
+    return np.stack(x, axis=axis)
 
 
 square = np.square

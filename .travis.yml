@@ -54,7 +54,7 @@ install:
 
   # install TensorFlow (CPU version).
   - pip install tensorflow==1.9 --progress-bar off
-  
+
   # install cntk
   - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
       ./.travis/install_cntk.sh;
@@ -69,6 +69,8 @@ install:
   - export APP_CHANGED=False;
   - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
 
+  # install mkdocs
+  - pip install mkdocs --progress-bar off
 
 # command to run tests
 script:
@@ -83,7 +85,7 @@ script:
   - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/test_documentation.py;
+      PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/test_documentation.py && cd docs && python autogen.py && mkdocs build;
     else
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
     fi

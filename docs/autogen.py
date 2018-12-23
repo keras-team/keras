@@ -418,13 +418,6 @@ def clean_module_name(name):
     return name
 
 
-def class_to_docs_link(cls):
-    module_name = clean_module_name(cls.__module__)
-    module_name = module_name[6:]
-    link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
-    return link
-
-
 def class_to_source_link(cls):
     module_name = clean_module_name(cls.__module__)
     path = module_name.replace('.', '/')

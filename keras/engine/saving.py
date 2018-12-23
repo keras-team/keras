@@ -4,12 +4,17 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import numpy as np
 import os
 import json
 import yaml
+import inspect
 import warnings
+import tempfile
 from six.moves import zip
+from six import string_types
+from functools import wraps
+
+import numpy as np
 
 from .. import backend as K
 from .. import optimizers
@@ -22,6 +27,11 @@ try:
     HDF5_OBJECT_HEADER_LIMIT = 64512
 except ImportError:
     h5py = None
+
+try:
+    from tensorflow.python.lib.io import file_io as tf_file_io
+except ImportError:
+    tf_file_io = None
 
 
 def _serialize_model(model, h5dict, include_optimizer=True):
@@ -333,6 +343,112 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
     return model
 
 
+def _gcs_copy(source_filepath, target_filepath, overwrite=True):
+    """Copies a file to/from/within Google Cloud Storage (GCS).
+
+    # Arguments
+        source_filepath: String, path to the file on filesystem or object on GCS to
+            copy from.
+        target_filepath: String, path to the file on filesystem or object on GCS to
+            copy to.
+        overwrite: Whether we should overwrite an existing file/object at the target
+            location, or instead ask the user with a manual prompt.
+    """
+    if tf_file_io is None:
+        raise ImportError('Google Cloud Storage file transfer requires TensorFlow.')
+    if not overwrite and tf_file_io.file_exists(target_filepath):
+        proceed = ask_to_proceed_with_overwrite(target_filepath)
+        if not proceed:
+            return
+    with tf_file_io.FileIO(source_filepath, mode='rb') as source_f:
+        with tf_file_io.FileIO(target_filepath, mode='wb') as target_f:
+            target_f.write(source_f.read())
+
+
+def _is_gcs_location(filepath):
+    """Checks if `filepath` is referencing a google storage bucket.
+
+    # Arguments
+        filepath: The location to check.
+    """
+    return isinstance(filepath, string_types) and filepath.startswith('gs://')
+
+
+def allow_write_to_gcs(save_function):
+    """Function decorator to support saving to Google Cloud Storage (GCS).
+
+    This decorator parses the `filepath` argument of the `save_function` and
+    transfers the file to GCS if `filepath` starts with "gs://".
+
+    Note: the file is temporarily writen to local filesystem before copied to GSC.
+
+    # Arguments
+        save_function: The function to wrap, with requirements:
+            - second positional argument should indicate the location to save to.
+            - third positional argument should be the `overwrite` option indicating
+            whether we should overwrite an existing file/object at the target
+            location, or instead ask the user with a manual prompt.
+    """
+    @wraps(save_function)
+    def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
+        if _is_gcs_location(filepath):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            save_function(obj, tmp_filepath, True, *args, **kwargs)
+            try:
+                _gcs_copy(tmp_filepath, filepath, overwrite)
+            finally:
+                os.remove(tmp_filepath)
+        else:
+            save_function(obj, filepath, overwrite, *args, **kwargs)
+
+    return save_wrapper
+
+
+def allow_read_from_gcs(load_function):
+    """Function decorator to support loading from Google Cloud Storage (GCS).
+
+    This decorator parses the `filepath` argument of the `load_function` and
+    fetches the required object from GCS if `filepath` starts with "gs://".
+
+    Note: the file is temporarily copied to local filesystem from GCS before loaded.
+
+    # Arguments
+        load_function: The function to wrap, with requirements:
+            - should have one _named_ argument `filepath` indicating the location to
+            load from.
+    """
+    def extract_named_arg(f, name, args, kwargs):
+        if name in kwargs:
+            arg = kwargs.pop(name)
+            return arg, args, kwargs
+        argnames = inspect.getargspec(f)[0]
+        for i, (argname, arg) in enumerate(zip(argnames, args)):
+            if argname == name:
+                return arg, args[:i] + args[i + 1:], kwargs
+        else:
+            raise ValueError('function {} has no argument {}'.format(f, name))
+
+    @wraps(load_function)
+    def load_wrapper(*args, **kwargs):
+        filepath, _args, _kwargs = extract_named_arg(
+            load_function, 'filepath', args, kwargs)
+        if _is_gcs_location(filepath):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            _gcs_copy(filepath, tmp_filepath)
+            _kwargs['filepath'] = tmp_filepath
+            try:
+                res = load_function(*_args, **_kwargs)
+            finally:
+                os.remove(tmp_filepath)
+            return res
+        return load_function(*args, **kwargs)
+
+    return load_wrapper
+
+
+@allow_write_to_gcs
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
@@ -385,6 +501,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
             h5dict.close()
 
 
+@allow_read_from_gcs
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
