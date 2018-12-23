@@ -88,7 +88,7 @@ def test_data_utils(in_tmpdir):
     path = get_file(dirname, origin, untar=True)
     filepath = path + '.tar.gz'
     assert os.path.dirname(os.path.dirname(os.path.abspath(filepath))) \
-           == os.path.dirname(K._config_path)
+        == os.path.dirname(K._config_path)
     os.remove(filepath)
 
     _keras_home = os.path.join(os.path.abspath('.'), '.keras')
@@ -99,7 +99,7 @@ def test_data_utils(in_tmpdir):
     path = get_file(dirname, origin, untar=True)
     filepath = path + '.tar.gz'
     assert os.path.dirname(os.path.dirname(os.path.abspath(filepath))) \
-           == os.path.dirname(K._config_path)
+        == os.path.dirname(K._config_path)
     os.environ.pop('KERAS_HOME')
     shutil.rmtree(_keras_home)
     reload_module(K)
