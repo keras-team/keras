@@ -103,6 +103,11 @@ def test_adamax():
 @keras_test
 def test_nadam():
     _test_optimizer(optimizers.Nadam())
+   
+@keras_test
+def test_lars():
+    _test_optimizer(optimizers.LARS(0.01,use_nesterov=True))
+    _test_optimizer(optimizers.LARS(0.01,use_nesterov=False))
 
 
 @keras_test
