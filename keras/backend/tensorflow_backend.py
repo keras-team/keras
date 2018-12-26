@@ -1833,7 +1833,7 @@ def where(condition, x, y):
        Return `tf.convert_to_tensor(condition.nonzero())`.
 
     # Arguments
-        cond: Tensor or variable.
+        condition: Tensor or variable.
         x: Tensor or variable.
         y: Tensor or variable.
 
