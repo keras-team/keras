@@ -1827,6 +1827,7 @@ def less_equal(x, y):
     """
     return tf.less_equal(x, y)
 
+
 def where(condition, x, y):
     """Returns elements, either from x or y, depending on condition.
        If only condition is given, (suppose we have transfer condition from Tensor to `numpy.ndarray`)
