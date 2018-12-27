@@ -105,3 +105,21 @@ model.fit(x_train, y_train,
 
 # next, compare with an equivalent network
 # with2x bigger Dense layers and ReLU
+
+model = Sequential()
+model.add(layers.Dense(512, input_shape=(784,), activation="relu"))
+model.add(layers.Dropout(0.1))
+model.add(layers.Dense(256, activation="relu"))
+model.add(layers.Dropout(0.1))
+model.add(layers.Dense(num_classes))
+model.add(layers.Activation('softmax'))
+
+model.compile(loss='categorical_crossentropy',
+              optimizer='rmsprop',
+              metrics=['accuracy'])
+
+model.fit(x_train, y_train,
+          batch_size=batch_size,
+          epochs=epochs,
+          verbose=1,
+          validation_data=(x_test, y_test))
