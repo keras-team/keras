@@ -64,18 +64,21 @@ To download the data run:
 
 # Differences between this implementation and [1]
 - NOTE that a different dataset (wmt14) is used in [1], which is _orders of
-    magnitude_ larger than the dataset used here (348M vs 0.35M words).
+    magnitude_ larger than the dataset used here (348M vs 0.35M words). The model
+    in [1] was trained for 252 hours (!) on a Tesla Quadro K6000, whereas for the
+    data in this example the model starts to overfit after < 1 hour (15 epochs)
+    on a Tesla K80.
 - In [1] a custom scheme is used to batch sequences of similar lengths to minimize
     the computational waste from padding of short sequences in the same batch as
     longer sequences.
-- The tokenization here is similar but not identical to [1].
-- Initialisation of weights are not identical here and [1].
+- The tokenization here is not identical to [1].
+- Initialization of weights here is not identical to [1].
 - In the detailed description of the architecture in [1] it is stated:
     "From here on, we omit all bias terms in order to increase
-    readability". It is thus not fully clear which linear transformations
+    readability". It is therefore not fully clear which linear transformations
     also has bias terms, here all have.
-(- There is no mention of Dropout or other regularisation methods in [1],
-    this could improve performance.)
+(- There is no mention of Dropout or other regularisation methods in [1].
+    This could improve performance, especially for the small dataset used here.)
 '''
 from __future__ import print_function
 
@@ -730,8 +733,8 @@ if __name__ == '__main__':
                                     return_state=True))
     x_enc, h_enc_fwd_final, h_enc_bkw_final = encoder_rnn(x_emb)
 
-    # half of the dense annotation can be computed one per input sequence sine it is
-    # independent of the RNN state
+    # half of the dense annotation can be computed onece per input sequence since it
+    # is independent of the RNN state
     u = TimeDistributed(Dense(DENSE_ATTENTION_UNITS, use_bias=False))(x_enc)
 
     # the final state of the backward-GRU (closest to the start of the input
@@ -770,14 +773,14 @@ if __name__ == '__main__':
     # Save model
     model.save('rec_att_mt.h5')
 
-    # Inference: use to model to translate new sentences!
+    # Inference: let's use to model to translate new sentences!
     # Greedy and Beam Search inference is implemented below. Note that in both
     # approaches the input and entire history of outputs are processed for every
-    # token that is generated. A more computationally efficient way is to decompose
-    # the model into one encoding model (that is ran once per input text) and one
-    # decoding model that returns its recurrent state, so that it can be applied
-    # iteratively on only the latest generated token. This is left out here for
-    # brevity.
+    # new token that is generated. A more computationally efficient way is to
+    # decompose the model into one encoding model (that is ran once per input text)
+    # and one decoding model that outputs its recurrent state, so that it can be
+    # applied iteratively on only the latest generated token. This is however not
+    # done here for brevity.
 
     def translate_greedy(input_text, t_max=None):
         """Select the next token highest predicted likelihood iteratively.
