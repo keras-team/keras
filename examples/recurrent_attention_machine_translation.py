@@ -78,19 +78,17 @@ from __future__ import print_function
 
 import os
 import heapq
-from collections import namedtuple
 
 import numpy as np
 
 from keras import backend as K
 from keras import initializers, regularizers, constraints
-from keras.engine import InputLayer
 from keras.engine.base_layer import _collect_previous_mask
 from keras.layers import Layer, InputSpec
 from keras.layers import Input, Embedding, Bidirectional, RNN, GRU, GRUCell
 from keras.layers import TimeDistributed, Dense, concatenate, Lambda
 from keras.models import Model
-from keras.optimizers import Adadelta, Adam
+from keras.optimizers import Adadelta
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 from keras.utils.generic_utils import has_arg
