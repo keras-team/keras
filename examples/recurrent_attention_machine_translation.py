@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 '''Machine Translation (word-level) with recurrent attention in Keras.
 
 This script demonstrates how to implement basic word-level machine
@@ -672,7 +673,7 @@ if __name__ == '__main__':
     READOUT_HIDDEN_UNITS = 500  # `l` in [1]
     OPTIMIZER = Adadelta(rho=0.95, epsilon=1e-6, clipnorm=1.)
     BATCH_SIZE = 80
-    EPOCHS = 20  # only 5 epochs in [1] but a orders of magnitude larger dataset
+    EPOCHS = 15  # only 5 epochs in [1] but orders of magnitude larger dataset
 
     # Load and tokenize the data
     start_token = "'start'"
@@ -920,13 +921,40 @@ if __name__ == '__main__':
 
         return output_texts, output_scores
 
-    # Translate some sentences from validation data
-    for input_text, target_text in zip(input_texts_val[:5], target_texts_val[:5]):
-        print("Translating: ", input_text)
-        print("Expected: ", target_text)
+    # Translate first 3 samples from validation data
+    for input_text, target_text in zip(input_texts_val, target_texts_val)[:3]:
+        # create slice for skipping start and end token
+        sl = slice(len(start_token) + 1, -(len(end_token) + 1))
+        print("Translating:", input_text[sl])
+        print("Expected:", target_text[sl])
         output_greedy, score_greedy = translate_greedy(input_text)
-        print("Greedy output: ", output_greedy)
+        print("Greedy output:", output_greedy[sl])
         outputs_beam, scores_beam = translate_beam_search(input_text)
-        print("Beam search outputs (top 5):")
-        for beam in outputs_beam[:5]:
-            print("\t" + beam)
+        print("Beam search outputs (top 3):")
+        for beam in outputs_beam[:3]:
+            print("\t" + beam[sl])
+        print()
+
+# Translating: A group of men are loading cotton onto a truck
+# Expected: Eine Gruppe von Männern lädt Baumwolle auf einen Lastwagen
+# Greedy output: eine gruppe von männern stellt eine person auf einem lkw
+# Beam search outputs (top 3):
+# 	eine gruppe von männern stellt etwas in einem lastwagen
+# 	eine gruppe von männern feiert in einem lastwagen
+# 	eine gruppe von männern schaut nach einem mann an
+#
+# Translating: A man sleeping in a green room on a couch.
+# Expected: Ein Mann schläft in einem grünen Raum auf einem Sofa.
+# Greedy output: ein mann schläft in einem grünen raum auf einem sofa
+# Beam search outputs (top 3):
+# 	ein mann schläft in einem grünen raum auf einem sofa
+# 	ein mann in einem grünen raum auf einem sofa
+# 	ein mann schläft in einem grünen zimmer auf einem sofa
+#
+# Translating: A boy wearing headphones sits on a woman's shoulders.
+# Expected: Ein Junge mit Kopfhörern sitzt auf den Schultern einer Frau.
+# Greedy output: ein junge mit kopfhörern sitzt auf einer bühne und schaut nach links
+# Beam search outputs (top 3):
+# 	ein junge mit kopfhörern sitzt auf einer bühne
+# 	ein junge mit kopfhörern sitzt auf einer bank
+# 	ein junge mit kopfhörern sitzt auf einer veranda
