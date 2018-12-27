@@ -694,8 +694,8 @@ if __name__ == '__main__':
 
     input_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS, oov_token='?')
     target_tokenizer = Tokenizer(num_words=MAX_UNIQUE_WORDS, oov_token='?')
-    input_tokenizer.fit_on_texts(input_texts_train + input_texts_val)
-    target_tokenizer.fit_on_texts(target_texts_train + target_texts_val)
+    input_tokenizer.fit_on_texts(input_texts_train)
+    target_tokenizer.fit_on_texts(target_texts_train)
 
     input_seqs_train = input_tokenizer.texts_to_sequences(input_texts_train)
     input_seqs_val = input_tokenizer.texts_to_sequences(input_texts_val)
@@ -703,12 +703,12 @@ if __name__ == '__main__':
     target_seqs_val = target_tokenizer.texts_to_sequences(target_texts_val)
 
     # we need to know the largest index to set size of embeddings and output layer
-    input_max_word_idx = max([max(s) for s in input_seqs_train + input_seqs_val])
-    target_max_word_idx = max([max(s) for s in target_seqs_train + target_seqs_val])
+    input_num_words = max([max(s) for s in input_seqs_train]) + 1
+    target_num_words = max([max(s) for s in target_seqs_train]) + 1
     # Note that the Tokenizer does't have a property for this, but below also works:
-    # input_max_word_idx = min(
-    #     max(input_tokenizer.word_index.values()),
-    #     input_tokenizer.num_words - 1
+    # input_num_words = min(
+    #     max(input_tokenizer.word_index.values()) + 1,
+    #     input_tokenizer.num_words
     # )
     input_seqs_train, input_seqs_val, target_seqs_train, target_seqs_val = (
         pad_sequences(seq, maxlen=MAX_WORDS_PER_SENTENCE,
@@ -721,8 +721,8 @@ if __name__ == '__main__':
     # Build model
     x = Input((None,), name="input_sequences")
     y = Input((None,), name="target_sequences")
-    x_emb = Embedding(input_max_word_idx + 1, EMBEDDING_SIZE, mask_zero=True)(x)
-    y_emb = Embedding(target_max_word_idx + 1, EMBEDDING_SIZE, mask_zero=True)(y)
+    x_emb = Embedding(input_num_words, EMBEDDING_SIZE, mask_zero=True)(x)
+    y_emb = Embedding(target_num_words, EMBEDDING_SIZE, mask_zero=True)(y)
 
     encoder_rnn = Bidirectional(GRU(RECURRENT_UNITS,
                                     return_sequences=True,
@@ -745,19 +745,15 @@ if __name__ == '__main__':
     decoder_rnn = RNN(cell=cell, return_sequences=True)
     h1 = decoder_rnn(y_emb, initial_state=initial_state, constants=[x_enc, u])
 
-    def dense_maxout(x_):
-        """Implements a dense maxout layer where max is taken
-        over _two_ units"""
-        x_ = Dense(READOUT_HIDDEN_UNITS * 2)(x_)
+    def maxout(x_):
+        """Maxout "activation" where max is taken over _two_ units"""
         x_1 = x_[:, :READOUT_HIDDEN_UNITS]
         x_2 = x_[:, READOUT_HIDDEN_UNITS:]
         return K.max(K.stack([x_1, x_2], axis=-1), axis=-1, keepdims=False)
 
-    maxout_layer = TimeDistributed(Lambda(dense_maxout))
-    h2 = maxout_layer(concatenate([h1, y_emb]))
-    output_layer = TimeDistributed(Dense(target_max_word_idx + 1,
-                                         activation='softmax'))
-    y_pred = output_layer(h2)
+    _h2 = TimeDistributed(Dense(READOUT_HIDDEN_UNITS * 2))(concatenate([h1, y_emb]))
+    h2 = TimeDistributed(Lambda(maxout))(_h2)
+    y_pred = TimeDistributed(Dense(target_num_words, activation='softmax'))(h2)
 
     model = Model([y, x], y_pred)
     model.compile(loss='sparse_categorical_crossentropy', optimizer=OPTIMIZER)
