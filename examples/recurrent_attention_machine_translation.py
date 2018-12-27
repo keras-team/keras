@@ -62,10 +62,13 @@ To download the data run:
     (http://www.statmt.org/wmt16/multimodal-task.html)
 
 # Differences between this implementation and [1]
-- A different/older dataset (wmt14) is used in [1].
-- The Tokenization here is similar but not identical to [1].
+- NOTE that a different dataset (wmt14) is used in [1], which is _orders of
+    magnitude_ larger than the dataset used here (348M vs 0.35M words).
+- In [1] a custom scheme is used to batch sequences of similar lengths to minimize
+    the computational waste from padding of short sequences in the same batch as
+    longer sequences.
+- The tokenization here is similar but not identical to [1].
 - Initialisation of weights are not identical here and [1].
-- Normalisation of gradients is done when L2-norm > 1 in [1].
 - In the detailed description of the architecture in [1] it is stated:
     "From here on, we omit all bias terms in order to increase
     readability". It is thus not fully clear which linear transformations
@@ -73,7 +76,6 @@ To download the data run:
 (- There is no mention of Dropout or other regularisation methods in [1],
     this could improve performance.)
 '''
-
 from __future__ import print_function
 
 import os
@@ -84,9 +86,9 @@ import numpy as np
 from keras import backend as K
 from keras import initializers, regularizers, constraints
 from keras.engine.base_layer import _collect_previous_mask
-from keras.layers import Layer, InputSpec
-from keras.layers import Input, Embedding, Bidirectional, RNN, GRU, GRUCell
-from keras.layers import TimeDistributed, Dense, concatenate, Lambda
+from keras.layers import Layer, Input, InputSpec
+from keras.layers import Embedding, Dense, GRU, GRUCell
+from keras.layers import RNN, Bidirectional, TimeDistributed, Lambda, concatenate
 from keras.models import Model
 from keras.optimizers import Adadelta
 from keras.preprocessing.text import Tokenizer
@@ -518,17 +520,24 @@ class DenseAnnotationAttention(AttentionCellWrapper):
     the `SimpleRNNCell`, `LSTMCell` or `GRUCell`. It modifies the input of the
     wrapped cell by attending to a constant sequence (i.e. independent of the time
     step of the recurrent application of the attention mechanism). The attention
-    encoding is computed  by using a single hidden layer MLP which computes a
-    weighting over the attended input. The MLP is applied to each time step of the
-    attended, together with the previous state. The attention encoding is the taken
-    as the weighted sum over the attended input using these weights.
+    encoding is obtained by computing a scalar weight for each time step of the
+    attended by applying two stacked Dense layers to the concatenation of the
+    attended feature vector at the respective time step with the previous state of
+    the RNN Cell. The attention encoding is the weighted sum of the attended feature
+    vectors using these weights.
+
+    Half of the first Dense transformation is independent of the RNN Cell state and
+    can be computed once for the attended sequence. Therefore this transformation
+    should be computed externally of the attentive RNN Cell (for efficiency) and this
+    layer expects both the attended sequence and the output of a Dense transformation
+    of the attended sequence (see Example below). The number of hidden units of the
+    attention mechanism is subsequently defined by the number of units of this
+    (external) dense transformation.
 
     # Arguments
         cell: A RNN cell instance. The wrapped RNN cell wrapped by this attention
             mechanism. See docs of `cell` argument in the `RNN` Layer for further
             details.
-        units: the number of hidden units in the single hidden MLP used for
-            computing the attention weights.
         kernel_initializer: Initializer for all weights matrices
             (see [initializers](../initializers.md)).
         bias_initializer: Initializer for all bias vectors
@@ -542,7 +551,7 @@ class DenseAnnotationAttention(AttentionCellWrapper):
         bias_constraint: Constraint function applied to all bias vectors
             (see [constraints](../constraints.md)).
 
-     # Examples
+     # Example
 
     ```python
         # machine translation (similar to the architecture used in [1])
@@ -552,23 +561,16 @@ class DenseAnnotationAttention(AttentionCellWrapper):
         y_emb = Embedding(TARGET_NUM_WORDS, 256, mask_zero=True)(y)
         encoder = Bidirectional(GRU(512, return_sequences=True))
         x_enc = encoder(x_emb)
-        decoder = RNN(cell=DenseAnnotationAttention(cell=GRUCell(512), units=128),
+
+        # first part of the dense annotation, independent of the decoder time step
+        u = TimeDistributed(Dense(128, use_bias=False))(x_enc)
+        decoder = RNN(cell=DenseAnnotationAttention(cell=GRUCell(512)),
                       return_sequences=True)
-        h = decoder(y_emb, constants=x_enc)
+        h = decoder(y_emb, constants=[x_enc, u])
         y_pred = TimeDistributed(Dense(TARGET_NUM_WORDS, activation='softmax'))(h)
         model = Model([y, x], y_pred)
         model.compile(loss='sparse_categorical_crossentropy', optimizer=OPTIMIZER)
     ```
-
-    # Details of attention mechanism
-    Let {attended_1, ..., attended_I} denote the attended input sequence, where
-    attended_i is the i:t attended input vector, h_cell_tm1 the previous state of
-    the wrapped cell at the recurrent time step t. Then the attention encoding at
-    time step t is computed as follows:
-
-        e_i = MLP([attended_i, h_cell_tm1])  # [., .] denoting concatenation
-        a_i = softmax_i({e_1, ..., e_I})
-        attention_h_t = sum_i(a_i * h_i)
 
     # References
     [1] Neural Machine Translation by Jointly Learning to Align and Translate
@@ -668,9 +670,9 @@ if __name__ == '__main__':
     RECURRENT_UNITS = 1000  # `n` in [1]
     DENSE_ATTENTION_UNITS = 1000  # fixed equal to `n` in [1]
     READOUT_HIDDEN_UNITS = 500  # `l` in [1]
-    OPTIMIZER = Adadelta(rho=0.95, epsilon=1e-6)
+    OPTIMIZER = Adadelta(rho=0.95, epsilon=1e-6, clipnorm=1.)
     BATCH_SIZE = 80
-    EPOCHS = 5
+    EPOCHS = 20  # only 5 epochs in [1] but a orders of magnitude larger dataset
 
     # Load and tokenize the data
     start_token = "'start'"
