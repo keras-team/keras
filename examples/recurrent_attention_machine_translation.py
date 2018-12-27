@@ -805,7 +805,6 @@ if __name__ == '__main__':
 
         return output_text, score
 
-
     def translate_beam_search(input_text,
                               search_width=20,
                               branch_factor=None,
