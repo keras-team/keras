@@ -732,7 +732,7 @@ if __name__ == '__main__':
                                     return_state=True))
     x_enc, h_enc_fwd_final, h_enc_bkw_final = encoder_rnn(x_emb)
 
-    # half of the dense annotation can be computed onece per input sequence since it
+    # half of the dense annotation can be computed once per input sequence since it
     # is independent of the RNN state
     u = TimeDistributed(Dense(DENSE_ATTENTION_UNITS, use_bias=False))(x_enc)
 
