@@ -81,6 +81,9 @@ Restores a character-level sequence to sequence model from disk (saved by [lstm_
 [pretrained_word_embeddings.py](pretrained_word_embeddings.py)
 Loads pre-trained word embeddings (GloVe embeddings) into a frozen Keras Embedding layer, and uses it to train a text classification model on the 20 Newsgroup dataset.
 
+[recurrent_attention_machine_translation.py](recurrent_attention_machine_translation.py)
+Trains a machine translation model based on recurrent attention (a replication of the architecture used in [Neural Machine Translation by Jointly Learning to Align and Translate](https://arxiv.org/abs/1409.0473)).
+
 [reuters_mlp.py](reuters_mlp.py)
 Trains and evaluate a simple MLP on the Reuters newswire topic classification task.
 

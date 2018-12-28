@@ -66,7 +66,7 @@ To download the data run:
 - NOTE that a different dataset (wmt14) is used in [1], which is _orders of
     magnitude_ larger than the dataset used here (348M vs 0.35M words). The model
     in [1] was trained for 252 hours (!) on a Tesla Quadro K6000, whereas for the
-    data in this example the model starts to overfit after < 1 hour (15 epochs)
+    data in this example the model starts to overfit after about 1 hour (15 epochs)
     on a Tesla K80.
 - In [1] a custom scheme is used to batch sequences of similar lengths to minimize
     the computational waste from padding of short sequences in the same batch as
@@ -97,6 +97,7 @@ from keras.models import Model
 from keras.optimizers import Adadelta
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
+from keras.utils import get_file
 from keras.utils.generic_utils import has_arg, to_list
 
 
@@ -663,7 +664,16 @@ class DenseAnnotationAttention(AttentionCellWrapper):
 
 
 if __name__ == '__main__':
-    DATA_DIR = 'data/wmt16_mmt'
+    # Download data (if not already available in cache)
+    base_name = 'wmt16_mmt_'
+    origin = 'http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/'
+    get_kwargs = dict(untar=True, cache_subdir=os.path.join('datasets', 'wmt16_mmt'))
+    get_file('train', origin=origin + 'training.tar.gz', **get_kwargs)
+    get_file('val', origin=origin + 'validation.tar.gz', **get_kwargs)
+    fpath = get_file('test', origin=origin + 'mmt16_task1_test.tar.gz', **get_kwargs)
+    DATA_DIR = os.path.dirname(fpath)
+
+    # Specify direction of translation
     FROM_LANGUAGE = 'en'
     TO_LANGUAGE = 'de'
 
@@ -859,7 +869,7 @@ if __name__ == '__main__':
                 return self.score < other.score
 
             def __gt__(self, other):
-                return other.score > other.score
+                return self.score > other.score
 
         x_ = np.array(input_tokenizer.texts_to_sequences([input_text]))
         x_ = np.repeat(x_, search_width, axis=0)
@@ -896,7 +906,7 @@ if __name__ == '__main__':
                     elif len(beams_updated) < search_width:
                         # not full search width
                         heapq.heappush(beams_updated, new_beam)
-                    elif new_beam.score > beams_updated[0].score:
+                    elif new_beam > beams_updated[0]:
                         # better than candidate with lowest score
                         heapq.heapreplace(beams_updated, new_beam)
                     else:
