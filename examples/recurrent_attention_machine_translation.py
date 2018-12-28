@@ -97,7 +97,7 @@ from keras.models import Model
 from keras.optimizers import Adadelta
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils.generic_utils import has_arg
+from keras.utils.generic_utils import has_arg, to_list
 
 
 class AttentionCellWrapper(Layer):
@@ -329,11 +329,11 @@ class AttentionCellWrapper(Layer):
     def call(self, inputs, states, constants, training=None):
         """Complete attentive cell transformation.
         """
-        attended = constants
-        attended_mask = _collect_previous_mask(attended)
-        # attended and mask are always lists for uniformity:
-        if not isinstance(attended_mask, list):
-            attended_mask = [attended_mask]
+        attended = to_list(constants, allow_tuple=True)
+        # NOTE: `K.rnn` will pass constants as a tuple and `_collect_previous_mask`
+        # returns `None` if passed a tuple of tensors, hence `to_list` above!
+        # We also make `attended` and `attended_mask` always lists for uniformity:
+        attended_mask = to_list(_collect_previous_mask(attended))
         cell_states = states[:self._num_wrapped_states]
         attention_states = states[self._num_wrapped_states:]
 
