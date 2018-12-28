@@ -656,7 +656,6 @@ class DenseAnnotationAttention(AttentionCellWrapper):
 
 if __name__ == '__main__':
     # Download data (if not already available in cache)
-    base_name = 'wmt16_mmt_'
     origin = 'http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/'
     get_kwargs = dict(untar=True, cache_subdir=os.path.join('datasets', 'wmt16_mmt'))
     get_file('train', origin=origin + 'training.tar.gz', **get_kwargs)
