@@ -714,13 +714,12 @@ if __name__ == '__main__':
     #     max(input_tokenizer.word_index.values()) + 1,
     #     input_tokenizer.num_words
     # )
-    input_seqs_train, input_seqs_val, target_seqs_train, target_seqs_val = (
-        pad_sequences(seq, maxlen=MAX_WORDS_PER_SENTENCE,
+    pad_kwargs = dict(maxlen=MAX_WORDS_PER_SENTENCE,
                       padding='post', truncating='post')
-        for seq in [input_seqs_train,
-                    input_seqs_val,
-                    target_seqs_train,
-                    target_seqs_val])
+    input_seqs_train = pad_sequences(input_seqs_train, **pad_kwargs)
+    input_seqs_val = pad_sequences(input_seqs_val, **pad_kwargs)
+    target_seqs_train = pad_sequences(target_seqs_train, **pad_kwargs)
+    target_seqs_val = pad_sequences(target_seqs_val, **pad_kwargs)
 
     # Build model
     x = Input((None,), name="input_sequences")
