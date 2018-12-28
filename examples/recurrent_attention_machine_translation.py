@@ -45,15 +45,11 @@ Main steps:
         hit the word limit.
 
 # Data
-We use the machine translation dataset described in [2].
-To download the data run:
-    mkdir -p data/wmt16_mmt
-    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/training.tar.gz
-    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/validation.tar.gz
-    wget http://www.quest.dcs.shef.ac.uk/wmt16_files_mmt/mmt16_task1_test.tar.gz
-    tar -xf training.tar.gz -C data/wmt16_mmt && rm training.tar.gz
-    tar -xf validation.tar.gz -C data/wmt16_mmt && rm validation.tar.gz
-    tar -xf mmt16_task1_test.tar.gz -C data/wmt16_mmt && rm mmt16_task1_test.tar.gz
+We use the dataset described in [2]. NOTE that a different dataset (wmt14) is used in
+[1], which is _orders of magnitude_ larger than the dataset used here (348M words vs
+0.35M words). In [1], the model was trained for 252 hours on a Tesla Quadro K6000,
+whereas for the data in this example, the model starts to overfit after about 1 hour
+(15 epochs) on a Tesla K80.
 
 # References
 [1] Neural Machine Translation by Jointly Learning to Align and Translate
@@ -63,16 +59,11 @@ To download the data run:
     (http://www.statmt.org/wmt16/multimodal-task.html)
 
 # Differences between this implementation and [1]
-- NOTE that a different dataset (wmt14) is used in [1], which is _orders of
-    magnitude_ larger than the dataset used here (348M vs 0.35M words). The model
-    in [1] was trained for 252 hours (!) on a Tesla Quadro K6000, whereas for the
-    data in this example the model starts to overfit after about 1 hour (15 epochs)
-    on a Tesla K80.
-- In [1] a custom scheme is used to batch sequences of similar lengths to minimize
-    the computational waste from padding of short sequences in the same batch as
-    longer sequences.
 - The tokenization here is not identical to [1].
 - Initialization of weights here is not identical to [1].
+- A custom scheme is used in [1] to batch sequences of similar lengths. This is done
+    to minimize the computational waste from padding of short sequences in the same
+    batch as longer sequences.
 - In the detailed description of the architecture in [1] it is stated:
     "From here on, we omit all bias terms in order to increase
     readability". It is therefore not fully clear which linear transformations
@@ -722,8 +713,8 @@ if __name__ == '__main__':
     # Note that the Tokenizer does't have a property for this, but below also works:
     # input_num_words = min(
     #     max(input_tokenizer.word_index.values()) + 1,
-    #     input_tokenizer.num_words
-    # )
+    #     input_tokenizer.num_words)
+
     pad_kwargs = dict(maxlen=MAX_WORDS_PER_SENTENCE,
                       padding='post', truncating='post')
     input_seqs_train = pad_sequences(input_seqs_train, **pad_kwargs)
