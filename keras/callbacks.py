@@ -1001,6 +1001,7 @@ class TensorBoard(Callback):
 
     def on_train_end(self, _):
         self.writer.close()
+        K.clear_session()
 
     def on_batch_end(self, batch, logs=None):
         if self.update_freq != 'epoch':
