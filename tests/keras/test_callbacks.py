@@ -811,6 +811,36 @@ def test_TensorBoard_display_float_from_logs(tmpdir):
     assert not tmpdir.listdir()
 
 
+def test_TensorBoard_multiple_chained_training(tmpdir):
+    filepath = str(tmpdir / 'logs')
+
+    input_shape = (3,)
+
+    (x_train, y_train), _ = get_data_callbacks(num_train=10,
+                                               num_test=0,
+                                               input_shape=input_shape)
+    y_train = np_utils.to_categorical(y_train)
+
+    tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=5)
+
+    model = Sequential([
+        Dense(num_classes, activation='softmax')
+    ])
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop')
+
+    model.fit(x_train, y_train, epochs=2, batch_size=16,
+              callbacks=[tsb],
+              verbose=0)
+    model.fit(x_train, y_train, epochs=2, batch_size=16,
+              callbacks=[tsb],
+              verbose=0)
+
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
+
+
 def test_CallbackValData():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_data_callbacks()
