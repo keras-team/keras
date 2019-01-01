@@ -37,6 +37,7 @@ USER $NB_USER
 
 ARG python_version=3.6
 
+RUN conda config --append channels conda-forge
 RUN conda install -y python=${python_version} && \
     pip install --upgrade pip && \
     pip install \
@@ -76,4 +77,3 @@ WORKDIR /src
 EXPOSE 8888
 
 CMD jupyter notebook --port=8888 --ip=0.0.0.0
-
