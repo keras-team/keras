@@ -5,6 +5,7 @@ import time
 import sys
 import tarfile
 import threading
+import shutil
 import zipfile
 from itertools import cycle
 import multiprocessing as mp
@@ -13,6 +14,7 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
+from six.moves import reload_module
 
 from flaky import flaky
 
@@ -85,6 +87,25 @@ def test_data_utils(in_tmpdir):
 
     path = get_file(dirname, origin, untar=True)
     filepath = path + '.tar.gz'
+    data_keras_home = os.path.dirname(os.path.dirname(os.path.abspath(filepath)))
+    assert data_keras_home == os.path.dirname(K._config_path)
+    os.remove(filepath)
+
+    _keras_home = os.path.join(os.path.abspath('.'), '.keras')
+    if not os.path.exists(_keras_home):
+        os.makedirs(_keras_home)
+    os.environ['KERAS_HOME'] = _keras_home
+    reload_module(K)
+    path = get_file(dirname, origin, untar=True)
+    filepath = path + '.tar.gz'
+    data_keras_home = os.path.dirname(os.path.dirname(os.path.abspath(filepath)))
+    assert data_keras_home == os.path.dirname(K._config_path)
+    os.environ.pop('KERAS_HOME')
+    shutil.rmtree(_keras_home)
+    reload_module(K)
+
+    path = get_file(dirname, origin, untar=True)
+    filepath = path + '.tar.gz'
     hashval_sha256 = _hash_file(filepath)
     hashval_md5 = _hash_file(filepath, algorithm='md5')
     path = get_file(dirname, origin, md5_hash=hashval_md5, untar=True)
@@ -106,6 +127,7 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_md5)
 
     os.remove(path)
+    os.remove(os.path.join(os.path.dirname(path), 'test.txt'))
     os.remove('test.txt')
     os.remove('test.zip')
 
