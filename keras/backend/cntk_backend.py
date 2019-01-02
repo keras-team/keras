@@ -1111,16 +1111,16 @@ def less_equal(x, y):
     return C.less_equal(x, y)
 
 
+def where(condition, x, y):
+    raise NotImplementedError('CNTK not support ops like `tf.where`.')
+
+
 def maximum(x, y):
     return C.element_max(x, y)
 
 
 def minimum(x, y):
     return C.element_min(x, y)
-
-
-def where(condition, x, y):
-    raise NotImplementedError('CNTK not support ops like `tf.where`.')
 
 
 def sin(x):
