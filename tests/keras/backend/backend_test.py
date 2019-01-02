@@ -64,12 +64,14 @@ def parse_shape_or_val(shape_or_val, flags="normal"):
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
-            return shape_or_val, np.random.random(shape_or_val).astype(np.float32) - 0.5
+            return shape_or_val, 
+                   np.random.random(shape_or_val).astype(np.float32) - 0.5
     elif flags == "where":
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
-            return shape_or_val, np.random.randint(0, 2, shape_or_val).astype(np.bool)
+            return shape_or_val, 
+                   np.random.randint(0, 2, shape_or_val).astype(np.bool)
 
 
 def assert_list_pairwise(z_list,
@@ -160,10 +162,10 @@ def check_two_tensor_operation(function_name,
             z = k.eval(t)
         t_list += [t]
         z_list += [z]
-
+        
     assert_list_pairwise(z_list)
     assert_list_keras_shape(t_list, z_list)
-
+    
     
 def check_three_tensor_operation(function_name,
                                  x_shape_or_val,
@@ -171,11 +173,10 @@ def check_three_tensor_operation(function_name,
                                  z_shape_or_val,
                                  backend_list,
                                  **kwargs):
-
     x_shape, x_val = parse_shape_or_val(x_shape_or_val, "where")
     y_shape, y_val = parse_shape_or_val(y_shape_or_val)
     z_shape, z_val = parse_shape_or_val(z_shape_or_val)
-    
+
     t_list = []
     z_list = []
     for k in backend_list:
@@ -188,7 +189,7 @@ def check_three_tensor_operation(function_name,
 
     assert_list_pairwise(z_list)
     assert_list_keras_shape(t_list, z_list) 
-    
+
 
 def check_composed_tensor_operations(first_function_name,
                                      first_function_args,
@@ -576,7 +577,7 @@ class TestBackend(object):
         check_two_tensor_operation('less_equal', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
-        
+
         # three-tensor ops
         check_three_tensor_operation('where', (4, 2), (4, 2), (4, 2), WITH_NP)
         
