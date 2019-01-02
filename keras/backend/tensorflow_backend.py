@@ -1842,6 +1842,7 @@ def where(condition, x, y):
     # Returns
         A tensor.
     """
+    condition = tf.cast(condition, dtype=tf.bool)
     return tf.where(condition, x, y)
 
 
