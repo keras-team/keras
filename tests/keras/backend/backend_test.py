@@ -64,13 +64,13 @@ def parse_shape_or_val(shape_or_val, flags="normal"):
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
-            return shape_or_val, \
+            return shape_or_val,
                    np.random.random(shape_or_val).astype(np.float32) - 0.5
     elif flags == "where":
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
-            return shape_or_val, \
+            return shape_or_val,
                    np.random.randint(0, 2, shape_or_val).astype(np.bool)
 
 
@@ -162,11 +162,11 @@ def check_two_tensor_operation(function_name,
             z = k.eval(t)
         t_list += [t]
         z_list += [z]
-        
+
     assert_list_pairwise(z_list)
     assert_list_keras_shape(t_list, z_list)
-    
-    
+
+
 def check_three_tensor_operation(function_name,
                                  x_shape_or_val,
                                  y_shape_or_val,
@@ -188,7 +188,7 @@ def check_three_tensor_operation(function_name,
             z_list += [z]
 
     assert_list_pairwise(z_list)
-    assert_list_keras_shape(t_list, z_list) 
+    assert_list_keras_shape(t_list, z_list)
 
 
 def check_composed_tensor_operations(first_function_name,
@@ -580,7 +580,7 @@ class TestBackend(object):
 
         # three-tensor ops
         check_three_tensor_operation('where', (4, 2), (4, 2), (4, 2), WITH_NP)
-        
+
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
     def test_cumsum_cumprod(self):
