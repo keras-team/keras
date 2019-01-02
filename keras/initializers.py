@@ -268,7 +268,7 @@ class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
     Only use for 2D matrices.
-    If the desired matrix is not square, it pads 0s on the additional rows/columns
+    If the desired matrix is not square, it pads with zeros on the additional rows/columns
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
@@ -286,18 +286,14 @@ class Identity(Initializer):
             return self.gain * np.identity(shape[0])
         elif shape[0] > shape[1]:
             return self.gain * np.concatenate(
-                [
-                    np.identity(shape[1]),
-                    np.zeros((shape[0] - shape[1], shape[1]))
-                ],
+                [np.identity(shape[1]),
+                 np.zeros((shape[0] - shape[1], shape[1]))],
                 axis=0
             )
         else:
             return self.gain * np.concatenate(
-                [
-                    np.identity(shape[0]),
-                    np.zeros((shape[0], shape[1] - shape[0]))
-                ],
+                [np.identity(shape[0]),
+                 np.zeros((shape[0], shape[1] - shape[0]))],
                 axis=1
             )
 
