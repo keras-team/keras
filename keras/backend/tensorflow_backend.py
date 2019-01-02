@@ -1830,7 +1830,7 @@ def less_equal(x, y):
 
 def where(condition, x=None, y=None):
     """Returns elements, either from x or y, depending on condition.
-       If only condition is given, 
+       If only condition is given, \
        (suppose we have transfer condition from Tensor to `numpy.ndarray`)
        Return `tf.convert_to_tensor(condition.nonzero())`.
 
