@@ -734,6 +734,10 @@ def less_equal(x, y):
     return T.le(x, y)
 
 
+def where(condition, x, y):
+    return T.where(condition, x, y)
+
+
 def maximum(x, y):
     return T.maximum(x, y)
 
