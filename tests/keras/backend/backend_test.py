@@ -65,13 +65,13 @@ def parse_shape_or_val(shape_or_val, flags="normal"):
             return shape_or_val.shape, shape_or_val
         else:
             return shape_or_val,
-                   np.random.random(shape_or_val).astype(np.float32) - 0.5
+        np.random.random(shape_or_val).astype(np.float32) - 0.5
     elif flags == "where":
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
             return shape_or_val,
-                   np.random.randint(0, 2, shape_or_val).astype(np.bool)
+        np.random.randint(0, 2, shape_or_val).astype(np.bool)
 
 
 def assert_list_pairwise(z_list,
