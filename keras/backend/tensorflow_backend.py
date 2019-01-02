@@ -1828,7 +1828,7 @@ def less_equal(x, y):
     return tf.less_equal(x, y)
 
 
-def where(condition, x=None, y=None):
+def where(condition, x, y):
     """Returns elements, either from x or y, depending on condition.
        If only condition is given, \
        (suppose we have transfer condition from Tensor to `numpy.ndarray`)
@@ -1842,7 +1842,10 @@ def where(condition, x=None, y=None):
     # Returns
         A tensor.
     """
-    return tf.where(condition, x, y)
+    if x is not None and y is not None:
+        return tf.where(condition, x, y)
+    else:
+        return tf.where(condition)
 
 
 def maximum(x, y):
