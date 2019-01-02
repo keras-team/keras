@@ -1119,6 +1119,10 @@ def minimum(x, y):
     return C.element_min(x, y)
 
 
+def where(condition, x, y):
+    raise NotImplementedError('CNTK not support ops like `tf.where`.')
+
+
 def sin(x):
     return C.sin(x)
 
