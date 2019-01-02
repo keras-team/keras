@@ -60,12 +60,12 @@ def cntk_func_tensors(function_name, shapes_or_vals, **kwargs):
 
 
 def parse_shape_or_val(shape_or_val, flags="normal"):
-    if flags != 'where':
+    if flags == "normal":
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
             return shape_or_val, np.random.random(shape_or_val).astype(np.float32) - 0.5
-    elif flags == 'where':
+    elif flags == "where":
         if isinstance(shape_or_val, np.ndarray):
             return shape_or_val.shape, shape_or_val
         else:
