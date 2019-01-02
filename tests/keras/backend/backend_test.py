@@ -179,11 +179,12 @@ def check_three_tensor_operation(function_name,
     t_list = []
     z_list = []
     for k in backend_list:
-        t = getattr(k, function_name)(
-            k.variable(x_val), k.variable(y_val), k.variable(z_val), **kwargs)
-        z = k.eval(t)
-        t_list += [t]
-        z_list += [z]
+        if k != KC:
+            t = getattr(k, function_name)(
+                k.variable(x_val), k.variable(y_val), k.variable(z_val), **kwargs)
+            z = k.eval(t)
+            t_list += [t]
+            z_list += [z]
 
     assert_list_pairwise(z_list)
     assert_list_keras_shape(t_list, z_list) 
