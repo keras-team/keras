@@ -641,6 +641,10 @@ def less_equal(x, y):
     return x <= y
 
 
+def where(condition, x, y):
+    return np.where(condition, x, y)
+
+
 def maximum(x, y):
     return np.maximum(x, y)
 
