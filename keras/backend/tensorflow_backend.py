@@ -1842,10 +1842,7 @@ def where(condition, x, y):
     # Returns
         A tensor.
     """
-    if x is not None and y is not None:
-        return tf.where(condition, x, y)
-    else:
-        return tf.where(condition)
+    return tf.where(condition, x, y)
 
 
 def maximum(x, y):
