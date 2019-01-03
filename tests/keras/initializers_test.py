@@ -108,7 +108,7 @@ def test_orthogonal(tensor_shape):
                          [(100, 100), (10, 20), (30, 80), (1, 2, 3, 4)],
                          ids=['FC', 'RNN', 'RNN_INVALID', 'CONV'])
 def test_identity(tensor_shape):
-    target_mean = min(tensor_shape) / (tensor_shape[0] * tensor_shape[1])
+    target_mean = (1. * min(tensor_shape)) / (tensor_shape[0] * tensor_shape[1])
     if len(tensor_shape) > 2:
         with pytest.raises(ValueError):
             _runner(initializers.identity(), tensor_shape,
