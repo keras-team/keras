@@ -180,12 +180,11 @@ def check_three_tensor_operation(function_name,
     t_list = []
     z_list = []
     for k in backend_list:
-        if k != KC:
-            t = getattr(k, function_name)(
-                k.variable(x_val), k.variable(y_val), k.variable(z_val), **kwargs)
-            z = k.eval(t)
-            t_list += [t]
-            z_list += [z]
+        t = getattr(k, function_name)(
+            k.variable(x_val), k.variable(y_val), k.variable(z_val), **kwargs)
+        z = k.eval(t)
+        t_list += [t]
+        z_list += [z]
 
     assert_list_pairwise(z_list)
     assert_list_keras_shape(t_list, z_list)
@@ -578,8 +577,9 @@ class TestBackend(object):
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
-        # three-tensor ops
-        check_three_tensor_operation('where', (4, 2), (4, 2), (4, 2), WITH_NP)
+        # three-tensor ops        
+        if K.backend() != 'cntk':
+            check_three_tensor_operation('where', (4, 2), (4, 2), (4, 2), WITH_NP)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
