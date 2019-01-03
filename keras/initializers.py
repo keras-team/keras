@@ -268,7 +268,8 @@ class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
     Only use for 2D matrices.
-    If the desired matrix is not square, it pads with zeros on the additional rows/columns
+    If the desired matrix is not square, it pads with zeros on the
+    additional rows/columns
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
