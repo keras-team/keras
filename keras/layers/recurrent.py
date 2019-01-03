@@ -1267,6 +1267,18 @@ class GRUCell(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
+
+        if type(self.recurrent_initializer).__name__ == 'Identity':
+            def recurrent_identity(shape, gain=1.):
+                if shape[0] > shape[1]:
+                    return gain * np.concatenate(
+                        [np.identity(shape[1])] * (shape[0] // shape[1]), axis=0)
+
+                return gain * np.concatenate(
+                    [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+
+            self.recurrent_initializer = recurrent_identity
+
         self.kernel = self.add_weight(shape=(input_dim, self.units * 3),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
@@ -1862,6 +1874,18 @@ class LSTMCell(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
+
+        if type(self.recurrent_initializer).__name__ == 'Identity':
+            def recurrent_identity(shape, gain=1.):
+                if shape[0] > shape[1]:
+                    return gain * np.concatenate(
+                        [np.identity(shape[1])] * (shape[0] // shape[1]), axis=0)
+
+                return gain * np.concatenate(
+                    [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+
+            self.recurrent_initializer = recurrent_identity
+
         self.kernel = self.add_weight(shape=(input_dim, self.units * 4),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
