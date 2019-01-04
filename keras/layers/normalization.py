@@ -76,7 +76,10 @@ class BatchNormalization(Layer):
                  **kwargs):
         super(BatchNormalization, self).__init__(**kwargs)
         self.supports_masking = True
-        self.axis = unpack_singleton(axis)
+        if type(axis) == list:
+            self.axis = unpack_singleton(axis)
+        else:
+            self.axis = axis
         self.momentum = momentum
         self.epsilon = epsilon
         self.center = center
