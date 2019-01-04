@@ -10,6 +10,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from .. import backend as K
+from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
 
 
@@ -75,7 +76,7 @@ class BatchNormalization(Layer):
                  **kwargs):
         super(BatchNormalization, self).__init__(**kwargs)
         self.supports_masking = True
-        self.axis = axis
+        self.axis = unpack_singleton(axis)
         self.momentum = momentum
         self.epsilon = epsilon
         self.center = center
