@@ -1830,19 +1830,22 @@ def less_equal(x, y):
 
 def where(condition, x, y):
     """Returns elements, either from x or y, depending on condition.
-       If only condition is given, \
+       If only condition is given, 
        (suppose we have transfer condition from Tensor to `numpy.ndarray`)
        Return `tf.convert_to_tensor(condition.nonzero())`.
 
     # Arguments
-        condition: Tensor or variable.
+        condition: A Bool Tensor or variable which of same shape with x and y.
         x: Tensor or variable.
         y: Tensor or variable.
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
-    condition = tf.cast(condition, dtype=tf.bool)
+    if condition.dtype != tf.bool:
+        condition = tf.cast(condition, dtype=tf.bool)
     return tf.where(condition, x, y)
 
 
