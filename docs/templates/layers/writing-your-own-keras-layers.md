@@ -10,7 +10,7 @@ Here is the skeleton of a Keras layer, **as of Keras 2.0** (if you have an older
 
 ```python
 from keras import backend as K
-from keras.engine.topology import Layer
+from keras.layers import Layer
 
 class MyLayer(Layer):
 
@@ -37,7 +37,7 @@ It is also possible to define Keras layers which have multiple input tensors and
 
 ```python
 from keras import backend as K
-from keras.engine.topology import Layer
+from keras.layers import Layer
 
 class MyLayer(Layer):
 
