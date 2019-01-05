@@ -1112,7 +1112,7 @@ def less_equal(x, y):
 
 
 def where(condition, x, y):
-    raise NotImplementedError('CNTK not support ops like `tf.where`.')
+    return C.element_select(condition, x, y)
 
 
 def maximum(x, y):
