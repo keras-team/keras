@@ -578,8 +578,7 @@ class TestBackend(object):
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
         # three-tensor ops
-        if K.backend() != 'cntk':
-            check_three_tensor_operation('where', (4, 2), (4, 2), (4, 2), WITH_NP)
+        check_three_tensor_operation('where', (4, 2), (4, 2), (4, 2), WITH_NP)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
