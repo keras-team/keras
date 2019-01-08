@@ -63,12 +63,6 @@ install:
   # Remove the current backend from the coverage exclusion.
   - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
 
-  # detect whether core files are changed or not
-  - export CORE_CHANGED=False;
-  - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/backend/"* ]] || [[ "$entry" == "keras/engine/"* ]] || [[ "$entry" == "keras/layers/"* ]]; then export CORE_CHANGED=True; fi; done
-  - export APP_CHANGED=False;
-  - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
-
   # install mkdocs
   - pip install mkdocs --progress-bar off
 
