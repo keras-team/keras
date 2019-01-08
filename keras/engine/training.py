@@ -89,7 +89,7 @@ class Model(Network):
                 and output tensors have a matching batch size for each batch.
                 If you would like to skip this check and allow variable batch
                 sizes among input/output tensors, this parameter can be set
-                to True.
+                to False.
             **kwargs: When using the Theano/CNTK backends, these arguments
                 are passed into `K.function`.
                 When using the TensorFlow backend,
