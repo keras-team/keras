@@ -1607,7 +1607,9 @@ def test_dynamic_batch_size():
     def dot_prod(inp):
         return K.dot(inp[0], K.transpose(inp[1]))
 
-    output = keras.layers.Lambda(dot_prod)([x1, x2])
+    # output shape is (None, None)
+    output = keras.layers.Lambda(
+        dot_prod, output_shape=(None,))([x1, x2])
 
     model = keras.models.Model(inputs=[input1, input2],
                                outputs=output)
