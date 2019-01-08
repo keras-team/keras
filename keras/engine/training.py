@@ -97,7 +97,8 @@ class Model(Network):
 
         # Raises
             ValueError: In case of invalid arguments for
-                `optimizer`, `loss`, `metrics`, `sample_weight_mode`, or `check_array_lengths`
+                `optimizer`, `loss`, `metrics`, `sample_weight_mode`,
+                 or `check_array_lengths`
         """
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss or []

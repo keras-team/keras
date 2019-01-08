@@ -1613,7 +1613,7 @@ def test_dynamic_batch_size():
                                outputs=output)
 
     numpy_in1, numpy_in2, numpy_targ = map(np.zeros,
-                                           [(20,10), (10,10), (20,10)])
+                                           [(20, 10), (10, 10), (20, 10)])
 
     pred = model.predict_on_batch([numpy_in1, numpy_in2])
     assert pred.shape == (20, 10)
@@ -1621,9 +1621,10 @@ def test_dynamic_batch_size():
     assert pred.shape == (5, 6)
     model.compile(loss='mse', optimizer='adam', check_array_lengths=False)
     model.train_on_batch([numpy_in1, numpy_in2], numpy_targ)
-    model.train_on_batch([numpy_in1[:3, ...], numpy_in2[:7, ...]], numpy_targ[:3, :7])
-    
-    
+    model.train_on_batch([numpy_in1[:3, ...],
+                          numpy_in2[:7, ...]],
+                         numpy_targ[:3, :7])
+
 
 if __name__ == '__main__':
     pytest.main([__file__])
