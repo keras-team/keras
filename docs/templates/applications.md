@@ -188,6 +188,8 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 
 The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
 
+Depth refers to the topological depth of the network. This includes activation layers, batch normalization layers etc.
+
 -----
 
 
