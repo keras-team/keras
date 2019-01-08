@@ -15,7 +15,7 @@ class Initializer(object):
     """Initializer base class: all initializers inherit from this class.
     """
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         raise NotImplementedError
 
     def get_config(self):
@@ -34,7 +34,7 @@ class Zeros(Initializer):
     """Initializer that generates tensors initialized to 0.
     """
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         return K.constant(0, shape=shape, dtype=dtype)
 
 
@@ -42,7 +42,7 @@ class Ones(Initializer):
     """Initializer that generates tensors initialized to 1.
     """
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         return K.constant(1, shape=shape, dtype=dtype)
 
 
@@ -56,7 +56,7 @@ class Constant(Initializer):
     def __init__(self, value=0):
         self.value = value
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         return K.constant(self.value, shape=shape, dtype=dtype)
 
     def get_config(self):
@@ -79,7 +79,7 @@ class RandomNormal(Initializer):
         self.stddev = stddev
         self.seed = seed
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         return K.random_normal(shape, self.mean, self.stddev,
                                dtype=dtype, seed=self.seed)
 
@@ -107,7 +107,7 @@ class RandomUniform(Initializer):
         self.maxval = maxval
         self.seed = seed
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         return K.random_uniform(shape, self.minval, self.maxval,
                                 dtype=dtype, seed=self.seed)
 
@@ -140,7 +140,7 @@ class TruncatedNormal(Initializer):
         self.stddev = stddev
         self.seed = seed
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         return K.truncated_normal(shape, self.mean, self.stddev,
                                   dtype=dtype, seed=self.seed)
 
@@ -198,8 +198,11 @@ class VarianceScaling(Initializer):
         self.distribution = distribution
         self.seed = seed
 
-    def __call__(self, shape, dtype=None):
-        fan_in, fan_out = _compute_fans(shape)
+    def __call__(self, shape, dtype=None, base_shape=None):
+        if base_shape is not None:
+            fan_in, fan_out = _compute_fans(base_shape)
+        else:
+            fan_in, fan_out = _compute_fans(shape)
         scale = self.scale
         if self.mode == 'fan_in':
             scale /= max(1., fan_in)
@@ -242,7 +245,7 @@ class Orthogonal(Initializer):
         self.gain = gain
         self.seed = seed
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         num_rows = 1
         for dim in shape[:-1]:
             num_rows *= dim
@@ -278,7 +281,7 @@ class Identity(Initializer):
     def __init__(self, gain=1.):
         self.gain = gain
 
-    def __call__(self, shape, dtype=None):
+    def __call__(self, shape, dtype=None, base_shape=None):
         if len(shape) != 2:
             raise ValueError(
                 'Identity matrix initializer can only be used for 2D matrices.')

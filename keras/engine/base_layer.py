@@ -246,10 +246,11 @@ class Layer(object):
         initializer = initializers.get(initializer)
         if dtype is None:
             dtype = K.floatx()
-        weight = K.variable(initializer(shape),
-                            dtype=dtype,
-                            name=name,
-                            constraint=constraint)
+        if ('depthwise' in name) or ('pointwise' in name):
+            w = initializer(shape[0], base_shape=shape[1])
+        else:
+            w = initializer(shape)
+        weight = K.variable(w, dtype=dtype, name=name, constraint=constraint)
         if regularizer is not None:
             with K.name_scope('weight_regularizer'):
                 self.add_loss(regularizer(weight))

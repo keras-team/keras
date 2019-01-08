@@ -1339,15 +1339,16 @@ class _SeparableConv(_Conv):
         depthwise_kernel_shape = self.kernel_size + depthwise_kernel_shape
         pointwise_kernel_shape = (self.depth_multiplier * input_dim, self.filters)
         pointwise_kernel_shape = (1,) * self.rank + pointwise_kernel_shape
+        base_kernel_shape = self.kernel_size + (input_dim, self.filters)
 
         self.depthwise_kernel = self.add_weight(
-            shape=depthwise_kernel_shape,
+            shape=(depthwise_kernel_shape, base_kernel_shape),
             initializer=self.depthwise_initializer,
             name='depthwise_kernel',
             regularizer=self.depthwise_regularizer,
             constraint=self.depthwise_constraint)
         self.pointwise_kernel = self.add_weight(
-            shape=pointwise_kernel_shape,
+            shape=(pointwise_kernel_shape, base_kernel_shape),
             initializer=self.pointwise_initializer,
             name='pointwise_kernel',
             regularizer=self.pointwise_regularizer,
@@ -1819,9 +1820,13 @@ class DepthwiseConv2D(Conv2D):
                                   self.kernel_size[1],
                                   input_dim,
                                   self.depth_multiplier)
+        base_kernel_shape = (self.kernel_size[0],
+                             self.kernel_size[1],
+                             input_dim,
+                             input_dim * self.depth_multiplier)
 
         self.depthwise_kernel = self.add_weight(
-            shape=depthwise_kernel_shape,
+            shape=(depthwise_kernel_shape, base_kernel_shape),
             initializer=self.depthwise_initializer,
             name='depthwise_kernel',
             regularizer=self.depthwise_regularizer,
