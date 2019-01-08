@@ -116,7 +116,6 @@ class Model(Network):
                                       'batch sizes. Please set '
                                       'check_array_lengths=True when compiling.')
 
-        
         if not self.built:
             # Model is not compilable because
             # it does not know its number of inputs
