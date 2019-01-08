@@ -291,7 +291,7 @@ class Adagrad(Optimizer):
     Adagrad is an optimizer with parameter-specific learning rates,
     which are adapted relative to how frequently a parameter gets
     updated during training. The more updates a parameter receives,
-    the smaller the updates.
+    the smaller the learning rate.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.

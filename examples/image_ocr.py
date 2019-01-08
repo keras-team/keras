@@ -182,7 +182,7 @@ def is_valid_str(in_str):
 
 
 # Uses generator functions to supply train/test with
-# data. Image renderings are text are created on the fly
+# data. Image renderings and text are created on the fly
 # each time with random perturbations
 
 class TextImageGenerator(keras.callbacks.Callback):
