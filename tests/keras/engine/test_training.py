@@ -1597,6 +1597,8 @@ def test_sample_weights():
     assert np.allclose(weights, expected)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='cntk does not support dynamic batch sizes yet')
 def test_dynamic_batch_size():
     input1 = keras.layers.Input((10,))
     input2 = keras.layers.Input((10,))
