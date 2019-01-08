@@ -99,6 +99,9 @@ class Model(Network):
             ValueError: In case of invalid arguments for
                 `optimizer`, `loss`, `metrics`, `sample_weight_mode`,
                  or `check_array_lengths`
+            NotImplementedError: If `check_array_lengths` is set to True on
+                 the CNTK backend, as CNTK does not support multiple dynamic
+                 axes at present.
         """
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss or []
