@@ -41,6 +41,7 @@ class Model(Network):
                 sample_weight_mode=None,
                 weighted_metrics=None,
                 target_tensors=None,
+                check_array_lengths=False,
                 **kwargs):
         """Configures the model for training.
 
@@ -84,6 +85,11 @@ class Model(Network):
                 can specify them via the `target_tensors` argument. It can be
                 a single tensor (for a single-output model), a list of tensors,
                 or a dict mapping output names to target tensors.
+            check_array_lengths: By default, Keras will ensure that all input
+                and output tensors have a matching batch size for each batch.
+                If you would like to skip this check and allow variable batch
+                sizes among input/output tensors, this parameter can be set
+                to True.
             **kwargs: When using the Theano/CNTK backends, these arguments
                 are passed into `K.function`.
                 When using the TensorFlow backend,
@@ -91,7 +97,7 @@ class Model(Network):
 
         # Raises
             ValueError: In case of invalid arguments for
-                `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
+                `optimizer`, `loss`, `metrics`, `sample_weight_mode`, or `check_array_lengths`
         """
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss or []
@@ -99,6 +105,7 @@ class Model(Network):
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
         self.weighted_metrics = weighted_metrics
+        self.check_array_lengths = check_array_lengths
 
         if not self.built:
             # Model is not compilable because
@@ -644,7 +651,6 @@ class Model(Network):
                                y=None,
                                sample_weight=None,
                                class_weight=None,
-                               check_array_lengths=True,
                                batch_size=None):
         all_inputs = []
         if not self.built:
@@ -801,7 +807,7 @@ class Model(Network):
                     feed_sample_weight_modes)
             ]
             # Check that all arrays have the same length.
-            if check_array_lengths:
+            if self.check_array_lengths:
                 check_array_length_consistency(x, y, sample_weights)
             if self._is_graph_network:
                 # Additional checks to avoid users mistakenly
