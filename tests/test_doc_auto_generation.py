@@ -362,5 +362,30 @@ def test_doc_multiple_sections_code():
     assert 'def dot(x, y):' in generated
 
 
+test_doc_with_arguments_as_last_block = {
+    'doc': """Base class for recurrent layers.
+
+    # Arguments
+        return_sequences: Boolean. Whether to return the last output
+            in the output sequence, or the full sequence.
+        return_state: Boolean. Whether to return the last state
+            in addition to the output.
+    """,
+    'result': '''Base class for recurrent layers.
+
+__Arguments__
+
+- __return_sequences__: Boolean. Whether to return the last output
+    in the output sequence, or the full sequence.
+- __return_state__: Boolean. Whether to return the last state
+    in addition to the output.
+'''}
+
+
+def test_doc_list_with_argument_as_last_block():
+    docstring = autogen.process_docstring(test_doc_with_arguments_as_last_block['doc'])
+    assert markdown(docstring) == markdown(test_doc_with_arguments_as_last_block['result'])
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
