@@ -324,7 +324,8 @@ def test_model_methods():
         return K.mean(K.pow(y_true - y_pred, 2))
 
     model.compile(optimizer, loss, metrics=[mse],
-                  sample_weight_mode=None)
+                  sample_weight_mode=None,
+                  check_array_lengths=True)
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
@@ -370,7 +371,8 @@ def test_model_methods():
     with pytest.raises(ValueError):
         out = model.predict([None, input_a_np, input_b_np])
 
-    # all input/output/weight arrays should have the same number of samples.
+    # all input/output/weight arrays should have the same number of samples
+    # unless `check_array_lengths` is set to be False during compilation
     with pytest.raises(ValueError):
         out = model.train_on_batch([input_a_np, input_b_np[:2]],
                                    [output_a_np, output_b_np],
@@ -1594,6 +1596,34 @@ def test_sample_weights():
     expected = sample_weights * np.array([0.5, 1., 0.5, 0.5, 1.5])
     assert np.allclose(weights, expected)
 
+
+def test_dynamic_batch_size():
+    input1 = keras.layers.Input((10,))
+    input2 = keras.layers.Input((10,))
+
+    x1 = keras.layers.Dense(5)(input1)
+    x2 = keras.layers.Dense(5)(input2)
+
+    def dot_prod(inp):
+        return K.dot(inp[0], K.transpose(inp[1]))
+
+    output = keras.layers.Lambda(dot_prod)([x1, x2])
+
+    model = keras.models.Model(inputs=[input1, input2],
+                               outputs=output)
+
+    numpy_in1, numpy_in2, numpy_targ = map(np.zeros,
+                                           [(20,10), (10,10), (20,10)])
+
+    pred = model.predict_on_batch([numpy_in1, numpy_in2])
+    assert pred.shape == (20, 10)
+    pred = model.predict_on_batch([numpy_in1[:5, ...], numpy_in2[:6, ...]])
+    assert pred.shape == (5, 6)
+    model.compile(loss='mse', optimizer='adam', check_array_lengths=False)
+    model.train_on_batch([numpy_in1, numpy_in2], numpy_targ)
+    model.train_on_batch([numpy_in1[:3, ...], numpy_in2[:7, ...]], numpy_targ[:3, :7])
+    
+    
 
 if __name__ == '__main__':
     pytest.main([__file__])
