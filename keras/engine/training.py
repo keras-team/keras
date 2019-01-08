@@ -41,7 +41,7 @@ class Model(Network):
                 sample_weight_mode=None,
                 weighted_metrics=None,
                 target_tensors=None,
-                check_array_lengths=False,
+                check_array_lengths=True,
                 **kwargs):
         """Configures the model for training.
 

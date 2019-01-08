@@ -324,8 +324,7 @@ def test_model_methods():
         return K.mean(K.pow(y_true - y_pred, 2))
 
     model.compile(optimizer, loss, metrics=[mse],
-                  sample_weight_mode=None,
-                  check_array_lengths=True)
+                  sample_weight_mode=None)
 
     out = model.train_on_batch([input_a_np, input_b_np],
                                [output_a_np, output_b_np])
