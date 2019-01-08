@@ -117,8 +117,8 @@ def count_leading_spaces(s):
 def process_list_block(docstring, starting_point, section_end,
                        leading_spaces, marker):
     ending_point = docstring.find('\n\n', starting_point)
-    block = docstring[starting_point:(None if ending_point == -1 else
-                                      ending_point - 1)]
+    block = docstring[starting_point:(ending_point - 1 if ending_point > -1 else
+                                      section_end)]
     # Place marker for later reinjection.
     docstring_slice = docstring[starting_point:section_end].replace(block, marker)
     docstring = (docstring[:starting_point]
