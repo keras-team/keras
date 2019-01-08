@@ -108,6 +108,12 @@ class Model(Network):
         self.weighted_metrics = weighted_metrics
         self.check_array_lengths = check_array_lengths
 
+        if not self.check_array_lengths and K.backend() == 'cntk':
+            raise NotImplementedError('CNTK backend does not support dynamic '
+                                      'batch sizes. Please set '
+                                      'check_array_lengths=True when compiling.')
+
+        
         if not self.built:
             # Model is not compilable because
             # it does not know its number of inputs
