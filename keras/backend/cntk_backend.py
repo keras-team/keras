@@ -1720,6 +1720,12 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate,)
 
+    if dilation_rate != (1,):
+        raise ValueError(
+            'Dilated separable 1D convolution is currently not supported '
+            'by CNTK backend. Please set `dilation_rate` to 1. '
+            'You passed: %s' % (dilation_rate,))
+
     if data_format == 'channels_last':
         spatial_start_dim = 2
     else:
@@ -1737,27 +1743,14 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
     padding = _preprocess_border_mode(padding)
 
-    if dilation_rate == (1, 1):
-        x = C.convolution(depthwise_kernel, x,
-                          strides=strides,
-                          auto_padding=[False, padding, padding],
-                          groups=x.shape[0])
-        x = C.convolution(pointwise_kernel, x,
-                          strides=(1, 1, 1),
-                          auto_padding=[False])
-    else:
-        if dilation_rate[0] != dilation_rate[1]:
-            raise ValueError('CNTK Backend: non-square dilation_rate is '
-                             'not supported.')
-        if strides != (1, 1):
-            raise ValueError('Invalid strides for dilated convolution')
-        x = C.convolution(depthwise_kernel, x,
-                          strides=strides,
-                          auto_padding=[False, padding, padding],
-                          groups=x.shape[0])
-        x = C.convolution(pointwise_kernel, x,
-                          strides=(1, 1, 1),
-                          auto_padding=[False])
+    x = C.convolution(depthwise_kernel, x,
+                      strides=strides,
+                      auto_padding=[False, padding, padding],
+                      groups=x.shape[0])
+    x = C.convolution(pointwise_kernel, x,
+                      strides=(1, 1, 1),
+                      auto_padding=[False])
+
     x = _postprocess_conv2d_output(x, data_format)
     return squeeze(x, spatial_start_dim)
 
