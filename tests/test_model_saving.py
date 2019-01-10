@@ -12,7 +12,7 @@ from keras.engine.saving import preprocess_weights_for_loading
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
-from keras.layers import Conv2D, Flatten
+from keras.layers import Conv2D, Flatten, BatchNormalization
 from keras.layers import Input, InputLayer
 from keras.initializers import Constant
 from keras import optimizers
@@ -777,6 +777,23 @@ def test_saving_overwrite_option_gcs():
                 assert_allclose(w, new_w)
 
         file_io_proxy.delete_file(gcs_filepath)  # cleanup
+
+
+def test_saving_loading_batchnormalization_axis():
+    model = Sequential()
+    model.add(BatchNormalization(axis=1, input_shape=(4, 4, 4)))
+
+    fp, fname = tempfile.mkstemp('.h5')
+    os.close(fp)
+    del fp
+
+    model.save(fname)
+    del model
+
+    loaded_model = load_model(fname)
+    del loaded_model
+
+    os.remove(fname)
 
 
 @pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
