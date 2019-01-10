@@ -8,7 +8,7 @@ import warnings
 
 _proc = Process(os.getpid())
 
-history_of_memory_used = []
+mem_usage = [0]
 
 
 def get_consumed_ram():
@@ -16,7 +16,7 @@ def get_consumed_ram():
 
 
 @pytest.fixture(autouse=True)
-def clear_session_after_test():
+def clear_session_after_test(request):
     """Test wrapper to clean up after TensorFlow and CNTK tests.
 
     This wrapper runs for all the tests in the keras test suite.
@@ -25,7 +25,12 @@ def clear_session_after_test():
     if K.backend() == 'tensorflow' or K.backend() == 'cntk':
         K.clear_session()
 
-    mem_used = get_consumed_ram()
-    history_of_memory_used.append(mem_used)
-    warnings.warn('Memory used by ' + str(os.getpid()) + ' is ' + str(mem_used))
-    warnings.warn('History of ' + str(os.getpid()) + ' is ' + str(history_of_memory_used))
+    current_memory = get_consumed_ram()
+
+    test_name = request.node.name
+
+    warnings.warn('GABYMEMINFO: ' + str(os.getpid()) + ' '
+                  + str(current_memory - mem_usage[-1]) + ' '
+                  + test_name)
+
+    mem_usage.append(current_memory)
