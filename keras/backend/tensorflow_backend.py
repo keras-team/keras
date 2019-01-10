@@ -4501,8 +4501,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             Tensor `(top_paths, )` that contains
                 the log probability of each decoded sequence.
     """
-    # y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-    y_pred = tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon()
+    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
     input_length = tf.to_int32(input_length)
 
     if greedy:

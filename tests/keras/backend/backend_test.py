@@ -1777,8 +1777,11 @@ class TestBackend(object):
                    for t in range(seq_len_0)] +  # Pad to max_time_steps = 8
                   2 * [np.zeros((1, depth), dtype=np.float32)])
 
+        # Take exponential as we directly apply ctc_decode_beam_search
+        inputs = np.exp(inputs)
+
         # change tensorflow order to keras backend order
-        inputs = K.variable(np.asarray(inputs).transpose((1, 0, 2)))
+        inputs = K.variable(inputs.transpose((1, 0, 2)))
 
         # batch_size length vector of sequence_lengths
         input_length = K.variable(np.array([seq_len_0], dtype=np.int32))
