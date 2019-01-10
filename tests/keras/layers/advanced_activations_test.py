@@ -3,6 +3,7 @@ from keras.utils.test_utils import layer_test
 from keras import layers
 from keras import backend as K
 
+
 @pytest.mark.parametrize('activation_layer',
                          [layers.LeakyReLU,
                           layers.ELU])
