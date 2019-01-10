@@ -5,6 +5,7 @@ import os
 processes = defaultdict(list)
 logdir = './logdir/'
 for file in os.listdir(logdir):
+    print(file)
     path = logdir + file
     with open(path, 'r') as f:
         for line in f:
@@ -27,3 +28,13 @@ for process_name, tests in processes.items():
     plt.ylabel('current memory usage in MB.')
     plt.savefig('./' + process_name + '.png')
     plt.show()
+
+    test_with_num = [(i,) + test for i, test in enumerate(tests[1:])]
+
+    test_with_num.sort(key=lambda x: x[1])
+
+    print('\n', process_name)
+    bigger_leak = test_with_num[-5:]
+    bigger_leak.sort(key=lambda x: x[0])
+    for leak in bigger_leak:
+        print('Test number', leak[0], 'leaked', leak[1], 'MB. The name is', leak[2])
