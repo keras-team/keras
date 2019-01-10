@@ -4,9 +4,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import numpy as np
+
 from .conv_utils import convert_kernel
 from .. import backend as K
-import numpy as np
 
 
 def count_params(weights):

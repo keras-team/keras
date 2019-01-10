@@ -1,9 +1,12 @@
 from __future__ import absolute_import
 from __future__ import print_function
-import os
-import json
-import sys
+
 import importlib
+import json
+import logging
+import os
+import sys
+
 from .common import epsilon
 from .common import floatx
 from .common import set_epsilon
@@ -12,6 +15,8 @@ from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
 from .common import normalize_data_format
+
+_logger = logging.getLogger(__name__)
 
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.
 # Otherwise either ~/.keras or /tmp.
@@ -79,13 +84,13 @@ if 'KERAS_BACKEND' in os.environ:
 
 # Import backend functions.
 if _BACKEND == 'cntk':
-    sys.stderr.write('Using CNTK backend\n')
+    _logger.info('Using CNTK backend')
     from .cntk_backend import *
 elif _BACKEND == 'theano':
-    sys.stderr.write('Using Theano backend.\n')
+    _logger.info('Using Theano backend')
     from .theano_backend import *
 elif _BACKEND == 'tensorflow':
-    sys.stderr.write('Using TensorFlow backend.\n')
+    _logger.info('Using TensorFlow backend')
     from .tensorflow_backend import *
 else:
     # Try and load external backend.
@@ -97,15 +102,15 @@ else:
         required_entries = ['placeholder', 'variable', 'function']
         for e in required_entries:
             if e not in entries:
-                raise ValueError('Invalid backend. Missing required entry : ' + e)
+                raise ValueError('Invalid backend. Missing required entry: ' + e)
         namespace = globals()
         for k, v in entries.items():
             # Make sure we don't override any entries from common, such as epsilon.
             if k not in namespace:
                 namespace[k] = v
-        sys.stderr.write('Using ' + _BACKEND + ' backend.\n')
+        _logger.info('Using %s backend', _BACKEND)
     except ImportError:
-        raise ValueError('Unable to import backend : ' + str(_BACKEND))
+        raise ValueError('Unable to import backend: ' + str(_BACKEND))
 
 
 def backend():

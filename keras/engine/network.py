@@ -4,13 +4,18 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import numpy as np
-import json
-import yaml
-import warnings
 import copy
+import json
 import os
+import warnings
+
+try:
+    import h5py
+except ImportError:
+    h5py = None
+import numpy as np
 from six.moves import zip
+import yaml
 
 from . import saving
 from .base_layer import Layer
@@ -25,11 +30,6 @@ from ..utils.generic_utils import to_list
 from ..utils.generic_utils import object_list_uid
 from ..utils.generic_utils import unpack_singleton
 from ..legacy import interfaces
-
-try:
-    import h5py
-except ImportError:
-    h5py = None
 
 
 class Network(Layer):

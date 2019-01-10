@@ -3,23 +3,23 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 from collections import defaultdict
+import logging
 import sys
+if sys.version_info[0] == 3:
+    import pickle
+else:
+    import cPickle as pickle
 
-
-import six
 try:
     import h5py
     HDF5_OBJECT_HEADER_LIMIT = 64512
 except ImportError:
     h5py = None
+import numpy as np
+import six
 
-
-if sys.version_info[0] == 3:
-    import pickle
-else:
-    import cPickle as pickle
+_logger = logging.getLogger(__name__)
 
 
 class HDF5Matrix(object):
@@ -162,7 +162,7 @@ def ask_to_proceed_with_overwrite(filepath):
                                     '(cancel).').strip().lower()
     if overwrite == 'n':
         return False
-    print('[TIP] Next time specify overwrite=True!')
+    _logger.info('[TIP] Next time specify overwrite=True!')
     return True
 
 

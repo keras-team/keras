@@ -3,8 +3,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from abc import abstractmethod
+from contextlib import closing
 import hashlib
+import logging
 import multiprocessing as mp
+from multiprocessing.pool import ThreadPool
 import os
 import random
 import shutil
@@ -14,9 +18,6 @@ import threading
 import time
 import warnings
 import zipfile
-from abc import abstractmethod
-from contextlib import closing
-from multiprocessing.pool import ThreadPool
 
 import numpy as np
 import six
@@ -30,6 +31,8 @@ except ImportError:
     import Queue as queue
 
 from ..utils.generic_utils import Progbar
+
+_logger = logging.getLogger(__name__)
 
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):
@@ -195,16 +198,17 @@ def get_file(fname,
         # File found; verify integrity if a hash was provided.
         if file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
-                print('A local file was found, but it seems to be '
-                      'incomplete or outdated because the ' + hash_algorithm +
-                      ' file hash does not match the original value of ' +
-                      file_hash + ' so we will re-download the data.')
+                _logger.info('A local file was found, but it seems to be '
+                             'incomplete or outdated because the %s file hash '
+                             'does not match the original value of %s so we '
+                             'will re-download the data.', hash_algorithm,
+                             file_hash)
                 download = True
     else:
         download = True
 
     if download:
-        print('Downloading data from', origin)
+        _logger.info('Downloading data from %s', origin)
 
         class ProgressTracker(object):
             # Maintain progbar for the lifetime of download.

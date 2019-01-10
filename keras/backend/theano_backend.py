@@ -4,6 +4,8 @@ from __future__ import print_function
 
 from collections import defaultdict
 from contextlib import contextmanager
+
+import numpy as np
 import theano
 from theano import tensor as T
 from theano.sandbox.rng_mrg import MRG_RandomStreams as RandomStreams
@@ -19,7 +21,6 @@ try:
 except ImportError:
     from theano.sandbox.softsign import softsign as T_softsign
 
-import numpy as np
 from .common import floatx
 from .common import epsilon
 from .common import normalize_data_format
@@ -32,7 +33,6 @@ py_all = all
 py_any = any
 py_sum = sum
 py_slice = slice
-
 
 # INTERNAL UTILS
 theano.config.floatX = floatx()

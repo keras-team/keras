@@ -4,20 +4,21 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import os
-import csv
-import six
-
-import numpy as np
-import time
-import json
-import warnings
-import io
-
 from collections import deque
 from collections import OrderedDict
 from collections import Iterable
 from collections import defaultdict
+import csv
+import io
+import json
+import logging
+import os
+import time
+import warnings
+
+import numpy as np
+import six
+
 from .utils.generic_utils import Progbar
 from . import backend as K
 from .engine.training_utils import standardize_input_data
@@ -27,6 +28,7 @@ try:
 except ImportError:
     requests = None
 
+_logger = logging.getLogger(__name__)
 
 _TRAIN = 'train'
 _TEST = 'test'
@@ -529,7 +531,8 @@ class TerminateOnNaN(Callback):
         loss = logs.get('loss')
         if loss is not None:
             if np.isnan(loss) or np.isinf(loss):
-                print('Batch %d: Invalid loss, terminating training' % (batch))
+                _logger.info(
+                    'Batch %d: Invalid loss, terminating training', batch)
                 self.model.stop_training = True
 
 
@@ -569,7 +572,7 @@ class ProgbarLogger(Callback):
 
     def on_epoch_begin(self, epoch, logs=None):
         if self.verbose:
-            print('Epoch %d/%d' % (epoch + 1, self.epochs))
+            _logger.info('Epoch %d/%d', epoch + 1, self.epochs)
             if self.use_steps:
                 target = self.params['steps']
             else:
@@ -707,10 +710,10 @@ class ModelCheckpoint(Callback):
                 else:
                     if self.monitor_op(current, self.best):
                         if self.verbose > 0:
-                            print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
-                                  ' saving model to %s'
-                                  % (epoch + 1, self.monitor, self.best,
-                                     current, filepath))
+                            _logger.info(
+                                '\nEpoch %05d: %s improved from %0.5f to '
+                                '%0.5f, saving model to %s', epoch + 1,
+                                self.monitor, self.best, current, filepath)
                         self.best = current
                         if self.save_weights_only:
                             self.model.save_weights(filepath, overwrite=True)
@@ -718,11 +721,13 @@ class ModelCheckpoint(Callback):
                             self.model.save(filepath, overwrite=True)
                     else:
                         if self.verbose > 0:
-                            print('\nEpoch %05d: %s did not improve from %0.5f' %
-                                  (epoch + 1, self.monitor, self.best))
+                            _logger.info(
+                                '\nEpoch %05d: %s did not improve from %0.5f',
+                                epoch + 1, self.monitor, self.best)
             else:
                 if self.verbose > 0:
-                    print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+                    _logger.info('\nEpoch %05d: saving model to %s', epoch + 1,
+                                 filepath)
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -824,13 +829,13 @@ class EarlyStopping(Callback):
                 self.model.stop_training = True
                 if self.restore_best_weights:
                     if self.verbose > 0:
-                        print('Restoring model weights from the end of '
-                              'the best epoch')
+                        _logger.info('Restoring model weights from the end of '
+                                     'the best epoch')
                     self.model.set_weights(self.best_weights)
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            print('Epoch %05d: early stopping' % (self.stopped_epoch + 1))
+            _logger.info('Epoch %05d: early stopping', self.stopped_epoch + 1)
 
     def get_monitor_value(self, logs):
         monitor_value = logs.get(self.monitor)
@@ -880,8 +885,7 @@ class RemoteMonitor(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         if requests is None:
-            raise ImportError('RemoteMonitor requires '
-                              'the `requests` library.')
+            raise ImportError('RemoteMonitor requires the `requests` library.')
         logs = logs or {}
         send = {}
         send['epoch'] = epoch
@@ -930,8 +934,9 @@ class LearningRateScheduler(Callback):
                              'should be float.')
         K.set_value(self.model.optimizer.lr, lr)
         if self.verbose > 0:
-            print('\nEpoch %05d: LearningRateScheduler setting learning '
-                  'rate to %s.' % (epoch + 1, lr))
+            _logger.info(
+                '\nEpoch %05d: LearningRateScheduler setting learning '
+                'rate to %s.', epoch + 1, lr)
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
@@ -1395,8 +1400,9 @@ class ReduceLROnPlateau(Callback):
                         new_lr = max(new_lr, self.min_lr)
                         K.set_value(self.model.optimizer.lr, new_lr)
                         if self.verbose > 0:
-                            print('\nEpoch %05d: ReduceLROnPlateau reducing '
-                                  'learning rate to %s.' % (epoch + 1, new_lr))
+                            _logger.info(
+                                '\nEpoch %05d: ReduceLROnPlateau reducing '
+                                'learning rate to %s.', epoch + 1, new_lr)
                         self.cooldown_counter = self.cooldown
                         self.wait = 0
 

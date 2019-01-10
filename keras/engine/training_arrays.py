@@ -4,6 +4,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import logging
+
 import numpy as np
 from scipy.sparse import issparse
 
@@ -16,6 +18,8 @@ from ..utils.generic_utils import Progbar
 from ..utils.generic_utils import slice_arrays
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
+
+_logger = logging.getLogger(__name__)
 
 
 def fit_loop(model, fit_function, fit_inputs,
@@ -71,8 +75,8 @@ def fit_loop(model, fit_function, fit_inputs,
         do_validation = True
         if (verbose and fit_inputs and
            hasattr(fit_inputs[0], 'shape') and hasattr(val_inputs[0], 'shape')):
-            print('Train on %d samples, validate on %d samples' %
-                  (fit_inputs[0].shape[0], val_inputs[0].shape[0]))
+            _logger.info('Train on %d samples, validate on %d samples',
+                         fit_inputs[0].shape[0], val_inputs[0].shape[0])
     if validation_steps:
         do_validation = True
         if steps_per_epoch is None:

@@ -2,6 +2,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import defaultdict
+from distutils.version import StrictVersion
+import os
+
+import numpy as np
 import tensorflow as tf
 from tensorflow.python.framework import ops as tf_ops
 from tensorflow.python.training import moving_averages
@@ -12,18 +17,11 @@ from tensorflow.python.ops import ctc_ops as ctc
 from tensorflow.python.client import device_lib
 from tensorflow.core.protobuf import config_pb2
 
-from collections import defaultdict
-
-import numpy as np
-from distutils.version import StrictVersion
-import os
-
 from .common import floatx
 from .common import epsilon
 from .common import normalize_data_format
 from ..utils.generic_utils import transpose_shape
 from ..utils.generic_utils import has_arg
-
 # Legacy functions
 from .common import set_image_dim_ordering
 from .common import image_dim_ordering

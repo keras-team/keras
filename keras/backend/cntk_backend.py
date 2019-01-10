@@ -2,23 +2,25 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from collections import defaultdict
+from contextlib import contextmanager
+import logging
+import warnings
+
 import cntk as C
 import numpy as np
+
 from .common import floatx
 from .common import epsilon
 from .common import image_data_format
 from .common import normalize_data_format
 from ..utils.generic_utils import transpose_shape
-from collections import defaultdict
-from contextlib import contextmanager
-import warnings
 
-
+_logger = logging.getLogger(__name__)
 C.set_global_option('align_axis', 1)
 
 b_any = any
 py_slice = slice
-
 
 dev = C.device.use_default_device()
 if dev.type() == 0:
@@ -2705,7 +2707,7 @@ class LambdaFunc(C.ops.functions.UserFunction):
     def __init__(self,
                  arg,
                  when=lambda arg: True,
-                 execute=lambda arg: print(arg),
+                 execute=lambda arg: _logger.info(arg),
                  name=''):
         self.when = when
         self.execute = execute

@@ -7,7 +7,6 @@ from __future__ import print_function
 from .. import backend
 from .. import utils
 from ..utils import generic_utils
-
 from keras_preprocessing import image
 
 random_rotation = image.random_rotation
