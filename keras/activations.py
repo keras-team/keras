@@ -158,6 +158,15 @@ def hard_sigmoid(x):
     return K.hard_sigmoid(x)
 
 
+def gelu(x):
+    """Gaussian Error Linear Units (GELUs)
+    
+    GLUEs are nonconvex, nonmonotonic.
+    """
+    return K.gelu(x)
+
+
+
 def exponential(x):
     """Exponential (base e) activation function.
     """
@@ -211,3 +220,6 @@ def get(identifier):
     else:
         raise ValueError('Could not interpret '
                          'activation function identifier:', identifier)
+
+        
+      
