@@ -5,6 +5,7 @@ from keras import backend as K
 import os
 from psutil import Process
 import warnings
+import gc
 
 _proc = Process(os.getpid())
 
@@ -24,6 +25,7 @@ def clear_session_after_test(request):
     yield
     if K.backend() == 'tensorflow' or K.backend() == 'cntk':
         K.clear_session()
+    gc.collect()
 
     current_memory = get_consumed_ram()
 
