@@ -53,7 +53,7 @@ install:
   - pip install -e .[tests] --progress-bar off
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow==1.9 --progress-bar off
+  - pip install tensorflow==1.12 --progress-bar off
 
   # install cntk
   - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
