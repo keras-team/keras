@@ -4,6 +4,7 @@ import pytest
 from keras import backend as K
 import os
 from psutil import Process
+import warnings
 
 _proc = Process(os.getpid())
 
@@ -26,5 +27,5 @@ def clear_session_after_test():
 
     mem_used = get_consumed_ram()
     history_of_memory_used.append(mem_used)
-    print('Memory used by ' + str(os.getpid()) + ' is ' + str(mem_used))
-    print('History of ' + str(os.getpid()) + ' is ' + str(history_of_memory_used))
+    warnings.warn('Memory used by ' + str(os.getpid()) + ' is ' + str(mem_used))
+    warnings.warn('History of ' + str(os.getpid()) + ' is ' + str(history_of_memory_used))
