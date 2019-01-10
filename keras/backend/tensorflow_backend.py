@@ -3614,7 +3614,7 @@ def hard_sigmoid(x):
     x = tf.clip_by_value(x, zero, one)
     return x
 
-def def gelu(x):
+def gelu(x):
     """Gaussian Error Linear Units (GELUs)
     
     GLUEs are nonconvex, nonmonotonic.
