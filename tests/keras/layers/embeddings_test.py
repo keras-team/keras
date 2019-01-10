@@ -29,7 +29,10 @@ def test_embedding():
                expected_output_dtype=K.floatx())
 
 
-def test_embedding_invalid():
+@pytest.mark.parametrize('input_shape',
+                         [(3, 4, 5),
+                          (3, 5)])
+def test_embedding_invalid(input_shape):
 
     # len(input_length) should be equal to len(input_shape) - 1
     with pytest.raises(ValueError):
@@ -37,15 +40,7 @@ def test_embedding_invalid():
             input_dim=10,
             output_dim=4,
             input_length=2,
-            input_shape=(3, 4, 5))])
-
-    # input_length should be equal to input_shape[1:]
-    with pytest.raises(ValueError):
-        model = Sequential([Embedding(
-            input_dim=10,
-            output_dim=4,
-            input_length=2,
-            input_shape=(3, 5))])
+            input_shape=input_shape)])
 
 
 if __name__ == '__main__':
