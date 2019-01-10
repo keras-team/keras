@@ -171,7 +171,23 @@ def test_hard_sigmoid():
     expected = hard_sigmoid(test_values)
     assert_allclose(result, expected, rtol=1e-05)
 
+    
+def test_gelu():
+    """Test using a reference
+    """
+    def ref_gelu(x):
+        return 0.5 * x * (1 + np.tanh(np.sqrt(2 / np.pi) * (x + 0.044715 * np.pow(x, 3))))
+    gelu = np.vectorize(ref_gelu)
 
+    x = K.placeholder(ndim=2)
+    f = K.function([x], [activations.gelu(x)])
+    test_values = get_standard_values()
+    
+    result = f([test_values])[0]
+    expected = gelu(test_values)
+    assert_allclose(result, expected, rtol=1e-05)
+    
+    
 def test_relu():
     x = K.placeholder(ndim=2)
     f = K.function([x], [activations.relu(x)])
