@@ -3614,6 +3614,22 @@ def hard_sigmoid(x):
     x = tf.clip_by_value(x, zero, one)
     return x
 
+def def gelu(x):
+    """Gaussian Error Linear Units (GELUs)
+    
+    GLUEs are nonconvex, nonmonotonic.
+    
+    Arguments
+      x: Input tensor.
+    
+    References:
+      Gaussian Error Linear Units (GELUs), Hendrycks et. al, 2018.
+      
+    Links: 
+        [https://arxiv.org/pdf/1606.08415.pdf](https://arxiv.org/pdf/1606.08415.pdf)
+    """
+
+    return 0.5 * x * (1 + tf.tanh(tf.sqrt(2 / np.pi) * (x + 0.044715 * tf.pow(x, 3))))
 
 def tanh(x):
     """Element-wise tanh.
