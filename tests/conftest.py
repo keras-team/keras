@@ -26,5 +26,5 @@ def clear_session_after_test():
 
     mem_used = get_consumed_ram()
     history_of_memory_used.append(mem_used)
-    print('Memory used by ' + str(os.getpid()) + ' is ' + mem_used)
+    print('Memory used by ' + str(os.getpid()) + ' is ' + str(mem_used))
     print('History of ' + str(os.getpid()) + ' is ' + str(history_of_memory_used))
