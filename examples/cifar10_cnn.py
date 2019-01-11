@@ -3,7 +3,7 @@
 It gets to 75% validation accuracy in 25 epochs, and 79% after 50 epochs.
 (it's still underfitting at that point, though).
 '''
-
+##some play around
 from __future__ import print_function
 import keras
 from keras.datasets import cifar10
