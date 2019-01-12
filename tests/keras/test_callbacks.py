@@ -7,6 +7,7 @@ from numpy.testing import assert_allclose
 from csv import reader
 from csv import Sniffer
 import shutil
+from collections import defaultdict
 from keras import optimizers
 from keras import initializers
 from keras import callbacks
@@ -63,6 +64,280 @@ def get_data_callbacks(num_train=train_samples,
                          input_shape=input_shape,
                          classification=classification,
                          num_classes=num_classes)
+
+
+class Counter(callbacks.Callback):
+    """Counts the number of times each callback method was run.
+
+    # Arguments
+        method_counts: dict, contains the counts of time each callback method was
+            run.
+    """
+
+    def __init__(self):
+        self.method_counts = defaultdict(int)
+        methods_to_count = [
+            'on_batch_begin', 'on_batch_end', 'on_epoch_begin', 'on_epoch_end',
+            'on_train_batch_begin', 'on_train_batch_end',
+            'on_test_batch_begin', 'on_test_batch_end',
+            'on_predict_batch_begin', 'on_predict_batch_end',
+            'on_train_begin', 'on_train_end', 'on_predict_begin', 'on_predict_end',
+            'on_test_begin', 'on_test_end',
+        ]
+        for method_name in methods_to_count:
+            setattr(self, method_name,
+                    self.wrap_with_counts(method_name, getattr(self, method_name)))
+
+    def wrap_with_counts(self, method_name, method):
+
+        def _call_and_count(*args, **kwargs):
+            self.method_counts[method_name] += 1
+            return method(*args, **kwargs)
+
+        return _call_and_count
+
+
+class TestCallbackCounts(object):
+
+    def _check_counts(self, counter, expected_counts):
+        """Checks that the counts registered by `counter` are those expected."""
+        for method_name, expected_count in expected_counts.items():
+            count = counter.method_counts[method_name]
+            assert count == expected_count, \
+                'For method {}: expected {}, got: {}'.format(
+                    method_name, expected_count, count)
+
+    def _get_model(self):
+        layers = [
+            Dense(10, activation='relu', input_dim=input_dim),
+            Dense(num_classes, activation='softmax')
+        ]
+        model = Sequential(layers=layers)
+        model.compile(optimizer='adam', loss='binary_crossentropy')
+        return model
+
+    def test_callback_hooks_are_called_in_fit(self):
+        np.random.seed(1337)
+        (X_train, y_train), (X_test, y_test) = get_data_callbacks(num_train=10,
+                                                                  num_test=4)
+        y_train = np_utils.to_categorical(y_train)
+        y_test = np_utils.to_categorical(y_test)
+
+        model = self._get_model()
+        counter = Counter()
+        model.fit(X_train, y_train, validation_data=(X_test, y_test),
+                  batch_size=2, epochs=5, callbacks=[counter])
+
+        self._check_counts(
+            counter, {
+                'on_batch_begin': 25,
+                'on_batch_end': 25,
+                'on_epoch_begin': 5,
+                'on_epoch_end': 5,
+                'on_predict_batch_begin': 0,
+                'on_predict_batch_end': 0,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_test_batch_begin': 10,
+                'on_test_batch_end': 10,
+                'on_test_begin': 5,
+                'on_test_end': 5,
+                'on_train_batch_begin': 25,
+                'on_train_batch_end': 25,
+                'on_train_begin': 1,
+                'on_train_end': 1,
+            })
+
+    def test_callback_hooks_are_called_in_evaluate(self):
+        np.random.seed(1337)
+        (_, _), (X_test, y_test) = get_data_callbacks(num_test=10)
+
+        y_test = np_utils.to_categorical(y_test)
+
+        model = self._get_model()
+        counter = Counter()
+        model.evaluate(X_test, y_test, batch_size=2, callbacks=[counter])
+        self._check_counts(
+            counter, {
+                'on_test_batch_begin': 5,
+                'on_test_batch_end': 5,
+                'on_test_begin': 1,
+                'on_test_end': 1,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_predict_batch_begin': 0,
+                'on_predict_batch_end': 0,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
+
+    def test_callback_hooks_are_called_in_predict(self):
+        np.random.seed(1337)
+        (_, _), (X_test, _) = get_data_callbacks(num_test=10)
+
+        model = self._get_model()
+        counter = Counter()
+        model.predict(X_test, batch_size=2, callbacks=[counter])
+        self._check_counts(
+            counter, {
+                'on_predict_batch_begin': 5,
+                'on_predict_batch_end': 5,
+                'on_predict_begin': 1,
+                'on_predict_end': 1,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_test_batch_begin': 0,
+                'on_test_batch_end': 0,
+                'on_test_begin': 0,
+                'on_test_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
+
+    def test_callback_hooks_are_called_in_fit_generator(self):
+        np.random.seed(1337)
+        (X_train, y_train), (X_test, y_test) = get_data_callbacks(num_train=10,
+                                                                  num_test=4)
+        y_train = np_utils.to_categorical(y_train)
+        y_test = np_utils.to_categorical(y_test)
+        train_generator = data_generator(X_train, y_train, batch_size=2)
+        validation_generator = data_generator(X_test, y_test, batch_size=2)
+
+        model = self._get_model()
+        counter = Counter()
+        model.fit_generator(train_generator, steps_per_epoch=len(X_train) // 2,
+                            epochs=5, validation_data=validation_generator,
+                            validation_steps=len(X_test) // 2, callbacks=[counter])
+
+        self._check_counts(
+            counter, {
+                'on_batch_begin': 25,
+                'on_batch_end': 25,
+                'on_epoch_begin': 5,
+                'on_epoch_end': 5,
+                'on_predict_batch_begin': 0,
+                'on_predict_batch_end': 0,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_test_batch_begin': 10,
+                'on_test_batch_end': 10,
+                'on_test_begin': 5,
+                'on_test_end': 5,
+                'on_train_batch_begin': 25,
+                'on_train_batch_end': 25,
+                'on_train_begin': 1,
+                'on_train_end': 1,
+            })
+
+    def test_callback_hooks_are_called_in_evaluate_generator(self):
+        np.random.seed(1337)
+        (_, _), (X_test, y_test) = get_data_callbacks(num_test=10)
+        y_test = np_utils.to_categorical(y_test)
+
+        model = self._get_model()
+        counter = Counter()
+        model.evaluate_generator(data_generator(X_test, y_test, batch_size=2),
+                                 steps=len(X_test) // 2, callbacks=[counter])
+        self._check_counts(
+            counter, {
+                'on_test_batch_begin': 5,
+                'on_test_batch_end': 5,
+                'on_test_begin': 1,
+                'on_test_end': 1,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_predict_batch_begin': 0,
+                'on_predict_batch_end': 0,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
+
+    def test_callback_hooks_are_called_in_predict_generator(self):
+        np.random.seed(1337)
+        (_, _), (X_test, _) = get_data_callbacks(num_test=10)
+
+        def data_generator(x, batch_size):
+            x = to_list(x)
+            max_batch_index = len(x[0]) // batch_size
+            i = 0
+            while 1:
+                x_batch = [
+                    array[i * batch_size: (i + 1) * batch_size] for array in x]
+                x_batch = unpack_singleton(x_batch)
+
+                yield x_batch
+                i += 1
+                i = i % max_batch_index
+
+        model = self._get_model()
+        counter = Counter()
+        model.predict_generator(data_generator(X_test, batch_size=2),
+                                steps=len(X_test) // 2, callbacks=[counter])
+        self._check_counts(
+            counter, {
+                'on_predict_batch_begin': 5,
+                'on_predict_batch_end': 5,
+                'on_predict_begin': 1,
+                'on_predict_end': 1,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_test_batch_begin': 0,
+                'on_test_batch_end': 0,
+                'on_test_begin': 0,
+                'on_test_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
+
+    def test_callback_list_methods(self):
+        counter = Counter()
+        callback_list = callbacks.CallbackList([counter])
+
+        batch = 0
+        callback_list.on_test_batch_begin(batch)
+        callback_list.on_test_batch_end(batch)
+        callback_list.on_predict_batch_begin(batch)
+        callback_list.on_predict_batch_end(batch)
+
+        self._check_counts(
+            counter, {
+                'on_test_batch_begin': 1,
+                'on_test_batch_end': 1,
+                'on_predict_batch_begin': 1,
+                'on_predict_batch_end': 1,
+                'on_predict_begin': 0,
+                'on_predict_end': 0,
+                'on_batch_begin': 0,
+                'on_batch_end': 0,
+                'on_epoch_begin': 0,
+                'on_epoch_end': 0,
+                'on_test_begin': 0,
+                'on_test_end': 0,
+                'on_train_batch_begin': 0,
+                'on_train_batch_end': 0,
+                'on_train_begin': 0,
+                'on_train_end': 0,
+            })
 
 
 def test_TerminateOnNaN():
@@ -584,10 +859,12 @@ def test_TensorBoard(tmpdir, update_freq):
                   metrics=['accuracy', DummyStatefulMetric()])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq, embeddings_freq=1):
+    def callbacks_factory(histogram_freq, embeddings_freq=1, write_images=True,
+                          write_grads=True):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
-                                      write_images=True, write_grads=True,
+                                      write_images=write_images,
+                                      write_grads=write_grads,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
                                       embeddings_data=X_test,
@@ -597,24 +874,30 @@ def test_TensorBoard(tmpdir, update_freq):
     # fit without validation data
     model.fit(X_train, y_train, batch_size=batch_size,
               callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
-              epochs=3)
+              epochs=2)
 
     # fit with validation data and accuracy
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test),
-              callbacks=callbacks_factory(histogram_freq=0), epochs=2)
+              callbacks=callbacks_factory(histogram_freq=0, write_images=False,
+                                          write_grads=False),
+              epochs=2)
 
     # fit generator without validation data
     train_generator = data_generator(X_train, y_train, batch_size)
     model.fit_generator(train_generator, len(X_train), epochs=2,
                         callbacks=callbacks_factory(histogram_freq=0,
+                                                    write_images=False,
+                                                    write_grads=False,
                                                     embeddings_freq=0))
 
     # fit generator with validation data and accuracy
     train_generator = data_generator(X_train, y_train, batch_size)
     model.fit_generator(train_generator, len(X_train), epochs=2,
                         validation_data=(X_test, y_test),
-                        callbacks=callbacks_factory(histogram_freq=1))
+                        callbacks=callbacks_factory(histogram_freq=1,
+                                                    write_images=False,
+                                                    write_grads=False))
 
     assert os.path.isdir(filepath)
     shutil.rmtree(filepath)
@@ -641,10 +924,12 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq, embeddings_freq=1):
+    def callbacks_factory(histogram_freq, embeddings_freq=1, write_images=True,
+                          write_grads=True):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
-                                      write_images=True, write_grads=True,
+                                      write_images=write_images,
+                                      write_grads=write_grads,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
                                       embeddings_data=X_test,
@@ -664,7 +949,9 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
     with pytest.raises(ValueError) as raised_exception:
         model.fit_generator(train_generator,
                             len(X_train), epochs=2,
-                            callbacks=callbacks_factory(histogram_freq=1))
+                            callbacks=callbacks_factory(histogram_freq=1,
+                                                        write_images=False,
+                                                        write_grads=False))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
     # fit generator with validation data generator should raise ValueError if
@@ -673,7 +960,9 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
         model.fit_generator(train_generator, len(X_train), epochs=2,
                             validation_data=validation_generator,
                             validation_steps=1,
-                            callbacks=callbacks_factory(histogram_freq=1))
+                            callbacks=callbacks_factory(histogram_freq=1,
+                                                        write_images=False,
+                                                        write_grads=False))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
 
@@ -704,10 +993,12 @@ def test_TensorBoard_multi_input_output(tmpdir):
                   metrics=['accuracy'])
 
     # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq, embeddings_freq=1):
+    def callbacks_factory(histogram_freq, embeddings_freq=1, write_images=True,
+                          write_grads=True):
         return [callbacks.TensorBoard(log_dir=filepath,
                                       histogram_freq=histogram_freq,
-                                      write_images=True, write_grads=True,
+                                      write_images=write_images,
+                                      write_grads=write_grads,
                                       embeddings_freq=embeddings_freq,
                                       embeddings_layer_names=['dense_1'],
                                       embeddings_data=[X_test] * 2,
@@ -721,19 +1012,25 @@ def test_TensorBoard_multi_input_output(tmpdir):
     # fit with validation data and accuracy
     model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
               validation_data=([X_test] * 2, [y_test] * 2),
-              callbacks=callbacks_factory(histogram_freq=1), epochs=2)
+              callbacks=callbacks_factory(histogram_freq=1, write_images=False,
+                                          write_grads=False),
+              epochs=2)
 
     train_generator = data_generator([X_train] * 2, [y_train] * 2, batch_size)
 
     # fit generator without validation data
     model.fit_generator(train_generator, len(X_train), epochs=2,
                         callbacks=callbacks_factory(histogram_freq=0,
-                                                    embeddings_freq=0))
+                                                    embeddings_freq=0,
+                                                    write_images=False,
+                                                    write_grads=False))
 
     # fit generator with validation data and accuracy
     model.fit_generator(train_generator, len(X_train), epochs=2,
                         validation_data=([X_test] * 2, [y_test] * 2),
-                        callbacks=callbacks_factory(histogram_freq=1))
+                        callbacks=callbacks_factory(histogram_freq=1,
+                                                    write_images=False,
+                                                    write_grads=False))
 
     assert os.path.isdir(filepath)
     shutil.rmtree(filepath)

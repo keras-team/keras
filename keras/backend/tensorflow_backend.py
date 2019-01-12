@@ -1021,6 +1021,8 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
+    if value.dtype != x.dtype:
+        value = tf.cast(value, x.dtype)
     return moving_averages.assign_moving_average(
         x, value, momentum, zero_debias=True)
 
@@ -1195,10 +1197,10 @@ def batch_dot(x, y, axes=None):
                          'Expected: None, int, (int, int), ' +
                          'Provided: ' + str(axes))
 
-    # if tuple, convert to list
+    # if tuple, convert to list.
     axes = list(axes)
 
-    # convert negative indices
+    # convert negative indices.
     if axes[0] < 0:
         axes[0] += x_ndim
     if axes[1] < 0:
@@ -1221,34 +1223,82 @@ def batch_dot(x, y, axes=None):
                          ' with axes=' + str(axes) + '. x.shape[%d] != '
                          'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
 
-    # bring the dimensions to be reduced to axis 1
-    if a0 != 1:
+    # backup ndims. Need them later.
+    orig_x_ndim = x_ndim
+    orig_y_ndim = y_ndim
+
+    # if rank is 2, expand to 3.
+    if x_ndim == 2:
+        x = tf.expand_dims(x, 1)
+        a0 += 1
+        x_ndim += 1
+    if y_ndim == 2:
+        y = tf.expand_dims(y, 2)
+        y_ndim += 1
+
+    # bring x's dimension to be reduced to last axis.
+    if a0 != x_ndim - 1:
         pattern = list(range(x_ndim))
-        for i in range(a0, 1, -1):
-            pattern[i] = pattern[i - 1]
-        pattern[1] = a0
-        x = permute_dimensions(x, pattern)
+        for i in range(a0, x_ndim - 1):
+            pattern[i] = pattern[i + 1]
+        pattern[-1] = a0
+        x = tf.transpose(x, pattern)
+
+    # bring y's dimension to be reduced to axis 1.
     if a1 != 1:
         pattern = list(range(y_ndim))
         for i in range(a1, 1, -1):
             pattern[i] = pattern[i - 1]
         pattern[1] = a1
-        y = permute_dimensions(y, pattern)
+        y = tf.transpose(y, pattern)
 
-    # reshape to closest broadcastable shape
-    x_shape = tf.shape(x)
-    y_shape = tf.shape(y)
+    # normalize both inputs to rank 3.
+    if x_ndim > 3:
+        # squash middle dimensions of x.
+        x_shape = shape(x)
+        x_mid_dims = x_shape[1:-1]
+        x_squashed_dim = tf.reduce_prod(x_mid_dims)
+        x_squashed_shape = tf.stack([x_shape[0], x_squashed_dim, x_shape[-1]])
+        x = tf.reshape(x, x_squashed_shape)
+        x_squashed = True
+    else:
+        x_squashed = False
 
-    new_x_shape = tf.concat([x_shape, tf.ones_like(y_shape[2:])], 0)
-    new_y_shape = tf.concat([y_shape[:2], tf.ones_like(x_shape[2:]), y_shape[2:]], 0)
+    if y_ndim > 3:
+        # squash trailing dimensions of y.
+        y_shape = shape(y)
+        y_trail_dims = y_shape[2:]
+        y_squashed_dim = tf.reduce_prod(y_trail_dims)
+        y_squashed_shape = tf.stack([y_shape[0], y_shape[1], y_squashed_dim])
+        y = tf.reshape(y, y_squashed_shape)
+        y_squashed = True
+    else:
+        y_squashed = False
 
-    x = reshape(x, new_x_shape)
-    y = reshape(y, new_y_shape)
+    result = tf.matmul(x, y)
 
-    result = tf.reduce_sum(x * y, 1)
+    # if inputs were squashed, we have to reshape the matmul output.
+    output_shape = tf.shape(result)
+    do_reshape = False
 
-    if ndim(result) == 1:
-        result = tf.expand_dims(result, -1)
+    if x_squashed:
+        output_shape = tf.concat([output_shape[:1],
+                                  x_mid_dims,
+                                  output_shape[-1:]], 0)
+        do_reshape = True
+
+    if y_squashed:
+        output_shape = tf.concat([output_shape[:-1], y_trail_dims], 0)
+        do_reshape = True
+
+    if do_reshape:
+        result = tf.reshape(result, output_shape)
+
+    # if the inputs were originally rank 2, we remove the added 1 dim.
+    if orig_x_ndim == 2:
+        result = tf.squeeze(result, 1)
+    elif orig_y_ndim == 2:
+        result = tf.squeeze(result, -1)
 
     return result
 
@@ -1932,6 +1982,11 @@ def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
                            dtype=x.dtype,
                            shape=[x.get_shape()[normalization_axis]])
 
+    if gamma.dtype != tf.float32:
+        gamma = tf.cast(gamma, tf.float32)
+    if beta.dtype != tf.float32:
+        beta = tf.cast(beta, tf.float32)
+
     return tf.nn.fused_batch_norm(
         x,
         gamma,
@@ -2020,6 +2075,16 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
                 gamma = ones_like(mean)
             elif ndim(gamma) > 1:
                 gamma = tf.reshape(gamma, [-1])
+
+            if gamma.dtype != tf.float32:
+                gamma = tf.cast(gamma, tf.float32)
+            if beta.dtype != tf.float32:
+                beta = tf.cast(beta, tf.float32)
+            if mean.dtype != tf.float32:
+                mean = tf.cast(mean, tf.float32)
+            if var.dtype != tf.float32:
+                var = tf.cast(var, tf.float32)
+
             y, _, _ = tf.nn.fused_batch_norm(
                 x,
                 gamma,
@@ -2445,6 +2510,8 @@ def stack(x, axis=0):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.stack(x, axis=axis)
 
@@ -2499,6 +2566,8 @@ def slice(x, start, size):
         ```python
         new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
         ```
+
+    {{np_implementation}}
     """
     return tf.slice(x, start, size)
 
@@ -2937,6 +3006,8 @@ def rnn(step_function, inputs, initial_states,
             but input timestep is not a fixed number.
         ValueError: If `mask` is provided (not `None`)
             but states is not provided (`len(states)` == 0).
+
+    {{np_implementation}}
     """
     ndim = len(inputs.shape)
     if ndim < 3:
@@ -3052,10 +3123,6 @@ def rnn(step_function, inputs, initial_states,
             'maximum_iterations': input_length}
 
         if mask is not None:
-            if not states:
-                raise ValueError('No initial states provided! '
-                                 'When using masking in an RNN, you should '
-                                 'provide initial states')
             if go_backwards:
                 mask = reverse(mask, 0)
 
@@ -3382,6 +3449,8 @@ def softsign(x):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     return tf.nn.softsign(x)
 
@@ -4443,7 +4512,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
         (decoded, log_prob) = ctc.ctc_beam_search_decoder(
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths)
+            top_paths=top_paths, merge_repeated=False)
 
     decoded_dense = []
     for st in decoded:

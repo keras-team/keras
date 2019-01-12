@@ -40,3 +40,6 @@ from .mobilenet import MobileNet
 from .mobilenet_v2 import MobileNetV2
 from .densenet import DenseNet121, DenseNet169, DenseNet201
 from .nasnet import NASNetMobile, NASNetLarge
+from .resnet import ResNet101, ResNet152
+from .resnet_v2 import ResNet50V2, ResNet101V2, ResNet152V2
+from .resnext import ResNeXt50, ResNeXt101
