@@ -633,7 +633,7 @@ class ModelCheckpoint(Callback):
     """Save the model after every epoch.
 
     `filepath` can contain named formatting options,
-    which will be filled the value of `epoch` and
+    which will be filled with the values of `epoch` and
     keys in `logs` (passed in `on_epoch_end`).
 
     For example: if `filepath` is `weights.{epoch:02d}-{val_loss:.2f}.hdf5`,
