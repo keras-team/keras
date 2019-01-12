@@ -44,7 +44,8 @@ def fit_loop(model, fit_function, fit_inputs,
         batch_size: Integer batch size or None if unknown.
         epochs: Number of times to iterate over the data
         verbose: Verbosity mode, 0, 1 or 2
-        callbacks: List of callbacks to be called during training
+        callbacks: List of callbacks to be called during training and validation
+            (if `val_function` and `val_inputs` are not `None`).
         val_function: Keras function to call for validation
         val_inputs: List of tensors to be fed to `val_function`
         shuffle: Whether to shuffle the data at the beginning of each epoch
@@ -110,10 +111,7 @@ def fit_loop(model, fit_function, fit_inputs,
 
     # it's possible to callback a different model than itself
     # (used by Sequential models)
-    if hasattr(model, 'callback_model') and model.callback_model:
-        callback_model = model.callback_model
-    else:
-        callback_model = model
+    callback_model = model._get_callback_model()
 
     callbacks.set_model(callback_model)
     callbacks.set_params({
@@ -125,8 +123,8 @@ def fit_loop(model, fit_function, fit_inputs,
         'do_validation': do_validation,
         'metrics': callback_metrics or [],
     })
-    callbacks.on_train_begin()
-    callback_model.stop_training = False
+    callbacks._call_begin_hook('train')
+    callbacks.model.stop_training = False
     for cbk in callbacks:
         cbk.validation_data = val_inputs
 
@@ -148,23 +146,22 @@ def fit_loop(model, fit_function, fit_inputs,
         epoch_logs = {}
         if steps_per_epoch is not None:
             for step_index in range(steps_per_epoch):
-                batch_logs = {}
-                batch_logs['batch'] = step_index
-                batch_logs['size'] = 1
-                callbacks.on_batch_begin(step_index, batch_logs)
+                batch_logs = {'batch': step_index, 'size': 1}
+                callbacks._call_batch_hook('train', 'begin', step_index, batch_logs)
                 outs = fit_function(fit_inputs)
 
                 outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
-                callbacks.on_batch_end(step_index, batch_logs)
+                callbacks._call_batch_hook('train', 'end', step_index, batch_logs)
                 if callback_model.stop_training:
                     break
 
             if do_validation:
                 val_outs = test_loop(model, val_function, val_inputs,
                                      steps=validation_steps,
+                                     callbacks=callbacks,
                                      verbose=0)
                 val_outs = to_list(val_outs)
                 # Same labels assumed.
@@ -190,10 +187,8 @@ def fit_loop(model, fit_function, fit_inputs,
                     raise TypeError('TypeError while preparing batch. '
                                     'If using HDF5 input data, '
                                     'pass shuffle="batch".')
-                batch_logs = {}
-                batch_logs['batch'] = batch_index
-                batch_logs['size'] = len(batch_ids)
-                callbacks.on_batch_begin(batch_index, batch_logs)
+                batch_logs = {'batch': batch_index, 'size': len(batch_ids)}
+                callbacks._call_batch_hook('train', 'begin', batch_index, batch_logs)
                 for i in indices_for_conversion_to_dense:
                     ins_batch[i] = ins_batch[i].toarray()
 
@@ -202,27 +197,32 @@ def fit_loop(model, fit_function, fit_inputs,
                 for l, o in zip(out_labels, outs):
                     batch_logs[l] = o
 
-                callbacks.on_batch_end(batch_index, batch_logs)
-                if callback_model.stop_training:
+                callbacks._call_batch_hook('train', 'end', batch_index, batch_logs)
+                if callbacks.model.stop_training:
                     break
 
                 if batch_index == len(batches) - 1:  # Last batch.
                     if do_validation:
                         val_outs = test_loop(model, val_function, val_inputs,
                                              batch_size=batch_size,
+                                             callbacks=callbacks,
                                              verbose=0)
                         val_outs = to_list(val_outs)
                         # Same labels assumed.
                         for l, o in zip(out_labels, val_outs):
                             epoch_logs['val_' + l] = o
         callbacks.on_epoch_end(epoch, epoch_logs)
-        if callback_model.stop_training:
+        if callbacks.model.stop_training:
             break
-    callbacks.on_train_end()
+    callbacks._call_end_hook('train')
     return model.history
 
 
-def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
+def predict_loop(model, f, ins,
+                 batch_size=32,
+                 verbose=0,
+                 steps=None,
+                 callbacks=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
@@ -234,6 +234,8 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         steps: Total number of steps (batches of samples)
             before declaring `predict_loop` finished.
             Ignored with the default value of `None`.
+        callbacks: List of callbacks or an instance of
+            `keras.callbacks.CallbackList` to be called during prediction.
 
     # Returns
         Array of predictions (if the model has a single output)
@@ -244,6 +246,20 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
                                     batch_size=batch_size,
                                     steps=steps,
                                     steps_name='steps')
+
+    # Check if callbacks have not been already configured
+    if not isinstance(callbacks, cbks.CallbackList):
+        callbacks = cbks.CallbackList(callbacks)
+        callback_model = model._get_callback_model()
+        callbacks.set_model(callback_model)
+        callback_params = {
+            'batch_size': batch_size,
+            'steps': steps,
+            'samples': num_samples,
+            'verbose': verbose,
+        }
+        callbacks.set_params(callback_params)
+
     if verbose == 1:
         if steps is not None:
             progbar = Progbar(target=steps)
@@ -255,6 +271,9 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         if issparse(ins[i]) and not K.is_sparse(model._feed_inputs[i]):
             indices_for_conversion_to_dense.append(i)
 
+    callbacks.model.stop_training = False
+    callbacks._call_begin_hook('predict')
+
     if steps is not None:
         # Step-based predictions.
         # Since we do not know how many samples
@@ -264,6 +283,8 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
         # and concatenate them upon returning.
         unconcatenated_outs = []
         for step in range(steps):
+            batch_logs = {'batch': step, 'size': 1}
+            callbacks._call_batch_hook('predict', 'begin', step, batch_logs)
             batch_outs = f(ins)
             batch_outs = to_list(batch_outs)
             if step == 0:
@@ -271,8 +292,12 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
                     unconcatenated_outs.append([])
             for i, batch_out in enumerate(batch_outs):
                 unconcatenated_outs[i].append(batch_out)
+
+            batch_logs['outputs'] = batch_outs
+            callbacks._call_batch_hook('predict', 'end', step, batch_logs)
             if verbose == 1:
                 progbar.update(step + 1)
+        callbacks.on_predict_end()
         if len(unconcatenated_outs) == 1:
             return np.concatenate(unconcatenated_outs[0], axis=0)
         return [np.concatenate(unconcatenated_outs[i], axis=0)
@@ -292,6 +317,8 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
             for i in indices_for_conversion_to_dense:
                 ins_batch[i] = ins_batch[i].toarray()
 
+            batch_logs = {'batch': batch_index, 'size': len(batch_ids)}
+            callbacks._call_batch_hook('predict', 'begin', batch_index, batch_logs)
             batch_outs = f(ins_batch)
             batch_outs = to_list(batch_outs)
             if batch_index == 0:
@@ -301,12 +328,20 @@ def predict_loop(model, f, ins, batch_size=32, verbose=0, steps=None):
                     outs.append(np.zeros(shape, dtype=batch_out.dtype))
             for i, batch_out in enumerate(batch_outs):
                 outs[i][batch_start:batch_end] = batch_out
+
+            batch_logs['outputs'] = batch_outs
+            callbacks._call_batch_hook('predict', 'end', batch_index, batch_logs)
             if verbose == 1:
                 progbar.update(batch_end)
+        callbacks._call_end_hook('predict')
         return unpack_singleton(outs)
 
 
-def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
+def test_loop(model, f, ins,
+              batch_size=None,
+              verbose=0,
+              steps=None,
+              callbacks=None):
     """Abstract method to loop over some data in batches.
 
     # Arguments
@@ -318,6 +353,8 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
         steps: Total number of steps (batches of samples)
             before declaring predictions finished.
             Ignored with the default value of `None`.
+        callbacks: List of callbacks or an instance of
+            `keras.callbacks.CallbackList` to be called during evaluation.
 
     # Returns
         Scalar loss (if the model has a single output and no metrics)
@@ -339,6 +376,24 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
                                     batch_size=batch_size,
                                     steps=steps,
                                     steps_name='steps')
+
+    # Check if callbacks have not been already configured
+    if not isinstance(callbacks, cbks.CallbackList):
+        callbacks = cbks.CallbackList(callbacks)
+        callback_model = model._get_callback_model()
+        callbacks.set_model(callback_model)
+        callback_metrics = []
+        if hasattr(model, 'metrics_names'):
+            callback_metrics = list(model.metrics_names)
+        callback_params = {
+            'batch_size': batch_size,
+            'steps': steps,
+            'samples': num_samples,
+            'verbose': verbose,
+            'metrics': callback_metrics,
+        }
+        callbacks.set_params(callback_params)
+
     outs = []
     if verbose == 1:
         if steps is not None:
@@ -356,8 +411,13 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
         if issparse(ins[i]) and not K.is_sparse(feed[i]):
             indices_for_conversion_to_dense.append(i)
 
+    callbacks.model.stop_training = False
+    callbacks._call_begin_hook('test')
+
     if steps is not None:
         for step in range(steps):
+            batch_logs = {'batch': step, 'size': 1}
+            callbacks._call_batch_hook('test', 'begin', step, batch_logs)
             batch_outs = f(ins)
             if isinstance(batch_outs, list):
                 if step == 0:
@@ -372,6 +432,12 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
                 if step == 0:
                     outs.append(0.)
                 outs[0] += batch_outs
+
+            if hasattr(model, 'metrics_names'):
+                for l, o in zip(model.metrics_names, batch_outs):
+                    batch_logs[l] = o
+            callbacks._call_batch_hook('test', 'end', step, batch_logs)
+
             if verbose == 1:
                 progbar.update(step + 1)
         for i in range(len(outs)):
@@ -390,6 +456,8 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
             for i in indices_for_conversion_to_dense:
                 ins_batch[i] = ins_batch[i].toarray()
 
+            batch_logs = {'batch': batch_index, 'size': len(batch_ids)}
+            callbacks._call_batch_hook('test', 'begin', batch_index, batch_logs)
             batch_outs = f(ins_batch)
             if isinstance(batch_outs, list):
                 if batch_index == 0:
@@ -405,9 +473,15 @@ def test_loop(model, f, ins, batch_size=None, verbose=0, steps=None):
                     outs.append(0.)
                 outs[0] += batch_outs * len(batch_ids)
 
+            if hasattr(model, 'metrics_names'):
+                for l, o in zip(model.metrics_names, batch_outs):
+                    batch_logs[l] = o
+            callbacks._call_batch_hook('test', 'end', batch_index, batch_logs)
+
             if verbose == 1:
                 progbar.update(batch_end)
         for i in range(len(outs)):
             if i not in stateful_metric_indices:
                 outs[i] /= num_samples
+    callbacks._call_end_hook('test')
     return unpack_singleton(outs)

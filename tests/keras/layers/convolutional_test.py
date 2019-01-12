@@ -693,55 +693,56 @@ def test_zero_padding_2d(data_format, padding):
                input_shape=inputs.shape)
 
 
-def test_zero_padding_2d_correctness():
+@pytest.mark.parametrize('data_format',
+                         ['channels_first', 'channels_last'])
+def test_zero_padding_2d_correctness(data_format):
     num_samples = 2
     stack_size = 2
     input_num_row = 4
     input_num_col = 5
     inputs = np.ones((num_samples, stack_size, input_num_row, input_num_col))
 
-    for data_format in ['channels_first', 'channels_last']:
-        layer = convolutional.ZeroPadding2D(padding=(2, 2),
-                                            data_format=data_format)
-        layer.build(inputs.shape)
-        outputs = layer(K.variable(inputs))
-        np_output = K.eval(outputs)
-        if data_format == 'channels_last':
-            for offset in [0, 1, -1, -2]:
-                assert_allclose(np_output[:, offset, :, :], 0.)
-                assert_allclose(np_output[:, :, offset, :], 0.)
-            assert_allclose(np_output[:, 2:-2, 2:-2, :], 1.)
-        elif data_format == 'channels_first':
-            for offset in [0, 1, -1, -2]:
-                assert_allclose(np_output[:, :, offset, :], 0.)
-                assert_allclose(np_output[:, :, :, offset], 0.)
-            assert_allclose(np_output[:, 2:-2, 2:-2, :], 1.)
+    layer = convolutional.ZeroPadding2D(padding=(2, 2),
+                                        data_format=data_format)
+    layer.build(inputs.shape)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
+    if data_format == 'channels_last':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(np_output[:, offset, :, :], 0.)
+            assert_allclose(np_output[:, :, offset, :], 0.)
+        assert_allclose(np_output[:, 2:-2, 2:-2, :], 1.)
+    elif data_format == 'channels_first':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(np_output[:, :, offset, :], 0.)
+            assert_allclose(np_output[:, :, :, offset], 0.)
+        assert_allclose(np_output[:, 2:-2, 2:-2, :], 1.)
 
-        layer = convolutional.ZeroPadding2D(padding=((1, 2), (3, 4)),
-                                            data_format=data_format)
-        layer.build(inputs.shape)
-        outputs = layer(K.variable(inputs))
-        np_output = K.eval(outputs)
-        if data_format == 'channels_last':
-            for top_offset in [0]:
-                assert_allclose(np_output[:, top_offset, :, :], 0.)
-            for bottom_offset in [-1, -2]:
-                assert_allclose(np_output[:, bottom_offset, :, :], 0.)
-            for left_offset in [0, 1, 2]:
-                assert_allclose(np_output[:, :, left_offset, :], 0.)
-            for right_offset in [-1, -2, -3, -4]:
-                assert_allclose(np_output[:, :, right_offset, :], 0.)
-            assert_allclose(np_output[:, 1:-2, 3:-4, :], 1.)
-        elif data_format == 'channels_first':
-            for top_offset in [0]:
-                assert_allclose(np_output[:, :, top_offset, :], 0.)
-            for bottom_offset in [-1, -2]:
-                assert_allclose(np_output[:, :, bottom_offset, :], 0.)
-            for left_offset in [0, 1, 2]:
-                assert_allclose(np_output[:, :, :, left_offset], 0.)
-            for right_offset in [-1, -2, -3, -4]:
-                assert_allclose(np_output[:, :, :, right_offset], 0.)
-            assert_allclose(np_output[:, :, 1:-2, 3:-4], 1.)
+    layer = convolutional.ZeroPadding2D(padding=((1, 2), (3, 4)),
+                                        data_format=data_format)
+    layer.build(inputs.shape)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
+    if data_format == 'channels_last':
+        for top_offset in [0]:
+            assert_allclose(np_output[:, top_offset, :, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(np_output[:, bottom_offset, :, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(np_output[:, :, left_offset, :], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(np_output[:, :, right_offset, :], 0.)
+        assert_allclose(np_output[:, 1:-2, 3:-4, :], 1.)
+    elif data_format == 'channels_first':
+        for top_offset in [0]:
+            assert_allclose(np_output[:, :, top_offset, :], 0.)
+        for bottom_offset in [-1, -2]:
+            assert_allclose(np_output[:, :, bottom_offset, :], 0.)
+        for left_offset in [0, 1, 2]:
+            assert_allclose(np_output[:, :, :, left_offset], 0.)
+        for right_offset in [-1, -2, -3, -4]:
+            assert_allclose(np_output[:, :, :, right_offset], 0.)
+        assert_allclose(np_output[:, :, 1:-2, 3:-4], 1.)
 
 
 @pytest.mark.parametrize(
@@ -765,7 +766,9 @@ def test_zero_padding_3d(data_format, padding):
                input_shape=inputs.shape)
 
 
-def test_zero_padding_3d_correctness():
+@pytest.mark.parametrize('data_format',
+                         ['channels_first', 'channels_last'])
+def test_zero_padding_3d_correctness(data_format):
     num_samples = 2
     stack_size = 2
     input_len_dim1 = 4
@@ -775,46 +778,45 @@ def test_zero_padding_3d_correctness():
                       input_len_dim1, input_len_dim2, input_len_dim3,
                       stack_size))
 
-    for data_format in ['channels_first', 'channels_last']:
-        layer = convolutional.ZeroPadding3D(padding=(2, 2, 2),
-                                            data_format=data_format)
-        layer.build(inputs.shape)
-        outputs = layer(K.variable(inputs))
-        np_output = K.eval(outputs)
-        if data_format == 'channels_last':
-            for offset in [0, 1, -1, -2]:
-                assert_allclose(np_output[:, offset, :, :, :], 0.)
-                assert_allclose(np_output[:, :, offset, :, :], 0.)
-                assert_allclose(np_output[:, :, :, offset, :], 0.)
-            assert_allclose(np_output[:, 2:-2, 2:-2, 2:-2, :], 1.)
-        elif data_format == 'channels_first':
-            for offset in [0, 1, -1, -2]:
-                assert_allclose(np_output[:, :, offset, :, :], 0.)
-                assert_allclose(np_output[:, :, :, offset, :], 0.)
-                assert_allclose(np_output[:, :, :, :, offset], 0.)
-            assert_allclose(np_output[:, :, 2:-2, 2:-2, 2:-2], 1.)
+    layer = convolutional.ZeroPadding3D(padding=(2, 2, 2),
+                                        data_format=data_format)
+    layer.build(inputs.shape)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
+    if data_format == 'channels_last':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(np_output[:, offset, :, :, :], 0.)
+            assert_allclose(np_output[:, :, offset, :, :], 0.)
+            assert_allclose(np_output[:, :, :, offset, :], 0.)
+        assert_allclose(np_output[:, 2:-2, 2:-2, 2:-2, :], 1.)
+    elif data_format == 'channels_first':
+        for offset in [0, 1, -1, -2]:
+            assert_allclose(np_output[:, :, offset, :, :], 0.)
+            assert_allclose(np_output[:, :, :, offset, :], 0.)
+            assert_allclose(np_output[:, :, :, :, offset], 0.)
+        assert_allclose(np_output[:, :, 2:-2, 2:-2, 2:-2], 1.)
 
-        layer = convolutional.ZeroPadding3D(padding=((1, 2), (3, 4), (0, 2)),
-                                            data_format=data_format)
-        layer.build(inputs.shape)
-        outputs = layer(K.variable(inputs))
-        np_output = K.eval(outputs)
-        if data_format == 'channels_last':
-            for dim1_offset in [0, -1, -2]:
-                assert_allclose(np_output[:, dim1_offset, :, :, :], 0.)
-            for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
-                assert_allclose(np_output[:, :, dim2_offset, :, :], 0.)
-            for dim3_offset in [-1, -2]:
-                assert_allclose(np_output[:, :, :, dim3_offset, :], 0.)
-            assert_allclose(np_output[:, 1:-2, 3:-4, 0:-2, :], 1.)
-        elif data_format == 'channels_first':
-            for dim1_offset in [0, -1, -2]:
-                assert_allclose(np_output[:, :, dim1_offset, :, :], 0.)
-            for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
-                assert_allclose(np_output[:, :, :, dim2_offset, :], 0.)
-            for dim3_offset in [-1, -2]:
-                assert_allclose(np_output[:, :, :, :, dim3_offset], 0.)
-            assert_allclose(np_output[:, :, 1:-2, 3:-4, 0:-2], 1.)
+    layer = convolutional.ZeroPadding3D(padding=((1, 2), (3, 4), (0, 2)),
+                                        data_format=data_format)
+    layer.build(inputs.shape)
+    outputs = layer(K.variable(inputs))
+    np_output = K.eval(outputs)
+    if data_format == 'channels_last':
+        for dim1_offset in [0, -1, -2]:
+            assert_allclose(np_output[:, dim1_offset, :, :, :], 0.)
+        for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
+            assert_allclose(np_output[:, :, dim2_offset, :, :], 0.)
+        for dim3_offset in [-1, -2]:
+            assert_allclose(np_output[:, :, :, dim3_offset, :], 0.)
+        assert_allclose(np_output[:, 1:-2, 3:-4, 0:-2, :], 1.)
+    elif data_format == 'channels_first':
+        for dim1_offset in [0, -1, -2]:
+            assert_allclose(np_output[:, :, dim1_offset, :, :], 0.)
+        for dim2_offset in [0, 1, 2, -1, -2, -3, -4]:
+            assert_allclose(np_output[:, :, :, dim2_offset, :], 0.)
+        for dim3_offset in [-1, -2]:
+            assert_allclose(np_output[:, :, :, :, dim3_offset], 0.)
+        assert_allclose(np_output[:, :, 1:-2, 3:-4, 0:-2], 1.)
 
 
 def test_upsampling_1d():
@@ -823,49 +825,50 @@ def test_upsampling_1d():
                input_shape=(3, 5, 4))
 
 
-def test_upsampling_2d():
+@pytest.mark.parametrize('data_format',
+                         ['channels_first', 'channels_last'])
+def test_upsampling_2d(data_format):
     num_samples = 2
     stack_size = 2
     input_num_row = 11
     input_num_col = 12
 
-    for data_format in ['channels_first', 'channels_last']:
-        if data_format == 'channels_first':
-            inputs = np.random.rand(num_samples, stack_size, input_num_row,
-                                    input_num_col)
-        else:  # tf
-            inputs = np.random.rand(num_samples, input_num_row, input_num_col,
-                                    stack_size)
+    if data_format == 'channels_first':
+        inputs = np.random.rand(num_samples, stack_size, input_num_row,
+                                input_num_col)
+    else:  # tf
+        inputs = np.random.rand(num_samples, input_num_row, input_num_col,
+                                stack_size)
 
-        # basic test
-        layer_test(convolutional.UpSampling2D,
-                   kwargs={'size': (2, 2), 'data_format': data_format},
-                   input_shape=inputs.shape)
+    # basic test
+    layer_test(convolutional.UpSampling2D,
+               kwargs={'size': (2, 2), 'data_format': data_format},
+               input_shape=inputs.shape)
 
-        for length_row in [2]:
-            for length_col in [2, 3]:
-                layer = convolutional.UpSampling2D(
-                    size=(length_row, length_col),
-                    data_format=data_format)
-                layer.build(inputs.shape)
-                outputs = layer(K.variable(inputs))
-                np_output = K.eval(outputs)
-                if data_format == 'channels_first':
-                    assert np_output.shape[2] == length_row * input_num_row
-                    assert np_output.shape[3] == length_col * input_num_col
-                else:  # tf
-                    assert np_output.shape[1] == length_row * input_num_row
-                    assert np_output.shape[2] == length_col * input_num_col
+    for length_row in [2]:
+        for length_col in [2, 3]:
+            layer = convolutional.UpSampling2D(
+                size=(length_row, length_col),
+                data_format=data_format)
+            layer.build(inputs.shape)
+            outputs = layer(K.variable(inputs))
+            np_output = K.eval(outputs)
+            if data_format == 'channels_first':
+                assert np_output.shape[2] == length_row * input_num_row
+                assert np_output.shape[3] == length_col * input_num_col
+            else:  # tf
+                assert np_output.shape[1] == length_row * input_num_row
+                assert np_output.shape[2] == length_col * input_num_col
 
-                # compare with numpy
-                if data_format == 'channels_first':
-                    expected_out = np.repeat(inputs, length_row, axis=2)
-                    expected_out = np.repeat(expected_out, length_col, axis=3)
-                else:  # tf
-                    expected_out = np.repeat(inputs, length_row, axis=1)
-                    expected_out = np.repeat(expected_out, length_col, axis=2)
+            # compare with numpy
+            if data_format == 'channels_first':
+                expected_out = np.repeat(inputs, length_row, axis=2)
+                expected_out = np.repeat(expected_out, length_col, axis=3)
+            else:  # tf
+                expected_out = np.repeat(inputs, length_row, axis=1)
+                expected_out = np.repeat(expected_out, length_col, axis=2)
 
-                assert_allclose(np_output, expected_out)
+            assert_allclose(np_output, expected_out)
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
@@ -910,57 +913,58 @@ def test_upsampling_2d_bilinear(data_format):
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
                     reason="cntk does not support it yet")
-def test_upsampling_3d():
+@pytest.mark.parametrize('data_format',
+                         ['channels_first', 'channels_last'])
+def test_upsampling_3d(data_format):
     num_samples = 2
     stack_size = 2
     input_len_dim1 = 10
     input_len_dim2 = 11
     input_len_dim3 = 12
 
-    for data_format in ['channels_first', 'channels_last']:
-        if data_format == 'channels_first':
-            inputs = np.random.rand(num_samples,
-                                    stack_size,
-                                    input_len_dim1, input_len_dim2, input_len_dim3)
-        else:  # tf
-            inputs = np.random.rand(num_samples,
-                                    input_len_dim1, input_len_dim2, input_len_dim3,
-                                    stack_size)
+    if data_format == 'channels_first':
+        inputs = np.random.rand(num_samples,
+                                stack_size,
+                                input_len_dim1, input_len_dim2, input_len_dim3)
+    else:  # tf
+        inputs = np.random.rand(num_samples,
+                                input_len_dim1, input_len_dim2, input_len_dim3,
+                                stack_size)
 
-        # basic test
-        layer_test(convolutional.UpSampling3D,
-                   kwargs={'size': (2, 2, 2), 'data_format': data_format},
-                   input_shape=inputs.shape)
+    # basic test
+    layer_test(convolutional.UpSampling3D,
+               kwargs={'size': (2, 2, 2), 'data_format': data_format},
+               input_shape=inputs.shape)
 
-        for length_dim1 in [2, 3]:
-            for length_dim2 in [2]:
-                for length_dim3 in [3]:
-                    layer = convolutional.UpSampling3D(
-                        size=(length_dim1, length_dim2, length_dim3),
-                        data_format=data_format)
-                    layer.build(inputs.shape)
-                    outputs = layer(K.variable(inputs))
-                    np_output = K.eval(outputs)
-                    if data_format == 'channels_first':
-                        assert np_output.shape[2] == length_dim1 * input_len_dim1
-                        assert np_output.shape[3] == length_dim2 * input_len_dim2
-                        assert np_output.shape[4] == length_dim3 * input_len_dim3
-                    else:  # tf
-                        assert np_output.shape[1] == length_dim1 * input_len_dim1
-                        assert np_output.shape[2] == length_dim2 * input_len_dim2
-                        assert np_output.shape[3] == length_dim3 * input_len_dim3
+    for length_dim1 in [2, 3]:
+        for length_dim2 in [2]:
+            for length_dim3 in [3]:
+                layer = convolutional.UpSampling3D(
+                    size=(length_dim1, length_dim2, length_dim3),
+                    data_format=data_format)
+                layer.build(inputs.shape)
+                outputs = layer(K.variable(inputs))
+                np_output = K.eval(outputs)
+                if data_format == 'channels_first':
+                    assert np_output.shape[2] == length_dim1 * input_len_dim1
+                    assert np_output.shape[3] == length_dim2 * input_len_dim2
+                    assert np_output.shape[4] == length_dim3 * input_len_dim3
+                else:  # tf
+                    assert np_output.shape[1] == length_dim1 * input_len_dim1
+                    assert np_output.shape[2] == length_dim2 * input_len_dim2
+                    assert np_output.shape[3] == length_dim3 * input_len_dim3
 
-                    # compare with numpy
-                    if data_format == 'channels_first':
-                        expected_out = np.repeat(inputs, length_dim1, axis=2)
-                        expected_out = np.repeat(expected_out, length_dim2, axis=3)
-                        expected_out = np.repeat(expected_out, length_dim3, axis=4)
-                    else:  # tf
-                        expected_out = np.repeat(inputs, length_dim1, axis=1)
-                        expected_out = np.repeat(expected_out, length_dim2, axis=2)
-                        expected_out = np.repeat(expected_out, length_dim3, axis=3)
+                # compare with numpy
+                if data_format == 'channels_first':
+                    expected_out = np.repeat(inputs, length_dim1, axis=2)
+                    expected_out = np.repeat(expected_out, length_dim2, axis=3)
+                    expected_out = np.repeat(expected_out, length_dim3, axis=4)
+                else:  # tf
+                    expected_out = np.repeat(inputs, length_dim1, axis=1)
+                    expected_out = np.repeat(expected_out, length_dim2, axis=2)
+                    expected_out = np.repeat(expected_out, length_dim3, axis=3)
 
-                    assert_allclose(np_output, expected_out)
+                assert_allclose(np_output, expected_out)
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),

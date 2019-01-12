@@ -6,6 +6,7 @@ import pandas as pd
 from numpy.testing import assert_allclose
 import sys
 import scipy.sparse as sparse
+from flaky import flaky
 
 import keras
 from keras import losses
@@ -18,6 +19,7 @@ from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
 from keras.callbacks import LambdaCallback
+from keras.callbacks import Callback
 
 
 class RandomSequence(Sequence):
@@ -123,7 +125,7 @@ def test_weighted_masked_objective():
     weighted_function(a, a, None)
 
 
-def test_model_methods():
+def get_model(num_outputs=1):
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')
 
@@ -131,7 +133,33 @@ def test_model_methods():
     dp = Dropout(0.5, name='dropout')
     b_2 = dp(b)
 
-    model = Model([a, b], [a_2, b_2])
+    if num_outputs == 1:
+        model = Model([a, b], a_2)
+    else:
+        model = Model([a, b], [a_2, b_2])
+    return model
+
+
+class TrackerCallback(Callback):
+
+    def __init__(self):
+        # test starting from non-zero initial epoch
+        self.trained_epochs = []
+        self.trained_batches = []
+        super(TrackerCallback, self).__init__()
+
+    # define tracer callback
+    def on_epoch_begin(self, epoch, logs):
+        self.trained_epochs.append(epoch)
+
+    def on_batch_begin(self, batch, logs):
+        self.trained_batches.append(batch)
+
+
+# TODO: resolve flakyness issue. Tracked with #11560
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
+def test_model_methods():
+    model = get_model(num_outputs=2)
 
     optimizer = 'rmsprop'
     loss = 'mse'
@@ -269,27 +297,15 @@ def test_model_methods():
                               [output_a_np, output_b_np])
     assert len(out) == 4
 
-    # test starting from non-zero initial epoch
-    trained_epochs = []
-    trained_batches = []
-
-    # define tracer callback
-    def on_epoch_begin(epoch, logs):
-        trained_epochs.append(epoch)
-
-    def on_batch_begin(batch, logs):
-        trained_batches.append(batch)
-
-    tracker_cb = LambdaCallback(on_epoch_begin=on_epoch_begin,
-                                on_batch_begin=on_batch_begin)
+    tracker_cb = TrackerCallback()
 
     out = model.fit([input_a_np, input_b_np],
                     [output_a_np, output_b_np], epochs=5, batch_size=4,
                     initial_epoch=2, callbacks=[tracker_cb])
-    assert trained_epochs == [2, 3, 4]
+    assert tracker_cb.trained_epochs == [2, 3, 4]
 
     # test starting from non-zero initial epoch for generator too
-    trained_epochs = []
+    tracker_cb = TrackerCallback()
 
     @threadsafe_generator
     def gen_data(batch_sz):
@@ -301,7 +317,7 @@ def test_model_methods():
 
     out = model.fit_generator(gen_data(4), steps_per_epoch=3, epochs=5,
                               initial_epoch=2, callbacks=[tracker_cb])
-    assert trained_epochs == [2, 3, 4]
+    assert tracker_cb.trained_epochs == [2, 3, 4]
 
     # test with a custom metric function
     def mse(y_true, y_pred):
@@ -438,10 +454,18 @@ def test_model_methods():
                                    [output_a_np, output_b_np],
                                    sample_weight=sample_weight)
 
+
+# TODO: resolve flakyness issue. Tracked with #11560
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
+def test_fit_generator():
+    model = get_model(num_outputs=2)
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+
     model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
                   sample_weight_mode=None)
-    trained_epochs = []
-    trained_batches = []
+    tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               steps_per_epoch=3,
@@ -451,34 +475,33 @@ def test_model_methods():
                               validation_steps=3,
                               max_queue_size=1,
                               callbacks=[tracker_cb])
-    assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == list(range(3)) * 5
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(3)) * 5
     assert len(val_seq.logs) <= 4 * 5
 
     # steps_per_epoch will be equal to len of sequence if it's unspecified
-    trained_epochs = []
-    trained_batches = []
+    tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
                               initial_epoch=0,
                               validation_data=val_seq,
-                              callbacks=[tracker_cb])
-    assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == list(range(12)) * 5
-    assert len(val_seq.logs) == 12 * 5
+                              callbacks=[tracker_cb],
+                              max_queue_size=1)
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(12)) * 5
+    assert 12 * 5 <= len(val_seq.logs) <= (12 * 5) + 2  # the queue may be full.
 
     # test for workers = 0
-    trained_epochs = []
-    trained_batches = []
+    tracker_cb = TrackerCallback()
     val_seq = RandomSequence(4)
     out = model.fit_generator(generator=RandomSequence(3),
                               epochs=5,
                               validation_data=val_seq,
                               callbacks=[tracker_cb],
                               workers=0)
-    assert trained_epochs == [0, 1, 2, 3, 4]
-    assert trained_batches == list(range(12)) * 5
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == list(range(12)) * 5
     assert len(val_seq.logs) == 12 * 5
 
     # fit_generator will throw an exception
@@ -529,9 +552,15 @@ def test_model_methods():
     # of the queue depends on sleep in the enqueuers
     assert 3 <= gen_counters[0] <= 12
 
+
+def test_fit_generator_shape():
     # predict_generator output shape behavior should be consistent
     def expected_shape(batch_size, n_batches):
         return (batch_size * n_batches, 4), (batch_size * n_batches, 3)
+
+    model = get_model(num_outputs=2)
+    optimizer = 'rmsprop'
+    loss = 'mse'
 
     # Multiple outputs and one step.
     batch_size = 5
@@ -550,7 +579,7 @@ def test_model_methods():
     assert np.shape(out[0]) == shape_0 and np.shape(out[1]) == shape_1
 
     # Create a model with a single output.
-    single_output_model = Model([a, b], a_2)
+    single_output_model = get_model(num_outputs=1)
     single_output_model.compile(optimizer, loss,
                                 metrics=[], sample_weight_mode=None)
 
@@ -1101,12 +1130,12 @@ def test_target_tensors():
     # multi-output, not enough target tensors when `target_tensors` is not a dict
     with pytest.raises(ValueError,
                        match='When passing a list as `target_tensors`, it should '
-                             'have one entry per model output. The model has \d '
+                             'have one entry per model output. The model has \\d '
                              'outputs, but you passed target_tensors='):
         model.compile(optimizer='rmsprop', loss='mse',
                       target_tensors=[target_a])
     with pytest.raises(ValueError,
-                       match='The model has \d outputs, but you passed a single '
+                       match='The model has \\d outputs, but you passed a single '
                              'tensor as `target_tensors`. Expected a list or '
                              'a dict of tensors.'):
         model.compile(optimizer='rmsprop', loss='mse',
@@ -1544,6 +1573,26 @@ def test_dynamic_set_inputs():
     preds4 = model4.predict([np.random.random((1, 32)),
                              np.random.random((1, 5))])
     assert preds4.shape == (1, 19)
+
+
+def test_sample_weights():
+    y = np.array([0, 1, 0, 0, 2])
+    sample_weights = np.array([0.5, 1., 1., 0., 2.])
+    class_weights = {0: 0.5, 1: 1., 2: 1.5}
+
+    # Only `sample_weights`.
+    weights = training_utils.standardize_weights(y, sample_weights)
+    assert np.allclose(weights, sample_weights)
+
+    # Only `class_weights`.
+    weights = training_utils.standardize_weights(y, class_weight=class_weights)
+    assert np.allclose(weights, np.array([0.5, 1., 0.5, 0.5, 1.5]))
+
+    # Both 'sample_weights` and 'class_weights`.
+    weights = training_utils.standardize_weights(y, sample_weights,
+                                                 class_weights)
+    expected = sample_weights * np.array([0.5, 1., 0.5, 0.5, 1.5])
+    assert np.allclose(weights, expected)
 
 
 if __name__ == '__main__':
