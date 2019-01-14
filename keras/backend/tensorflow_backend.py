@@ -3227,6 +3227,8 @@ def switch(condition, then_expression, else_expression):
 
     # Raises
         ValueError: If rank of `condition` is greater than rank of expressions.
+
+    {{np_implementation}}
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
