@@ -41,7 +41,8 @@ install:
 
   - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
+  # TODO: remove the freeze of the numpy version once the next theano version is out on pypi.
+  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy==1.15.4 nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
   - pip install keras_applications keras_preprocessing --progress-bar off
 
   # set library path
