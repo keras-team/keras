@@ -40,8 +40,8 @@ class Masking(Layer):
 
     Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
     to be fed to an LSTM layer.
-    You want to mask sample #0 timestep #3 and sample #2 timestep #5 because you
-    lack features for these sample timesteps. You can:
+    You want to mask sample #0 at timestep #3, and sample #2 at timestep #5,
+    because you lack features for these sample timesteps. You can do:
 
         - set `x[0, 3, :] = 0.` and `x[2, 5, :] = 0.`
         - insert a `Masking` layer with `mask_value=0.` before the LSTM layer:
