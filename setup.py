@@ -43,7 +43,7 @@ setup(name='Keras',
           'visualize': ['pydot>=1.2.4'],
           'tests': ['pytest',
                     'pytest-pep8',
-                    'pytest-xdist',
+
                     'flaky',
                     'pytest-cov',
                     'pandas',
