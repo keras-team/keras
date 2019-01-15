@@ -1619,7 +1619,6 @@ def square(x):
 
     # Returns
         A tensor.
-    {{np_implementation}}
     """
     return tf.square(x)
 
@@ -1632,7 +1631,6 @@ def abs(x):
 
     # Returns
         A tensor.
-    {{np_implementation}}
     """
     return tf.abs(x)
 
@@ -1661,7 +1659,6 @@ def exp(x):
 
     # Returns
         A tensor.
-    {{np_implementation}}
     """
     return tf.exp(x)
 
@@ -1674,7 +1671,6 @@ def log(x):
 
     # Returns
         A tensor.
-    {{np_implementation}}
     """
     return tf.log(x)
 
@@ -1713,7 +1709,6 @@ def round(x):
 
     # Returns
         A tensor.
-    {{np_implementation}}
     """
     return tf.round(x)
 
@@ -1726,7 +1721,6 @@ def sign(x):
 
     # Returns
         A tensor.
-    {{np_implementation}}
     """
     return tf.sign(x)
 
