@@ -3257,6 +3257,8 @@ def switch(condition, then_expression, else_expression):
 
     # Raises
         ValueError: If rank of `condition` is greater than rank of expressions.
+
+    {{np_implementation}}
     """
     if condition.dtype != tf.bool:
         condition = tf.cast(condition, 'bool')
@@ -4544,7 +4546,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
         (decoded, log_prob) = ctc.ctc_beam_search_decoder(
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths)
+            top_paths=top_paths, merge_repeated=False)
 
     decoded_dense = []
     for st in decoded:

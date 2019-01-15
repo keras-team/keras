@@ -252,7 +252,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
                 are integers `[-1, 0, +1]`,
                 same as with `width_shift_range=[-1, 0, +1]`,
                 while with `width_shift_range=1.0` possible values are floats
-                in the interval [-1.0, +1.0).
+                in the half-open interval `[-1.0, +1.0[`.
         height_shift_range: Float, 1-D array-like or int
             - float: fraction of total height, if < 1, or pixels if >= 1.
             - 1-D array-like: random elements from the array.
@@ -262,7 +262,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
                 are integers `[-1, 0, +1]`,
                 same as with `height_shift_range=[-1, 0, +1]`,
                 while with `height_shift_range=1.0` possible values are floats
-                in the interval [-1.0, +1.0).
+                in the half-open interval `[-1.0, +1.0[`.
         brightness_range: Tuple or list of two floats. Range for picking
             a brightness shift value from.
         shear_range: Float. Shear Intensity

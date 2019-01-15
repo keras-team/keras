@@ -1130,12 +1130,12 @@ def test_target_tensors():
     # multi-output, not enough target tensors when `target_tensors` is not a dict
     with pytest.raises(ValueError,
                        match='When passing a list as `target_tensors`, it should '
-                             'have one entry per model output. The model has \d '
+                             'have one entry per model output. The model has \\d '
                              'outputs, but you passed target_tensors='):
         model.compile(optimizer='rmsprop', loss='mse',
                       target_tensors=[target_a])
     with pytest.raises(ValueError,
-                       match='The model has \d outputs, but you passed a single '
+                       match='The model has \\d outputs, but you passed a single '
                              'tensor as `target_tensors`. Expected a list or '
                              'a dict of tensors.'):
         model.compile(optimizer='rmsprop', loss='mse',

@@ -31,7 +31,7 @@ For a few examples of such functions, check out the [losses source](https://gith
 **Note**: when using the `categorical_crossentropy` loss, your targets should be in categorical format (e.g. if you have 10 classes, the target for each sample should be a 10-dimensional vector that is all-zeros except for a 1 at the index corresponding to the class of the sample). In order to convert *integer targets* into *categorical targets*, you can use the Keras utility `to_categorical`:
 
 ```python
-from keras.utils.np_utils import to_categorical
+from keras.utils import to_categorical
 
 categorical_labels = to_categorical(int_labels, num_classes=None)
 ```

@@ -41,7 +41,8 @@ install:
 
   - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
   - source activate test-environment
-  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
+  # TODO: remove the freeze of the numpy version once the next theano version is out on pypi.
+  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy==1.15.4 nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
   - pip install keras_applications keras_preprocessing --progress-bar off
 
   # set library path
@@ -53,7 +54,7 @@ install:
   - pip install -e .[tests] --progress-bar off
 
   # install TensorFlow (CPU version).
-  - pip install tensorflow==1.9 --progress-bar off
+  - pip install tensorflow==1.12 --progress-bar off
 
   # install cntk
   - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
@@ -62,12 +63,6 @@ install:
 
   # Remove the current backend from the coverage exclusion.
   - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
-
-  # detect whether core files are changed or not
-  - export CORE_CHANGED=False;
-  - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/backend/"* ]] || [[ "$entry" == "keras/engine/"* ]] || [[ "$entry" == "keras/layers/"* ]]; then export CORE_CHANGED=True; fi; done
-  - export APP_CHANGED=False;
-  - for entry in `git diff --name-only HEAD~1`; do if [[ "$entry" == "keras/applications/"* ]]; then export APP_CHANGED=True; fi; done
 
   # install mkdocs
   - pip install mkdocs --progress-bar off
