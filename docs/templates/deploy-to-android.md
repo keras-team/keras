@@ -36,7 +36,7 @@ Refer to the table below and run `help()` on the respective class to find ```.fr
 
 ## Using Command Line
 
-It is adviseable to use the API instead of the command line tool for TF version `1.9`. TF version `1.8` has no command line tool. In this case too your Keras model should be in `hdf5` format and contain both the weights and architecture.
+It is adviseable to use the API instead of the command line tool for TF version prior to `1.9`. TF version `1.8` has no command line tool. In this case too your Keras model should be in `hdf5` format and contain both the weights and architecture.
 
 
 ### Example
