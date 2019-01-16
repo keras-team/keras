@@ -67,3 +67,4 @@ nav:
 - Scikit-learn API: scikit-learn-api.md
 - Utils: utils.md
 - Contributing: contributing.md
+- Deploy To Android: deploy-to-android.md
