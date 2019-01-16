@@ -659,6 +659,7 @@ def dtype(x):
         >>> K.dtype(kvar)
         'float32_ref'
     ```
+    {{np_implementation}}
     """
     return x.dtype.base_dtype.name
 
@@ -680,6 +681,7 @@ def eval(x):
         array([[ 1.,  2.],
                [ 3.,  4.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     return to_dense(x).eval(session=get_session())
 
@@ -706,6 +708,7 @@ def zeros(shape, dtype=None, name=None):
                [ 0.,  0.,  0.,  0.],
                [ 0.,  0.,  0.,  0.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -738,6 +741,7 @@ def ones(shape, dtype=None, name=None):
                [ 1.,  1.,  1.,  1.],
                [ 1.,  1.,  1.,  1.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -768,7 +772,7 @@ def eye(size, dtype=None, name=None):
                [ 0.,  1.,  0.],
                [ 0.,  0.,  1.]], dtype=float32)
     ```
-
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -797,6 +801,7 @@ def zeros_like(x, dtype=None, name=None):
         array([[ 0.,  0.,  0.],
                [ 0.,  0.,  0.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     return tf.zeros_like(x, dtype=dtype, name=name)
 
@@ -822,6 +827,7 @@ def ones_like(x, dtype=None, name=None):
         array([[ 1.,  1.,  1.],
                [ 1.,  1.,  1.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     return tf.ones_like(x, dtype=dtype, name=name)
 
@@ -864,6 +870,7 @@ def random_uniform_variable(shape, low, high, dtype=None,
         array([[ 0.10940075,  0.10047495,  0.476143  ],
                [ 0.66137183,  0.00869417,  0.89220798]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -901,6 +908,7 @@ def random_normal_variable(shape, mean, scale, dtype=None,
         array([[ 1.19591331,  0.68685907, -0.63814116],
                [ 0.92629528,  0.28055015,  1.70484698]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     if dtype is None:
         dtype = floatx()
@@ -932,6 +940,7 @@ def count_params(x):
         array([[ 0.,  0.,  0.],
                [ 0.,  0.,  0.]], dtype=float32)
     ```
+    {{np_implementation}}
     """
     return np.prod(int_shape(x))
 
@@ -1070,6 +1079,7 @@ def dot(x, y):
         >>> K.int_shape(xy)
         (2, 4, 5)
     ```
+    {{np_implementation}}
     """
     if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
         x_shape = []
@@ -1334,6 +1344,7 @@ def transpose(x):
         <tf.Tensor 'transpose_4:0' shape=(3, 2) dtype=float32>
 
     ```
+    {{np_implementation}}
     """
     return tf.transpose(x)
 
@@ -1449,6 +1460,7 @@ def cumsum(x, axis=0):
 
     # Returns
         A tensor of the cumulative sum of values of `x` along `axis`.
+    {{np_implementation}}
     """
     return tf.cumsum(x, axis=axis)
 
@@ -1462,6 +1474,7 @@ def cumprod(x, axis=0):
 
     # Returns
         A tensor of the cumulative product of values of `x` along `axis`.
+    {{np_implementation}}
     """
     return tf.cumprod(x, axis=axis)
 
@@ -1481,6 +1494,7 @@ def var(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the variance of elements of `x`.
+    {{np_implementation}}
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
@@ -1506,6 +1520,7 @@ def std(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the standard deviation of elements of `x`.
+    {{np_implementation}}
     """
     return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
@@ -1525,6 +1540,7 @@ def mean(x, axis=None, keepdims=False):
 
     # Returns
         A tensor with the mean of elements of `x`.
+    {{np_implementation}}
     """
     if x.dtype.base_dtype == tf.bool:
         x = tf.cast(x, floatx())
@@ -1543,6 +1559,7 @@ def any(x, axis=None, keepdims=False):
 
     # Returns
         A uint8 tensor (0s and 1s).
+    {{np_implementation}}
     """
     x = tf.cast(x, tf.bool)
     return tf.reduce_any(x, axis, keepdims)
@@ -1560,6 +1577,7 @@ def all(x, axis=None, keepdims=False):
 
     # Returns
         A uint8 tensor (0s and 1s).
+    {{np_implementation}}
     """
     x = tf.cast(x, tf.bool)
     return tf.reduce_all(x, axis, keepdims)
@@ -1574,6 +1592,7 @@ def argmax(x, axis=-1):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     return tf.argmax(x, axis)
 
@@ -1587,6 +1606,7 @@ def argmin(x, axis=-1):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     return tf.argmin(x, axis)
 
@@ -1623,6 +1643,7 @@ def sqrt(x):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     zero = _to_tensor(0., x.dtype.base_dtype)
     inf = _to_tensor(np.inf, x.dtype.base_dtype)
@@ -1673,6 +1694,7 @@ def logsumexp(x, axis=None, keepdims=False):
 
     # Returns
         The reduced tensor.
+    {{np_implementation}}
     """
     return tf.reduce_logsumexp(x, axis, keepdims)
 
@@ -1712,6 +1734,7 @@ def pow(x, a):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     return tf.pow(x, a)
 
@@ -1726,6 +1749,7 @@ def clip(x, min_value, max_value):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     if (isinstance(min_value, (int, float)) and
             isinstance(max_value, (int, float))):
@@ -3644,6 +3668,7 @@ def dropout(x, level, noise_shape=None, seed=None):
 
     # Returns
         A tensor.
+    {{np_implementation}}
     """
     retain_prob = 1. - level
     if seed is None:
@@ -4263,6 +4288,7 @@ def bias_add(x, bias, data_format=None):
                     2. invalid bias shape.
                        the bias should be either a vector or
                        a tensor with ndim(x) - 1 dimension
+    {{np_implementation}}
     """
     data_format = normalize_data_format(data_format)
     bias_shape = int_shape(bias)
