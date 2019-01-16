@@ -13,7 +13,7 @@ have reportedly shown significant reduction in model size and less drop in accur
 pruning DNNs, in order make them small and more efficient have gained a lot of research interest over
 the years, discussing them are beyond the scope of this tutorial. Rest of the tutorial focuses on converting the model using [TFLite](https://www.tensorflow.org/lite) and integrating it into an Android Application.
 
----
+
 ## Using the API
 
 ### Example (uses TF version `1.12`)
@@ -34,7 +34,6 @@ Refer to the table below and run `help()` on the respective class to find ```.fr
 | 1.7-1.8  | `tf.contrib.lite.toco_convert`    |  
 
 
----
 ## Using Command Line
 
 It is adviseable to use the API instead of the command line tool for TF version `1.9`. TF version `1.8` has no command line tool. In this case too your Keras model should be in `hdf5` format and contain both the weights and architecture.
