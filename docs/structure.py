@@ -241,6 +241,7 @@ PAGES = [
             layers.Multiply,
             layers.Average,
             layers.Maximum,
+            layers.Minimum,
             layers.Concatenate,
             layers.Dot,
         ],
@@ -250,6 +251,7 @@ PAGES = [
             layers.multiply,
             layers.average,
             layers.maximum,
+            layers.minimum,
             layers.concatenate,
             layers.dot,
         ]
