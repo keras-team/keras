@@ -102,6 +102,7 @@ class DirectoryIterator(image.DirectoryIterator, Iterator):
             `None`: no targets get yielded (only input images are yielded).
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
+            If set to False, sorts the data in alphanumeric order.
         seed: Random seed for data shuffling.
         data_format: String, one of `channels_first`, `channels_last`.
         save_to_dir: Optional directory where to save the pictures
