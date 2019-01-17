@@ -106,7 +106,7 @@ def fit_generator(model,
     val_enqueuer = None
 
     try:
-        if do_validation and should_run_validation(validation_freq, epoch):
+        if do_validation:
             if val_gen and workers > 0:
                 # Create an Enqueuer that can be reused
                 val_data = validation_data
@@ -224,7 +224,9 @@ def fit_generator(model,
                 steps_done += 1
 
                 # Epoch finished.
-                if steps_done >= steps_per_epoch and do_validation:
+                if (steps_done >= steps_per_epoch and 
+                      do_validation and
+                      should_run_validation(validation_freq, epoch)):
                     # Note that `callbacks` here is an instance of
                     # `keras.callbacks.CallbackList`
                     if val_gen:

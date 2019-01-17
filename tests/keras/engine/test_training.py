@@ -1605,7 +1605,7 @@ def test_validation_freq():
 
     x, y = np.ones((10, 10)), np.ones((10, 1))
 
-    class ValCounter(Callbacks):
+    class ValCounter(Callback):
 
           def __init__(self):
             self.val_runs = 0
@@ -1618,6 +1618,7 @@ def test_validation_freq():
     model.fit(
         x,
         y,
+        batch_size=2,
         epochs=4,
         validation_data=(x, y),
         validation_freq=2,
@@ -1629,6 +1630,7 @@ def test_validation_freq():
     model.fit_generator(
         _gen(),
         epochs=4,
+        steps_per_epoch=5,
         validation_data=(x, y),
         validation_freq=[4, 2, 2, 1],
         callbacks=[val_counter])
