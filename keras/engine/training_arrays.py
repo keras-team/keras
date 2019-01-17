@@ -167,7 +167,7 @@ def fit_loop(model, fit_function, fit_inputs,
                 if callback_model.stop_training:
                     break
 
-            if should_run_validation(validation_freq, epoch):
+            if do_validation and should_run_validation(validation_freq, epoch):
                 val_outs = test_loop(model, val_function, val_inputs,
                                      steps=validation_steps,
                                      callbacks=callbacks,
@@ -210,15 +210,16 @@ def fit_loop(model, fit_function, fit_inputs,
                 if callbacks.model.stop_training:
                     break
 
-            if should_run_validation(validation_freq, epoch):
-                val_outs = test_loop(model, val_function, val_inputs,
-                                     batch_size=batch_size,
-                                     callbacks=callbacks,
-                                     verbose=0)
-                val_outs = to_list(val_outs)
-                # Same labels assumed.
-                for l, o in zip(out_labels, val_outs):
-                    epoch_logs['val_' + l] = o
+            if batch_index == len(batches) - 1:  # Last batch.
+                if do_validation and should_run_validation(validation_freq, epoch):
+                    val_outs = test_loop(model, val_function, val_inputs,
+                                         batch_size=batch_size,
+                                         callbacks=callbacks,
+                                         verbose=0)
+                    val_outs = to_list(val_outs)
+                    # Same labels assumed.
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
 
         callbacks.on_epoch_end(epoch, epoch_logs)
         if callbacks.model.stop_training:

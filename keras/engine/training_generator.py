@@ -224,9 +224,9 @@ def fit_generator(model,
                 steps_done += 1
 
                 # Epoch finished.
-                if (steps_done >= steps_per_epoch and 
-                      do_validation and
-                      should_run_validation(validation_freq, epoch)):
+                if (steps_done >= steps_per_epoch and
+                        do_validation and
+                        should_run_validation(validation_freq, epoch)):
                     # Note that `callbacks` here is an instance of
                     # `keras.callbacks.CallbackList`
                     if val_gen:

@@ -1607,10 +1607,10 @@ def test_validation_freq():
 
     class ValCounter(Callback):
 
-          def __init__(self):
+        def __init__(self):
             self.val_runs = 0
 
-          def on_test_begin(self, logs=None):
+        def on_test_begin(self, logs=None):
             self.val_runs += 1
 
     # Test in training_arrays.py
