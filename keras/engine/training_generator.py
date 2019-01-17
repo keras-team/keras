@@ -9,6 +9,7 @@ import numpy as np
 
 from .training_utils import is_sequence
 from .training_utils import iter_sequence_infinite
+from .training_utils import should_run_validation
 from .. import backend as K
 from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
@@ -27,6 +28,7 @@ def fit_generator(model,
                   callbacks=None,
                   validation_data=None,
                   validation_steps=None,
+                  validation_freq=1,
                   class_weight=None,
                   max_queue_size=10,
                   workers=1,
@@ -104,7 +106,7 @@ def fit_generator(model,
     val_enqueuer = None
 
     try:
-        if do_validation:
+        if do_validation and should_run_validation(validation_freq, epoch):
             if val_gen and workers > 0:
                 # Create an Enqueuer that can be reused
                 val_data = validation_data
