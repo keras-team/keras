@@ -753,8 +753,11 @@ def test_collect_metrics_with_invalid_metrics_format():
 
 
 def test_collect_metrics_with_invalid_layer_name():
-    with pytest.warns(Warning):
+    with pytest.warns(Warning) as w:
         training_utils.collect_metrics({'unknown_layer': 'mse'}, ['layer_1'])
+
+    warning_raised = all(['unknown_layer' in str(w_.message) for w_ in w])
+    assert warning_raised, 'Warning was raised for unknown_layer'
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow',
