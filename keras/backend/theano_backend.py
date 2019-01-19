@@ -2938,3 +2938,7 @@ def local_conv2d(inputs,
                          (output_row, output_col, -1, filters))
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+def clear_session():
+    pass
