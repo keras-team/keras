@@ -59,7 +59,7 @@ install:
   - pip install tensorflow==1.12 --progress-bar off
 
   # install cntk
-  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ] || [[ "$TEST_MODE" == "API" ]]; then
+  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]] || [[ "$TEST_MODE" == "API" ]]; then
       ./.travis/install_cntk.sh;
     fi
 
