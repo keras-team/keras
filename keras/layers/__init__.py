@@ -119,6 +119,7 @@ from .wrappers import Bidirectional
 from .wrappers import TimeDistributed
 
 from .convolutional_recurrent import ConvLSTM2D
+from .convolutional_recurrent import ConvLSTM2DCell
 
 # Legacy imports
 from ..legacy.layers import MaxoutDense

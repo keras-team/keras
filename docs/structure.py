@@ -206,6 +206,7 @@ PAGES = [
             layers.GRU,
             layers.LSTM,
             layers.ConvLSTM2D,
+            layers.ConvLSTM2DCell,
             layers.SimpleRNNCell,
             layers.GRUCell,
             layers.LSTMCell,
