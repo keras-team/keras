@@ -97,6 +97,7 @@ from .recurrent import LSTM
 from .recurrent import SimpleRNNCell
 from .recurrent import GRUCell
 from .recurrent import LSTMCell
+from .recurrent import StackedRNNCells
 
 from .cudnn_recurrent import CuDNNGRU
 from .cudnn_recurrent import CuDNNLSTM
@@ -161,8 +162,6 @@ def deserialize(config, custom_objects=None):
     globs['Sequential'] = models.Sequential
     from keras.engine.input_layer import InputLayer
     globs['InputLayer'] = InputLayer
-    from .recurrent import StackedRNNCells
-    globs['StackedRNNCells'] = StackedRNNCells
     return deserialize_keras_object(config,
                                     module_objects=globs,
                                     custom_objects=custom_objects,
