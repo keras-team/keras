@@ -52,6 +52,13 @@ from .convolutional import ZeroPadding1D
 from .convolutional import ZeroPadding2D
 from .convolutional import ZeroPadding3D
 
+# Aliases (not in the docs)
+from .convolutional import Convolution1D
+from .convolutional import Convolution2D
+from .convolutional import Convolution3D
+from .convolutional import Deconvolution2D
+from .convolutional import Deconvolution3D
+
 from .pooling import MaxPooling1D
 from .pooling import MaxPooling2D
 from .pooling import MaxPooling3D
@@ -59,11 +66,25 @@ from .pooling import AveragePooling1D
 from .pooling import AveragePooling2D
 from .pooling import AveragePooling3D
 from .pooling import GlobalMaxPooling1D
-from .pooling import GlobalAveragePooling1D
 from .pooling import GlobalMaxPooling2D
-from .pooling import GlobalAveragePooling2D
 from .pooling import GlobalMaxPooling3D
+from .pooling import GlobalAveragePooling2D
+from .pooling import GlobalAveragePooling1D
 from .pooling import GlobalAveragePooling3D
+
+# Aliases (not in the docs)
+from .pooling import MaxPool1D
+from .pooling import MaxPool2D
+from .pooling import MaxPool3D
+from .pooling import AvgPool1D
+from .pooling import AvgPool2D
+from .pooling import AvgPool3D
+from .pooling import GlobalMaxPool1D
+from .pooling import GlobalMaxPool2D
+from .pooling import GlobalMaxPool3D
+from .pooling import GlobalAvgPool1D
+from .pooling import GlobalAvgPool2D
+from .pooling import GlobalAvgPool3D
 
 from .local import LocallyConnected1D
 from .local import LocallyConnected2D
@@ -106,23 +127,6 @@ from ..legacy.layers import AtrousConvolution1D
 from ..legacy.layers import AtrousConvolution2D
 from ..legacy.layers import Recurrent
 from ..legacy.layers import ConvRecurrent2D
-from .pooling import MaxPool1D
-from .pooling import MaxPool2D
-from .pooling import MaxPool3D
-from .pooling import AvgPool1D
-from .pooling import AvgPool2D
-from .pooling import AvgPool3D
-from .pooling import GlobalAvgPool1D
-from .pooling import GlobalAvgPool2D
-from .pooling import GlobalAvgPool3D
-from .pooling import GlobalMaxPool1D
-from .pooling import GlobalMaxPool2D
-from .pooling import GlobalMaxPool3D
-from .convolutional import Convolution1D
-from .convolutional import Convolution2D
-from .convolutional import Convolution3D
-from .convolutional import Deconvolution2D
-from .convolutional import Deconvolution3D
 
 
 def serialize(layer):
