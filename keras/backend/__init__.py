@@ -147,3 +147,8 @@ from .load_backend import foldr
 from .load_backend import local_conv1d
 from .load_backend import local_conv2d
 from .load_backend import backend
+
+# undocumented
+from .load_backend import name_scope
+from .load_backend import normalize_data_format
+from .load_backend import get_session
