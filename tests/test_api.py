@@ -4,6 +4,12 @@ import keras
 import json
 import os
 
+import keras.backend.tensorflow_backend
+import keras.backend.theano_backend
+import keras.backend.cntk_backend
+import keras.backend.numpy_backend
+import keras.utils.test_utils
+
 
 def test_api():
     api_file = os.path.join(os.getcwd(), 'api.json')
@@ -28,4 +34,5 @@ def test_api():
 
 
 if __name__ == '__main__':
+    #test_api()
     pytest.main([__file__])
