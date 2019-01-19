@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 
+from ..utils.generic_utils import deserialize_keras_object
 from ..engine.base_layer import Layer
 from ..engine import Input
 
@@ -162,7 +163,6 @@ def deserialize(config, custom_objects=None):
     globs['InputLayer'] = InputLayer
     from .recurrent import StackedRNNCells
     globs['StackedRNNCells'] = StackedRNNCells
-    from ..utils.generic_utils import deserialize_keras_object
     return deserialize_keras_object(config,
                                     module_objects=globs,
                                     custom_objects=custom_objects,
