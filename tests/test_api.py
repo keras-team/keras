@@ -23,7 +23,8 @@ def test_api():
     diff = list(filter(lambda c: c[0] not in exceptions, diff))
 
     if diff:
-        raise Exception("API change detected ! \n " + '\n'.join([str(x) for x in diff]))
+        str_diff = '\n'.join([str(x) for x in diff])
+        raise Exception("API change detected ! \n " + str_diff)
 
 
 if __name__ == '__main__':
