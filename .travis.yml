@@ -67,6 +67,9 @@ install:
   # install mkdocs
   - pip install mkdocs --progress-bar off
 
+  # install pyux
+  - pip install pyux
+
 # command to run tests
 script:
   - export MKL_THREADING_LAYER="GNU"
