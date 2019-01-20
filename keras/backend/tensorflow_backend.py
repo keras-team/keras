@@ -4712,6 +4712,8 @@ def local_conv2d(inputs,
 def pattern_broadcast(x, broadcastable):
     """Make the input adopt a specific broadcasting pattern.
 
+    Only useful with the Theano backend.
+
     This function returns `x` unchanged in TensorFlow and CNTK since they both
     handle broadcasting automatically.
 
