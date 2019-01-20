@@ -741,6 +741,10 @@ def stack(x, axis=0):
     return np.stack(x, axis=axis)
 
 
+def pattern_broadcast(x, broadcastable):
+    return x
+
+
 square = np.square
 abs = np.abs
 exp = np.exp

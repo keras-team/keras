@@ -2727,3 +2727,7 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         return root_gradients
+
+
+def pattern_broadcast(x, broadcastable):
+    return x
