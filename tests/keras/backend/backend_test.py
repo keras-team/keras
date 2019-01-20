@@ -37,7 +37,7 @@ else:
 
 
 def check_dtype(var, dtype):
-    if K._BACKEND == 'theano':
+    if K.backend() == 'theano':
         assert var.dtype == dtype
     else:
         assert var.dtype.name == '%s_ref' % dtype
