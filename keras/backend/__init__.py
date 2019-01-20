@@ -152,3 +152,4 @@ from .load_backend import backend
 from .load_backend import name_scope
 from .load_backend import normalize_data_format
 from .load_backend import get_session
+from .load_backend import set_session

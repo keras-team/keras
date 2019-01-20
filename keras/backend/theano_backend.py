@@ -2942,3 +2942,23 @@ def local_conv2d(inputs,
 
 def clear_session():
     pass
+
+
+def manual_variable_initialization(value):
+    raise NotImplementedError
+
+
+def ctc_label_dense_to_sparse(labels, label_lengths):
+    raise NotImplementedError
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    raise NotImplementedError
+
+
+def get_session():
+    raise NotImplementedError
+
+
+def set_session(session):
+    raise NotImplementedError
