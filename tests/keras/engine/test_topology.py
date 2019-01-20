@@ -470,7 +470,7 @@ def test_recursion():
     ####################################################
     # test calling layers/models on TF tensors
 
-    if K._BACKEND == 'tensorflow':
+    if K.backend() == 'tensorflow':
         import tensorflow as tf
         j = Input(shape=(32,), name='input_j')
         k = Input(shape=(32,), name='input_k')
