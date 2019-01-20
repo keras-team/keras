@@ -147,6 +147,7 @@ from .load_backend import foldr
 from .load_backend import local_conv1d
 from .load_backend import local_conv2d
 from .load_backend import backend
+from .load_backend import pattern_broadcast
 
 # undocumented
 from .load_backend import name_scope
