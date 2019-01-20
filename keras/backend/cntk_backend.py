@@ -2787,3 +2787,7 @@ def get_session():
 
 def set_session(session):
     raise NotImplementedError
+
+
+def pattern_broadcast(x, broadcastable):
+    return x

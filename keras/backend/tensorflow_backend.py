@@ -4707,3 +4707,27 @@ def local_conv2d(inputs,
     else:
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+def pattern_broadcast(x, broadcastable):
+    """Make the input adopt a specific broadcasting pattern.
+
+    This function returns `x` unchanged in TensorFlow and CNTK since they both
+    handle broadcasting automatically.
+
+    Broadcastable must be iterable. For example,
+    `patternbroadcast(x, (True, False))` will make the first
+    dimension of `x` broadcastable and the second dimension
+    not broadcastable, so `x` will now be a row.
+
+    # Arguments
+        x: Input tensor.
+        broadcastable: an iterable object such as list or tuple of bool values
+            A set of boolean values indicating whether a dimension should be
+            broadcastable or not. If the length of x along these dimensions is
+            not 1, a ValueError will be raised.
+
+    # Returns
+        A tensor, which is unbroadcastable along the specified dimensions.
+    """
+    return x
