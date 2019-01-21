@@ -322,6 +322,11 @@ def collect_metrics(metrics, output_names):
         return [copy.copy(metrics) for _ in output_names]
     elif isinstance(metrics, dict):
         nested_metrics = []
+        if not set(metrics.keys()).issubset(set(output_names)):
+            unknown_output_names = list(set(metrics.keys()) - set(output_names))
+            warnings.warn('Invalid layer name for metric computations: '
+                          '{}. Available names are {}.'
+                          .format(unknown_output_names, output_names))
         for name in output_names:
             output_metrics = metrics.get(name, [])
             output_metrics = to_list(output_metrics)
