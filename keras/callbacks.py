@@ -93,6 +93,7 @@ class CallbackList(object):
                 'Method (%s) is slow compared '
                 'to the batch update (%f). Check your callbacks.'
                 % (hook_name, delta_t_median), RuntimeWarning)
+
         if hook == 'begin':
             self._t_enter_batch = time.time()
 
