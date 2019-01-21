@@ -261,7 +261,7 @@ class Sequential(Model):
             batch_size: integer.
             verbose: verbosity mode, 0 or 1.
 
-        # Returns:
+        # Returns
             A numpy array of class predictions.
         """
         proba = self.predict(x, batch_size=batch_size, verbose=verbose)

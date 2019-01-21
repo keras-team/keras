@@ -1307,7 +1307,7 @@ def _map_graph_network(inputs, outputs):
         This recursively updates the map `layer_indices`,
         the list `nodes_in_decreasing_depth` and the set `network_nodes`.
 
-        # Arguments:
+        # Arguments
             tensor: Some tensor in a graph.
             finished_nodes: Set of nodes whose subgraphs have been traversed
                 completely. Useful to prevent duplicated work.
@@ -1318,7 +1318,7 @@ def _map_graph_network(inputs, outputs):
             node_index: Node index from which `tensor` comes from.
             tensor_index: Tensor_index from which `tensor` comes from.
 
-        # Raises:
+        # Raises
             ValueError: if a cycle is detected.
         """
         node = layer._inbound_nodes[node_index]

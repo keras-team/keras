@@ -501,10 +501,10 @@ def unpack_singleton(x):
 
     Otherwise return the iterable.
 
-    # Argument:
+    # Argument
         x: A list or tuple.
 
-    # Returns:
+    # Returns
         The same iterable or the first element.
     """
     if len(x) == 1:
