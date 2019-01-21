@@ -46,7 +46,7 @@ def fit_generator(model,
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
+                        ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
     if steps_per_epoch is None:
         if use_sequence_api:
@@ -292,7 +292,7 @@ def evaluate_generator(model, generator,
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
+                        ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
     if steps is None:
         if use_sequence_api:
@@ -425,7 +425,7 @@ def predict_generator(model, generator,
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
+                        ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
     if steps is None:
         if use_sequence_api:
