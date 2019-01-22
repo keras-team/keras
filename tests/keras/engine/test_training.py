@@ -1621,5 +1621,47 @@ def test_sample_weights():
     assert np.allclose(weights, expected)
 
 
+def test_validation_freq():
+    model = Sequential([Dense(1)])
+    model.compile('sgd', 'mse')
+
+    def _gen():
+        while True:
+            yield np.ones((2, 10)), np.ones((2, 1))
+
+    x, y = np.ones((10, 10)), np.ones((10, 1))
+
+    class ValCounter(Callback):
+
+        def __init__(self):
+            self.val_runs = 0
+
+        def on_test_begin(self, logs=None):
+            self.val_runs += 1
+
+    # Test in training_arrays.py
+    val_counter = ValCounter()
+    model.fit(
+        x,
+        y,
+        batch_size=2,
+        epochs=4,
+        validation_data=(x, y),
+        validation_freq=2,
+        callbacks=[val_counter])
+    assert val_counter.val_runs == 2
+
+    # Test in training_generator.py
+    val_counter = ValCounter()
+    model.fit_generator(
+        _gen(),
+        epochs=4,
+        steps_per_epoch=5,
+        validation_data=(x, y),
+        validation_freq=[4, 2, 2, 1],
+        callbacks=[val_counter])
+    assert val_counter.val_runs == 3
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -844,6 +844,7 @@ class Model(Network):
             initial_epoch=0,
             steps_per_epoch=None,
             validation_steps=None,
+            validation_freq=1,
             **kwargs):
         """Trains the model for a given number of epochs (iterations on a dataset).
 
@@ -926,6 +927,13 @@ class Model(Network):
             validation_steps: Only relevant if `steps_per_epoch`
                 is specified. Total number of steps (batches of samples)
                 to validate before stopping.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or list/tuple/set. If an integer, specifies how many training
+                epochs to run before a new validation run is performed, e.g.
+                `validation_freq=2` runs validation every 2 epochs. If a list,
+                tuple, or set, specifies the epochs on which to run validation,
+                e.g. `validation_freq=[1, 2, 10]` runs validation at the end
+                of the 1st, 2nd, and 10th epochs.
 
         # Returns
             A `History` object. Its `History.history` attribute is
@@ -1044,7 +1052,8 @@ class Model(Network):
                                         callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
                                         steps_per_epoch=steps_per_epoch,
-                                        validation_steps=validation_steps)
+                                        validation_steps=validation_steps,
+                                        validation_freq=validation_freq)
 
     def evaluate(self, x=None, y=None,
                  batch_size=None,
@@ -1300,6 +1309,7 @@ class Model(Network):
                       callbacks=None,
                       validation_data=None,
                       validation_steps=None,
+                      validation_freq=1,
                       class_weight=None,
                       max_queue_size=10,
                       workers=1,
@@ -1369,6 +1379,13 @@ class Model(Network):
                 validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or `collections.Container` instance (e.g. list, tuple, etc.). If an
+                integer, specifies how many training epochs to run before a new
+                validation run is performed, e.g. `validation_freq=2` runs
+                validation every 2 epochs. If a Container, specifies the epochs on
+                which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
+                validation at the end of the 1st, 2nd, and 10th epochs.
             class_weight: Optional dictionary mapping class indices (integers)
                 to a weight (float) value, used for weighting the loss function
                 (during training only). This can be useful to tell the model to
@@ -1428,6 +1445,7 @@ class Model(Network):
             callbacks=callbacks,
             validation_data=validation_data,
             validation_steps=validation_steps,
+            validation_freq=validation_freq,
             class_weight=class_weight,
             max_queue_size=max_queue_size,
             workers=workers,

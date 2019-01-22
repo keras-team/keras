@@ -8,8 +8,9 @@ import numpy as np
 from scipy.sparse import issparse
 
 from .training_utils import batch_shuffle
-from .training_utils import make_batches
 from .training_utils import check_num_samples
+from .training_utils import make_batches
+from .training_utils import should_run_validation
 from .. import backend as K
 from .. import callbacks as cbks
 from ..utils.generic_utils import Progbar
@@ -30,7 +31,8 @@ def fit_loop(model, fit_function, fit_inputs,
              callback_metrics=None,
              initial_epoch=0,
              steps_per_epoch=None,
-             validation_steps=None):
+             validation_steps=None,
+             validation_freq=1):
     """Abstract fit function for `fit_function(fit_inputs)`.
 
     Assumes that fit_function returns a list, labeled by out_labels.
@@ -62,6 +64,13 @@ def fit_loop(model, fit_function, fit_inputs,
         validation_steps: Number of steps to run validation for
             (only if doing validation from data tensors).
             Ignored with the default value of `None`.
+        validation_freq: Only relevant if validation data is provided. Integer
+            or list/tuple/set. If an integer, specifies how many training
+            epochs to run before a new validation run is performed, e.g.
+            validation_freq=2` runs validation every 2 epochs. If a list,
+            tuple, or set, specifies the epochs on which to run validation,
+            e.g. `validation_freq=[1, 2, 10]` runs validation at the end
+            of the 1st, 2nd, and 10th epochs.
 
     # Returns
         `History` object.
@@ -158,7 +167,7 @@ def fit_loop(model, fit_function, fit_inputs,
                 if callback_model.stop_training:
                     break
 
-            if do_validation:
+            if do_validation and should_run_validation(validation_freq, epoch):
                 val_outs = test_loop(model, val_function, val_inputs,
                                      steps=validation_steps,
                                      callbacks=callbacks,
@@ -201,16 +210,17 @@ def fit_loop(model, fit_function, fit_inputs,
                 if callbacks.model.stop_training:
                     break
 
-                if batch_index == len(batches) - 1:  # Last batch.
-                    if do_validation:
-                        val_outs = test_loop(model, val_function, val_inputs,
-                                             batch_size=batch_size,
-                                             callbacks=callbacks,
-                                             verbose=0)
-                        val_outs = to_list(val_outs)
-                        # Same labels assumed.
-                        for l, o in zip(out_labels, val_outs):
-                            epoch_logs['val_' + l] = o
+            if batch_index == len(batches) - 1:  # Last batch.
+                if do_validation and should_run_validation(validation_freq, epoch):
+                    val_outs = test_loop(model, val_function, val_inputs,
+                                         batch_size=batch_size,
+                                         callbacks=callbacks,
+                                         verbose=0)
+                    val_outs = to_list(val_outs)
+                    # Same labels assumed.
+                    for l, o in zip(out_labels, val_outs):
+                        epoch_logs['val_' + l] = o
+
         callbacks.on_epoch_end(epoch, epoch_logs)
         if callbacks.model.stop_training:
             break
