@@ -703,7 +703,7 @@ class TFOptimizer(Optimizer):
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
-        grads = self.optimizer.compute_gradients(loss, params)
+        grads = self.optimizer.compute_gradients(loss, var_list=params)
         self.updates = [K.update_add(self.iterations, 1)]
         opt_update = self.optimizer.apply_gradients(
             grads, global_step=self.iterations)
