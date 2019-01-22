@@ -29,10 +29,9 @@ from ..legacy import interfaces
 class Masking(Layer):
     """Masks a sequence by using a mask value to skip timesteps.
 
-    For each timestep in the input tensor (dimension #1 in the tensor),
-    if all values in the input tensor at that timestep
-    are equal to `mask_value`, then the timestep will be masked (skipped)
-    in all downstream layers (as long as they support masking).
+    If all features for a given sample timestep are equal to `mask_value`,
+    then the sample timestep will be masked (skipped) in all downstream layers
+    (as long as they support masking).
 
     If any downstream layer does not support masking yet receives such
     an input mask, an exception will be raised.
@@ -41,10 +40,10 @@ class Masking(Layer):
 
     Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
     to be fed to an LSTM layer.
-    You want to mask timestep #3 and #5 because you lack data for
-    these timesteps. You can:
+    You want to mask sample #0 at timestep #3, and sample #2 at timestep #5,
+    because you lack features for these sample timesteps. You can do:
 
-        - set `x[:, 3, :] = 0.` and `x[:, 5, :] = 0.`
+        - set `x[0, 3, :] = 0.` and `x[2, 5, :] = 0.`
         - insert a `Masking` layer with `mask_value=0.` before the LSTM layer:
 
     ```python

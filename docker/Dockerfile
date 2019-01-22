@@ -37,6 +37,7 @@ USER $NB_USER
 
 ARG python_version=3.6
 
+RUN conda config --append channels conda-forge
 RUN conda install -y python=${python_version} && \
     pip install --upgrade pip && \
     pip install \
@@ -57,18 +58,22 @@ RUN conda install -y python=${python_version} && \
       pyyaml \
       scikit-learn \
       six \
-      theano && \
+      theano \
+      mkdocs \
+      && \
     git clone git://github.com/keras-team/keras.git /src && pip install -e /src[tests] && \
     pip install git+git://github.com/keras-team/keras.git && \
     conda clean -yt
 
 ADD theanorc /home/keras/.theanorc
 
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
 ENV PYTHONPATH='/src/:$PYTHONPATH'
 
-WORKDIR /src
+WORKDIR /data
 
 EXPOSE 8888
 
 CMD jupyter notebook --port=8888 --ip=0.0.0.0
-
