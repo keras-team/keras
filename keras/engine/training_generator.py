@@ -9,6 +9,7 @@ import numpy as np
 
 from .training_utils import is_sequence
 from .training_utils import iter_sequence_infinite
+from .training_utils import should_run_validation
 from .. import backend as K
 from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
@@ -27,6 +28,7 @@ def fit_generator(model,
                   callbacks=None,
                   validation_data=None,
                   validation_steps=None,
+                  validation_freq=1,
                   class_weight=None,
                   max_queue_size=10,
                   workers=1,
@@ -222,7 +224,9 @@ def fit_generator(model,
                 steps_done += 1
 
                 # Epoch finished.
-                if steps_done >= steps_per_epoch and do_validation:
+                if (steps_done >= steps_per_epoch and
+                        do_validation and
+                        should_run_validation(validation_freq, epoch)):
                     # Note that `callbacks` here is an instance of
                     # `keras.callbacks.CallbackList`
                     if val_gen:
