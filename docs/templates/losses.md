@@ -36,10 +36,5 @@ from keras.utils import to_categorical
 categorical_labels = to_categorical(int_labels, num_classes=None)
 ```
 
-When using the `sparse_categorical_crossentropy` loss, your targets should be *integer targets*. If you have categorical targets, you could either use `categorical_crossentropy`, or convert your targets to integer targets:
-
-```python
-import numpy as np
-
-integer_labels = np.argmax(categorical_labels, axis=1)
-```
+When using the `sparse_categorical_crossentropy` loss, your targets should be *integer targets*.
+If you have categorical targets, you should use `categorical_crossentropy`.
