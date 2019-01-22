@@ -220,7 +220,8 @@ def rnn(step_function, inputs, initial_states,
     states_tm1 = initial_states  # tm1 means "t minus one" as in "previous timestep"
     output_tm1 = np.zeros(output_sample.shape)
     for t in time_index:
-        output_t, states_t = step_function(inputs[:, t], states_tm1 + constants)
+        output_t, states_t = step_function(
+            inputs[:, t], states_tm1 + constants)
         if mask is not None:
             output_t = np.where(output_mask[:, t], output_t, output_tm1)
             states_t = [np.where(state_mask[:, t], state_t, state_tm1)
@@ -302,8 +303,7 @@ def hard_sigmoid(x):
     return np.clip(y, 0, 1)
 
 
-def tanh(x):
-    return np.tanh(x)
+tanh = np.tanh
 
 
 def softmax(x, axis=-1):
@@ -419,20 +419,16 @@ def pow(x, a=1.):
     return np.power(x, a)
 
 
-def clip(x, min_value, max_value):
-    return np.clip(x, min_value, max_value)
+clip = np.clip
 
 
 def concatenate(tensors, axis=-1):
     return np.concatenate(tensors, axis)
 
 
-def permute_dimensions(x, pattern):
-    return np.transpose(x, pattern)
+permute_dimensions = np.transpose
 
-
-def reshape(x, shape):
-    return np.reshape(x, shape)
+reshape = np.reshape
 
 
 def repeat_elements(x, rep, axis):
@@ -463,16 +459,14 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     return np.pad(x, all_dims_padding, mode='constant')
 
 
-def tile(x, n):
-    return np.tile(x, n)
+tile = np.tile
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
     return np.arange(start, stop, step, dtype)
 
 
-def flatten(x):
-    return np.reshape(x, (-1,))
+flatten = np.ravel
 
 
 def batch_flatten(x):
@@ -522,8 +516,7 @@ def print_tensor(x, message=''):
     return x
 
 
-def dot(x, y):
-    return np.dot(x, y)
+dot = np.dot
 
 
 def batch_dot(x, y, axes=None):
@@ -579,8 +572,7 @@ def batch_dot(x, y, axes=None):
     return result
 
 
-def transpose(x):
-    return np.transpose(x)
+transpose = np.transpose
 
 
 def reverse(x, axes):
@@ -641,12 +633,9 @@ def less_equal(x, y):
     return x <= y
 
 
-def maximum(x, y):
-    return np.maximum(x, y)
+maximum = np.maximum
 
-
-def minimum(x, y):
-    return np.minimum(x, y)
+minimum = np.minimum
 
 
 def ndim(x):
