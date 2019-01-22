@@ -760,6 +760,43 @@ def test_layer_sharing_at_heterogeneous_depth_with_concat():
     np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
 
 
+def test_layer_sharing_at_heterogeneous_depth_order():
+    # This tests for the bug in this issue
+    # https://github.com/keras-team/keras/issues/11159
+    # It occurs with layer sharing at heterogeneous depth when
+    # the layers need to be applied in an order that differs from
+    # the order that occurs in the config.
+
+    input_shape = (1, 12)
+    input_layer = Input(shape=input_shape)
+
+    A = Dense(12, name='layer_a')
+    r1 = layers.Reshape((12,))(input_layer)
+    Aout1 = A(r1)
+
+    r2 = layers.Reshape((12,))(A(input_layer))
+    Aout2 = A(r2)
+
+    # Note: if the order of the layers in the concat is
+    # changed to ([Aout1, Aout2]) the bug doesn't trigger
+    c1 = layers.concatenate([Aout2, Aout1])
+    output = Dense(2, name='layer_b')(c1)
+
+    M = Model(inputs=input_layer, outputs=output)
+
+    x_val = np.random.random((10,) + input_shape)
+    output_val = M.predict(x_val)
+
+    config = M.get_config()
+    weights = M.get_weights()
+
+    M2 = Model.from_config(config)
+    M2.set_weights(weights)
+
+    output_val_2 = M2.predict(x_val)
+    np.testing.assert_allclose(output_val, output_val_2, atol=1e-6)
+
+
 def test_multi_output_mask():
     """Fixes #7589"""
     class TestMultiOutputLayer(Layer):
