@@ -3,6 +3,8 @@ from __future__ import absolute_import
 from ..utils.generic_utils import deserialize_keras_object
 from ..engine.base_layer import Layer
 from ..engine import Input
+from ..engine import InputLayer
+from ..engine.base_layer import InputSpec
 
 from .merge import Add
 from .merge import Subtract
@@ -160,8 +162,6 @@ def deserialize(config, custom_objects=None):
     globs = globals()  # All layers.
     globs['Model'] = models.Model
     globs['Sequential'] = models.Sequential
-    from keras.engine.input_layer import InputLayer
-    globs['InputLayer'] = InputLayer
     return deserialize_keras_object(config,
                                     module_objects=globs,
                                     custom_objects=custom_objects,
