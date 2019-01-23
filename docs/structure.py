@@ -206,6 +206,7 @@ PAGES = [
             layers.GRU,
             layers.LSTM,
             layers.ConvLSTM2D,
+            layers.ConvLSTM2DCell,
             layers.SimpleRNNCell,
             layers.GRUCell,
             layers.LSTMCell,
@@ -241,6 +242,7 @@ PAGES = [
             layers.Multiply,
             layers.Average,
             layers.Maximum,
+            layers.Minimum,
             layers.Concatenate,
             layers.Dot,
         ],
@@ -250,6 +252,7 @@ PAGES = [
             layers.multiply,
             layers.average,
             layers.maximum,
+            layers.minimum,
             layers.concatenate,
             layers.dot,
         ]
