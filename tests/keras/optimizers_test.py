@@ -158,7 +158,8 @@ def test_tfoptimizer_pass_correct_named_params_to_compute_gradient():
 
         def compute_gradients(self, loss, **kwargs):
             return super(MyTfOptimizer, self).compute_gradients(loss, **kwargs)
-    optimizer = optimizers.TFOptimizer(MyTfOptimizer())
+    my_tf_optimizer = MyTfOptimizer(use_locking=False, name='MyTfOptimizer')
+    optimizer = optimizers.TFOptimizer(my_tf_optimizer)
     model = Sequential()
     model.add(Dense(num_classes, input_shape=(3,),
                     kernel_constraint=constraints.MaxNorm(1)))
