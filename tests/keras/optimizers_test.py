@@ -153,7 +153,9 @@ def test_tfoptimizer():
 def test_tfoptimizer_pass_correct_named_params_to_compute_gradient():
     from keras import constraints
     from tensorflow import train
+
     class MyTfOptimizer(train.Optimizer):
+
         def compute_gradients(self, loss, **kwargs):
             return super(MyTfOptimizer, self).compute_gradients(loss, **kwargs)
     optimizer = optimizers.TFOptimizer(MyTfOptimizer())
