@@ -2,8 +2,7 @@ import pytest
 import json
 import numpy as np
 
-from keras.layers import Dense, Dropout, Conv2D
-from keras.engine.input_layer import InputLayer
+from keras.layers import Dense, Dropout, Conv2D, InputLayer
 from keras import layers
 from keras.engine import Input, Layer, saving, get_source_inputs
 from keras.models import Model, Sequential

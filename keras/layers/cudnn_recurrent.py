@@ -9,7 +9,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from .recurrent import RNN
-from keras.engine.base_layer import InputSpec
+from ..layers import InputSpec
 
 from collections import namedtuple
 

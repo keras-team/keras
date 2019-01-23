@@ -13,8 +13,7 @@ from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
 from keras.layers import Conv2D, Flatten
-from keras.layers import Input
-from keras.engine.input_layer import InputLayer
+from keras.layers import Input, InputLayer
 from keras.initializers import Constant
 from keras import optimizers
 from keras import losses
