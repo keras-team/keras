@@ -150,14 +150,18 @@ def test_tfoptimizer():
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason='Requires TensorFlow backend')
-def test_tfoptimizer_pass_correct_named_params_to_compute_gradient():
+def test_tfoptimizer_pass_correct_named_params_to_native_tensorflow_optimizer():
     from keras import constraints
     from tensorflow import train
 
     class MyTfOptimizer(train.Optimizer):
+        wrapping_optimizer = train.AdamOptimizer()
 
         def compute_gradients(self, loss, **kwargs):
             return super(MyTfOptimizer, self).compute_gradients(loss, **kwargs)
+
+        def apply_gradients(self, grads_and_vars, **kwargs):
+            return self.wrapping_optimizer.apply_gradients(grads_and_vars, global_step, name)
     my_tf_optimizer = MyTfOptimizer(use_locking=False, name='MyTfOptimizer')
     optimizer = optimizers.TFOptimizer(my_tf_optimizer)
     model = Sequential()
