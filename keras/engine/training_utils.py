@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import copy
 import numpy as np
 import warnings
@@ -322,6 +323,11 @@ def collect_metrics(metrics, output_names):
         return [copy.copy(metrics) for _ in output_names]
     elif isinstance(metrics, dict):
         nested_metrics = []
+        if not set(metrics.keys()).issubset(set(output_names)):
+            unknown_output_names = list(set(metrics.keys()) - set(output_names))
+            warnings.warn('Invalid layer name for metric computations: '
+                          '{}. Available names are {}.'
+                          .format(unknown_output_names, output_names))
         for name in output_names:
             output_metrics = metrics.get(name, [])
             output_metrics = to_list(output_metrics)
@@ -410,7 +416,7 @@ def weighted_masked_objective(fn):
             score_array *= mask
             #  the loss per batch should be proportional
             #  to the number of unmasked samples.
-            score_array /= K.mean(mask)
+            score_array /= K.mean(mask) + K.epsilon()
 
         # apply sample weighting
         if weights is not None:
@@ -432,7 +438,8 @@ def standardize_weights(y,
     """Performs sample weight validation and standardization.
 
     Everything gets normalized to a single sample-wise (or timestep-wise)
-    weight array.
+    weight array. If both `sample_weights` and `class_weights` are provided,
+    the weights are multiplied together.
 
     # Arguments
         y: Numpy array of model targets to be weighted.
@@ -478,10 +485,6 @@ def standardize_weights(y,
                              'sample-wise weights, make sure your '
                              'sample_weight array is 1D.')
 
-    if sample_weight is not None and class_weight is not None:
-        warnings.warn('Found both `sample_weight` and `class_weight`: '
-                      '`class_weight` argument will be ignored.')
-
     if sample_weight is not None:
         if len(sample_weight.shape) > len(y.shape):
             raise ValueError('Found a sample_weight with shape' +
@@ -495,22 +498,24 @@ def standardize_weights(y,
                              ' for an input with shape ' +
                              str(y.shape) + '. '
                              'sample_weight cannot be broadcast.')
-        return sample_weight
-    elif isinstance(class_weight, dict):
+
+    class_sample_weight = None
+    if isinstance(class_weight, dict):
         if len(y.shape) > 2:
             raise ValueError('`class_weight` not supported for '
                              '3+ dimensional targets.')
-        if y.shape[1] > 1:
-            y_classes = np.argmax(y, axis=1)
-        elif y.shape[1] == 1:
-            y_classes = np.reshape(y, y.shape[0])
+        if len(y.shape) == 2:
+            if y.shape[1] > 1:
+                y_classes = np.argmax(y, axis=1)
+            elif y.shape[1] == 1:
+                y_classes = np.reshape(y, y.shape[0])
         else:
             y_classes = y
 
-        weights = np.asarray([class_weight[cls] for cls in y_classes
-                              if cls in class_weight])
+        class_sample_weight = np.asarray(
+            [class_weight[cls] for cls in y_classes if cls in class_weight])
 
-        if len(weights) != len(y_classes):
+        if len(class_sample_weight) != len(y_classes):
             # subtract the sets to pick all missing classes
             existing_classes = set(y_classes)
             existing_class_weight = set(class_weight.keys())
@@ -519,12 +524,19 @@ def standardize_weights(y,
                              ' The classes %s exist in the data but not in '
                              '`class_weight`.'
                              % (existing_classes - existing_class_weight))
-        return weights
+
+    if sample_weight is not None and class_sample_weight is not None:
+        return sample_weight * class_sample_weight
+    if sample_weight is not None:
+        return sample_weight
+    if class_sample_weight is not None:
+        return class_sample_weight
+
+    # Everything has weight 1 by default.
+    if sample_weight_mode is None:
+        return np.ones((y.shape[0],), dtype=K.floatx())
     else:
-        if sample_weight_mode is None:
-            return np.ones((y.shape[0],), dtype=K.floatx())
-        else:
-            return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
+        return np.ones((y.shape[0], y.shape[1]), dtype=K.floatx())
 
 
 def check_num_samples(ins,
@@ -604,3 +616,33 @@ def is_sequence(seq):
     # TODO Dref360: Decide which pattern to follow. First needs a new TF Version.
     return (getattr(seq, 'use_sequence_api', False)
             or set(dir(Sequence())).issubset(set(dir(seq) + ['use_sequence_api'])))
+
+
+def should_run_validation(validation_freq, epoch):
+    """Checks if validation should be run this epoch.
+
+    Arguments:
+    validation_freq: Integer or list. If an integer, specifies how many training
+      epochs to run before a new validation run is performed. If a list,
+      specifies the epochs on which to run validation.
+    epoch: Integer, the number of the training epoch just completed.
+
+    Returns:
+    Bool, True if validation should be run.
+
+    Raises:
+    ValueError: if `validation_freq` is an Integer and less than 1, or if
+    it is neither an Integer nor a Sequence.
+    """
+    # `epoch` is 0-indexed internally but 1-indexed in the public API.
+    one_indexed_epoch = epoch + 1
+
+    if isinstance(validation_freq, int):
+        if validation_freq < 1:
+            raise ValueError('`validation_freq` can not be less than 1.')
+        return one_indexed_epoch % validation_freq == 0
+
+    if not isinstance(validation_freq, collections.Container):
+        raise ValueError('`validation_freq` must be an Integer or '
+                         '`collections.Container` (e.g. list, tuple, etc.)')
+    return one_indexed_epoch in validation_freq

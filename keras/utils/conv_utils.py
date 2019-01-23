@@ -79,7 +79,7 @@ def convert_kernel(kernel):
     slices = [slice(None, None, -1) for _ in range(kernel.ndim)]
     no_flip = (slice(None, None), slice(None, None))
     slices[-2:] = no_flip
-    return np.copy(kernel[slices])
+    return np.copy(kernel[tuple(slices)])
 
 
 def conv_output_length(input_length, filter_size,

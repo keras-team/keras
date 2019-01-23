@@ -277,12 +277,16 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
 def switch(condition, then_expression, else_expression):
     cond_float = condition.astype(floatx())
     while cond_float.ndim < then_expression.ndim:
-        cond_float = cond_float[..., None]
+        cond_float = cond_float[..., np.newaxis]
     return cond_float * then_expression + (1 - cond_float) * else_expression
 
 
 def softplus(x):
     return np.log(1. + np.exp(x))
+
+
+def softsign(x):
+    return x / (1 + np.abs(x))
 
 
 def elu(x, alpha=1.):
@@ -585,6 +589,14 @@ def reverse(x, axes):
     return np.flip(x, axes)
 
 
+py_slice = slice
+
+
+def slice(x, start, size):
+    slices = [py_slice(i, i + j) for i, j in zip(start, size)]
+    return x[tuple(slices)]
+
+
 def variable(value, dtype=None, name=None, constraint=None):
     if constraint is not None:
         raise TypeError("Constraint must be None when "
@@ -713,7 +725,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
             decoded_dense[i, :len(decoded)] = decoded
         return decoded_dense[:, :np.max(decoded_length)], log_prob
     else:
-        raise "not supported yet"
+        raise NotImplementedError
 
 
 def _remove_repeats(inds):
@@ -723,6 +735,10 @@ def _remove_repeats(inds):
 
 def _remove_blanks(inds, num_classes):
     return inds[inds < (num_classes - 1)]
+
+
+def stack(x, axis=0):
+    return np.stack(x, axis=axis)
 
 
 square = np.square
