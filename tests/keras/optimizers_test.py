@@ -162,7 +162,7 @@ def test_tfoptimizer_pass_correct_named_params_to_native_tensorflow_optimizer():
 
         def apply_gradients(self, grads_and_vars, **kwargs):
             return self.wrapping_optimizer.apply_gradients(grads_and_vars,
-                                                           global_step, name)
+                                                           **kwargs)
     my_tf_optimizer = MyTfOptimizer(use_locking=False, name='MyTfOptimizer')
     optimizer = optimizers.TFOptimizer(my_tf_optimizer)
     model = Sequential()
