@@ -793,8 +793,8 @@ class Dense(Layer):
     created by the layer, and `bias` is a bias vector created by the layer
     (only applicable if `use_bias` is `True`).
 
-    Note: if the input to the layer has a rank greater than 2, then
-    it is flattened prior to the initial dot product with `kernel`.
+    Note: The input has to be of rank 2. Use the TimeDistributed wrapper
+          for inputs with rank greater than 2.
 
     # Example
 
