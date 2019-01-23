@@ -148,5 +148,30 @@ def test_tfoptimizer():
         optimizer.from_config(None)
 
 
+@pytest.mark.skipif((K.backend() != 'tensorflow'),
+                    reason='Requires TensorFlow backend')
+def test_tfoptimizer_pass_correct_named_params_to_native_tensorflow_optimizer():
+    from keras import constraints
+    from tensorflow import train
+
+    class MyTfOptimizer(train.Optimizer):
+        wrapping_optimizer = train.AdamOptimizer()
+
+        def compute_gradients(self, loss, **kwargs):
+            return super(MyTfOptimizer, self).compute_gradients(loss, **kwargs)
+
+        def apply_gradients(self, grads_and_vars, **kwargs):
+            return self.wrapping_optimizer.apply_gradients(grads_and_vars,
+                                                           **kwargs)
+    my_tf_optimizer = MyTfOptimizer(use_locking=False, name='MyTfOptimizer')
+    optimizer = optimizers.TFOptimizer(my_tf_optimizer)
+    model = Sequential()
+    model.add(Dense(num_classes, input_shape=(3,),
+                    kernel_constraint=constraints.MaxNorm(1)))
+    model.compile(loss='mean_squared_error', optimizer=optimizer)
+    model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
+              epochs=1, batch_size=5, verbose=0)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
