@@ -794,8 +794,7 @@ class Dense(Layer):
     (only applicable if `use_bias` is `True`).
 
     Note: The input has to be of rank 2. Use the TimeDistributed wrapper
-        or add a Flatten layer before the Dense layer
-        for inputs with rank greater than 2.
+    or add a Flatten layer before the Dense layer for inputs with rank greater than 2.
 
     # Example
 
