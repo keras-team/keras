@@ -125,9 +125,9 @@ Below are some common definitions that are necessary to know and understand to c
   - *Example:* one image is a **sample** in a convolutional network
   - *Example:* one audio file is a **sample** for a speech recognition model
 - **Batch**: a set of *N* samples. The samples in a **batch** are processed independently, in parallel. If training, a batch results in only one update to the model.
-  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to process and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluating/prediction).
+  - A **batch** generally approximates the distribution of the input data better than a single input. The larger the batch, the better the approximation; however, it is also true that the batch will take longer to process and will still result in only one update. For inference (evaluate/predict), it is recommended to pick a batch size that is as large as you can afford without going out of memory (since larger batches will usually result in faster evaluation/prediction).
 - **Epoch**: an arbitrary cutoff, generally defined as "one pass over the entire dataset", used to separate training into distinct phases, which is useful for logging and periodic evaluation.
-  - When using `evaluation_data` or `evaluation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
+  - When using `validation_data` or `validation_split` with the `fit` method of Keras models, evaluation will be run at the end of every **epoch**.
   - Within Keras, there is the ability to add [callbacks](https://keras.io/callbacks/) specifically designed to be run at the end of an **epoch**. Examples of these are learning rate changes and model checkpointing (saving).
 
 ---
@@ -146,10 +146,7 @@ You can use `model.save(filepath)` to save a Keras model into a single HDF5 file
 - the state of the optimizer, allowing to resume training exactly where you left off.
 
 You can then use `keras.models.load_model(filepath)` to reinstantiate your model.
-`load_model` will also take care of compiling the model using the saved training configuration
-(unless the model was never compiled in the first place).
-
-Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
+`load_model` will also take care of compiling the model using the saved training configuration (unless the model was never compiled in the first place).
 
 Example:
 
@@ -163,6 +160,8 @@ del model  # deletes the existing model
 # identical to the previous one
 model = load_model('my_model.h5')
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 #### Saving/loading only a model's architecture
 
@@ -185,14 +184,14 @@ You can then build a fresh model from this data:
 from keras.models import model_from_json
 model = model_from_json(json_string)
 
-# model reconstruction from YAML
+# model reconstruction from YAML:
 from keras.models import model_from_yaml
 model = model_from_yaml(yaml_string)
 ```
 
 #### Saving/loading only a model's weights
 
-If you need to save the **weights of a model**, you can do so in HDF5 with the code below.
+If you need to save the **weights of a model**, you can do so in HDF5 with the code below:
 
 ```python
 model.save_weights('my_model_weights.h5')
@@ -204,15 +203,13 @@ Assuming you have code for instantiating your model, you can then load the weigh
 model.load_weights('my_model_weights.h5')
 ```
 
-If you need to load weights into a *different* architecture (with some layers in common), for instance for fine-tuning or transfer-learning, you can load weights by *layer name*:
+If you need to load the weights into a *different* architecture (with some layers in common), for instance for fine-tuning or transfer-learning, you can load them by *layer name*:
 
 ```python
 model.load_weights('my_model_weights.h5', by_name=True)
 ```
 
-Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
-
-For example:
+Example:
 
 ```python
 """
@@ -232,6 +229,8 @@ model.add(Dense(10, name='new_dense'))  # will not be loaded
 # load weights from first model; will only affect the first layer, dense_1.
 model.load_weights(fname, by_name=True)
 ```
+
+Please also see [How can I install HDF5 or h5py to save my models in Keras?](#how-can-i-install-hdf5-or-h5py-to-save-my-models-in-keras) for instructions on how to install `h5py`.
 
 #### Handling custom layers (or other custom objects) in saved models
 
@@ -298,8 +297,7 @@ layer_output = get_3rd_layer_output([x])[0]
 
 Similarly, you could build a Theano and TensorFlow function directly.
 
-Note that if your model has a different behavior in training and testing phase (e.g. if it uses `Dropout`, `BatchNormalization`, etc.), you will need
-to pass the learning phase flag to your function:
+Note that if your model has a different behavior in training and testing phase (e.g. if it uses `Dropout`, `BatchNormalization`, etc.), you will need to pass the learning phase flag to your function:
 
 ```python
 get_3rd_layer_output = K.function([model.layers[0].input, K.learning_phase()],
@@ -357,7 +355,7 @@ Validation data is never shuffled.
 
 ### How can I record the training / validation loss / accuracy at each epoch?
 
-The `model.fit` method returns an `History` callback, which has a `history` attribute containing the lists of successive losses and other metrics.
+The `model.fit` method returns a `History` callback, which has a `history` attribute containing the lists of successive losses and other metrics.
 
 ```python
 hist = model.fit(x, y, validation_split=0.2)
@@ -413,7 +411,7 @@ To use statefulness in RNNs, you need to:
 
 - explicitly specify the batch size you are using, by passing a `batch_size` argument to the first layer in your model. E.g. `batch_size=32` for a 32-samples batch of sequences of 10 timesteps with 16 features per timestep.
 - set `stateful=True` in your RNN layer(s).
-- specify `shuffle=False` when calling fit().
+- specify `shuffle=False` when calling `fit()`.
 
 To reset the states accumulated:
 
@@ -473,10 +471,15 @@ Code and pre-trained weights are available for the following image classificatio
 - Xception
 - VGG16
 - VGG19
-- ResNet50
+- ResNet
+- ResNet v2
+- ResNeXt
 - Inception v3
 - Inception-ResNet v2
 - MobileNet v1
+- MobileNet v2
+- DenseNet
+- NASNet
 
 They can be imported from the module `keras.applications`:
 
@@ -484,10 +487,23 @@ They can be imported from the module `keras.applications`:
 from keras.applications.xception import Xception
 from keras.applications.vgg16 import VGG16
 from keras.applications.vgg19 import VGG19
-from keras.applications.resnet50 import ResNet50
+from keras.applications.resnet import ResNet50
+from keras.applications.resnet import ResNet101
+from keras.applications.resnet import ResNet152
+from keras.applications.resnet_v2 import ResNet50V2
+from keras.applications.resnet_v2 import ResNet101V2
+from keras.applications.resnet_v2 import ResNet152V2
+from keras.applications.resnext import ResNeXt50
+from keras.applications.resnext import ResNeXt101
 from keras.applications.inception_v3 import InceptionV3
 from keras.applications.inception_resnet_v2 import InceptionResNetV2
 from keras.applications.mobilenet import MobileNet
+from keras.applications.mobilenet_v2 import MobileNetV2
+from keras.applications.densenet import DenseNet121
+from keras.applications.densenet import DenseNet169
+from keras.applications.densenet import DenseNet201
+from keras.applications.nasnet import NASNetLarge
+from keras.applications.nasnet import NASNetMobile
 
 model = VGG16(weights='imagenet', include_top=True)
 ```
@@ -506,7 +522,7 @@ The VGG16 model is also the basis for several Keras example scripts:
 
 ### How can I use HDF5 inputs with Keras?
 
-You can use the `HDF5Matrix` class from `keras.utils.io_utils`. See [the HDF5Matrix documentation](/utils/#hdf5matrix) for details.
+You can use the `HDF5Matrix` class from `keras.utils`. See [the HDF5Matrix documentation](/utils/#hdf5matrix) for details.
 
 You can also directly use a HDF5 dataset:
 
@@ -638,5 +654,5 @@ module via
 import h5py
 ```
 
-If it imports without error it is installed otherwise you can find detailed
+If it imports without error it is installed, otherwise you can find detailed
 installation instructions here: http://docs.h5py.org/en/latest/build.html

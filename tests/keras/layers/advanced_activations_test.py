@@ -4,10 +4,14 @@ from keras import layers
 from keras import backend as K
 
 
-def test_leaky_relu():
-    for alpha in [0., .5, -1.]:
-        layer_test(layers.LeakyReLU, kwargs={'alpha': alpha},
-                   input_shape=(2, 3, 4))
+@pytest.mark.parametrize('activation_layer',
+                         [layers.LeakyReLU,
+                          layers.ELU])
+@pytest.mark.parametrize('alpha', [0., .5, -1.])
+def test_linear_unit_activations(activation_layer,
+                                 alpha):
+    layer_test(activation_layer, kwargs={'alpha': alpha},
+               input_shape=(2, 3, 4))
 
 
 def test_prelu():
@@ -20,21 +24,15 @@ def test_prelu_share():
                input_shape=(2, 3, 4))
 
 
-def test_elu():
-    for alpha in [0., .5, -1.]:
-        layer_test(layers.ELU, kwargs={'alpha': alpha},
-                   input_shape=(2, 3, 4))
-
-
 def test_thresholded_relu():
     layer_test(layers.ThresholdedReLU, kwargs={'theta': 0.5},
                input_shape=(2, 3, 4))
 
 
-def test_softmax():
-    for axis in [1, -1]:
-        layer_test(layers.Softmax, kwargs={'axis': axis},
-                   input_shape=(2, 3, 4))
+@pytest.mark.parametrize('axis', [1, -1])
+def test_softmax(axis):
+    layer_test(layers.Softmax, kwargs={'axis': axis},
+               input_shape=(2, 3, 4))
 
 
 def test_relu():

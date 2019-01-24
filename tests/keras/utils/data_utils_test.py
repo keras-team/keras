@@ -1,9 +1,11 @@
 """Tests for functions in data_utils.py.
 """
 import os
+import time
 import sys
 import tarfile
 import threading
+import shutil
 import zipfile
 from itertools import cycle
 import multiprocessing as mp
@@ -12,6 +14,9 @@ import pytest
 import six
 from six.moves.urllib.parse import urljoin
 from six.moves.urllib.request import pathname2url
+from six.moves import reload_module
+
+from flaky import flaky
 
 from keras.utils import GeneratorEnqueuer
 from keras.utils import OrderedEnqueuer
@@ -22,25 +27,35 @@ from keras.utils.data_utils import validate_file
 from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
-    K.backend() == 'tensorflow',
+    six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
+
+skip_generators = pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'} and
+                                     'TRAVIS_PYTHON_VERSION' in os.environ,
+                                     reason='Generators do not work with `spawn`.')
+
+
+def use_spawn(func):
+    """Decorator which uses `spawn` when possible.
+    This is useful on Travis to avoid memory issues.
+    """
+
+    @six.wraps(func)
+    def wrapper(*args, **kwargs):
+        if sys.version_info > (3, 4) and os.name != 'nt':
+            mp.set_start_method('spawn', force=True)
+            out = func(*args, **kwargs)
+            mp.set_start_method('fork', force=True)
+        else:
+            out = func(*args, **kwargs)
+        return out
+
+    return wrapper
+
 
 if sys.version_info < (3,):
     def next(x):
         return x.next()
-
-
-def use_spawn(func):
-    """Decorator to test both Unix (fork) and Windows (spawn)"""
-    @six.wraps(func)
-    def wrapper(*args, **kwargs):
-        out = func(*args, **kwargs)
-        if sys.version_info > (3, 4):
-            mp.set_start_method('spawn', force=True)
-            func(*args, **kwargs)
-            mp.set_start_method('fork', force=True)
-        return out
-    return wrapper
 
 
 @pytest.fixture
@@ -72,6 +87,25 @@ def test_data_utils(in_tmpdir):
 
     path = get_file(dirname, origin, untar=True)
     filepath = path + '.tar.gz'
+    data_keras_home = os.path.dirname(os.path.dirname(os.path.abspath(filepath)))
+    assert data_keras_home == os.path.dirname(K._config_path)
+    os.remove(filepath)
+
+    _keras_home = os.path.join(os.path.abspath('.'), '.keras')
+    if not os.path.exists(_keras_home):
+        os.makedirs(_keras_home)
+    os.environ['KERAS_HOME'] = _keras_home
+    reload_module(K)
+    path = get_file(dirname, origin, untar=True)
+    filepath = path + '.tar.gz'
+    data_keras_home = os.path.dirname(os.path.dirname(os.path.abspath(filepath)))
+    assert data_keras_home == os.path.dirname(K._config_path)
+    os.environ.pop('KERAS_HOME')
+    shutil.rmtree(_keras_home)
+    reload_module(K)
+
+    path = get_file(dirname, origin, untar=True)
+    filepath = path + '.tar.gz'
     hashval_sha256 = _hash_file(filepath)
     hashval_md5 = _hash_file(filepath, algorithm='md5')
     path = get_file(dirname, origin, md5_hash=hashval_md5, untar=True)
@@ -93,6 +127,7 @@ def test_data_utils(in_tmpdir):
     assert validate_file(path, hashval_md5)
 
     os.remove(path)
+    os.remove(os.path.join(os.path.dirname(path), 'test.txt'))
     os.remove('test.txt')
     os.remove('test.zip')
 
@@ -136,6 +171,7 @@ class DummySequence(Sequence):
         self.inner = value
 
     def __getitem__(self, item):
+        time.sleep(0.05)
         return np.ones(self.shape, dtype=np.uint32) * item * self.inner
 
     def __len__(self):
@@ -169,7 +205,7 @@ def create_generator_from_sequence_pcs(ds):
 
 def test_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -185,9 +221,10 @@ def test_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@skip_generators
 def test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -200,7 +237,7 @@ def test_generator_enqueuer_processes():
 
 def test_generator_enqueuer_threadsafe():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     with pytest.raises(RuntimeError) as e:
@@ -209,6 +246,8 @@ def test_generator_enqueuer_threadsafe():
     enqueuer.stop()
 
 
+# TODO: resolve flakyness issue. Tracked with #11587
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], StopIteration))
 def test_generator_enqueuer_fail_threads():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_threads(
         FaultSequence()), use_multiprocessing=False)
@@ -218,6 +257,7 @@ def test_generator_enqueuer_fail_threads():
         next(gen_output)
 
 
+@skip_generators
 def test_generator_enqueuer_fail_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         FaultSequence()), use_multiprocessing=True)
@@ -228,7 +268,7 @@ def test_generator_enqueuer_fail_processes():
 
 
 def test_ordered_enqueuer_threads():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -241,7 +281,7 @@ def test_ordered_enqueuer_threads():
 
 
 def test_ordered_enqueuer_threads_not_ordered():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=False,
                                shuffle=True)
     enqueuer.start(3, 10)
@@ -256,7 +296,7 @@ def test_ordered_enqueuer_threads_not_ordered():
 
 @use_spawn
 def test_ordered_enqueuer_processes():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -278,7 +318,7 @@ def test_ordered_enqueuer_fail_threads():
 
 @use_spawn
 def test_on_epoch_end_processes():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -292,9 +332,9 @@ def test_on_epoch_end_processes():
 
 @use_spawn
 def test_context_switch():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=True)
-    enqueuer2 = OrderedEnqueuer(DummySequence([3, 200, 200, 3], value=15),
+    enqueuer2 = OrderedEnqueuer(DummySequence([3, 10, 10, 3], value=15),
                                 use_multiprocessing=True)
     enqueuer.start(3, 10)
     enqueuer2.start(3, 10)
@@ -324,7 +364,7 @@ def test_context_switch():
 
 
 def test_on_epoch_end_threads():
-    enqueuer = OrderedEnqueuer(DummySequence([3, 200, 200, 3]),
+    enqueuer = OrderedEnqueuer(DummySequence([3, 10, 10, 3]),
                                use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
@@ -359,9 +399,11 @@ def create_finite_generator_from_sequence_pcs(ds):
         yield ds[i]
 
 
+# TODO: resolve flakyness issue. Tracked with #11586
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
 def test_finite_generator_enqueuer_threads():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_threads(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=False)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=False)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -371,9 +413,10 @@ def test_finite_generator_enqueuer_threads():
     enqueuer.stop()
 
 
+@skip_generators
 def test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
-        DummySequence([3, 200, 200, 3])), use_multiprocessing=True)
+        DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
     gen_output = enqueuer.get()
     acc = []
@@ -382,6 +425,35 @@ def test_finite_generator_enqueuer_processes():
     assert acc != list(range(100)), ('Order was keep in GeneratorEnqueuer '
                                      'with processes')
     enqueuer.stop()
+
+
+@pytest.mark.skipif('TRAVIS_PYTHON_VERSION' in os.environ,
+                    reason='Takes 150s to run')
+def test_missing_inputs():
+    missing_idx = 10
+
+    class TimeOutSequence(DummySequence):
+        def __getitem__(self, item):
+            if item == missing_idx:
+                time.sleep(120)
+            return super(TimeOutSequence, self).__getitem__(item)
+
+    enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
+        TimeOutSequence([3, 2, 2, 3])), use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    with pytest.warns(UserWarning, match='An input could not be retrieved.'):
+        for _ in range(4 * missing_idx):
+            next(gen_output)
+
+    enqueuer = OrderedEnqueuer(TimeOutSequence([3, 2, 2, 3]),
+                               use_multiprocessing=True)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    warning_msg = "The input {} could not be retrieved.".format(missing_idx)
+    with pytest.warns(UserWarning, match=warning_msg):
+        for _ in range(11):
+            next(gen_output)
 
 
 if __name__ == '__main__':

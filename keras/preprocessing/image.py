@@ -4,10 +4,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import inspect
-
 from .. import backend
 from .. import utils
+from ..utils import generic_utils
+
 from keras_preprocessing import image
 
 random_rotation = image.random_rotation
@@ -25,7 +25,7 @@ load_img = image.load_img
 def array_to_img(x, data_format=None, scale=True, dtype=None):
     if data_format is None:
         data_format = backend.image_data_format()
-    if 'dtype' in inspect.getargspec(image.array_to_img).args:
+    if 'dtype' in generic_utils.getargspec(image.array_to_img).args:
         if dtype is None:
             dtype = backend.floatx()
         return image.array_to_img(x,
@@ -40,7 +40,7 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 def img_to_array(img, data_format=None, dtype=None):
     if data_format is None:
         data_format = backend.image_data_format()
-    if 'dtype' in inspect.getargspec(image.img_to_array).args:
+    if 'dtype' in generic_utils.getargspec(image.img_to_array).args:
         if dtype is None:
             dtype = backend.floatx()
         return image.img_to_array(img, data_format=data_format, dtype=dtype)
@@ -102,6 +102,7 @@ class DirectoryIterator(image.DirectoryIterator, Iterator):
             `None`: no targets get yielded (only input images are yielded).
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
+            If set to False, sorts the data in alphanumeric order.
         seed: Random seed for data shuffling.
         data_format: String, one of `channels_first`, `channels_last`.
         save_to_dir: Optional directory where to save the pictures
@@ -142,7 +143,7 @@ class DirectoryIterator(image.DirectoryIterator, Iterator):
         if data_format is None:
             data_format = backend.image_data_format()
         kwargs = {}
-        if 'dtype' in inspect.getargspec(
+        if 'dtype' in generic_utils.getargspec(
                 image.ImageDataGenerator.__init__).args:
             if dtype is None:
                 dtype = backend.floatx()
@@ -210,7 +211,7 @@ class NumpyArrayIterator(image.NumpyArrayIterator, Iterator):
         if data_format is None:
             data_format = backend.image_data_format()
         kwargs = {}
-        if 'dtype' in inspect.getargspec(
+        if 'dtype' in generic_utils.getargspec(
                 image.NumpyArrayIterator.__init__).args:
             if dtype is None:
                 dtype = backend.floatx()
@@ -252,7 +253,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
                 are integers `[-1, 0, +1]`,
                 same as with `width_shift_range=[-1, 0, +1]`,
                 while with `width_shift_range=1.0` possible values are floats
-                in the interval [-1.0, +1.0).
+                in the half-open interval `[-1.0, +1.0[`.
         height_shift_range: Float, 1-D array-like or int
             - float: fraction of total height, if < 1, or pixels if >= 1.
             - 1-D array-like: random elements from the array.
@@ -262,7 +263,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
                 are integers `[-1, 0, +1]`,
                 same as with `height_shift_range=[-1, 0, +1]`,
                 while with `height_shift_range=1.0` possible values are floats
-                in the interval [-1.0, +1.0).
+                in the half-open interval `[-1.0, +1.0[`.
         brightness_range: Tuple or list of two floats. Range for picking
             a brightness shift value from.
         shear_range: Float. Shear Intensity
@@ -436,7 +437,7 @@ class ImageDataGenerator(image.ImageDataGenerator):
         if data_format is None:
             data_format = backend.image_data_format()
         kwargs = {}
-        if 'dtype' in inspect.getargspec(
+        if 'dtype' in generic_utils.getargspec(
                 image.ImageDataGenerator.__init__).args:
             if dtype is None:
                 dtype = backend.floatx()

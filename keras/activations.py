@@ -58,7 +58,7 @@ def selu(x):
     """Scaled Exponential Linear Unit (SELU).
 
     SELU is equal to: `scale * elu(x, alpha)`, where alpha and scale
-    are pre-defined constants. The values of `alpha` and `scale` are
+    are predefined constants. The values of `alpha` and `scale` are
     chosen so that the mean and variance of the inputs are preserved
     between two consecutive layers as long as the weights are initialized
     correctly (see `lecun_normal` initialization) and the number of inputs
@@ -101,7 +101,7 @@ def softsign(x):
         x: Input tensor.
 
     # Returns
-        The softplus activation: `x / (abs(x) + 1)`.
+        The softsign activation: `x / (abs(x) + 1)`.
     """
     return K.softsign(x)
 

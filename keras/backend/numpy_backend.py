@@ -7,6 +7,8 @@ import numpy as np
 import scipy.signal as signal
 import scipy as sp
 from keras.backend import floatx
+from keras.utils.generic_utils import transpose_shape
+from keras.utils import to_categorical
 
 
 def normalize_conv(func):
@@ -183,43 +185,52 @@ def bias_add(x, y, data_format):
     return x + y
 
 
-def rnn(x, w, init, go_backwards=False, mask=None, unroll=False, input_length=None):
-    w_i, w_h, w_o = w
-    h = []
-    o = []
+def rnn(step_function, inputs, initial_states,
+        go_backwards=False, mask=None, constants=None,
+        unroll=False, input_length=None):
 
-    if go_backwards:
-        t_list = range(x.shape[1] - 1, -1, -1)
-    else:
-        t_list = range(x.shape[1])
+    if constants is None:
+        constants = []
 
+    output_sample, _ = step_function(inputs[:, 0], initial_states + constants)
     if mask is not None:
-        from keras import backend as K
-        np_mask = K.eval(mask)
-    else:
-        np_mask = None
+        if mask.dtype != np.bool:
+            mask = mask.astype(np.bool)
+        if mask.shape != inputs.shape[:2]:
+            raise ValueError(
+                'mask should have `shape=(samples, time)`, '
+                'got {}'.format(mask.shape))
 
-    for (i, t) in enumerate(t_list):
-        h_t = np.dot(x[:, t], w_i)
+        def expand_mask(mask_, x):
+            # expand mask so that `mask[:, t].ndim == x.ndim`
+            while mask_.ndim < x.ndim + 1:
+                mask_ = np.expand_dims(mask_, axis=-1)
+            return mask_
+        output_mask = expand_mask(mask, output_sample)
+        states_masks = [expand_mask(mask, state) for state in initial_states]
 
-        if w_h is not None:
-            prev = h[i - 1] if i > 0 else init
-            h_t1 = np.dot(prev, w_h)
-            if np_mask is not None:
-                h_t1[np_mask[:, t] == 0] = prev[np_mask[:, t] == 0]
-        else:
-            h_t1 = 0
+    if input_length is None:
+        input_length = inputs.shape[1]
+    assert input_length == inputs.shape[1]
+    time_index = range(input_length)
+    if go_backwards:
+        time_index = time_index[::-1]
 
-        o_t = h_t + h_t1
-        if w_o is not None:
-            o_t = np.dot(o_t, w_o)
-        o.append(o_t)
+    outputs = []
+    states_tm1 = initial_states  # tm1 means "t minus one" as in "previous timestep"
+    output_tm1 = np.zeros(output_sample.shape)
+    for t in time_index:
+        output_t, states_t = step_function(inputs[:, t], states_tm1 + constants)
+        if mask is not None:
+            output_t = np.where(output_mask[:, t], output_t, output_tm1)
+            states_t = [np.where(state_mask[:, t], state_t, state_tm1)
+                        for state_mask, state_t, state_tm1
+                        in zip(states_masks, states_t, states_tm1)]
+        outputs.append(output_t)
+        states_tm1 = states_t
+        output_tm1 = output_t
 
-        if np_mask is not None:
-            h_t = h_t * np_mask[:, t].reshape(-1, 1)
-        h.append(h_t + h_t1)
-
-    return o[-1], np.stack(o, axis=1), np.stack(h, axis=1)
+    return outputs[-1], np.stack(outputs, axis=1), states_tm1
 
 
 _LEARNING_PHASE = True
@@ -255,22 +266,27 @@ def in_test_phase(x, alt, training=None):
 
 
 def relu(x, alpha=0., max_value=None, threshold=0.):
-    y = x * (x >= threshold)
-    if max_value is not None:
-        y = np.clip(y, 0.0, max_value)
-    y += alpha * (x - threshold) * (x < threshold)
-    return y
+    if max_value is None:
+        max_value = np.inf
+    above_threshold = x * (x >= threshold)
+    above_threshold = np.clip(above_threshold, 0.0, max_value)
+    below_threshold = alpha * (x - threshold) * (x < threshold)
+    return below_threshold + above_threshold
 
 
 def switch(condition, then_expression, else_expression):
     cond_float = condition.astype(floatx())
     while cond_float.ndim < then_expression.ndim:
-        cond_float = cond_float[..., None]
+        cond_float = cond_float[..., np.newaxis]
     return cond_float * then_expression + (1 - cond_float) * else_expression
 
 
 def softplus(x):
     return np.log(1. + np.exp(x))
+
+
+def softsign(x):
+    return x / (1 + np.abs(x))
 
 
 def elu(x, alpha=1.):
@@ -283,9 +299,7 @@ def sigmoid(x):
 
 def hard_sigmoid(x):
     y = 0.2 * x + 0.5
-    y = np.minimum(y, 1.)
-    y = np.maximum(y, 0.)
-    return y
+    return np.clip(y, 0, 1)
 
 
 def tanh(x):
@@ -431,6 +445,24 @@ def repeat(x, n):
     return y
 
 
+def temporal_padding(x, padding=(1, 1)):
+    return np.pad(x, [(0, 0), padding, (0, 0)], mode='constant')
+
+
+def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
+def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
+    all_dims_padding = ((0, 0),) + padding + ((0, 0),)
+    all_dims_padding = transpose_shape(all_dims_padding, data_format,
+                                       spatial_axes=(1, 2, 3))
+    return np.pad(x, all_dims_padding, mode='constant')
+
+
 def tile(x, n):
     return np.tile(x, n)
 
@@ -447,8 +479,28 @@ def batch_flatten(x):
     return np.reshape(x, (x.shape[0], -1))
 
 
+def gather(reference, indices):
+    return reference[indices]
+
+
 def eval(x):
     return x
+
+
+def get_value(x):
+    return x
+
+
+def count_params(x):
+    return x.size
+
+
+def int_shape(x):
+    return x.shape
+
+
+def get_variable_shape(x):
+    return int_shape(x)
 
 
 def dtype(x):
@@ -474,16 +526,75 @@ def dot(x, y):
     return np.dot(x, y)
 
 
+def batch_dot(x, y, axes=None):
+    if x.ndim < 2 or y.ndim < 2:
+        raise ValueError('Batch dot requires inputs of rank 2 or more.')
+
+    if isinstance(axes, int):
+        axes = [axes, axes]
+    elif isinstance(axes, tuple):
+        axes = list(axes)
+
+    if axes is None:
+        if y.ndim == 2:
+            axes = [x.ndim - 1, y.ndim - 1]
+        else:
+            axes = [x.ndim - 1, y.ndim - 2]
+
+    if any([isinstance(a, (list, tuple)) for a in axes]):
+        raise ValueError('Multiple target dimensions are not supported. ' +
+                         'Expected: None, int, (int, int), ' +
+                         'Provided: ' + str(axes))
+
+    # Handle negative axes
+    if axes[0] < 0:
+        axes[0] += x.ndim
+    if axes[1] < 0:
+        axes[1] += y.ndim
+
+    if 0 in axes:
+        raise ValueError('Can not perform batch dot over axis 0.')
+
+    if x.shape[0] != y.shape[0]:
+        raise ValueError('Can not perform batch dot on inputs'
+                         ' with different batch sizes.')
+
+    d1 = x.shape[axes[0]]
+    d2 = y.shape[axes[1]]
+    if d1 != d2:
+        raise ValueError('Can not do batch_dot on inputs with shapes ' +
+                         str(x.shape) + ' and ' + str(y.shape) +
+                         ' with axes=' + str(axes) + '. x.shape[%d] != '
+                         'y.shape[%d] (%d != %d).' % (axes[0], axes[1], d1, d2))
+
+    result = []
+    axes = [axes[0] - 1, axes[1] - 1]  # ignore batch dimension
+    for xi, yi in zip(x, y):
+        result.append(np.tensordot(xi, yi, axes))
+    result = np.array(result)
+
+    if result.ndim == 1:
+        result = np.expand_dims(result, -1)
+
+    return result
+
+
 def transpose(x):
     return np.transpose(x)
 
 
 def reverse(x, axes):
-    if isinstance(axes, int):
-        axes = [axes]
-    for a in axes:
-        x = np.flip(x, a)
-    return x
+    if isinstance(axes, list):
+        axes = tuple(axes)
+    return np.flip(x, axes)
+
+
+py_slice = slice
+
+
+def slice(x, start, size):
+    slices = [py_slice(i, i + j) for i, j in zip(start, size)]
+    return x[tuple(slices)]
 
 
 def variable(value, dtype=None, name=None, constraint=None):
@@ -491,6 +602,19 @@ def variable(value, dtype=None, name=None, constraint=None):
         raise TypeError("Constraint must be None when "
                         "using the NumPy backend.")
     return np.array(value, dtype)
+
+
+def dropout(x, level, noise_shape=None, seed=None):
+    if noise_shape is None:
+        noise_shape = x.shape
+    if learning_phase():
+        noise = np.random.choice([0, 1],
+                                 noise_shape,
+                                 replace=True,
+                                 p=[level, 1 - level])
+        return x * noise / (1 - level)
+    else:
+        return x
 
 
 def equal(x, y):
@@ -577,6 +701,44 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         x = repeat_elements(x, height_factor, axis=2)
         x = repeat_elements(x, width_factor, axis=3)
     return x
+
+
+def one_hot(indices, num_classes):
+    return to_categorical(indices, num_classes)
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    num_samples = y_pred.shape[0]
+    num_classes = y_pred.shape[-1]
+    log_prob = np.zeros((num_samples, 1))
+    decoded_dense = -np.ones_like(y_pred[..., 0])
+    decoded_length = np.zeros((num_samples,), dtype=np.int)
+    if greedy:
+        for i in range(num_samples):
+            prob = y_pred[i]
+            length = input_length[i]
+            decoded = np.argmax(prob[:length], axis=-1)
+            log_prob[i] = -np.sum(np.log(prob[np.arange(length), decoded]))
+            decoded = _remove_repeats(decoded)
+            decoded = _remove_blanks(decoded, num_classes)
+            decoded_length[i] = len(decoded)
+            decoded_dense[i, :len(decoded)] = decoded
+        return decoded_dense[:, :np.max(decoded_length)], log_prob
+    else:
+        raise NotImplementedError
+
+
+def _remove_repeats(inds):
+    is_not_repeat = np.insert(np.diff(inds).astype(np.bool), 0, True)
+    return inds[is_not_repeat]
+
+
+def _remove_blanks(inds, num_classes):
+    return inds[inds < (num_classes - 1)]
+
+
+def stack(x, axis=0):
+    return np.stack(x, axis=axis)
 
 
 square = np.square

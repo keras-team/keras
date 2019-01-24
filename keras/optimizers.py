@@ -291,7 +291,7 @@ class Adagrad(Optimizer):
     Adagrad is an optimizer with parameter-specific learning rates,
     which are adapted relative to how frequently a parameter gets
     updated during training. The more updates a parameter receives,
-    the smaller the updates.
+    the smaller the learning rate.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -703,7 +703,7 @@ class TFOptimizer(Optimizer):
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
-        grads = self.optimizer.compute_gradients(loss, params)
+        grads = self.optimizer.compute_gradients(loss, var_list=params)
         self.updates = [K.update_add(self.iterations, 1)]
         opt_update = self.optimizer.apply_gradients(
             grads, global_step=self.iterations)

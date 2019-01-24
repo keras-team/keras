@@ -4,12 +4,17 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import numpy as np
 import os
 import json
 import yaml
+import inspect
 import warnings
+import tempfile
 from six.moves import zip
+from six import string_types
+from functools import wraps
+
+import numpy as np
 
 from .. import backend as K
 from .. import optimizers
@@ -23,8 +28,13 @@ try:
 except ImportError:
     h5py = None
 
+try:
+    from tensorflow.python.lib.io import file_io as tf_file_io
+except ImportError:
+    tf_file_io = None
 
-def _serialize_model(model, f, include_optimizer=True):
+
+def _serialize_model(model, h5dict, include_optimizer=True):
     """Model serialization logic.
 
     This method is used for both writing to HDF5 file/group,
@@ -34,7 +44,7 @@ def _serialize_model(model, f, include_optimizer=True):
 
     # Arguments
         model: Keras model instance to be serialized.
-        f: keras.utils.io_utils.HD5Dict instance.
+        h5dict: keras.utils.io_utils.HD5Dict instance.
         include_optimizer: If True, serialize optimizer's state together.
 
     """
@@ -75,17 +85,17 @@ def _serialize_model(model, f, include_optimizer=True):
 
     from .. import __version__ as keras_version
 
-    f['keras_version'] = str(keras_version).encode('utf8')
-    f['backend'] = K.backend().encode('utf8')
+    h5dict['keras_version'] = str(keras_version).encode('utf8')
+    h5dict['backend'] = K.backend().encode('utf8')
 
     model_config = {}
     model_config['class_name'] = model.__class__.__name__
     model_config['config'] = model.get_config()
     model_config = json.dumps(model_config, default=get_json_type)
     model_config = model_config.encode('utf-8')
-    f['model_config'] = model_config
+    h5dict['model_config'] = model_config
 
-    model_weights_group = f['model_weights']
+    model_weights_group = h5dict['model_weights']
     model_layers = model.layers
     model_weights_group['layer_names'] = [layer.name.encode('utf8')
                                           for layer in model_layers]
@@ -126,7 +136,7 @@ def _serialize_model(model, f, include_optimizer=True):
                 'Prefer using a Keras optimizer instead '
                 '(see keras.io/optimizers).')
         else:
-            f['training_config'] = json.dumps({
+            h5dict['training_config'] = json.dumps({
                 'optimizer_config': {
                     'class_name': model.optimizer.__class__.__name__,
                     'config': model.optimizer.get_config()
@@ -139,7 +149,7 @@ def _serialize_model(model, f, include_optimizer=True):
             }, default=get_json_type).encode('utf8')
             symbolic_weights = getattr(model.optimizer, 'weights')
             if symbolic_weights:
-                optimizer_weights_group = f['optimizer_weights']
+                optimizer_weights_group = h5dict['optimizer_weights']
                 weight_values = K.batch_get_value(symbolic_weights)
                 weight_names = []
                 for i, (w, val) in enumerate(zip(symbolic_weights,
@@ -172,11 +182,11 @@ def _serialize_model(model, f, include_optimizer=True):
                     optimizer_weights_group[name] = val
 
 
-def _deserialize_model(f, custom_objects=None, compile=True):
+def _deserialize_model(h5dict, custom_objects=None, compile=True):
     """De-serializes a model serialized via _serialize_model
 
     # Arguments
-        f: `keras.utils.hdf5_utils.HFDict` instance.
+        h5dict: `keras.utils.hdf5_utils.HFDict` instance.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -219,12 +229,12 @@ def _deserialize_model(f, custom_objects=None, compile=True):
             return custom_objects[obj]
         return obj
 
-    model_config = f['model_config']
+    model_config = h5dict['model_config']
     if model_config is None:
         raise ValueError('No model found in config.')
     model_config = json.loads(model_config.decode('utf-8'))
     model = model_from_config(model_config, custom_objects=custom_objects)
-    model_weights_group = f['model_weights']
+    model_weights_group = h5dict['model_weights']
 
     if 'keras_version' in model_weights_group:
         original_keras_version = model_weights_group['keras_version'].decode('utf8')
@@ -249,7 +259,7 @@ def _deserialize_model(f, custom_objects=None, compile=True):
     for name in layer_names:
         layer_weights = model_weights_group[name]
         weight_names = layer_weights['weight_names']
-        if weight_names:
+        if len(weight_names) > 0:
             filtered_layer_names.append(name)
 
     layer_names = filtered_layer_names
@@ -288,7 +298,7 @@ def _deserialize_model(f, custom_objects=None, compile=True):
     K.batch_set_value(weight_value_tuples)
 
     if compile:
-        training_config = f.get('training_config')
+        training_config = h5dict.get('training_config')
         if training_config is None:
             warnings.warn('No training configuration found in save file: '
                           'the model was *not* compiled. '
@@ -313,10 +323,10 @@ def _deserialize_model(f, custom_objects=None, compile=True):
                       sample_weight_mode=sample_weight_mode)
 
         # Set optimizer weights.
-        if 'optimizer_weights' in f:
+        if 'optimizer_weights' in h5dict:
             # Build train function (to get weight updates).
             model._make_train_function()
-            optimizer_weights_group = f['optimizer_weights']
+            optimizer_weights_group = h5dict['optimizer_weights']
             optimizer_weight_names = [
                 n.decode('utf8') for n in
                 optimizer_weights_group['weight_names']]
@@ -333,6 +343,112 @@ def _deserialize_model(f, custom_objects=None, compile=True):
     return model
 
 
+def _gcs_copy(source_filepath, target_filepath, overwrite=True):
+    """Copies a file to/from/within Google Cloud Storage (GCS).
+
+    # Arguments
+        source_filepath: String, path to the file on filesystem or object on GCS to
+            copy from.
+        target_filepath: String, path to the file on filesystem or object on GCS to
+            copy to.
+        overwrite: Whether we should overwrite an existing file/object at the target
+            location, or instead ask the user with a manual prompt.
+    """
+    if tf_file_io is None:
+        raise ImportError('Google Cloud Storage file transfer requires TensorFlow.')
+    if not overwrite and tf_file_io.file_exists(target_filepath):
+        proceed = ask_to_proceed_with_overwrite(target_filepath)
+        if not proceed:
+            return
+    with tf_file_io.FileIO(source_filepath, mode='rb') as source_f:
+        with tf_file_io.FileIO(target_filepath, mode='wb') as target_f:
+            target_f.write(source_f.read())
+
+
+def _is_gcs_location(filepath):
+    """Checks if `filepath` is referencing a google storage bucket.
+
+    # Arguments
+        filepath: The location to check.
+    """
+    return isinstance(filepath, string_types) and filepath.startswith('gs://')
+
+
+def allow_write_to_gcs(save_function):
+    """Function decorator to support saving to Google Cloud Storage (GCS).
+
+    This decorator parses the `filepath` argument of the `save_function` and
+    transfers the file to GCS if `filepath` starts with "gs://".
+
+    Note: the file is temporarily writen to local filesystem before copied to GSC.
+
+    # Arguments
+        save_function: The function to wrap, with requirements:
+            - second positional argument should indicate the location to save to.
+            - third positional argument should be the `overwrite` option indicating
+            whether we should overwrite an existing file/object at the target
+            location, or instead ask the user with a manual prompt.
+    """
+    @wraps(save_function)
+    def save_wrapper(obj, filepath, overwrite=True, *args, **kwargs):
+        if _is_gcs_location(filepath):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            save_function(obj, tmp_filepath, True, *args, **kwargs)
+            try:
+                _gcs_copy(tmp_filepath, filepath, overwrite)
+            finally:
+                os.remove(tmp_filepath)
+        else:
+            save_function(obj, filepath, overwrite, *args, **kwargs)
+
+    return save_wrapper
+
+
+def allow_read_from_gcs(load_function):
+    """Function decorator to support loading from Google Cloud Storage (GCS).
+
+    This decorator parses the `filepath` argument of the `load_function` and
+    fetches the required object from GCS if `filepath` starts with "gs://".
+
+    Note: the file is temporarily copied to local filesystem from GCS before loaded.
+
+    # Arguments
+        load_function: The function to wrap, with requirements:
+            - should have one _named_ argument `filepath` indicating the location to
+            load from.
+    """
+    def extract_named_arg(f, name, args, kwargs):
+        if name in kwargs:
+            arg = kwargs.pop(name)
+            return arg, args, kwargs
+        argnames = inspect.getargspec(f)[0]
+        for i, (argname, arg) in enumerate(zip(argnames, args)):
+            if argname == name:
+                return arg, args[:i] + args[i + 1:], kwargs
+        else:
+            raise ValueError('function {} has no argument {}'.format(f, name))
+
+    @wraps(load_function)
+    def load_wrapper(*args, **kwargs):
+        filepath, _args, _kwargs = extract_named_arg(
+            load_function, 'filepath', args, kwargs)
+        if _is_gcs_location(filepath):
+            tmp_filepath = os.path.join(tempfile.gettempdir(),
+                                        os.path.basename(filepath))
+            _gcs_copy(filepath, tmp_filepath)
+            _kwargs['filepath'] = tmp_filepath
+            try:
+                res = load_function(*_args, **_kwargs)
+            finally:
+                os.remove(tmp_filepath)
+            return res
+        return load_function(*args, **kwargs)
+
+    return load_wrapper
+
+
+@allow_write_to_gcs
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
     """Save a model to a HDF5 file.
 
@@ -377,15 +493,15 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     else:
         opened_new_file = False
 
-    f = H5Dict(filepath, mode='w')
-
+    h5dict = H5Dict(filepath, mode='w')
     try:
-        _serialize_model(model, f, include_optimizer)
+        _serialize_model(model, h5dict, include_optimizer)
     finally:
         if opened_new_file:
-            f.close()
+            h5dict.close()
 
 
+@allow_read_from_gcs
 def load_model(filepath, custom_objects=None, compile=True):
     """Loads a model saved via `save_model`.
 
@@ -415,25 +531,25 @@ def load_model(filepath, custom_objects=None, compile=True):
         raise ImportError('`load_model` requires h5py.')
     model = None
     opened_new_file = not isinstance(filepath, h5py.Group)
-    f = H5Dict(filepath, 'r')
+    h5dict = H5Dict(filepath, 'r')
     try:
-        model = _deserialize_model(f, custom_objects, compile)
+        model = _deserialize_model(h5dict, custom_objects, compile)
     finally:
         if opened_new_file:
-            f.close()
+            h5dict.close()
     return model
 
 
 def pickle_model(model):
     d = {}
-    f = H5Dict(d)
-    _serialize_model(model, f)
+    h5dict = H5Dict(d)
+    _serialize_model(model, h5dict)
     return d
 
 
 def unpickle_model(state):
-    f = H5Dict(state, mode='r')
-    return _deserialize_model(f)
+    h5dict = H5Dict(state, mode='r')
+    return _deserialize_model(h5dict)
 
 
 def model_from_config(config, custom_objects=None):
@@ -559,16 +675,22 @@ def load_attributes_from_hdf5_group(group, name):
     return data
 
 
-def save_weights_to_hdf5_group(f, layers):
+def save_weights_to_hdf5_group(group, layers):
+    """Saves weights into the HDF5 group.
+
+    # Arguments
+        group: A pointer to a HDF5 group.
+        layers: Layers to load.
+    """
     from .. import __version__ as keras_version
 
     save_attributes_to_hdf5_group(
-        f, 'layer_names', [layer.name.encode('utf8') for layer in layers])
-    f.attrs['backend'] = K.backend().encode('utf8')
-    f.attrs['keras_version'] = str(keras_version).encode('utf8')
+        group, 'layer_names', [layer.name.encode('utf8') for layer in layers])
+    group.attrs['backend'] = K.backend().encode('utf8')
+    group.attrs['keras_version'] = str(keras_version).encode('utf8')
 
     for layer in layers:
-        g = f.create_group(layer.name)
+        g = group.create_group(layer.name)
         symbolic_weights = layer.weights
         weight_values = K.batch_get_value(symbolic_weights)
         weight_names = []

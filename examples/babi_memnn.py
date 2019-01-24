@@ -34,7 +34,7 @@ def tokenize(sent):
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
-    return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
+    return [x.strip() for x in re.split(r'(\W+)?', sent) if x.strip()]
 
 
 def parse_stories(lines, only_supporting=False):
@@ -54,7 +54,6 @@ def parse_stories(lines, only_supporting=False):
         if '\t' in line:
             q, a, supporting = line.split('\t')
             q = tokenize(q)
-            substory = None
             if only_supporting:
                 # Only select the related substory
                 supporting = map(int, supporting.split())

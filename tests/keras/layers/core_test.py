@@ -70,22 +70,15 @@ def test_activation():
                input_shape=(3, 2))
 
 
-def test_reshape():
+@pytest.mark.parametrize('target_shape,input_shape',
+                         [((8, 1), (3, 2, 4)),
+                          ((-1, 1), (3, 2, 4)),
+                          ((1, -1), (3, 2, 4)),
+                          ((-1, 1), (None, None, 4))])
+def test_reshape(target_shape, input_shape):
     layer_test(layers.Reshape,
-               kwargs={'target_shape': (8, 1)},
-               input_shape=(3, 2, 4))
-
-    layer_test(layers.Reshape,
-               kwargs={'target_shape': (-1, 1)},
-               input_shape=(3, 2, 4))
-
-    layer_test(layers.Reshape,
-               kwargs={'target_shape': (1, -1)},
-               input_shape=(3, 2, 4))
-
-    layer_test(layers.Reshape,
-               kwargs={'target_shape': (-1, 1)},
-               input_shape=(None, None, 4))
+               kwargs={'target_shape': target_shape},
+               input_shape=input_shape)
 
 
 def test_permute():
@@ -248,6 +241,18 @@ def test_lambda():
         assert_allclose(out, x * 0.2 + x * 0.3, atol=1e-4)
 
     test_multiple_outputs_no_mask()
+
+    def test_dtypes():
+        def func(x):
+            if K.dtype(x) != 'float16':
+                raise TypeError('x dtype is not float16, it is', K.dtype(x))
+            return x
+
+        i = layers.Input(shape=(3, 2, 1), dtype='float16')
+        o = layers.Lambda(func)
+        _ = o(i)
+        assert o._input_dtypes == 'float16'
+    test_dtypes()
 
     # test serialization with function
     def f(x):
