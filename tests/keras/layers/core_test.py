@@ -242,6 +242,18 @@ def test_lambda():
 
     test_multiple_outputs_no_mask()
 
+    def test_dtypes():
+        def func(x):
+            if K.dtype(x) != 'float16':
+                raise TypeError('x dtype is not float16, it is', K.dtype(x))
+            return x
+
+        i = layers.Input(shape=(3, 2, 1), dtype='float16')
+        o = layers.Lambda(func)
+        _ = o(i)
+        assert o._input_dtypes == 'float16'
+    test_dtypes()
+
     # test serialization with function
     def f(x):
         return x + 1
