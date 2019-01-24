@@ -312,6 +312,52 @@ def read_page_data(page_data, type):
     return data
 
 
+def get_module_docstring(filepath):
+    """Extract the module docstring.
+
+    Also finds the line at which the docstring ends.
+    """
+    co = compile(open(filepath).read(), filepath, 'exec')
+    if co.co_consts and isinstance(co.co_consts[0], str):
+        docstring = co.co_consts[0]
+    else:
+        print('Could not get the docstring from ' + filepath)
+        docstring = ''
+    return docstring, co.co_firstlineno
+
+
+def copy_examples():
+    """Copy the examples directory in the documentation.
+
+    Will make the files pretty by extracting the docstrings written in markdown.
+    """
+    os.makedirs('sources/examples', exist_ok=True)
+    for file in os.listdir('../examples'):
+        if not file.endswith('.py'):
+            continue
+        docstring, starting_line = get_module_docstring('../examples/' + file)
+        destination_file = 'sources/examples/' + file[:-2] + 'md'
+        with open(destination_file, 'w+') as f_out, \
+                open('../examples/' + file, 'r+') as f_in:
+
+            f_out.write(docstring + '\n\n')
+
+            # skip docstring
+            for _ in range(starting_line):
+                next(f_in)
+
+            f_out.write('```python\n')
+            # next line might be empty.
+            line = next(f_in)
+            if line != '\n':
+                f_out.write(line)
+
+            # copy the rest of the file.
+            for line in f_in:
+                f_out.write(line)
+            f_out.write('```')
+
+
 def generate():
     if K.backend() != 'tensorflow':
         raise ModuleNotFoundError('The documentation must be built '
@@ -404,6 +450,7 @@ def generate():
             f.write(mkdown)
 
     shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')
+    copy_examples()
 
 
 if __name__ == '__main__':
