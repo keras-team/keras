@@ -242,6 +242,18 @@ def test_lambda():
 
     test_multiple_outputs_no_mask()
 
+    def test_dtypes():
+        def func(x):
+            if K.dtype(x) != 'int32':
+                raise TypeError('x dtype is not int32, it is', K.dtype(x))
+            return x
+
+        i = layers.Input(shape=(3, 2, 1), dtype='int32')
+        o = layers.Lambda(func)
+        _ = o(i)
+        assert o.input_dtypes == 'int32'
+    test_dtypes()
+
     # test serialization with function
     def f(x):
         return x + 1
