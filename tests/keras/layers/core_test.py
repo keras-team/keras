@@ -251,7 +251,7 @@ def test_lambda():
         i = layers.Input(shape=(3, 2, 1), dtype='float16')
         o = layers.Lambda(func)
         _ = o(i)
-        assert o.input_dtypes == 'float16'
+        assert o._input_dtypes == 'float16'
     test_dtypes()
 
     # test serialization with function

@@ -643,7 +643,7 @@ class Lambda(Layer):
                  mask=None, arguments=None, **kwargs):
         super(Lambda, self).__init__(**kwargs)
         self.function = function
-        self.input_dtypes = None
+        self._input_dtypes = None
         self.arguments = arguments if arguments else {}
         if mask is not None:
             self.supports_masking = True
@@ -665,10 +665,10 @@ class Lambda(Layer):
             if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
                     xs = [K.placeholder(shape=shape, dtype=dtype)
-                          for shape, dtype in zip(input_shape, self.input_dtypes)]
+                          for shape, dtype in zip(input_shape, self._input_dtypes)]
                     x = self.call(xs)
                 else:
-                    x = K.placeholder(shape=input_shape, dtype=self.input_dtypes)
+                    x = K.placeholder(shape=input_shape, dtype=self._input_dtypes)
                     x = self.call(x)
                 if isinstance(x, list):
                     return [K.int_shape(x_elem) for x_elem in x]
@@ -705,9 +705,9 @@ class Lambda(Layer):
         if has_arg(self.function, 'mask'):
             arguments['mask'] = mask
         if isinstance(inputs, list):
-            self.input_dtypes = [K.dtype(x) for x in inputs]
+            self._input_dtypes = [K.dtype(x) for x in inputs]
         else:
-            self.input_dtypes = K.dtype(inputs)
+            self._input_dtypes = K.dtype(inputs)
         return self.function(inputs, **arguments)
 
     def compute_mask(self, inputs, mask=None):
