@@ -22,7 +22,6 @@ from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
 from ..utils.generic_utils import has_arg
-from ..utils import conv_utils
 from ..legacy import interfaces
 
 
@@ -644,6 +643,7 @@ class Lambda(Layer):
                  mask=None, arguments=None, **kwargs):
         super(Lambda, self).__init__(**kwargs)
         self.function = function
+        self._input_dtypes = None
         self.arguments = arguments if arguments else {}
         if mask is not None:
             self.supports_masking = True
@@ -664,10 +664,11 @@ class Lambda(Layer):
             # With TensorFlow or CNTK, we can infer the output shape directly:
             if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
-                    xs = [K.placeholder(shape=shape) for shape in input_shape]
+                    xs = [K.placeholder(shape=shape, dtype=dtype)
+                          for shape, dtype in zip(input_shape, self._input_dtypes)]
                     x = self.call(xs)
                 else:
-                    x = K.placeholder(shape=input_shape)
+                    x = K.placeholder(shape=input_shape, dtype=self._input_dtypes)
                     x = self.call(x)
                 if isinstance(x, list):
                     return [K.int_shape(x_elem) for x_elem in x]
@@ -703,6 +704,10 @@ class Lambda(Layer):
         arguments = self.arguments
         if has_arg(self.function, 'mask'):
             arguments['mask'] = mask
+        if isinstance(inputs, list):
+            self._input_dtypes = [K.dtype(x) for x in inputs]
+        else:
+            self._input_dtypes = K.dtype(inputs)
         return self.function(inputs, **arguments)
 
     def compute_mask(self, inputs, mask=None):
