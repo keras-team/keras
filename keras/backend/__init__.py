@@ -14,9 +14,12 @@ from .common import set_image_data_format
 from .common import normalize_data_format
 
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.
+# Otherwise check for .keras directory in the current directory.
 # Otherwise either ~/.keras or /tmp.
 if 'KERAS_HOME' in os.environ:
     _keras_dir = os.environ.get('KERAS_HOME')
+elif '.keras' in [f for f in os.listdir(os.curdir) if os.path.isdir(f)]:
+    _keras_dir = os.curdir
 else:
     _keras_base_dir = os.path.expanduser('~')
     if not os.access(_keras_base_dir, os.W_OK):
