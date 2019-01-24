@@ -67,3 +67,6 @@ nav:
 - Scikit-learn API: scikit-learn-api.md
 - Utils: utils.md
 - Contributing: contributing.md
+- Examples:
+  - Addition RNN: examples/addition_rnn.md
+  - Baby RNN: examples/babi_rnn.md
