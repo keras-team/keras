@@ -1,7 +1,7 @@
 ---
 name: a) Bug fix
 about: Select this if you're fixing a bug in Keras.
-
+labels: bugfix
 ---
 
 <!--
