@@ -1566,3 +1566,9 @@ class Model(Network):
             workers=workers,
             use_multiprocessing=use_multiprocessing,
             verbose=verbose)
+    
+    def display(self, file=None):
+        if file == None:
+            plot_model(model)
+        else:
+            plot_model(model, to_file=file)
