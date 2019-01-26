@@ -77,6 +77,8 @@ class BatchNormalization(Layer):
         self.supports_masking = True
         if isinstance(axis, list):
             self.axis = axis[:]
+        elif isinstance(axis, tuple):
+            self.axis = list(axis)[:]
         else:
             self.axis = axis
         self.momentum = momentum
