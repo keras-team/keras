@@ -734,6 +734,32 @@ def test_check_bad_shape():
     assert 'targets to have the same shape' in str(exc)
 
 
+@pytest.mark.parametrize('input_metrics,expected_output', [
+    (None, [[], []]),
+    (['mse', 'mae'], [['mse', 'mae'], ['mse', 'mae']]),
+    ({'layer_1': 'mae', 'layer_2': 'mse'}, [['mae'], ['mse']]),
+])
+def test_collect_metrics(input_metrics, expected_output):
+    output_names = ['layer_1', 'layer_2']
+
+    output_metrics = training_utils.collect_metrics(input_metrics,
+                                                    output_names)
+    assert output_metrics == expected_output
+
+
+def test_collect_metrics_with_invalid_metrics_format():
+    with pytest.raises(TypeError):
+        training_utils.collect_metrics({'a', 'set', 'type'}, [])
+
+
+def test_collect_metrics_with_invalid_layer_name():
+    with pytest.warns(Warning) as w:
+        training_utils.collect_metrics({'unknown_layer': 'mse'}, ['layer_1'])
+
+    warning_raised = all(['unknown_layer' in str(w_.message) for w_ in w])
+    assert warning_raised, 'Warning was raised for unknown_layer'
+
+
 @pytest.mark.skipif(K.backend() != 'tensorflow',
                     reason='Requires TensorFlow backend')
 def test_model_with_input_feed_tensor():
@@ -1593,6 +1619,48 @@ def test_sample_weights():
                                                  class_weights)
     expected = sample_weights * np.array([0.5, 1., 0.5, 0.5, 1.5])
     assert np.allclose(weights, expected)
+
+
+def test_validation_freq():
+    model = Sequential([Dense(1)])
+    model.compile('sgd', 'mse')
+
+    def _gen():
+        while True:
+            yield np.ones((2, 10)), np.ones((2, 1))
+
+    x, y = np.ones((10, 10)), np.ones((10, 1))
+
+    class ValCounter(Callback):
+
+        def __init__(self):
+            self.val_runs = 0
+
+        def on_test_begin(self, logs=None):
+            self.val_runs += 1
+
+    # Test in training_arrays.py
+    val_counter = ValCounter()
+    model.fit(
+        x,
+        y,
+        batch_size=2,
+        epochs=4,
+        validation_data=(x, y),
+        validation_freq=2,
+        callbacks=[val_counter])
+    assert val_counter.val_runs == 2
+
+    # Test in training_generator.py
+    val_counter = ValCounter()
+    model.fit_generator(
+        _gen(),
+        epochs=4,
+        steps_per_epoch=5,
+        validation_data=(x, y),
+        validation_freq=[4, 2, 2, 1],
+        callbacks=[val_counter])
+    assert val_counter.val_runs == 3
 
 
 if __name__ == '__main__':
