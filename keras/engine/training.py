@@ -27,6 +27,7 @@ from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
+from ..utils.vis_utils import plot_model
 from ..legacy import interfaces
 
 
@@ -1567,8 +1568,8 @@ class Model(Network):
             use_multiprocessing=use_multiprocessing,
             verbose=verbose)
     
-    def display(self, file=None):
+    def display(self, file=None, show_layer_names=True, show_shapes=True):
         if file == None:
-            plot_model(model)
+            plot_model(model, show_shapes=show_shapes, show_layer_names=show_layer_names)
         else:
-            plot_model(model, to_file=file)
+            plot_model(model, to_file=file, show_shapes=show_shapes, show_layer_names=show_layer_names)
