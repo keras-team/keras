@@ -27,7 +27,7 @@ if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
-keras_dir = pathlib.Path(__file__).parents[1]
+keras_dir = pathlib.Path(__file__).resolve().parents[1]
 
 
 def get_function_signature(function, method=True):
