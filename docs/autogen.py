@@ -369,15 +369,7 @@ def generate():
         shutil.rmtree('sources')
 
     print('Populating sources directory with templates.')
-    for subdir, dirs, fnames in os.walk('templates'):
-        for fname in fnames:
-            new_subdir = subdir.replace('templates', 'sources')
-            if not os.path.exists(new_subdir):
-                os.makedirs(new_subdir)
-            if fname[-3:] == '.md':
-                fpath = os.path.join(subdir, fname)
-                new_fpath = fpath.replace('templates', 'sources')
-                shutil.copy(fpath, new_fpath)
+    shutil.copytree('templates', 'sources')
 
     readme = read_file('../README.md')
     index = read_file('templates/index.md')
