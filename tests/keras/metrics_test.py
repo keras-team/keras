@@ -258,11 +258,11 @@ def test_precision(metrics_mode):
                       loss='binary_crossentropy',
                       metrics={'out': ['acc', metric_fn]})
 
-    samples = 1000
+    samples = 10000
     x = np.random.random((samples, 2))
     y = np.random.randint(low=0, high=2, size=(samples, 1))
 
-    val_samples = 10
+    val_samples = 1000
     val_x = np.random.random((val_samples, 2))
     val_y = np.random.randint(low=0, high=2, size=(val_samples, 1))
 
@@ -278,15 +278,13 @@ def test_precision(metrics_mode):
         return tp / (tp + fp)
 
     # Test correctness (e.g. updates should have been run)
-    np.testing.assert_allclose(outs[2], ref_precision(y, preds), atol=1e-3)
+    np.testing.assert_allclose(outs[2], ref_precision(y, preds), atol=1e-2)
 
     # Test correctness of the validation metric computation
     val_preds = model.predict(val_x)
     val_outs = model.evaluate(val_x, val_y, batch_size=10)
-    print('val_outs:')
-    print(val_outs)
-    assert_allclose(val_outs[2], ref_precision(val_y, val_preds), atol=1e-3)
-    assert_allclose(val_outs[2], history.history['val_precision'][-1], atol=1e-3)
+    assert_allclose(val_outs[2], ref_precision(val_y, val_preds), atol=1e-2)
+    assert_allclose(val_outs[2], history.history['val_precision'][-1], atol=1e-2)
 
 
 @pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
@@ -311,11 +309,11 @@ def test_recall(metrics_mode):
                       loss='binary_crossentropy',
                       metrics={'out': ['acc', metric_fn]})
 
-    samples = 1000
+    samples = 10000
     x = np.random.random((samples, 2))
     y = np.random.randint(low=0, high=2, size=(samples, 1))
 
-    val_samples = 10
+    val_samples = 1000
     val_x = np.random.random((val_samples, 2))
     val_y = np.random.randint(low=0, high=2, size=(val_samples, 1))
 
@@ -336,8 +334,6 @@ def test_recall(metrics_mode):
     # Test correctness of the validation metric computation
     val_preds = model.predict(val_x)
     val_outs = model.evaluate(val_x, val_y, batch_size=10)
-    print('val_outs:')
-    print(val_outs)
     assert_allclose(val_outs[2], ref_recall(val_y, val_preds), atol=1e-2)
     assert_allclose(val_outs[2], history.history['val_recall'][-1], atol=1e-2)
 
@@ -364,11 +360,11 @@ def test_f1(metrics_mode):
                       loss='binary_crossentropy',
                       metrics={'out': ['acc', metric_fn]})
 
-    samples = 1000
+    samples = 10000
     x = np.random.random((samples, 2))
     y = np.random.randint(low=0, high=2, size=(samples, 1))
 
-    val_samples = 10
+    val_samples = 1000
     val_x = np.random.random((val_samples, 2))
     val_y = np.random.randint(low=0, high=2, size=(val_samples, 1))
 
@@ -390,8 +386,6 @@ def test_f1(metrics_mode):
     # Test correctness of the validation metric computation
     val_preds = model.predict(val_x)
     val_outs = model.evaluate(val_x, val_y, batch_size=10)
-    print('val_outs:')
-    print(val_outs)
     assert_allclose(val_outs[2], ref_f1(val_y, val_preds), atol=1e-2)
     assert_allclose(val_outs[2], history.history['val_f1_score'][-1], atol=1e-2)
 
