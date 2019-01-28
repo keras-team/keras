@@ -1347,8 +1347,7 @@ class Model(Network):
                 Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of samples of your dataset
-                divided by the batch size.
+                be equal to `ceil(num_samples / batch_size)`
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             epochs: Integer. Number of epochs to train the model.
