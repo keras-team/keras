@@ -96,15 +96,36 @@ class BatchNormalization(Layer):
         self.gamma_constraint = constraints.get(gamma_constraint)
 
     def build(self, input_shape):
-        dim = input_shape[self.axis]
-        if dim is None:
-            raise ValueError('Axis ' + str(self.axis) + ' of '
-                             'input tensor should have a defined dimension '
-                             'but the layer received an input with shape ' +
-                             str(input_shape) + '.')
-        self.input_spec = InputSpec(ndim=len(input_shape),
-                                    axes={self.axis: dim})
-        shape = (dim,)
+        ndims = len(input_shape)
+
+        # Convert axis to list and resolve negatives
+        if isinstance(self.axis, int):
+            self.axis = [self.axis]
+
+        if not isinstance(self.axis, list):
+            raise TypeError('axis must be int or list, type given: %s' % type(self.axis))
+
+        # Validate axes
+        for x in self.axis:
+            if x >= ndims:
+                raise ValueError('Invalid axis: %d' % x)
+        if len(self.axis) != len(set(self.axis)):
+            raise ValueError('Duplicate axis: %s' % self.axis)
+
+        axis_to_dim = {x: input_shape[x] for x in self.axis}
+        for x in axis_to_dim:
+            if axis_to_dim[x] is None:
+                raise ValueError('Input has undefined `axis` dimension. Input shape: ', input_shape)
+
+        self.input_spec = InputSpec(ndim=ndims,
+                                    axes=axis_to_dim)
+
+        if len(axis_to_dim) == 1:
+            # Single axis batch norm (most common/default use-case)
+            shape = (list(axis_to_dim.values())[0],)
+        else:
+            # Parameter shape is the original shape but with 1 in all non-axis dims
+            shape = [axis_to_dim[i] if i in axis_to_dim else 1 for i in range(ndims)]
 
         if self.scale:
             self.gamma = self.add_weight(shape=shape,
@@ -138,10 +159,10 @@ class BatchNormalization(Layer):
         input_shape = K.int_shape(inputs)
         # Prepare broadcasting shape.
         ndim = len(input_shape)
-        reduction_axes = list(range(len(input_shape)))
-        del reduction_axes[self.axis]
+        reduction_axes = [i for i in range(ndim) if i not in self.axis]
         broadcast_shape = [1] * len(input_shape)
-        broadcast_shape[self.axis] = input_shape[self.axis]
+        for i in self.axis:
+            broadcast_shape[i] = input_shape[i]
 
         # Determines whether broadcasting is needed.
         needs_broadcasting = (sorted(reduction_axes) != list(range(ndim))[:-1])

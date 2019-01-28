@@ -34,6 +34,16 @@ def test_basic_batchnorm():
                        'moving_mean_initializer': 'zeros',
                        'moving_variance_initializer': 'ones'},
                input_shape=(3, 4, 2, 4))
+    layer_test(normalization.BatchNormalization,
+               kwargs={'momentum': 0.9,
+                       'epsilon': 0.1,
+                       'axis': (1)},
+               input_shape=(1, 4, 1))
+    layer_test(normalization.BatchNormalization,
+               kwargs={'momentum': 0.9,
+                       'epsilon': 0.1,
+                       'axis': [1]},
+               input_shape=(1, 4, 1))
     if K.backend() != 'theano':
         layer_test(normalization.BatchNormalization,
                    kwargs={'momentum': 0.9,
