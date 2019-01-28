@@ -6,8 +6,8 @@ cache:
     - $HOME/.theano
 matrix:
     include:
-        - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS PIL=Pil
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS PIL=Pillow
         - python: 3.6
           env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8_DOC PIL=Pillow
         - python: 2.7
