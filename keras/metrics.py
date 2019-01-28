@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import six
 from . import backend as K
+from .engine.base_layer import Layer
 from .losses import mean_squared_error
 from .losses import mean_absolute_error
 from .losses import mean_absolute_percentage_error
@@ -53,6 +54,35 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
                   axis=-1)
 
 
+class Precision(Layer):
+    """Precision metric.
+        Computes a stateful representation of precision,
+        a metric for multi-label classification of
+        how many selected items are relevant.
+        """
+
+    def __init__(self, name='precision', **kwargs):
+        super(Precision, self).__init__(name=name, **kwargs)
+        self.stateful = True
+        self.true_positives = K.variable(value=0, dtype='float32', name='true_positives')
+        self.predicted_positives = K.variable(value=0, dtype='float32', name='predicted_positives')
+
+    def reset_states(self):
+        K.set_value(self.true_positives, 0)
+        K.set_value(self.predicted_positives, 0)
+
+    def __call__(self, y_true, y_pred):
+        y_true = K.cast(y_true, 'float32')
+        y_pred = K.cast(K.round(y_pred), 'float32')
+        correct_preds = K.cast(K.equal(y_pred, y_true), 'float32')
+        true_pos = K.cast(K.sum(correct_preds * y_true), 'float32')
+        predicted_pos = K.cast(K.sum(K.round(K.clip(y_pred, 0, 1))), 'float32')
+        updates = [K.update_add(self.true_positives, true_pos), K.update_add(self.predicted_positives, predicted_pos)]
+        self.add_update(updates, inputs=[y_true, y_pred])
+        precision = (self.true_positives * 1) / ((K.epsilon() + self.predicted_positives) * 1)
+        return precision
+
+
 # Aliases
 
 mse = MSE = mean_squared_error
@@ -60,6 +90,7 @@ mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_proximity
+precision = Precision()
 
 
 def serialize(metric):

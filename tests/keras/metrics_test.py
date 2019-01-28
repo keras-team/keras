@@ -20,7 +20,7 @@ all_metrics = [
     metrics.binary_crossentropy,
     metrics.poisson,
     metrics.cosine_proximity,
-    metrics.logcosh,
+    metrics.logcosh
 ]
 
 all_sparse_metrics = [
@@ -232,6 +232,54 @@ def test_stateful_metrics(metrics_mode):
     np.testing.assert_allclose(val_outs[2],
                                history.history['val_true_positives'][-1],
                                atol=1e-5)
+
+
+@pytest.mark.parametrize('metrics_mode', ['list', 'dict'])
+@flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
+def test_precision(metrics_mode):
+    np.random.seed(47)
+    inputs = keras.Input(shape=(2,))
+    outputs = keras.layers.Dense(1, activation='sigmoid', name='out')(inputs)
+    model = keras.Model(inputs, outputs)
+
+    if metrics_mode == 'list':
+        model.compile(optimizer='sgd',
+                      loss='binary_crossentropy',
+                      metrics=['acc', 'precision'])
+    elif metrics_mode == 'dict':
+        model.compile(optimizer='sgd',
+                      loss='binary_crossentropy',
+                      metrics={'out': ['acc', 'precision']})
+
+    samples = 1000
+    x = np.random.random((samples, 2))
+    y = np.random.randint(low=0, high=2, size=(samples, 1))
+
+    val_samples = 10
+    val_x = np.random.random((val_samples, 2))
+    val_y = np.random.randint(low=0, high=2, size=(val_samples, 1))
+
+    # Test fit and evaluate
+    history = model.fit(x, y, validation_data=(val_x, val_y),
+                        epochs=1, batch_size=10)
+    outs = model.evaluate(x, y, batch_size=10)
+    preds = model.predict(x)
+
+    def ref_precision(y_true, y_pred):
+        tp = np.sum(np.logical_and(y_pred >= 0.5, y_true == 1))
+        fp = np.sum(np.logical_and(y_pred >= 0.5, y_true == 0))
+        return tp / (tp + fp)
+
+    # Test correctness (e.g. updates should have been run)
+    np.testing.assert_allclose(outs[2], ref_precision(y, preds), atol=1e-3)
+
+    # Test correctness of the validation metric computation
+    val_preds = model.predict(val_x)
+    val_outs = model.evaluate(val_x, val_y, batch_size=10)
+    print('val_outs:')
+    print(val_outs)
+    assert_allclose(val_outs[2], ref_precision(val_y, val_preds), atol=1e-3)
+    assert_allclose(val_outs[2], history.history['val_precision'][-1], atol=1e-3)
 
 
 if __name__ == '__main__':
