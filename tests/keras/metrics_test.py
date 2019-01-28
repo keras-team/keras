@@ -242,14 +242,19 @@ def test_precision(metrics_mode):
     outputs = keras.layers.Dense(1, activation='sigmoid', name='out')(inputs)
     model = keras.Model(inputs, outputs)
 
+    metric_fn = metrics.Precision()
+    config = metrics.serialize(metric_fn)
+    metric_fn = metrics.deserialize(
+        config, custom_objects={'precision': metrics.Precision()})
+
     if metrics_mode == 'list':
         model.compile(optimizer='sgd',
                       loss='binary_crossentropy',
-                      metrics=['acc', 'precision'])
+                      metrics=['acc', metric_fn])
     elif metrics_mode == 'dict':
         model.compile(optimizer='sgd',
                       loss='binary_crossentropy',
-                      metrics={'out': ['acc', 'precision']})
+                      metrics={'out': ['acc', metric_fn]})
 
     samples = 1000
     x = np.random.random((samples, 2))
@@ -290,14 +295,19 @@ def test_recall(metrics_mode):
     outputs = keras.layers.Dense(1, activation='sigmoid', name='out')(inputs)
     model = keras.Model(inputs, outputs)
 
+    metric_fn = metrics.Recall()
+    config = metrics.serialize(metric_fn)
+    metric_fn = metrics.deserialize(
+        config, custom_objects={'recall': metrics.Recall()})
+
     if metrics_mode == 'list':
         model.compile(optimizer='sgd',
                       loss='binary_crossentropy',
-                      metrics=['acc', 'recall'])
+                      metrics=['acc', metric_fn])
     elif metrics_mode == 'dict':
         model.compile(optimizer='sgd',
                       loss='binary_crossentropy',
-                      metrics={'out': ['acc', 'recall']})
+                      metrics={'out': ['acc', metric_fn]})
 
     samples = 1000
     x = np.random.random((samples, 2))
@@ -338,14 +348,19 @@ def test_f1(metrics_mode):
     outputs = keras.layers.Dense(1, activation='sigmoid', name='out')(inputs)
     model = keras.Model(inputs, outputs)
 
+    metric_fn = metrics.f1
+    config = metrics.serialize(metric_fn)
+    metric_fn = metrics.deserialize(
+        config, custom_objects={'f1': metrics.f1})
+
     if metrics_mode == 'list':
         model.compile(optimizer='sgd',
                       loss='binary_crossentropy',
-                      metrics=['acc', 'f1'])
+                      metrics=['acc', metric_fn])
     elif metrics_mode == 'dict':
         model.compile(optimizer='sgd',
                       loss='binary_crossentropy',
-                      metrics={'out': ['acc', 'f1']})
+                      metrics={'out': ['acc', metric_fn]})
 
     samples = 1000
     x = np.random.random((samples, 2))
