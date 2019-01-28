@@ -64,26 +64,26 @@ class Precision(Layer):
     def __init__(self, name='precision', **kwargs):
         super(Precision, self).__init__(name=name, **kwargs)
         self.stateful = True
-        self.true_positives = K.variable(value=0, dtype='float32',
+        self.true_positives = K.variable(value=0.0, dtype='float32',
                                          name='true_positives')
-        self.predicted_positives = K.variable(value=0, dtype='float32',
+        self.predicted_positives = K.variable(value=0.0, dtype='float32',
                                               name='predicted_positives')
 
     def reset_states(self):
-        K.set_value(self.true_positives, 0)
-        K.set_value(self.predicted_positives, 0)
+        K.set_value(self.true_positives, 0.0)
+        K.set_value(self.predicted_positives, 0.0)
 
     def __call__(self, y_true, y_pred):
         y_true = K.cast(y_true, 'float32')
         y_pred = K.cast(K.round(y_pred), 'float32')
         correct_preds = K.cast(K.equal(y_pred, y_true), 'float32')
         true_pos = K.cast(K.sum(correct_preds * y_true), 'float32')
-        predicted_pos = K.cast(K.sum(K.round(K.clip(y_pred, 0, 1))), 'float32')
+        predicted_pos = K.cast(K.sum(K.round(K.clip(y_pred, 0.0, 1.0))), 'float32')
         updates = [K.update_add(self.true_positives, true_pos),
                    K.update_add(self.predicted_positives, predicted_pos)]
         self.add_update(updates, inputs=[y_true, y_pred])
-        return (self.true_positives * 1) / \
-               ((K.epsilon() + self.predicted_positives) * 1)
+        return (self.true_positives * 1.0) / \
+               ((K.epsilon() + self.predicted_positives) * 1.0)
 
 
 class Recall(Layer):
@@ -96,26 +96,26 @@ class Recall(Layer):
     def __init__(self, name='recall', **kwargs):
         super(Recall, self).__init__(name=name, **kwargs)
         self.stateful = True
-        self.true_positives = K.variable(value=0, dtype='float32',
+        self.true_positives = K.variable(value=0.0, dtype='float32',
                                          name='true_positives')
-        self.actual_positives = K.variable(value=0, dtype='float32',
+        self.actual_positives = K.variable(value=0.0, dtype='float32',
                                            name='actual_positives')
 
     def reset_states(self):
-        K.set_value(self.true_positives, 0)
-        K.set_value(self.actual_positives, 0)
+        K.set_value(self.true_positives, 0.0)
+        K.set_value(self.actual_positives, 0.0)
 
     def __call__(self, y_true, y_pred):
         y_true = K.cast(y_true, 'float32')
         y_pred = K.cast(K.round(y_pred), 'float32')
         correct_preds = K.cast(K.equal(y_pred, y_true), 'float32')
         true_pos = K.cast(K.sum(correct_preds * y_true), 'float32')
-        actual_pos = K.cast(K.sum(K.round(K.clip(y_true, 0, 1))), 'float32')
+        actual_pos = K.cast(K.sum(K.round(K.clip(y_true, 0.0, 1.0))), 'float32')
         updates = [K.update_add(self.true_positives, true_pos),
                    K.update_add(self.actual_positives, actual_pos)]
         self.add_update(updates, inputs=[y_true, y_pred])
-        return (self.true_positives * 1) / \
-               ((self.actual_positives + K.epsilon()) * 1)
+        return (self.true_positives * 1.0) / \
+               ((self.actual_positives + K.epsilon()) * 1.0)
 
 
 class FBetaScore(Layer):
@@ -139,27 +139,27 @@ class FBetaScore(Layer):
         super(FBetaScore, self).__init__(name=name, **kwargs)
         self.beta = beta
         self.stateful = True
-        self.true_positives = K.variable(value=0, dtype='float32',
+        self.true_positives = K.variable(value=0.0, dtype='float32',
                                          name='true_positives')
-        self.false_positives = K.variable(value=0, dtype='float32',
+        self.false_positives = K.variable(value=0.0, dtype='float32',
                                           name='false_positives')
-        self.false_negatives = K.variable(value=0, dtype='float32',
+        self.false_negatives = K.variable(value=0.0, dtype='float32',
                                           name='false_negatives')
 
     def reset_states(self):
-        K.set_value(self.true_positives, 0)
-        K.set_value(self.false_positives, 0)
-        K.set_value(self.false_negatives, 0)
+        K.set_value(self.true_positives, 0.0)
+        K.set_value(self.false_positives, 0.0)
+        K.set_value(self.false_negatives, 0.0)
 
     def __call__(self, y_true, y_pred):
         y_true = K.cast(y_true, 'float32')
         y_pred = K.cast(K.round(y_pred), 'float32')
 
-        y_pred_pos = K.round(K.clip(y_pred, 0, 1))
-        y_pred_neg = 1 - y_pred_pos
+        y_pred_pos = K.round(K.clip(y_pred, 0.0, 1.0))
+        y_pred_neg = 1.0 - y_pred_pos
 
-        y_pos = K.round(K.clip(y_true, 0, 1))
-        y_neg = 1 - y_pos
+        y_pos = K.round(K.clip(y_true, 0.0, 1.0))
+        y_neg = 1.0 - y_pos
 
         tp = K.cast(K.sum(y_pos * y_pred_pos), 'float32')
         fp = K.cast(K.sum(y_neg * y_pred_pos), 'float32')
@@ -170,8 +170,8 @@ class FBetaScore(Layer):
                    K.update_add(self.false_negatives, fn)]
         self.add_update(updates, inputs=[y_true, y_pred])
 
-        return ((1 + self.beta ** 2) * self.true_positives) / \
-               (((1 + self.beta ** 2) * self.true_positives + K.epsilon()) +
+        return ((1.0 + self.beta ** 2) * self.true_positives) / \
+               (((1.0 + self.beta ** 2) * self.true_positives + K.epsilon()) +
                 (self.beta ** 2) * self.false_negatives + self.false_positives)
 
 
