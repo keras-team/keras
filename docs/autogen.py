@@ -6,6 +6,7 @@ import re
 import inspect
 import os
 import shutil
+import six
 
 try:
     import pathlib
@@ -325,7 +326,7 @@ def get_module_docstring(filepath):
     Also finds the line at which the docstring ends.
     """
     co = compile(open(filepath).read(), filepath, 'exec')
-    if co.co_consts and isinstance(co.co_consts[0], str):
+    if co.co_consts and isinstance(co.co_consts[0], six.string_types):
         docstring = co.co_consts[0]
     else:
         print('Could not get the docstring from ' + filepath)
