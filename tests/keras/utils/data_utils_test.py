@@ -27,7 +27,6 @@ from keras.utils.data_utils import validate_file
 from keras import backend as K
 from keras.backend import load_backend
 
-
 pytestmark = pytest.mark.skipif(
     six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
