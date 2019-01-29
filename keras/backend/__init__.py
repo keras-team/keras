@@ -157,4 +157,3 @@ elif backend() == 'tensorflow':
     from .load_backend import set_session
 elif backend() == 'cntk':
     from .load_backend import clear_session
-

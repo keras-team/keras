@@ -2733,10 +2733,6 @@ def reset_uids():
     raise NotImplementedError
 
 
-def manual_variable_initialization(value):
-    raise NotImplementedError
-
-
 def to_dense(tensor):
     raise NotImplementedError
 
