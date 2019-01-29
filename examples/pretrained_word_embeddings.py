@@ -27,7 +27,7 @@ from keras.initializers import Constant
 
 BASE_DIR = ''
 GLOVE_DIR = os.path.join(BASE_DIR, 'glove.6B')
-TEXT_DATA_DIR = os.path.join(BASE_DIR, '20_newsgroup')
+TEXT_DATA_DIR = os.path.join(BASE_DIR, '20_newsgroups')
 MAX_SEQUENCE_LENGTH = 1000
 MAX_NUM_WORDS = 20000
 EMBEDDING_DIM = 100
