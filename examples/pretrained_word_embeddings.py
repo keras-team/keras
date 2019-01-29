@@ -104,12 +104,16 @@ print('Preparing embedding matrix.')
 # prepare embedding matrix
 num_words = min(MAX_NUM_WORDS, len(word_index)) + 1
 embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
+# Vector for unknown words is an average of all vectors
+# in the embedding matrix
+unk_vector = np.mean([v for v in embeddings_index.values()], axis=0)
 for word, i in word_index.items():
     if i > MAX_NUM_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
-    if embedding_vector is not None:
-        # words not found in embedding index will be all-zeros.
+    if embedding_vector is None:
+        embedding_matrix[i] = unk_vector
+    else:
         embedding_matrix[i] = embedding_vector
 
 # load pre-trained word embeddings into an Embedding layer
