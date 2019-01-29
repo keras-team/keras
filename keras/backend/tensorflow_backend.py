@@ -3069,8 +3069,7 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
-    global uses_learning_phase
-    uses_learning_phase = False
+    uses_learning_phase = [False]
 
     if unroll:
         if not inputs.shape[0]:
@@ -3092,7 +3091,7 @@ def rnn(step_function, inputs, initial_states,
             for inp, mask_t in zip(input_list, mask_list):
                 output, new_states = step_function(inp, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
 
                 if not successive_outputs:
                     prev_output = zeros_like(output)
@@ -3118,7 +3117,7 @@ def rnn(step_function, inputs, initial_states,
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 successive_outputs.append(output)
                 successive_states.append(states)
             last_output = successive_outputs[-1]
@@ -3178,8 +3177,7 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
-                    global uses_learning_phase
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.shape)
 
@@ -3215,8 +3213,7 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
-                    global uses_learning_phase
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.shape)
                 output_ta_t = output_ta_t.write(time, output)
@@ -3235,7 +3232,7 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, len(outputs.shape)))
     outputs = tf.transpose(outputs, axes)
-    last_output._uses_learning_phase = uses_learning_phase
+    last_output._uses_learning_phase = uses_learning_phase[0]
     return last_output, outputs, new_states
 
 
