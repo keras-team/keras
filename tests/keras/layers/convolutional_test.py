@@ -6,6 +6,7 @@ from keras.utils.test_utils import layer_test
 from keras import backend as K
 from keras.layers import convolutional
 from keras.models import Sequential
+from keras.backend import load_backend
 
 
 # TensorFlow does not support full convolution.
@@ -15,7 +16,7 @@ else:
     _convolution_paddings = ['valid', 'same']
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
                     reason='cntk only support dilated conv on GPU')
 @pytest.mark.parametrize(
     'layer_kwargs,input_length,expected_output',
@@ -75,7 +76,7 @@ def test_conv_1d(padding, strides):
                input_shape=(batch_size, steps, input_dim))
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
                     reason='cntk only support dilated conv on GPU')
 def test_conv_1d_dilation():
     batch_size = 2
@@ -155,7 +156,7 @@ def test_convolution_2d_channels_last():
                input_shape=(num_samples, num_row, num_col, stack_size))
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
                     reason='cntk only supports dilated conv on GPU')
 def test_convolution_2d_dilation():
     num_samples = 2
@@ -212,7 +213,7 @@ def test_conv2d_transpose(padding, out_padding, strides):
                fixed_batch_size=True)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
                     reason='cntk only supports dilated conv transpose on GPU')
 def test_conv2d_transpose_dilation():
 
