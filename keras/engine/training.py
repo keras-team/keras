@@ -997,6 +997,9 @@ class Model(Network):
                     'If your data is in the form of symbolic tensors, '
                     'you cannot use `validation_split`.')
             do_validation = True
+            warnings.warn('Validation data is selected from the last samples '
+                          'in the `x` and `y` data provided, before shuffling.',
+                          category=Warning)
             if hasattr(x[0], 'shape'):
                 split_at = int(int(x[0].shape[0]) * (1. - validation_split))
             else:
