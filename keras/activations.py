@@ -139,6 +139,15 @@ def sigmoid(x):
     """
     return K.sigmoid(x)
 
+def swish(x):
+    """Swish activation function (https://arxiv.org/abs/1710.05941v1)
+    """
+    return x*K.sigmoid(x)
+
+def eswish(x, beta=1):
+    """E-Swish activation function (https://arxiv.org/abs/1710.05941)
+    """
+    return x*K.sigmoid(float(beta)*x)
 
 def hard_sigmoid(x):
     """Hard sigmoid activation function.
