@@ -9,6 +9,7 @@ import numpy as np
 
 from .training_utils import is_sequence
 from .training_utils import iter_sequence_infinite
+from .training_utils import should_run_validation
 from .. import backend as K
 from ..utils.data_utils import Sequence
 from ..utils.data_utils import GeneratorEnqueuer
@@ -27,6 +28,7 @@ def fit_generator(model,
                   callbacks=None,
                   validation_data=None,
                   validation_steps=None,
+                  validation_freq=1,
                   class_weight=None,
                   max_queue_size=10,
                   workers=1,
@@ -46,7 +48,7 @@ def fit_generator(model,
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
+                        ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
     if steps_per_epoch is None:
         if use_sequence_api:
@@ -222,7 +224,9 @@ def fit_generator(model,
                 steps_done += 1
 
                 # Epoch finished.
-                if steps_done >= steps_per_epoch and do_validation:
+                if (steps_done >= steps_per_epoch and
+                        do_validation and
+                        should_run_validation(validation_freq, epoch)):
                     # Note that `callbacks` here is an instance of
                     # `keras.callbacks.CallbackList`
                     if val_gen:
@@ -292,7 +296,7 @@ def evaluate_generator(model, generator,
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
+                        ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
     if steps is None:
         if use_sequence_api:
@@ -425,7 +429,7 @@ def predict_generator(model, generator,
         warnings.warn(
             UserWarning('Using a generator with `use_multiprocessing=True`'
                         ' and multiple workers may duplicate your data.'
-                        ' Please consider using the`keras.utils.Sequence'
+                        ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
     if steps is None:
         if use_sequence_api:

@@ -95,9 +95,11 @@ def clear_session():
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder_with_default(False,
-                                        shape=(),
-                                        name='keras_learning_phase')
+    with tf.name_scope(''):
+        phase = tf.placeholder_with_default(
+            False,
+            shape=(),
+            name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
@@ -130,9 +132,11 @@ def learning_phase():
     """
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder_with_default(False,
-                                            shape=(),
-                                            name='keras_learning_phase')
+        with tf.name_scope(''):
+            phase = tf.placeholder_with_default(
+                False,
+                shape=(),
+                name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
 
