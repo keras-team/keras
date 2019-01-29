@@ -8,7 +8,6 @@ from .load_backend import set_image_data_format
 from .load_backend import reset_uids
 from .load_backend import get_uid
 from .load_backend import clear_session
-from .load_backend import manual_variable_initialization
 from .load_backend import learning_phase
 from .load_backend import set_learning_phase
 from .load_backend import is_sparse
@@ -147,10 +146,14 @@ from .load_backend import foldr
 from .load_backend import local_conv1d
 from .load_backend import local_conv2d
 from .load_backend import backend
-from .load_backend import pattern_broadcast
-
-# undocumented
-from .load_backend import name_scope
 from .load_backend import normalize_data_format
-from .load_backend import get_session
-from .load_backend import set_session
+from .load_backend import name_scope
+
+if backend() == 'theano':
+    from .load_backend import pattern_broadcast
+elif backend() == 'tensorflow':
+    from .load_backend import manual_variable_initialization
+    from .load_backend import get_session
+    from .load_backend import set_session
+elif backend() == 'cntk':
+    pass

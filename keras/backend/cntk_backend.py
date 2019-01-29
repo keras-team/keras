@@ -2779,15 +2779,3 @@ def foldl(fn, elems, initializer=None, name=None):
 
 def foldr(fn, elems, initializer=None, name=None):
     raise NotImplementedError
-
-
-def get_session():
-    raise NotImplementedError
-
-
-def set_session(session):
-    raise NotImplementedError
-
-
-def pattern_broadcast(x, broadcastable):
-    return x
