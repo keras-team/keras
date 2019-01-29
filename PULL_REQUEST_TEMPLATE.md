@@ -3,13 +3,19 @@ Please make sure you've read and understood our contributing guidelines;
 https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md
 -->
 
-### Summary
+**- What I did**
 
-### Related Issues
 
-### PR Overview
+**- How I did it**
 
-- [ ] This PR requires new unit tests [y/n] (make sure tests are included)
-- [ ] This PR requires to update the documentation [y/n] (make sure the docs are up-to-date)
-- [ ] This PR is backwards compatible [y/n]
-- [ ] This PR changes the current API [y/n] (all API changes need to be approved by fchollet)
+
+**- How you can verify it**
+<!-- 
+You need a good justification for not including tests if your pull request is 
+a bug fix or adds a new feature to Keras. 
+-->
+
+
+
+---
+This pull request fixes #issue_number_here
