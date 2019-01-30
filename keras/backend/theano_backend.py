@@ -2938,3 +2938,11 @@ def local_conv2d(inputs,
                          (output_row, output_col, -1, filters))
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+def ctc_label_dense_to_sparse(labels, label_lengths):
+    raise NotImplementedError
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    raise NotImplementedError
