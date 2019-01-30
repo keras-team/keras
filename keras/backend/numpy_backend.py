@@ -6,7 +6,7 @@ from __future__ import print_function
 import numpy as np
 import scipy.signal as signal
 import scipy as sp
-from keras.backend import floatx
+from .common import floatx
 from keras.utils.generic_utils import transpose_shape
 from keras.utils import to_categorical
 
