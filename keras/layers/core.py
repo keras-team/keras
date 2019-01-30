@@ -563,6 +563,13 @@ class RepeatVector(Layer):
 class Lambda(Layer):
     """Wraps arbitrary expression as a `Layer` object.
 
+    This is only meant for stateless expressions.
+    It will *not* keep track of any weights.
+
+    If you need to keep track of an internal state
+    (in particular weights), you should [write a custom Layer](
+    https://keras.io/layers/writing-your-own-keras-layers/).
+
     # Examples
 
     ```python
