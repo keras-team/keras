@@ -45,6 +45,9 @@ class Embedding(Layer):
         embeddings_regularizer: Regularizer function applied to
             the `embeddings` matrix
             (see [regularizer](../regularizers.md)).
+        activity_regularizer: Regularizer function applied to
+            the output of the layer (its "activation").
+            (see [regularizer](../regularizers.md)).
         embeddings_constraint: Constraint function applied to
             the `embeddings` matrix
             (see [constraints](../constraints.md)).
