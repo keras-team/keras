@@ -1070,9 +1070,11 @@ def update_add(x, increment):
     result = x + increment
     return C.assign(x, result)
 
+
 def update_sub(x, decrement):
     result = x - decrement
     return C.assign(x, result)
+
 
 def gradients(loss, variables):
     # cntk does not support gradients as symbolic op,
