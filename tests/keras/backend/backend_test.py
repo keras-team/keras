@@ -569,6 +569,8 @@ class TestBackend(object):
     def test_log(self):
         check_single_tensor_operation('log', (4, 2), WITH_NP)
 
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
     def test_update_add(self):
         x = np.random.randn(3, 4)
         x_var = K.variable(x)
@@ -579,6 +581,8 @@ class TestBackend(object):
 
         assert_allclose(x, K.eval(x_var), atol=1e-05)
 
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
     def test_update_sub(self):
         x = np.random.randn(3, 4)
         x_var = K.variable(x)
