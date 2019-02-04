@@ -569,6 +569,26 @@ class TestBackend(object):
     def test_log(self):
         check_single_tensor_operation('log', (4, 2), WITH_NP)
 
+    def test_update_add(self):
+        x = np.random.randn(3, 4)
+        x_var = K.variable(x)
+        increment = np.random.randn(3, 4)
+
+        x += increment
+        K.eval(K.update_add(x_var, increment))
+
+        assert_allclose(x, K.eval(x_var), atol=1e-05)
+
+    def test_update_sub(self):
+        x = np.random.randn(3, 4)
+        x_var = K.variable(x)
+        decrement = np.random.randn(3, 4)
+
+        x -= decrement
+        K.eval(K.update_sub(x_var, decrement))
+
+        assert_allclose(x, K.eval(x_var), atol=1e-05)
+
     @pytest.mark.skipif(K.backend() == 'cntk',
                         reason='cntk doesn\'t support gradient in this way.')
     def test_gradient(self):
