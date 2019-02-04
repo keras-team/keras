@@ -50,6 +50,9 @@ class Masking(Layer):
         model.add(Masking(mask_value=0., input_shape=(timesteps, features)))
         model.add(LSTM(32))
     ```
+
+    # Arguments
+        mask_value: Either None or mask value to skip
     """
 
     def __init__(self, mask_value=0., **kwargs):
@@ -625,6 +628,8 @@ class Lambda(Layer):
                  `output_shape = (None, ) + output_shape`
             If a function, it specifies the entire shape as a function of the
             input shape: `output_shape = f(input_shape)`
+        mask: Either None (indicating no masking) or a Tensor indicating the
+          input mask for Embedding.
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
