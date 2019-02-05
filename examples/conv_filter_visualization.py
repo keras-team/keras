@@ -5,7 +5,6 @@ This script can run on CPU in a few minutes.
 Results example: http://i.imgur.com/4nj4KjN.jpg
 '''
 from __future__ import print_function
-from typing import List, Tuple, Optional
 
 import time
 import numpy as np
@@ -13,85 +12,96 @@ from PIL import Image as pil_image
 from keras.preprocessing.image import save_img
 from keras.layers.convolutional import Conv2D
 from keras.applications import vgg16
-from keras.models import Model
-from keras.engine.base_layer import Layer
 from keras import backend as K
 
 
-def visualize_layer(model: Model,
-                    layer_name: str,
-                    step: float = 1.,
-                    epochs: int = 20,
-                    upscaling_steps: int = 9,
-                    upscaling_factor: float = 1.2,
-                    output_dim: Tuple[int, int] = (412, 412)) -> None:
-    """ Visualizes the most relevant filters of one conv-layer in a certain model
-        Parameters:
-            model: The model containing layer_name
-            layer_name: The Layer to be visualized: Has to be a part of model
-            step: step size for gradient ascent
-            epochs: Number of iterations for gradient ascent
-            upscaling_steps: Number of upscaling steps. Starting image is in this case (80, 80)
-            upscaling_factor: Factor to which to slowly upgrade the image towards output_dim.
-            output_dim: [img_width, img_height] The output image dimensions.
-    """
+def _normalize(x):
+    '''utility function to normalize a tensor.
 
-    def _normalize(x: Layer) -> Layer:
-        """ utility function to normalize a tensor
-            Parameters:
-                x: An input tensor
-            Returns:
-                The normalized input tensor.
-        """
-        return x / (K.sqrt(K.mean(K.square(x))) + K.epsilon())
+    # Arguments
+        x: An input tensor.
 
-    def _deprocess_image(x: np.ndarray) -> np.ndarray:
-        """ util function to convert a float array into a valid uint8 image
-            Parameters:
-                x: A numpy-array representing the generated image
-            Returns:
-                A processed numpy-array, which could be used in e.g. imshow
-        """
-        # normalize tensor: center on 0., ensure std is 0.25
-        x -= x.mean()
-        x /= (x.std() + K.epsilon())
-        x *= 0.25
+    # Returns
+        The normalized input tensor.
+    '''
+    return x / (K.sqrt(K.mean(K.square(x))) + K.epsilon())
 
-        # clip to [0, 1]
-        x += 0.5
-        x = np.clip(x, 0, 1)
 
-        # convert to RGB array
-        x *= 255
-        if K.image_data_format() == 'channels_first':
-            x = x.transpose((1, 2, 0))
-        x = np.clip(x, 0, 255).astype('uint8')
-        return x
+def _deprocess_image(x):
+    '''utility function to convert a float array into a valid uint8 image.
 
-    def _process_image(x: np.ndarray, former: np.ndarray) -> np.ndarray:
-        """ util function to convert a valid uint8 image back into a float array
-            Parameters:
-                x: A numpy-array, which could be used in e.g. imshow
-                former: The former image: Need to determine the former mean and variance.
-            Returns:
-                A processed numpy-array representing the generated image
-        """
-        if K.image_data_format() == 'channels_first':
-            x = x.transpose((2, 0, 1))
-        return (x / 255 - 0.5) * 4 * former.std() + former.mean()
+    # Arguments
+        x: A numpy-array representing the generated image.
 
-    def _generate_filter_image(input_img: Layer,
-                               layer_output: Layer,
-                               filter_index: int) -> Optional[Tuple[np.ndarray, float]]:
-        """ Generates image for one particular filter
-            Parameters:
-                input_img: The input-image Tensor
-                layer_output: The output-image Tensor
-                filter_index: The to be processed filter number: assumed to be valid
-            Returns:
-                Either None if no image could be generated
-                or a tuple of the image itself and the last loss
-        """
+    # Returns
+        A processed numpy-array, which could be used in e.g. imshow.
+    '''
+    # normalize tensor: center on 0., ensure std is 0.25
+    x -= x.mean()
+    x /= (x.std() + K.epsilon())
+    x *= 0.25
+
+    # clip to [0, 1]
+    x += 0.5
+    x = np.clip(x, 0, 1)
+
+    # convert to RGB array
+    x *= 255
+    if K.image_data_format() == 'channels_first':
+        x = x.transpose((1, 2, 0))
+    x = np.clip(x, 0, 255).astype('uint8')
+    return x
+
+
+def _process_image(x, former):
+    '''utility function to convert a valid uint8 image back into a float array.
+       Reverses `_deprocess_image`.
+
+    # Arguments
+        x: A numpy-array, which could be used in e.g. imshow.
+        former: The former numpy-array: Need to determine the former mean and variance.
+
+    # Returns
+        A processed numpy-array representing the generated image.
+    '''
+    if K.image_data_format() == 'channels_first':
+        x = x.transpose((2, 0, 1))
+    return (x / 255 - 0.5) * 4 * former.std() + former.mean()
+
+
+def visualize_layer(model,
+                    layer_name,
+                    step=1.,
+                    epochs=20,
+                    upscaling_steps=9,
+                    upscaling_factor=1.2,
+                    output_dim=(412, 412)):
+    '''Visualizes the most relevant filters of one conv-layer in a certain model.
+
+    # Arguments
+        model: The model containing layer_name.
+        layer_name: The name of the layer to be visualized: Has to be a part of model.
+        step: step size for gradient ascent.
+        epochs: Number of iterations for gradient ascent.
+        upscaling_steps: Number of upscaling steps. Starting image is in this case (80, 80).
+        upscaling_factor: Factor to which to slowly upgrade the image towards output_dim.
+        output_dim: [img_width, img_height] The output image dimensions.
+    '''
+
+    def _generate_filter_image(input_img,
+                               layer_output,
+                               filter_index):
+        '''Generates image for one particular filter.
+
+        # Arguments
+            input_img: The input-image Tensor.
+            layer_output: The output-image Tensor.
+            filter_index: The to be processed filter number: assumed to be valid.
+
+        #Returns
+            Either None if no image could be generated.
+            or a tuple of the image (array) itself and the last loss.
+        '''
         start_time = time.time()
 
         # we build a loss function that maximizes the activation
@@ -147,13 +157,14 @@ def visualize_layer(model: Model,
                                                                   end_time - start_time))
         return img, loss_value
 
-    def _draw_filters(filters: List[Tuple[np.ndarray, float]], n: Optional[int] = None) -> None:
-        """ Draw the best filters in a nxn grid.
-            Parameters:
-                filters: A List of generated images and their corresponding losses
-                         for each processed filter.
-                n: dimension of the grid
-        """
+    def _draw_filters(filters, n=None):
+        '''Draw the best filters in a nxn grid.
+
+        # Arguments
+            filters: A List of generated images and their corresponding losses
+                     for each processed filter.
+            n: dimension of the grid. If none, the largest possible square will be used
+        '''
         if n is None:
             n = int(np.floor(np.sqrt(len(filters))))
 
@@ -184,20 +195,19 @@ def visualize_layer(model: Model,
 
     # this is the placeholder for the input images
     assert len(model.inputs) == 1
-    input_img: Layer = model.inputs[0]
+    input_img = model.inputs[0]
 
     # get the symbolic outputs of each "key" layer (we gave them unique names).
     layer_dict = dict([(layer.name, layer) for layer in model.layers[1:]])
 
-    output_layer: Layer = layer_dict[layer_name]
+    output_layer = layer_dict[layer_name]
     assert isinstance(output_layer, Conv2D)
 
     # iterate through each filter and generate its corresponding image
-    processed_filters: List[Tuple[np.ndarray, float]] = []
+    processed_filters = []
     for f in range(len(output_layer.get_weights()[1])):
-        img_loss: Optional[Tuple[np.ndarray, float]] = _generate_filter_image(input_img,
-                                                                              output_layer.output,
-                                                                              f)
+        img_loss = _generate_filter_image(input_img, output_layer.output, f)
+        
         if img_loss is not None:
             processed_filters.append(img_loss)
 
@@ -205,7 +215,8 @@ def visualize_layer(model: Model,
     # Finally draw and store the best filters to disk
     _draw_filters(processed_filters)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     # the name of the layer we want to visualize
     # (see model definition at keras/applications/vgg16.py)
     LAYER_NAME = 'block5_conv1'
