@@ -72,7 +72,7 @@ def _process_image(x, former):
 def visualize_layer(model,
                     layer_name,
                     step=1.,
-                    epochs=20,
+                    epochs=10,
                     upscaling_steps=9,
                     upscaling_factor=1.2,
                     output_dim=(412, 412)):
