@@ -139,7 +139,8 @@ def _clone_functional_model(model, input_tensors=None):
                         layer(computed_tensor, **kwargs))
                     output_masks = to_list(
                         layer.compute_mask(computed_tensor,
-                                           computed_mask))
+                                           computed_mask)) \
+                        if layer.supports_masking else [None] * len(output_tensors)
                     computed_tensors = [computed_tensor]
                     computed_masks = [computed_mask]
                 else:
@@ -152,7 +153,8 @@ def _clone_functional_model(model, input_tensors=None):
                         layer(computed_tensors, **kwargs))
                     output_masks = to_list(
                         layer.compute_mask(computed_tensors,
-                                           computed_masks))
+                                           computed_masks)) \
+                        if layer.supports_masking else [None] * len(output_tensors)
                 # Update tensor_map.
                 for x, y, mask in zip(reference_output_tensors,
                                       output_tensors,
