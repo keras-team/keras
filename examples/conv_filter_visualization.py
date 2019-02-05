@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 
 import time
 import numpy as np
+from PIL import Image as pil_image
 from keras.preprocessing.image import save_img
 from keras.layers.convolutional import Conv2D
 from keras.applications import vgg16
@@ -21,16 +22,19 @@ def visualize_layer(model: Model,
                     layer_name: str,
                     step: float = 1.,
                     epochs: int = 20,
-                    output_dim: Tuple[int, int] = (128, 128)) -> None:
+                    upscaling_steps: int = 9,
+                    upscaling_factor: float = 1.2,
+                    output_dim: Tuple[int, int] = (412, 412)) -> None:
     """ Visualizes the most relevant filters of one conv-layer in a certain model
         Parameters:
             model: The model containing layer_name
             layer_name: The Layer to be visualized: Has to be a part of model
             step: step size for gradient ascent
             epochs: Number of iterations for gradient ascent
+            upscaling_steps: Number of upscaling steps. Starting image is in this case (80, 80)
+            upscaling_factor: Factor to which to slowly upgrade the image towards output_dim.
             output_dim: [img_width, img_height] The output image dimensions.
     """
-
 
     def _normalize(x: Layer) -> Layer:
         """ utility function to normalize a tensor
@@ -41,7 +45,6 @@ def visualize_layer(model: Model,
         """
         return x / (K.sqrt(K.mean(K.square(x))) + K.epsilon())
 
-
     def _deprocess_image(x: np.ndarray) -> np.ndarray:
         """ util function to convert a float array into a valid uint8 image
             Parameters:
@@ -49,10 +52,10 @@ def visualize_layer(model: Model,
             Returns:
                 A processed numpy-array, which could be used in e.g. imshow
         """
-        # normalize tensor: center on 0., ensure std is 0.1
+        # normalize tensor: center on 0., ensure std is 0.25
         x -= x.mean()
         x /= (x.std() + K.epsilon())
-        x *= 0.1
+        x *= 0.25
 
         # clip to [0, 1]
         x += 0.5
@@ -65,6 +68,17 @@ def visualize_layer(model: Model,
         x = np.clip(x, 0, 255).astype('uint8')
         return x
 
+    def _process_image(x: np.ndarray, former: np.ndarray) -> np.ndarray:
+        """ util function to convert a valid uint8 image back into a float array
+            Parameters:
+                x: A numpy-array, which could be used in e.g. imshow
+                former: The former image: Need to determine the former mean and variance.
+            Returns:
+                A processed numpy-array representing the generated image
+        """
+        if K.image_data_format() == 'channels_first':
+            x = x.transpose((2, 0, 1))
+        return (x / 255 - 0.5) * 4 * former.std() + former.mean()
 
     def _generate_filter_image(input_img: Layer,
                                layer_output: Layer,
@@ -97,20 +111,33 @@ def visualize_layer(model: Model,
         iterate = K.function([input_img], [loss, grads])
 
         # we start from a gray image with some random noise
+        intermediate_dim = tuple(int(x / (upscaling_factor ** upscaling_steps)) for x in output_dim)
         if K.image_data_format() == 'channels_first':
             input_img_data = np.random.random((1, 3, output_dim[0], output_dim[1]))
         else:
             input_img_data = np.random.random((1, output_dim[0], output_dim[1], 3))
         input_img_data = (input_img_data - 0.5) * 20 + 128
 
-        # we run gradient ascent for 20 steps
-        for _ in range(epochs):
-            loss_value, grads_value = iterate([input_img_data])
-            input_img_data += grads_value * step
+        # Slowly upscaling towards the original size prevents a dominating high-frequency
+        # of the to visualized structure as it would occur if we directly compute the 412d-image
+        # Behaves as a better starting point for each following dimension
+        # and therefore avoids poor local minima
+        for up in reversed(range(upscaling_steps)):
+            # we run gradient ascent for e.g. 20 steps
+            for _ in range(epochs):
+                loss_value, grads_value = iterate([input_img_data])
+                input_img_data += grads_value * step
 
-            # some filters get stuck to 0, we can skip them
-            if loss_value <= K.epsilon():
-                return None
+                # some filters get stuck to 0, we can skip them
+                if loss_value <= K.epsilon():
+                    return None
+
+            # Calulate upscaled dimension
+            intermediate_dim = tuple(int(x / (upscaling_factor ** up)) for x in output_dim)
+            # Upscale
+            img = _deprocess_image(input_img_data[0])
+            img = np.array(pil_image.fromarray(img).resize(intermediate_dim, pil_image.BICUBIC))
+            input_img_data = [_process_image(img, input_img_data[0])]
 
         # decode the resulting input image
         img = _deprocess_image(input_img_data[0])
@@ -119,7 +146,6 @@ def visualize_layer(model: Model,
                                                                   loss_value,
                                                                   end_time - start_time))
         return img, loss_value
-
 
     def _draw_filters(filters: List[Tuple[np.ndarray, float]], n: Optional[int] = None) -> None:
         """ Draw the best filters in a nxn grid.
@@ -137,7 +163,7 @@ def visualize_layer(model: Model,
         filters = filters[:n * n]
 
         # build a black picture with enough space for
-        # our 8 x 8 filters of size 128 x 128, with a 5px margin in between
+        # e.g. our 8 x 8 filters of size 412 x 412, with a 5px margin in between
         margin = 5
         width = n * output_dim[0] + (n - 1) * margin
         height = n * output_dim[1] + (n - 1) * margin
@@ -178,8 +204,6 @@ def visualize_layer(model: Model,
     print('{} filter processed.'.format(len(processed_filters)))
     # Finally draw and store the best filters to disk
     _draw_filters(processed_filters)
-
-
 
 if __name__ == "__main__":
     # the name of the layer we want to visualize
