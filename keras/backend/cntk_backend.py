@@ -1293,10 +1293,10 @@ def permute_dimensions(x, pattern):
 
     if (num_dynamic_axis > 0 and
             pattern[:num_dynamic_axis] != current_layout[:num_dynamic_axis]):
-                raise ValueError('CNTK backend: the permute pattern %s '
-                                 'requested permute on dynamic axis, '
-                                 'which is not supported. Please do permute '
-                                 'on static axis.' % pattern)
+        raise ValueError('CNTK backend: the permute pattern %s '
+                         'requested permute on dynamic axis, '
+                         'which is not supported. Please do permute '
+                         'on static axis.' % pattern)
 
     axis = list(pattern)
     axis = axis[num_dynamic_axis:]
@@ -2116,8 +2116,8 @@ class Function(object):
         for tensor, value in zip(self.placeholders, inputs):
             # cntk only support calculate on float, do auto cast here
             if (hasattr(value, 'dtype') and
-               value.dtype != np.float32 and
-               value.dtype != np.float64):
+                value.dtype != np.float32 and
+                    value.dtype != np.float64):
                 value = value.astype(np.float32)
 
             if tensor == _LEARNING_PHASE_PLACEHOLDER:
@@ -2294,7 +2294,7 @@ def batch_get_value(xs):
     result = []
     for x in xs:
         if (isinstance(x, C.variables.Parameter) or
-           isinstance(x, C.variables.Constant)):
+                isinstance(x, C.variables.Constant)):
             result.append(x.value)
         else:
             result.append(eval(x))
@@ -2303,7 +2303,7 @@ def batch_get_value(xs):
 
 def set_value(x, value):
     if (isinstance(x, C.variables.Parameter) or
-       isinstance(x, C.variables.Constant)):
+            isinstance(x, C.variables.Constant)):
         if isinstance(value, (float, int)):
             value = np.full(x.shape, value, dtype=floatx())
         x.value = value
@@ -2730,7 +2730,10 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
 
 def reset_uids():
-    raise NotImplementedError
+    """Resets graph identifiers.
+    """
+    global _UID_PREFIXES
+    _UID_PREFIXES = defaultdict(int)
 
 
 def to_dense(tensor):
@@ -2738,19 +2741,67 @@ def to_dense(tensor):
 
 
 def update_sub(x, decrement):
-    raise NotImplementedError
+    """Update the value of `x` by subtracting `decrement`.
+
+    # Arguments
+        x: A `Variable`.
+        decrement: A tensor of same shape as `x`.
+
+    # Returns
+        The variable `x` updated.
+    """
+    return (x, x - decrement)
 
 
 def cumsum(x, axis=0):
-    raise NotImplementedError
+    """Cumulative sum of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the sum.
+
+    # Returns
+        A tensor of the cumulative sum of values of `x` along `axis`.
+    {{np_implementation}}
+    """
+    return np.cumsum(x, axis=axis)
 
 
 def cumprod(x, axis=0):
-    raise NotImplementedError
+    """Cumulative product of the values in a tensor, alongside the specified axis.
+
+    # Arguments
+        x: A tensor or variable.
+        axis: An integer, the axis to compute the product.
+
+    # Returns
+        A tensor of the cumulative product of values of `x` along `axis`.
+    {{np_implementation}}
+    """
+    return np.cumprod(x, axis=axis)
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
-    raise NotImplementedError
+    """Creates a 1D tensor containing a sequence of integers.
+
+    The function arguments use the same convention as
+    Theano's arange: if only one argument is provided,
+    it is in fact the "stop" argument and "start" is 0.
+
+    The default type of the returned tensor is `'int32'` to
+    match TensorFlow's default.
+
+    # Arguments
+        start: Start value.
+        stop: Stop value.
+        step: Difference between two successive values.
+        dtype: Integer dtype to use.
+
+    # Returns
+        An integer tensor.
+
+    """
+    return np.arange(start, stop, step, dtype)
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
