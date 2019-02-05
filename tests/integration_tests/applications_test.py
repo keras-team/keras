@@ -58,7 +58,8 @@ def _test_application_basic(app, last_dim=1000):
 def _test_application_notop(app, last_dim):
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False))
-    assert output_shape == (None, None, None, last_dim)
+    assert len(output_shape) == 4
+    assert output_shape[-1] == last_dim
 
 
 def test_mobilenet_v2_legacy_import():
