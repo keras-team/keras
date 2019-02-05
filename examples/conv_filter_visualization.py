@@ -59,7 +59,8 @@ def _process_image(x, former):
 
     # Arguments
         x: A numpy-array, which could be used in e.g. imshow.
-        former: The former numpy-array: Need to determine the former mean and variance.
+        former: The former numpy-array.
+                Need to determine the former mean and variance.
 
     # Returns
         A processed numpy-array representing the generated image.
@@ -80,11 +81,14 @@ def visualize_layer(model,
 
     # Arguments
         model: The model containing layer_name.
-        layer_name: The name of the layer to be visualized: Has to be a part of model.
+        layer_name: The name of the layer to be visualized.
+                    Has to be a part of model.
         step: step size for gradient ascent.
         epochs: Number of iterations for gradient ascent.
-        upscaling_steps: Number of upscaling steps. Starting image is in this case (80, 80).
-        upscaling_factor: Factor to which to slowly upgrade the image towards output_dim.
+        upscaling_steps: Number of upscaling steps.
+                         Starting image is in this case (80, 80).
+        upscaling_factor: Factor to which to slowly upgrade
+                          the image towards output_dim.
         output_dim: [img_width, img_height] The output image dimensions.
     '''
 
@@ -102,7 +106,7 @@ def visualize_layer(model,
             Either None if no image could be generated.
             or a tuple of the image (array) itself and the last loss.
         '''
-        start_time = time.time()
+        s_time = time.time()
 
         # we build a loss function that maximizes the activation
         # of the nth filter of the layer considered
@@ -121,15 +125,17 @@ def visualize_layer(model,
         iterate = K.function([input_img], [loss, grads])
 
         # we start from a gray image with some random noise
-        intermediate_dim = tuple(int(x / (upscaling_factor ** upscaling_steps)) for x in output_dim)
+        intermediate_dim = tuple(
+            int(x / (upscaling_factor ** upscaling_steps)) for x in output_dim)
         if K.image_data_format() == 'channels_first':
             input_img_data = np.random.random((1, 3, output_dim[0], output_dim[1]))
         else:
             input_img_data = np.random.random((1, output_dim[0], output_dim[1], 3))
         input_img_data = (input_img_data - 0.5) * 20 + 128
 
-        # Slowly upscaling towards the original size prevents a dominating high-frequency
-        # of the to visualized structure as it would occur if we directly compute the 412d-image
+        # Slowly upscaling towards the original size prevents
+        # a dominating high-frequency of the to visualized structure
+        # as it would occur if we directly compute the 412d-image.
         # Behaves as a better starting point for each following dimension
         # and therefore avoids poor local minima
         for up in reversed(range(upscaling_steps)):
@@ -143,18 +149,20 @@ def visualize_layer(model,
                     return None
 
             # Calulate upscaled dimension
-            intermediate_dim = tuple(int(x / (upscaling_factor ** up)) for x in output_dim)
+            intermediate_dim = tuple(
+                int(x / (upscaling_factor ** up)) for x in output_dim)
             # Upscale
             img = _deprocess_image(input_img_data[0])
-            img = np.array(pil_image.fromarray(img).resize(intermediate_dim, pil_image.BICUBIC))
+            img = np.array(pil_image.fromarray(img).resize(intermediate_dim,
+                                                           pil_image.BICUBIC))
             input_img_data = [_process_image(img, input_img_data[0])]
 
         # decode the resulting input image
         img = _deprocess_image(input_img_data[0])
-        end_time = time.time()
+        e_time = time.time()
         print('Costs of filter {:3}: {:5.0f} ( {:4.2f}s )'.format(filter_index,
                                                                   loss_value,
-                                                                  end_time - start_time))
+                                                                  e_time - s_time))
         return img, loss_value
 
     def _draw_filters(filters, n=None):
@@ -163,7 +171,8 @@ def visualize_layer(model,
         # Arguments
             filters: A List of generated images and their corresponding losses
                      for each processed filter.
-            n: dimension of the grid. If none, the largest possible square will be used
+            n: dimension of the grid.
+               If none, the largest possible square will be used
         '''
         if n is None:
             n = int(np.floor(np.sqrt(len(filters))))
@@ -207,7 +216,7 @@ def visualize_layer(model,
     processed_filters = []
     for f in range(len(output_layer.get_weights()[1])):
         img_loss = _generate_filter_image(input_img, output_layer.output, f)
-        
+
         if img_loss is not None:
             processed_filters.append(img_loss)
 
