@@ -128,9 +128,11 @@ def visualize_layer(model,
         intermediate_dim = tuple(
             int(x / (upscaling_factor ** upscaling_steps)) for x in output_dim)
         if K.image_data_format() == 'channels_first':
-            input_img_data = np.random.random((1, 3, output_dim[0], output_dim[1]))
+            input_img_data = np.random.random(
+                (1, 3, intermediate_dim[0], intermediate_dim[1]))
         else:
-            input_img_data = np.random.random((1, output_dim[0], output_dim[1], 3))
+            input_img_data = np.random.random(
+                (1, intermediate_dim[0], intermediate_dim[1], 3))
         input_img_data = (input_img_data - 0.5) * 20 + 128
 
         # Slowly upscaling towards the original size prevents
