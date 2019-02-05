@@ -110,45 +110,16 @@ class Model(Network):
         self._is_compiled = True
 
         # Prepare loss functions.
-        if isinstance(loss, dict):
-            for name in loss:
-                if name not in self.output_names:
-                    raise ValueError('Unknown entry in loss '
-                                     'dictionary: "' + name + '". '
-                                     'Only expected the following keys: ' +
-                                     str(self.output_names))
-            loss_functions = []
-            for name in self.output_names:
-                if name not in loss:
-                    warnings.warn('Output "' + name +
-                                  '" missing from loss dictionary. '
-                                  'We assume this was done on purpose, '
-                                  'and we will not be expecting '
-                                  'any data to be passed to "' + name +
-                                  '" during training.', stacklevel=2)
-                loss_functions.append(losses.get(loss.get(name)))
-        elif isinstance(loss, list):
-            if len(loss) != len(self.outputs):
-                raise ValueError('When passing a list as loss, '
-                                 'it should have one entry per model outputs. '
-                                 'The model has ' + str(len(self.outputs)) +
-                                 ' outputs, but you passed loss=' +
-                                 str(loss))
-            loss_functions = [losses.get(l) for l in loss]
-        else:
-            loss_function = losses.get(loss)
-            loss_functions = [loss_function for _ in range(len(self.outputs))]
-        self.loss_functions = loss_functions
-        weighted_losses = [
-            weighted_masked_objective(fn) for fn in loss_functions]
+        self.loss_functions = self._set_loss_functions(loss)
+        self.weighted_losses = [weighted_masked_objective(fn) for fn in self.loss_functions]
         skip_target_indices = []
         skip_target_weighing_indices = []
         self._feed_outputs = []
         self._feed_output_names = []
         self._feed_output_shapes = []
         self._feed_loss_fns = []
-        for i in range(len(weighted_losses)):
-            if weighted_losses[i] is None:
+        for i in range(len(self.weighted_losses)):
+            if self.weighted_losses[i] is None:
                 skip_target_indices.append(i)
                 skip_target_weighing_indices.append(i)
 
@@ -159,30 +130,7 @@ class Model(Network):
         masks = to_list(masks)
 
         # Prepare loss weights.
-        if loss_weights is None:
-            loss_weights_list = [1. for _ in range(len(self.outputs))]
-        elif isinstance(loss_weights, dict):
-            for name in loss_weights:
-                if name not in self.output_names:
-                    raise ValueError('Unknown entry in loss_weights '
-                                     'dictionary: "' + name + '". '
-                                     'Only expected the following keys: ' +
-                                     str(self.output_names))
-            loss_weights_list = []
-            for name in self.output_names:
-                loss_weights_list.append(loss_weights.get(name, 1.))
-        elif isinstance(loss_weights, list):
-            if len(loss_weights) != len(self.outputs):
-                raise ValueError('When passing a list as loss_weights, '
-                                 'it should have one entry per model output. '
-                                 'The model has ' + str(len(self.outputs)) +
-                                 ' outputs, but you passed loss_weights=' +
-                                 str(loss_weights))
-            loss_weights_list = loss_weights
-        else:
-            raise TypeError('Could not interpret loss_weights argument: ' +
-                            str(loss_weights) +
-                            ' - expected a list of dicts.')
+        self.loss_weights_list = self._set_loss_weights(loss_weights)
 
         # Prepare targets of model.
         self.targets = []
@@ -201,7 +149,7 @@ class Model(Network):
                     if name not in self.output_names:
                         raise ValueError('Unknown entry in `target_tensors` '
                                          'dictionary: "' + name + '". '
-                                         'Only expected the following keys: ' +
+                                                                  'Only expected the following keys: ' +
                                          str(self.output_names))
                 tmp_target_tensors = []
                 for name in self.output_names:
@@ -254,7 +202,7 @@ class Model(Network):
                     raise ValueError('Unknown entry in '
                                      'sample_weight_mode dictionary: "' +
                                      name + '". '
-                                     'Only expected the following keys: ' +
+                                            'Only expected the following keys: ' +
                                      str(self.output_names))
             for i, name in enumerate(self.output_names):
                 if i in skip_target_weighing_indices:
@@ -326,38 +274,7 @@ class Model(Network):
         self.metrics_tensors = []
 
         # Compute total loss.
-        total_loss = None
-        with K.name_scope('loss'):
-            for i in range(len(self.outputs)):
-                if i in skip_target_indices:
-                    continue
-                y_true = self.targets[i]
-                y_pred = self.outputs[i]
-                weighted_loss = weighted_losses[i]
-                sample_weight = sample_weights[i]
-                mask = masks[i]
-                loss_weight = loss_weights_list[i]
-                with K.name_scope(self.output_names[i] + '_loss'):
-                    output_loss = weighted_loss(y_true, y_pred,
-                                                sample_weight, mask)
-                if len(self.outputs) > 1:
-                    self.metrics_tensors.append(output_loss)
-                    self.metrics_names.append(self.output_names[i] + '_loss')
-                if total_loss is None:
-                    total_loss = loss_weight * output_loss
-                else:
-                    total_loss += loss_weight * output_loss
-            if total_loss is None:
-                if not self.losses:
-                    raise ValueError('The model cannot be compiled '
-                                     'because it has no loss to optimize.')
-                else:
-                    total_loss = 0.
-
-            # Add regularization penalties
-            # and other layer-specific losses.
-            for loss_tensor in self.losses:
-                total_loss += loss_tensor
+        self.total_loss = self._set_total_loss(skip_target_indices, masks)
 
         # List of same size as output_names.
         # contains tuples (metrics for output, names of metrics).
@@ -377,7 +294,7 @@ class Model(Network):
                     # (because of class mode duality)
                     output_shape = K.int_shape(self.outputs[i])
                     if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
+                            self.loss_functions[i] == losses.binary_crossentropy):
                         # case: binary accuracy/crossentropy
                         if metric in ('accuracy', 'acc'):
                             metric_fn = metrics_module.binary_accuracy
@@ -399,9 +316,9 @@ class Model(Network):
                         elif metric in ('crossentropy', 'ce'):
                             metric_fn = metrics_module.categorical_crossentropy
                     if metric in ('accuracy', 'acc'):
-                            suffix = 'acc'
+                        suffix = 'acc'
                     elif metric in ('crossentropy', 'ce'):
-                            suffix = 'ce'
+                        suffix = 'ce'
                     weighted_metric_fn = weighted_masked_objective(metric_fn)
                     metric_name = metric_name_prefix + suffix
                 else:
@@ -452,7 +369,6 @@ class Model(Network):
                 handle_metrics(output_weighted_metrics, weights=weights)
 
         # Prepare gradient updates and state updates.
-        self.total_loss = total_loss
         self.sample_weights = sample_weights
         self._feed_sample_weights = []
         for i in range(len(self.sample_weights)):
@@ -471,6 +387,101 @@ class Model(Network):
         # Collected trainable weights, sorted in topological order.
         trainable_weights = self.trainable_weights
         self._collected_trainable_weights = trainable_weights
+
+    def _set_loss_functions(self, loss):
+        """Prepare loss functions."""
+        if isinstance(loss, dict):
+            for name in loss:
+                if name not in self.output_names:
+                    raise ValueError('Unknown entry in loss '
+                                     'dictionary: "' + name + '". '
+                                                              'Only expected the following keys: ' +
+                                     str(self.output_names))
+            loss_functions = []
+            for name in self.output_names:
+                if name not in loss:
+                    warnings.warn('Output "' + name +
+                                  '" missing from loss dictionary. '
+                                  'We assume this was done on purpose, '
+                                  'and we will not be expecting '
+                                  'any data to be passed to "' + name +
+                                  '" during training.', stacklevel=2)
+                loss_functions.append(losses.get(loss.get(name)))
+        elif isinstance(loss, list):
+            if len(loss) != len(self.outputs):
+                raise ValueError('When passing a list as loss, '
+                                 'it should have one entry per model outputs. '
+                                 'The model has ' + str(len(self.outputs)) +
+                                 ' outputs, but you passed loss=' +
+                                 str(loss))
+            loss_functions = [losses.get(l) for l in loss]
+        else:
+            loss_function = losses.get(loss)
+            loss_functions = [loss_function for _ in range(len(self.outputs))]
+
+        return loss_functions
+
+    def _set_loss_weights(self, loss_weights):
+        """Prepare loss weights."""
+        if loss_weights is None:
+            loss_weights_list = [1. for _ in range(len(self.outputs))]
+        elif isinstance(loss_weights, dict):
+            for name in loss_weights:
+                if name not in self.output_names:
+                    raise ValueError('Unknown entry in loss_weights '
+                                     'dictionary: "' + name + '". '
+                                                              'Only expected the following keys: ' +
+                                     str(self.output_names))
+            loss_weights_list = []
+            for name in self.output_names:
+                loss_weights_list.append(loss_weights.get(name, 1.))
+        elif isinstance(loss_weights, list):
+            if len(loss_weights) != len(self.outputs):
+                raise ValueError('When passing a list as loss_weights, '
+                                 'it should have one entry per model output. '
+                                 'The model has ' + str(len(self.outputs)) +
+                                 ' outputs, but you passed loss_weights=' +
+                                 str(loss_weights))
+            loss_weights_list = loss_weights
+        else:
+            raise TypeError('Could not interpret loss_weights argument: ' +
+                            str(loss_weights) +
+                            ' - expected a list of dicts.')
+        return loss_weights_list
+
+    def _set_total_loss(self, skip_target_indices, masks):
+        with K.name_scope('loss'):
+            for i in range(len(self.outputs)):
+                if i in skip_target_indices:
+                    continue
+                y_true = self.targets[i]
+                y_pred = self.outputs[i]
+                weighted_loss = self.weighted_losses[i]
+                sample_weight = self.sample_weights[i]
+                mask = masks[i]
+                loss_weight = self.loss_weights_list[i]
+                with K.name_scope(self.output_names[i] + '_loss'):
+                    output_loss = weighted_loss(y_true, y_pred,
+                                                sample_weight, mask)
+                if len(self.outputs) > 1:
+                    self.metrics_tensors.append(output_loss)
+                    self.metrics_names.append(self.output_names[i] + '_loss')
+                if total_loss is None:
+                    total_loss = loss_weight * output_loss
+                else:
+                    total_loss += loss_weight * output_loss
+            if total_loss is None:
+                if not self.losses:
+                    raise ValueError('The model cannot be compiled '
+                                     'because it has no loss to optimize.')
+                else:
+                    total_loss = 0.
+
+            # Add regularization penalties
+            # and other layer-specific losses.
+            for loss_tensor in self.losses:
+                total_loss += loss_tensor
+        return total_loss
 
     def _check_trainable_weights_consistency(self):
         """Check trainable weights count consistency.
@@ -771,7 +782,7 @@ class Model(Network):
                         else:
                             feed_output_shapes.append(output_shape[:-1] + (1,))
                     elif (not hasattr(loss_fn, '__name__') or
-                            getattr(losses, loss_fn.__name__, None) is None):
+                          getattr(losses, loss_fn.__name__, None) is None):
                         # If `loss_fn` is not a function (e.g. callable class)
                         # or if it not in the `losses` module, then
                         # it is a user-defined loss and we make no assumptions
@@ -1180,7 +1191,7 @@ class Model(Network):
                                  'a number of samples that can be '
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples. '
-                                 'Batch size: ' + str(batch_size) + '.')
+                                                      'Batch size: ' + str(batch_size) + '.')
 
         # Prepare inputs, delegate logic to `predict_loop`.
         if self._uses_dynamic_learning_phase():
