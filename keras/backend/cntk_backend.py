@@ -1071,6 +1071,11 @@ def update_add(x, increment):
     return C.assign(x, result)
 
 
+def update_sub(x, decrement):
+    result = x - decrement
+    return C.assign(x, result)
+
+
 def gradients(loss, variables):
     # cntk does not support gradients as symbolic op,
     # to hook up with keras model
@@ -2734,10 +2739,6 @@ def reset_uids():
 
 
 def to_dense(tensor):
-    raise NotImplementedError
-
-
-def update_sub(x, decrement):
     raise NotImplementedError
 
 
