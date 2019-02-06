@@ -82,7 +82,7 @@ script:
     elif [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/test_documentation.py && cd docs && python autogen.py && mkdocs build;
     elif [[ "RUN_ONLY_BACKEND_TESTS" == "1" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/keras/backend/
+      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/keras/backend/;
     else
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
     fi
