@@ -369,8 +369,12 @@ def copy_examples(examples_dir, destination_dir):
             f_out.write('```')
 
 
-def generate():
-    sources_dir = os.path.join(keras_dir, 'docs', 'sources')
+def generate(sources_dir):
+    """Generates the markdown files for the documentation.
+
+    # Arguments
+        sources_dir: Where to put the markdown files.
+    """
     template_dir = os.path.join(keras_dir, 'docs', 'templates')
 
     if K.backend() != 'tensorflow':
@@ -464,4 +468,4 @@ def generate():
 
 
 if __name__ == '__main__':
-    generate()
+    generate(os.path.join(keras_dir, 'docs', 'sources'))
