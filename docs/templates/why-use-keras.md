@@ -51,7 +51,7 @@ Your Keras models can be developed with a range of different [deep learning back
 - The CNTK backend (from Microsoft)
 - The Theano backend
 
-Amazon is also currently working on developing a MXNet backend for Keras.
+Amazon also has [a fork of Keras which uses MXNet as backend](https://github.com/awslabs/keras-apache-mxnet).
 
 As such, your Keras model can be trained on a number of different hardware platforms beyond CPUs:
 
@@ -72,7 +72,7 @@ As such, your Keras model can be trained on a number of different hardware platf
 
 ## Keras development is backed by key companies in the deep learning ecosystem
 
-Keras development is backed primarily by Google, and the Keras API comes packaged in TensorFlow as `tf.keras`. Additionally, Microsoft maintains the CNTK Keras backend. Amazon AWS is developing MXNet support. Other contributing companies include NVIDIA, Uber, and Apple (with CoreML).
+Keras development is backed primarily by Google, and the Keras API comes packaged in TensorFlow as `tf.keras`. Additionally, Microsoft maintains the CNTK Keras backend. Amazon AWS is maintaining the Keras fork with MXNet support. Other contributing companies include NVIDIA, Uber, and Apple (with CoreML).
 
 <img src='/img/google-logo.png' style='width:200px; margin-right:15px;'/>
 <img src='/img/microsoft-logo.png' style='width:200px; margin-right:15px;'/>

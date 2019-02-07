@@ -170,7 +170,10 @@ def get_file(fname,
         Path to the downloaded file
     """  # noqa
     if cache_dir is None:
-        cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
+        if 'KERAS_HOME' in os.environ:
+            cache_dir = os.environ.get('KERAS_HOME')
+        else:
+            cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
@@ -216,7 +219,7 @@ def get_file(fname,
             else:
                 ProgressTracker.progbar.update(count * block_size)
 
-        error_msg = 'URL fetch failure on {}: {} -- {}'
+        error_msg = 'URL fetch failure on {} : {} -- {}'
         try:
             try:
                 urlretrieve(origin, fpath, dl_progress)
@@ -568,8 +571,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 for i in sequence:
                     if self.stop_signal.is_set():
                         return
-                    self.queue.put(
-                        executor.apply_async(get_index, (self.uid, i)), block=True)
+                    future = executor.apply_async(get_index, (self.uid, i))
+                    future.idx = i
+                    self.queue.put(future, block=True)
 
                 # Done with the current epoch, waiting for the final batches
                 self._wait_queue()
@@ -594,8 +598,17 @@ class OrderedEnqueuer(SequenceEnqueuer):
         """
         try:
             while self.is_running():
-                inputs = self.queue.get(block=True).get()
-                self.queue.task_done()
+                try:
+                    future = self.queue.get(block=True)
+                    inputs = future.get(timeout=30)
+                    self.queue.task_done()
+                except mp.TimeoutError:
+                    idx = future.idx
+                    warnings.warn(
+                        'The input {} could not be retrieved.'
+                        ' It could be because a worker has died.'.format(idx),
+                        UserWarning)
+                    inputs = self.sequence[idx]
                 if inputs is not None:
                     yield inputs
         except Exception:
@@ -637,7 +650,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        generator: a generator function which yields data
+        sequence: a sequence function which yields data
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers,
@@ -684,8 +697,17 @@ class GeneratorEnqueuer(SequenceEnqueuer):
         """
         try:
             while self.is_running():
-                inputs = self.queue.get(block=True).get()
-                self.queue.task_done()
+                try:
+                    future = self.queue.get(block=True)
+                    inputs = future.get(timeout=30)
+                    self.queue.task_done()
+                except mp.TimeoutError:
+                    warnings.warn(
+                        'An input could not be retrieved.'
+                        ' It could be because a worker has died.'
+                        'We do not have any information on the lost sample.',
+                        UserWarning)
+                    continue
                 if inputs is not None:
                     yield inputs
         except StopIteration:

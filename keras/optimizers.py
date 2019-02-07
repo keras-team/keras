@@ -291,7 +291,7 @@ class Adagrad(Optimizer):
     Adagrad is an optimizer with parameter-specific learning rates,
     which are adapted relative to how frequently a parameter gets
     updated during training. The more updates a parameter receives,
-    the smaller the updates.
+    the smaller the learning rate.
 
     It is recommended to leave the parameters of this optimizer
     at their default values.
@@ -532,7 +532,8 @@ class Adamax(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+        beta_1: floats, 0 < beta < 1. Generally close to 1.
+        beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
@@ -614,8 +615,10 @@ class Nadam(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        beta_1/beta_2: floats, 0 < beta < 1. Generally close to 1.
+        beta_1: floats, 0 < beta < 1. Generally close to 1.
+        beta_2: floats, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        schedule_decay: floats, 0 < schedule_decay < 1.
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
@@ -694,6 +697,9 @@ class Nadam(Optimizer):
 
 class TFOptimizer(Optimizer):
     """Wrapper class for native TensorFlow optimizers.
+
+    # Arguments
+        optimizer: Selected optimizer
     """
 
     def __init__(self, optimizer):
@@ -703,7 +709,7 @@ class TFOptimizer(Optimizer):
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
-        grads = self.optimizer.compute_gradients(loss, params)
+        grads = self.optimizer.compute_gradients(loss, var_list=params)
         self.updates = [K.update_add(self.iterations, 1)]
         opt_update = self.optimizer.apply_gradients(
             grads, global_step=self.iterations)

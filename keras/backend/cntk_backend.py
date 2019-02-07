@@ -1071,6 +1071,11 @@ def update_add(x, increment):
     return C.assign(x, result)
 
 
+def update_sub(x, decrement):
+    result = x - decrement
+    return C.assign(x, result)
+
+
 def gradients(loss, variables):
     # cntk does not support gradients as symbolic op,
     # to hook up with keras model
@@ -1490,6 +1495,12 @@ def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
         unroll=False, input_length=None):
 
+    if not unroll and mask is not None:
+        warnings.warn(
+            'CNTK Backend only supports accurate masking if '
+            '`output == new_states[0]` for '
+            '`output, new_states = step_function(inputs, states)`')
+
     shape = int_shape(inputs)
     dims = len(shape)
 
@@ -1714,6 +1725,12 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     if isinstance(dilation_rate, int):
         dilation_rate = (dilation_rate,)
 
+    if dilation_rate != (1,):
+        raise ValueError(
+            'Dilated separable 1D convolution is currently not supported '
+            'by CNTK backend. Please set `dilation_rate` to 1. '
+            'You passed: %s' % (dilation_rate,))
+
     if data_format == 'channels_last':
         spatial_start_dim = 2
     else:
@@ -1731,27 +1748,14 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     pointwise_kernel = _preprocess_conv2d_kernel(pointwise_kernel, data_format)
     padding = _preprocess_border_mode(padding)
 
-    if dilation_rate == (1, 1):
-        x = C.convolution(depthwise_kernel, x,
-                          strides=strides,
-                          auto_padding=[False, padding, padding],
-                          groups=x.shape[0])
-        x = C.convolution(pointwise_kernel, x,
-                          strides=(1, 1, 1),
-                          auto_padding=[False])
-    else:
-        if dilation_rate[0] != dilation_rate[1]:
-            raise ValueError('CNTK Backend: non-square dilation_rate is '
-                             'not supported.')
-        if strides != (1, 1):
-            raise ValueError('Invalid strides for dilated convolution')
-        x = C.convolution(depthwise_kernel, x,
-                          strides=strides,
-                          auto_padding=[False, padding, padding],
-                          groups=x.shape[0])
-        x = C.convolution(pointwise_kernel, x,
-                          strides=(1, 1, 1),
-                          auto_padding=[False])
+    x = C.convolution(depthwise_kernel, x,
+                      strides=strides,
+                      auto_padding=[False, padding, padding],
+                      groups=x.shape[0])
+    x = C.convolution(pointwise_kernel, x,
+                      strides=(1, 1, 1),
+                      auto_padding=[False])
+
     x = _postprocess_conv2d_output(x, data_format)
     return squeeze(x, spatial_start_dim)
 
@@ -2728,3 +2732,47 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         return root_gradients
+
+
+def reset_uids():
+    raise NotImplementedError
+
+
+def to_dense(tensor):
+    raise NotImplementedError
+
+
+def cumsum(x, axis=0):
+    raise NotImplementedError
+
+
+def cumprod(x, axis=0):
+    raise NotImplementedError
+
+
+def arange(start, stop=None, step=1, dtype='int32'):
+    raise NotImplementedError
+
+
+def ctc_label_dense_to_sparse(labels, label_lengths):
+    raise NotImplementedError
+
+
+def ctc_batch_cost(y_true, y_pred, input_length, label_length):
+    raise NotImplementedError
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    raise NotImplementedError
+
+
+def map_fn(fn, elems, name=None, dtype=None):
+    raise NotImplementedError
+
+
+def foldl(fn, elems, initializer=None, name=None):
+    raise NotImplementedError
+
+
+def foldr(fn, elems, initializer=None, name=None):
+    raise NotImplementedError

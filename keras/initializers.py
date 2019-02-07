@@ -124,7 +124,7 @@ class TruncatedNormal(Initializer):
 
     These values are similar to values from a `RandomNormal`
     except that values more than two standard deviations from the mean
-    are discarded and re-drawn. This is the recommended initializer for
+    are discarded and redrawn. This is the recommended initializer for
     neural network weights and filters.
 
     # Arguments
@@ -268,8 +268,8 @@ class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
     Only use for 2D matrices.
-    If the long side of the matrix is a multiple of the short side,
-    multiple identity matrices are concatenated along the long side.
+    If the desired matrix is not square, it pads with zeros on the
+    additional rows/columns
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
@@ -283,17 +283,7 @@ class Identity(Initializer):
             raise ValueError(
                 'Identity matrix initializer can only be used for 2D matrices.')
 
-        if max(shape) % min(shape) != 0:
-            raise ValueError('Long side should be multiple of short side.')
-
-        if shape[0] == shape[1]:
-            return self.gain * np.identity(shape[0])
-        elif shape[0] > shape[1]:
-            return self.gain * np.concatenate(
-                [np.identity(shape[1])] * (shape[0] // shape[1]), axis=0)
-        else:
-            return self.gain * np.concatenate(
-                [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+        return self.gain * np.eye(shape[0], shape[1])
 
     def get_config(self):
         return {

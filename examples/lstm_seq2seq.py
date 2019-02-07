@@ -17,7 +17,7 @@ models are more common in this domain.
 - A decoder LSTM is trained to turn the target sequences into
     the same sequence but offset by one timestep in the future,
     a training process called "teacher forcing" in this context.
-    Is uses as initial state the state vectors from the encoder.
+    It uses as initial state the state vectors from the encoder.
     Effectively, the decoder learns to generate `targets[t+1...]`
     given `targets[...t]`, conditioned on the input sequence.
 - In inference mode, when we want to decode unknown input sequences, we:

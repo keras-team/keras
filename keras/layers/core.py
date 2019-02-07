@@ -22,17 +22,15 @@ from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
 from ..utils.generic_utils import has_arg
-from ..utils import conv_utils
 from ..legacy import interfaces
 
 
 class Masking(Layer):
     """Masks a sequence by using a mask value to skip timesteps.
 
-    For each timestep in the input tensor (dimension #1 in the tensor),
-    if all values in the input tensor at that timestep
-    are equal to `mask_value`, then the timestep will be masked (skipped)
-    in all downstream layers (as long as they support masking).
+    If all features for a given sample timestep are equal to `mask_value`,
+    then the sample timestep will be masked (skipped) in all downstream layers
+    (as long as they support masking).
 
     If any downstream layer does not support masking yet receives such
     an input mask, an exception will be raised.
@@ -41,10 +39,10 @@ class Masking(Layer):
 
     Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
     to be fed to an LSTM layer.
-    You want to mask timestep #3 and #5 because you lack data for
-    these timesteps. You can:
+    You want to mask sample #0 at timestep #3, and sample #2 at timestep #5,
+    because you lack features for these sample timesteps. You can do:
 
-        - set `x[:, 3, :] = 0.` and `x[:, 5, :] = 0.`
+        - set `x[0, 3, :] = 0.` and `x[2, 5, :] = 0.`
         - insert a `Masking` layer with `mask_value=0.` before the LSTM layer:
 
     ```python
@@ -52,6 +50,9 @@ class Masking(Layer):
         model.add(Masking(mask_value=0., input_shape=(timesteps, features)))
         model.add(LSTM(32))
     ```
+
+    # Arguments
+        mask_value: Either None or mask value to skip
     """
 
     def __init__(self, mask_value=0., **kwargs):
@@ -627,6 +628,8 @@ class Lambda(Layer):
                  `output_shape = (None, ) + output_shape`
             If a function, it specifies the entire shape as a function of the
             input shape: `output_shape = f(input_shape)`
+        mask: Either None (indicating no masking) or a Tensor indicating the
+          input mask for Embedding.
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
@@ -645,6 +648,7 @@ class Lambda(Layer):
                  mask=None, arguments=None, **kwargs):
         super(Lambda, self).__init__(**kwargs)
         self.function = function
+        self._input_dtypes = None
         self.arguments = arguments if arguments else {}
         if mask is not None:
             self.supports_masking = True
@@ -665,10 +669,11 @@ class Lambda(Layer):
             # With TensorFlow or CNTK, we can infer the output shape directly:
             if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
-                    xs = [K.placeholder(shape=shape) for shape in input_shape]
+                    xs = [K.placeholder(shape=shape, dtype=dtype)
+                          for shape, dtype in zip(input_shape, self._input_dtypes)]
                     x = self.call(xs)
                 else:
-                    x = K.placeholder(shape=input_shape)
+                    x = K.placeholder(shape=input_shape, dtype=self._input_dtypes)
                     x = self.call(x)
                 if isinstance(x, list):
                     return [K.int_shape(x_elem) for x_elem in x]
@@ -704,6 +709,10 @@ class Lambda(Layer):
         arguments = self.arguments
         if has_arg(self.function, 'mask'):
             arguments['mask'] = mask
+        if isinstance(inputs, list):
+            self._input_dtypes = [K.dtype(x) for x in inputs]
+        else:
+            self._input_dtypes = K.dtype(inputs)
         return self.function(inputs, **arguments)
 
     def compute_mask(self, inputs, mask=None):

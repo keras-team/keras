@@ -293,7 +293,8 @@ class RNN(Layer):
     # Output shape
         - if `return_state`: a list of tensors. The first tensor is
             the output. The remaining tensors are the last states,
-            each with shape `(batch_size, units)`.
+            each with shape `(batch_size, units)`. For example, the number of
+            state tensors is 1 (for RNN and GRU) or 2 (for LSTM).
         - if `return_sequences`: 3D tensor with shape
             `(batch_size, timesteps, units)`.
         - else, 2D tensor with shape `(batch_size, units)`.
@@ -1266,6 +1267,14 @@ class GRUCell(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
+
+        if isinstance(self.recurrent_initializer, initializers.Identity):
+            def recurrent_identity(shape, gain=1.):
+                return gain * np.concatenate(
+                    [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+
+            self.recurrent_initializer = recurrent_identity
+
         self.kernel = self.add_weight(shape=(input_dim, self.units * 3),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
@@ -1861,6 +1870,14 @@ class LSTMCell(Layer):
 
     def build(self, input_shape):
         input_dim = input_shape[-1]
+
+        if type(self.recurrent_initializer).__name__ == 'Identity':
+            def recurrent_identity(shape, gain=1.):
+                return gain * np.concatenate(
+                    [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
+
+            self.recurrent_initializer = recurrent_identity
+
         self.kernel = self.add_weight(shape=(input_dim, self.units * 4),
                                       name='kernel',
                                       initializer=self.kernel_initializer,
@@ -2096,7 +2113,8 @@ class LSTM(RNN):
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
         return_state: Boolean. Whether to return the last state
-            in addition to the output.
+            in addition to the output. The returned elements of the
+            states list are the hidden state and the cell state, respectively.
         go_backwards: Boolean (default False).
             If True, process the input sequence backwards and return the
             reversed sequence.

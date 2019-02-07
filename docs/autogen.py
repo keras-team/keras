@@ -1,64 +1,4 @@
 # -*- coding: utf-8 -*-
-'''
-General documentation architecture:
-
-Home
-Index
-
-- Getting started
-    Getting started with the sequential model
-    Getting started with the functional api
-    FAQ
-
-- Models
-    About Keras models
-        explain when one should use Sequential or functional API
-        explain compilation step
-        explain weight saving, weight loading
-        explain serialization, deserialization
-    Sequential
-    Model (functional API)
-
-- Layers
-    About Keras layers
-        explain common layer functions: get_weights, set_weights, get_config
-        explain input_shape
-        explain usage on non-Keras tensors
-    Core Layers
-    Convolutional Layers
-    Pooling Layers
-    Locally-connected Layers
-    Recurrent Layers
-    Embedding Layers
-    Merge Layers
-    Advanced Activations Layers
-    Normalization Layers
-    Noise Layers
-    Layer Wrappers
-    Writing your own Keras layers
-
-- Preprocessing
-    Sequence Preprocessing
-    Text Preprocessing
-    Image Preprocessing
-
-Losses
-Metrics
-Optimizers
-Activations
-Callbacks
-Datasets
-Applications
-Backend
-Initializers
-Regularizers
-Constraints
-Visualization
-Scikit-learn API
-Utils
-Contributing
-
-'''
 from __future__ import print_function
 from __future__ import unicode_literals
 
@@ -66,289 +6,28 @@ import re
 import inspect
 import os
 import shutil
+import six
+
+try:
+    import pathlib
+except ImportError:
+    import pathlib2 as pathlib
 
 import keras
-from keras import utils
-from keras import layers
-from keras.layers import advanced_activations
-from keras.layers import noise
-from keras.layers import wrappers
-from keras import initializers
-from keras import optimizers
-from keras import callbacks
-from keras import models
-from keras import losses
-from keras import metrics
-from keras import backend
+from keras import backend as K
 from keras.backend import numpy_backend
-from keras import constraints
-from keras import activations
-from keras import preprocessing
+
+from docs.structure import EXCLUDE
+from docs.structure import PAGES
+from docs.structure import template_np_implementation
+from docs.structure import template_hidden_np_implementation
 
 import sys
 if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
 
-
-EXCLUDE = {
-    'Optimizer',
-    'TFOptimizer',
-    'Wrapper',
-    'get_session',
-    'set_session',
-    'CallbackList',
-    'serialize',
-    'deserialize',
-    'get',
-    'set_image_dim_ordering',
-    'normalize_data_format',
-    'image_dim_ordering',
-    'get_variable_shape',
-    'Constraint'
-}
-
-
-# For each class to document, it is possible to:
-# 1) Document only the class: [classA, classB, ...]
-# 2) Document all its methods: [classA, (classB, "*")]
-# 3) Choose which methods to document (methods listed as strings):
-# [classA, (classB, ["method1", "method2", ...]), ...]
-# 4) Choose which methods to document (methods listed as qualified names):
-# [classA, (classB, [module.classB.method1, module.classB.method2, ...]), ...]
-PAGES = [
-    {
-        'page': 'models/sequential.md',
-        'methods': [
-            models.Sequential.compile,
-            models.Sequential.fit,
-            models.Sequential.evaluate,
-            models.Sequential.predict,
-            models.Sequential.train_on_batch,
-            models.Sequential.test_on_batch,
-            models.Sequential.predict_on_batch,
-            models.Sequential.fit_generator,
-            models.Sequential.evaluate_generator,
-            models.Sequential.predict_generator,
-            models.Sequential.get_layer,
-        ],
-    },
-    {
-        'page': 'models/model.md',
-        'methods': [
-            models.Model.compile,
-            models.Model.fit,
-            models.Model.evaluate,
-            models.Model.predict,
-            models.Model.train_on_batch,
-            models.Model.test_on_batch,
-            models.Model.predict_on_batch,
-            models.Model.fit_generator,
-            models.Model.evaluate_generator,
-            models.Model.predict_generator,
-            models.Model.get_layer,
-        ]
-    },
-    {
-        'page': 'layers/core.md',
-        'classes': [
-            layers.Dense,
-            layers.Activation,
-            layers.Dropout,
-            layers.Flatten,
-            layers.Input,
-            layers.Reshape,
-            layers.Permute,
-            layers.RepeatVector,
-            layers.Lambda,
-            layers.ActivityRegularization,
-            layers.Masking,
-            layers.SpatialDropout1D,
-            layers.SpatialDropout2D,
-            layers.SpatialDropout3D,
-        ],
-    },
-    {
-        'page': 'layers/convolutional.md',
-        'classes': [
-            layers.Conv1D,
-            layers.Conv2D,
-            layers.SeparableConv1D,
-            layers.SeparableConv2D,
-            layers.Conv2DTranspose,
-            layers.Conv3D,
-            layers.Conv3DTranspose,
-            layers.Cropping1D,
-            layers.Cropping2D,
-            layers.Cropping3D,
-            layers.UpSampling1D,
-            layers.UpSampling2D,
-            layers.UpSampling3D,
-            layers.ZeroPadding1D,
-            layers.ZeroPadding2D,
-            layers.ZeroPadding3D,
-        ],
-    },
-    {
-        'page': 'layers/pooling.md',
-        'classes': [
-            layers.MaxPooling1D,
-            layers.MaxPooling2D,
-            layers.MaxPooling3D,
-            layers.AveragePooling1D,
-            layers.AveragePooling2D,
-            layers.AveragePooling3D,
-            layers.GlobalMaxPooling1D,
-            layers.GlobalAveragePooling1D,
-            layers.GlobalMaxPooling2D,
-            layers.GlobalAveragePooling2D,
-            layers.GlobalMaxPooling3D,
-            layers.GlobalAveragePooling3D,
-        ],
-    },
-    {
-        'page': 'layers/local.md',
-        'classes': [
-            layers.LocallyConnected1D,
-            layers.LocallyConnected2D,
-        ],
-    },
-    {
-        'page': 'layers/recurrent.md',
-        'classes': [
-            layers.RNN,
-            layers.SimpleRNN,
-            layers.GRU,
-            layers.LSTM,
-            layers.ConvLSTM2D,
-            layers.SimpleRNNCell,
-            layers.GRUCell,
-            layers.LSTMCell,
-            layers.CuDNNGRU,
-            layers.CuDNNLSTM,
-        ],
-    },
-    {
-        'page': 'layers/embeddings.md',
-        'classes': [
-            layers.Embedding,
-        ],
-    },
-    {
-        'page': 'layers/normalization.md',
-        'classes': [
-            layers.BatchNormalization,
-        ],
-    },
-    {
-        'page': 'layers/advanced-activations.md',
-        'all_module_classes': [advanced_activations],
-    },
-    {
-        'page': 'layers/noise.md',
-        'all_module_classes': [noise],
-    },
-    {
-        'page': 'layers/merge.md',
-        'classes': [
-            layers.Add,
-            layers.Subtract,
-            layers.Multiply,
-            layers.Average,
-            layers.Maximum,
-            layers.Concatenate,
-            layers.Dot,
-        ],
-        'functions': [
-            layers.add,
-            layers.subtract,
-            layers.multiply,
-            layers.average,
-            layers.maximum,
-            layers.concatenate,
-            layers.dot,
-        ]
-    },
-    {
-        'page': 'preprocessing/sequence.md',
-        'functions': [
-            preprocessing.sequence.pad_sequences,
-            preprocessing.sequence.skipgrams,
-            preprocessing.sequence.make_sampling_table,
-        ],
-        'classes': [
-            preprocessing.sequence.TimeseriesGenerator,
-        ]
-    },
-    {
-        'page': 'preprocessing/image.md',
-        'classes': [
-            (preprocessing.image.ImageDataGenerator, '*')
-        ]
-    },
-    {
-        'page': 'preprocessing/text.md',
-        'functions': [
-            preprocessing.text.hashing_trick,
-            preprocessing.text.one_hot,
-            preprocessing.text.text_to_word_sequence,
-        ],
-        'classes': [
-            preprocessing.text.Tokenizer,
-        ]
-    },
-    {
-        'page': 'layers/wrappers.md',
-        'all_module_classes': [wrappers],
-    },
-    {
-        'page': 'metrics.md',
-        'all_module_functions': [metrics],
-    },
-    {
-        'page': 'losses.md',
-        'all_module_functions': [losses],
-    },
-    {
-        'page': 'initializers.md',
-        'all_module_functions': [initializers],
-        'all_module_classes': [initializers],
-    },
-    {
-        'page': 'optimizers.md',
-        'all_module_classes': [optimizers],
-    },
-    {
-        'page': 'callbacks.md',
-        'all_module_classes': [callbacks],
-    },
-    {
-        'page': 'activations.md',
-        'all_module_functions': [activations],
-    },
-    {
-        'page': 'backend.md',
-        'all_module_functions': [backend],
-    },
-    {
-        'page': 'constraints.md',
-        'all_module_classes': [constraints],
-    },
-    {
-        'page': 'utils.md',
-        'functions': [utils.to_categorical,
-                      utils.normalize,
-                      utils.get_file,
-                      utils.print_summary,
-                      utils.plot_model,
-                      utils.multi_gpu_model],
-        'classes': [utils.CustomObjectScope,
-                    utils.HDF5Matrix,
-                    utils.Sequence],
-    },
-]
-
-ROOT = 'http://keras.io/'
+keras_dir = pathlib.Path(__file__).resolve().parents[1]
 
 
 def get_function_signature(function, method=True):
@@ -417,13 +96,6 @@ def clean_module_name(name):
     return name
 
 
-def class_to_docs_link(cls):
-    module_name = clean_module_name(cls.__module__)
-    module_name = module_name[6:]
-    link = ROOT + module_name.replace('.', '/') + '#' + cls.__name__.lower()
-    return link
-
-
 def class_to_source_link(cls):
     module_name = clean_module_name(cls.__module__)
     path = module_name.replace('.', '/')
@@ -436,7 +108,7 @@ def class_to_source_link(cls):
 
 def code_snippet(snippet):
     result = '```python\n'
-    result += snippet + '\n'
+    result += snippet.encode('unicode_escape').decode('utf8') + '\n'
     result += '```\n'
     return result
 
@@ -452,13 +124,15 @@ def count_leading_spaces(s):
 def process_list_block(docstring, starting_point, section_end,
                        leading_spaces, marker):
     ending_point = docstring.find('\n\n', starting_point)
-    block = docstring[starting_point:(None if ending_point == -1 else
-                                      ending_point - 1)]
+    block = docstring[starting_point:
+                      (ending_point - 1 if ending_point > -1
+                       else section_end)]
     # Place marker for later reinjection.
-    docstring_slice = docstring[starting_point:section_end].replace(block, marker)
-    docstring = (docstring[:starting_point]
-                 + docstring_slice
-                 + docstring[section_end:])
+    docstring_slice = docstring[
+        starting_point:section_end].replace(block, marker)
+    docstring = (docstring[:starting_point] +
+                 docstring_slice +
+                 docstring[section_end:])
     lines = block.split('\n')
     # Remove the computed number of leading white spaces from each line.
     lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
@@ -466,7 +140,8 @@ def process_list_block(docstring, starting_point, section_end,
     # These have to be removed, but first the list roots have to be detected.
     top_level_regex = r'^    ([^\s\\\(]+):(.*)'
     top_level_replacement = r'- __\1__:\2'
-    lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
+    lines = [re.sub(top_level_regex, top_level_replacement, line)
+             for line in lines]
     # All the other lines get simply the 4 leading space (if present) removed
     lines = [re.sub(r'^    ', '', line) for line in lines]
     # Fix text lines after lists
@@ -577,26 +252,6 @@ def process_docstring(docstring):
     return docstring
 
 
-template_np_implementation = """# Numpy implementation
-
-    ```python
-{{code}}
-    ```
-"""
-
-template_hidden_np_implementation = """# Numpy implementation
-
-    <details>
-    <summary>Show the Numpy implementation</summary>
-
-    ```python
-{{code}}
-    ```
-
-    </details>
-"""
-
-
 def add_np_implementation(function, docstring):
     np_implementation = getattr(numpy_backend, function.__name__)
     code = inspect.getsource(np_implementation)
@@ -612,22 +267,6 @@ def add_np_implementation(function, docstring):
     else:
         section = template_hidden_np_implementation.replace('{{code}}', code)
     return docstring.replace('{{np_implementation}}', section)
-
-
-print('Cleaning up existing sources directory.')
-if os.path.exists('sources'):
-    shutil.rmtree('sources')
-
-print('Populating sources directory with templates.')
-for subdir, dirs, fnames in os.walk('templates'):
-    for fname in fnames:
-        new_subdir = subdir.replace('templates', 'sources')
-        if not os.path.exists(new_subdir):
-            os.makedirs(new_subdir)
-        if fname[-3:] == '.md':
-            fpath = os.path.join(subdir, fname)
-            new_fpath = fpath.replace('templates', 'sources')
-            shutil.copy(fpath, new_fpath)
 
 
 def read_file(path):
@@ -683,11 +322,73 @@ def read_page_data(page_data, type):
     return data
 
 
-if __name__ == '__main__':
-    readme = read_file('../README.md')
-    index = read_file('templates/index.md')
+def get_module_docstring(filepath):
+    """Extract the module docstring.
+
+    Also finds the line at which the docstring ends.
+    """
+    co = compile(open(filepath).read(), filepath, 'exec')
+    if co.co_consts and isinstance(co.co_consts[0], six.string_types):
+        docstring = co.co_consts[0]
+    else:
+        print('Could not get the docstring from ' + filepath)
+        docstring = ''
+    return docstring, co.co_firstlineno
+
+
+def copy_examples(examples_dir, destination_dir):
+    """Copy the examples directory in the documentation.
+
+    Prettify files by extracting the docstrings written in Markdown.
+    """
+    pathlib.Path(destination_dir).mkdir(exist_ok=True)
+    for file in os.listdir(examples_dir):
+        if not file.endswith('.py'):
+            continue
+        module_path = os.path.join(examples_dir, file)
+        docstring, starting_line = get_module_docstring(module_path)
+        destination_file = os.path.join(destination_dir, file[:-2] + 'md')
+        with open(destination_file, 'w+') as f_out, \
+                open(os.path.join(examples_dir, file), 'r+') as f_in:
+
+            f_out.write(docstring + '\n\n')
+
+            # skip docstring
+            for _ in range(starting_line):
+                next(f_in)
+
+            f_out.write('```python\n')
+            # next line might be empty.
+            line = next(f_in)
+            if line != '\n':
+                f_out.write(line)
+
+            # copy the rest of the file.
+            for line in f_in:
+                f_out.write(line)
+            f_out.write('```')
+
+
+def generate():
+    sources_dir = os.path.join(keras_dir, 'docs', 'sources')
+    template_dir = os.path.join(keras_dir, 'docs', 'templates')
+
+    if K.backend() != 'tensorflow':
+        raise RuntimeError('The documentation must be built '
+                           'with the TensorFlow backend because this '
+                           'is the only backend with docstrings.')
+
+    print('Cleaning up existing sources directory.')
+    if os.path.exists(sources_dir):
+        shutil.rmtree(sources_dir)
+
+    print('Populating sources directory with templates.')
+    shutil.copytree(template_dir, sources_dir)
+
+    readme = read_file(os.path.join(keras_dir, 'README.md'))
+    index = read_file(os.path.join(template_dir, 'index.md'))
     index = index.replace('{{autogenerated}}', readme[readme.find('##'):])
-    with open('sources/index.md', 'w') as f:
+    with open(os.path.join(sources_dir, 'index.md'), 'w') as f:
         f.write(index)
 
     print('Generating docs for Keras %s.' % keras.__version__)
@@ -716,7 +417,8 @@ if __name__ == '__main__':
                 subblocks.append('\n---')
                 subblocks.append('## ' + cls.__name__ + ' methods\n')
                 subblocks.append('\n---\n'.join(
-                    [render_function(method, method=True) for method in methods]))
+                    [render_function(method, method=True)
+                     for method in methods]))
             blocks.append('\n'.join(subblocks))
 
         methods = read_page_data(page_data, 'methods')
@@ -734,16 +436,17 @@ if __name__ == '__main__':
                                page_data['page'])
 
         mkdown = '\n----\n\n'.join(blocks)
-        # save module page.
+        # Save module page.
         # Either insert content into existing page,
-        # or create page otherwise
+        # or create page otherwise.
         page_name = page_data['page']
-        path = os.path.join('sources', page_name)
+        path = os.path.join(sources_dir, page_name)
         if os.path.exists(path):
             template = read_file(path)
-            assert '{{autogenerated}}' in template, ('Template found for ' + path +
-                                                     ' but missing {{autogenerated}}'
-                                                     ' tag.')
+            if '{{autogenerated}}' not in template:
+                raise RuntimeError('Template found for ' + path +
+                                   ' but missing {{autogenerated}}'
+                                   ' tag.')
             mkdown = template.replace('{{autogenerated}}', mkdown)
             print('...inserting autogenerated content into template:', path)
         else:
@@ -754,4 +457,11 @@ if __name__ == '__main__':
         with open(path, 'w') as f:
             f.write(mkdown)
 
-    shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')
+    shutil.copyfile(os.path.join(keras_dir, 'CONTRIBUTING.md'),
+                    os.path.join(sources_dir, 'contributing.md'))
+    copy_examples(os.path.join(keras_dir, 'examples'),
+                  os.path.join(sources_dir, 'examples'))
+
+
+if __name__ == '__main__':
+    generate()
