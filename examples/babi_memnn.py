@@ -11,7 +11,8 @@ References:
   "End-To-End Memory Networks",
   <http://arxiv.org/abs/1503.08895>
 
-Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs. Time per epoch: 3s on CPU (core i7).
+Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
+Time per epoch: 3s on CPU (core i7).
 '''
 from __future__ import print_function
 
