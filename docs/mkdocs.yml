@@ -71,3 +71,4 @@ nav:
   - Addition RNN: examples/addition_rnn.md
   - Baby RNN: examples/babi_rnn.md
   - Baby MemNN: examples/babi_memnn.md
+  - CIFAR-10 CNN: examples/cifar10_cnn.md
