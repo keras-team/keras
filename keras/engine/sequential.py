@@ -26,6 +26,7 @@ class Sequential(Model):
 
     # Arguments
         layers: list of layers to add to the model.
+        name: Name given to the model
 
     # Example
 

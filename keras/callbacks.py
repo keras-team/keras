@@ -648,6 +648,9 @@ class ModelCheckpoint(Callback):
         save_best_only: if `save_best_only=True`,
             the latest best model according to
             the quantity monitored will not be overwritten.
+        save_weights_only: if True, then only the model's weights will be
+            saved (`model.save_weights(filepath)`), else the full model
+            is saved (`model.save(filepath)`).
         mode: one of {auto, min, max}.
             If `save_best_only=True`, the decision
             to overwrite the current save file is made
@@ -656,9 +659,6 @@ class ModelCheckpoint(Callback):
             this should be `max`, for `val_loss` this should
             be `min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
-        save_weights_only: if True, then only the model's weights will be
-            saved (`model.save_weights(filepath)`), else the full model
-            is saved (`model.save(filepath)`).
         period: Interval (number of epochs) between checkpoints.
     """
 
@@ -967,13 +967,13 @@ class TensorBoard(Callback):
             and weight histograms for the layers of the model. If set to 0,
             histograms won't be computed. Validation data (or split) must be
             specified for histogram visualizations.
+        batch_size: size of batch of inputs to feed to the network
+            for histograms computation.
         write_graph: whether to visualize the graph in TensorBoard.
             The log file can become quite large when
             write_graph is set to True.
         write_grads: whether to visualize gradient histograms in TensorBoard.
             `histogram_freq` must be greater than 0.
-        batch_size: size of batch of inputs to feed to the network
-            for histograms computation.
         write_images: whether to write model weights to visualize as
             image in TensorBoard.
         embeddings_freq: frequency (in epochs) at which selected embedding
