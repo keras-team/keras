@@ -70,3 +70,4 @@ nav:
 - Examples:
   - Addition RNN: examples/addition_rnn.md
   - Baby RNN: examples/babi_rnn.md
+  - Baby MemNN: examples/babi_memnn.md
