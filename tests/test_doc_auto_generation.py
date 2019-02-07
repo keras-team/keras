@@ -1,3 +1,4 @@
+import os
 from markdown import markdown
 from docs import autogen
 import pytest
@@ -384,6 +385,14 @@ def test_doc_multiple_sections_code():
     generated = autogen.process_docstring(dummy_docstring)
     assert '# Theano-like behavior example' in generated
     assert 'def dot(x, y):' in generated
+
+
+def test_docs_in_custom_destination_dir(tmpdir):
+    autogen.generate(tmpdir)
+    assert os.path.isdir(os.path.join(tmpdir, 'layers'))
+    assert os.path.isdir(os.path.join(tmpdir, 'models'))
+    assert os.path.isdir(os.path.join(tmpdir, 'examples'))
+    assert os.listdir(os.path.join(tmpdir, 'examples'))
 
 
 if __name__ == '__main__':
