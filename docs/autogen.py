@@ -336,19 +336,20 @@ def get_module_docstring(filepath):
     return docstring, co.co_firstlineno
 
 
-def copy_examples():
+def copy_examples(examples_dir, destination_dir):
     """Copy the examples directory in the documentation.
 
     Prettify files by extracting the docstrings written in Markdown.
     """
-    pathlib.Path('sources/examples').mkdir(exist_ok=True)
-    for file in os.listdir('../examples'):
+    pathlib.Path(destination_dir).mkdir(exist_ok=True)
+    for file in os.listdir(examples_dir):
         if not file.endswith('.py'):
             continue
-        docstring, starting_line = get_module_docstring('../examples/' + file)
-        destination_file = 'sources/examples/' + file[:-2] + 'md'
+        module_path = os.path.join(examples_dir, file)
+        docstring, starting_line = get_module_docstring(module_path)
+        destination_file = os.path.join(destination_dir, file[:-2] + 'md')
         with open(destination_file, 'w+') as f_out, \
-                open('../examples/' + file, 'r+') as f_in:
+                open(os.path.join(examples_dir, file), 'r+') as f_in:
 
             f_out.write(docstring + '\n\n')
 
@@ -458,7 +459,8 @@ def generate():
 
     shutil.copyfile(os.path.join(keras_dir, 'CONTRIBUTING.md'),
                     os.path.join(sources_dir, 'contributing.md'))
-    copy_examples()
+    copy_examples(os.path.join(keras_dir, 'examples'),
+                  os.path.join(sources_dir, 'examples'))
 
 
 if __name__ == '__main__':
