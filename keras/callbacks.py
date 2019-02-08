@@ -994,9 +994,9 @@ class TensorBoard(Callback):
             https://www.tensorflow.org/guide/embedding).
         update_freq: `'batch'` or `'epoch'` or integer. When using `'batch'`, writes
             the losses and metrics to TensorBoard after each batch. The same
-            applies for `'epoch'`. If using an integer, let's say `10000`,
+            applies for `'epoch'`. If using an integer, let's say `100`,
             the callback will write the metrics and losses to TensorBoard every
-            10000 samples. Note that writing too frequently to TensorBoard
+            100 batches. Note that writing too frequently to TensorBoard
             can slow down your training.
     """
 
