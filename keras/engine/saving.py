@@ -531,9 +531,10 @@ def load_model(filepath, custom_objects=None, compile=True):
         raise ImportError('`load_model` requires h5py.')
     model = None
     opened_new_file = not isinstance(filepath, h5py.Group)
-    h5dict = H5Dict(filepath, 'r')
+    h5dict = H5Dict(filepath, 'a')
     try:
-        model = _deserialize_model(h5dict, custom_objects, compile)
+        model = _deserialize_model(h5dict, custom_objects, compile) 
+    except AttributeError: pass
     finally:
         if opened_new_file:
             h5dict.close()
