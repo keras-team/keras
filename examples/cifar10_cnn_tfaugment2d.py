@@ -1,34 +1,36 @@
-'''Train a simple deep CNN on the CIFAR10 small images dataset.
+'''
+#Train a simple deep CNN on the CIFAR10 small images dataset using augmentation.
 
-Using Tensorflow internal augmentation APIs by replacing ImageGenerator with
+Using TensorFlow internal augmentation APIs by replacing ImageGenerator with
 an embedded AugmentLayer using LambdaLayer, which is faster on GPU.
 
-# Benchmark of `ImageGenerator` vs `AugmentLayer` both using augmentation 2D:
+** Benchmark of `ImageGenerator`(IG) vs `AugmentLayer`(AL) both using augmentation
+2D:**
+
 (backend = Tensorflow-GPU, Nvidia Tesla P100-SXM2)
 
+Epoch no. | IG %Accuracy   | IG Performance | AL %Accuracy  | AL Performance
+---------:|---------------:|---------------:|--------------:|--------------:
+1         | 44.84          | 15 ms/step     | 45.54         | 358 us/step
+2         | 52.34          |  8 ms/step     | 50.55         | 285 us/step
+8         | 65.45          |  8 ms/step     | 65.59         | 281 us/step
+25        | 76.74          |  8 ms/step     | 76.17         | 280 us/step
+100       | 78.81          |  8 ms/step     | 78.70         | 285 us/step
+
 Settings: horizontal_flip = True
-----------------------------------------------------------------------------
-Epoch     | ImageGenerator | ImageGenerator | AugmentLayer  | Augment Layer
-Number    | %Accuracy      | Performance    | %Accuracy     | Performance
-----------------------------------------------------------------------------
-1         | 44.84          | 15ms/step      | 45.54         | 358us/step
-2         | 52.34          |  8ms/step      | 50.55         | 285us/step
-8         | 65.45          |  8ms/step      | 65.59         | 281us/step
-25        | 76.74          |  8ms/step      | 76.17         | 280us/step
-100       | 78.81          |  8ms/step      | 78.70         | 285us/step
----------------------------------------------------------------------------
+
+
+Epoch no. | IG %Accuracy   | IG Performance | AL %Accuracy  | AL Performance
+---------:|---------------:|---------------:|--------------:|--------------:
+1         | 43.46          | 15 ms/step     | 42.21         | 334 us/step
+2         | 48.95          | 11 ms/step     | 48.06         | 282 us/step
+8         | 63.59          | 11 ms/step     | 61.35         | 290 us/step
+25        | 72.25          | 12 ms/step     | 71.08         | 287 us/step
+100       | 76.35          | 11 ms/step     | 74.62         | 286 us/step
 
 Settings: rotation = 30.0
-----------------------------------------------------------------------------
-Epoch     | ImageGenerator | ImageGenerator | AugmentLayer  | Augment Layer
-Number    | %Accuracy      | Performance    | %Accuracy     | Performance
-----------------------------------------------------------------------------
-1         | 43.46          | 15ms/step      | 42.21         | 334us/step
-2         | 48.95          | 11ms/step      | 48.06         | 282us/step
-8         | 63.59          | 11ms/step      | 61.35         | 290us/step
-25        | 72.25          | 12ms/step      | 71.08         | 287us/step
-100       | 76.35          | 11ms/step      | 74.62         | 286us/step
----------------------------------------------------------------------------
+
+
 (Corner process and rotation precision by `ImageGenerator` and `AugmentLayer`
 are slightly different.)
 '''
