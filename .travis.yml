@@ -15,11 +15,11 @@ matrix:
         - python: 3.6
           env: KERAS_BACKEND=tensorflow
         - python: 2.7
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
+          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service" RUN_ONLY_BACKEND_TESTS=1
         - python: 3.6
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
         - python: 2.7
-          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore RUN_ONLY_BACKEND_TESTS=1
         - python: 3.6
           env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
 install:
@@ -81,6 +81,8 @@ script:
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/test_documentation.py tests/test_doc_auto_generation.py;
+    elif [[ "$RUN_ONLY_BACKEND_TESTS" == "1" ]]; then
+      PYTHONPATH=$PWD:$PYTHONPATH py.test  tests/keras/backend/;
     else
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/test_documentation.py --ignore=tests/test_doc_auto_generation.py --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
     fi
