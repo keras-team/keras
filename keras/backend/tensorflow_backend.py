@@ -4502,7 +4502,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1):
+               top_paths=1, merge_repeated=False):
     """Decodes the output of a softmax.
 
     Can use either greedy search (also known as best path)
@@ -4519,6 +4519,8 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             with a beam of this width.
         top_paths: if `greedy` is `false`,
             how many of the most probable paths will be returned.
+        merge_repeated: if `greedy` is `false`,
+            merge repeated classes in the output beams.
 
     # Returns
         Tuple:
@@ -4541,7 +4543,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
         (decoded, log_prob) = ctc.ctc_beam_search_decoder(
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths, merge_repeated=False)
+            top_paths=top_paths, merge_repeated=merge_repeated)
 
     decoded_dense = []
     for st in decoded:
