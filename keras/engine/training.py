@@ -1567,9 +1567,14 @@ class Model(Network):
             workers=workers,
             use_multiprocessing=use_multiprocessing,
             verbose=verbose)
-    
+
     def display(self, file=None, show_layer_names=True, show_shapes=True):
-        if file == None:
-            plot_model(model, show_shapes=show_shapes, show_layer_names=show_layer_names)
+        if file is None:
+            plot_model(model,
+                       show_shapes=show_shapes,
+                       show_layer_names=show_layer_names)
         else:
-            plot_model(model, to_file=file, show_shapes=show_shapes, show_layer_names=show_layer_names)
+            plot_model(model,
+                       to_file=file,
+                       show_shapes=show_shapes,
+                       show_layer_names=show_layer_names)
