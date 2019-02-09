@@ -4547,10 +4547,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
 
     decoded_dense = []
     for st in decoded:
-        dense_tensor = tf.sparse_to_dense(st.indices,
-                                          st.dense_shape,
-                                          st.values,
-                                          default_value=-1)
+        dense_tensor = tf.sparse.to_dense(st, default_value=-1)
         decoded_dense.append(dense_tensor)
     return (decoded_dense, log_prob)
 
