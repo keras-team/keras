@@ -7,11 +7,6 @@ from __future__ import print_function
 import warnings
 import copy
 import numpy as np
-from keras.layers import Input
-from keras.models import Sequential
-from keras.models import Model
-from graphviz import Source
-import os
 from .network import Network
 from .base_layer import Layer
 from .training_utils import collect_metrics
