@@ -170,6 +170,8 @@ def plot_model(model,
             'LR' creates a horizontal plot.
         expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
+        show: Whether to display the model in the notebook or not (boolean)
+        save: Whether to save the model in the specified file or not (boolean)
 
     # Returns:
         A Jupyter notebook Image object if Jupyter is installed.
