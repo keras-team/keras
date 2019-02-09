@@ -5,6 +5,11 @@ from __future__ import print_function
 
 import os
 
+from keras.layers import Input
+from keras.models import Sequential
+from keras.models import Model
+from graphviz import Source
+
 # `pydot` is an optional dependency,
 # see `extras_require` in `setup.py`.
 try:
@@ -154,7 +159,8 @@ def plot_model(model,
                show_layer_names=True,
                rankdir='TB',
                expand_nested=False,
-               dpi=96):
+               dpi=96,
+               show=True):
     """Converts a Keras model to dot format and save to a file.
 
     # Arguments
@@ -177,3 +183,19 @@ def plot_model(model,
     else:
         extension = extension[1:]
     dot.write(to_file, format=extension)
+    
+    if show:
+        if type(model) is Sequential:
+            input_layer = Input(batch_shape=model.layers[0].input_shape)
+            prev_layer = input_layer
+            for layer in model.layers:
+                prev_layer = layer(prev_layer)
+            new_model = Model([input_layer], [prev_layer])
+ 
+        else:
+            new_model = model
+
+        Source(dot, to_file).render(view=False)
+        graph = Source.from_file(to_file)
+
+        os.remove(to_file + '.pdf')
