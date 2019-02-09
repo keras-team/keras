@@ -186,7 +186,7 @@ def plot_model(model,
     dot.write(to_file, format=extension)
 
     if show:
-      # Return the image as a Jupyter Image object, to be displayed in-line.
+        # Return the image as a Jupyter Image object, to be displayed in-line.
         try:
             from IPython import display
             return display.Image(filename=to_file)
