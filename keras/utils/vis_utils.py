@@ -155,7 +155,8 @@ def plot_model(model,
                rankdir='TB',
                expand_nested=False,
                dpi=96,
-               show=True):
+               show=True,
+               save=True):
     """Converts a Keras model to dot format and save to a file.
 
     # Arguments
@@ -181,6 +182,7 @@ def plot_model(model,
         extension = 'png'
     else:
         extension = extension[1:]
+
     dot.write(to_file, format=extension)
 
     if show:
@@ -190,3 +192,6 @@ def plot_model(model,
             return display.Image(filename=to_file)
         except ImportError:
             pass
+
+    if not save:
+        os.remove(to_file)
