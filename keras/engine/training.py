@@ -7,7 +7,11 @@ from __future__ import print_function
 import warnings
 import copy
 import numpy as np
-
+from keras.layers import Input
+from keras.models import Sequential
+from keras.models import Model
+from graphviz import Source
+import os
 from .network import Network
 from .base_layer import Layer
 from .training_utils import collect_metrics
@@ -27,7 +31,7 @@ from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
-from ..utils.vis_utils import plot_model
+from ..utils.vis_utils import model_to_dot
 from ..legacy import interfaces
 
 
@@ -1567,14 +1571,3 @@ class Model(Network):
             workers=workers,
             use_multiprocessing=use_multiprocessing,
             verbose=verbose)
-
-    def display(self, file=None, show_layer_names=True, show_shapes=True):
-        if file is None:
-            plot_model(model,
-                       show_shapes=show_shapes,
-                       show_layer_names=show_layer_names)
-        else:
-            plot_model(model,
-                       to_file=file,
-                       show_shapes=show_shapes,
-                       show_layer_names=show_layer_names)
