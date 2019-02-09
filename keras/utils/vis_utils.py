@@ -5,11 +5,6 @@ from __future__ import print_function
 
 import os
 
-from keras.layers import Input
-from keras.models import Sequential
-from keras.models import Model
-from graphviz import Source
-
 # `pydot` is an optional dependency,
 # see `extras_require` in `setup.py`.
 try:
