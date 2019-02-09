@@ -342,7 +342,7 @@ def test_clone_functional_model():
 def test_clone_functional_model_with_multi_outputs():
     input_layer = keras.Input(shape=(4,))
 
-    # Layer with single input and multiply outputs
+    # Layer with single input and multiple outputs
     layer1 = keras.layers.Lambda(lambda x: [x + 1, x],
                                  lambda shapes: [shapes, shapes])
     x_a, x_b = layer1(input_layer)
@@ -354,7 +354,7 @@ def test_clone_functional_model_with_multi_outputs():
         def compute_output_shape(self, input_shape):
             return [input_shape[1], input_shape[0]]
 
-    # Layer with multiply inputs and outputs
+    # Layer with multiple inputs and outputs
     x_a, x_b = SwapLayer()([x_a, x_b])
     model = keras.Model(inputs=[input_layer], outputs=[x_a, x_b])
     new_model = keras.models.clone_model(model)
