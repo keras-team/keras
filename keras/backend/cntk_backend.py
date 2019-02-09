@@ -1071,6 +1071,11 @@ def update_add(x, increment):
     return C.assign(x, result)
 
 
+def update_sub(x, decrement):
+    result = x - decrement
+    return C.assign(x, result)
+
+
 def gradients(loss, variables):
     # cntk does not support gradients as symbolic op,
     # to hook up with keras model
@@ -2727,3 +2732,47 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
     def backward(self, state, root_gradients):
         return root_gradients
+
+
+def reset_uids():
+    raise NotImplementedError
+
+
+def to_dense(tensor):
+    raise NotImplementedError
+
+
+def cumsum(x, axis=0):
+    raise NotImplementedError
+
+
+def cumprod(x, axis=0):
+    raise NotImplementedError
+
+
+def arange(start, stop=None, step=1, dtype='int32'):
+    raise NotImplementedError
+
+
+def ctc_label_dense_to_sparse(labels, label_lengths):
+    raise NotImplementedError
+
+
+def ctc_batch_cost(y_true, y_pred, input_length, label_length):
+    raise NotImplementedError
+
+
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+    raise NotImplementedError
+
+
+def map_fn(fn, elems, name=None, dtype=None):
+    raise NotImplementedError
+
+
+def foldl(fn, elems, initializer=None, name=None):
+    raise NotImplementedError
+
+
+def foldr(fn, elems, initializer=None, name=None):
+    raise NotImplementedError

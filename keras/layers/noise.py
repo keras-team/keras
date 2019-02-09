@@ -116,6 +116,8 @@ class AlphaDropout(Layer):
         rate: float, drop probability (as with `Dropout`).
             The multiplicative noise will have
             standard deviation `sqrt(rate / (1 - rate))`.
+        noise_shape: A 1-D `Tensor` of type `int32`, representing the
+            shape for randomly generated keep/drop flags.
         seed: A Python integer to use as random seed.
 
     # Input shape

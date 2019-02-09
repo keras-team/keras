@@ -47,6 +47,7 @@ class LocallyConnected1D(Layer):
             any `dilation_rate` value != 1.
         padding: Currently only supports `"valid"` (case-insensitive).
             `"same"` may be supported in the future.
+        data_format: String, one of `channels_first`, `channels_last`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied

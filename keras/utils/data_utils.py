@@ -650,7 +650,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        generator: a generator function which yields data
+        sequence: a sequence function which yields data
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers,

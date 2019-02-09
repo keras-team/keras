@@ -174,6 +174,10 @@ def plot_model(model,
             'LR' creates a horizontal plot.
         expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
+
+    # Returns:
+        A Jupyter notebook Image object if Jupyter is installed.
+        This enables in-line display of the model plots in notebooks.
     """
     dot = model_to_dot(model, show_shapes, show_layer_names, rankdir,
                        expand_nested, dpi)
@@ -183,19 +187,11 @@ def plot_model(model,
     else:
         extension = extension[1:]
     dot.write(to_file, format=extension)
-    
+
     if show:
-        if type(model) is Sequential:
-            input_layer = Input(batch_shape=model.layers[0].input_shape)
-            prev_layer = input_layer
-            for layer in model.layers:
-                prev_layer = layer(prev_layer)
-            new_model = Model([input_layer], [prev_layer])
- 
-        else:
-            new_model = model
-
-        Source(dot, to_file).render(view=False)
-        graph = Source.from_file(to_file)
-
-        os.remove(to_file + '.pdf')
+      # Return the image as a Jupyter Image object, to be displayed in-line.
+        try:
+            from IPython import display
+            return display.Image(filename=to_file)
+        except ImportError:
+            pass

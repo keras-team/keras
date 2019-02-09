@@ -124,7 +124,7 @@ class TruncatedNormal(Initializer):
 
     These values are similar to values from a `RandomNormal`
     except that values more than two standard deviations from the mean
-    are discarded and re-drawn. This is the recommended initializer for
+    are discarded and redrawn. This is the recommended initializer for
     neural network weights and filters.
 
     # Arguments
