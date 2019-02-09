@@ -73,3 +73,4 @@ nav:
   - Baby MemNN: examples/babi_memnn.md
   - CIFAR-10 CNN: examples/cifar10_cnn.md
   - CIFAR-10 CNN-Capsule: examples/cifar10_cnn_capsule.md
+  - CIFAR-10 CNN with augmentation (TF): examples/cifar10_cnn_tfaugment2d.md
