@@ -2,7 +2,7 @@
 
 It follows Hadsell-et-al.'06 [1] by computing the Euclidean distance on the
 output of the shared network and by optimizing the contrastive loss (see paper
-for mode details).
+for more details).
 
 # References
 
