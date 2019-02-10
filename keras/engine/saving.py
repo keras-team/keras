@@ -6,7 +6,6 @@ from __future__ import division
 
 import os
 import json
-
 import yaml
 import inspect
 import warnings

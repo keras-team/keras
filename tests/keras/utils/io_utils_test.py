@@ -240,11 +240,11 @@ def test_H5Dict_accepts_pathlib_Path():
 
 
 @contextmanager
-def temp_filename(filename):
+def temp_filename(suffix):
     """Context that returns a temporary filename and deletes the file on exit if
     it still exists (so that this is not forgotten).
     """
-    _, temp_fname = tempfile.mkstemp(filename)
+    _, temp_fname = tempfile.mkstemp(suffix=suffix)
     yield temp_fname
     if os.path.exists(temp_fname):
         os.remove(temp_fname)

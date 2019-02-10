@@ -167,13 +167,6 @@ def ask_to_proceed_with_overwrite(filepath):
     return True
 
 
-def _is_path_instance(path):
-    # We can't use isinstance here because it would require
-    # us to add pathlib2 to the Python 2 dependencies.
-    class_name = type(path).__name__
-    return class_name == 'PosixPath' or class_name == 'WindowsPath'
-
-
 class H5Dict(object):
     """ A dict-like wrapper around h5py groups (or dicts).
 
@@ -435,3 +428,10 @@ def save_to_binary_h5py(save_function, stream):
     stream.write(binary_data)
 
     return return_value
+
+
+def _is_path_instance(path):
+    # We can't use isinstance here because it would require
+    # us to add pathlib2 to the Python 2 dependencies.
+    class_name = type(path).__name__
+    return class_name == 'PosixPath' or class_name == 'WindowsPath'
