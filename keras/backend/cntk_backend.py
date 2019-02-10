@@ -2750,8 +2750,33 @@ def cumprod(x, axis=0):
     raise NotImplementedError
 
 
-def arange(start, stop=None, step=1, dtype='int32'):
-    raise NotImplementedError
+def arange(start, stop=None, step=1, dtype='float32'):
+    """Creates a 1D tensor containing a sequence of integers.
+    The function arguments use the same convention as
+    Theano's arange: if only one argument is provided,
+    it is in fact the "stop" argument and "start" is 0.
+    The default type of the returned tensor is `'float32'` to
+    match CNTK 's default.
+    # Arguments
+        start: Start value.
+        stop: Stop value.
+        step: Difference between two successive values.
+        dtype: Integer dtype to use.
+    # Returns
+        An integer tensor.
+    """
+    # Match the behavior of numpy and Theano by returning an empty sequence.
+    if stop is None:
+        try:
+            if start < 0:
+                start = 0
+        except TypeError:
+            # Handle case where start is a tensor
+            start = 0 if start.value < 0 else start.value
+
+    result = C.variables.Constant(np.arange(start, stop, step),
+                                  dtype=eval('np.' + dtype))
+    return result
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
