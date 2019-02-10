@@ -170,7 +170,10 @@ def get_file(fname,
         Path to the downloaded file
     """  # noqa
     if cache_dir is None:
-        cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
+        if 'KERAS_HOME' in os.environ:
+            cache_dir = os.environ.get('KERAS_HOME')
+        else:
+            cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
     if md5_hash is not None and file_hash is None:
         file_hash = md5_hash
         hash_algorithm = 'md5'
@@ -647,7 +650,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
     Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
     # Arguments
-        generator: a generator function which yields data
+        sequence: a sequence function which yields data
         use_multiprocessing: use multiprocessing if True, otherwise threading
         wait_time: time to sleep in-between calls to `put()`
         random_seed: Initial seed for workers,

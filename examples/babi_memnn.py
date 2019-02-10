@@ -1,14 +1,14 @@
-'''Trains a memory network on the bAbI dataset.
+'''
+#Trains a memory network on the bAbI dataset.
 
 References:
 
 - Jason Weston, Antoine Bordes, Sumit Chopra, Tomas Mikolov, Alexander M. Rush,
-  "Towards AI-Complete Question Answering: A Set of Prerequisite Toy Tasks",
-  http://arxiv.org/abs/1502.05698
+  ["Towards AI-Complete Question Answering:
+  A Set of Prerequisite Toy Tasks"](http://arxiv.org/abs/1502.05698)
 
 - Sainbayar Sukhbaatar, Arthur Szlam, Jason Weston, Rob Fergus,
-  "End-To-End Memory Networks",
-  http://arxiv.org/abs/1503.08895
+  ["End-To-End Memory Networks"](http://arxiv.org/abs/1503.08895)
 
 Reaches 98.6% accuracy on task 'single_supporting_fact_10k' after 120 epochs.
 Time per epoch: 3s on CPU (core i7).
@@ -34,7 +34,7 @@ def tokenize(sent):
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
-    return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
+    return [x.strip() for x in re.split(r'(\W+)?', sent) if x.strip()]
 
 
 def parse_stories(lines, only_supporting=False):

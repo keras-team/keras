@@ -1,3 +1,8 @@
+<!--
+Please make sure you've read and understood our contributing guidelines;
+https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md
+-->
+
 ### Summary
 
 ### Related Issues

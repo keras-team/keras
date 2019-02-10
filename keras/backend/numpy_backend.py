@@ -6,7 +6,7 @@ from __future__ import print_function
 import numpy as np
 import scipy.signal as signal
 import scipy as sp
-from keras.backend import floatx
+from .common import floatx
 from keras.utils.generic_utils import transpose_shape
 from keras.utils import to_categorical
 
@@ -277,7 +277,7 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
 def switch(condition, then_expression, else_expression):
     cond_float = condition.astype(floatx())
     while cond_float.ndim < then_expression.ndim:
-        cond_float = cond_float[..., None]
+        cond_float = cond_float[..., np.newaxis]
     return cond_float * then_expression + (1 - cond_float) * else_expression
 
 

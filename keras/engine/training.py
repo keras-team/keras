@@ -823,6 +823,12 @@ class Model(Network):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
+    def _get_callback_model(self):
+        """Returns the Callback Model for this Model."""
+        if hasattr(self, 'callback_model') and self.callback_model:
+            return self.callback_model
+        return self
+
     def fit(self,
             x=None,
             y=None,
@@ -838,6 +844,7 @@ class Model(Network):
             initial_epoch=0,
             steps_per_epoch=None,
             validation_steps=None,
+            validation_freq=1,
             **kwargs):
         """Trains the model for a given number of epochs (iterations on a dataset).
 
@@ -869,7 +876,8 @@ class Model(Network):
             verbose: Integer. 0, 1, or 2. Verbosity mode.
                 0 = silent, 1 = progress bar, 2 = one line per epoch.
             callbacks: List of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                List of callbacks to apply during training and validation
+                (if ).
                 See [callbacks](/callbacks).
             validation_split: Float between 0 and 1.
                 Fraction of the training data to be used as validation data.
@@ -919,6 +927,13 @@ class Model(Network):
             validation_steps: Only relevant if `steps_per_epoch`
                 is specified. Total number of steps (batches of samples)
                 to validate before stopping.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or list/tuple/set. If an integer, specifies how many training
+                epochs to run before a new validation run is performed, e.g.
+                `validation_freq=2` runs validation every 2 epochs. If a list,
+                tuple, or set, specifies the epochs on which to run validation,
+                e.g. `validation_freq=[1, 2, 10]` runs validation at the end
+                of the 1st, 2nd, and 10th epochs.
 
         # Returns
             A `History` object. Its `History.history` attribute is
@@ -1037,13 +1052,15 @@ class Model(Network):
                                         callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
                                         steps_per_epoch=steps_per_epoch,
-                                        validation_steps=validation_steps)
+                                        validation_steps=validation_steps,
+                                        validation_freq=validation_freq)
 
     def evaluate(self, x=None, y=None,
                  batch_size=None,
                  verbose=1,
                  sample_weight=None,
-                 steps=None):
+                 steps=None,
+                 callbacks=None):
         """Returns the loss value & metrics values for the model in test mode.
 
         Computation is done in batches.
@@ -1082,6 +1099,9 @@ class Model(Network):
                 Total number of steps (batches of samples)
                 before declaring the evaluation round finished.
                 Ignored with the default value of `None`.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during evaluation.
+                See [callbacks](/callbacks).
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1111,12 +1131,14 @@ class Model(Network):
         return training_arrays.test_loop(self, f, ins,
                                          batch_size=batch_size,
                                          verbose=verbose,
-                                         steps=steps)
+                                         steps=steps,
+                                         callbacks=callbacks)
 
     def predict(self, x,
                 batch_size=None,
                 verbose=0,
-                steps=None):
+                steps=None,
+                callbacks=None):
         """Generates output predictions for the input samples.
 
         Computation is done in batches.
@@ -1129,6 +1151,9 @@ class Model(Network):
             steps: Total number of steps (batches of samples)
                 before declaring the prediction round finished.
                 Ignored with the default value of `None`.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during prediction.
+                See [callbacks](/callbacks).
 
         # Returns
             Numpy array(s) of predictions.
@@ -1167,7 +1192,8 @@ class Model(Network):
         return training_arrays.predict_loop(self, f, ins,
                                             batch_size=batch_size,
                                             verbose=verbose,
-                                            steps=steps)
+                                            steps=steps,
+                                            callbacks=callbacks)
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
@@ -1283,6 +1309,7 @@ class Model(Network):
                       callbacks=None,
                       validation_data=None,
                       validation_steps=None,
+                      validation_freq=1,
                       class_weight=None,
                       max_queue_size=10,
                       workers=1,
@@ -1320,8 +1347,7 @@ class Model(Network):
                 Total number of steps (batches of samples)
                 to yield from `generator` before declaring one epoch
                 finished and starting the next epoch. It should typically
-                be equal to the number of samples of your dataset
-                divided by the batch size.
+                be equal to `ceil(num_samples / batch_size)`
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             epochs: Integer. Number of epochs to train the model.
@@ -1352,6 +1378,13 @@ class Model(Network):
                 validation dataset divided by the batch size.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(validation_data)` as a number of steps.
+            validation_freq: Only relevant if validation data is provided. Integer
+                or `collections.Container` instance (e.g. list, tuple, etc.). If an
+                integer, specifies how many training epochs to run before a new
+                validation run is performed, e.g. `validation_freq=2` runs
+                validation every 2 epochs. If a Container, specifies the epochs on
+                which to run validation, e.g. `validation_freq=[1, 2, 10]` runs
+                validation at the end of the 1st, 2nd, and 10th epochs.
             class_weight: Optional dictionary mapping class indices (integers)
                 to a weight (float) value, used for weighting the loss function
                 (during training only). This can be useful to tell the model to
@@ -1411,6 +1444,7 @@ class Model(Network):
             callbacks=callbacks,
             validation_data=validation_data,
             validation_steps=validation_steps,
+            validation_freq=validation_freq,
             class_weight=class_weight,
             max_queue_size=max_queue_size,
             workers=workers,
@@ -1421,6 +1455,7 @@ class Model(Network):
     @interfaces.legacy_generator_methods_support
     def evaluate_generator(self, generator,
                            steps=None,
+                           callbacks=None,
                            max_queue_size=10,
                            workers=1,
                            use_multiprocessing=False,
@@ -1440,6 +1475,9 @@ class Model(Network):
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             max_queue_size: maximum size for the generator queue
             workers: Integer. Maximum number of processes to spin up
                 when using process based threading.
@@ -1467,6 +1505,7 @@ class Model(Network):
         return training_generator.evaluate_generator(
             self, generator,
             steps=steps,
+            callbacks=callbacks,
             max_queue_size=max_queue_size,
             workers=workers,
             use_multiprocessing=use_multiprocessing,
@@ -1475,6 +1514,7 @@ class Model(Network):
     @interfaces.legacy_generator_methods_support
     def predict_generator(self, generator,
                           steps=None,
+                          callbacks=None,
                           max_queue_size=10,
                           workers=1,
                           use_multiprocessing=False,
@@ -1493,6 +1533,9 @@ class Model(Network):
                 to yield from `generator` before stopping.
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
+            callbacks: List of `keras.callbacks.Callback` instances.
+                List of callbacks to apply during training.
+                See [callbacks](/callbacks).
             max_queue_size: Maximum size for the generator queue.
             workers: Integer. Maximum number of processes to spin up
                 when using process based threading.
@@ -1517,6 +1560,7 @@ class Model(Network):
         return training_generator.predict_generator(
             self, generator,
             steps=steps,
+            callbacks=callbacks,
             max_queue_size=max_queue_size,
             workers=workers,
             use_multiprocessing=use_multiprocessing,

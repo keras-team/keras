@@ -315,15 +315,14 @@ def test_multiprocessing_training_from_file(in_tmpdir):
         batch_size = 10
         n_samples = 50
 
-        arr = np.load('data.npz')
-
-        while True:
-            batch_index = np.random.randint(0, n_samples - batch_size)
-            start = batch_index
-            end = start + batch_size
-            X = arr['data'][start: end]
-            y = arr['labels'][start: end]
-            yield X, y
+        with np.load('data.npz') as arr:
+            while True:
+                batch_index = np.random.randint(0, n_samples - batch_size)
+                start = batch_index
+                end = start + batch_size
+                X = arr['data'][start: end]
+                y = arr['labels'][start: end]
+                yield X, y
 
     # Build a NN
     model = Sequential()
@@ -407,15 +406,14 @@ def test_multithreading_from_file():
         batch_size = 10
         n_samples = 50
 
-        arr = np.load('data_threads.npz')
-
-        while True:
-            batch_index = np.random.randint(0, n_samples - batch_size)
-            start = batch_index
-            end = start + batch_size
-            X = arr['data'][start: end]
-            y = arr['labels'][start: end]
-            yield X, y
+        with np.load('data_threads.npz') as arr:
+            while True:
+                batch_index = np.random.randint(0, n_samples - batch_size)
+                start = batch_index
+                end = start + batch_size
+                X = arr['data'][start: end]
+                y = arr['labels'][start: end]
+                yield X, y
 
     # Build a NN
     model = Sequential()
