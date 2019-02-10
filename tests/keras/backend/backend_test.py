@@ -1957,8 +1957,6 @@ class TestBackend(object):
         assert p1 < p2
         assert 9e-38 < p2 <= 1e-37
 
-    @pytest.mark.skipif(K.backend() == 'cntk',
-                        reason='cntk has issues with negative number.')
     def test_arange(self):
         for test_value in (-20, 0, 1, 10):
             a_list = []
