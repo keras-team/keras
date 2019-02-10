@@ -13,7 +13,7 @@ from collections import defaultdict
 from contextlib import contextmanager
 import warnings
 
-evaluate = eval # Separate python eval keyword from K.eval 
+evaluate = eval  # Separate python eval keyword from K.eval
 
 C.set_global_option('align_axis', 1)
 
