@@ -186,6 +186,7 @@ def get_session():
             else:
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
                 config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
+                                        inter_op_parallelism_threads=num_thread,
                                         allow_soft_placement=True)
             _SESSION = tf.Session(config=config)
         session = _SESSION
