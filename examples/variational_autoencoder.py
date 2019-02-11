@@ -51,12 +51,11 @@ def sampling(args):
     epsilon = K.random_normal(shape=(batch, dim))
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
-
 def plot_results(models,
                  data,
                  batch_size=128,
                  model_name="vae_mnist"):
-    """Plots labels and MNIST digits as function of 2D latent vector
+    """Plots labels and MNIST digits as a function of the 2D latent vector
 
     # Arguments
         models (tuple): encoder and decoder models
@@ -206,4 +205,3 @@ if __name__ == '__main__':
                  data,
                  batch_size=batch_size,
                  model_name="vae_mlp")
-
