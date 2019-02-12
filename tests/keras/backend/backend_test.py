@@ -2074,11 +2074,11 @@ class TestBackend(object):
         assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
                            np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
 
-    def test_session_parallelism_settings(self, monkeypatch):
+    def test_tensorflow_session_parallelism_settings(self, monkeypatch):
         for threads in [0, 1, 4]:
-            K.clear_session()
+            KTF.clear_session()
             monkeypatch.setenv('OMP_NUM_THREADS', str(threads))
-            cfg = K.get_session()._config
+            cfg = KTF.get_session()._config
             assert cfg.intra_op_parallelism_threads == threads
             assert cfg.inter_op_parallelism_threads == threads
 
