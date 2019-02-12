@@ -2074,11 +2074,13 @@ class TestBackend(object):
         assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
                            np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
 
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='This test is for tensorflow parallelism.')
     def test_tensorflow_session_parallelism_settings(self, monkeypatch):
         for threads in [0, 1, 4]:
-            KTF.clear_session()
+            K.clear_session()
             monkeypatch.setenv('OMP_NUM_THREADS', str(threads))
-            cfg = KTF.get_session()._config
+            cfg = K.get_session()._config
             assert cfg.intra_op_parallelism_threads == threads
             assert cfg.inter_op_parallelism_threads == threads
 
