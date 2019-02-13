@@ -18,6 +18,14 @@ accepted_module = ['keras.legacy.layers', 'keras.utils.generic_utils']
 MIN_CODE_SIZE = 10
 
 
+def handle_class_init(name, member):
+    init_args = [
+        arg for arg in list(inspect.signature(member.__init__).parameters.keys())
+        if arg not in ['self', 'args', 'kwargs']
+    ]
+    assert_args_presence(init_args, member.__doc__, member, name)
+
+
 def handle_class(name, member):
     if is_accepted(name, member):
         return
@@ -25,6 +33,9 @@ def handle_class(name, member):
     if member.__doc__ is None and not member_too_small(member):
         raise ValueError("{} class doesn't have any documentation".format(name),
                          member.__module__, inspect.getmodule(member).__file__)
+
+    handle_class_init(name, member)
+
     for n, met in inspect.getmembers(member):
         if inspect.ismethod(met):
             handle_method(n, met)

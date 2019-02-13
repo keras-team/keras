@@ -168,6 +168,10 @@ def plot_model(model,
             'LR' creates a horizontal plot.
         expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
+
+    # Returns:
+        A Jupyter notebook Image object if Jupyter is installed.
+        This enables in-line display of the model plots in notebooks.
     """
     dot = model_to_dot(model, show_shapes, show_layer_names, rankdir,
                        expand_nested, dpi)
@@ -177,3 +181,9 @@ def plot_model(model,
     else:
         extension = extension[1:]
     dot.write(to_file, format=extension)
+    # Return the image as a Jupyter Image object, to be displayed in-line.
+    try:
+        from IPython import display
+        return display.Image(filename=to_file)
+    except ImportError:
+        pass

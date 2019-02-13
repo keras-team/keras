@@ -35,6 +35,13 @@ elif K.backend() == 'cntk':
 else:
     WITH_NP = [KTF, KNP]
 
+if K.backend() == 'cntk':
+    supports_sparse = False
+elif K.backend() == 'theano' and not KTH.th_sparse_module:
+    supports_sparse = False
+else:
+    supports_sparse = True
+
 
 def check_dtype(var, dtype):
     if K.backend() == 'theano':
@@ -561,6 +568,30 @@ class TestBackend(object):
                                'compare with other backend.')
     def test_log(self):
         check_single_tensor_operation('log', (4, 2), WITH_NP)
+
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
+    def test_update_add(self):
+        x = np.random.randn(3, 4)
+        x_var = K.variable(x)
+        increment = np.random.randn(3, 4)
+
+        x += increment
+        K.eval(K.update_add(x_var, increment))
+
+        assert_allclose(x, K.eval(x_var), atol=1e-05)
+
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
+    def test_update_sub(self):
+        x = np.random.randn(3, 4)
+        x_var = K.variable(x)
+        decrement = np.random.randn(3, 4)
+
+        x -= decrement
+        K.eval(K.update_sub(x_var, decrement))
+
+        assert_allclose(x, K.eval(x_var), atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'cntk',
                         reason='cntk doesn\'t support gradient in this way.')
@@ -1184,7 +1215,7 @@ class TestBackend(object):
             output_shape=output_shape, padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
-    @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+    @pytest.mark.skipif((K.backend() == 'cntk' and KC.dev.type() == 0),
                         reason='cntk only supports dilated conv on GPU')
     @pytest.mark.parametrize(
         'op,input_shape,kernel_shape,padding,data_format,dilation_rate', [
@@ -1211,7 +1242,7 @@ class TestBackend(object):
             padding=padding, data_format=data_format,
             dilation_rate=dilation_rate, cntk_dynamicity=True)
 
-    @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+    @pytest.mark.skipif((K.backend() == 'cntk' and KC.dev.type() == 0),
                         reason='cntk only supports dilated conv transpose on GPU')
     @pytest.mark.parametrize(
         'op,input_shape,kernel_shape,output_shape,padding,data_format,dilation_rate',
@@ -1822,8 +1853,7 @@ class TestBackend(object):
         koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
         assert np.all(koh == oh)
 
-    @pytest.mark.skipif((K.backend() == 'cntk'
-                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+    @pytest.mark.skipif(not supports_sparse,
                         reason='Sparse tensors are not supported in cntk '
                                'and Theano has some dependency issues for sparse.')
     def test_sparse_dot(self):
@@ -1842,8 +1872,7 @@ class TestBackend(object):
         assert k_s.shape == k_d.shape
         assert_allclose(k_s, k_d, atol=1e-05)
 
-    @pytest.mark.skipif((K.backend() == 'cntk'
-                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+    @pytest.mark.skipif(not supports_sparse,
                         reason='Sparse tensors are not supported in cntk '
                                'and Theano has some dependency issues for sparse.')
     def test_sparse_concat(self):
