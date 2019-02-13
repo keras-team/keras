@@ -775,6 +775,7 @@ def test_CSVLogger(tmpdir):
     np.random.seed(1337)
     filepath = str(tmpdir / 'log.tsv')
     sep = '\t'
+
     (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
@@ -821,6 +822,31 @@ def test_CSVLogger(tmpdir):
         assert len(list_lines) == 5
         output = " ".join(list_lines)
         assert len(re.findall('epoch', output)) == 1
+
+    os.remove(filepath)
+    assert not tmpdir.listdir()
+
+    # case 4, use additional_columns
+    def get_learning_rate(epoch=None, model=None):
+        return np.round(float(K.get_value(model.optimizer.lr)), 5)
+
+    model = make_model()
+    dict_columns = {'seconds': None, 'learning_rate': get_learning_rate}
+    cbks = [callbacks.CSVLogger(filepath,
+                                additional_columns=dict_columns,
+                                separator=sep)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=3)
+
+    with open(filepath) as csvfile:
+        list_lines = csvfile.readlines()
+        for line in list_lines:
+            assert line.count(sep) == 6
+        assert len(list_lines) == 4
+        output = " ".join(list_lines)
+        assert len(re.findall('seconds', output)) == 1
+        assert len(re.findall('learning_rate', output)) == 1
+        assert list_lines[1].split(sep)[2] == '0.1'
 
     os.remove(filepath)
     assert not tmpdir.listdir()

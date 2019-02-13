@@ -7,6 +7,7 @@ from __future__ import print_function
 import os
 import csv
 import six
+import inspect
 
 import numpy as np
 import time
@@ -26,7 +27,6 @@ try:
     import requests
 except ImportError:
     requests = None
-
 
 _TRAIN = 'train'
 _TEST = 'test'
@@ -1411,10 +1411,25 @@ class CSVLogger(Callback):
     Supports all values that can be represented as a string,
     including 1D iterables such as np.ndarray.
 
-    # Example
+    # Example: plain
 
     ```python
     csv_logger = CSVLogger('training.log')
+    model.fit(X_train, Y_train, callbacks=[csv_logger])
+    ```
+
+    # Example: use additional columns
+
+    ```python
+    import numpy as np
+    from keras import backend as K
+
+    def get_learning_rate(epoch=None, csvlogger=None):
+        return np.round(float(K.get_value(csvlogger.model.optimizer.lr)), 5)
+
+    csv_logger = CSVLogger('training.log',
+                           additional_columns={'seconds': None,
+                                               'learning_rate': get_learning_rate})
     model.fit(X_train, Y_train, callbacks=[csv_logger])
     ```
 
@@ -1422,16 +1437,33 @@ class CSVLogger(Callback):
         filename: filename of the csv file, e.g. 'run/log.csv'.
         separator: string used to separate elements in the csv file.
         append: True: append if file exists (useful for continuing
-            training). False: overwrite existing file,
+            training). False: overwrite existing file.
+        additional_columns: dictionary with key-value pairs, such that key
+            is the name of the column to add to the csv file. If key is
+            'seconds' then the value is ignored and the number of seconds
+            per epoch will be printed in the respective column 'seconds'.
+            For other keys the value has to be a callable which must have
+            the following two keyword arguments: `epoch` (type integer)
+            and `model` (type Model).
     """
 
-    def __init__(self, filename, separator=',', append=False):
+    def __init__(self, filename, additional_columns={}, separator=',', append=False):
         self.sep = separator
         self.filename = filename
         self.append = append
         self.writer = None
         self.keys = None
         self.append_header = True
+        self.epoch_start = None
+
+        self.additional_columns = additional_columns
+        for key in self.additional_columns:
+            if key != 'seconds':
+                argspec = inspect.getargspec if six.PY2 else inspect.getfullargspec
+                args = set(argspec(self.additional_columns[key]).args)
+                assert 'epoch' in args, "keyword argument 'epoch' is missing"
+                assert 'model' in args, "keyword argument 'model' is missing"
+
         if six.PY2:
             self.file_flags = 'b'
             self._open_args = {}
@@ -1452,8 +1484,19 @@ class CSVLogger(Callback):
                                 mode + self.file_flags,
                                 **self._open_args)
 
+    def on_epoch_begin(self, epoch, logs=None):
+        if 'seconds' in self.additional_columns:
+            self.epoch_start = time.time()
+
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
+        for key in self.additional_columns:
+            if key == 'seconds':
+                now = time.time()
+                logs[key] = np.round(now - self.epoch_start, 1)
+            else:
+                func = self.additional_columns[key]
+                logs[key] = str(func(epoch=epoch, model=self.model))
 
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
