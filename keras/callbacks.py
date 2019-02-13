@@ -1447,7 +1447,7 @@ class CSVLogger(Callback):
             and `model` (type Model).
     """
 
-    def __init__(self, filename, additional_columns={}, separator=',', append=False):
+    def __init__(self, filename, separator=',', append=False, additional_columns={}):
         self.sep = separator
         self.filename = filename
         self.append = append
