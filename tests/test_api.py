@@ -13,12 +13,9 @@ import keras.utils.test_utils
 
 def test_api():
     api_file = os.path.join(os.getcwd(), 'api.json')
-
     with open(api_file, 'r') as f:
         previous_api = json.load(f)
-
     current_api = pyux.sign(keras)
-
     diff = pyux.diff(current_api, previous_api)
 
     exceptions = [
@@ -27,11 +24,9 @@ def test_api():
     ]
 
     diff = list(filter(lambda c: c[0] not in exceptions, diff))
-
     if diff:
-        str_diff = '\n'.join([str(x) for x in diff])
-        raise Exception("API change detected ! \n " + str_diff)
+        raise pyux.APIChangedException(diff)
 
 
 if __name__ == '__main__':
-    pytest.main([__file__])
+    test_api()
