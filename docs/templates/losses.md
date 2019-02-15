@@ -38,3 +38,5 @@ categorical_labels = to_categorical(int_labels, num_classes=None)
 
 When using the `sparse_categorical_crossentropy` loss, your targets should be *integer targets*.
 If you have categorical targets, you should use `categorical_crossentropy`.
+
+`categorical_crossentropy` is another term for [multi-class log loss](http://wiki.fast.ai/index.php/Log_Loss). 
