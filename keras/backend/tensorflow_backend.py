@@ -2130,12 +2130,13 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 
 # SHAPE OPERATIONS
 
-def concatenate(tensors, axis=-1):
+def concatenate(tensors, axis=-1, name=None):
     """Concatenates a list of tensors alongside the specified axis.
 
     # Arguments
         tensors: list of tensors to concatenate.
         axis: concatenation axis.
+        name: A name for the operation (optional).
 
     # Returns
         A tensor.
@@ -2148,9 +2149,11 @@ def concatenate(tensors, axis=-1):
             axis = 0
 
     if py_all([is_sparse(x) for x in tensors]):
-        return tf.sparse_concat(axis, tensors)
+        return tf.sparse_concat(axis, tensors, name)
     else:
-        return tf.concat([to_dense(x) for x in tensors], axis)
+        if name is None:
+            return tf.concat([to_dense(x) for x in tensors], axis)
+        return tf.concat([to_dense(x) for x in tensors], axis, name)
 
 
 def reshape(x, shape):
