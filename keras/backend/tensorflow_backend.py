@@ -2773,6 +2773,7 @@ class Function(object):
         # (since the outputs of fetches are never returned).
         # This requires us to wrap fetches in `identity` ops.
         self.fetches = [tf.identity(x) for x in self.fetches]
+        self._fetches = list(self.fetches)
         # self.session_kwargs is used for _legacy_call
         self.session_kwargs = session_kwargs.copy()
         self.run_options = session_kwargs.pop('options', None)
@@ -2820,7 +2821,8 @@ class Function(object):
             connection.from_tensor = from_tensor.name  # Data tensor
             connection.to_tensor = x.name  # Placeholder
         # Handle fetches.
-        for x in self.outputs + self.fetches:
+        self._fetches = list(self.fetches)
+        for x in self.outputs + self._fetches:
             callable_opts.fetch.append(x.name)
         # Handle updates.
         callable_opts.target.append(self.updates_op.name)
@@ -2872,6 +2874,7 @@ class Function(object):
                 feed_arrays != self._feed_arrays or
                 symbol_vals != self._symbol_vals or
                 feed_symbols != self._feed_symbols or
+                self.fetches != self._fetches or
                 session != self._session):
             self._make_callable(feed_arrays,
                                 feed_symbols,
@@ -2881,6 +2884,9 @@ class Function(object):
             fetched = self._callable_fn(*array_vals, run_metadata=self.run_metadata)
         else:
             fetched = self._callable_fn(*array_vals)
+        self.fetched = (dict(zip(self._fetches, fetched[-len(self._fetches):]))
+                        if len(self._fetches)
+                        else {})
         return fetched[:len(self.outputs)]
 
     def _legacy_call(self, inputs):
@@ -2895,10 +2901,13 @@ class Function(object):
                      np.expand_dims(sparse_coo.col, 1)), 1)
                 value = (indices, sparse_coo.data, sparse_coo.shape)
             feed_dict[tensor] = value
-        fetches = self.outputs + [self.updates_op] + self.fetches
+        fetches = self.outputs + [self.updates_op] + self._fetches
         session = get_session()
         updated = session.run(fetches=fetches, feed_dict=feed_dict,
                               **self.session_kwargs)
+        self.fetched = (dict(zip(self._fetches, updated[-len(self._fetches):]))
+                        if len(self._fetches)
+                        else {})
         return updated[:len(self.outputs)]
 
     def __call__(self, inputs):

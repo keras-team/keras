@@ -954,16 +954,16 @@ def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
                                                         write_grads=False))
     assert 'validation_data must be provided' in str(raised_exception.value)
 
-    # fit generator with validation data generator should raise ValueError if
-    # histogram_freq > 0
-    with pytest.raises(ValueError) as raised_exception:
-        model.fit_generator(train_generator, len(X_train), epochs=2,
-                            validation_data=validation_generator,
-                            validation_steps=1,
-                            callbacks=callbacks_factory(histogram_freq=1,
-                                                        write_images=False,
-                                                        write_grads=False))
-    assert 'validation_data must be provided' in str(raised_exception.value)
+    model.fit_generator(train_generator,
+                        len(X_train), epochs=2,
+                        validation_data=validation_generator,
+                        validation_steps=1,
+                        callbacks=callbacks_factory(histogram_freq=1,
+                                                    write_images=False,
+                                                    write_grads=False))
+    assert os.path.isdir(filepath)
+    shutil.rmtree(filepath)
+    assert not tmpdir.listdir()
 
 
 def test_TensorBoard_multi_input_output(tmpdir):

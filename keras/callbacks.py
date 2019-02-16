@@ -1054,6 +1054,7 @@ class TensorBoard(Callback):
             self.update_freq = 1
         else:
             self.update_freq = update_freq
+        self.epochs_seen = 0
         self.samples_seen = 0
         self.samples_seen_at_last_write = 0
 
@@ -1175,43 +1176,18 @@ class TensorBoard(Callback):
 
             projector.visualize_embeddings(self.writer, config)
 
+    def on_epoch_begin(self, epoch, logs=None):
+        self.epochs_seen = epoch
+
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
 
         if not self.validation_data and self.histogram_freq:
-            raise ValueError("If printing histograms, validation_data must be "
-                             "provided, and cannot be a generator.")
+            raise ValueError("If printing histograms, validation_data must "
+                             "be provided.")
         if self.embeddings_data is None and self.embeddings_freq:
             raise ValueError("To visualize embeddings, embeddings_data must "
                              "be provided.")
-        if self.validation_data and self.histogram_freq:
-            if epoch % self.histogram_freq == 0:
-
-                val_data = self.validation_data
-                tensors = (self.model.inputs +
-                           self.model.targets +
-                           self.model.sample_weights)
-
-                if self.model.uses_learning_phase:
-                    tensors += [K.learning_phase()]
-
-                assert len(val_data) == len(tensors)
-                val_size = val_data[0].shape[0]
-                i = 0
-                while i < val_size:
-                    step = min(self.batch_size, val_size - i)
-                    if self.model.uses_learning_phase:
-                        # do not slice the learning phase
-                        batch_val = [x[i:i + step] for x in val_data[:-1]]
-                        batch_val.append(val_data[-1])
-                    else:
-                        batch_val = [x[i:i + step] for x in val_data]
-                    assert len(batch_val) == len(tensors)
-                    feed_dict = dict(zip(tensors, batch_val))
-                    result = self.sess.run([self.merged], feed_dict=feed_dict)
-                    summary_str = result[0]
-                    self.writer.add_summary(summary_str, epoch)
-                    i += self.batch_size
 
         if self.embeddings_freq and self.embeddings_data is not None:
             if epoch % self.embeddings_freq == 0:
@@ -1252,10 +1228,7 @@ class TensorBoard(Callback):
 
                     i += self.batch_size
 
-        if self.update_freq == 'epoch':
-            index = epoch
-        else:
-            index = self.samples_seen
+        index = epoch if self.update_freq == 'epoch' else self.samples_seen
         self._write_logs(logs, index)
 
     def _write_logs(self, logs, index):
@@ -1282,6 +1255,21 @@ class TensorBoard(Callback):
             if samples_seen_since >= self.update_freq:
                 self._write_logs(logs, self.samples_seen)
                 self.samples_seen_at_last_write = self.samples_seen
+
+    def on_test_batch_begin(self, batch, logs=None):
+        if self._writing_histograms(batch):
+            self.model.test_function.fetches.append(self.merged)
+
+    def on_test_batch_end(self, batch, logs=None):
+        if self._writing_histograms(batch):
+            summary_str = self.model.test_function.fetched[self.merged]
+            self.writer.add_summary(summary_str, self.epochs_seen)
+            self.model.test_function.fetches.remove(self.merged)
+
+    def _writing_histograms(self, batch):
+        return (batch == 0 and
+                self.histogram_freq and
+                self.epochs_seen % self.histogram_freq == 0)
 
 
 class ReduceLROnPlateau(Callback):
