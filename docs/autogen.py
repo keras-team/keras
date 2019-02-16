@@ -92,7 +92,6 @@ def clean_module_name(name):
         name = name.replace('keras_applications', 'keras.applications')
     if name.startswith('keras_preprocessing'):
         name = name.replace('keras_preprocessing', 'keras.preprocessing')
-    assert name[:6] == 'keras.', 'Invalid module name: %s' % name
     return name
 
 
