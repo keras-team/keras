@@ -2,14 +2,14 @@
 
 The VAE has a modular design. The encoder, decoder and VAE
 are 3 models that share weights. After training the VAE model,
-the encoder can be used to  generate latent vectors.
+the encoder can be used to generate latent vectors.
 The decoder can be used to generate MNIST digits by sampling the
-latent vector from a Gaussian distribution with mean=0 and std=1.
+latent vector from a Gaussian distribution with mean = 0 and std = 1.
 
 # Reference
 
 [1] Kingma, Diederik P., and Max Welling.
-"Auto-encoding variational bayes."
+"Auto-Encoding Variational Bayes."
 https://arxiv.org/abs/1312.6114
 '''
 
@@ -31,10 +31,10 @@ import os
 
 
 # reparameterization trick
-# instead of sampling from Q(z|X), sample eps = N(0,I)
-# z = z_mean + sqrt(var)*eps
+# instead of sampling from Q(z|X), sample epsilon = N(0,I)
+# z = z_mean + sqrt(var) * epsilon
 def sampling(args):
-    """Reparameterization trick by sampling fr an isotropic unit Gaussian.
+    """Reparameterization trick by sampling from an isotropic unit Gaussian.
 
     # Arguments
         args (tensor): mean and log of variance of Q(z|X)
@@ -46,7 +46,7 @@ def sampling(args):
     z_mean, z_log_var = args
     batch = K.shape(z_mean)[0]
     dim = K.int_shape(z_mean)[1]
-    # by default, random_normal has mean=0 and std=1.0
+    # by default, random_normal has mean = 0 and std = 1.0
     epsilon = K.random_normal(shape=(batch, dim))
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
@@ -55,7 +55,7 @@ def plot_results(models,
                  data,
                  batch_size=128,
                  model_name="vae_mnist"):
-    """Plots labels and MNIST digits as function of 2-dim latent vector
+    """Plots labels and MNIST digits as a function of the 2D latent vector
 
     # Arguments
         models (tuple): encoder and decoder models
