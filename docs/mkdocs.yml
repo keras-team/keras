@@ -69,6 +69,7 @@ nav:
 - Contributing: contributing.md
 - Examples:
   - Addition RNN: examples/addition_rnn.md
+  - Custom layer - antirectifier: examples/antirectifier.md
   - Baby RNN: examples/babi_rnn.md
   - Baby MemNN: examples/babi_memnn.md
   - CIFAR-10 CNN: examples/cifar10_cnn.md
