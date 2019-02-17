@@ -78,3 +78,4 @@ nav:
   - Convolution filter visualization: examples/conv_filter_visualization.md
   - Image OCR: examples/image_ocr.md
   - Bidirectional LSTM: examples/imdb_bidirectional_lstm.md
+  - 1D CNN for text classification: examples/imdb_cnn.md
