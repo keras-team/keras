@@ -79,3 +79,4 @@ nav:
   - Image OCR: examples/image_ocr.md
   - Bidirectional LSTM: examples/imdb_bidirectional_lstm.md
   - 1D CNN for text classification: examples/imdb_cnn.md
+  - Convolutional LSTM: examples/conv_lstm.md
