@@ -2,11 +2,11 @@
 This example trains a simple CNN-Capsule Network on the CIFAR10 data set.
 
 Without Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs, 
+It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs,
 and overfitting after 20 epochs
 
 With Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs, 
+It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs,
 and 83% after 30 epochs.
 
 The highest achieved validation accuracy is 83.79% after 50 epochs.
@@ -44,7 +44,7 @@ class Capsule(Layer):
     """A Capsule Network implementation in Keras
     There are two versions of Capsule Networks.
     One is similar to dense layer (for the fixed-shape input),
-    and the other is similar to time distributed dense layer 
+    and the other is similar to time distributed dense layer
     (for inputs of varied length).
 
     The input shape of Capsule must be (batch_size,
@@ -157,7 +157,7 @@ x = Conv2D(128, (3, 3), activation='relu')(x)
 """Now, we reshape it to (batch_size, input_num_capsule, input_dim_capsule)
 then connect a capsule layer.
 The output of final model is the lengths of 10 capsules, which have 16 dimensions.
-The length of the output vector of the capsule expresses the probability of 
+The length of the output vector of the capsule expresses the probability of
 existence of the entity, so the problem becomes a 10 two-classification problem.
 """
 
