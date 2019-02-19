@@ -553,12 +553,13 @@ class TestBackend(object):
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
-                                                      'cumsum and cumprod yet')
-    def test_cumsum_cumprod(self):
+    def test_cumsum(self):
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
 
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
+                                                      'cumprod yet')
+    def test_cumprod(self):
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
 
