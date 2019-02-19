@@ -6,7 +6,7 @@ It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs,
 and overfitting after 20 epochs
 
 With Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs, and 79% after 15 epochs, 
+It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs, 
 and 83% after 30 epochs.
 
 The highest achieved validation accuracy is 83.79% after 50 epochs.
