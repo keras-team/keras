@@ -119,6 +119,7 @@ from .advanced_activations import ThresholdedReLU
 from .advanced_activations import Softmax
 from .advanced_activations import ReLU
 
+from .wrappers import Wrapper
 from .wrappers import Bidirectional
 from .wrappers import TimeDistributed
 
