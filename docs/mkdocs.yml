@@ -77,7 +77,9 @@ nav:
   - CIFAR-10 CNN with augmentation (TF): examples/cifar10_cnn_tfaugment2d.md
   - CIFAR-10 ResNet: examples/cifar10_resnet.md
   - Convolution filter visualization: examples/conv_filter_visualization.md
+  - Convolutional LSTM: examples/conv_lstm.md
+  - Deep Dream: examples/deep_dream.md
   - Image OCR: examples/image_ocr.md
   - Bidirectional LSTM: examples/imdb_bidirectional_lstm.md
   - 1D CNN for text classification: examples/imdb_cnn.md
-  - Convolutional LSTM: examples/conv_lstm.md
+  - Sentiment classification LSTM: examples/imdb_cnn_lstm.md
