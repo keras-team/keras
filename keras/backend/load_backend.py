@@ -84,6 +84,9 @@ if _BACKEND == 'cntk':
 elif _BACKEND == 'theano':
     sys.stderr.write('Using Theano backend.\n')
     from .theano_backend import *
+elif _BACKEND == 'phylanx':
+    sys.stderr.write('Using Phylanx backend.\n')
+    from .phylanx_backend import *
 elif _BACKEND == 'tensorflow':
     sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
