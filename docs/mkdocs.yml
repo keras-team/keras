@@ -82,4 +82,6 @@ nav:
   - Image OCR: examples/image_ocr.md
   - Bidirectional LSTM: examples/imdb_bidirectional_lstm.md
   - 1D CNN for text classification: examples/imdb_cnn.md
-  - Sentiment classification LSTM: examples/imdb_cnn_lstm.md
+  - Sentiment classification CNN-LSTM: examples/imdb_cnn_lstm.md
+  - Fasttext for text classification: examples/imdb_fasttext.md
+  - Sentiment classification LSTM: examples/imdb_lstm.md
