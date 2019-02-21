@@ -1,11 +1,12 @@
-'''Deep Dreaming in Keras.
+'''
+#Deep Dreaming in Keras.
 
 Run the script with:
-```
+```python
 python deep_dream.py path_to_your_base_image.jpg prefix_for_results
 ```
 e.g.:
-```
+```python
 python deep_dream.py img/mypic.jpg results/dream
 ```
 '''
