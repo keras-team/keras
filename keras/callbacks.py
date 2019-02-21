@@ -1424,8 +1424,8 @@ class CSVLogger(Callback):
     import numpy as np
     from keras import backend as K
 
-    def get_learning_rate(epoch=None, csvlogger=None):
-        return np.round(float(K.get_value(csvlogger.model.optimizer.lr)), 5)
+    def get_learning_rate(epoch=None, model=None):
+        return np.round(float(K.get_value(model.optimizer.lr)), 5)
 
     csv_logger = CSVLogger('training.log',
                            additional_columns={'seconds': None,
