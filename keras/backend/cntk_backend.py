@@ -181,7 +181,7 @@ def variable(value, dtype=None, name=None, constraint=None):
         value = value.astype(dtype)
 
     # TODO: remove the conversion when cntk supports int32, int64
-    # https://docs.microsoft.com/en-us/python/api/cntk.variables.parameter
+    # https://cntk.ai/pythondocs/cntk.variables.html#cntk.variables.Parameter
     dtype = 'float32' if 'int' in str(dtype) else dtype
 
     v = C.parameter(shape=shape,
