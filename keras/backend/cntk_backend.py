@@ -386,7 +386,7 @@ def random_binomial(shape, p=0.0, dtype=None, seed=None):
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
     if dtype is None:
-        dtype = np.float32
+        dtype = floatx()
     else:
         dtype = _convert_string_dtype(dtype)
 
