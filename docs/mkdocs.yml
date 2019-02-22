@@ -85,3 +85,6 @@ nav:
   - Sentiment classification CNN-LSTM: examples/imdb_cnn_lstm.md
   - Fasttext for text classification: examples/imdb_fasttext.md
   - Sentiment classification LSTM: examples/imdb_lstm.md
+  - Sequence to sequence - training: examples/lstm_seq2seq.md
+  - Sequence to sequence - prediction: examples/lstm_seq2seq_restore.md
+  - Stateful LSTM: examples/lstm_stateful.md
