@@ -742,7 +742,7 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 
 ```python
-keras.applications.mobilenet_v2.MobileNetV2(input_shape=None, alpha=1.0, depth_multiplier=1, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
+keras.applications.mobilenet_v2.MobileNetV2(input_shape=None, alpha=1.0, include_top=True, weights='imagenet', input_tensor=None, pooling=None, classes=1000)
 ```
 
 MobileNetV2 model, with weights pre-trained on ImageNet.
@@ -771,8 +771,6 @@ The default input size for this model is 224x224.
         of filters in each layer.
     - If `alpha` = 1, default number of filters from the paper
          are used at each layer.
-- depth_multiplier: depth multiplier for depthwise convolution
-      (also called the resolution multiplier)
 - include_top: whether to include the fully-connected
       layer at the top of the network.
 - weights: one of `None` (random initialization),
@@ -804,7 +802,7 @@ A Keras model instance.
 ### Raises
 
 ValueError: in case of invalid argument for `weights`,
-    or invalid input shape or invalid depth_multiplier, alpha,
+    or invalid input shape, alpha,
     rows when weights='imagenet'
 
 ### References
