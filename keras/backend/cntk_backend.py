@@ -420,14 +420,12 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 def random_uniform_variable(shape, low, high,
                             dtype=None, name=None, seed=None):
-    if dtype is None:
-        dtype = floatx()
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e3)
 
     if dtype is None:
-        dtype = np.float32
+        dtype = floatx()
     else:
         dtype = _convert_string_dtype(dtype)
 
@@ -452,13 +450,11 @@ def random_normal_variable(
         dtype=None,
         name=None,
         seed=None):
-    if dtype is None:
-        dtype = floatx()
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e7)
     if dtype is None:
-        dtype = np.float32
+        dtype = floatx()
     else:
         dtype = _convert_string_dtype(dtype)
 
@@ -497,7 +493,7 @@ def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
     if seed is None:
         seed = np.random.randint(1, 10e6)
     if dtype is None:
-        dtype = np.float32
+        dtype = floatx()
     else:
         dtype = _convert_string_dtype(dtype)
 
