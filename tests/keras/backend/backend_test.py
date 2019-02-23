@@ -1174,7 +1174,7 @@ class TestBackend(object):
         for k in range(1, num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
-                                        for b in WITH_NP]
+                      for b in WITH_NP]
             assert_list_pairwise(z_list)
 
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [
