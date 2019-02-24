@@ -10,6 +10,8 @@ matrix:
           env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS PIL=Pillow
         - python: 3.6
           env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8_DOC PIL=Pillow
+        - python: 3.6
+          env: KERAS_BACKEND=tensorflow TEST_MODE=API
         - python: 2.7
           env: KERAS_BACKEND=tensorflow
         - python: 3.6
@@ -57,7 +59,7 @@ install:
   - pip install tensorflow==1.12 --progress-bar off
 
   # install cntk
-  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]] || [[ "$TEST_MODE" == "API" ]]; then
       ./.travis/install_cntk.sh;
     fi
 
@@ -66,6 +68,9 @@ install:
 
   # install mkdocs
   - pip install mkdocs --progress-bar off
+
+  # install pyux
+  - pip install pyux
 
 # command to run tests
 script:
@@ -81,8 +86,10 @@ script:
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     elif [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/docs;
+    elif [[ "$TEST_MODE" == "API" ]]; then
+      PYTHONPATH=$PWD:$PYTHONPATH pip install git+git://www.github.com/keras-team/keras.git && python update_api.py && pip install -e .[tests] --progress-bar off && py.test tests/test_api.py;
     elif [[ "$RUN_ONLY_BACKEND_TESTS" == "1" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test  tests/keras/backend/;
     else
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/docs --ignore=tests/keras/legacy/layers_test.py --cov-config .coveragerc --cov=keras tests/;
+      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/docs --ignore=tests/keras/legacy/layers_test.py --ignore=tests/test_api.py --cov-config .coveragerc --cov=keras tests/;
     fi
