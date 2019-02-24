@@ -2731,7 +2731,8 @@ class LambdaFunc(C.ops.functions.UserFunction):
 
 
 def reset_uids():
-    raise NotImplementedError
+    global _UID_PREFIXES
+    _UID_PREFIXES = defaultdict(int)
 
 
 def to_dense(tensor):
