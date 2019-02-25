@@ -1493,6 +1493,61 @@ class CSVLogger(Callback):
         self.writer = None
 
 
+class CustomCSVLogger(CSVLogger):
+    """Subclass of CSVLogger which allows to insert additional columns into csv file.
+
+    # Example
+    ```python
+    import numpy as np
+    from keras import backend as K
+    def get_learning_rate(epoch=None, model=None):
+        return np.round(float(K.get_value(model.optimizer.lr)), 5)
+    csv_logger = CSVLogger('training.log',
+                           additional_columns={'seconds': None,
+                                               'learning_rate': get_learning_rate})
+    model.fit(X_train, Y_train, callbacks=[csv_logger])
+    ```
+    # Arguments
+        filename: filename of the csv file, e.g. 'run/log.csv'.
+        separator: string used to separate elements in the csv file.
+        append: True: append if file exists (useful for continuing
+            training). False: overwrite existing file.
+        additional_columns: dictionary with key-value pairs, such that key
+            is the name of the column to add to the csv file. If key is
+            'seconds' then the value is ignored and the number of seconds
+            per epoch will be printed in the respective column 'seconds'.
+            For other keys the value has to be a callable which must have
+            the following two keyword arguments: `epoch` (type integer)
+            and `model` (type Model).
+    """
+
+    def __init__(self, additional_columns, **kwargs):
+        super(CustomCSVLogger, self).__init__(**kwargs)
+        self.epoch_start = None
+        self.additional_columns = additional_columns
+        for key in self.additional_columns:
+            if key != 'seconds':
+                argspec = inspect.getargspec if six.PY2 else inspect.getfullargspec
+                args = set(argspec(self.additional_columns[key]).args)
+                assert 'epoch' in args, "keyword argument 'epoch' missing"
+                assert 'model' in args, "keyword argument 'model' missing"
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if 'seconds' in self.additional_columns:
+            self.epoch_start = time.time()
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        for key in self.additional_columns:
+            if key == 'seconds':
+                now = time.time()
+                logs[key] = np.round(now - self.epoch_start, 1)
+            else:
+                func = self.additional_columns[key]
+                logs[key] = str(func(epoch=epoch, model=self.model))
+        super(CustomCSVLogger, self).on_epoch_end(epoch, logs=logs)
+
+
 class LambdaCallback(Callback):
     r"""Callback for creating simple, custom callbacks on-the-fly.
 
