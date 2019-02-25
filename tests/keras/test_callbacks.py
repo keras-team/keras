@@ -857,6 +857,7 @@ def test_CustomCSVLogger(tmpdir):
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=3)
 
+    import re
     with open(filepath) as csvfile:
         list_lines = csvfile.readlines()
         for line in list_lines:
