@@ -707,7 +707,8 @@ def one_hot(indices, num_classes):
     return to_categorical(indices, num_classes)
 
 
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1,
+               merge_repeated=False):
     num_samples = y_pred.shape[0]
     num_classes = y_pred.shape[-1]
     log_prob = np.zeros((num_samples, 1))
