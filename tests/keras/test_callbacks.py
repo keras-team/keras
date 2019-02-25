@@ -852,8 +852,8 @@ def test_CustomCSVLogger(tmpdir):
     model = make_model()
     dict_columns = {'seconds': None, 'learning_rate': get_learning_rate}
     cbks = [callbacks.CustomCSVLogger(filepath,
-                                separator=sep,
-                                additional_columns=dict_columns)]
+                                      separator=sep,
+                                      additional_columns=dict_columns)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=3)
 
