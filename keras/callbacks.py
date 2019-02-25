@@ -1521,7 +1521,7 @@ class CustomCSVLogger(CSVLogger):
             and `model` (type Model).
     """
 
-    def __init__(self, additional_columns, **kwargs):
+    def __init__(self, additional_columns={}, **kwargs):
         super(CustomCSVLogger, self).__init__(**kwargs)
         self.epoch_start = None
         self.additional_columns = additional_columns
