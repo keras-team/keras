@@ -41,6 +41,8 @@ def set_epsilon(e):
         1e-05
     ```
     """
+    if not isinstance(e, float):
+        raise TypeError(f"Value of epsilon should be a float. Found type {type(e)}")
     global _EPSILON
     _EPSILON = e
 
