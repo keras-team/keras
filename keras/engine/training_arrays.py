@@ -32,7 +32,8 @@ def fit_loop(model, fit_function, fit_inputs,
              initial_epoch=0,
              steps_per_epoch=None,
              validation_steps=None,
-             validation_freq=1):
+             validation_freq=1,
+             seed=113):
     """Abstract fit function for `fit_function(fit_inputs)`.
 
     Assumes that fit_function returns a list, labeled by out_labels.
@@ -143,6 +144,8 @@ def fit_loop(model, fit_function, fit_inputs,
             model._feed_targets +
             model._feed_sample_weights)
     indices_for_conversion_to_dense = []
+    rng = np.random.RandomState(seed)
+
     for i in range(len(feed)):
         if issparse(fit_inputs[i]) and not K.is_sparse(feed[i]):
             indices_for_conversion_to_dense.append(i)
@@ -180,7 +183,7 @@ def fit_loop(model, fit_function, fit_inputs,
             if shuffle == 'batch':
                 index_array = batch_shuffle(index_array, batch_size)
             elif shuffle:
-                np.random.shuffle(index_array)
+                rng.shuffle(index_array)
 
             batches = make_batches(num_train_samples, batch_size)
             for batch_index, (batch_start, batch_end) in enumerate(batches):
