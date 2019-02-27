@@ -10,38 +10,55 @@ It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs,
 and 83% after 30 epochs.
 
 The highest achieved validation accuracy is 83.79% after 50 epochs.
-
 This is a fast implementation that takes just 20s/epoch on a GTX 1070 GPU.
+
+The paper "Dynamic Routing Between Capsules": https://arxiv.org/abs/1710.09829
 """
 from __future__ import print_function
+
 from keras import activations
 from keras import backend as K
+from keras import layers
 from keras import utils
 from keras.datasets import cifar10
-from keras.layers import AveragePooling2D, Conv2D, Lambda, Layer, Reshape
-from keras.models import Input, Model
+from keras.models import Model
 from keras.preprocessing.image import ImageDataGenerator
 
 
-# The squashing function.
-# 0.5 is used instead of 1 as in the paper.
-# If 1, the norm of vector will be zoomed out.
-# If 0.5, the norm will be zoomed in.
 def squash(x, axis=-1):
+    """The Squashing Function.
+    The nonlinear activation function used in Capsule Network
+    # Arguments
+        x: Input Tensor.
+        axis: Integer axis along which the squashing function is to be applied.
+
+    # Returns
+        Tensor with scaled value of the input tensor
+    """
     s_squared_norm = K.sum(K.square(x), axis, keepdims=True) + K.epsilon()
     scale = K.sqrt(s_squared_norm) / (0.5 + s_squared_norm)
     return scale * x
 
 
-# Define the margin loss like the hinge loss
 def margin_loss(y_true, y_pred):
+    """Margin loss
+
+    # Arguments
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+
+    # Returns
+        Tensor with one scalar loss entry per sample.
+    """
     lamb, margin = 0.5, 0.1
     return K.sum(y_true * K.square(K.relu(1 - margin - y_pred)) + lamb * (
-        1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
+            1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
 
 
-class Capsule(Layer):
-    """A Capsule Network implementation in Keras
+class Capsule(layers.Layer):
+    """Capsule Network
+
+    A Capsule Network Layer implementation in Keras
     There are two versions of Capsule Networks.
     One is similar to dense layer (for the fixed-shape input),
     and the other is similar to time distributed dense layer
@@ -55,9 +72,15 @@ class Capsule(Layer):
                              num_capsule,
                              dim_capsule
                             )
-
     The Capsule implementation is from https://github.com/bojone/Capsule/
-    The paper "Dynamic Routing Between Capsules": https://arxiv.org/abs/1710.09829
+
+
+    # Arguments
+        num_capsule: An integer, the number of capsules.
+        dim_capsule: An integer, the dimensions of the capsule.
+        routings: An integer, the number of routings.
+        share_weights: A boolean, sets whether there is weight sharing between layers.
+        activation: A string, the activation function to be applied.
     """
 
     def __init__(self,
@@ -95,7 +118,7 @@ class Capsule(Layer):
                 initializer='glorot_uniform',
                 trainable=True)
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """Following the routing algorithm from Hinton's paper,
         but replace b = b + <u,v> with b = <u,v>.
 
@@ -105,7 +128,7 @@ class Capsule(Layer):
             b = K.batch_dot(outputs, hat_inputs, [2, 3])
         with
             b += K.batch_dot(outputs, hat_inputs, [2, 3])
-        to realize a standard routing.
+        to get standard routing.
         """
 
         if self.share_weights:
@@ -121,6 +144,7 @@ class Capsule(Layer):
         hat_inputs = K.permute_dimensions(hat_inputs, (0, 2, 1, 3))
 
         b = K.zeros_like(hat_inputs[:, :, :, 0])
+        print(self.routings)
         for i in range(self.routings):
             c = K.softmax(b, 1)
             o = self.activation(K.batch_dot(c, hat_inputs, [2, 2]))
@@ -147,26 +171,25 @@ y_train = utils.to_categorical(y_train, num_classes)
 y_test = utils.to_categorical(y_test, num_classes)
 
 # A simple Conv2D model
-input_image = Input(shape=(None, None, 3))
-x = Conv2D(64, (3, 3), activation='relu')(input_image)
-x = Conv2D(64, (3, 3), activation='relu')(x)
-x = AveragePooling2D((2, 2))(x)
-x = Conv2D(128, (3, 3), activation='relu')(x)
-x = Conv2D(128, (3, 3), activation='relu')(x)
+input_image = layers.Input(shape=(None, None, 3))
+x = layers.Conv2D(64, (3, 3), activation='relu')(input_image)
+x = layers.Conv2D(64, (3, 3), activation='relu')(x)
+x = layers.AveragePooling2D((2, 2))(x)
+x = layers.Conv2D(128, (3, 3), activation='relu')(x)
+x = layers.Conv2D(128, (3, 3), activation='relu')(x)
 
-"""Now, we reshape it to (batch_size, input_num_capsule, input_dim_capsule)
-then connect a capsule layer.
-The output of final model is the lengths of 10 capsules, which have 16 dimensions.
-The length of the output vector of the capsule expresses the probability of
-existence of the entity, so the problem becomes a 10 two-classification problem.
-"""
+# Now, we reshape it to (batch_size, input_num_capsule, input_dim_capsule)
+# then connect a capsule layer.
+# The output of final model is the lengths of 10 capsules, which have 16 dimensions.
+# The length of the output vector of the capsule expresses the probability of
+# existence of the entity, so the problem becomes a 10 two-classification problem.
 
-x = Reshape((-1, 128))(x)
+x = layers.Reshape((-1, 128))(x)
 capsule = Capsule(10, 16, 3, True)(x)
-output = Lambda(lambda z: K.sqrt(K.sum(K.square(z), 2)))(capsule)
+output = layers.Lambda(lambda z: K.sqrt(K.sum(K.square(z), 2)))(capsule)
 model = Model(inputs=input_image, outputs=output)
 
-# A margin loss is used
+# Margin loss is used
 model.compile(loss=margin_loss, optimizer='adam', metrics=['accuracy'])
 model.summary()
 
