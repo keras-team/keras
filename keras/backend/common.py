@@ -41,8 +41,9 @@ def set_epsilon(e):
         1e-05
     ```
     """
+
     global _EPSILON
-    _EPSILON = e
+    _EPSILON = float(e)
 
 
 def floatx():
