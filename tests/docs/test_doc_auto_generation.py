@@ -1,3 +1,4 @@
+import os
 from markdown import markdown
 from docs import autogen
 import pytest
@@ -384,6 +385,31 @@ def test_doc_multiple_sections_code():
     generated = autogen.process_docstring(dummy_docstring)
     assert '# Theano-like behavior example' in generated
     assert 'def dot(x, y):' in generated
+
+
+def test_docs_in_custom_destination_dir(tmpdir):
+    autogen.generate(tmpdir)
+    assert os.path.isdir(os.path.join(tmpdir, 'layers'))
+    assert os.path.isdir(os.path.join(tmpdir, 'models'))
+    assert os.path.isdir(os.path.join(tmpdir, 'examples'))
+    assert os.listdir(os.path.join(tmpdir, 'examples'))
+
+
+def test_module_name():
+    for page in autogen.PAGES:
+        list_of_classes = autogen.read_page_data(page, 'classes')
+        for element in list_of_classes:
+            if isinstance(element, (list, tuple)):
+                cls = element[0]
+            else:
+                cls = element
+            signature = autogen.get_class_signature(cls)
+            assert signature.startswith('keras.')
+
+        list_of_functions = autogen.read_page_data(page, 'functions')
+        for function_ in list_of_functions:
+            signature = autogen.get_function_signature(function_)
+            assert signature.startswith('keras.')
 
 
 if __name__ == '__main__':

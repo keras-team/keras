@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
-'''This example uses a convolutional stack followed by a recurrent stack
+'''
+# Optical character recognition
+This example uses a convolutional stack followed by a recurrent stack
 and a CTC logloss function to perform optical character recognition
 of generated text images. I have no evidence of whether it actually
 learns general shapes of text, or just is able to recognize all
@@ -17,17 +19,18 @@ the word list to include two words separated by a space.
 The table below shows normalized edit distance values. Theano uses
 a slightly different CTC implementation, hence the different results.
 
-            Norm. ED
 Epoch |   TF   |   TH
-------------------------
-    10   0.027   0.064
-    15   0.038   0.035
-    20   0.043   0.045
-    25   0.014   0.019
+-----:|-------:|-------:
+    10|  0.027 | 0.064
+    15|  0.038 | 0.035
+    20|  0.043 | 0.045
+    25|  0.014 | 0.019
 
-This requires cairo and editdistance packages:
+This requires ```cairo``` and ```editdistance``` packages:
+```python
 pip install cairocffi
 pip install editdistance
+```
 
 Created by Mike Henry
 https://github.com/mbhenry/

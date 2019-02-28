@@ -35,6 +35,13 @@ elif K.backend() == 'cntk':
 else:
     WITH_NP = [KTF, KNP]
 
+if K.backend() == 'cntk':
+    supports_sparse = False
+elif K.backend() == 'theano' and not KTH.th_sparse_module:
+    supports_sparse = False
+else:
+    supports_sparse = True
+
 
 def check_dtype(var, dtype):
     if K.backend() == 'theano':
@@ -546,6 +553,13 @@ class TestBackend(object):
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
+    # assumes first uid will always be the same
+    def test_reset_uids(self):
+        first = K.get_uid()
+        K.get_uid()
+        K.reset_uids()
+        assert K.get_uid() == first
+
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
     def test_cumsum_cumprod(self):
@@ -561,6 +575,30 @@ class TestBackend(object):
                                'compare with other backend.')
     def test_log(self):
         check_single_tensor_operation('log', (4, 2), WITH_NP)
+
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
+    def test_update_add(self):
+        x = np.random.randn(3, 4)
+        x_var = K.variable(x)
+        increment = np.random.randn(3, 4)
+
+        x += increment
+        K.eval(K.update_add(x_var, increment))
+
+        assert_allclose(x, K.eval(x_var), atol=1e-05)
+
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
+    def test_update_sub(self):
+        x = np.random.randn(3, 4)
+        x_var = K.variable(x)
+        decrement = np.random.randn(3, 4)
+
+        x -= decrement
+        K.eval(K.update_sub(x_var, decrement))
+
+        assert_allclose(x, K.eval(x_var), atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'cntk',
                         reason='cntk doesn\'t support gradient in this way.')
@@ -1184,7 +1222,7 @@ class TestBackend(object):
             output_shape=output_shape, padding=padding, data_format=data_format,
             cntk_dynamicity=True)
 
-    @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+    @pytest.mark.skipif((K.backend() == 'cntk' and KC.dev.type() == 0),
                         reason='cntk only supports dilated conv on GPU')
     @pytest.mark.parametrize(
         'op,input_shape,kernel_shape,padding,data_format,dilation_rate', [
@@ -1211,7 +1249,7 @@ class TestBackend(object):
             padding=padding, data_format=data_format,
             dilation_rate=dilation_rate, cntk_dynamicity=True)
 
-    @pytest.mark.skipif((K.backend() == 'cntk' and K.dev.type() == 0),
+    @pytest.mark.skipif((K.backend() == 'cntk' and KC.dev.type() == 0),
                         reason='cntk only supports dilated conv transpose on GPU')
     @pytest.mark.parametrize(
         'op,input_shape,kernel_shape,output_shape,padding,data_format,dilation_rate',
@@ -1813,6 +1851,43 @@ class TestBackend(object):
 
         assert np.allclose(log_prob_truth, log_prob_pred)
 
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='Beam search is only implemented with '
+                               'the TensorFlow backend.')
+    def test_ctc_decode_beam_search_no_merge(self):
+        # A simple CTC probability map with some repeating characters,
+        # shape(batch, input_width, char_count)
+        # Without merging should be decoded as: "AABB", with merging as: "AB".
+        input_prob = np.array([
+            [  # blank, A ,B
+                [0, 0, 1],  # blank
+                [1, 0, 0],  # A
+                [0, 0, 1],  # blank
+                [1, 0, 0],  # A
+                [0, 1, 0],  # B
+                [0, 0, 1],  # blank
+                [0, 1, 0]  # B
+            ]
+        ])
+        input_len = np.array(input_prob.shape[0] * [input_prob.shape[1]])
+
+        def decode(merge_repeated):
+            input_prob_tensor = K.placeholder(shape=(None, None, None),
+                                              dtype='float32')
+            input_len_tensor = K.placeholder(shape=(None), dtype='int64')
+            paths_tensors, _ = K.ctc_decode(input_prob_tensor, input_len_tensor,
+                                            greedy=False, beam_width=1, top_paths=1,
+                                            merge_repeated=merge_repeated)
+            decode_func = K.function([input_prob_tensor, input_len_tensor],
+                                     paths_tensors)
+            paths = decode_func([input_prob, input_len])
+            return paths
+
+        # merged: A B
+        assert np.allclose(decode(merge_repeated=True), [np.array([[0, 1]])])
+        # not merged: A A B B
+        assert np.allclose(decode(merge_repeated=False), [np.array([[0, 0, 1, 1]])])
+
     def test_one_hot(self):
         input_length = 10
         num_classes = 20
@@ -1822,8 +1897,7 @@ class TestBackend(object):
         koh = K.eval(K.one_hot(K.variable(indices, dtype='int32'), num_classes))
         assert np.all(koh == oh)
 
-    @pytest.mark.skipif((K.backend() == 'cntk'
-                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+    @pytest.mark.skipif(not supports_sparse,
                         reason='Sparse tensors are not supported in cntk '
                                'and Theano has some dependency issues for sparse.')
     def test_sparse_dot(self):
@@ -1842,8 +1916,7 @@ class TestBackend(object):
         assert k_s.shape == k_d.shape
         assert_allclose(k_s, k_d, atol=1e-05)
 
-    @pytest.mark.skipif((K.backend() == 'cntk'
-                         or (K.backend() == 'theano' and not K.th_sparse_module)),
+    @pytest.mark.skipif(not supports_sparse,
                         reason='Sparse tensors are not supported in cntk '
                                'and Theano has some dependency issues for sparse.')
     def test_sparse_concat(self):
@@ -2045,6 +2118,15 @@ class TestBackend(object):
         assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
                            np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
 
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='This test is for tensorflow parallelism.')
+    def test_tensorflow_session_parallelism_settings(self, monkeypatch):
+        for threads in [0, 1, 4]:
+            K.clear_session()
+            monkeypatch.setenv('OMP_NUM_THREADS', str(threads))
+            cfg = K.get_session()._config
+            assert cfg.intra_op_parallelism_threads == threads
+            assert cfg.inter_op_parallelism_threads == threads
 
 if __name__ == '__main__':
     pytest.main([__file__])

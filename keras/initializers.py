@@ -124,7 +124,7 @@ class TruncatedNormal(Initializer):
 
     These values are similar to values from a `RandomNormal`
     except that values more than two standard deviations from the mean
-    are discarded and re-drawn. This is the recommended initializer for
+    are discarded and redrawn. This is the recommended initializer for
     neural network weights and filters.
 
     # Arguments
@@ -248,9 +248,10 @@ class Orthogonal(Initializer):
             num_rows *= dim
         num_cols = shape[-1]
         flat_shape = (num_rows, num_cols)
+        rng = np.random
         if self.seed is not None:
-            np.random.seed(self.seed)
-        a = np.random.normal(0.0, 1.0, flat_shape)
+            rng = np.random.RandomState(self.seed)
+        a = rng.normal(0.0, 1.0, flat_shape)
         u, _, v = np.linalg.svd(a, full_matrices=False)
         # Pick the one with the correct shape.
         q = u if u.shape == flat_shape else v

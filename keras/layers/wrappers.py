@@ -340,6 +340,7 @@ class Bidirectional(Wrapper):
             One of {'sum', 'mul', 'concat', 'ave', None}.
             If None, the outputs will not be combined,
             they will be returned as a list.
+        weights: Initial weights to load in the Bidirectional model
 
     # Raises
         ValueError: In case of invalid `merge_mode` argument.

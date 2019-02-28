@@ -95,9 +95,11 @@ def clear_session():
     tf.reset_default_graph()
     reset_uids()
     _SESSION = None
-    phase = tf.placeholder_with_default(False,
-                                        shape=(),
-                                        name='keras_learning_phase')
+    with tf.name_scope(''):
+        phase = tf.placeholder_with_default(
+            False,
+            shape=(),
+            name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
@@ -130,9 +132,11 @@ def learning_phase():
     """
     graph = tf.get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
-        phase = tf.placeholder_with_default(False,
-                                            shape=(),
-                                            name='keras_learning_phase')
+        with tf.name_scope(''):
+            phase = tf.placeholder_with_default(
+                False,
+                shape=(),
+                name='keras_learning_phase')
         _GRAPH_LEARNING_PHASES[graph] = phase
     return _GRAPH_LEARNING_PHASES[graph]
 
@@ -182,6 +186,7 @@ def get_session():
             else:
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
                 config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
+                                        inter_op_parallelism_threads=num_thread,
                                         allow_soft_placement=True)
             _SESSION = tf.Session(config=config)
         session = _SESSION
@@ -3065,8 +3070,7 @@ def rnn(step_function, inputs, initial_states,
     if constants is None:
         constants = []
 
-    global uses_learning_phase
-    uses_learning_phase = False
+    uses_learning_phase = [False]
 
     if unroll:
         if not inputs.shape[0]:
@@ -3088,7 +3092,7 @@ def rnn(step_function, inputs, initial_states,
             for inp, mask_t in zip(input_list, mask_list):
                 output, new_states = step_function(inp, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
 
                 if not successive_outputs:
                     prev_output = zeros_like(output)
@@ -3114,7 +3118,7 @@ def rnn(step_function, inputs, initial_states,
             for inp in input_list:
                 output, states = step_function(inp, states + constants)
                 if getattr(output, '_uses_learning_phase', False):
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 successive_outputs.append(output)
                 successive_states.append(states)
             last_output = successive_outputs[-1]
@@ -3174,8 +3178,7 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
-                    global uses_learning_phase
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.shape)
 
@@ -3211,8 +3214,7 @@ def rnn(step_function, inputs, initial_states,
                                                    tuple(states) +
                                                    tuple(constants))
                 if getattr(output, '_uses_learning_phase', False):
-                    global uses_learning_phase
-                    uses_learning_phase = True
+                    uses_learning_phase[0] = True
                 for state, new_state in zip(states, new_states):
                     new_state.set_shape(state.shape)
                 output_ta_t = output_ta_t.write(time, output)
@@ -3231,7 +3233,7 @@ def rnn(step_function, inputs, initial_states,
 
     axes = [1, 0] + list(range(2, len(outputs.shape)))
     outputs = tf.transpose(outputs, axes)
-    last_output._uses_learning_phase = uses_learning_phase
+    last_output._uses_learning_phase = uses_learning_phase[0]
     return last_output, outputs, new_states
 
 
@@ -4501,7 +4503,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1):
+               top_paths=1, merge_repeated=False):
     """Decodes the output of a softmax.
 
     Can use either greedy search (also known as best path)
@@ -4512,18 +4514,20 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             containing the prediction, or output of the softmax.
         input_length: tensor `(samples, )` containing the sequence length for
             each batch item in `y_pred`.
-        greedy: perform much faster best-path search if `true`.
+        greedy: perform much faster best-path search if `True`.
             This does not use a dictionary.
-        beam_width: if `greedy` is `false`: a beam search decoder will be used
+        beam_width: if `greedy` is `False`: a beam search decoder will be used
             with a beam of this width.
-        top_paths: if `greedy` is `false`,
+        top_paths: if `greedy` is `False`,
             how many of the most probable paths will be returned.
+        merge_repeated: if `greedy` is `False`,
+            merge repeated classes in the output beams.
 
     # Returns
         Tuple:
-            List: if `greedy` is `true`, returns a list of one element that
+            List: if `greedy` is `True`, returns a list of one element that
                 contains the decoded sequence.
-                If `false`, returns the `top_paths` most probable
+                If `False`, returns the `top_paths` most probable
                 decoded sequences.
                 Important: blank labels are returned as `-1`.
             Tensor `(top_paths, )` that contains
@@ -4540,14 +4544,11 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
         (decoded, log_prob) = ctc.ctc_beam_search_decoder(
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths, merge_repeated=False)
+            top_paths=top_paths, merge_repeated=merge_repeated)
 
     decoded_dense = []
     for st in decoded:
-        dense_tensor = tf.sparse_to_dense(st.indices,
-                                          st.dense_shape,
-                                          st.values,
-                                          default_value=-1)
+        dense_tensor = tf.sparse.to_dense(st, default_value=-1)
         decoded_dense.append(dense_tensor)
     return (decoded_dense, log_prob)
 
