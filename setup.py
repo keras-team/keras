@@ -19,7 +19,7 @@ Read the documentation at: https://keras.io/
 For a detailed overview of what makes Keras special, see:
 https://keras.io/why-use-keras/
 
-Keras is compatible with Python 2.7-3.6
+Keras is compatible with Python 2.7-3.7
 and is distributed under the MIT license.
 '''
 
@@ -59,7 +59,7 @@ setup(name='Keras',
           'Programming Language :: Python :: 2',
           'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
           'Topic :: Software Development :: Libraries',
           'Topic :: Software Development :: Libraries :: Python Modules'
       ],

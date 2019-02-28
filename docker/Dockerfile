@@ -1,4 +1,4 @@
-ARG cuda_version=9.0
+ARG cuda_version=10.0
 ARG cudnn_version=7
 FROM nvidia/cuda:${cuda_version}-cudnn${cudnn_version}-devel
 
@@ -35,7 +35,7 @@ RUN useradd -m -s /bin/bash -N -u $NB_UID $NB_USER && \
 
 USER $NB_USER
 
-ARG python_version=3.6
+ARG python_version=3.7
 
 RUN conda config --append channels conda-forge
 RUN conda install -y python=${python_version} && \
