@@ -1,5 +1,5 @@
 sudo: required
-dist: trusty
+dist: xenial
 language: python
 cache:
   directories:
