@@ -1,4 +1,5 @@
-"""Train a simple CNN-Capsule Network on the CIFAR10 small images dataset.
+"""
+#Train a simple CNN-Capsule Network on the CIFAR10 small images dataset.
 
 Without Data Augmentation:
 It gets to 75% validation accuracy in 10 epochs,

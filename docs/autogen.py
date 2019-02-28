@@ -6,6 +6,12 @@ import re
 import inspect
 import os
 import shutil
+import six
+
+try:
+    import pathlib
+except ImportError:
+    import pathlib2 as pathlib
 
 import keras
 from keras import backend as K
@@ -13,7 +19,6 @@ from keras.backend import numpy_backend
 
 from docs.structure import EXCLUDE
 from docs.structure import PAGES
-from docs.structure import ROOT
 from docs.structure import template_np_implementation
 from docs.structure import template_hidden_np_implementation
 
@@ -21,6 +26,8 @@ import sys
 if sys.version[0] == '2':
     reload(sys)
     sys.setdefaultencoding('utf8')
+
+keras_dir = pathlib.Path(__file__).resolve().parents[1]
 
 
 def get_function_signature(function, method=True):
@@ -85,7 +92,6 @@ def clean_module_name(name):
         name = name.replace('keras_applications', 'keras.applications')
     if name.startswith('keras_preprocessing'):
         name = name.replace('keras_preprocessing', 'keras.preprocessing')
-    assert name[:6] == 'keras.', 'Invalid module name: %s' % name
     return name
 
 
@@ -101,7 +107,7 @@ def class_to_source_link(cls):
 
 def code_snippet(snippet):
     result = '```python\n'
-    result += snippet + '\n'
+    result += snippet.encode('unicode_escape').decode('utf8') + '\n'
     result += '```\n'
     return result
 
@@ -117,13 +123,15 @@ def count_leading_spaces(s):
 def process_list_block(docstring, starting_point, section_end,
                        leading_spaces, marker):
     ending_point = docstring.find('\n\n', starting_point)
-    block = docstring[starting_point:(ending_point - 1 if ending_point > -1 else
-                                      section_end)]
+    block = docstring[starting_point:
+                      (ending_point - 1 if ending_point > -1
+                       else section_end)]
     # Place marker for later reinjection.
-    docstring_slice = docstring[starting_point:section_end].replace(block, marker)
-    docstring = (docstring[:starting_point]
-                 + docstring_slice
-                 + docstring[section_end:])
+    docstring_slice = docstring[
+        starting_point:section_end].replace(block, marker)
+    docstring = (docstring[:starting_point] +
+                 docstring_slice +
+                 docstring[section_end:])
     lines = block.split('\n')
     # Remove the computed number of leading white spaces from each line.
     lines = [re.sub('^' + ' ' * leading_spaces, '', line) for line in lines]
@@ -131,7 +139,8 @@ def process_list_block(docstring, starting_point, section_end,
     # These have to be removed, but first the list roots have to be detected.
     top_level_regex = r'^    ([^\s\\\(]+):(.*)'
     top_level_replacement = r'- __\1__:\2'
-    lines = [re.sub(top_level_regex, top_level_replacement, line) for line in lines]
+    lines = [re.sub(top_level_regex, top_level_replacement, line)
+             for line in lines]
     # All the other lines get simply the 4 leading space (if present) removed
     lines = [re.sub(r'^    ', '', line) for line in lines]
     # Fix text lines after lists
@@ -318,7 +327,7 @@ def get_module_docstring(filepath):
     Also finds the line at which the docstring ends.
     """
     co = compile(open(filepath).read(), filepath, 'exec')
-    if co.co_consts and isinstance(co.co_consts[0], str):
+    if co.co_consts and isinstance(co.co_consts[0], six.string_types):
         docstring = co.co_consts[0]
     else:
         print('Could not get the docstring from ' + filepath)
@@ -326,19 +335,20 @@ def get_module_docstring(filepath):
     return docstring, co.co_firstlineno
 
 
-def copy_examples():
+def copy_examples(examples_dir, destination_dir):
     """Copy the examples directory in the documentation.
 
-    Will make the files pretty by extracting the docstrings written in markdown.
+    Prettify files by extracting the docstrings written in Markdown.
     """
-    os.makedirs('sources/examples', exist_ok=True)
-    for file in os.listdir('../examples'):
+    pathlib.Path(destination_dir).mkdir(exist_ok=True)
+    for file in os.listdir(examples_dir):
         if not file.endswith('.py'):
             continue
-        docstring, starting_line = get_module_docstring('../examples/' + file)
-        destination_file = 'sources/examples/' + file[:-2] + 'md'
+        module_path = os.path.join(examples_dir, file)
+        docstring, starting_line = get_module_docstring(module_path)
+        destination_file = os.path.join(destination_dir, file[:-2] + 'md')
         with open(destination_file, 'w+') as f_out, \
-                open('../examples/' + file, 'r+') as f_in:
+                open(os.path.join(examples_dir, file), 'r+') as f_in:
 
             f_out.write(docstring + '\n\n')
 
@@ -358,31 +368,30 @@ def copy_examples():
             f_out.write('```')
 
 
-def generate():
+def generate(sources_dir):
+    """Generates the markdown files for the documentation.
+
+    # Arguments
+        sources_dir: Where to put the markdown files.
+    """
+    template_dir = os.path.join(str(keras_dir), 'docs', 'templates')
+
     if K.backend() != 'tensorflow':
-        raise ModuleNotFoundError('The documentation must be built '
-                                  'with the TensorFlow backend because this '
-                                  'is the only backend with docstrings.')
+        raise RuntimeError('The documentation must be built '
+                           'with the TensorFlow backend because this '
+                           'is the only backend with docstrings.')
 
     print('Cleaning up existing sources directory.')
-    if os.path.exists('sources'):
-        shutil.rmtree('sources')
+    if os.path.exists(sources_dir):
+        shutil.rmtree(sources_dir)
 
     print('Populating sources directory with templates.')
-    for subdir, dirs, fnames in os.walk('templates'):
-        for fname in fnames:
-            new_subdir = subdir.replace('templates', 'sources')
-            if not os.path.exists(new_subdir):
-                os.makedirs(new_subdir)
-            if fname[-3:] == '.md':
-                fpath = os.path.join(subdir, fname)
-                new_fpath = fpath.replace('templates', 'sources')
-                shutil.copy(fpath, new_fpath)
+    shutil.copytree(template_dir, sources_dir)
 
-    readme = read_file('../README.md')
-    index = read_file('templates/index.md')
+    readme = read_file(os.path.join(str(keras_dir), 'README.md'))
+    index = read_file(os.path.join(template_dir, 'index.md'))
     index = index.replace('{{autogenerated}}', readme[readme.find('##'):])
-    with open('sources/index.md', 'w') as f:
+    with open(os.path.join(sources_dir, 'index.md'), 'w') as f:
         f.write(index)
 
     print('Generating docs for Keras %s.' % keras.__version__)
@@ -411,7 +420,8 @@ def generate():
                 subblocks.append('\n---')
                 subblocks.append('## ' + cls.__name__ + ' methods\n')
                 subblocks.append('\n---\n'.join(
-                    [render_function(method, method=True) for method in methods]))
+                    [render_function(method, method=True)
+                     for method in methods]))
             blocks.append('\n'.join(subblocks))
 
         methods = read_page_data(page_data, 'methods')
@@ -429,16 +439,17 @@ def generate():
                                page_data['page'])
 
         mkdown = '\n----\n\n'.join(blocks)
-        # save module page.
+        # Save module page.
         # Either insert content into existing page,
-        # or create page otherwise
+        # or create page otherwise.
         page_name = page_data['page']
-        path = os.path.join('sources', page_name)
+        path = os.path.join(sources_dir, page_name)
         if os.path.exists(path):
             template = read_file(path)
-            assert '{{autogenerated}}' in template, ('Template found for ' + path +
-                                                     ' but missing {{autogenerated}}'
-                                                     ' tag.')
+            if '{{autogenerated}}' not in template:
+                raise RuntimeError('Template found for ' + path +
+                                   ' but missing {{autogenerated}}'
+                                   ' tag.')
             mkdown = template.replace('{{autogenerated}}', mkdown)
             print('...inserting autogenerated content into template:', path)
         else:
@@ -449,9 +460,11 @@ def generate():
         with open(path, 'w') as f:
             f.write(mkdown)
 
-    shutil.copyfile('../CONTRIBUTING.md', 'sources/contributing.md')
-    copy_examples()
+    shutil.copyfile(os.path.join(str(keras_dir), 'CONTRIBUTING.md'),
+                    os.path.join(str(sources_dir), 'contributing.md'))
+    copy_examples(os.path.join(str(keras_dir), 'examples'),
+                  os.path.join(str(sources_dir), 'examples'))
 
 
 if __name__ == '__main__':
-    generate()
+    generate(os.path.join(str(keras_dir), 'docs', 'sources'))
