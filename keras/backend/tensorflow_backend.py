@@ -4469,8 +4469,8 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 
     vals_sparse = tf.gather_nd(labels, indices)
 
-    indices = tf.to_int64(indices)
-    label_shape = tf.to_int64(label_shape)
+    indices = tf.cast(indices, tf.int64)
+    label_shape = tf.cast(label_shape, tf.int64)
     return tf.SparseTensor(indices, vals_sparse, label_shape)
 
 
@@ -4491,12 +4491,11 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         Tensor with shape (samples,1) containing the
             CTC loss of each element.
     """
-    label_length = tf.to_int32(tf.squeeze(label_length, axis=-1))
-    input_length = tf.to_int32(tf.squeeze(input_length, axis=-1))
-    sparse_labels = tf.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
-
+    label_length = tf.cast(tf.squeeze(label_length, axis=-1), tf.int32)
+    input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
+    sparse_labels = tf.cast(
+        ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-
     return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
                                        labels=sparse_labels,
                                        sequence_length=input_length), 1)
@@ -4534,7 +4533,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
                 the log probability of each decoded sequence.
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-    input_length = tf.to_int32(input_length)
+    input_length = tf.cast(input_length, tf.int32)
 
     if greedy:
         (decoded, log_prob) = ctc.ctc_greedy_decoder(
