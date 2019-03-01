@@ -4493,10 +4493,9 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     """
     label_length = tf.cast(tf.squeeze(label_length, axis=-1), tf.int32)
     input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
-    sparse_labels = tf.cast(ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
-
+    sparse_labels = tf.cast(
+        ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-
     return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
                                        labels=sparse_labels,
                                        sequence_length=input_length), 1)
