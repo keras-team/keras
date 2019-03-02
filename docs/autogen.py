@@ -96,7 +96,7 @@ def clean_module_name(name):
 
 
 def class_to_source_link(cls):
-    module_name = cls.__module__
+    module_name = clean_module_name(cls.__module__)
     path = module_name.replace('.', '/')
     path += '.py'
     line = inspect.getsourcelines(cls)[-1]
