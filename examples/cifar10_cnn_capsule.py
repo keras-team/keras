@@ -52,7 +52,7 @@ def margin_loss(y_true, y_pred):
     """
     lamb, margin = 0.5, 0.1
     return K.sum(y_true * K.square(K.relu(1 - margin - y_pred)) + lamb * (
-            1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
+        1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
 
 
 class Capsule(layers.Layer):
@@ -79,7 +79,7 @@ class Capsule(layers.Layer):
         num_capsule: An integer, the number of capsules.
         dim_capsule: An integer, the dimensions of the capsule.
         routings: An integer, the number of routings.
-        share_weights: A boolean, sets whether there is weight sharing between layers.
+        share_weights: A boolean, sets weight sharing between layers.
         activation: A string, the activation function to be applied.
     """
 
