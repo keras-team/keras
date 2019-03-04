@@ -69,7 +69,7 @@ def get_class_signature(cls):
         # in case the class inherits from object and does not
         # define __init__
         class_signature = "{clean_module_name}.{cls_name}()".format(
-            clean_module_name=clean_module_name(cls.__module__),
+            clean_module_name=cls.__module__,
             cls_name=cls.__name__
         )
     return post_process_signature(class_signature)
