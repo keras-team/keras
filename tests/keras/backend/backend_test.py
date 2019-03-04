@@ -163,6 +163,7 @@ def check_two_tensor_operation(function_name,
                 k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs)
             z = k.eval(t)
         elif concat_args:
+            print("concat_args",concat_args)
             t = getattr(k, function_name)(
                 [k.variable(x_val), k.variable(y_val)], **kwargs)
             z = k.eval(t)
@@ -280,9 +281,9 @@ class TestBackend(object):
     #    check_single_tensor_operation('zeros_like', (3, 5, 10, 8),
     #                                  WITH_NP, shape_or_val=True)
 
-    #def test_linear_operations(self):
-    #    check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
-    #    check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
+    def test_linear_operations(self):
+        check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
+        check_two_tensor_operation('dot', (4, 2), (5, 2, 3), WITH_NP)
 
     #    check_two_tensor_operation('batch_dot', (4, 2, 3), (4, 5, 3),
     #                               WITH_NP, cntk_two_dynamicity=True, axes=(2, 2))
@@ -305,7 +306,7 @@ class TestBackend(object):
     #    check_two_tensor_operation('batch_dot', (32, 20), (32, 20),
     #                               WITH_NP, axes=(1, 1))
 
-    #    check_single_tensor_operation('transpose', (4, 2), WITH_NP)
+        check_single_tensor_operation('transpose', (4, 2), WITH_NP)
     #    check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
     #    if K.backend() != 'cntk':
     #        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
@@ -1381,20 +1382,20 @@ class TestBackend(object):
     #        assert np.abs(np.mean(samples) - mean) < std * 0.015
     #        assert np.abs(np.std(samples) - std) < std * 0.015
 
-    #def test_random_uniform(self):
-    #    min_val = -1.
-    #    max_val = 1.
-    #    rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
-    #    assert rand.shape == (200, 100)
-    #    assert np.abs(np.mean(rand)) < 0.015
-    #    assert max_val - 0.015 < np.max(rand) <= max_val
-    #    assert min_val + 0.015 > np.min(rand) >= min_val
+    def test_random_uniform(self):
+        min_val = -1.
+        max_val = 1.
+        rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
+        assert rand.shape == (200, 100)
+        assert np.abs(np.mean(rand)) < 0.015
+        assert max_val - 0.015 < np.max(rand) <= max_val
+        assert min_val + 0.015 > np.min(rand) >= min_val
 
-    #    r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
-    #    samples = np.array([K.eval(r) for _ in range(200)])
-    #    assert np.abs(np.mean(samples)) < 0.015
-    #    assert max_val - 0.015 < np.max(samples) <= max_val
-    #    assert min_val + 0.015 > np.min(samples) >= min_val
+        r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
+        samples = np.array([K.eval(r) for _ in range(200)])
+        assert np.abs(np.mean(samples)) < 0.015
+        assert max_val - 0.015 < np.max(samples) <= max_val
+        assert min_val + 0.015 > np.min(samples) >= min_val
 
     #def test_random_binomial(self):
     #    p = 0.5
