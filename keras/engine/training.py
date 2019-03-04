@@ -855,9 +855,6 @@ class Model(Container):
         self.stateful_metric_names = []
         with K.name_scope('metrics'):
             for i in range(len(self.outputs)):
-                if i in skip_target_indices:
-                    continue
-
                 y_true = self.targets[i]
                 y_pred = self.outputs[i]
                 weights = sample_weights[i]
