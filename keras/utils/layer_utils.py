@@ -159,7 +159,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
                 fields = ['', '', '', connections[i]]
                 print_row(fields, positions)
 
-    layers = model.layers
+    layers = model._layers
     for i in range(len(layers)):
         if sequential_like:
             print_layer_summary(layers[i])
