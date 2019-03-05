@@ -10,25 +10,14 @@ from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
-from tensorflow.python.client import device_lib
-from tensorflow.core.protobuf import config_pb2
 
 import functools
-from collections import defaultdict
 
 import numpy as np
 from distutils.version import StrictVersion
-import os
 
-from .common import floatx
-from .common import epsilon
 from .common import normalize_data_format
 from ..utils.generic_utils import transpose_shape
-from ..utils.generic_utils import has_arg
-
-# Legacy functions
-from .common import set_image_dim_ordering
-from .common import image_dim_ordering
 
 py_all = all
 py_any = any
@@ -36,20 +25,6 @@ py_sum = sum
 py_slice = slice
 
 # INTERNAL UTILS
-
-# This is the default internal TF session used by Keras.
-# It can be set manually via `set_session(sess)`.
-_SESSION = None
-
-# This dictionary holds a mapping {graph: learning_phase}.
-# A learning phase is a bool tensor used to run Keras models in
-# either train mode (learning_phase == 1) or test mode (learning_phase == 0).
-_GRAPH_LEARNING_PHASES = {}
-
-# This boolean flag can be set to True to leave variable initialization
-# up to the user.
-# Change its value via `manual_variable_initialization(value)`.
-_MANUAL_VAR_INIT = False
 
 # This list holds the available devices.
 # It is populated when `_get_available_gpus()` is called for the first time.
@@ -61,8 +36,19 @@ def _is_tf_1():
     return tf.__version__.startswith('1.')
 
 
-def get_graph():
-    return tf_keras_backend.get_graph()
+floatx = tf_keras_backend.floatx
+epsilon = tf_keras_backend.epsilon
+
+get_graph = tf_keras_backend.get_graph
+get_uid = tf_keras_backend.get_uid
+reset_uids = tf_keras_backend.reset_uids
+clear_session = tf_keras_backend.clear_session
+manual_variable_initialization = tf_keras_backend.manual_variable_initialization
+
+learning_phase = tf_keras_backend.learning_phase
+learning_phase_scope = tf_keras_backend.learning_phase_scope
+set_learning_phase = tf_keras_backend.set_learning_phase
+name_scope = tf.name_scope
 
 
 def tf_graph_op(func):
@@ -71,64 +57,6 @@ def tf_graph_op(func):
         with get_graph().as_default():
             return func(*args, **kwargs)
     return wrapper
-
-
-def get_uid(prefix=''):
-    """Get the uid for the default graph.
-
-    # Arguments
-        prefix: An optional prefix of the graph.
-
-    # Returns
-        A unique identifier for the graph.
-    """
-    return tf_keras_backend.get_uid(prefix)
-
-
-def reset_uids():
-    """Resets graph identifiers.
-    """
-    tf_keras_backend.reset_uids()
-
-
-def clear_session():
-    """Destroys the current TF graph and creates a new one.
-
-    Useful to avoid clutter from old models / layers.
-    """
-    tf_keras_backend.clear_session()
-    if _is_tf_1():
-        global _SESSION
-        tf.reset_default_graph()
-        _SESSION = None
-    reset_uids()
-    with get_graph().as_default(), tf.name_scope(''):
-        phase = tf.placeholder_with_default(
-            False,
-            shape=(),
-            name='keras_learning_phase')
-    global _GRAPH_LEARNING_PHASES
-    _GRAPH_LEARNING_PHASES = {}
-    _GRAPH_LEARNING_PHASES[get_graph()] = phase
-
-
-def manual_variable_initialization(value):
-    """Sets the manual variable initialization flag.
-    This boolean flag determines whether
-    variables should be initialized
-    as they are instantiated (default), or if
-    the user should handle the initialization
-    (e.g. via `tf.initialize_all_variables()`).
-    # Arguments
-        value: Python boolean.
-    """
-    global _MANUAL_VAR_INIT
-    _MANUAL_VAR_INIT = value
-
-
-learning_phase = tf_keras_backend.learning_phase
-learning_phase_scope = tf_keras_backend.learning_phase_scope
-set_learning_phase = tf_keras_backend.set_learning_phase
 
 
 def get_session():
@@ -155,48 +83,7 @@ def get_session():
         raise RuntimeError(
             '`set_session` is not available when '
             'TensorFlow is executing eagerly.')
-
-    global _SESSION
-
-    default_session = tf.get_default_session()
-
-    if default_session is not None:
-        session = default_session
-    else:
-        if _SESSION is None:
-            if not os.environ.get('OMP_NUM_THREADS'):
-                config = tf.ConfigProto(allow_soft_placement=True)
-            else:
-                num_thread = int(os.environ.get('OMP_NUM_THREADS'))
-                config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
-                                        inter_op_parallelism_threads=num_thread,
-                                        allow_soft_placement=True)
-            _SESSION = tf.Session(config=config)
-        session = _SESSION
-    if not _MANUAL_VAR_INIT:
-        with session.graph.as_default():
-            variables = tf.global_variables()
-            candidate_vars = []
-            for v in variables:
-                if not getattr(v, '_keras_initialized', False):
-                    candidate_vars.append(v)
-            if candidate_vars:
-                # This step is expensive, so we only run it on variables
-                # not already marked as initialized.
-                is_initialized = session.run(
-                    [tf.is_variable_initialized(v) for v in candidate_vars])
-                uninitialized_vars = []
-                for flag, v in zip(is_initialized, candidate_vars):
-                    if not flag:
-                        uninitialized_vars.append(v)
-                    v._keras_initialized = True
-                if uninitialized_vars:
-                    session.run(tf.variables_initializer(uninitialized_vars))
-    # hack for list_devices() function.
-    # list_devices() function is not available under tensorflow r1.3.
-    if not hasattr(session, 'list_devices'):
-        session.list_devices = lambda: device_lib.list_local_devices()
-    return session
+    return tf_keras_backend.get_session()
 
 
 def set_session(session):
@@ -213,8 +100,7 @@ def set_session(session):
         raise RuntimeError(
             '`get_session` is not available when '
             'TensorFlow is executing eagerly.')
-    global _SESSION
-    _SESSION = session
+    tf_keras_backend.set_session(session)
 
 
 # DEVICE MANIPULATION AND PROBING
@@ -358,9 +244,6 @@ def to_dense(tensor):
         return tensor
 
 
-name_scope = tf.name_scope
-
-
 def variable(value, dtype=None, name=None, constraint=None):
     """Instantiates a variable and returns it.
 
@@ -390,8 +273,9 @@ def variable(value, dtype=None, name=None, constraint=None):
     """
     if dtype is None:
         dtype = floatx()
-    v = tf_keras_backend.variable(
-        value, dtype=dtype, name=name, constraint=constraint)
+    with tf_ops.init_scope():
+        v = tf_keras_backend.variable(
+            value, dtype=dtype, name=name, constraint=constraint)
     if hasattr(value, 'tocoo'):
         v._keras_shape = value.tocoo().shape
     elif isinstance(value, np.ndarray):
@@ -986,10 +870,7 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    if _is_tf_1():
-        return tf.assign(x, new_x)
-    else:
-        return x.assign(new_x)
+    return tf_keras_backend.update(x, new_x)
 
 
 @tf_graph_op
@@ -1003,10 +884,7 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    if _is_tf_1():
-        return tf.assign_add(x, increment)
-    else:
-        return x.assign_add(increment)
+    return tf_keras_backend.update_add(x, increment)
 
 
 @tf_graph_op
@@ -1020,10 +898,7 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    if _is_tf_1():
-        return tf.assign_sub(x, decrement)
-    else:
-        return x.assign_sub(decrement)
+    return tf_keras_backend.update_sub(x, decrement)
 
 
 @tf_graph_op
@@ -2675,8 +2550,7 @@ def get_value(x):
     # Returns
         A Numpy array.
     """
-    # TODO
-    return x.eval(session=get_session())
+    return tf_keras_backend.get_value(x)
 
 
 def batch_get_value(ops):
@@ -2689,10 +2563,7 @@ def batch_get_value(ops):
         A list of Numpy arrays.
     """
     # TODO
-    if ops:
-        return get_session().run(ops)
-    else:
-        return []
+    return tf_keras_backend.batch_get_value(ops)
 
 
 def set_value(x, value):
@@ -2752,247 +2623,6 @@ def print_tensor(x, message=''):
 
 
 # GRAPH MANIPULATION
-
-# class Function(object):
-#     """Runs a computation graph.
-
-#     It's possible to pass arguments to `tf.Session.run()` via `session_kwargs`.
-#     In particular additional operations via `fetches` argument and additional
-#     tensor substitutions via `feed_dict` arguments. Note that given
-#     substitutions are merged with substitutions from `inputs`. Even though
-#     `feed_dict` is passed once in the constructor (called in `model.compile()`)
-#     we can modify the values in the dictionary. Through this feed_dict we can
-#     provide additional substitutions besides Keras inputs.
-
-#     # Arguments
-#         inputs: Feed placeholders to the computation graph.
-#         outputs: Output tensors to fetch.
-#         updates: Additional update ops to be run at function call.
-#         name: a name to help users identify what this function does.
-#         session_kwargs: arguments to `tf.Session.run()`:
-#             `fetches`, `feed_dict`,
-#             `options`, `run_metadata`
-#     """
-
-#     def __init__(self, inputs, outputs,
-#                  updates=None,
-#                  name=None,
-#                  **session_kwargs):
-#         updates = updates or []
-#         if not isinstance(inputs, (list, tuple)):
-#             raise TypeError('`inputs` to a TensorFlow backend function '
-#                             'should be a list or tuple.')
-#         if not isinstance(outputs, (list, tuple)):
-#             raise TypeError('`outputs` of a TensorFlow backend function '
-#                             'should be a list or tuple.')
-#         if not isinstance(updates, (list, tuple)):
-#             raise TypeError('`updates` in a TensorFlow backend function '
-#                             'should be a list or tuple.')
-#         self.inputs = list(inputs)
-#         self.outputs = list(outputs)
-#         with tf.control_dependencies(self.outputs):
-#             updates_ops = []
-#             for update in updates:
-#                 if isinstance(update, tuple):
-#                     p, new_p = update
-#                     updates_ops.append(tf.assign(p, new_p))
-#                 else:
-#                     # assumed already an op
-#                     updates_ops.append(update)
-#             self.updates_op = tf.group(*updates_ops)
-#         self.name = name
-#         # additional tensor substitutions
-#         self.feed_dict = session_kwargs.pop('feed_dict', {})
-#         # additional operations
-#         self.fetches = session_kwargs.pop('fetches', [])
-#         if not isinstance(self.fetches, list):
-#             self.fetches = [self.fetches]
-#         # The main use case of `fetches` being passed to a model is the ability
-#         # to run custom updates
-#         # (since the outputs of fetches are never returned).
-#         # This requires us to wrap fetches in `identity` ops.
-#         self.fetches = [tf.identity(x) for x in self.fetches]
-#         # self.session_kwargs is used for _legacy_call
-#         self.session_kwargs = session_kwargs.copy()
-#         self.run_options = session_kwargs.pop('options', None)
-#         self.run_metadata = session_kwargs.pop('run_metadata', None)
-#         if session_kwargs:
-#             raise ValueError('Some keys in session_kwargs are not '
-#                              'supported at this '
-#                              'time: %s', session_kwargs.keys())
-#         self._callable_fn = None
-#         self._feed_arrays = None
-#         self._feed_symbols = None
-#         self._symbol_vals = None
-#         self._session = None
-
-#     def _make_callable(self, feed_arrays, feed_symbols, symbol_vals, session):
-#         """Generates a callable that runs the graph.
-
-#         # Arguments
-#             feed_arrays: List of input tensors to be fed
-#                 Numpy arrays at runtime.
-#             feed_symbols: List of input tensors to be fed
-#                 symbolic tensors at runtime.
-#             symbol_vals: List of symbolic tensors to be fed to `feed_symbols`.
-#             session: Session to use to generate the callable.
-
-#         # Returns
-#             Function that runs the graph according to the above options.
-#         """
-#         # Prepare callable options.
-#         callable_opts = config_pb2.CallableOptions()
-#         # Handle external-data feed.
-#         for x in feed_arrays:
-#             callable_opts.feed.append(x.name)
-#         if self.feed_dict:
-#             for key in sorted(self.feed_dict.keys()):
-#                 callable_opts.feed.append(key.name)
-#         # Handle symbolic feed.
-#         for x, y in zip(feed_symbols, symbol_vals):
-#             connection = callable_opts.tensor_connection.add()
-#             if x.dtype != y.dtype:
-#                 y = tf.cast(y, dtype=x.dtype)
-#             from_tensor = tf_ops._as_graph_element(y)
-#             if from_tensor is None:
-#                 from_tensor = y
-#             connection.from_tensor = from_tensor.name  # Data tensor
-#             connection.to_tensor = x.name  # Placeholder
-#         # Handle fetches.
-#         for x in self.outputs + self.fetches:
-#             callable_opts.fetch.append(x.name)
-#         # Handle updates.
-#         callable_opts.target.append(self.updates_op.name)
-#         # Handle run_options.
-#         if self.run_options:
-#             callable_opts.run_options.CopyFrom(self.run_options)
-#         # Create callable.
-#         callable_fn = session._make_callable_from_options(callable_opts)
-#         # Cache parameters corresponding to the generated callable, so that
-#         # we can detect future mismatches and refresh the callable.
-#         self._callable_fn = callable_fn
-#         self._feed_arrays = feed_arrays
-#         self._feed_symbols = feed_symbols
-#         self._symbol_vals = symbol_vals
-#         self._session = session
-
-#     def _call(self, inputs):
-#         if not isinstance(inputs, (list, tuple)):
-#             raise TypeError('`inputs` should be a list or tuple.')
-
-#         session = get_session()
-#         feed_arrays = []
-#         array_vals = []
-#         feed_symbols = []
-#         symbol_vals = []
-#         for tensor, value in zip(self.inputs, inputs):
-#             if value is None:
-#                 continue
-#             if is_tensor(value):
-#                 # Case: feeding symbolic tensor.
-#                 feed_symbols.append(tensor)
-#                 symbol_vals.append(value)
-#             else:
-#                 feed_arrays.append(tensor)
-#                 # We need to do array conversion and type casting
-#                 # at this level, since
-#                 # `callable_fn` only supports exact matches.
-#                 array_vals.append(
-#                     np.asarray(value,
-#                                dtype=tf.as_dtype(tensor.dtype).as_numpy_dtype))
-#         if self.feed_dict:
-#             for key in sorted(self.feed_dict.keys()):
-#                 array_vals.append(
-#                     np.asarray(self.feed_dict[key],
-#                                dtype=tf.as_dtype(key.dtype).as_numpy_dtype))
-
-#         # Refresh callable if anything has changed.
-#         if (self._callable_fn is None or
-#                 feed_arrays != self._feed_arrays or
-#                 symbol_vals != self._symbol_vals or
-#                 feed_symbols != self._feed_symbols or
-#                 session != self._session):
-#             self._make_callable(feed_arrays,
-#                                 feed_symbols,
-#                                 symbol_vals,
-#                                 session)
-#         if self.run_metadata:
-#             fetched = self._callable_fn(*array_vals, run_metadata=self.run_metadata)
-#         else:
-#             fetched = self._callable_fn(*array_vals)
-#         return fetched[:len(self.outputs)]
-
-#     def _legacy_call(self, inputs):
-#         if not isinstance(inputs, (list, tuple)):
-#             raise TypeError('`inputs` should be a list or tuple.')
-#         feed_dict = self.feed_dict.copy()
-#         for tensor, value in zip(self.inputs, inputs):
-#             if is_sparse(tensor):
-#                 sparse_coo = value.tocoo()
-#                 indices = np.concatenate(
-#                     (np.expand_dims(sparse_coo.row, 1),
-#                      np.expand_dims(sparse_coo.col, 1)), 1)
-#                 value = (indices, sparse_coo.data, sparse_coo.shape)
-#             feed_dict[tensor] = value
-#         fetches = self.outputs + [self.updates_op] + self.fetches
-#         session = get_session()
-#         updated = session.run(fetches=fetches, feed_dict=feed_dict,
-#                               **self.session_kwargs)
-#         return updated[:len(self.outputs)]
-
-#     def __call__(self, inputs):
-#         if hasattr(get_session(), '_make_callable_from_options'):
-#             if py_any(is_sparse(x) for x in self.inputs):
-#                 if py_any(is_tensor(x) for x in inputs):
-#                     raise ValueError(
-#                         'Feeding from symbolic tensors is not '
-#                         'supported with sparse inputs.')
-#                 return self._legacy_call(inputs)
-
-#             # callable generated by Session._make_callable_from_options accepts
-#             # `run_metadata` keyword argument since TF 1.10
-#             if self.run_metadata:
-#                 current_version = StrictVersion(tf.__version__.split('-')[0])
-#                 if current_version < StrictVersion('1.10.0'):
-#                     if py_any(is_tensor(x) for x in inputs):
-#                         raise ValueError(
-#                             'In order to feed symbolic tensors '
-#                             'to a Keras model and set '
-#                             '`run_metadata`, you need tensorflow 1.10 or higher.')
-#                     return self._legacy_call(inputs)
-
-#             return self._call(inputs)
-#         else:
-#             if py_any(is_tensor(x) for x in inputs):
-#                 raise ValueError(
-#                     'In order to feed symbolic tensors to a Keras model '
-#                     'in TensorFlow, you need tensorflow 1.8 or higher.')
-#             return self._legacy_call(inputs)
-
-
-# def function(inputs, outputs, updates=None, **kwargs):
-#     """Instantiates a Keras function.
-
-#     # Arguments
-#         inputs: List of placeholder tensors.
-#         outputs: List of output tensors.
-#         updates: List of update ops.
-#         **kwargs: Passed to `tf.Session.run`.
-
-#     # Returns
-#         Output values as Numpy arrays.
-
-#     # Raises
-#         ValueError: if invalid kwargs are passed in.
-#     """
-#     if kwargs:
-#         for key in kwargs:
-#             session_has_key = has_arg(tf.Session.run, key, True)
-#             function_has_key = has_arg(Function.__init__, key, True)
-#             if not (session_has_key or function_has_key):
-#                 raise ValueError('Invalid argument "%s" passed to K.function '
-#                                  'with TensorFlow backend' % key)
-#     return Function(inputs, outputs, updates=updates, **kwargs)
 
 def function(inputs, outputs, updates=None, **kwargs):
     return tf_keras_backend.function(inputs, outputs,
@@ -3843,8 +3473,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     padding = _preprocess_padding(padding)
     x, tf_data_format = _preprocess_conv1d_input(x, data_format)
     x = tf.nn.convolution(
-        input=x,
-        filter=kernel,
+        x, kernel,
         dilation_rate=(dilation_rate,),
         strides=(strides,),
         padding=padding,
@@ -3883,8 +3512,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
 
     padding = _preprocess_padding(padding)
     x = tf.nn.convolution(
-        input=x,
-        filter=kernel,
+        x, kernel,
         dilation_rate=dilation_rate,
         strides=strides,
         padding=padding,
@@ -4125,8 +3753,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     x, tf_data_format = _preprocess_conv3d_input(x, data_format)
     padding = _preprocess_padding(padding)
     x = tf.nn.convolution(
-        input=x,
-        filter=kernel,
+        x, kernel,
         dilation_rate=dilation_rate,
         strides=strides,
         padding=padding,
