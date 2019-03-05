@@ -31,7 +31,7 @@ def test_vector_classification():
         layers.Dense(num_classes, activation='softmax')
     ])
     model.compile(loss='categorical_crossentropy',
-                  optimizer='rmsprop',
+                  optimizer=keras.optimizers.Adam(1e-3),
                   metrics=['accuracy'])
     model.summary()
     history = model.fit(x_train, y_train, epochs=15, batch_size=16,
@@ -56,7 +56,7 @@ def test_vector_classification_functional():
     outputs = layers.Dense(num_classes, activation='softmax')(x)
     model = keras.models.Model(inputs, outputs)
     model.compile(loss=keras.losses.sparse_categorical_crossentropy,
-                  optimizer=keras.optimizers.RMSprop(),
+                  optimizer=keras.optimizers.Adam(1e-3),
                   metrics=['acc'])
     history = model.fit(x_train, y_train, epochs=15, batch_size=16,
                         validation_data=(x_test, y_test),
@@ -80,7 +80,7 @@ def test_vector_regression():
         layers.Dense(num_classes)
     ])
 
-    model.compile(loss='hinge', optimizer='adagrad')
+    model.compile(loss='hinge', optimizer=keras.optimizers.Adam(1e-3))
     history = model.fit(x_train, y_train, epochs=20, batch_size=16,
                         validation_data=(x_test, y_test), verbose=0)
     assert (history.history['val_loss'][-1] < 0.9)

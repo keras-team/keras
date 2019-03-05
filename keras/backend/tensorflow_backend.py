@@ -46,6 +46,11 @@ _SESSION = None
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 _GRAPH_LEARNING_PHASES = {}
 
+# This boolean flag can be set to True to leave variable initialization
+# up to the user.
+# Change its value via `manual_variable_initialization(value)`.
+_MANUAL_VAR_INIT = False
+
 # This list holds the available devices.
 # It is populated when `_get_available_gpus()` is called for the first time.
 # We assume our devices don't change during our lifetime.
@@ -57,10 +62,7 @@ def _is_tf_1():
 
 
 def get_graph():
-    if hasattr(tf_keras_backend, 'get_graph'):
-        return tf_keras_backend.get_graph()
-    else:
-        return tf.get_default_graph()
+    return tf_keras_backend.get_graph()
 
 
 def tf_graph_op(func):
@@ -95,21 +97,34 @@ def clear_session():
     Useful to avoid clutter from old models / layers.
     """
     tf_keras_backend.clear_session()
-    global _SESSION
-    global _GRAPH_LEARNING_PHASES
-    tf.reset_default_graph()
+    if _is_tf_1():
+        global _SESSION
+        tf.reset_default_graph()
+        _SESSION = None
     reset_uids()
-    _SESSION = None
-    with tf.name_scope(''):
+    with get_graph().as_default(), tf.name_scope(''):
         phase = tf.placeholder_with_default(
             False,
             shape=(),
             name='keras_learning_phase')
+    global _GRAPH_LEARNING_PHASES
     _GRAPH_LEARNING_PHASES = {}
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
+    _GRAPH_LEARNING_PHASES[get_graph()] = phase
 
 
-manual_variable_initialization = tf_keras_backend.manual_variable_initialization
+def manual_variable_initialization(value):
+    """Sets the manual variable initialization flag.
+    This boolean flag determines whether
+    variables should be initialized
+    as they are instantiated (default), or if
+    the user should handle the initialization
+    (e.g. via `tf.initialize_all_variables()`).
+    # Arguments
+        value: Python boolean.
+    """
+    global _MANUAL_VAR_INIT
+    _MANUAL_VAR_INIT = value
+
 
 learning_phase = tf_keras_backend.learning_phase
 learning_phase_scope = tf_keras_backend.learning_phase_scope
@@ -132,10 +147,15 @@ def get_session():
     # Returns
         A TensorFlow session.
     """
+    if not _is_tf_1():
+        raise RuntimeError(
+            '`set_session` is not available '
+            'when using TensorFlow 2.0.')
     if tf.executing_eagerly():
         raise RuntimeError(
-            '`get_session` is not available when '
+            '`set_session` is not available when '
             'TensorFlow is executing eagerly.')
+
     global _SESSION
 
     default_session = tf.get_default_session()
@@ -185,6 +205,10 @@ def set_session(session):
     # Arguments
         session: A TF Session.
     """
+    if not _is_tf_1():
+        raise RuntimeError(
+            '`set_session` is not available '
+            'when using TensorFlow 2.0.')
     if tf.executing_eagerly():
         raise RuntimeError(
             '`get_session` is not available when '
@@ -366,9 +390,8 @@ def variable(value, dtype=None, name=None, constraint=None):
     """
     if dtype is None:
         dtype = floatx()
-    with tf_ops.init_scope():
-        v = tf_keras_backend.variable(
-            value, dtype=dtype, name=name, constraint=constraint)
+    v = tf_keras_backend.variable(
+        value, dtype=dtype, name=name, constraint=constraint)
     if hasattr(value, 'tocoo'):
         v._keras_shape = value.tocoo().shape
     elif isinstance(value, np.ndarray):
@@ -966,7 +989,7 @@ def update(x, new_x):
     if _is_tf_1():
         return tf.assign(x, new_x)
     else:
-        x.assign(new_x)
+        return x.assign(new_x)
 
 
 @tf_graph_op
@@ -983,7 +1006,7 @@ def update_add(x, increment):
     if _is_tf_1():
         return tf.assign_add(x, increment)
     else:
-        x.assign_add(increment)
+        return x.assign_add(increment)
 
 
 @tf_graph_op
@@ -1000,7 +1023,7 @@ def update_sub(x, decrement):
     if _is_tf_1():
         return tf.assign_sub(x, decrement)
     else:
-        x.assign_sub(decrement)
+        return x.assign_sub(decrement)
 
 
 @tf_graph_op
@@ -2680,17 +2703,7 @@ def set_value(x, value):
         value: Value to set the tensor to, as a Numpy array
             (of the same shape).
     """
-    # TODO
-    value = np.asarray(value, dtype=dtype(x))
-    if hasattr(x, '_assign_placeholder'):
-        assign_placeholder = x._assign_placeholder
-        assign_op = x._assign_op
-    else:
-        assign_placeholder = tf.placeholder(value.dtype, shape=value.shape)
-        assign_op = x.assign(assign_placeholder)
-        x._assign_placeholder = assign_placeholder
-        x._assign_op = assign_op
-    get_session().run(assign_op, feed_dict={assign_placeholder: value})
+    tf_keras_backend.set_value(x, value)
 
 
 def batch_set_value(tuples):
@@ -2700,25 +2713,7 @@ def batch_set_value(tuples):
         tuples: a list of tuples `(tensor, value)`.
             `value` should be a Numpy array.
     """
-    # TODO
-    if tuples:
-        assign_ops = []
-        feed_dict = {}
-        for x, value in tuples:
-            value = np.asarray(value, dtype=dtype(x))
-            tf_dtype = tf.as_dtype(x.dtype.name.split('_')[0])
-            if hasattr(x, '_assign_placeholder'):
-                assign_placeholder = x._assign_placeholder
-                assign_op = x._assign_op
-            else:
-                assign_placeholder = tf.placeholder(tf_dtype,
-                                                    shape=value.shape)
-                assign_op = x.assign(assign_placeholder)
-                x._assign_placeholder = assign_placeholder
-                x._assign_op = assign_op
-            assign_ops.append(assign_op)
-            feed_dict[assign_placeholder] = value
-        get_session().run(assign_ops, feed_dict=feed_dict)
+    tf_keras_backend.batch_set_value(tuples)
 
 
 def get_variable_shape(x):
