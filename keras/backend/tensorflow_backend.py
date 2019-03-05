@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.framework import ops as tf_ops
+from tensorflow.python.keras import backend as tf_keras_backend
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
 from tensorflow.python.ops import control_flow_ops
@@ -12,6 +13,7 @@ from tensorflow.python.ops import ctc_ops as ctc
 from tensorflow.python.client import device_lib
 from tensorflow.core.protobuf import config_pb2
 
+import functools
 from collections import defaultdict
 
 import numpy as np
@@ -44,21 +46,29 @@ _SESSION = None
 # either train mode (learning_phase == 1) or test mode (learning_phase == 0).
 _GRAPH_LEARNING_PHASES = {}
 
-# This dictionary holds a mapping {graph: UID_DICT}.
-# each UID_DICT is a dictionary mapping name prefixes to a current index,
-# used for generating graph-specific string UIDs
-# for various names (e.g. layer names).
-_GRAPH_UID_DICTS = {}
-
-# This boolean flag can be set to True to leave variable initialization
-# up to the user.
-# Change its value via `manual_variable_initialization(value)`.
-_MANUAL_VAR_INIT = False
-
 # This list holds the available devices.
 # It is populated when `_get_available_gpus()` is called for the first time.
 # We assume our devices don't change during our lifetime.
 _LOCAL_DEVICES = None
+
+
+def _is_tf_1():
+    return tf.__version__.startswith('1.')
+
+
+def get_graph():
+    if hasattr(tf_keras_backend, 'get_graph'):
+        return tf_keras_backend.get_graph()
+    else:
+        return tf.get_default_graph()
+
+
+def tf_graph_op(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        with get_graph().as_default():
+            return func(*args, **kwargs)
+    return wrapper
 
 
 def get_uid(prefix=''):
@@ -70,19 +80,13 @@ def get_uid(prefix=''):
     # Returns
         A unique identifier for the graph.
     """
-    global _GRAPH_UID_DICTS
-    graph = tf.get_default_graph()
-    if graph not in _GRAPH_UID_DICTS:
-        _GRAPH_UID_DICTS[graph] = defaultdict(int)
-    _GRAPH_UID_DICTS[graph][prefix] += 1
-    return _GRAPH_UID_DICTS[graph][prefix]
+    return tf_keras_backend.get_uid(prefix)
 
 
 def reset_uids():
     """Resets graph identifiers.
     """
-    global _GRAPH_UID_DICTS
-    _GRAPH_UID_DICTS = {}
+    tf_keras_backend.reset_uids()
 
 
 def clear_session():
@@ -90,6 +94,7 @@ def clear_session():
 
     Useful to avoid clutter from old models / layers.
     """
+    tf_keras_backend.clear_session()
     global _SESSION
     global _GRAPH_LEARNING_PHASES
     tf.reset_default_graph()
@@ -104,57 +109,11 @@ def clear_session():
     _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
 
 
-def manual_variable_initialization(value):
-    """Sets the manual variable initialization flag.
+manual_variable_initialization = tf_keras_backend.manual_variable_initialization
 
-    This boolean flag determines whether
-    variables should be initialized
-    as they are instantiated (default), or if
-    the user should handle the initialization
-    (e.g. via `tf.initialize_all_variables()`).
-
-    # Arguments
-        value: Python boolean.
-    """
-    global _MANUAL_VAR_INIT
-    _MANUAL_VAR_INIT = value
-
-
-def learning_phase():
-    """Returns the learning phase flag.
-
-    The learning phase flag is a bool tensor (0 = test, 1 = train)
-    to be passed as input to any Keras function
-    that uses a different behavior at train time and test time.
-
-    # Returns
-        Learning phase (scalar integer tensor or Python integer).
-    """
-    graph = tf.get_default_graph()
-    if graph not in _GRAPH_LEARNING_PHASES:
-        with tf.name_scope(''):
-            phase = tf.placeholder_with_default(
-                False,
-                shape=(),
-                name='keras_learning_phase')
-        _GRAPH_LEARNING_PHASES[graph] = phase
-    return _GRAPH_LEARNING_PHASES[graph]
-
-
-def set_learning_phase(value):
-    """Sets the learning phase to a fixed value.
-
-    # Arguments
-        value: Learning phase value, either 0 or 1 (integers).
-
-    # Raises
-        ValueError: if `value` is neither `0` nor `1`.
-    """
-    global _GRAPH_LEARNING_PHASES
-    if value not in {0, 1}:
-        raise ValueError('Expected learning phase to be '
-                         '0 or 1.')
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = value
+learning_phase = tf_keras_backend.learning_phase
+learning_phase_scope = tf_keras_backend.learning_phase_scope
+set_learning_phase = tf_keras_backend.set_learning_phase
 
 
 def get_session():
@@ -173,6 +132,10 @@ def get_session():
     # Returns
         A TensorFlow session.
     """
+    if tf.executing_eagerly():
+        raise RuntimeError(
+            '`get_session` is not available when '
+            'TensorFlow is executing eagerly.')
     global _SESSION
 
     default_session = tf.get_default_session()
@@ -222,6 +185,10 @@ def set_session(session):
     # Arguments
         session: A TF Session.
     """
+    if tf.executing_eagerly():
+        raise RuntimeError(
+            '`get_session` is not available when '
+            'TensorFlow is executing eagerly.')
     global _SESSION
     _SESSION = session
 
@@ -247,7 +214,7 @@ def _get_current_tf_device():
         the device (`CPU` or `GPU`). If the scope is not explicitly set, it will
         return `None`.
     """
-    g = tf.get_default_graph()
+    g = get_graph()
     op = _TfDeviceCaptureOp()
     g._apply_device_functions(op)
     return op.device
@@ -303,6 +270,7 @@ def _has_nchw_support():
 
 # VARIABLE MANIPULATION
 
+@tf_graph_op
 def _to_tensor(x, dtype):
     """Convert the input `x` to a tensor of type `dtype`.
 
@@ -339,6 +307,7 @@ def is_sparse(tensor):
     return isinstance(tensor, tf.SparseTensor)
 
 
+@tf_graph_op
 def to_dense(tensor):
     """Converts a sparse tensor into a dense tensor and returns it.
 
@@ -397,30 +366,20 @@ def variable(value, dtype=None, name=None, constraint=None):
     """
     if dtype is None:
         dtype = floatx()
+    with tf_ops.init_scope():
+        v = tf_keras_backend.variable(
+            value, dtype=dtype, name=name, constraint=constraint)
     if hasattr(value, 'tocoo'):
-        sparse_coo = value.tocoo()
-        indices = np.concatenate((np.expand_dims(sparse_coo.row, 1),
-                                  np.expand_dims(sparse_coo.col, 1)), 1)
-        v = tf.SparseTensor(indices=indices,
-                            values=sparse_coo.data,
-                            dense_shape=sparse_coo.shape)
-        v._keras_shape = sparse_coo.shape
-        v._uses_learning_phase = False
-        return v
-    v = tf.Variable(value, dtype=tf.as_dtype(dtype), name=name)
-    if isinstance(value, np.ndarray):
+        v._keras_shape = value.tocoo().shape
+    elif isinstance(value, np.ndarray):
         v._keras_shape = value.shape
-    elif hasattr(value, 'get_shape'):
+    elif hasattr(value, 'shape'):
         v._keras_shape = int_shape(value)
     v._uses_learning_phase = False
-    # TODO: move to Variable constructor when supported in public release.
-    try:
-        v.constraint = constraint
-    except AttributeError:
-        v._constraint = constraint
     return v
 
 
+@tf_graph_op
 def constant(value, dtype=None, shape=None, name=None):
     """Creates a constant tensor.
 
@@ -435,7 +394,8 @@ def constant(value, dtype=None, shape=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    return tf.constant(value, dtype=dtype, shape=shape, name=name)
+    with tf_ops.init_scope():
+        return tf.constant(value, dtype=dtype, shape=shape, name=name)
 
 
 def is_keras_tensor(x):
@@ -492,6 +452,7 @@ def is_tensor(x):
     return isinstance(x, tf_ops._TensorLike) or tf_ops.is_dense_tensor_like(x)
 
 
+@tf_graph_op
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """Instantiates a placeholder tensor and returns it.
 
@@ -520,18 +481,14 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    if not shape:
-        if ndim:
-            shape = tuple([None for _ in range(ndim)])
-    if sparse:
-        x = tf.sparse_placeholder(dtype, shape=shape, name=name)
-    else:
-        x = tf.placeholder(dtype, shape=shape, name=name)
+    x = tf_keras_backend.placeholder(
+        shape=shape, ndim=ndim, dtype=dtype, sparse=sparse, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
 
 
+@tf_graph_op
 def is_placeholder(x):
     """Returns whether `x` is a placeholder.
 
@@ -604,7 +561,7 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
     try:
-        return tuple(x.get_shape().as_list())
+        return tuple(x.shape.as_list())
     except ValueError:
         return None
 
@@ -632,7 +589,7 @@ def ndim(x):
 
     {{np_implementation}}
     """
-    dims = x.get_shape()._dims
+    dims = x.shape._dims
     if dims is not None:
         return len(dims)
     return None
@@ -688,9 +645,11 @@ def eval(x):
     ```
     {{np_implementation}}
     """
+    # TODO
     return to_dense(x).eval(session=get_session())
 
 
+@tf_graph_op
 def zeros(shape, dtype=None, name=None):
     """Instantiates an all-zeros variable and returns it.
 
@@ -717,13 +676,14 @@ def zeros(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
-    v = tf.zeros(shape=shape, dtype=tf_dtype, name=name)
-    if py_all(v.get_shape().as_list()):
-        return variable(v, dtype=dtype, name=name)
-    return v
+    with tf_ops.init_scope():
+        v = tf.zeros(shape=shape, dtype=dtype, name=name)
+        if py_all(v.shape.as_list()):
+            return variable(v, dtype=dtype, name=name)
+        return v
 
 
+@tf_graph_op
 def ones(shape, dtype=None, name=None):
     """Instantiates an all-ones variable and returns it.
 
@@ -750,13 +710,14 @@ def ones(shape, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
-    v = tf.ones(shape=shape, dtype=tf_dtype, name=name)
-    if py_all(v.get_shape().as_list()):
-        return variable(v, dtype=dtype, name=name)
-    return v
+    with tf_ops.init_scope():
+        v = tf.ones(shape=shape, dtype=dtype, name=name)
+        if py_all(v.shape.as_list()):
+            return variable(v, dtype=dtype, name=name)
+        return v
 
 
+@tf_graph_op
 def eye(size, dtype=None, name=None):
     """Instantiate an identity matrix and returns it.
 
@@ -781,10 +742,11 @@ def eye(size, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
+    with tf_ops.init_scope():
+        return variable(tf.eye(size, dtype=dtype), dtype, name)
 
 
+@tf_graph_op
 def zeros_like(x, dtype=None, name=None):
     """Instantiates an all-zeros variable of the same shape as another tensor.
 
@@ -811,6 +773,7 @@ def zeros_like(x, dtype=None, name=None):
     return tf.zeros_like(x, dtype=dtype, name=name)
 
 
+@tf_graph_op
 def ones_like(x, dtype=None, name=None):
     """Instantiates an all-ones variable of the same shape as another tensor.
 
@@ -837,6 +800,7 @@ def ones_like(x, dtype=None, name=None):
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
+@tf_graph_op
 def identity(x, name=None):
     """Returns a tensor with the same content as the input tensor.
 
@@ -850,8 +814,10 @@ def identity(x, name=None):
     return tf.identity(x, name)
 
 
-def random_uniform_variable(shape, low, high, dtype=None,
-                            name=None, seed=None):
+def random_uniform_variable(shape, low, high,
+                            dtype=None,
+                            name=None,
+                            seed=None):
     """Instantiates a variable with values drawn from a uniform distribution.
 
     # Arguments
@@ -879,13 +845,13 @@ def random_uniform_variable(shape, low, high, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
-    value = tf.random_uniform_initializer(
-        low, high, dtype=tf_dtype, seed=seed)(shape)
-    return variable(value, dtype=dtype, name=name)
+    with tf_ops.init_scope():
+        value = tf.random_uniform_initializer(
+            low, high, dtype=dtype, seed=seed)(shape)
+        return variable(value, dtype=dtype, name=name)
 
 
 def random_normal_variable(shape, mean, scale, dtype=None,
@@ -917,13 +883,13 @@ def random_normal_variable(shape, mean, scale, dtype=None,
     """
     if dtype is None:
         dtype = floatx()
-    tf_dtype = tf.as_dtype(dtype)
     if seed is None:
         # ensure that randomness is conditioned by the Numpy RNG
         seed = np.random.randint(10e8)
-    value = tf.random_normal_initializer(
-        mean, scale, dtype=tf_dtype, seed=seed)(shape)
-    return variable(value, dtype=dtype, name=name)
+    with tf_ops.init_scope():
+        value = tf.random_normal_initializer(
+            mean, scale, dtype=dtype, seed=seed)(shape)
+        return variable(value, dtype=dtype, name=name)
 
 
 def count_params(x):
@@ -950,6 +916,7 @@ def count_params(x):
     return np.prod(int_shape(x))
 
 
+@tf_graph_op
 def cast(x, dtype):
     """Casts a tensor to a different dtype and returns it.
 
@@ -985,6 +952,7 @@ def cast(x, dtype):
 # UPDATES OPS
 
 
+@tf_graph_op
 def update(x, new_x):
     """Update the value of `x` to `new_x`.
 
@@ -995,9 +963,13 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    return tf.assign(x, new_x)
+    if _is_tf_1():
+        return tf.assign(x, new_x)
+    else:
+        x.assign(new_x)
 
 
+@tf_graph_op
 def update_add(x, increment):
     """Update the value of `x` by adding `increment`.
 
@@ -1008,9 +980,13 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    return tf.assign_add(x, increment)
+    if _is_tf_1():
+        return tf.assign_add(x, increment)
+    else:
+        x.assign_add(increment)
 
 
+@tf_graph_op
 def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
 
@@ -1021,9 +997,13 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    return tf.assign_sub(x, decrement)
+    if _is_tf_1():
+        return tf.assign_sub(x, decrement)
+    else:
+        x.assign_sub(decrement)
 
 
+@tf_graph_op
 def moving_average_update(x, value, momentum):
     """Compute the moving average of a variable.
 
@@ -1043,6 +1023,7 @@ def moving_average_update(x, value, momentum):
 
 # LINEAR ALGEBRA
 
+@tf_graph_op
 def dot(x, y):
     """Multiplies 2 tensors (and/or variables) and returns a *tensor*.
 
@@ -1114,6 +1095,7 @@ def dot(x, y):
     return out
 
 
+@tf_graph_op
 def batch_dot(x, y, axes=None):
     """Batchwise dot product.
 
@@ -1318,6 +1300,7 @@ def batch_dot(x, y, axes=None):
     return result
 
 
+@tf_graph_op
 def transpose(x):
     """Transposes a tensor and returns it.
 
@@ -1354,6 +1337,7 @@ def transpose(x):
     return tf.transpose(x)
 
 
+@tf_graph_op
 def gather(reference, indices):
     """Retrieves the elements of indices `indices` in the tensor `reference`.
 
@@ -1372,6 +1356,7 @@ def gather(reference, indices):
 # ELEMENT-WISE OPERATIONS
 
 
+@tf_graph_op
 def max(x, axis=None, keepdims=False):
     """Maximum value in a tensor.
 
@@ -1393,6 +1378,7 @@ def max(x, axis=None, keepdims=False):
     return tf.reduce_max(x, axis, keepdims)
 
 
+@tf_graph_op
 def min(x, axis=None, keepdims=False):
     """Minimum value in a tensor.
 
@@ -1414,6 +1400,7 @@ def min(x, axis=None, keepdims=False):
     return tf.reduce_min(x, axis, keepdims)
 
 
+@tf_graph_op
 def sum(x, axis=None, keepdims=False):
     """Sum of the values in a tensor, alongside the specified axis.
 
@@ -1435,6 +1422,7 @@ def sum(x, axis=None, keepdims=False):
     return tf.reduce_sum(x, axis, keepdims)
 
 
+@tf_graph_op
 def prod(x, axis=None, keepdims=False):
     """Multiplies the values in a tensor, alongside the specified axis.
 
@@ -1456,6 +1444,7 @@ def prod(x, axis=None, keepdims=False):
     return tf.reduce_prod(x, axis, keepdims)
 
 
+@tf_graph_op
 def cumsum(x, axis=0):
     """Cumulative sum of the values in a tensor, alongside the specified axis.
 
@@ -1470,6 +1459,7 @@ def cumsum(x, axis=0):
     return tf.cumsum(x, axis=axis)
 
 
+@tf_graph_op
 def cumprod(x, axis=0):
     """Cumulative product of the values in a tensor, alongside the specified axis.
 
@@ -1484,6 +1474,7 @@ def cumprod(x, axis=0):
     return tf.cumprod(x, axis=axis)
 
 
+@tf_graph_op
 def var(x, axis=None, keepdims=False):
     """Variance of a tensor, alongside the specified axis.
 
@@ -1510,6 +1501,7 @@ def var(x, axis=None, keepdims=False):
                           keepdims)
 
 
+@tf_graph_op
 def std(x, axis=None, keepdims=False):
     """Standard deviation of a tensor, alongside the specified axis.
 
@@ -1530,6 +1522,7 @@ def std(x, axis=None, keepdims=False):
     return tf.sqrt(var(x, axis=axis, keepdims=keepdims))
 
 
+@tf_graph_op
 def mean(x, axis=None, keepdims=False):
     """Mean of a tensor, alongside the specified axis.
 
@@ -1552,6 +1545,7 @@ def mean(x, axis=None, keepdims=False):
     return tf.reduce_mean(x, axis, keepdims)
 
 
+@tf_graph_op
 def any(x, axis=None, keepdims=False):
     """Bitwise reduction (logical OR).
 
@@ -1588,6 +1582,7 @@ def all(x, axis=None, keepdims=False):
     return tf.reduce_all(x, axis, keepdims)
 
 
+@tf_graph_op
 def argmax(x, axis=-1):
     """Returns the index of the maximum value along an axis.
 
@@ -1602,6 +1597,7 @@ def argmax(x, axis=-1):
     return tf.argmax(x, axis)
 
 
+@tf_graph_op
 def argmin(x, axis=-1):
     """Returns the index of the minimum value along an axis.
 
@@ -1616,6 +1612,7 @@ def argmin(x, axis=-1):
     return tf.argmin(x, axis)
 
 
+@tf_graph_op
 def square(x):
     """Element-wise square.
 
@@ -1628,6 +1625,7 @@ def square(x):
     return tf.square(x)
 
 
+@tf_graph_op
 def abs(x):
     """Element-wise absolute value.
 
@@ -1640,6 +1638,7 @@ def abs(x):
     return tf.abs(x)
 
 
+@tf_graph_op
 def sqrt(x):
     """Element-wise square root.
 
@@ -1656,6 +1655,7 @@ def sqrt(x):
     return tf.sqrt(x)
 
 
+@tf_graph_op
 def exp(x):
     """Element-wise exponential.
 
@@ -1668,6 +1668,7 @@ def exp(x):
     return tf.exp(x)
 
 
+@tf_graph_op
 def log(x):
     """Element-wise log.
 
@@ -1680,6 +1681,7 @@ def log(x):
     return tf.log(x)
 
 
+@tf_graph_op
 def logsumexp(x, axis=None, keepdims=False):
     """Computes log(sum(exp(elements across dimensions of a tensor))).
 
@@ -1704,6 +1706,7 @@ def logsumexp(x, axis=None, keepdims=False):
     return tf.reduce_logsumexp(x, axis, keepdims)
 
 
+@tf_graph_op
 def round(x):
     """Element-wise rounding to the closest integer.
 
@@ -1718,6 +1721,7 @@ def round(x):
     return tf.round(x)
 
 
+@tf_graph_op
 def sign(x):
     """Element-wise sign.
 
@@ -1730,6 +1734,7 @@ def sign(x):
     return tf.sign(x)
 
 
+@tf_graph_op
 def pow(x, a):
     """Element-wise exponentiation.
 
@@ -1744,6 +1749,7 @@ def pow(x, a):
     return tf.pow(x, a)
 
 
+@tf_graph_op
 def clip(x, min_value, max_value):
     """Element-wise value clipping.
 
@@ -1767,6 +1773,7 @@ def clip(x, min_value, max_value):
     return tf.clip_by_value(x, min_value, max_value)
 
 
+@tf_graph_op
 def equal(x, y):
     """Element-wise equality between two tensors.
 
@@ -1782,6 +1789,7 @@ def equal(x, y):
     return tf.equal(x, y)
 
 
+@tf_graph_op
 def not_equal(x, y):
     """Element-wise inequality between two tensors.
 
@@ -1797,6 +1805,7 @@ def not_equal(x, y):
     return tf.not_equal(x, y)
 
 
+@tf_graph_op
 def greater(x, y):
     """Element-wise truth value of (x > y).
 
@@ -1812,6 +1821,7 @@ def greater(x, y):
     return tf.greater(x, y)
 
 
+@tf_graph_op
 def greater_equal(x, y):
     """Element-wise truth value of (x >= y).
 
@@ -1827,6 +1837,7 @@ def greater_equal(x, y):
     return tf.greater_equal(x, y)
 
 
+@tf_graph_op
 def less(x, y):
     """Element-wise truth value of (x < y).
 
@@ -1842,6 +1853,7 @@ def less(x, y):
     return tf.less(x, y)
 
 
+@tf_graph_op
 def less_equal(x, y):
     """Element-wise truth value of (x <= y).
 
@@ -1857,6 +1869,7 @@ def less_equal(x, y):
     return tf.less_equal(x, y)
 
 
+@tf_graph_op
 def maximum(x, y):
     """Element-wise maximum of two tensors.
 
@@ -1872,6 +1885,7 @@ def maximum(x, y):
     return tf.maximum(x, y)
 
 
+@tf_graph_op
 def minimum(x, y):
     """Element-wise minimum of two tensors.
 
@@ -1887,6 +1901,7 @@ def minimum(x, y):
     return tf.minimum(x, y)
 
 
+@tf_graph_op
 def sin(x):
     """Computes sin of x element-wise.
 
@@ -1899,6 +1914,7 @@ def sin(x):
     return tf.sin(x)
 
 
+@tf_graph_op
 def cos(x):
     """Computes cos of x element-wise.
 
@@ -2005,11 +2021,11 @@ def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
     if gamma is None:
         gamma = tf.constant(1.0,
                             dtype=x.dtype,
-                            shape=[x.get_shape()[normalization_axis]])
+                            shape=[x.shape[normalization_axis]])
     if beta is None:
         beta = tf.constant(0.0,
                            dtype=x.dtype,
-                           shape=[x.get_shape()[normalization_axis]])
+                           shape=[x.shape[normalization_axis]])
 
     if gamma.dtype != tf.float32:
         gamma = tf.cast(gamma, tf.float32)
@@ -2024,6 +2040,7 @@ def _fused_normalize_batch_in_training(x, gamma, beta, reduction_axes,
         data_format=tf_data_format)
 
 
+@tf_graph_op
 def normalize_batch_in_training(x, gamma, beta,
                                 reduction_axes, epsilon=1e-3):
     """Computes mean and std for batch then apply batch_normalization on batch.
@@ -2058,6 +2075,7 @@ def normalize_batch_in_training(x, gamma, beta,
                                                           epsilon=epsilon)
 
 
+@tf_graph_op
 def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
     """Applies batch normalization on x given mean, var, beta and gamma.
 
@@ -2086,9 +2104,9 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
         else:
             tf_data_format = None
 
-        if (tf_data_format == 'NHWC'
-                or tf_data_format == 'NCHW'
-                and _has_nchw_support()):
+        if (tf_data_format == 'NHWC' or
+                tf_data_format == 'NCHW' and
+                _has_nchw_support()):
             # The mean / var / beta / gamma may be processed by broadcast
             # so it may have extra axes with 1,
             # it is not needed and should be removed
@@ -2131,6 +2149,7 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 
 # SHAPE OPERATIONS
 
+@tf_graph_op
 def concatenate(tensors, axis=-1):
     """Concatenates a list of tensors alongside the specified axis.
 
@@ -2154,6 +2173,7 @@ def concatenate(tensors, axis=-1):
         return tf.concat([to_dense(x) for x in tensors], axis)
 
 
+@tf_graph_op
 def reshape(x, shape):
     """Reshapes a tensor to the specified shape.
 
@@ -2167,6 +2187,7 @@ def reshape(x, shape):
     return tf.reshape(x, shape)
 
 
+@tf_graph_op
 def permute_dimensions(x, pattern):
     """Permutes axes in a tensor.
 
@@ -2181,6 +2202,7 @@ def permute_dimensions(x, pattern):
     return tf.transpose(x, perm=pattern)
 
 
+@tf_graph_op
 def resize_images(x,
                   height_factor,
                   width_factor,
@@ -2209,8 +2231,8 @@ def resize_images(x,
 
     original_shape = int_shape(x)
     new_shape = tf.shape(x)[rows:cols + 1]
-    new_shape *= tf.constant(np.array([height_factor, width_factor], dtype='int32'))
-
+    new_shape *= tf.constant(np.array([height_factor, width_factor],
+                             dtype='int32'))
     if data_format == 'channels_first':
         x = permute_dimensions(x, [0, 2, 3, 1])
     if interpolation == 'nearest':
@@ -2234,10 +2256,12 @@ def resize_images(x,
         new_width = original_shape[cols] * width_factor
 
     output_shape = (None, new_height, new_width, None)
-    x.set_shape(transpose_shape(output_shape, data_format, spatial_axes=(1, 2)))
+    x.set_shape(transpose_shape(output_shape, data_format,
+                                spatial_axes=(1, 2)))
     return x
 
 
+@tf_graph_op
 def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
     """Resizes the volume contained in a 5D tensor.
 
@@ -2269,6 +2293,7 @@ def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
         raise ValueError('Unknown data_format: ' + str(data_format))
 
 
+@tf_graph_op
 def repeat_elements(x, rep, axis):
     """Repeats the elements of a tensor along an axis, like `np.repeat`.
 
@@ -2283,7 +2308,7 @@ def repeat_elements(x, rep, axis):
     # Returns
         A tensor.
     """
-    x_shape = x.get_shape().as_list()
+    x_shape = x.shape.as_list()
     # For static axis
     if x_shape[axis] is not None:
         # slices along the repeat axis
@@ -2301,7 +2326,7 @@ def repeat_elements(x, rep, axis):
     auxiliary_axis = axis + 1
     x_shape = tf.shape(x)
     x_rep = tf.expand_dims(x, axis=auxiliary_axis)
-    reps = np.ones(len(x.get_shape()) + 1)
+    reps = np.ones(len(x.shape) + 1)
     reps[auxiliary_axis] = rep
     x_rep = tf.tile(x_rep, reps)
 
@@ -2313,12 +2338,13 @@ def repeat_elements(x, rep, axis):
     x_rep = tf.reshape(x_rep, x_shape)
 
     # Fix shape representation
-    x_shape = x.get_shape().as_list()
+    x_shape = x.shape.as_list()
     x_rep.set_shape(x_shape)
     x_rep._keras_shape = tuple(x_shape)
     return x_rep
 
 
+@tf_graph_op
 def repeat(x, n):
     """Repeats a 2D tensor.
 
@@ -2338,6 +2364,7 @@ def repeat(x, n):
     return tf.tile(x, pattern)
 
 
+@tf_graph_op
 def arange(start, stop=None, step=1, dtype='int32'):
     """Creates a 1D tensor containing a sequence of integers.
 
@@ -2375,6 +2402,7 @@ def arange(start, stop=None, step=1, dtype='int32'):
     return result
 
 
+@tf_graph_op
 def tile(x, n):
     """Creates a tensor by tiling `x` by `n`.
 
@@ -2391,6 +2419,7 @@ def tile(x, n):
     return tf.tile(x, n)
 
 
+@tf_graph_op
 def flatten(x):
     """Flatten a tensor.
 
@@ -2403,6 +2432,7 @@ def flatten(x):
     return tf.reshape(x, [-1])
 
 
+@tf_graph_op
 def batch_flatten(x):
     """Turn a nD tensor into a 2D tensor with same 0th dimension.
 
@@ -2418,6 +2448,7 @@ def batch_flatten(x):
     return x
 
 
+@tf_graph_op
 def expand_dims(x, axis=-1):
     """Adds a 1-sized dimension at index "axis".
 
@@ -2431,6 +2462,7 @@ def expand_dims(x, axis=-1):
     return tf.expand_dims(x, axis)
 
 
+@tf_graph_op
 def squeeze(x, axis):
     """Removes a 1-dimension from the tensor at index "axis".
 
@@ -2444,6 +2476,7 @@ def squeeze(x, axis):
     return tf.squeeze(x, [axis])
 
 
+@tf_graph_op
 def temporal_padding(x, padding=(1, 1)):
     """Pads the middle dimension of a 3D tensor.
 
@@ -2460,6 +2493,7 @@ def temporal_padding(x, padding=(1, 1)):
     return tf.pad(x, pattern)
 
 
+@tf_graph_op
 def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     """Pads the 2nd and 3rd dimensions of a 4D tensor.
 
@@ -2488,6 +2522,7 @@ def spatial_2d_padding(x, padding=((1, 1), (1, 1)), data_format=None):
     return tf.pad(x, pattern)
 
 
+@tf_graph_op
 def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     """Pads 5D tensor with zeros along the depth, height, width dimensions.
 
@@ -2530,6 +2565,7 @@ def spatial_3d_padding(x, padding=((1, 1), (1, 1), (1, 1)), data_format=None):
     return tf.pad(x, pattern)
 
 
+@tf_graph_op
 def stack(x, axis=0):
     """Stacks a list of rank `R` tensors into a rank `R+1` tensor.
 
@@ -2545,6 +2581,7 @@ def stack(x, axis=0):
     return tf.stack(x, axis=axis)
 
 
+@tf_graph_op
 def one_hot(indices, num_classes):
     """Computes the one-hot representation of an integer tensor.
 
@@ -2560,6 +2597,7 @@ def one_hot(indices, num_classes):
     return tf.one_hot(indices, depth=num_classes, axis=-1)
 
 
+@tf_graph_op
 def reverse(x, axes):
     """Reverses a tensor along the specified axes.
 
@@ -2578,6 +2616,7 @@ def reverse(x, axes):
     return tf.reverse(x, axes)
 
 
+@tf_graph_op
 def slice(x, start, size):
     """Extracts a slice from a tensor.
 
@@ -2613,6 +2652,7 @@ def get_value(x):
     # Returns
         A Numpy array.
     """
+    # TODO
     return x.eval(session=get_session())
 
 
@@ -2625,6 +2665,7 @@ def batch_get_value(ops):
     # Returns
         A list of Numpy arrays.
     """
+    # TODO
     if ops:
         return get_session().run(ops)
     else:
@@ -2635,17 +2676,17 @@ def set_value(x, value):
     """Sets the value of a variable, from a Numpy array.
 
     # Arguments
-        x: Tensor to set to a new value.
+        x: Variable to set to a new value.
         value: Value to set the tensor to, as a Numpy array
             (of the same shape).
     """
+    # TODO
     value = np.asarray(value, dtype=dtype(x))
-    tf_dtype = tf.as_dtype(x.dtype.name.split('_')[0])
     if hasattr(x, '_assign_placeholder'):
         assign_placeholder = x._assign_placeholder
         assign_op = x._assign_op
     else:
-        assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+        assign_placeholder = tf.placeholder(value.dtype, shape=value.shape)
         assign_op = x.assign(assign_placeholder)
         x._assign_placeholder = assign_placeholder
         x._assign_op = assign_op
@@ -2659,6 +2700,7 @@ def batch_set_value(tuples):
         tuples: a list of tuples `(tensor, value)`.
             `value` should be a Numpy array.
     """
+    # TODO
     if tuples:
         assign_ops = []
         feed_dict = {}
@@ -2710,253 +2752,260 @@ def print_tensor(x, message=''):
     # Returns
         The same tensor `x`, unchanged.
     """
+    # TODO
     return tf.Print(x, [x], message)
 
 
 # GRAPH MANIPULATION
 
-class Function(object):
-    """Runs a computation graph.
+# class Function(object):
+#     """Runs a computation graph.
 
-    It's possible to pass arguments to `tf.Session.run()` via `session_kwargs`.
-    In particular additional operations via `fetches` argument and additional
-    tensor substitutions via `feed_dict` arguments. Note that given
-    substitutions are merged with substitutions from `inputs`. Even though
-    `feed_dict` is passed once in the constructor (called in `model.compile()`)
-    we can modify the values in the dictionary. Through this feed_dict we can
-    provide additional substitutions besides Keras inputs.
+#     It's possible to pass arguments to `tf.Session.run()` via `session_kwargs`.
+#     In particular additional operations via `fetches` argument and additional
+#     tensor substitutions via `feed_dict` arguments. Note that given
+#     substitutions are merged with substitutions from `inputs`. Even though
+#     `feed_dict` is passed once in the constructor (called in `model.compile()`)
+#     we can modify the values in the dictionary. Through this feed_dict we can
+#     provide additional substitutions besides Keras inputs.
 
-    # Arguments
-        inputs: Feed placeholders to the computation graph.
-        outputs: Output tensors to fetch.
-        updates: Additional update ops to be run at function call.
-        name: a name to help users identify what this function does.
-        session_kwargs: arguments to `tf.Session.run()`:
-            `fetches`, `feed_dict`,
-            `options`, `run_metadata`
-    """
+#     # Arguments
+#         inputs: Feed placeholders to the computation graph.
+#         outputs: Output tensors to fetch.
+#         updates: Additional update ops to be run at function call.
+#         name: a name to help users identify what this function does.
+#         session_kwargs: arguments to `tf.Session.run()`:
+#             `fetches`, `feed_dict`,
+#             `options`, `run_metadata`
+#     """
 
-    def __init__(self, inputs, outputs,
-                 updates=None,
-                 name=None,
-                 **session_kwargs):
-        updates = updates or []
-        if not isinstance(inputs, (list, tuple)):
-            raise TypeError('`inputs` to a TensorFlow backend function '
-                            'should be a list or tuple.')
-        if not isinstance(outputs, (list, tuple)):
-            raise TypeError('`outputs` of a TensorFlow backend function '
-                            'should be a list or tuple.')
-        if not isinstance(updates, (list, tuple)):
-            raise TypeError('`updates` in a TensorFlow backend function '
-                            'should be a list or tuple.')
-        self.inputs = list(inputs)
-        self.outputs = list(outputs)
-        with tf.control_dependencies(self.outputs):
-            updates_ops = []
-            for update in updates:
-                if isinstance(update, tuple):
-                    p, new_p = update
-                    updates_ops.append(tf.assign(p, new_p))
-                else:
-                    # assumed already an op
-                    updates_ops.append(update)
-            self.updates_op = tf.group(*updates_ops)
-        self.name = name
-        # additional tensor substitutions
-        self.feed_dict = session_kwargs.pop('feed_dict', {})
-        # additional operations
-        self.fetches = session_kwargs.pop('fetches', [])
-        if not isinstance(self.fetches, list):
-            self.fetches = [self.fetches]
-        # The main use case of `fetches` being passed to a model is the ability
-        # to run custom updates
-        # (since the outputs of fetches are never returned).
-        # This requires us to wrap fetches in `identity` ops.
-        self.fetches = [tf.identity(x) for x in self.fetches]
-        # self.session_kwargs is used for _legacy_call
-        self.session_kwargs = session_kwargs.copy()
-        self.run_options = session_kwargs.pop('options', None)
-        self.run_metadata = session_kwargs.pop('run_metadata', None)
-        if session_kwargs:
-            raise ValueError('Some keys in session_kwargs are not '
-                             'supported at this '
-                             'time: %s', session_kwargs.keys())
-        self._callable_fn = None
-        self._feed_arrays = None
-        self._feed_symbols = None
-        self._symbol_vals = None
-        self._session = None
+#     def __init__(self, inputs, outputs,
+#                  updates=None,
+#                  name=None,
+#                  **session_kwargs):
+#         updates = updates or []
+#         if not isinstance(inputs, (list, tuple)):
+#             raise TypeError('`inputs` to a TensorFlow backend function '
+#                             'should be a list or tuple.')
+#         if not isinstance(outputs, (list, tuple)):
+#             raise TypeError('`outputs` of a TensorFlow backend function '
+#                             'should be a list or tuple.')
+#         if not isinstance(updates, (list, tuple)):
+#             raise TypeError('`updates` in a TensorFlow backend function '
+#                             'should be a list or tuple.')
+#         self.inputs = list(inputs)
+#         self.outputs = list(outputs)
+#         with tf.control_dependencies(self.outputs):
+#             updates_ops = []
+#             for update in updates:
+#                 if isinstance(update, tuple):
+#                     p, new_p = update
+#                     updates_ops.append(tf.assign(p, new_p))
+#                 else:
+#                     # assumed already an op
+#                     updates_ops.append(update)
+#             self.updates_op = tf.group(*updates_ops)
+#         self.name = name
+#         # additional tensor substitutions
+#         self.feed_dict = session_kwargs.pop('feed_dict', {})
+#         # additional operations
+#         self.fetches = session_kwargs.pop('fetches', [])
+#         if not isinstance(self.fetches, list):
+#             self.fetches = [self.fetches]
+#         # The main use case of `fetches` being passed to a model is the ability
+#         # to run custom updates
+#         # (since the outputs of fetches are never returned).
+#         # This requires us to wrap fetches in `identity` ops.
+#         self.fetches = [tf.identity(x) for x in self.fetches]
+#         # self.session_kwargs is used for _legacy_call
+#         self.session_kwargs = session_kwargs.copy()
+#         self.run_options = session_kwargs.pop('options', None)
+#         self.run_metadata = session_kwargs.pop('run_metadata', None)
+#         if session_kwargs:
+#             raise ValueError('Some keys in session_kwargs are not '
+#                              'supported at this '
+#                              'time: %s', session_kwargs.keys())
+#         self._callable_fn = None
+#         self._feed_arrays = None
+#         self._feed_symbols = None
+#         self._symbol_vals = None
+#         self._session = None
 
-    def _make_callable(self, feed_arrays, feed_symbols, symbol_vals, session):
-        """Generates a callable that runs the graph.
+#     def _make_callable(self, feed_arrays, feed_symbols, symbol_vals, session):
+#         """Generates a callable that runs the graph.
 
-        # Arguments
-            feed_arrays: List of input tensors to be fed
-                Numpy arrays at runtime.
-            feed_symbols: List of input tensors to be fed
-                symbolic tensors at runtime.
-            symbol_vals: List of symbolic tensors to be fed to `feed_symbols`.
-            session: Session to use to generate the callable.
+#         # Arguments
+#             feed_arrays: List of input tensors to be fed
+#                 Numpy arrays at runtime.
+#             feed_symbols: List of input tensors to be fed
+#                 symbolic tensors at runtime.
+#             symbol_vals: List of symbolic tensors to be fed to `feed_symbols`.
+#             session: Session to use to generate the callable.
 
-        # Returns
-            Function that runs the graph according to the above options.
-        """
-        # Prepare callable options.
-        callable_opts = config_pb2.CallableOptions()
-        # Handle external-data feed.
-        for x in feed_arrays:
-            callable_opts.feed.append(x.name)
-        if self.feed_dict:
-            for key in sorted(self.feed_dict.keys()):
-                callable_opts.feed.append(key.name)
-        # Handle symbolic feed.
-        for x, y in zip(feed_symbols, symbol_vals):
-            connection = callable_opts.tensor_connection.add()
-            if x.dtype != y.dtype:
-                y = tf.cast(y, dtype=x.dtype)
-            from_tensor = tf_ops._as_graph_element(y)
-            if from_tensor is None:
-                from_tensor = y
-            connection.from_tensor = from_tensor.name  # Data tensor
-            connection.to_tensor = x.name  # Placeholder
-        # Handle fetches.
-        for x in self.outputs + self.fetches:
-            callable_opts.fetch.append(x.name)
-        # Handle updates.
-        callable_opts.target.append(self.updates_op.name)
-        # Handle run_options.
-        if self.run_options:
-            callable_opts.run_options.CopyFrom(self.run_options)
-        # Create callable.
-        callable_fn = session._make_callable_from_options(callable_opts)
-        # Cache parameters corresponding to the generated callable, so that
-        # we can detect future mismatches and refresh the callable.
-        self._callable_fn = callable_fn
-        self._feed_arrays = feed_arrays
-        self._feed_symbols = feed_symbols
-        self._symbol_vals = symbol_vals
-        self._session = session
+#         # Returns
+#             Function that runs the graph according to the above options.
+#         """
+#         # Prepare callable options.
+#         callable_opts = config_pb2.CallableOptions()
+#         # Handle external-data feed.
+#         for x in feed_arrays:
+#             callable_opts.feed.append(x.name)
+#         if self.feed_dict:
+#             for key in sorted(self.feed_dict.keys()):
+#                 callable_opts.feed.append(key.name)
+#         # Handle symbolic feed.
+#         for x, y in zip(feed_symbols, symbol_vals):
+#             connection = callable_opts.tensor_connection.add()
+#             if x.dtype != y.dtype:
+#                 y = tf.cast(y, dtype=x.dtype)
+#             from_tensor = tf_ops._as_graph_element(y)
+#             if from_tensor is None:
+#                 from_tensor = y
+#             connection.from_tensor = from_tensor.name  # Data tensor
+#             connection.to_tensor = x.name  # Placeholder
+#         # Handle fetches.
+#         for x in self.outputs + self.fetches:
+#             callable_opts.fetch.append(x.name)
+#         # Handle updates.
+#         callable_opts.target.append(self.updates_op.name)
+#         # Handle run_options.
+#         if self.run_options:
+#             callable_opts.run_options.CopyFrom(self.run_options)
+#         # Create callable.
+#         callable_fn = session._make_callable_from_options(callable_opts)
+#         # Cache parameters corresponding to the generated callable, so that
+#         # we can detect future mismatches and refresh the callable.
+#         self._callable_fn = callable_fn
+#         self._feed_arrays = feed_arrays
+#         self._feed_symbols = feed_symbols
+#         self._symbol_vals = symbol_vals
+#         self._session = session
 
-    def _call(self, inputs):
-        if not isinstance(inputs, (list, tuple)):
-            raise TypeError('`inputs` should be a list or tuple.')
+#     def _call(self, inputs):
+#         if not isinstance(inputs, (list, tuple)):
+#             raise TypeError('`inputs` should be a list or tuple.')
 
-        session = get_session()
-        feed_arrays = []
-        array_vals = []
-        feed_symbols = []
-        symbol_vals = []
-        for tensor, value in zip(self.inputs, inputs):
-            if value is None:
-                continue
-            if is_tensor(value):
-                # Case: feeding symbolic tensor.
-                feed_symbols.append(tensor)
-                symbol_vals.append(value)
-            else:
-                feed_arrays.append(tensor)
-                # We need to do array conversion and type casting
-                # at this level, since
-                # `callable_fn` only supports exact matches.
-                array_vals.append(
-                    np.asarray(value,
-                               dtype=tf.as_dtype(tensor.dtype).as_numpy_dtype))
-        if self.feed_dict:
-            for key in sorted(self.feed_dict.keys()):
-                array_vals.append(
-                    np.asarray(self.feed_dict[key],
-                               dtype=tf.as_dtype(key.dtype).as_numpy_dtype))
+#         session = get_session()
+#         feed_arrays = []
+#         array_vals = []
+#         feed_symbols = []
+#         symbol_vals = []
+#         for tensor, value in zip(self.inputs, inputs):
+#             if value is None:
+#                 continue
+#             if is_tensor(value):
+#                 # Case: feeding symbolic tensor.
+#                 feed_symbols.append(tensor)
+#                 symbol_vals.append(value)
+#             else:
+#                 feed_arrays.append(tensor)
+#                 # We need to do array conversion and type casting
+#                 # at this level, since
+#                 # `callable_fn` only supports exact matches.
+#                 array_vals.append(
+#                     np.asarray(value,
+#                                dtype=tf.as_dtype(tensor.dtype).as_numpy_dtype))
+#         if self.feed_dict:
+#             for key in sorted(self.feed_dict.keys()):
+#                 array_vals.append(
+#                     np.asarray(self.feed_dict[key],
+#                                dtype=tf.as_dtype(key.dtype).as_numpy_dtype))
 
-        # Refresh callable if anything has changed.
-        if (self._callable_fn is None or
-                feed_arrays != self._feed_arrays or
-                symbol_vals != self._symbol_vals or
-                feed_symbols != self._feed_symbols or
-                session != self._session):
-            self._make_callable(feed_arrays,
-                                feed_symbols,
-                                symbol_vals,
-                                session)
-        if self.run_metadata:
-            fetched = self._callable_fn(*array_vals, run_metadata=self.run_metadata)
-        else:
-            fetched = self._callable_fn(*array_vals)
-        return fetched[:len(self.outputs)]
+#         # Refresh callable if anything has changed.
+#         if (self._callable_fn is None or
+#                 feed_arrays != self._feed_arrays or
+#                 symbol_vals != self._symbol_vals or
+#                 feed_symbols != self._feed_symbols or
+#                 session != self._session):
+#             self._make_callable(feed_arrays,
+#                                 feed_symbols,
+#                                 symbol_vals,
+#                                 session)
+#         if self.run_metadata:
+#             fetched = self._callable_fn(*array_vals, run_metadata=self.run_metadata)
+#         else:
+#             fetched = self._callable_fn(*array_vals)
+#         return fetched[:len(self.outputs)]
 
-    def _legacy_call(self, inputs):
-        if not isinstance(inputs, (list, tuple)):
-            raise TypeError('`inputs` should be a list or tuple.')
-        feed_dict = self.feed_dict.copy()
-        for tensor, value in zip(self.inputs, inputs):
-            if is_sparse(tensor):
-                sparse_coo = value.tocoo()
-                indices = np.concatenate(
-                    (np.expand_dims(sparse_coo.row, 1),
-                     np.expand_dims(sparse_coo.col, 1)), 1)
-                value = (indices, sparse_coo.data, sparse_coo.shape)
-            feed_dict[tensor] = value
-        fetches = self.outputs + [self.updates_op] + self.fetches
-        session = get_session()
-        updated = session.run(fetches=fetches, feed_dict=feed_dict,
-                              **self.session_kwargs)
-        return updated[:len(self.outputs)]
+#     def _legacy_call(self, inputs):
+#         if not isinstance(inputs, (list, tuple)):
+#             raise TypeError('`inputs` should be a list or tuple.')
+#         feed_dict = self.feed_dict.copy()
+#         for tensor, value in zip(self.inputs, inputs):
+#             if is_sparse(tensor):
+#                 sparse_coo = value.tocoo()
+#                 indices = np.concatenate(
+#                     (np.expand_dims(sparse_coo.row, 1),
+#                      np.expand_dims(sparse_coo.col, 1)), 1)
+#                 value = (indices, sparse_coo.data, sparse_coo.shape)
+#             feed_dict[tensor] = value
+#         fetches = self.outputs + [self.updates_op] + self.fetches
+#         session = get_session()
+#         updated = session.run(fetches=fetches, feed_dict=feed_dict,
+#                               **self.session_kwargs)
+#         return updated[:len(self.outputs)]
 
-    def __call__(self, inputs):
-        if hasattr(get_session(), '_make_callable_from_options'):
-            if py_any(is_sparse(x) for x in self.inputs):
-                if py_any(is_tensor(x) for x in inputs):
-                    raise ValueError(
-                        'Feeding from symbolic tensors is not '
-                        'supported with sparse inputs.')
-                return self._legacy_call(inputs)
+#     def __call__(self, inputs):
+#         if hasattr(get_session(), '_make_callable_from_options'):
+#             if py_any(is_sparse(x) for x in self.inputs):
+#                 if py_any(is_tensor(x) for x in inputs):
+#                     raise ValueError(
+#                         'Feeding from symbolic tensors is not '
+#                         'supported with sparse inputs.')
+#                 return self._legacy_call(inputs)
 
-            # callable generated by Session._make_callable_from_options accepts
-            # `run_metadata` keyword argument since TF 1.10
-            if self.run_metadata:
-                current_version = StrictVersion(tf.__version__.split('-')[0])
-                if current_version < StrictVersion('1.10.0'):
-                    if py_any(is_tensor(x) for x in inputs):
-                        raise ValueError(
-                            'In order to feed symbolic tensors '
-                            'to a Keras model and set '
-                            '`run_metadata`, you need tensorflow 1.10 or higher.')
-                    return self._legacy_call(inputs)
+#             # callable generated by Session._make_callable_from_options accepts
+#             # `run_metadata` keyword argument since TF 1.10
+#             if self.run_metadata:
+#                 current_version = StrictVersion(tf.__version__.split('-')[0])
+#                 if current_version < StrictVersion('1.10.0'):
+#                     if py_any(is_tensor(x) for x in inputs):
+#                         raise ValueError(
+#                             'In order to feed symbolic tensors '
+#                             'to a Keras model and set '
+#                             '`run_metadata`, you need tensorflow 1.10 or higher.')
+#                     return self._legacy_call(inputs)
 
-            return self._call(inputs)
-        else:
-            if py_any(is_tensor(x) for x in inputs):
-                raise ValueError(
-                    'In order to feed symbolic tensors to a Keras model '
-                    'in TensorFlow, you need tensorflow 1.8 or higher.')
-            return self._legacy_call(inputs)
+#             return self._call(inputs)
+#         else:
+#             if py_any(is_tensor(x) for x in inputs):
+#                 raise ValueError(
+#                     'In order to feed symbolic tensors to a Keras model '
+#                     'in TensorFlow, you need tensorflow 1.8 or higher.')
+#             return self._legacy_call(inputs)
 
+
+# def function(inputs, outputs, updates=None, **kwargs):
+#     """Instantiates a Keras function.
+
+#     # Arguments
+#         inputs: List of placeholder tensors.
+#         outputs: List of output tensors.
+#         updates: List of update ops.
+#         **kwargs: Passed to `tf.Session.run`.
+
+#     # Returns
+#         Output values as Numpy arrays.
+
+#     # Raises
+#         ValueError: if invalid kwargs are passed in.
+#     """
+#     if kwargs:
+#         for key in kwargs:
+#             session_has_key = has_arg(tf.Session.run, key, True)
+#             function_has_key = has_arg(Function.__init__, key, True)
+#             if not (session_has_key or function_has_key):
+#                 raise ValueError('Invalid argument "%s" passed to K.function '
+#                                  'with TensorFlow backend' % key)
+#     return Function(inputs, outputs, updates=updates, **kwargs)
 
 def function(inputs, outputs, updates=None, **kwargs):
-    """Instantiates a Keras function.
-
-    # Arguments
-        inputs: List of placeholder tensors.
-        outputs: List of output tensors.
-        updates: List of update ops.
-        **kwargs: Passed to `tf.Session.run`.
-
-    # Returns
-        Output values as Numpy arrays.
-
-    # Raises
-        ValueError: if invalid kwargs are passed in.
-    """
-    if kwargs:
-        for key in kwargs:
-            session_has_key = has_arg(tf.Session.run, key, True)
-            function_has_key = has_arg(Function.__init__, key, True)
-            if not (session_has_key or function_has_key):
-                raise ValueError('Invalid argument "%s" passed to K.function '
-                                 'with TensorFlow backend' % key)
-    return Function(inputs, outputs, updates=updates, **kwargs)
+    return tf_keras_backend.function(inputs, outputs,
+                                     updates=updates,
+                                     **kwargs)
 
 
+@tf_graph_op
 def gradients(loss, variables):
     """Returns the gradients of `loss` w.r.t. `variables`.
 
@@ -2967,9 +3016,12 @@ def gradients(loss, variables):
     # Returns
         A gradients tensor.
     """
-    return tf.gradients(loss, variables, colocate_gradients_with_ops=True)
+    if _is_tf_1():
+        return tf.gradients(loss, variables, colocate_gradients_with_ops=True)
+    return tf.gradients(loss, variables)
 
 
+@tf_graph_op
 def stop_gradient(variables):
     """Returns `variables` but with zero gradient w.r.t. every other variable.
 
@@ -2988,7 +3040,7 @@ def stop_gradient(variables):
 
 
 # CONTROL FLOW
-
+@tf_graph_op  # TODO
 def rnn(step_function, inputs, initial_states,
         go_backwards=False, mask=None, constants=None,
         unroll=False, input_length=None):
@@ -3237,6 +3289,7 @@ def rnn(step_function, inputs, initial_states,
     return last_output, outputs, new_states
 
 
+@tf_graph_op
 def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value.
 
@@ -3301,6 +3354,7 @@ def switch(condition, then_expression, else_expression):
     return x
 
 
+@tf_graph_op
 def in_train_phase(x, alt, training=None):
     """Selects `x` in train phase, and `alt` otherwise.
 
@@ -3344,6 +3398,7 @@ def in_train_phase(x, alt, training=None):
     return x
 
 
+@tf_graph_op
 def in_test_phase(x, alt, training=None):
     """Selects `x` in test phase, and `alt` otherwise.
 
@@ -3366,6 +3421,7 @@ def in_test_phase(x, alt, training=None):
 
 # NN OPERATIONS
 
+@tf_graph_op
 def relu(x, alpha=0., max_value=None, threshold=0.):
     """Rectified linear unit.
 
@@ -3420,6 +3476,7 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
     return x
 
 
+@tf_graph_op
 def elu(x, alpha=1.):
     """Exponential linear unit.
 
@@ -3439,6 +3496,7 @@ def elu(x, alpha=1.):
         return tf.where(x > 0, res, alpha * res)
 
 
+@tf_graph_op
 def softmax(x, axis=-1):
     """Softmax of a tensor.
 
@@ -3455,6 +3513,7 @@ def softmax(x, axis=-1):
     return tf.nn.softmax(x, axis=axis)
 
 
+@tf_graph_op
 def softplus(x):
     """Softplus of a tensor.
 
@@ -3469,6 +3528,7 @@ def softplus(x):
     return tf.nn.softplus(x)
 
 
+@tf_graph_op
 def softsign(x):
     """Softsign of a tensor.
 
@@ -3483,6 +3543,7 @@ def softsign(x):
     return tf.nn.softsign(x)
 
 
+@tf_graph_op
 def categorical_crossentropy(target, output, from_logits=False, axis=-1):
     """Categorical crossentropy between an output tensor and a target tensor.
 
@@ -3505,27 +3566,11 @@ def categorical_crossentropy(target, output, from_logits=False, axis=-1):
         ValueError: if `axis` is neither -1 nor one of
             the axes of `output`.
     """
-    output_dimensions = list(range(len(output.get_shape())))
-    if axis != -1 and axis not in output_dimensions:
-        raise ValueError(
-            '{}{}{}'.format(
-                'Unexpected channels axis {}. '.format(axis),
-                'Expected to be -1 or one of the axes of `output`, ',
-                'which has {} dimensions.'.format(len(output.get_shape()))))
-    # Note: tf.nn.softmax_cross_entropy_with_logits
-    # expects logits, Keras expects probabilities.
-    if not from_logits:
-        # scale preds so that the class probas of each sample sum to 1
-        output /= tf.reduce_sum(output, axis, True)
-        # manual computation of crossentropy
-        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
-        output = tf.clip_by_value(output, _epsilon, 1. - _epsilon)
-        return - tf.reduce_sum(target * tf.log(output), axis)
-    else:
-        return tf.nn.softmax_cross_entropy_with_logits(labels=target,
-                                                       logits=output)
+    return tf_keras_backend.categorical_crossentropy(
+        target, output, from_logits=from_logits, axis=axis)
 
 
+@tf_graph_op
 def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
     """Categorical crossentropy with integer targets.
 
@@ -3548,40 +3593,11 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         ValueError: if `axis` is neither -1 nor one of
             the axes of `output`.
     """
-    output_dimensions = list(range(len(output.get_shape())))
-    if axis != -1 and axis not in output_dimensions:
-        raise ValueError(
-            '{}{}{}'.format(
-                'Unexpected channels axis {}. '.format(axis),
-                'Expected to be -1 or one of the axes of `output`, ',
-                'which has {} dimensions.'.format(len(output.get_shape()))))
-    # If the channels are not in the last axis, move them to be there:
-    if axis != -1 and axis != output_dimensions[-1]:
-        permutation = output_dimensions[:axis] + output_dimensions[axis + 1:]
-        permutation += [axis]
-        output = tf.transpose(output, perm=permutation)
-
-    # Note: tf.nn.sparse_softmax_cross_entropy_with_logits
-    # expects logits, Keras expects probabilities.
-    if not from_logits:
-        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
-        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
-        output = tf.log(output)
-
-    output_shape = output.get_shape()
-    targets = cast(flatten(target), 'int64')
-    logits = tf.reshape(output, [-1, int(output_shape[-1])])
-    res = tf.nn.sparse_softmax_cross_entropy_with_logits(
-        labels=targets,
-        logits=logits)
-    if len(output_shape) >= 3:
-        # if our output includes timestep dimension
-        # or spatial dimensions we need to reshape
-        return tf.reshape(res, tf.shape(output)[:-1])
-    else:
-        return res
+    return tf_keras_backend.sparse_categorical_crossentropy(
+        target, output, from_logits=from_logits, axis=axis)
 
 
+@tf_graph_op
 def binary_crossentropy(target, output, from_logits=False):
     """Binary crossentropy between an output tensor and a target tensor.
 
@@ -3595,18 +3611,11 @@ def binary_crossentropy(target, output, from_logits=False):
     # Returns
         A tensor.
     """
-    # Note: tf.nn.sigmoid_cross_entropy_with_logits
-    # expects logits, Keras expects probabilities.
-    if not from_logits:
-        # transform back to logits
-        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
-        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
-        output = tf.log(output / (1 - output))
-
-    return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
-                                                   logits=output)
+    return tf_keras_backend.binary_crossentropy(
+        target, output, from_logits=from_logits)
 
 
+@tf_graph_op
 def sigmoid(x):
     """Element-wise sigmoid.
 
@@ -3621,6 +3630,7 @@ def sigmoid(x):
     return tf.nn.sigmoid(x)
 
 
+@tf_graph_op
 def hard_sigmoid(x):
     """Segment-wise linear approximation of sigmoid.
 
@@ -3636,13 +3646,10 @@ def hard_sigmoid(x):
 
     {{np_implementation}}
     """
-    x = (0.2 * x) + 0.5
-    zero = _to_tensor(0., x.dtype.base_dtype)
-    one = _to_tensor(1., x.dtype.base_dtype)
-    x = tf.clip_by_value(x, zero, one)
-    return x
+    return tf_keras_backend.hard_sigmoid(x)
 
 
+@tf_graph_op
 def tanh(x):
     """Element-wise tanh.
 
@@ -3657,6 +3664,7 @@ def tanh(x):
     return tf.nn.tanh(x)
 
 
+@tf_graph_op
 def dropout(x, level, noise_shape=None, seed=None):
     """Sets entries in `x` to zero at random, while scaling the entire tensor.
 
@@ -3672,14 +3680,12 @@ def dropout(x, level, noise_shape=None, seed=None):
         A tensor.
     {{np_implementation}}
     """
-    retain_prob = 1. - level
     if seed is None:
         seed = np.random.randint(10e6)
-    # the dummy 1. works around a TF bug
-    # (float32_ref vs. float32 incompatibility)
-    return tf.nn.dropout(x * 1., retain_prob, noise_shape, seed=seed)
+    return tf.nn.dropout(x, rate=level, noise_shape=noise_shape, seed=seed)
 
 
+@tf_graph_op
 def l2_normalize(x, axis=None):
     """Normalizes a tensor wrt the L2 norm alongside the specified axis.
 
@@ -3695,6 +3701,7 @@ def l2_normalize(x, axis=None):
     return tf.nn.l2_normalize(x, axis=axis)
 
 
+@tf_graph_op
 def in_top_k(predictions, targets, k):
     """Returns whether the `targets` are in the top `k` `predictions`.
 
@@ -3806,6 +3813,7 @@ def _preprocess_padding(padding):
     return padding
 
 
+@tf_graph_op
 def conv1d(x, kernel, strides=1, padding='valid',
            data_format=None, dilation_rate=1):
     """1D convolution.
@@ -3827,7 +3835,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     """
     data_format = normalize_data_format(data_format)
 
-    kernel_shape = kernel.get_shape().as_list()
+    kernel_shape = kernel.shape.as_list()
     if padding == 'causal':
         if data_format != 'channels_last':
             raise ValueError('When using causal padding in `conv1d`, '
@@ -3852,6 +3860,7 @@ def conv1d(x, kernel, strides=1, padding='valid',
     return x
 
 
+@tf_graph_op
 def conv2d(x, kernel, strides=(1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1)):
     """2D convolution.
@@ -3891,6 +3900,7 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
     return x
 
 
+@tf_graph_op
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2D deconvolution (i.e. transposed convolution).
@@ -3954,6 +3964,7 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
     return x
 
 
+@tf_graph_op
 def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
                      padding='valid', data_format=None, dilation_rate=1):
     """1D convolution with separable filters.
@@ -4011,6 +4022,7 @@ def separable_conv1d(x, depthwise_kernel, pointwise_kernel, strides=1,
     return x
 
 
+@tf_graph_op
 def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
                      padding='valid', data_format=None, dilation_rate=(1, 1)):
     """2D convolution with separable filters.
@@ -4051,6 +4063,7 @@ def separable_conv2d(x, depthwise_kernel, pointwise_kernel, strides=(1, 1),
     return x
 
 
+@tf_graph_op
 def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
                      data_format=None, dilation_rate=(1, 1)):
     """2D convolution with separable filters.
@@ -4090,6 +4103,7 @@ def depthwise_conv2d(x, depthwise_kernel, strides=(1, 1), padding='valid',
     return x
 
 
+@tf_graph_op
 def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
            data_format=None, dilation_rate=(1, 1, 1)):
     """3D convolution.
@@ -4127,6 +4141,7 @@ def conv3d(x, kernel, strides=(1, 1, 1), padding='valid',
     return x
 
 
+@tf_graph_op
 def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
                      padding='valid', data_format=None):
     """3D deconvolution (i.e. transposed convolution).
@@ -4178,6 +4193,7 @@ def conv3d_transpose(x, kernel, output_shape, strides=(1, 1, 1),
     return x
 
 
+@tf_graph_op
 def pool2d(x, pool_size, strides=(1, 1),
            padding='valid', data_format=None,
            pool_mode='max'):
@@ -4226,6 +4242,7 @@ def pool2d(x, pool_size, strides=(1, 1),
     return x
 
 
+@tf_graph_op
 def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
            data_format=None, pool_mode='max'):
     """3D Pooling.
@@ -4273,334 +4290,7 @@ def pool3d(x, pool_size, strides=(1, 1, 1), padding='valid',
     return x
 
 
-def bias_add(x, bias, data_format=None):
-    """Adds a bias vector to a tensor.
-
-    # Arguments
-        x: Tensor or variable.
-        bias: Bias tensor to add.
-        data_format: string, `"channels_last"` or `"channels_first"`.
-
-    # Returns
-        Output tensor.
-
-    # Raises
-        ValueError: In one of the two cases below:
-                    1. invalid `data_format` argument.
-                    2. invalid bias shape.
-                       the bias should be either a vector or
-                       a tensor with ndim(x) - 1 dimension
-    {{np_implementation}}
-    """
-    data_format = normalize_data_format(data_format)
-    bias_shape = int_shape(bias)
-    if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
-        raise ValueError('Unexpected bias dimensions %d, '
-                         'expect to be 1 or %d dimensions'
-                         % (len(bias_shape), ndim(x)))
-    if ndim(x) == 5:
-        if len(bias_shape) == 1:
-            new_shape = (1, 1, 1, 1, bias_shape[0])
-        else:
-            new_shape = (1,) + bias_shape
-        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1, 2, 3))
-        x += reshape(bias, new_shape)
-    elif ndim(x) == 4:
-        if data_format == 'channels_first':
-            if len(bias_shape) == 1:
-                if _has_nchw_support():
-                    x = tf.nn.bias_add(x, bias,
-                                       data_format='NCHW')
-                else:
-                    x += reshape(bias, (1, bias_shape[0], 1, 1))
-            else:
-                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
-        elif data_format == 'channels_last':
-            if len(bias_shape) == 1:
-                x = tf.nn.bias_add(x, bias,
-                                   data_format='NHWC')
-            else:
-                x += reshape(bias, (1,) + bias_shape)
-    elif ndim(x) == 3:
-        if len(bias_shape) == 1:
-            new_shape = (1, 1, bias_shape[0])
-        else:
-            new_shape = (1,) + bias_shape
-        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1,))
-        x += reshape(bias, new_shape)
-    else:
-        x = tf.nn.bias_add(x, bias)
-    return x
-
-
-# RANDOMNESS
-
-def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    """Returns a tensor with normal distribution of values.
-
-    # Arguments
-        shape: A tuple of integers, the shape of tensor to create.
-        mean: A float, mean of the normal distribution to draw samples.
-        stddev: A float, standard deviation of the normal distribution
-            to draw samples.
-        dtype: String, dtype of returned tensor.
-        seed: Integer, random seed.
-
-    # Returns
-        A tensor.
-    """
-    if dtype is None:
-        dtype = floatx()
-    if seed is None:
-        seed = np.random.randint(10e6)
-    return tf.random_normal(shape, mean=mean, stddev=stddev,
-                            dtype=dtype, seed=seed)
-
-
-def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
-    """Returns a tensor with uniform distribution of values.
-
-    # Arguments
-        shape: A tuple of integers, the shape of tensor to create.
-        minval: A float, lower boundary of the uniform distribution
-            to draw samples.
-        maxval: A float, upper boundary of the uniform distribution
-            to draw samples.
-        dtype: String, dtype of returned tensor.
-        seed: Integer, random seed.
-
-    # Returns
-        A tensor.
-    """
-    if dtype is None:
-        dtype = floatx()
-    if seed is None:
-        seed = np.random.randint(10e6)
-    return tf.random_uniform(shape, minval=minval, maxval=maxval,
-                             dtype=dtype, seed=seed)
-
-
-def random_binomial(shape, p=0.0, dtype=None, seed=None):
-    """Returns a tensor with random binomial distribution of values.
-
-    # Arguments
-        shape: A tuple of integers, the shape of tensor to create.
-        p: A float, `0. <= p <= 1`, probability of binomial distribution.
-        dtype: String, dtype of returned tensor.
-        seed: Integer, random seed.
-
-    # Returns
-        A tensor.
-    """
-    if dtype is None:
-        dtype = floatx()
-    if seed is None:
-        seed = np.random.randint(10e6)
-    return tf.where(tf.random_uniform(shape, dtype=dtype, seed=seed) <= p,
-                    tf.ones(shape, dtype=dtype),
-                    tf.zeros(shape, dtype=dtype))
-
-
-def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
-    """Returns a tensor with truncated random normal distribution of values.
-
-    The generated values follow a normal distribution
-    with specified mean and standard deviation,
-    except that values whose magnitude is more than
-    two standard deviations from the mean are dropped and re-picked.
-
-    # Arguments
-        shape: A tuple of integers, the shape of tensor to create.
-        mean: Mean of the values.
-        stddev: Standard deviation of the values.
-        dtype: String, dtype of returned tensor.
-        seed: Integer, random seed.
-
-    # Returns
-        A tensor.
-    """
-    if dtype is None:
-        dtype = floatx()
-    if seed is None:
-        seed = np.random.randint(10e6)
-    return tf.truncated_normal(shape, mean, stddev, dtype=dtype, seed=seed)
-
-
-# CTC
-# TensorFlow has a native implementation, but it uses sparse tensors
-# and therefore requires a wrapper for Keras. The functions below convert
-# dense to sparse tensors and also wraps up the beam search code that is
-# in TensorFlow's CTC implementation
-
-
-def ctc_label_dense_to_sparse(labels, label_lengths):
-    """Converts CTC labels from dense to sparse.
-
-    # Arguments
-        labels: dense CTC labels.
-        label_lengths: length of the labels.
-
-    # Returns
-        A sparse tensor representation of the labels.
-    """
-    label_shape = tf.shape(labels)
-    num_batches_tns = tf.stack([label_shape[0]])
-    max_num_labels_tns = tf.stack([label_shape[1]])
-
-    def range_less_than(_, current_input):
-        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(
-            max_num_labels_tns, current_input)
-
-    init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
-    dense_mask = functional_ops.scan(range_less_than, label_lengths,
-                                     initializer=init, parallel_iterations=1)
-    dense_mask = dense_mask[:, 0, :]
-
-    label_array = tf.reshape(tf.tile(tf.range(label_shape[1]), num_batches_tns),
-                             label_shape)
-    label_ind = tf.boolean_mask(label_array, dense_mask)
-
-    tmp = tf.tile(tf.range(label_shape[0]), max_num_labels_tns)
-    batch_array = tf.transpose(tf.reshape(tmp, reverse(label_shape, 0)))
-    batch_ind = tf.boolean_mask(batch_array, dense_mask)
-
-    indices = concatenate([batch_ind, label_ind], axis=0)
-    indices = tf.transpose(tf.reshape(indices, [2, -1]))
-
-    vals_sparse = tf.gather_nd(labels, indices)
-
-    indices = tf.cast(indices, tf.int64)
-    label_shape = tf.cast(label_shape, tf.int64)
-    return tf.SparseTensor(indices, vals_sparse, label_shape)
-
-
-def ctc_batch_cost(y_true, y_pred, input_length, label_length):
-    """Runs CTC loss algorithm on each batch element.
-
-    # Arguments
-        y_true: tensor `(samples, max_string_length)`
-            containing the truth labels.
-        y_pred: tensor `(samples, time_steps, num_categories)`
-            containing the prediction, or output of the softmax.
-        input_length: tensor `(samples, 1)` containing the sequence length for
-            each batch item in `y_pred`.
-        label_length: tensor `(samples, 1)` containing the sequence length for
-            each batch item in `y_true`.
-
-    # Returns
-        Tensor with shape (samples,1) containing the
-            CTC loss of each element.
-    """
-    label_length = tf.cast(tf.squeeze(label_length, axis=-1), tf.int32)
-    input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
-    sparse_labels = tf.cast(
-        ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
-    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-    return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
-                                       labels=sparse_labels,
-                                       sequence_length=input_length), 1)
-
-
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1, merge_repeated=False):
-    """Decodes the output of a softmax.
-
-    Can use either greedy search (also known as best path)
-    or a constrained dictionary search.
-
-    # Arguments
-        y_pred: tensor `(samples, time_steps, num_categories)`
-            containing the prediction, or output of the softmax.
-        input_length: tensor `(samples, )` containing the sequence length for
-            each batch item in `y_pred`.
-        greedy: perform much faster best-path search if `True`.
-            This does not use a dictionary.
-        beam_width: if `greedy` is `False`: a beam search decoder will be used
-            with a beam of this width.
-        top_paths: if `greedy` is `False`,
-            how many of the most probable paths will be returned.
-        merge_repeated: if `greedy` is `False`,
-            merge repeated classes in the output beams.
-
-    # Returns
-        Tuple:
-            List: if `greedy` is `True`, returns a list of one element that
-                contains the decoded sequence.
-                If `False`, returns the `top_paths` most probable
-                decoded sequences.
-                Important: blank labels are returned as `-1`.
-            Tensor `(top_paths, )` that contains
-                the log probability of each decoded sequence.
-    """
-    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-    input_length = tf.cast(input_length, tf.int32)
-
-    if greedy:
-        (decoded, log_prob) = ctc.ctc_greedy_decoder(
-            inputs=y_pred,
-            sequence_length=input_length)
-    else:
-        (decoded, log_prob) = ctc.ctc_beam_search_decoder(
-            inputs=y_pred,
-            sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths, merge_repeated=merge_repeated)
-
-    decoded_dense = []
-    for st in decoded:
-        dense_tensor = tf.sparse.to_dense(st, default_value=-1)
-        decoded_dense.append(dense_tensor)
-    return (decoded_dense, log_prob)
-
-
-# HIGH ORDER FUNCTIONS
-
-def map_fn(fn, elems, name=None, dtype=None):
-    """Map the function fn over the elements elems and return the outputs.
-
-    # Arguments
-        fn: Callable that will be called upon each element in elems
-        elems: tensor
-        name: A string name for the map node in the graph
-        dtype: Output data type.
-
-    # Returns
-        Tensor with dtype `dtype`.
-    """
-    return tf.map_fn(fn, elems, name=name, dtype=dtype)
-
-
-def foldl(fn, elems, initializer=None, name=None):
-    """Reduce elems using fn to combine them from left to right.
-
-    # Arguments
-        fn: Callable that will be called upon each element in elems and an
-            accumulator, for instance `lambda acc, x: acc + x`
-        elems: tensor
-        initializer: The first value used (`elems[0]` in case of None)
-        name: A string name for the foldl node in the graph
-
-    # Returns
-        Tensor with same type and shape as `initializer`.
-    """
-    return tf.foldl(fn, elems, initializer=initializer, name=name)
-
-
-def foldr(fn, elems, initializer=None, name=None):
-    """Reduce elems using fn to combine them from right to left.
-
-    # Arguments
-        fn: Callable that will be called upon each element in elems and an
-            accumulator, for instance `lambda acc, x: acc + x`
-        elems: tensor
-        initializer: The first value used (`elems[-1]` in case of None)
-        name: A string name for the foldr node in the graph
-
-    # Returns
-        Tensor with same type and shape as `initializer`.
-    """
-    return tf.foldr(fn, elems, initializer=initializer, name=name)
-
-
+@tf_graph_op
 def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     """Apply 1D conv with un-shared weights.
 
@@ -4640,6 +4330,7 @@ def local_conv1d(inputs, kernel, kernel_size, strides, data_format=None):
     return permute_dimensions(output, (1, 0, 2))
 
 
+@tf_graph_op
 def local_conv2d(inputs,
                  kernel,
                  kernel_size,
@@ -4707,3 +4398,346 @@ def local_conv2d(inputs,
     else:
         output = permute_dimensions(output, (2, 0, 1, 3))
     return output
+
+
+@tf_graph_op
+def bias_add(x, bias, data_format=None):
+    """Adds a bias vector to a tensor.
+
+    # Arguments
+        x: Tensor or variable.
+        bias: Bias tensor to add.
+        data_format: string, `"channels_last"` or `"channels_first"`.
+
+    # Returns
+        Output tensor.
+
+    # Raises
+        ValueError: In one of the two cases below:
+                    1. invalid `data_format` argument.
+                    2. invalid bias shape.
+                       the bias should be either a vector or
+                       a tensor with ndim(x) - 1 dimension
+    {{np_implementation}}
+    """
+    data_format = normalize_data_format(data_format)
+    bias_shape = int_shape(bias)
+    if len(bias_shape) != 1 and len(bias_shape) != ndim(x) - 1:
+        raise ValueError('Unexpected bias dimensions %d, '
+                         'expect to be 1 or %d dimensions'
+                         % (len(bias_shape), ndim(x)))
+    if ndim(x) == 5:
+        if len(bias_shape) == 1:
+            new_shape = (1, 1, 1, 1, bias_shape[0])
+        else:
+            new_shape = (1,) + bias_shape
+        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1, 2, 3))
+        x += reshape(bias, new_shape)
+    elif ndim(x) == 4:
+        if data_format == 'channels_first':
+            if len(bias_shape) == 1:
+                if _has_nchw_support():
+                    x = tf.nn.bias_add(x, bias,
+                                       data_format='NCHW')
+                else:
+                    x += reshape(bias, (1, bias_shape[0], 1, 1))
+            else:
+                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
+        elif data_format == 'channels_last':
+            if len(bias_shape) == 1:
+                x = tf.nn.bias_add(x, bias,
+                                   data_format='NHWC')
+            else:
+                x += reshape(bias, (1,) + bias_shape)
+    elif ndim(x) == 3:
+        if len(bias_shape) == 1:
+            new_shape = (1, 1, bias_shape[0])
+        else:
+            new_shape = (1,) + bias_shape
+        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1,))
+        x += reshape(bias, new_shape)
+    else:
+        x = tf.nn.bias_add(x, bias)
+    return x
+
+
+# RANDOMNESS
+
+@tf_graph_op
+def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    """Returns a tensor with normal distribution of values.
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        mean: A float, mean of the normal distribution to draw samples.
+        stddev: A float, standard deviation of the normal distribution
+            to draw samples.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+
+    # Returns
+        A tensor.
+    """
+    if dtype is None:
+        dtype = floatx()
+    if seed is None:
+        seed = np.random.randint(10e6)
+    with tf_ops.init_scope():
+        return tf_keras_backend.random_normal(
+            shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed)
+
+
+@tf_graph_op
+def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+    """Returns a tensor with uniform distribution of values.
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        minval: A float, lower boundary of the uniform distribution
+            to draw samples.
+        maxval: A float, upper boundary of the uniform distribution
+            to draw samples.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+
+    # Returns
+        A tensor.
+    """
+    if dtype is None:
+        dtype = floatx()
+    if seed is None:
+        seed = np.random.randint(10e6)
+    with tf_ops.init_scope():
+        return tf_keras_backend.random_uniform(
+            shape, minval=minval, maxval=maxval, dtype=dtype, seed=seed)
+
+
+@tf_graph_op
+def random_binomial(shape, p=0.0, dtype=None, seed=None):
+    """Returns a tensor with random binomial distribution of values.
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        p: A float, `0. <= p <= 1`, probability of binomial distribution.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+
+    # Returns
+        A tensor.
+    """
+    if dtype is None:
+        dtype = floatx()
+    if seed is None:
+        seed = np.random.randint(10e6)
+    with tf_ops.init_scope():
+        return tf_keras_backend.random_binomial(
+            shape, p=p, dtype=dtype, seed=seed)
+
+
+@tf_graph_op
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+    """Returns a tensor with truncated random normal distribution of values.
+
+    The generated values follow a normal distribution
+    with specified mean and standard deviation,
+    except that values whose magnitude is more than
+    two standard deviations from the mean are dropped and re-picked.
+
+    # Arguments
+        shape: A tuple of integers, the shape of tensor to create.
+        mean: Mean of the values.
+        stddev: Standard deviation of the values.
+        dtype: String, dtype of returned tensor.
+        seed: Integer, random seed.
+
+    # Returns
+        A tensor.
+    """
+    if dtype is None:
+        dtype = floatx()
+    if seed is None:
+        seed = np.random.randint(10e6)
+    with tf_ops.init_scope():
+        return tf_keras_backend.truncated_normal(
+            shape, mean=mean, stddev=stddev, dtype=dtype, seed=seed)
+
+
+# CTC
+# TensorFlow has a native implementation, but it uses sparse tensors
+# and therefore requires a wrapper for Keras. The functions below convert
+# dense to sparse tensors and also wraps up the beam search code that is
+# in TensorFlow's CTC implementation
+
+
+@tf_graph_op
+def ctc_label_dense_to_sparse(labels, label_lengths):
+    """Converts CTC labels from dense to sparse.
+
+    # Arguments
+        labels: dense CTC labels.
+        label_lengths: length of the labels.
+
+    # Returns
+        A sparse tensor representation of the labels.
+    """
+    label_shape = tf.shape(labels)
+    num_batches_tns = tf.stack([label_shape[0]])
+    max_num_labels_tns = tf.stack([label_shape[1]])
+
+    def range_less_than(_, current_input):
+        return tf.expand_dims(tf.range(label_shape[1]), 0) < tf.fill(
+            max_num_labels_tns, current_input)
+
+    init = tf.cast(tf.fill([1, label_shape[1]], 0), tf.bool)
+    dense_mask = functional_ops.scan(range_less_than, label_lengths,
+                                     initializer=init, parallel_iterations=1)
+    dense_mask = dense_mask[:, 0, :]
+
+    label_array = tf.reshape(tf.tile(tf.range(label_shape[1]), num_batches_tns),
+                             label_shape)
+    label_ind = tf.boolean_mask(label_array, dense_mask)
+
+    tmp = tf.tile(tf.range(label_shape[0]), max_num_labels_tns)
+    batch_array = tf.transpose(tf.reshape(tmp, reverse(label_shape, 0)))
+    batch_ind = tf.boolean_mask(batch_array, dense_mask)
+
+    indices = concatenate([batch_ind, label_ind], axis=0)
+    indices = tf.transpose(tf.reshape(indices, [2, -1]))
+
+    vals_sparse = tf.gather_nd(labels, indices)
+
+    indices = tf.cast(indices, tf.int64)
+    label_shape = tf.cast(label_shape, tf.int64)
+    return tf.SparseTensor(indices, vals_sparse, label_shape)
+
+
+@tf_graph_op
+def ctc_batch_cost(y_true, y_pred, input_length, label_length):
+    """Runs CTC loss algorithm on each batch element.
+
+    # Arguments
+        y_true: tensor `(samples, max_string_length)`
+            containing the truth labels.
+        y_pred: tensor `(samples, time_steps, num_categories)`
+            containing the prediction, or output of the softmax.
+        input_length: tensor `(samples, 1)` containing the sequence length for
+            each batch item in `y_pred`.
+        label_length: tensor `(samples, 1)` containing the sequence length for
+            each batch item in `y_true`.
+
+    # Returns
+        Tensor with shape (samples,1) containing the
+            CTC loss of each element.
+    """
+    label_length = tf.cast(tf.squeeze(label_length, axis=-1), tf.int32)
+    input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
+    sparse_labels = tf.cast(
+        ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
+    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
+    return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
+                                       labels=sparse_labels,
+                                       sequence_length=input_length), 1)
+
+
+@tf_graph_op
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
+               top_paths=1, merge_repeated=False):
+    """Decodes the output of a softmax.
+
+    Can use either greedy search (also known as best path)
+    or a constrained dictionary search.
+
+    # Arguments
+        y_pred: tensor `(samples, time_steps, num_categories)`
+            containing the prediction, or output of the softmax.
+        input_length: tensor `(samples, )` containing the sequence length for
+            each batch item in `y_pred`.
+        greedy: perform much faster best-path search if `True`.
+            This does not use a dictionary.
+        beam_width: if `greedy` is `False`: a beam search decoder will be used
+            with a beam of this width.
+        top_paths: if `greedy` is `False`,
+            how many of the most probable paths will be returned.
+        merge_repeated: if `greedy` is `False`,
+            merge repeated classes in the output beams.
+
+    # Returns
+        Tuple:
+            List: if `greedy` is `True`, returns a list of one element that
+                contains the decoded sequence.
+                If `False`, returns the `top_paths` most probable
+                decoded sequences.
+                Important: blank labels are returned as `-1`.
+            Tensor `(top_paths, )` that contains
+                the log probability of each decoded sequence.
+    """
+    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
+    input_length = tf.cast(input_length, tf.int32)
+
+    if greedy:
+        (decoded, log_prob) = ctc.ctc_greedy_decoder(
+            inputs=y_pred,
+            sequence_length=input_length)
+    else:
+        (decoded, log_prob) = ctc.ctc_beam_search_decoder(
+            inputs=y_pred,
+            sequence_length=input_length, beam_width=beam_width,
+            top_paths=top_paths, merge_repeated=merge_repeated)
+
+    decoded_dense = []
+    for st in decoded:
+        dense_tensor = tf.sparse.to_dense(st, default_value=-1)
+        decoded_dense.append(dense_tensor)
+    return (decoded_dense, log_prob)
+
+
+# HIGH ORDER FUNCTIONS
+
+@tf_graph_op
+def map_fn(fn, elems, name=None, dtype=None):
+    """Map the function fn over the elements elems and return the outputs.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems
+        elems: tensor
+        name: A string name for the map node in the graph
+        dtype: Output data type.
+
+    # Returns
+        Tensor with dtype `dtype`.
+    """
+    return tf.map_fn(fn, elems, name=name, dtype=dtype)
+
+
+@tf_graph_op
+def foldl(fn, elems, initializer=None, name=None):
+    """Reduce elems using fn to combine them from left to right.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance `lambda acc, x: acc + x`
+        elems: tensor
+        initializer: The first value used (`elems[0]` in case of None)
+        name: A string name for the foldl node in the graph
+
+    # Returns
+        Tensor with same type and shape as `initializer`.
+    """
+    return tf.foldl(fn, elems, initializer=initializer, name=name)
+
+
+@tf_graph_op
+def foldr(fn, elems, initializer=None, name=None):
+    """Reduce elems using fn to combine them from right to left.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance `lambda acc, x: acc + x`
+        elems: tensor
+        initializer: The first value used (`elems[-1]` in case of None)
+        name: A string name for the foldr node in the graph
+
+    # Returns
+        Tensor with same type and shape as `initializer`.
+    """
+    return tf.foldr(fn, elems, initializer=initializer, name=name)
