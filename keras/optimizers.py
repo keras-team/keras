@@ -791,7 +791,7 @@ def get(identifier):
     # Raises
         ValueError: If `identifier` cannot be interpreted.
     """
-    if K.backend() == 'tensorflow':
+    if K.backend() == 'tensorflow' and tf.__version__.startswith('1.'):
         # Wrap TF optimizer instances
         if isinstance(identifier, tf.train.Optimizer):
             return TFOptimizer(identifier)
