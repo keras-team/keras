@@ -987,7 +987,7 @@ class Model(Network):
                 sample_weight=val_sample_weight,
                 batch_size=batch_size)
             if self._uses_dynamic_learning_phase():
-                val_inputs = val_x + val_y + val_sample_weights + [0.]
+                val_inputs = val_x + val_y + val_sample_weights + [0]
             else:
                 val_inputs = val_x + val_y + val_sample_weights
 
@@ -1009,7 +1009,7 @@ class Model(Network):
                 slice_arrays(sample_weights, 0, split_at),
                 slice_arrays(sample_weights, split_at))
             if self._uses_dynamic_learning_phase():
-                val_inputs = val_x + val_y + val_sample_weights + [0.]
+                val_inputs = val_x + val_y + val_sample_weights + [0]
             else:
                 val_inputs = val_x + val_y + val_sample_weights
 
@@ -1020,7 +1020,7 @@ class Model(Network):
 
         # Prepare input arrays and training function.
         if self._uses_dynamic_learning_phase():
-            fit_inputs = x + y + sample_weights + [1.]
+            fit_inputs = x + y + sample_weights + [1]
         else:
             fit_inputs = x + y + sample_weights
         self._make_train_function()
@@ -1123,7 +1123,7 @@ class Model(Network):
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `test_loop`.
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [0.]
+            ins = x + y + sample_weights + [0]
         else:
             ins = x + y + sample_weights
         self._make_test_function()
@@ -1184,7 +1184,7 @@ class Model(Network):
 
         # Prepare inputs, delegate logic to `predict_loop`.
         if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
+            ins = x + [0]
         else:
             ins = x
         self._make_predict_function()
@@ -1237,7 +1237,7 @@ class Model(Network):
             sample_weight=sample_weight,
             class_weight=class_weight)
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [1.]
+            ins = x + y + sample_weights + [1]
         else:
             ins = x + y + sample_weights
         self._make_train_function()
@@ -1276,7 +1276,7 @@ class Model(Network):
             x, y,
             sample_weight=sample_weight)
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [0.]
+            ins = x + y + sample_weights + [0]
         else:
             ins = x + y + sample_weights
         self._make_test_function()
@@ -1294,7 +1294,7 @@ class Model(Network):
         """
         x, _, _ = self._standardize_user_data(x)
         if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
+            ins = x + [0]
         else:
             ins = x
         self._make_predict_function()

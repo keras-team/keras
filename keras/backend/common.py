@@ -179,6 +179,16 @@ def normalize_data_format(value):
     return data_format
 
 
+def symbolic(func):
+    """Dummy decorator used in TensorFlow 2.0 to enter the Keras graph."""
+    return func
+
+
+def eager(func):
+    """Dummy decorator used in TensorFlow 2.0 to exit the Keras graph."""
+    return func
+
+
 # Legacy methods
 
 def set_image_dim_ordering(dim_ordering):

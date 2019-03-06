@@ -82,6 +82,7 @@ class Optimizer(object):
         self.weights = []
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         raise NotImplementedError
 
@@ -180,6 +181,7 @@ class SGD(Optimizer):
         self.nesterov = nesterov
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
@@ -252,6 +254,7 @@ class RMSprop(Optimizer):
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
@@ -318,6 +321,7 @@ class Adagrad(Optimizer):
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         shapes = [K.int_shape(p) for p in params]
@@ -391,6 +395,7 @@ class Adadelta(Optimizer):
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         shapes = [K.int_shape(p) for p in params]
@@ -471,6 +476,7 @@ class Adam(Optimizer):
         self.amsgrad = amsgrad
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
@@ -557,6 +563,7 @@ class Adamax(Optimizer):
         self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
@@ -641,6 +648,7 @@ class Nadam(Optimizer):
         self.schedule_decay = schedule_decay
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
@@ -708,8 +716,12 @@ class TFOptimizer(Optimizer):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
 
     @interfaces.legacy_get_updates_support
+    @K.symbolic
     def get_updates(self, loss, params):
-        grads = self.optimizer.compute_gradients(loss, var_list=params)
+        if isinstance(self.optimizer, tf.keras.optimizers.Optimizer):
+            return self.optimizer.get_updates(loss, params)
+        else:
+            grads = self.optimizer.compute_gradients(loss, var_list=params)
         self.updates = [K.update_add(self.iterations, 1)]
         opt_update = self.optimizer.apply_gradients(
             grads, global_step=self.iterations)
@@ -718,12 +730,19 @@ class TFOptimizer(Optimizer):
 
     @property
     def weights(self):
+        if isinstance(self.optimizer, tf.keras.optimizers.Optimizer):
+            return self.optimizer.weights
         raise NotImplementedError
 
     def get_config(self):
+        if isinstance(self.optimizer, tf.keras.optimizers.Optimizer):
+            return self.optimizer.get_config
         raise NotImplementedError
 
+    @classmethod
     def from_config(self, config):
+        if isinstance(self.optimizer, tf.keras.optimizers.Optimizer):
+            return self.optimizer.from_config
         raise NotImplementedError
 
 
@@ -791,9 +810,12 @@ def get(identifier):
     # Raises
         ValueError: If `identifier` cannot be interpreted.
     """
-    if K.backend() == 'tensorflow' and tf.__version__.startswith('1.'):
+    if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
-        if isinstance(identifier, tf.train.Optimizer):
+        if tf.__version__.startswith('1.'):
+            if isinstance(identifier, tf.train.Optimizer):
+                return TFOptimizer(identifier)
+        elif isinstance(identifier, tf.keras.optimizers.Optimizer):
             return TFOptimizer(identifier)
     if isinstance(identifier, dict):
         return deserialize(identifier)
