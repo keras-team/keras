@@ -186,7 +186,7 @@ def fit_loop(model, fit_function, fit_inputs,
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:
-                    if isinstance(fit_inputs[-1], float):
+                    if isinstance(fit_inputs[-1], int):
                         # Do not slice the training phase flag.
                         ins_batch = slice_arrays(
                             fit_inputs[:-1], batch_ids) + [fit_inputs[-1]]
@@ -319,7 +319,7 @@ def predict_loop(model, f, ins,
         index_array = np.arange(num_samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
-            if ins and isinstance(ins[-1], float):
+            if ins and isinstance(ins[-1], int):
                 # Do not slice the training phase flag.
                 ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
@@ -329,6 +329,7 @@ def predict_loop(model, f, ins,
 
             batch_logs = {'batch': batch_index, 'size': len(batch_ids)}
             callbacks._call_batch_hook('predict', 'begin', batch_index, batch_logs)
+            print('ins_batch', ins_batch)
             batch_outs = f(ins_batch)
             batch_outs = to_list(batch_outs)
             if batch_index == 0:
@@ -458,7 +459,7 @@ def test_loop(model, f, ins,
         index_array = np.arange(num_samples)
         for batch_index, (batch_start, batch_end) in enumerate(batches):
             batch_ids = index_array[batch_start:batch_end]
-            if isinstance(ins[-1], float):
+            if isinstance(ins[-1], int):
                 # Do not slice the training phase flag.
                 ins_batch = slice_arrays(ins[:-1], batch_ids) + [ins[-1]]
             else:
