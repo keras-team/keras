@@ -6,6 +6,8 @@ import tensorflow as tf
 from tensorflow.python.eager import context
 from tensorflow.python.framework import ops as tf_ops
 from tensorflow.python.ops import image_ops as tf_image_ops
+from tensorflow.python.ops import math_ops as tf_math_ops
+from tensorflow.python.ops import state_ops as tf_state_ops
 from tensorflow.python.keras import backend as tf_keras_backend
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
@@ -66,21 +68,27 @@ name_scope = tf.name_scope
 
 
 def symbolic(func):
+    if _is_tf_1():
+        return func
+
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def symbolic_fn_wrapper(*args, **kwargs):
         if _SYMBOLIC_SCOPE.value:
             with get_graph().as_default():
                 return func(*args, **kwargs)
         else:
             return func(*args, **kwargs)
-    return wrapper
+    return symbolic_fn_wrapper
 
 
 def eager(func):
+    if _is_tf_1():
+        return func
+
     global _SYMBOLIC_SCOPE
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def eager_fn_wrapper(*args, **kwargs):
         prev_value = _SYMBOLIC_SCOPE.value
         try:
             _SYMBOLIC_SCOPE.value = False
@@ -89,7 +97,7 @@ def eager(func):
         finally:
             _SYMBOLIC_SCOPE.value = prev_value
         return out
-    return wrapper
+    return eager_fn_wrapper
 
 
 @symbolic
@@ -934,7 +942,7 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    return tf_keras_backend.update(x, new_x)
+    return tf_state_ops.assign(x, new_x)
 
 
 @symbolic
@@ -948,7 +956,7 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    return tf_keras_backend.update_add(x, increment)
+    return tf_state_ops.assign_add(x, increment)
 
 
 @symbolic
@@ -962,7 +970,7 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    return tf_keras_backend.update_sub(x, decrement)
+    return tf_state_ops.assign_sub(x, decrement)
 
 
 @symbolic
@@ -977,10 +985,12 @@ def moving_average_update(x, value, momentum):
     # Returns
         An operation to update the variable.
     """
-    if value.dtype != x.dtype:
-        value = tf.cast(value, x.dtype)
-    return moving_averages.assign_moving_average(
-        x, value, momentum, zero_debias=True)
+    with tf_ops.colocate_with(x):
+        decay = tf_ops.convert_to_tensor(1.0 - momentum)
+        if decay.dtype != x.dtype.base_dtype:
+            decay = tf_math_ops.cast(decay, x.dtype.base_dtype)
+        update_delta = (x - tf_math_ops.cast(value, x.dtype)) * decay
+        return tf_state_ops.assign_sub(x, update_delta)
 
 
 # LINEAR ALGEBRA
@@ -1640,7 +1650,7 @@ def log(x):
     # Returns
         A tensor.
     """
-    return tf.log(x)
+    return tf_math_ops.log(x)
 
 
 @symbolic
@@ -2018,7 +2028,9 @@ def normalize_batch_in_training(x, gamma, beta,
     # Returns
         A tuple length of 3, `(normalized_tensor, mean, variance)`.
     """
-    if ndim(x) == 4 and list(reduction_axes) in [[0, 1, 2], [0, 2, 3]]:
+    if (ndim(x) == 4 and
+            list(reduction_axes) in [[0, 1, 2], [0, 2, 3]] and
+            _is_tf_1()):
         if not _has_nchw_support() and list(reduction_axes) == [0, 2, 3]:
             return _broadcast_normalize_batch_in_training(x, gamma, beta,
                                                           reduction_axes,
@@ -2066,9 +2078,10 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
         else:
             tf_data_format = None
 
-        if (tf_data_format == 'NHWC' or
-                tf_data_format == 'NCHW' and
-                _has_nchw_support()):
+        if ((tf_data_format == 'NHWC' or
+                (tf_data_format == 'NCHW' and
+                 _has_nchw_support())) and
+                _is_tf_1()):
             # The mean / var / beta / gamma may be processed by broadcast
             # so it may have extra axes with 1,
             # it is not needed and should be removed
@@ -2611,7 +2624,7 @@ def get_value(x):
         A Numpy array.
     """
     if _is_tf_1():
-        return x.eval(session=get_session((x,)))
+        return x.eval(session=get_session())
     else:
         return x.numpy()
 
@@ -3279,6 +3292,7 @@ def sparse_categorical_crossentropy(target, output, from_logits=False, axis=-1):
         ValueError: if `axis` is neither -1 nor one of
             the axes of `output`.
     """
+    print('context:', context.executing_eagerly())
     return tf_keras_backend.sparse_categorical_crossentropy(
         target, output, from_logits=from_logits, axis=axis)
 
@@ -4358,7 +4372,7 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
     input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
     sparse_labels = tf.cast(
         ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
-    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
+    y_pred = tf_math_ops.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
     return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
                                        labels=sparse_labels,
                                        sequence_length=input_length), 1)
@@ -4396,7 +4410,7 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             Tensor `(top_paths, )` that contains
                 the log probability of each decoded sequence.
     """
-    y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
+    y_pred = tf_math_ops.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
     input_length = tf.cast(input_length, tf.int32)
 
     if greedy:
