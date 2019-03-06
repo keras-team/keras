@@ -163,7 +163,6 @@ def check_two_tensor_operation(function_name,
                 k.variable(x_val), k.variable(convert_kernel(y_val)), **kwargs)
             z = k.eval(t)
         elif concat_args:
-            print("concat_args",concat_args)
             t = getattr(k, function_name)(
                 [k.variable(x_val), k.variable(y_val)], **kwargs)
             z = k.eval(t)
@@ -307,19 +306,19 @@ class TestBackend(object):
     #                               WITH_NP, axes=(1, 1))
 
         check_single_tensor_operation('transpose', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
-    #    if K.backend() != 'cntk':
-    #        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
+        if K.backend() != 'cntk':
+            check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
 
-    #def test_random_variables(self):
-    #    check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
-    #                                  low=0., high=1.,
-    #                                  shape_or_val=False,
-    #                                  assert_value_equality=False)
-    #    check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
-    #                                  mean=0., scale=1.,
-    #                                  shape_or_val=False,
-    #                                  assert_value_equality=False)
+    def test_random_variables(self):
+        check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
+                                      low=0., high=1.,
+                                      shape_or_val=False,
+                                      assert_value_equality=False)
+        check_single_tensor_operation('random_normal_variable', (2, 3), WITH_NP,
+                                      mean=0., scale=1.,
+                                      shape_or_val=False,
+                                      assert_value_equality=False)
 
     #def test_batch_dot_shape(self):
     #    # Note : batch_dot implementation is different for
@@ -386,21 +385,21 @@ class TestBackend(object):
     #        z = K.eval(z)
     #        assert_allclose(z, z_np, atol=1e-05)
 
-    #def test_shape_operations(self):
+    def test_shape_operations(self):
     #    check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
     #                               axis=-1, concat_args=True)
 
-    #    check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
-    #    check_single_tensor_operation('permute_dimensions', (4, 2, 3), WITH_NP,
-    #                                  pattern=(2, 0, 1))
-    #    check_single_tensor_operation('repeat', (4, 1), WITH_NP, n=3)
-    #    check_single_tensor_operation('flatten', (4, 1), WITH_NP)
-    #    check_single_tensor_operation('batch_flatten', (20, 2, 5), WITH_NP,
-    #                                  cntk_dynamicity=True)
-    #    check_single_tensor_operation('expand_dims', (4, 3), WITH_NP, axis=-1)
+        check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
+        check_single_tensor_operation('permute_dimensions', (4, 2, 3), WITH_NP,
+                                      pattern=(2, 0, 1))
+        check_single_tensor_operation('repeat', (4, 1), WITH_NP, n=3)
+        check_single_tensor_operation('flatten', (4, 1), WITH_NP)
+        check_single_tensor_operation('batch_flatten', (20, 2, 5), WITH_NP,
+                                      cntk_dynamicity=True)
+        check_single_tensor_operation('expand_dims', (4, 3), WITH_NP, axis=-1)
     #    check_single_tensor_operation('expand_dims', (4, 3, 2), WITH_NP, axis=1)
-    #    check_single_tensor_operation('squeeze', (4, 3, 1), WITH_NP, axis=2)
-    #    check_single_tensor_operation('squeeze', (4, 1, 1), WITH_NP, axis=1)
+        check_single_tensor_operation('squeeze', (4, 3, 1), WITH_NP, axis=2)
+        check_single_tensor_operation('squeeze', (4, 1, 1), WITH_NP, axis=1)
     #    check_composed_tensor_operations('reshape', {'shape': (4, 3, 1, 1)},
     #                                     'squeeze', {'axis': 2},
     #                                     (4, 3, 1, 1), WITH_NP)
@@ -1382,20 +1381,20 @@ class TestBackend(object):
     #        assert np.abs(np.mean(samples) - mean) < std * 0.015
     #        assert np.abs(np.std(samples) - std) < std * 0.015
 
-    def test_random_uniform(self):
-        min_val = -1.
-        max_val = 1.
-        rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
-        assert rand.shape == (200, 100)
-        assert np.abs(np.mean(rand)) < 0.015
-        assert max_val - 0.015 < np.max(rand) <= max_val
-        assert min_val + 0.015 > np.min(rand) >= min_val
+    #def test_random_uniform(self):
+    #    min_val = -1.
+    #    max_val = 1.
+    #    rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
+    #    assert rand.shape == (200, 100)
+    #    assert np.abs(np.mean(rand)) < 0.015
+    #    assert max_val - 0.015 < np.max(rand) <= max_val
+    #    assert min_val + 0.015 > np.min(rand) >= min_val
 
-        r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
-        samples = np.array([K.eval(r) for _ in range(200)])
-        assert np.abs(np.mean(samples)) < 0.015
-        assert max_val - 0.015 < np.max(samples) <= max_val
-        assert min_val + 0.015 > np.min(samples) >= min_val
+    #    r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
+    #    samples = np.array([K.eval(r) for _ in range(200)])
+    #    assert np.abs(np.mean(samples)) < 0.015
+    #    assert max_val - 0.015 < np.max(samples) <= max_val
+    #    assert min_val + 0.015 > np.min(samples) >= min_val
 
     #def test_random_binomial(self):
     #    p = 0.5

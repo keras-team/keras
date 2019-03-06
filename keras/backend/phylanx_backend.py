@@ -17,8 +17,8 @@ def variable(value, dtype=None, name=None, constraint=None):
 	return execution_tree.var(np.array(value, dtype))
 
 
-def eval(func):
-	return func.eval()
+def eval(x):
+	return x.eval()
 
 
 # not tested in the backend, should work on both variables and placeholders
@@ -73,6 +73,7 @@ def zeros_like(x, dtype=floatx(), name=None):
 	return zeros_like_eager.lazy(x)
 ###
 
+
 @Phylanx
 def dot_eager(x, y):
 	return np.dot(x, y)
@@ -92,13 +93,101 @@ def transpose(x):
 	return transpose_eager.lazy(x)
 
 
+@Phylanx
+def reverse_eager(x, axes):
+	return np.flip(x, axes)
+
+def reverse(x, axes):
+	return reverse_eager.lazy(x, axes)
+
+
+@Phylanx
+def phylanx_random_uniform_variable(shape, low, high):
+	return random(shape, list("uniform", low, high))
+
+def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
+	return execution_tree.var(phylanx_random_uniform_variable(shape, low, high))
+
+
+@Phylanx
+def phylanx_random_normal_variable(shape, mean, scale):
+	return random(shape, list("normal", mean, scale))
+
+def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
+	return execution_tree.var(phylanx_random_normal_variable(shape, mean, scale))
+
+
+#@Phylanx
+#def concatenate_eager(tensors, axis):
+#	return np.concatenate(tensors, axis)
+
+#def concatenate(tensors, axis=-1):
+#	return concatenate_eager.lazy(tensors, axis)
+
+
+@Phylanx
+def reshape_eager(x, shape):
+	return np.reshape(x, shape)
+
+def reshape(x, shape):
+	return reshape_eager.lazy(x, shape)
+
+
+@Phylanx
+def permute_dimensions_eager(x, pattern):
+	return np.transpose(x, pattern)
+
+def permute_dimensions(x, pattern):
+	return permute_dimensions_eager.lazy(x, pattern)
+
+
+@Phylanx
+def repeat_eager(x, n):
+	y = np.expand_dims(x, 1)
+	return np.repeat(y, n, 1)
+
+def repeat(x, n):
+	return repeat_eager.lazy(x, n)
+
+
+@Phylanx
+def flatten_eager(x):
+	return flatten(x)
+
+def flatten(x):
+	return flatten_eager.lazy(x)
+
+
+@Phylanx
+def batch_flatten_eager(x):
+	return np.reshape(x, list(shape(x)[0], -1))
+
+def batch_flatten(x):
+	return batch_flatten_eager.lazy(x)
+
+@Phylanx
+def expand_dims_eager(x, axis):
+	return np.expand_dims(x, axis)
+
+def expand_dims(x, axis=-1):
+	return expand_dims_eager.lazy(x, axis)
+
+
+@Phylanx
+def squeeze_eager(x, axis):
+	return np.squeeze(x, axis)
+
+def squeeze(x, axis):
+	return squeeze_eager.lazy(x, axis)
+
+
 
 @Phylanx
 def random_uniform_eager(shape, minval, maxval, dtype=None, seed=None):
 	return random(shape, list("uniform", minval, maxval))
 
-def random_uniform(shape, minval, maxval, dtype=None, seed=None):
-	return random_uniform_eager.lazy(shape, -1, 1)
+def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
+	return random_uniform_eager.lazy(shape, minval, maxval)
 
 
 
