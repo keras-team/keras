@@ -111,10 +111,7 @@ def learning_phase():
     # Returns
         Learning phase (scalar integer tensor or Python integer).
     """
-    lp = tf_keras_backend.learning_phase()
-    if isinstance(lp, tf_ops.Tensor) and lp.dtype.name == 'bool':
-        return tf.cast(lp, 'int32')
-    return lp
+    return tf_keras_backend.learning_phase()
 
 
 @symbolic
@@ -172,6 +169,28 @@ def set_session(session):
             '`set_session` is not available when '
             'TensorFlow is executing eagerly.')
     tf_keras_backend.set_session(session)
+
+
+def v1_variable_initialization():
+    session = get_session()
+    with session.graph.as_default():
+        variables = tf.global_variables()
+        candidate_vars = []
+        for v in variables:
+            if not getattr(v, '_keras_initialized', False):
+                candidate_vars.append(v)
+        if candidate_vars:
+            # This step is expensive, so we only run it on variables
+            # not already marked as initialized.
+            is_initialized = session.run(
+                [tf.is_variable_initialized(v) for v in candidate_vars])
+            uninitialized_vars = []
+            for flag, v in zip(is_initialized, candidate_vars):
+                if not flag:
+                    uninitialized_vars.append(v)
+                v._keras_initialized = True
+            if uninitialized_vars:
+                session.run(tf.variables_initializer(uninitialized_vars))
 
 
 # DEVICE MANIPULATION AND PROBING
@@ -314,7 +333,7 @@ def to_dense(tensor):
     ```
     """
     if is_sparse(tensor):
-        return tf.sparse_tensor_to_dense(tensor)
+        return tf.sparse.to_dense(tensor)
     else:
         return tensor
 
@@ -625,8 +644,11 @@ def eval(x):
     ```
     {{np_implementation}}
     """
+    if _is_tf_1():
+        return to_dense(x).eval(session=get_session())
     if hasattr(x, 'numpy'):
-        return x.numpy()
+        with context.eager_mode():
+            return x.numpy()
     eval_fn = function([], [x])
     return eval_fn([])[0]
 
@@ -1061,7 +1083,7 @@ def dot(x, y):
         return tf.reshape(tf.matmul(xt, yt),
                           x_shape[:-1] + y_shape[:-2] + y_shape[-1:])
     if is_sparse(x):
-        out = tf.matmul(x, y)
+        out = tf.sparse.sparse_dense_matmul(x, y)
     else:
         out = tf.matmul(x, y)
     return out
@@ -2141,7 +2163,10 @@ def concatenate(tensors, axis=-1):
             axis %= rank
         else:
             axis = 0
-    return tf.concat(tensors, axis=axis)
+    if py_all([is_sparse(x) for x in tensors]):
+        return tf.sparse.concat(axis, tensors)
+    else:
+        return tf.concat([to_dense(x) for x in tensors], axis)
 
 
 @symbolic
@@ -2702,6 +2727,8 @@ def print_tensor(x, message=''):
 # GRAPH MANIPULATION
 
 def function(inputs, outputs, updates=None, **kwargs):
+    if _is_tf_1():
+        v1_variable_initialization()
     return tf_keras_backend.function(inputs, outputs,
                                      updates=updates,
                                      **kwargs)
@@ -4173,8 +4200,9 @@ def bias_add(x, bias, data_format=None):
             new_shape = (1, 1, 1, 1, bias_shape[0])
         else:
             new_shape = (1,) + bias_shape
-        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1, 2, 3))
-        x += reshape(bias, new_shape)
+        new_shape = transpose_shape(new_shape, data_format,
+                                    spatial_axes=(1, 2, 3))
+        x = x + reshape(bias, new_shape)
     elif ndim(x) == 4:
         if data_format == 'channels_first':
             if len(bias_shape) == 1:
@@ -4182,22 +4210,23 @@ def bias_add(x, bias, data_format=None):
                     x = tf.nn.bias_add(x, bias,
                                        data_format='NCHW')
                 else:
-                    x += reshape(bias, (1, bias_shape[0], 1, 1))
+                    x = x + reshape(bias, (1, bias_shape[0], 1, 1))
             else:
-                x += reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
+                x = x + reshape(bias, (1, bias_shape[2]) + bias_shape[:2])
         elif data_format == 'channels_last':
             if len(bias_shape) == 1:
                 x = tf.nn.bias_add(x, bias,
                                    data_format='NHWC')
             else:
-                x += reshape(bias, (1,) + bias_shape)
+                x = x + reshape(bias, (1,) + bias_shape)
     elif ndim(x) == 3:
         if len(bias_shape) == 1:
             new_shape = (1, 1, bias_shape[0])
         else:
             new_shape = (1,) + bias_shape
-        new_shape = transpose_shape(new_shape, data_format, spatial_axes=(1,))
-        x += reshape(bias, new_shape)
+        new_shape = transpose_shape(new_shape, data_format,
+                                    spatial_axes=(1,))
+        x = x + reshape(bias, new_shape)
     else:
         x = tf.nn.bias_add(x, bias)
     return x
