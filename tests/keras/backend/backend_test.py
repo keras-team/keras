@@ -6,7 +6,7 @@ import warnings
 
 from keras import backend as K
 #from keras.backend import floatx, set_floatx, variable
-#from keras.backend import floatx, variable
+from keras.backend import floatx, variable
 from keras.utils.conv_utils import convert_kernel
 from keras.backend import numpy_backend as KNP
 
@@ -420,40 +420,40 @@ class TestBackend(object):
     #    if hasattr(y, '_keras_shape'):
     #        assert y._keras_shape == (None,)
 
-    #def test_repeat_elements(self):
-    #    reps = 3
-    #    for ndims in [1, 2, 3]:
-    #        shape = np.arange(2, 2 + ndims)
-    #        arr = np.arange(np.prod(shape)).reshape(shape)
+    def test_repeat_elements(self):
+        reps = 3
+        for ndims in [1, 2, 3]:
+            shape = np.arange(2, 2 + ndims)
+            arr = np.arange(np.prod(shape)).reshape(shape)
 
-    #        for rep_axis in range(ndims):
-    #            check_single_tensor_operation('repeat_elements', arr, WITH_NP,
-    #                                          rep=reps, axis=rep_axis)
+            for rep_axis in range(ndims):
+                check_single_tensor_operation('repeat_elements', arr, WITH_NP,
+                                              rep=reps, axis=rep_axis)
 
-    #            if K.backend() != 'cntk':
-    #                shape = list(shape)
-    #                shape[rep_axis] = None
-    #                x = K.placeholder(shape=shape)
-    #                y = K.repeat_elements(x, reps, axis=rep_axis)
-    #                assert y._keras_shape == tuple(shape)
-    #                assert y._keras_shape == K.int_shape(y)
+                #if K.backend() != 'cntk':
+                #    shape = list(shape)
+                #    shape[rep_axis] = None
+                #    x = K.placeholder(shape=shape)
+                #    y = K.repeat_elements(x, reps, axis=rep_axis)
+                #    assert y._keras_shape == tuple(shape)
+                #    assert y._keras_shape == K.int_shape(y)
 
-    #def test_tile(self):
-    #    shape = (3, 4)
-    #    arr = np.arange(np.prod(shape)).reshape(shape)
-    #    check_single_tensor_operation('tile', arr, WITH_NP, n=[2, 1])
-    #    check_single_tensor_operation('tile', (2, 5), WITH_NP, n=[5, 2])
+    def test_tile(self):
+        shape = (3, 4)
+        arr = np.arange(np.prod(shape)).reshape(shape)
+        check_single_tensor_operation('tile', arr, WITH_NP, n=[2, 1])
+        check_single_tensor_operation('tile', (2, 5), WITH_NP, n=[5, 2])
 
-    #    # test theano shape inference when
-    #    # input shape has None entries
-    #    if K.backend() == 'theano':
-    #        x = K.placeholder(shape=(None, 4))
-    #        n = 2
-    #        y = K.tile(x, n)
-    #        assert y._keras_shape == (None, 8)
-    #        n = (4, 3)
-    #        y = K.tile(x, n)
-    #        assert y._keras_shape == (None, 12)
+        ## test theano shape inference when
+        ## input shape has None entries
+        #if K.backend() == 'theano':
+        #    x = K.placeholder(shape=(None, 4))
+        #    n = 2
+        #    y = K.tile(x, n)
+        #    assert y._keras_shape == (None, 8)
+        #    n = (4, 3)
+        #    y = K.tile(x, n)
+        #    assert y._keras_shape == (None, 12)
 
     #def test_gather(self):
     #    shape = (10, 2, 3)
@@ -494,75 +494,75 @@ class TestBackend(object):
     #    check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
     #    check_single_tensor_operation('print_tensor', (1, 2, 3), WITH_NP)
 
-    #def test_elementwise_operations(self):
-    #    check_single_tensor_operation('max', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('max', (4, 2, 3), WITH_NP, axis=[1, -1])
+    def test_elementwise_operations(self):
+        #check_single_tensor_operation('max', (4, 2), WITH_NP)
+        check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
+        #check_single_tensor_operation('max', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('min', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('min', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('min', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('min', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('mean', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('mean', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('mean', (4, 2, 3),
     #                                  WITH_NP, axis=-1, keepdims=True)
     #    check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('var', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('var', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('var', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('var', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('std', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('logsumexp', (4, 2),
-    #                                  WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('logsumexp', (4, 2),
+                                      WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('prod', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('any', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('any', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('any', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('any', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('all', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('all', (4, 2), WITH_NP, axis=1, keepdims=True)
+        check_single_tensor_operation('all', (4, 2), WITH_NP, axis=1, keepdims=True)
     #    check_single_tensor_operation('all', (4, 2, 3), WITH_NP, axis=[1, -1])
 
-    #    check_single_tensor_operation('argmax', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('argmax', (4, 2), WITH_NP, axis=1)
+        check_single_tensor_operation('argmax', (4, 2), WITH_NP)
+        check_single_tensor_operation('argmax', (4, 2), WITH_NP, axis=1)
 
-    #    check_single_tensor_operation('argmin', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('argmin', (4, 2), WITH_NP, axis=1)
+        check_single_tensor_operation('argmin', (4, 2), WITH_NP)
+        check_single_tensor_operation('argmin', (4, 2), WITH_NP, axis=1)
 
-    #    check_single_tensor_operation('square', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('abs', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('sqrt', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('exp', (4, 2), WITH_NP)
+        check_single_tensor_operation('square', (4, 2), WITH_NP)
+        check_single_tensor_operation('abs', (4, 2), WITH_NP)
+        #check_single_tensor_operation('sqrt', (4, 2), WITH_NP)
+        check_single_tensor_operation('exp', (4, 2), WITH_NP)
 
-    #    check_single_tensor_operation('round', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('sign', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('pow', (4, 2), WITH_NP, a=3)
-    #    check_single_tensor_operation('clip', (4, 2), WITH_NP, min_value=0.4,
-    #                                  max_value=0.6)
+        check_single_tensor_operation('round', (4, 2), WITH_NP)
+        check_single_tensor_operation('sign', (4, 2), WITH_NP)
+        check_single_tensor_operation('pow', (4, 2), WITH_NP, a=3)
+        check_single_tensor_operation('clip', (4, 2), WITH_NP, min_value=0.4,
+                                      max_value=0.6)
 
-    #    check_single_tensor_operation('cos', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('sin', (4, 2), WITH_NP)
+        check_single_tensor_operation('cos', (4, 2), WITH_NP)
+        check_single_tensor_operation('sin', (4, 2), WITH_NP)
 
-    #    # two-tensor ops
-    #    check_two_tensor_operation('equal', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('not_equal', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('greater', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('greater_equal', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('less', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('less_equal', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
-    #    check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
+        # two-tensor ops
+        check_two_tensor_operation('equal', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('not_equal', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('greater', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('greater_equal', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('less', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('less_equal', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
+        check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
     #@pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
     #                                                  'cumsum and cumprod yet')
