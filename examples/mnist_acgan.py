@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Train an Auxiliary Classifier Generative Adversarial Network (ACGAN) on the
-MNIST dataset. See https://arxiv.org/abs/1610.09585 for more details.
+#Train an Auxiliary Classifier GAN (ACGAN) on the MNIST dataset.
+
+[More details on Auxiliary Classifier GANs.](https://arxiv.org/abs/1610.09585)
 
 You should start to see reasonable images after ~5 epochs, and good images
 by ~15 epochs. You should use a GPU, as the convolution-heavy operations are
@@ -11,13 +12,13 @@ as the compilation time can be a blocker using Theano.
 Timings:
 
 Hardware           | Backend | Time / Epoch
--------------------------------------------
+:------------------|:--------|------------:
  CPU               | TF      | 3 hrs
  Titan X (maxwell) | TF      | 4 min
  Titan X (maxwell) | TH      | 7 min
 
-Consult https://github.com/lukedeo/keras-acgan for more information and
-example output
+Consult [Auxiliary Classifier Generative Adversarial Networks in Keras
+](https://github.com/lukedeo/keras-acgan) for more information and example output.
 """
 from __future__ import print_function
 
