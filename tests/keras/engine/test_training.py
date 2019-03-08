@@ -642,6 +642,8 @@ def test_warnings():
         'A warning was raised for Sequence.')
 
 
+@pytest.mark.skipif(K.backend() == 'tensorflow',
+                    reason='Must for for tf.keras to support sparse ops.')
 def test_sparse_inputs_targets():
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
@@ -659,7 +661,8 @@ def test_sparse_inputs_targets():
 
 @pytest.mark.skipif(K.backend() != 'tensorflow',
                     reason='sparse operations supported only by TensorFlow')
-def test_sparse_placeholder_fit():
+def DISABLED_test_sparse_placeholder_fit():
+    """Must wait for tf.keras to support sparse operations."""
     test_inputs = [sparse.random(6, 3, density=0.25).tocsr() for _ in range(2)]
     test_outputs = [sparse.random(6, i, density=0.25).tocsr() for i in range(3, 5)]
     in1 = Input(shape=(3,))
@@ -1224,14 +1227,12 @@ def test_model_custom_target_tensors():
                                {y: np.random.random((10, 4)),
                                 y1: np.random.random((10, 3))})
 
-    if K.backend() == 'tensorflow':
-        import tensorflow as tf
-        # test with custom TF placeholder as target
-        pl_target_a = tf.placeholder('float32', shape=(None, 4))
-        model.compile(optimizer='rmsprop', loss='mse',
-                      target_tensors={'dense_1': pl_target_a})
-        model.train_on_batch([input_a_np, input_b_np],
-                             [output_a_np, output_b_np])
+    # test with custom placeholder as target
+    pl_target_a = K.placeholder(shape=(None, 4))
+    model.compile(optimizer='rmsprop', loss='mse',
+                  target_tensors={'dense_1': pl_target_a})
+    model.train_on_batch([input_a_np, input_b_np],
+                         [output_a_np, output_b_np])
 
 
 @pytest.mark.skipif(sys.version_info < (3,),
@@ -1358,10 +1359,6 @@ def test_pandas_dataframe():
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
-@pytest.mark.skipif((K.backend() == 'tensorflow' and
-                     not hasattr(K.get_session(),
-                                 '_make_callable_from_options')),
-                    reason='Requires TF 1.8 or higher')
 def test_training_and_eval_methods_on_symbolic_tensors_single_io():
     x = keras.layers.Input(shape=(3,), name='input')
     y = keras.layers.Dense(4, name='dense')(x)
@@ -1386,10 +1383,6 @@ def test_training_and_eval_methods_on_symbolic_tensors_single_io():
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='Requires TensorFlow')
-@pytest.mark.skipif((K.backend() == 'tensorflow' and
-                     not hasattr(K.get_session(),
-                                 '_make_callable_from_options')),
-                    reason='Requires TF 1.8 or higher')
 def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
     a = keras.layers.Input(shape=(3,), name='input_a')
     b = keras.layers.Input(shape=(3,), name='input_b')
@@ -1549,6 +1542,7 @@ def test_model_with_crossentropy_losses_channels_first():
     # Evaluate the same network with channels first, with all three loss
     # functions:
     K.set_image_data_format('channels_first')
+    assert K.image_data_format() == 'channels_first'
     data = data_channels_first
     for index, loss_function in enumerate(losses_to_test):
         labels = labels_channels_first[index]

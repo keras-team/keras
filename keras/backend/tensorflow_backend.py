@@ -10,8 +10,6 @@ from tensorflow.python.ops import math_ops as tf_math_ops
 from tensorflow.python.ops import state_ops as tf_state_ops
 from tensorflow.python.keras import backend as tf_keras_backend
 from tensorflow.python.keras.utils import tf_utils
-from tensorflow.python.ops import tensor_array_ops
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
 from .common import floatx, epsilon, image_data_format
@@ -22,7 +20,6 @@ import threading
 import numpy as np
 from distutils.version import StrictVersion
 
-from .common import normalize_data_format
 from ..utils.generic_utils import transpose_shape
 
 py_all = all
@@ -45,10 +42,12 @@ _LEARNING_PHASE_CACHE = {}
 def _is_tf_1():
     return tf.__version__.startswith('1.')
 
+# Set initial config
 tf_keras_backend.set_floatx(floatx())
 tf_keras_backend.set_epsilon(epsilon())
 tf_keras_backend.set_image_data_format(image_data_format())
 
+# Redefine config access/setting methods
 floatx = tf_keras_backend.floatx
 epsilon = tf_keras_backend.epsilon
 image_data_format = tf_keras_backend.image_data_format
@@ -56,13 +55,12 @@ set_floatx = tf_keras_backend.set_floatx
 set_epsilon = tf_keras_backend.set_floatx
 set_image_data_format = tf_keras_backend.set_image_data_format
 
+# Private TF Keras utils
 get_graph = tf_keras_backend.get_graph
 get_uid = tf_keras_backend.get_uid
 reset_uids = tf_keras_backend.reset_uids
 manual_variable_initialization = tf_keras_backend.manual_variable_initialization
-
-# TODO
-learning_phase_scope = tf_keras_backend.learning_phase_scope
+learning_phase_scope = tf_keras_backend.learning_phase_scope  # TODO
 name_scope = tf.name_scope
 
 
@@ -139,6 +137,37 @@ def set_learning_phase(value):
         ValueError: if `value` is neither `0` nor `1`.
     """
     tf_keras_backend.set_learning_phase(value)
+
+
+def normalize_data_format(value):
+    """Checks that the value correspond to a valid data format.
+
+    # Arguments
+        value: String or None. `'channels_first'` or `'channels_last'`.
+
+    # Returns
+        A string, either `'channels_first'` or `'channels_last'`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.normalize_data_format(None)
+        'channels_first'
+        >>> K.normalize_data_format('channels_last')
+        'channels_last'
+    ```
+
+    # Raises
+        ValueError: if `value` or the global `data_format` invalid.
+    """
+    if value is None:
+        value = image_data_format()
+    data_format = value.lower()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('The `data_format` argument must be one of '
+                         '"channels_first", "channels_last". Received: ' +
+                         str(value))
+    return data_format
 
 
 def get_session():
@@ -2626,7 +2655,6 @@ def batch_get_value(ops):
     # Returns
         A list of Numpy arrays.
     """
-    # TODO
     return tf_keras_backend.batch_get_value(ops)
 
 
@@ -2790,9 +2818,6 @@ def rnn(step_function, inputs, initial_states,
         input_length=input_length)
     reachable = tf_utils.get_reachable_from_inputs([learning_phase()],
                                                    targets=[last_output])
-    print('learning_phase:', learning_phase())
-    print('reachable:', reachable)
-    print('last_output:', last_output)
     if last_output in reachable:
         last_output._uses_learning_phase = True
     return last_output, outputs, new_states
@@ -3210,7 +3235,9 @@ def in_top_k(predictions, targets, k):
         `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
         values of `predictions[i]`.
     """
-    return tf.nn.in_top_k(predictions, targets, k)
+    return tf_math_ops.in_top_k(tf.cast(predictions, 'float32'),
+                                tf.cast(targets, 'int32'),
+                                k)
 
 
 # CONVOLUTIONS
@@ -3401,7 +3428,6 @@ def conv2d(x, kernel, strides=(1, 1), padding='valid',
         padding=padding,
         data_format=tf_data_format,
         **kwargs)
-
     if data_format == 'channels_first' and tf_data_format == 'NHWC':
         x = tf.transpose(x, (0, 3, 1, 2))  # NHWC -> NCHW
     return x
