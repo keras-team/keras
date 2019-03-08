@@ -13,13 +13,13 @@ matrix:
         - python: 3.6
           env: KERAS_BACKEND=tensorflow TEST_MODE=API
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow-1
+          env: KERAS_BACKEND=tensorflow TEST_MODE=TF1
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow-1
+          env: KERAS_BACKEND=tensorflow TEST_MODE=TF1
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow-2
+          env: KERAS_BACKEND=tensorflow TEST_MODE=TF2
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow-2
+          env: KERAS_BACKEND=tensorflow TEST_MODE=TF2
         - python: 2.7
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service" RUN_ONLY_BACKEND_TESTS=1
         - python: 3.6
@@ -60,7 +60,7 @@ install:
   - pip install -e .[tests] --progress-bar off
 
   # install TensorFlow (CPU version).
-  - if [[ "$KERAS_BACKEND" == "tensorflow-2" ]]; then
+  - if [[ "$TEST_MODE" == "TF2" ]]; then
     pip install tf-nightly-2.0-preview --progress-bar off;
     else
     pip install tensorflow==1.13.1 --progress-bar off;
