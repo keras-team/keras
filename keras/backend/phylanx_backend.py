@@ -201,7 +201,7 @@ def tile(x, n):
 	return tile_eager.lazy(x, n)
 
 #///
-# nil problem, axis problem
+# nil/None problem, axis problem
 @Phylanx
 def max_eager(x, axis, keepdims):
 	return np.amax(x, axis, keepdims)
@@ -242,6 +242,7 @@ def std(x, axis=None, keepdims=False):
 	return std_eager.lazy(x, axis, keepdims)
 
 
+#none axis problem again
 @Phylanx
 def logsumexp_eager(x, axis, keepdims):
 	return logsumexp(x, axis, keepdims)
@@ -423,7 +424,7 @@ def less_equal(x, y):
 
 @Phylanx
 def maximum_eager(x, y):
-	return np.maximum(x,y)
+	return np.maximum(x, y)
 
 def maximum(x, y):
 	return maximum_eager.lazy(x, y)
@@ -431,10 +432,93 @@ def maximum(x, y):
 
 @Phylanx
 def minimum_eager(x, y):
-	return np.minimum(x,y)
+	return np.minimum(x, y)
 
 def minimum(x, y):
 	return minimum_eager.lazy(x, y)
+
+
+@Phylanx
+def cumsum_eager(x, axis):
+	return np.cumsum(x, axis)
+
+def cumsum(x, axis=0):
+	return cumsum_eager.lazy(x, axis)
+
+
+@Phylanx
+def cumprod_eager(x, axis):
+	return np.cumprod(x, axis)
+
+def cumprod(x, axis=0):
+	return cumprod_eager.lazy(x, axis)
+
+#relu
+
+@Phylanx
+def softsign_eager(x):
+	return x / (1 + absolute(x))
+
+def softsign(x):
+	return softsign_eager.lazy(x)
+
+
+@Phylanx
+def softplus_eager(x):
+	return np.log(1. + np.exp(x))
+
+def softplus(x):
+	return softplus_eager.lazy(x)
+
+
+@Phylanx
+def elu_eager(x, alpha):
+	return x * (x > 0) + alpha * (np.exp(x) - 1.) * (x < 0)
+
+def elu(x, alpha=1.):
+	return elu_eager.lazy(x, alpha)
+
+
+@Phylanx
+def sigmoid_eager(x):
+	return 1. / (1. + np.exp(-x))
+
+def sigmoid(x):
+	return sigmoid_eager.lazy(x)
+
+
+@Phylanx
+def hard_sigmoid_eager(x):
+	y = 0.2 * x + 0.5
+	return np.clip(y, 0, 1)
+
+def hard_sigmoid(x):
+	return hard_sigmoid_eager.lazy(x)
+
+
+@Phylanx
+def tanh_eager(x):
+	return np.tanh(x)
+
+def tanh(x):
+	return tanh_eager.lazy(x)
+
+
+#up to 2d
+@Phylanx
+def softmax_eager(x, axis):
+	return softmax(x, axis)
+
+def softmax(x, axis=-1):
+	return softmax_eager.lazy(x, axis)
+
+
+@Phylanx
+def random_normal_eager(shape, mean, stddev, dtype, seed):
+	return random(shape, list("normal", mean, stddev))
+
+def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+	return random_normal_eager.lazy(shape, mean, stddev)
 
 
 @Phylanx

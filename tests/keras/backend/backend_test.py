@@ -564,14 +564,14 @@ class TestBackend(object):
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
-    #@pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
-    #                                                  'cumsum and cumprod yet')
-    #def test_cumsum_cumprod(self):
-    #    check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
+                                                      'cumsum and cumprod yet')
+    def test_cumsum_cumprod(self):
+        check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
+        check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
 
-    #    check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
+        check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
+        check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
 
     #@pytest.mark.skipif(K.backend() == 'cntk',
     #                    reason='cntk return -85.1 for zero or '
@@ -1023,29 +1023,29 @@ class TestBackend(object):
     #        # not updated last timestep:
     #        assert_allclose(K.eval(last_states[0]), expected_last_state)
 
-    #@pytest.mark.parametrize('x_np,axis,keepdims', [
-    #    (np.array([1.1, 0.8, 0.9]), 0, False),
-    #    (np.array([[1.1, 0.8, 0.9]]), 0, False),
-    #    (np.array([[1.1, 0.8, 0.9]]), 1, False),
-    #    (np.array([[1.1, 0.8, 0.9]]), -1, False),
-    #    (np.array([[1.1, 0.8, 0.9]]), 1, True),
-    #    (np.array([[1.1], [1.2]]), 0, False),
-    #    (np.array([[1.1], [1.2]]), 1, False),
-    #    (np.array([[1.1], [1.2]]), -1, False),
-    #    (np.array([[1.1], [1.2]]), -1, True),
-    #    (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), None, False),
-    #    (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 0, False),
-    #    (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
-    #    (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
-    #])
-    #def test_logsumexp(self, x_np, axis, keepdims):
-    #    '''
-    #    Check if K.logsumexp works properly for values close to one.
-    #    '''
-    #    x = K.variable(x_np)
-    #    assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
-    #                    np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
-    #                    rtol=1e-5)
+    @pytest.mark.parametrize('x_np,axis,keepdims', [
+        (np.array([1.1, 0.8, 0.9]), 0, False),
+        (np.array([[1.1, 0.8, 0.9]]), 0, False),
+        (np.array([[1.1, 0.8, 0.9]]), 1, False),
+        (np.array([[1.1, 0.8, 0.9]]), -1, False),
+        (np.array([[1.1, 0.8, 0.9]]), 1, True),
+        (np.array([[1.1], [1.2]]), 0, False),
+        (np.array([[1.1], [1.2]]), 1, False),
+        (np.array([[1.1], [1.2]]), -1, False),
+        (np.array([[1.1], [1.2]]), -1, True),
+        #(np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), None, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 0, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
+        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
+    ])
+    def test_logsumexp(self, x_np, axis, keepdims):
+        '''
+        Check if K.logsumexp works properly for values close to one.
+        '''
+        x = K.variable(x_np)
+        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
+                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
+                        rtol=1e-5)
 
     #@pytest.mark.skipif(K.backend() != 'tensorflow',
     #                    reason='The optimization is applied only with TensorFlow.')
@@ -1118,16 +1118,16 @@ class TestBackend(object):
     #    check_single_tensor_operation('relu', (4, 2), WITH_NP, alpha=alpha,
     #                                  max_value=max_value, threshold=threshold)
 
-    #def test_nn_operations(self):
-    #    check_single_tensor_operation('softsign', (4, 10), WITH_NP)
-    #    check_single_tensor_operation('softplus', (4, 10), WITH_NP)
-    #    check_single_tensor_operation('elu', (4, 10), WITH_NP, alpha=0.5)
+    def test_nn_operations(self):
+        check_single_tensor_operation('softsign', (4, 10), WITH_NP)
+        check_single_tensor_operation('softplus', (4, 10), WITH_NP)
+        check_single_tensor_operation('elu', (4, 10), WITH_NP, alpha=0.5)
 
-    #    check_single_tensor_operation('sigmoid', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('hard_sigmoid', (4, 2), WITH_NP)
-    #    check_single_tensor_operation('tanh', (4, 2), WITH_NP)
+        check_single_tensor_operation('sigmoid', (4, 2), WITH_NP)
+        check_single_tensor_operation('hard_sigmoid', (4, 2), WITH_NP)
+        check_single_tensor_operation('tanh', (4, 2), WITH_NP)
 
-    #    check_single_tensor_operation('softmax', (4, 10), WITH_NP)
+        check_single_tensor_operation('softmax', (4, 10), WITH_NP)
     #    check_single_tensor_operation('softmax', (4, 5, 3), WITH_NP, axis=1)
     #    check_single_tensor_operation('softmax', (4, 5, 3, 10), WITH_NP, axis=2)
 
@@ -1365,36 +1365,36 @@ class TestBackend(object):
     #            padding=padding, data_format=data_format))
     #    assert_allclose(y1, y2, atol=1e-05)
 
-    #def test_random_normal(self):
-    #    # test standard normal as well as a normal with a different set of parameters
-    #    for mean, std in [(0., 1.), (-10., 5.)]:
-    #        rand = K.eval(K.random_normal((300, 200),
-    #                                      mean=mean, stddev=std, seed=1337))
-    #        assert rand.shape == (300, 200)
-    #        assert np.abs(np.mean(rand) - mean) < std * 0.015
-    #        assert np.abs(np.std(rand) - std) < std * 0.015
+    def test_random_normal(self):
+        # test standard normal as well as a normal with a different set of parameters
+        for mean, std in [(0., 1.), (-10., 5.)]:
+            rand = K.eval(K.random_normal((300, 200),
+                                          mean=mean, stddev=std, seed=1337))
+            assert rand.shape == (300, 200)
+            assert np.abs(np.mean(rand) - mean) < std * 0.015
+            assert np.abs(np.std(rand) - std) < std * 0.015
 
-    #        # test that random_normal also generates different values when used
-    #        # within a function
-    #        r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
-    #        samples = np.array([K.eval(r) for _ in range(200)])
-    #        assert np.abs(np.mean(samples) - mean) < std * 0.015
-    #        assert np.abs(np.std(samples) - std) < std * 0.015
+            # test that random_normal also generates different values when used
+            # within a function
+            r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
+            samples = np.array([K.eval(r) for _ in range(200)])
+            assert np.abs(np.mean(samples) - mean) < std * 0.015
+            assert np.abs(np.std(samples) - std) < std * 0.015
 
-    #def test_random_uniform(self):
-    #    min_val = -1.
-    #    max_val = 1.
-    #    rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
-    #    assert rand.shape == (200, 100)
-    #    assert np.abs(np.mean(rand)) < 0.015
-    #    assert max_val - 0.015 < np.max(rand) <= max_val
-    #    assert min_val + 0.015 > np.min(rand) >= min_val
+    def test_random_uniform(self):
+        min_val = -1.
+        max_val = 1.
+        rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
+        assert rand.shape == (200, 100)
+        assert np.abs(np.mean(rand)) < 0.015
+        assert max_val - 0.015 < np.max(rand) <= max_val
+        assert min_val + 0.015 > np.min(rand) >= min_val
 
-    #    r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
-    #    samples = np.array([K.eval(r) for _ in range(200)])
-    #    assert np.abs(np.mean(samples)) < 0.015
-    #    assert max_val - 0.015 < np.max(samples) <= max_val
-    #    assert min_val + 0.015 > np.min(samples) >= min_val
+        r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
+        samples = np.array([K.eval(r) for _ in range(200)])
+        assert np.abs(np.mean(samples)) < 0.015
+        assert max_val - 0.015 < np.max(samples) <= max_val
+        assert min_val + 0.015 > np.min(samples) >= min_val
 
     #def test_random_binomial(self):
     #    p = 0.5
