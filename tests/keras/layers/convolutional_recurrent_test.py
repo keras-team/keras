@@ -21,7 +21,11 @@ sequence_len = 2
 @pytest.mark.parametrize('data_format', ['channels_first', 'channels_last'])
 @pytest.mark.parametrize('return_sequences', [True, False])
 @pytest.mark.parametrize('use_mask', [True, False])
-def test_convolutional_recurrent(data_format, return_sequences, use_mask):
+@pytest.mark.parametrize('use_bias', [True, False])
+def test_convolutional_recurrent(data_format='channels_last',
+                                 return_sequences=False,
+                                 use_mask=False,
+                                 use_bias=True):
 
     class Masking5D(Masking):
         """Regular masking layer returns wrong shape of mask for RNN"""
@@ -45,7 +49,8 @@ def test_convolutional_recurrent(data_format, return_sequences, use_mask):
               'stateful': True,
               'filters': filters,
               'kernel_size': (num_row, num_col),
-              'padding': 'valid'}
+              'padding': 'valid',
+              'use_bias': use_bias}
     layer = convolutional_recurrent.ConvLSTM2D(**kwargs)
     layer.build(inputs.shape)
     if use_mask:

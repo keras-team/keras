@@ -18,7 +18,6 @@ from keras.utils.generic_utils import slice_arrays
 from keras.models import Sequential
 from keras import backend as K
 from keras.utils import Sequence
-from keras.callbacks import LambdaCallback
 from keras.callbacks import Callback
 
 
