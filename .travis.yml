@@ -61,9 +61,9 @@ install:
 
   # install TensorFlow (CPU version).
   - if [[ "$KERAS_BACKEND" == "tensorflow-2" ]]; then
-    pip install tf-nightly-2.0-preview --progress-bar off
+    pip install tf-nightly-2.0-preview --progress-bar off;
     else
-    pip install tensorflow==1.13.1 --progress-bar off
+    pip install tensorflow==1.13.1 --progress-bar off;
     fi
 
   # install cntk
