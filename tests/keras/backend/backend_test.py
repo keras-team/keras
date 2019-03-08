@@ -42,6 +42,8 @@ elif K.backend() == 'theano' and not KTH.th_sparse_module:
 elif K.backend() == 'tensorflow':
     # Must wait for tf.keras to support sparse ops.
     supports_sparse = False
+else:
+    supports_sparse = True
 
 
 def check_dtype(var, dtype):
