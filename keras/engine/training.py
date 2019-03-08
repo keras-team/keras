@@ -34,6 +34,7 @@ class Model(Network):
     """The `Model` class adds training & evaluation routines to a `Network`.
     """
 
+    @K.symbolic
     def compile(self, optimizer,
                 loss=None,
                 metrics=None,
