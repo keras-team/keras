@@ -1,49 +1,49 @@
-'''This is an implementation of Net2Net experiment with MNIST in
-'Net2Net: Accelerating Learning via Knowledge Transfer'
+'''
+#Knowledge transfer with Net2Net
+This is an implementation of Net2Net experiment with MNIST in
+['Net2Net: Accelerating Learning via Knowledge Transfer'
+](http://arxiv.org/abs/1511.05641)
 by Tianqi Chen, Ian Goodfellow, and Jonathon Shlens
 
-arXiv:1511.05641v4 [cs.LG] 23 Apr 2016
-http://arxiv.org/abs/1511.05641
-
-# Notes
+**Notes**
 
 - What:
-  + Net2Net is a group of methods to transfer knowledge from a teacher neural
-    net to a student net,so that the student net can be trained faster than
-    from scratch.
-  + The paper discussed two specific methods of Net2Net, i.e. Net2WiderNet
-    and Net2DeeperNet.
-  + Net2WiderNet replaces a model with an equivalent wider model that has
-    more units in each hidden layer.
-  + Net2DeeperNet replaces a model with an equivalent deeper model.
-  + Both are based on the idea of 'function-preserving transformations of
-    neural nets'.
+    * Net2Net is a group of methods to transfer knowledge from a teacher neural
+      net to a student net,so that the student net can be trained faster than
+      from scratch.
+    * The paper discussed two specific methods of Net2Net, i.e. Net2WiderNet
+      and Net2DeeperNet.
+    * Net2WiderNet replaces a model with an equivalent wider model that has
+      more units in each hidden layer.
+    * Net2DeeperNet replaces a model with an equivalent deeper model.
+    * Both are based on the idea of 'function-preserving transformations of
+      neural nets'.
 - Why:
-  + Enable fast exploration of multiple neural nets in experimentation and
-    design process,by creating a series of wider and deeper models with
-    transferable knowledge.
-  + Enable 'lifelong learning system' by gradually adjusting model complexity
-    to data availability,and reusing transferable knowledge.
+    * Enable fast exploration of multiple neural nets in experimentation and
+      design process,by creating a series of wider and deeper models with
+      transferable knowledge.
+    * Enable 'lifelong learning system' by gradually adjusting model complexity
+      to data availability,and reusing transferable knowledge.
 
-# Experiments
+**Experiments**
 
 - Teacher model: a basic CNN model trained on MNIST for 3 epochs.
 - Net2WiderNet experiment:
-  + Student model has a wider Conv2D layer and a wider FC layer.
-  + Comparison of 'random-padding' vs 'net2wider' weight initialization.
-  + With both methods, after 1 epoch, student model should perform as well as
-    teacher model, but 'net2wider' is slightly better.
+    * Student model has a wider Conv2D layer and a wider FC layer.
+    * Comparison of 'random-padding' vs 'net2wider' weight initialization.
+    * With both methods, after 1 epoch, student model should perform as well as
+      teacher model, but 'net2wider' is slightly better.
 - Net2DeeperNet experiment:
-  + Student model has an extra Conv2D layer and an extra FC layer.
-  + Comparison of 'random-init' vs 'net2deeper' weight initialization.
-  + After 1 epoch, performance of 'net2deeper' is better than 'random-init'.
+    * Student model has an extra Conv2D layer and an extra FC layer.
+    * Comparison of 'random-init' vs 'net2deeper' weight initialization.
+    * After 1 epoch, performance of 'net2deeper' is better than 'random-init'.
 - Hyper-parameters:
-  + SGD with momentum=0.9 is used for training teacher and student models.
-  + Learning rate adjustment: it's suggested to reduce learning rate
-    to 1/10 for student model.
-  + Addition of noise in 'net2wider' is used to break weight symmetry
-    and thus enable full capacity of student models. It is optional
-    when a Dropout layer is used.
+    * SGD with momentum=0.9 is used for training teacher and student models.
+    * Learning rate adjustment: it's suggested to reduce learning rate
+      to 1/10 for student model.
+    * Addition of noise in 'net2wider' is used to break weight symmetry
+      and thus enable full capacity of student models. It is optional
+      when a Dropout layer is used.
 
 # Results
 
@@ -51,16 +51,15 @@ http://arxiv.org/abs/1511.05641
 - Running on GPU GeForce GTX Titan X Maxwell
 - Performance Comparisons - validation loss values during first 3 epochs:
 
-Teacher model ...
-(0) teacher_model:             0.0537   0.0354   0.0356
 
-Experiment of Net2WiderNet ...
-(1) wider_random_pad:          0.0320   0.0317   0.0289
-(2) wider_net2wider:           0.0271   0.0274   0.0270
+ Experiment | Initialization | Epoch 1 | Epoch 2 |Epoch 3
+:------------|:-----------------|-----:|-----:|-----:
+Teacher model|-                 |0.0537|0.0354|0.0356
+Net2WiderNet |wider_random_pad  |0.0320|0.0317|0.0289
+Net2WiderNet |wider_net2wider   |0.0271|0.0274|0.0270
+Net2DeeperNet|deeper_random_init|0.0682|0.0506|0.0468
+Net2DeeperNet|deeper_net2deeper |0.0292|0.0294|0.0286
 
-Experiment of Net2DeeperNet ...
-(3) deeper_random_init:        0.0682   0.0506   0.0468
-(4) deeper_net2deeper:         0.0292   0.0294   0.0286
 '''
 
 from __future__ import print_function
