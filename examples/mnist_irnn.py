@@ -1,10 +1,11 @@
-'''This is a reproduction of the IRNN experiment
-with pixel-by-pixel sequential MNIST in
-"A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"
-by Quoc V. Le, Navdeep Jaitly, Geoffrey E. Hinton
+'''
+#Recurrent neural network initialization
 
-arxiv:1504.00941v2 [cs.NE] 7 Apr 2015
-http://arxiv.org/pdf/1504.00941v2.pdf
+This is a reproduction of the IRNN experiment
+with pixel-by-pixel sequential MNIST in
+["A Simple Way to Initialize Recurrent Networks of Rectified Linear Units"
+](http://arxiv.org/pdf/1504.00941v2.pdf) by Quoc V. Le, Navdeep Jaitly,
+Geoffrey E. Hinton
 
 Optimizer is replaced with RMSprop which yields more stable and steady
 improvement.
