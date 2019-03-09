@@ -90,3 +90,11 @@ nav:
   - Stateful LSTM: examples/lstm_stateful.md
   - LSTM for text generation: examples/lstm_text_generation.md
   - Auxiliary Classifier GAN: examples/mnist_acgan.md
+  - Convolutional NN on MNIST: examples/mnist_cnn.md
+  - TensorFlow Dataset API: examples/mnist_dataset_api.md
+  - Denoising autoencoder: examples/mnist_denoising_autoencoder.md
+  - Hierarchical RNN: examples/mnist_hierarchical_rnn.md
+  - Recurrent NN initialization: examples/mnist_irnn.md
+  - Simple deep NN: examples/mnist_mlp.md
+  - Knowledge Transfer: examples/mnist_net2net.md
+  - Siamese MLP: examples/mnist_siamese.md
