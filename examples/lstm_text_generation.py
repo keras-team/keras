@@ -1,5 +1,4 @@
-'''
-#Example script to generate text from Nietzsche's writings.
+'''Example script to generate text from Nietzsche's writings.
 
 At least 20 epochs are required before the generated text
 starts sounding coherent.
