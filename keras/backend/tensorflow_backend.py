@@ -7,6 +7,7 @@ from tensorflow.python.eager import context
 from tensorflow.python.framework import ops as tf_ops
 from tensorflow.python.ops import image_ops as tf_image_ops
 from tensorflow.python.ops import math_ops as tf_math_ops
+from tensorflow.python.ops import nn_ops as tf_nn_ops
 from tensorflow.python.ops import state_ops as tf_state_ops
 from tensorflow.python.keras import backend as tf_keras_backend
 from tensorflow.python.keras.utils import tf_utils
@@ -67,6 +68,8 @@ name_scope = tf.name_scope
 def symbolic(func):
     if _is_tf_1():
         return func
+
+    global _SYMBOLIC_SCOPE
 
     @functools.wraps(func)
     def symbolic_fn_wrapper(*args, **kwargs):
@@ -3235,7 +3238,7 @@ def in_top_k(predictions, targets, k):
         `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
         values of `predictions[i]`.
     """
-    return tf_math_ops.in_top_k(tf.cast(predictions, 'float32'),
+    return tf_nn_ops.in_top_k(tf.cast(predictions, 'float32'),
                                 tf.cast(targets, 'int32'),
                                 k)
 
