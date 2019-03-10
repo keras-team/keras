@@ -4,7 +4,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
 from ..layers.merge import concatenate
 from .. import backend as K
 from ..layers.core import Lambda
@@ -12,13 +11,10 @@ from ..engine.training import Model
 from ..models import clone_model
 from ..utils.generic_utils import to_list
 
-def _is_tf_1():
-    return tf.__version__.startswith('1.')
 
 def _get_available_devices():
-    if _is_tf_1():
-        return [x.name for x in K.get_session().list_devices()]
-    return tf.config.experimental_list_devices();
+    return [x.name for x in K.get_session().list_devices()]
+
 
 def _normalize_device_name(name):
     name = '/' + ':'.join(name.lower().replace('/', '').split(':')[-2:])
