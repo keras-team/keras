@@ -468,31 +468,28 @@ def test_recursion():
         Model([j, k], [m, n, 0])
 
     ####################################################
-    # test calling layers/models on TF tensors
+    # test calling layers/models on placeholders
+    j = Input(shape=(32,), name='input_j')
+    k = Input(shape=(32,), name='input_k')
+    m, n = model([j, k])
+    outer_model = Model([j, k], [m, n])
 
-    if K.backend() == 'tensorflow':
-        import tensorflow as tf
-        j = Input(shape=(32,), name='input_j')
-        k = Input(shape=(32,), name='input_k')
-        m, n = model([j, k])
-        tf_model = Model([j, k], [m, n])
+    j_tf = K.placeholder(shape=(None, 32), dtype=K.floatx())
+    k_tf = K.placeholder(shape=(None, 32), dtype=K.floatx())
+    m_tf, n_tf = outer_model([j_tf, k_tf])
+    assert K.int_shape(m_tf) == (None, 64)
+    assert K.int_shape(n_tf) == (None, 5)
 
-        j_tf = tf.placeholder(dtype=K.floatx())
-        k_tf = tf.placeholder(dtype=K.floatx())
-        m_tf, n_tf = tf_model([j_tf, k_tf])
-        assert m_tf.get_shape().as_list() == [None, 64]
-        assert n_tf.get_shape().as_list() == [None, 5]
+    # test merge
+    layers.concatenate([j_tf, k_tf], axis=1)
+    layers.add([j_tf, k_tf])
 
-        # test merge
-        layers.concatenate([j_tf, k_tf], axis=1)
-        layers.add([j_tf, k_tf])
+    # test tensor input
+    x = K.placeholder(shape=(None, 2), dtype=K.floatx())
+    InputLayer(input_tensor=x)
 
-        # test tensor input
-        x = tf.placeholder(shape=(None, 2), dtype=K.floatx())
-        InputLayer(input_tensor=x)
-
-        x = Input(tensor=x)
-        Dense(2)(x)
+    x = Input(tensor=x)
+    Dense(2)(x)
 
 
 def test_load_layers():

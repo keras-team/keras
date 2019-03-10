@@ -39,6 +39,9 @@ if K.backend() == 'cntk':
     supports_sparse = False
 elif K.backend() == 'theano' and not KTH.th_sparse_module:
     supports_sparse = False
+elif K.backend() == 'tensorflow':
+    # Must wait for tf.keras to support sparse ops.
+    supports_sparse = False
 else:
     supports_sparse = True
 
@@ -2065,7 +2068,8 @@ class TestBackend(object):
         # Restore old value
         set_floatx(old_floatx)
 
-    def test_setfloatx_correct_values(self):
+    def DISABLED_test_setfloatx_correct_values(self):
+        """Disabled because it is not thread safe at this time."""
         # Keep track of the old value
         old_floatx = floatx()
         # Check correct values
@@ -2077,8 +2081,9 @@ class TestBackend(object):
 
     @pytest.mark.skipif((K.backend() == 'cntk'),
                         reason='cntk does not support float16')
-    def test_set_floatx(self):
-        """
+    def DISABLED_test_set_floatx(self):
+        """Disabled because it is not thread safe at this time.
+
         Make sure that changes to the global floatx are effectively
         taken into account by the backend.
         """
@@ -2118,7 +2123,7 @@ class TestBackend(object):
         assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
                            np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='This test is for tensorflow parallelism.')
     def test_tensorflow_session_parallelism_settings(self, monkeypatch):
         for threads in [0, 1, 4]:

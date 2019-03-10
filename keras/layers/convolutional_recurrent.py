@@ -597,7 +597,6 @@ class ConvLSTM2DCell(Layer):
         self._recurrent_dropout_mask = None
 
     def build(self, input_shape):
-
         if self.data_format == 'channels_first':
             channel_axis = 1
         else:
@@ -623,6 +622,7 @@ class ConvLSTM2DCell(Layer):
             constraint=self.recurrent_constraint)
         if self.use_bias:
             if self.unit_forget_bias:
+                @K.eager
                 def bias_initializer(_, *args, **kwargs):
                     return K.concatenate([
                         self.bias_initializer((self.filters,), *args, **kwargs),
