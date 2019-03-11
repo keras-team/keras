@@ -119,12 +119,12 @@ def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None)
 	return execution_tree.var(phylanx_random_normal_variable(shape, mean, scale))
 
 
-#@Phylanx
-#def concatenate_eager(tensors, axis):
-#	return np.concatenate(tensors, axis)
+@Phylanx
+def concatenate_eager(tensors, axis):
+	return np.concatenate(tensors, axis)
 
-#def concatenate(tensors, axis=-1):
-#	return concatenate_eager.lazy(tensors, axis)
+def concatenate(tensors, axis=-1):
+	return concatenate_eager.lazy(tensors, axis)
 
 
 @Phylanx
@@ -453,6 +453,14 @@ def cumprod_eager(x, axis):
 def cumprod(x, axis=0):
 	return cumprod_eager.lazy(x, axis)
 
+
+@Phylanx
+def log_eager(x):
+	return np.log(x)
+
+def log(x):
+	return log_eager.lazy(x)
+
 #relu
 
 @Phylanx
@@ -529,4 +537,74 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 	return random_uniform_eager.lazy(shape, minval, maxval)
 
 
+@Phylanx
+def random_binomial_eager(shape, p, dtype=None, seed=None):
+	return random(shape, list("bernoulli", p))
 
+def random_binomial(shape, p=0.0, dtype=None, seed=None):
+	return random_binomial_eager.lazy(shape, p)
+
+
+#not representing other interpolations, e.g. bilinear, 4d
+@Phylanx
+def resize_images_eager(x, height_factor, width_factor, data_format):
+	if data_format == 'channels_first':
+		x = np.repeat(x, height_factor, 2)
+		x = np.repeat(x, width_factor, 3)
+	elif data_format == 'channels_last':
+		x = np.repeat(x, height_factor, 1)
+		x = np.repeat(x, width_factor, 2)
+	return x
+
+def resize_images(x, height_factor, width_factor, data_format, interpolation='nearest'):
+	return resize_images_eager.lazy(x, height_factor, width_factor, data_format)
+
+
+# needs 5d
+@Phylanx
+def resize_volumes_eager(x, depth_factor, height_factor, width_factor, data_format):
+	if data_format == 'channels_first':
+		x = np.repeat(x, depth_factor, 2)
+		x = np.repeat(x, height_factor, 3)
+		x = np.repeat(x, width_factor, 4)
+	elif data_format == 'channels_last':
+		x = np.repeat(x, depth_factor, 1)
+		x = np.repeat(x, height_factor, 2)
+		x = np.repeat(x, width_factor, 3)
+	return x
+
+def resize_volumes(x, depth_factor, height_factor, width_factor, data_format):
+	return resize_volumes_eager.lazy(x, depth_factor, height_factor, width_factor, data_format)
+
+
+@Phylanx
+def temporal_padding_eager(x, padding):
+	return np.pad(x, [[0, 0], padding, [0, 0]], 'constant')
+
+def temporal_padding(x, padding=(1, 1)):
+	return temporal_padding_eager.lazy(x, padding)
+
+
+#@Phylanx
+#def one_hot_eager(indices, num_classes):
+#	return to_categorical(indices, num_classes)
+
+#def one_hot(indices, num_classes):
+#	return one_hot_eager.lazy(indices, num_classes)
+
+
+# tested in map_fn and gradient
+@Phylanx
+def sum_eager(x, axis, keepdims):
+	return np.sum(x, axis, keepdims)
+
+def sum(x, axis=None, keepdims=False):
+	return sum_eager.lazy(x, axis, keepdims)
+
+
+#@Phylanx
+#def stack_eager(x, axis):
+#    return np.stack(x, axis=axis)
+
+#def stack(x, axis=0):
+#    return stack_eager.lazy(x, axis)

@@ -42,7 +42,7 @@ from .load_backend import transpose
 #from .load_backend import gather
 from .load_backend import max
 from .load_backend import min
-#from .load_backend import sum
+from .load_backend import sum
 from .load_backend import prod
 from .load_backend import cumsum
 from .load_backend import cumprod
@@ -57,7 +57,7 @@ from .load_backend import square
 from .load_backend import abs
 #from .load_backend import sqrt
 from .load_backend import exp
-#from .load_backend import log
+from .load_backend import log
 from .load_backend import logsumexp
 from .load_backend import round
 from .load_backend import sign
@@ -75,12 +75,12 @@ from .load_backend import sin
 from .load_backend import cos
 #from .load_backend import normalize_batch_in_training
 #from .load_backend import batch_normalization
-#from .load_backend import concatenate
-#from .load_backend import reshape
+from .load_backend import concatenate
+from .load_backend import reshape
 from .load_backend import permute_dimensions
-#from .load_backend import resize_images
-#from .load_backend import resize_volumes
-#from .load_backend import repeat_elements
+from .load_backend import resize_images
+from .load_backend import resize_volumes
+from .load_backend import repeat_elements
 from .load_backend import repeat
 #from .load_backend import arange
 from .load_backend import tile
@@ -88,7 +88,7 @@ from .load_backend import flatten
 from .load_backend import batch_flatten
 from .load_backend import expand_dims
 from .load_backend import squeeze
-#from .load_backend import temporal_padding
+from .load_backend import temporal_padding
 #from .load_backend import spatial_2d_padding
 #from .load_backend import spatial_3d_padding
 #from .load_backend import stack
@@ -134,7 +134,7 @@ from .load_backend import tanh
 #from .load_backend import bias_add
 from .load_backend import random_normal
 from .load_backend import random_uniform
-#from .load_backend import random_binomial
+from .load_backend import random_binomial
 #from .load_backend import truncated_normal
 #from .load_backend import ctc_label_dense_to_sparse
 #from .load_backend import ctc_batch_cost

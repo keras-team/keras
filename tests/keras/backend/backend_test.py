@@ -125,8 +125,11 @@ def check_single_tensor_operation(function_name,
                 t, f = cntk_func_tensors(function_name, [x_shape], **kwargs)
                 z = f([x_val])[0]
             else:
+                print("x_val",x_val)
+                print("kwargs",kwargs)
                 t = getattr(k, function_name)(k.variable(x_val), **kwargs)
                 z = k.eval(t)
+                print(z)
         else:
             t = getattr(k, function_name)(x_shape_or_val, **kwargs)
             z = k.eval(t)
@@ -386,8 +389,8 @@ class TestBackend(object):
     #        assert_allclose(z, z_np, atol=1e-05)
 
     def test_shape_operations(self):
-    #    check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
-    #                               axis=-1, concat_args=True)
+        check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
+                                   axis=-1, concat_args=True)
 
         check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), WITH_NP,
@@ -497,42 +500,42 @@ class TestBackend(object):
     def test_elementwise_operations(self):
         #check_single_tensor_operation('max', (4, 2), WITH_NP)
         check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
-        #check_single_tensor_operation('max', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('max', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('min', (4, 2), WITH_NP)
         check_single_tensor_operation('min', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('min', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('min', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('mean', (4, 2), WITH_NP)
         check_single_tensor_operation('mean', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('mean', (4, 2, 3),
-    #                                  WITH_NP, axis=-1, keepdims=True)
-    #    check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('mean', (4, 2, 3),
+                                      WITH_NP, axis=-1, keepdims=True)
+        check_single_tensor_operation('mean', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('var', (4, 2), WITH_NP)
         check_single_tensor_operation('var', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('var', (4, 2, 3), WITH_NP, axis=[1, -1])
+        #check_single_tensor_operation('var', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('std', (4, 2), WITH_NP)
         check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
+        #check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
         check_single_tensor_operation('logsumexp', (4, 2),
                                       WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('prod', (4, 2), WITH_NP)
         check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('any', (4, 2), WITH_NP)
         check_single_tensor_operation('any', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('any', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('any', (4, 2, 3), WITH_NP, axis=[1, -1])
 
     #    check_single_tensor_operation('all', (4, 2), WITH_NP)
         check_single_tensor_operation('all', (4, 2), WITH_NP, axis=1, keepdims=True)
-    #    check_single_tensor_operation('all', (4, 2, 3), WITH_NP, axis=[1, -1])
+        check_single_tensor_operation('all', (4, 2, 3), WITH_NP, axis=[1, -1])
 
         check_single_tensor_operation('argmax', (4, 2), WITH_NP)
         check_single_tensor_operation('argmax', (4, 2), WITH_NP, axis=1)
@@ -573,12 +576,12 @@ class TestBackend(object):
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
 
-    #@pytest.mark.skipif(K.backend() == 'cntk',
-    #                    reason='cntk return -85.1 for zero or '
-    #                           'negative number, not nan, so can\'t '
-    #                           'compare with other backend.')
-    #def test_log(self):
-    #    check_single_tensor_operation('log', (4, 2), WITH_NP)
+    @pytest.mark.skipif(K.backend() == 'cntk',
+                        reason='cntk return -85.1 for zero or '
+                               'negative number, not nan, so can\'t '
+                               'compare with other backend.')
+    def test_log(self):
+        check_single_tensor_operation('log', (4, 2), WITH_NP)
 
     #@pytest.mark.skipif(K.backend() == 'theano',
     #                    reason='theano returns tuples for update ops')
@@ -1396,19 +1399,19 @@ class TestBackend(object):
         assert max_val - 0.015 < np.max(samples) <= max_val
         assert min_val + 0.015 > np.min(samples) >= min_val
 
-    #def test_random_binomial(self):
-    #    p = 0.5
-    #    rand = K.eval(K.random_binomial((200, 100), p))
-    #    assert rand.shape == (200, 100)
-    #    assert np.abs(np.mean(rand) - p) < 0.015
-    #    assert np.max(rand) == 1
-    #    assert np.min(rand) == 0
+    def test_random_binomial(self):
+        p = 0.5
+        rand = K.eval(K.random_binomial((200, 100), p))
+        assert rand.shape == (200, 100)
+        assert np.abs(np.mean(rand) - p) < 0.015
+        assert np.max(rand) == 1
+        assert np.min(rand) == 0
 
-    #    r = K.random_binomial((10, 10), p)
-    #    samples = np.array([K.eval(r) for _ in range(200)])
-    #    assert np.abs(np.mean(samples) - p) < 0.015
-    #    assert np.max(samples) == 1
-    #    assert np.min(samples) == 0
+        r = K.random_binomial((10, 10), p)
+        samples = np.array([K.eval(r) for _ in range(200)])
+        assert np.abs(np.mean(samples) - p) < 0.015
+        assert np.max(samples) == 1
+        assert np.min(samples) == 0
 
     #def test_truncated_normal(self):
     #    mean = 0.
@@ -1541,11 +1544,11 @@ class TestBackend(object):
     #        K.resize_volumes(K.variable(xval), 2, 2, 2,
     #                         data_format='channels_middle')
 
-    #def test_temporal_padding(self):
-    #    check_single_tensor_operation('temporal_padding', (4, 3, 3),
-    #                                  WITH_NP)
-    #    check_single_tensor_operation('temporal_padding', (2, 3, 4),
-    #                                  WITH_NP, padding=(1, 2))
+    def test_temporal_padding(self):
+        check_single_tensor_operation('temporal_padding', (4, 3, 3),
+                                      WITH_NP)
+        check_single_tensor_operation('temporal_padding', (2, 3, 4),
+                                      WITH_NP, padding=(1, 2))
 
     #def test_spatial_2d_padding(self):
     #    padding = ((1, 2), (2, 1))
