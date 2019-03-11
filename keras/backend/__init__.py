@@ -131,7 +131,7 @@ from .load_backend import tanh
 #from .load_backend import conv3d_transpose
 #from .load_backend import pool2d
 #from .load_backend import pool3d
-#from .load_backend import bias_add
+from .load_backend import bias_add
 from .load_backend import random_normal
 from .load_backend import random_uniform
 from .load_backend import random_binomial
