@@ -51,7 +51,6 @@ by Tianqi Chen, Ian Goodfellow, and Jonathon Shlens
 - Running on GPU GeForce GTX Titan X Maxwell
 - Performance Comparisons - validation loss values during first 3 epochs:
 
-
  Experiment | Initialization | Epoch 1 | Epoch 2 |Epoch 3
 :------------|:-----------------|-----:|-----:|-----:
 Teacher model|-                 |0.0537|0.0354|0.0356
