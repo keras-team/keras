@@ -13,6 +13,7 @@ import tempfile
 from six.moves import zip
 from six import string_types
 from functools import wraps
+
 import numpy as np
 
 from .. import backend as K
