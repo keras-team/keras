@@ -33,9 +33,9 @@ keras_dir = pathlib.Path(__file__).resolve().parents[1]
 def get_function_signature(function, method=True):
     wrapped = getattr(function, '_original_function', None)
     if wrapped is None:
-        signature = inspect.getargspec(function)
+        signature = inspect.getfullargspec(function)
     else:
-        signature = inspect.getargspec(wrapped)
+        signature = inspect.getfullargspec(wrapped)
     defaults = signature.defaults
     if method:
         args = signature.args[1:]
