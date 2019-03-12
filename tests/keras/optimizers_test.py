@@ -9,7 +9,8 @@ from keras.models import Sequential, Model, load_model
 from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
-import py
+import tempfile
+import os
 
 
 num_classes = 2
@@ -26,7 +27,7 @@ def get_test_data():
     return x_train, y_train
 
 
-def _test_optimizer(optimizer, target=0.75, tmpdir=py.path.local()):
+def _test_optimizer(optimizer, target=0.75):
     x_train, y_train = get_test_data()
 
     model = Sequential()
@@ -70,10 +71,10 @@ def _test_optimizer(optimizer, target=0.75, tmpdir=py.path.local()):
     model.compile(loss='mse', optimizer=optimizer)
     model.fit(np.zeros((1, 1)), np.zeros((1, 1)))
 
-    model_filename = str(tmpdir / 'test_optmizer_weight_save.hdf')
-    model.save(model_filename)
-
-    model2 = load_model(model_filename)
+    _, fname = tempfile.mkstemp('.h5')
+    model.save(fname)
+    model2 = load_model(fname)
+    os.remove(fname)
 
     for w1, w2 in zip(model.get_weights(), model2.get_weights()):
         assert_allclose(w1, w2)
@@ -82,7 +83,7 @@ def _test_optimizer(optimizer, target=0.75, tmpdir=py.path.local()):
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="Only Tensorflow raises a "
                            "ValueError if the gradient is null.")
-def test_no_grad():
+def test_no_grad(tmpdir):
     inp = Input([3])
     x = Dense(10)(inp)
     x = Lambda(
