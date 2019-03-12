@@ -13,7 +13,7 @@ from ..utils.generic_utils import to_list
 
 
 def _get_available_devices():
-    return [x.name for x in K.get_session().list_devices()]
+    return K.tensorflow_backend._get_available_gpus()
 
 
 def _normalize_device_name(name):
@@ -153,7 +153,7 @@ def multi_gpu_model(model, gpus=None, cpu_merge=True, cpu_relocation=False):
     if not gpus:
         # Using all visible GPUs when not specifying `gpus`
         # e.g. CUDA_VISIBLE_DEVICES=0,2 python keras_mgpu.py
-        gpus = len([x for x in available_devices if 'gpu' in x])
+        gpus = len(available_devices)
 
     if isinstance(gpus, (list, tuple)):
         if len(gpus) <= 1:
