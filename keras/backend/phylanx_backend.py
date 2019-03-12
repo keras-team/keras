@@ -6,7 +6,7 @@ from __future__ import print_function
 import numpy as np
 from phylanx import Phylanx, PhylanxSession, execution_tree
 from .common import floatx
-from .common import epsilon
+from .common import epsilon, set_epsilon
 from .common import normalize_data_format
 
 PhylanxSession.init(1)
@@ -42,7 +42,7 @@ def eye(size, dtype=None, name=None):
 	return eye_eager.lazy(size)
 
 
-# works up to 3d
+# 4d
 @Phylanx
 def ones_eager(shape, dtype, name):
 	return np.ones(shape)
@@ -51,6 +51,7 @@ def ones(shape, dtype=floatx(), name=None):
 	return ones_eager.lazy(shape)
 
 
+# 4d
 @Phylanx
 def zeros_eager(shape, dtype, name):
 	return np.zeros(shape)
@@ -59,6 +60,7 @@ def zeros(shape, dtype=floatx(), name=None):
 	return zeros_eager.lazy(shape)
 
 
+# 4d
 @Phylanx
 def ones_like_eager(x, dtype, name):
 	return np.ones_like(x)
@@ -67,13 +69,13 @@ def ones_like(x, dtype=floatx(), name=None):
 	return ones_like_eager.lazy(x)
 
 
+# 4d
 @Phylanx
 def zeros_like_eager(x, dtype, name):
 	return np.zeros_like(x)
 
 def zeros_like(x, dtype=floatx(), name=None):
 	return zeros_like_eager.lazy(x)
-###
 
 
 @Phylanx
@@ -105,7 +107,7 @@ def reverse(x, axes):
 
 @Phylanx
 def phylanx_random_uniform_variable(shape, low, high):
-	return random(shape, list("uniform", low, high))
+	return random(shape, ["uniform", low, high])
 
 def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
 	return execution_tree.var(phylanx_random_uniform_variable(shape, low, high))
@@ -113,7 +115,7 @@ def random_uniform_variable(shape, low, high, dtype=None, name=None, seed=None):
 
 @Phylanx
 def phylanx_random_normal_variable(shape, mean, scale):
-	return random(shape, list("normal", mean, scale))
+	return random(shape, ["normal", mean, scale])
 
 def random_normal_variable(shape, mean, scale, dtype=None, name=None, seed=None):
 	return execution_tree.var(phylanx_random_normal_variable(shape, mean, scale))
@@ -512,7 +514,7 @@ def tanh(x):
 	return tanh_eager.lazy(x)
 
 
-#up to 2d
+# 4d
 @Phylanx
 def softmax_eager(x, axis):
 	return softmax(x, axis)
@@ -523,7 +525,7 @@ def softmax(x, axis=-1):
 
 @Phylanx
 def random_normal_eager(shape, mean, stddev, dtype, seed):
-	return random(shape, list("normal", mean, stddev))
+	return random(shape, ["normal", mean, stddev])
 
 def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 	return random_normal_eager.lazy(shape, mean, stddev)
@@ -531,7 +533,7 @@ def random_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
 
 @Phylanx
 def random_uniform_eager(shape, minval, maxval, dtype=None, seed=None):
-	return random(shape, list("uniform", minval, maxval))
+	return random(shape, ["uniform", minval, maxval])
 
 def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 	return random_uniform_eager.lazy(shape, minval, maxval)
@@ -539,13 +541,21 @@ def random_uniform(shape, minval=0.0, maxval=1.0, dtype=None, seed=None):
 
 @Phylanx
 def random_binomial_eager(shape, p, dtype=None, seed=None):
-	return random(shape, list("bernoulli", p))
+	return random(shape, ["bernoulli", p])
 
 def random_binomial(shape, p=0.0, dtype=None, seed=None):
 	return random_binomial_eager.lazy(shape, p)
 
 
-#not representing other interpolations, e.g. bilinear, 4d
+@Phylanx
+def truncated_normal_eager(shape, mean, stddev, dtype=None, seed=None):
+	return random(shape, ["truncated_normal", mean, stddev])
+
+def truncated_normal(shape, mean=0.0, stddev=1.0, dtype=None, seed=None):
+	return truncated_normal_eager.lazy(shape, mean, stddev)
+
+
+#not representing the other interpolation, bilinear, 4d
 @Phylanx
 def resize_images_eager(x, height_factor, width_factor, data_format):
 	if data_format == 'channels_first':
@@ -602,9 +612,37 @@ def sum(x, axis=None, keepdims=False):
 	return sum_eager.lazy(x, axis, keepdims)
 
 
+# concat_args true
 #@Phylanx
 #def stack_eager(x, axis):
 #    return np.stack(x, axis=axis)
 
 #def stack(x, axis=0):
 #    return stack_eager.lazy(x, axis)
+
+
+@Phylanx
+def constant_eager(value, dtype, shape):
+	return constant(value, shape)
+
+def constant(value, dtype=None, shape=None, name=None):
+	return constant_eager.lazy(value, dtype, shape)
+
+
+# dtype problem
+#@Phylanx
+#def arange_eager(start, stop, step, dtype):
+#	return np.arange(start, stop, step)
+
+#def arange(start, stop=None, step=1, dtype='int32'):
+#	return arange_eager.lazy(start, stop, step, dtype)
+
+
+#returns a list and asserted with a tuple
+@Phylanx
+def int_shape(x):
+	return np.shape(x)
+
+
+def get_value(x):
+	return eval(x)
