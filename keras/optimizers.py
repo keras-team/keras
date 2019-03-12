@@ -192,7 +192,8 @@ class SGD(Optimizer):
                                                       K.dtype(self.decay))))
         # momentum
         shapes = [K.int_shape(p) for p in params]
-        moments = [K.zeros(shape) for shape in shapes]
+        moments = [K.zeros(shape, name='moment_' + str(i))
+                   for (i, shape) in enumerate(shapes)]
         self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
             v = self.momentum * m - lr * g  # velocity
@@ -257,7 +258,10 @@ class RMSprop(Optimizer):
     @K.symbolic
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
-        accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        accumulators = [K.zeros(K.int_shape(p),
+                        dtype=K.dtype(p),
+                        name='accumulator_' + str(i))
+                        for (i, p) in enumerate(params)]
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -325,7 +329,8 @@ class Adagrad(Optimizer):
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         shapes = [K.int_shape(p) for p in params]
-        accumulators = [K.zeros(shape) for shape in shapes]
+        accumulators = [K.zeros(shape, name='accumulator_' + str(i))
+                        for (i, shape) in enumerate(shapes)]
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -399,8 +404,10 @@ class Adadelta(Optimizer):
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         shapes = [K.int_shape(p) for p in params]
-        accumulators = [K.zeros(shape) for shape in shapes]
-        delta_accumulators = [K.zeros(shape) for shape in shapes]
+        accumulators = [K.zeros(shape, name='accumulator_' + str(i))
+                        for (i, shape) in enumerate(shapes)]
+        delta_accumulators = [K.zeros(shape, name='delta_accumulator_' + str(i))
+                        for (i, shape) in enumerate(shapes)]
         self.weights = accumulators + delta_accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -490,12 +497,22 @@ class Adam(Optimizer):
         lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
                      (1. - K.pow(self.beta_1, t)))
 
-        ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-        vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+        ms = [K.zeros(K.int_shape(p),
+              dtype=K.dtype(p),
+              name='m_' + str(i))
+              for (i, p) in enumerate(params)]
+        vs = [K.zeros(K.int_shape(p),
+              dtype=K.dtype(p),
+              name='v_' + str(i))
+              for (i, p) in enumerate(params)]
+
         if self.amsgrad:
-            vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
+            vhats = [K.zeros(K.int_shape(p),
+                dtype=K.dtype(p),
+                name='vhat_' + str(i))
+                for (i, p) in enumerate(params)]
         else:
-            vhats = [K.zeros(1) for _ in params]
+            vhats = [K.zeros(1, name='vhat_' + str(i)) for i in range(len(params))]
         self.weights = [self.iterations] + ms + vs + vhats
 
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
@@ -578,9 +595,11 @@ class Adamax(Optimizer):
 
         shapes = [K.int_shape(p) for p in params]
         # zero init of 1st moment
-        ms = [K.zeros(shape) for shape in shapes]
+        ms = [K.zeros(shape, name='m_' + str(i))
+              for (i, shape) in enumerate(shapes)]
         # zero init of exponentially weighted infinity norm
-        us = [K.zeros(shape) for shape in shapes]
+        us = [K.zeros(shape, name='u_' + str(i))
+              for (i, shape) in enumerate(shapes)]
         self.weights = [self.iterations] + ms + us
 
         for p, g, m, u in zip(params, grads, ms, us):
@@ -665,8 +684,10 @@ class Nadam(Optimizer):
         self.updates.append((self.m_schedule, m_schedule_new))
 
         shapes = [K.int_shape(p) for p in params]
-        ms = [K.zeros(shape) for shape in shapes]
-        vs = [K.zeros(shape) for shape in shapes]
+        ms = [K.zeros(shape, name='m_' + str(i))
+              for (i, shape) in enumerate(shapes)]
+        vs = [K.zeros(shape, name='v_' + str(i))
+              for (i, shape) in enumerate(shapes)]
 
         self.weights = [self.iterations] + ms + vs
 
