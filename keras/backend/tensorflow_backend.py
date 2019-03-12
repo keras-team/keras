@@ -3235,9 +3235,11 @@ def in_top_k(predictions, targets, k):
         `output[i]` is `True` if `predictions[i, targets[i]]` is within top-`k`
         values of `predictions[i]`.
     """
-    return tf.nn.in_top_k(tf.cast(predictions, 'float32'),
-                          tf.cast(targets, 'int32'),
-                          k)
+    # Note that the order of the 2 first positional arguments
+    # has been inverted in TF 2.
+    return tf.nn.in_top_k(predictions=predictions,
+                          targets=targets,
+                          k=k)
 
 
 # CONVOLUTIONS
