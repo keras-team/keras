@@ -10,7 +10,6 @@ from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
 import tempfile
-import os
 
 
 num_classes = 2
@@ -74,7 +73,6 @@ def _test_optimizer(optimizer, target=0.75):
     _, fname = tempfile.mkstemp('.h5')
     model.save(fname)
     model2 = load_model(fname)
-    os.remove(fname)
 
     for w1, w2 in zip(model.get_weights(), model2.get_weights()):
         assert_allclose(w1, w2)
