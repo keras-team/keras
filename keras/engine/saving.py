@@ -35,11 +35,18 @@ except ImportError:
 
 
 def _uniquify(names):
-    """
+    """Uniquify list of strings.
+
     Custom layers and optimizers written by users
     for TF 1.x might produce weights with same variable
     names in TF 2. This method "uniquifies" a given list
     of names. e.g: ['a', 'b', 'b', 'c'] -> ['a', 'b', 'b_2', 'c']
+
+    # Arguments:
+        names: List of strings.
+
+    # Returns:
+        List of unique strings.
     """
     counts = {}
     unique_names = []
