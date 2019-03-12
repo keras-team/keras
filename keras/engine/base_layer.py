@@ -379,6 +379,7 @@ class Layer(object):
         """
         return inputs
 
+    @K.symbolic
     def __call__(self, inputs, **kwargs):
         """Wrapper around self.call(), for handling internal references.
 

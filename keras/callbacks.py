@@ -1149,8 +1149,8 @@ class TensorBoard(Callback):
                     embedding_input = tf.reshape(embedding_input,
                                                  (step, int(embedding_size)))
                     shape = (self.embeddings_data[0].shape[0], int(embedding_size))
-                    embedding = tf.Variable(tf.zeros(shape),
-                                            name=layer.name + '_embedding')
+                    embedding = K.variable(K.zeros(shape),
+                                           name=layer.name + '_embedding')
                     embeddings_vars[layer.name] = embedding
                     batch = tf.assign(embedding[batch_id:batch_id + step],
                                       embedding_input)
