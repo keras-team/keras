@@ -13,7 +13,6 @@ import tempfile
 from six.moves import zip
 from six import string_types
 from functools import wraps
-
 import numpy as np
 
 from .. import backend as K
@@ -32,6 +31,25 @@ try:
     from tensorflow.python.lib.io import file_io as tf_file_io
 except ImportError:
     tf_file_io = None
+
+
+def _uniquify(names):
+    """
+    Custom layers and optimizers written by users
+    for TF 1.x might produce weights with same variable
+    names in TF 2. This method "uniquifies" a given list
+    of names. e.g: ['a', 'b', 'b', 'c'] -> ['a', 'b', 'b_2', 'c']
+    """
+    counts = {}
+    unique_names = []
+    for name in names:
+        if name in counts:
+            counts[name] += 1
+            name = name + '_' + str(counts[name])
+        else:
+            counts[name] = 1
+        unique_names.append(name)
+    return unique_names
 
 
 def _serialize_model(model, h5dict, include_optimizer=True):
@@ -119,6 +137,7 @@ def _serialize_model(model, h5dict, include_optimizer=True):
                     idx += 1
                 name = unique_name
             weight_names.append(name.encode('utf8'))
+        weight_names = _uniquify(weight_names)
         layer_group['weight_names'] = weight_names
         for name, val in zip(weight_names, weight_values):
             layer_group[name] = val
@@ -177,6 +196,7 @@ def _serialize_model(model, h5dict, include_optimizer=True):
                             idx += 1
                         name = unique_name
                     weight_names.append(name.encode('utf8'))
+                weight_names = _uniquify(weight_names)
                 optimizer_weights_group['weight_names'] = weight_names
                 for name, val in zip(weight_names, weight_values):
                     optimizer_weights_group[name] = val

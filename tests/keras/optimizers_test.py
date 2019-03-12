@@ -5,10 +5,12 @@ from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
 from keras import optimizers, Input
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, load_model
 from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
+import py
+
 
 num_classes = 2
 
@@ -24,7 +26,7 @@ def get_test_data():
     return x_train, y_train
 
 
-def _test_optimizer(optimizer, target=0.75):
+def _test_optimizer(optimizer, target=0.75, tmpdir=py.path.local()):
     x_train, y_train = get_test_data()
 
     model = Sequential()
@@ -61,6 +63,20 @@ def _test_optimizer(optimizer, target=0.75):
     kernel, bias = dense.get_weights()
     assert_allclose(kernel, 1.)
     assert_allclose(bias, 2.)
+
+    # Test saving.
+    model = Sequential()
+    model.add(Dense(1, input_dim=1))
+    model.compile(loss='mse', optimizer=optimizer)
+    model.fit(np.zeros((1, 1)), np.zeros((1, 1)))
+
+    model_filename = str(tmpdir / 'test_optmizer_weight_save.hdf')
+    model.save(model_filename)
+
+    model2 = load_model(model_filename)
+
+    for w1, w2 in zip(model.get_weights(), model2.get_weights()):
+        assert_allclose(w1, w2)
 
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
