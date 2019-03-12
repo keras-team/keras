@@ -81,7 +81,7 @@ def _test_optimizer(optimizer, target=0.75):
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
                     reason="Only Tensorflow raises a "
                            "ValueError if the gradient is null.")
-def test_no_grad(tmpdir):
+def test_no_grad():
     inp = Input([3])
     x = Dense(10)(inp)
     x = Lambda(
