@@ -260,15 +260,6 @@ def test_Bidirectional():
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
-        # test with functional API
-        inputs = Input((timesteps, dim))
-        outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
-                                             recurrent_dropout=dropout_rate),
-                                         merge_mode=mode)(inputs)
-        model = Model(inputs, outputs)
-        model.compile(loss='mse', optimizer='sgd')
-        model.fit(x, y, epochs=1, batch_size=1)
-
         # Bidirectional and stateful
         inputs = Input(batch_shape=(1, timesteps, dim))
         outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True),
