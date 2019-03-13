@@ -23,9 +23,10 @@ from keras.utils.generic_utils import to_list
 from keras.utils.generic_utils import unpack_singleton
 from keras import backend as K
 from keras.utils import np_utils
+
 try:
     from unittest.mock import patch
-except:
+except ImportError:
     from mock import patch
 
 
@@ -70,8 +71,8 @@ class Counter(callbacks.Callback):
     """Counts the number of times each callback method was run.
 
     # Arguments
-        method_counts: dict, contains the counts of time each callback method was
-            run.
+        method_counts: dict, contains the counts of time
+            each callback method was run.
     """
 
     def __init__(self):
@@ -81,12 +82,14 @@ class Counter(callbacks.Callback):
             'on_train_batch_begin', 'on_train_batch_end',
             'on_test_batch_begin', 'on_test_batch_end',
             'on_predict_batch_begin', 'on_predict_batch_end',
-            'on_train_begin', 'on_train_end', 'on_predict_begin', 'on_predict_end',
+            'on_train_begin', 'on_train_end',
+            'on_predict_begin', 'on_predict_end',
             'on_test_begin', 'on_test_end',
         ]
         for method_name in methods_to_count:
             setattr(self, method_name,
-                    self.wrap_with_counts(method_name, getattr(self, method_name)))
+                    self.wrap_with_counts(
+                        method_name, getattr(self, method_name)))
 
     def wrap_with_counts(self, method_name, method):
 
@@ -100,7 +103,7 @@ class Counter(callbacks.Callback):
 class TestCallbackCounts(object):
 
     def _check_counts(self, counter, expected_counts):
-        """Checks that the counts registered by `counter` are those expected."""
+        """Checks that counts registered by `counter` are those expected."""
         for method_name, expected_count in expected_counts.items():
             count = counter.method_counts[method_name]
             assert count == expected_count, \
@@ -215,9 +218,12 @@ class TestCallbackCounts(object):
 
         model = self._get_model()
         counter = Counter()
-        model.fit_generator(train_generator, steps_per_epoch=len(X_train) // 2,
-                            epochs=5, validation_data=validation_generator,
-                            validation_steps=len(X_test) // 2, callbacks=[counter])
+        model.fit_generator(train_generator,
+                            steps_per_epoch=len(X_train) // 2,
+                            epochs=5,
+                            validation_data=validation_generator,
+                            validation_steps=len(X_test) // 2,
+                            callbacks=[counter])
 
         self._check_counts(
             counter, {
@@ -357,8 +363,11 @@ def test_TerminateOnNaN():
                   optimizer='rmsprop')
 
     # case 1 fit
-    history = model.fit(X_train, y_train, batch_size=batch_size,
-                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
+    history = model.fit(X_train, y_train,
+                        batch_size=batch_size,
+                        validation_data=(X_test, y_test),
+                        callbacks=cbks,
+                        epochs=20)
     loss = history.history['loss']
     assert len(loss) == 1
     assert loss[0] == np.inf
@@ -458,8 +467,10 @@ def test_ModelCheckpoint(tmpdir):
     # case 3
     mode = 'max'
     monitor = 'val_acc'
-    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
-                                      save_best_only=save_best_only, mode=mode)]
+    cbks = [callbacks.ModelCheckpoint(filepath,
+                                      monitor=monitor,
+                                      save_best_only=save_best_only,
+                                      mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
     assert os.path.isfile(filepath)
@@ -467,8 +478,10 @@ def test_ModelCheckpoint(tmpdir):
 
     # case 4
     save_best_only = True
-    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
-                                      save_best_only=save_best_only, mode=mode)]
+    cbks = [callbacks.ModelCheckpoint(filepath,
+                                      monitor=monitor,
+                                      save_best_only=save_best_only,
+                                      mode=mode)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=1)
     assert os.path.isfile(filepath)
@@ -479,8 +492,10 @@ def test_ModelCheckpoint(tmpdir):
     period = 2
     mode = 'auto'
     filepath = 'checkpoint.{epoch:02d}.h5'
-    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
-                                      save_best_only=save_best_only, mode=mode,
+    cbks = [callbacks.ModelCheckpoint(filepath,
+                                      monitor=monitor,
+                                      save_best_only=save_best_only,
+                                      mode=mode,
                                       period=period)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
@@ -507,16 +522,25 @@ def test_EarlyStopping():
     mode = 'max'
     monitor = 'val_acc'
     patience = 0
-    cbks = [callbacks.EarlyStopping(patience=patience, monitor=monitor, mode=mode)]
-    history = model.fit(X_train, y_train, batch_size=batch_size,
-                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
-
+    cbks = [callbacks.EarlyStopping(patience=patience,
+                                    monitor=monitor,
+                                    mode=mode)]
+    history = model.fit(X_train, y_train,
+                        batch_size=batch_size,
+                        validation_data=(X_test, y_test),
+                        callbacks=cbks,
+                        epochs=20)
     mode = 'auto'
     monitor = 'val_acc'
     patience = 2
-    cbks = [callbacks.EarlyStopping(patience=patience, monitor=monitor, mode=mode)]
-    history = model.fit(X_train, y_train, batch_size=batch_size,
-                        validation_data=(X_test, y_test), callbacks=cbks, epochs=20)
+    cbks = [callbacks.EarlyStopping(patience=patience,
+                                    monitor=monitor,
+                                    mode=mode)]
+    history = model.fit(X_train, y_train,
+                        batch_size=batch_size,
+                        validation_data=(X_test, y_test),
+                        callbacks=cbks,
+                        epochs=20)
 
 
 def test_EarlyStopping_reuse():
@@ -528,7 +552,9 @@ def test_EarlyStopping_reuse():
         Dense(1, input_dim=1, activation='relu'),
         Dense(1, activation='sigmoid'),
     ))
-    model.compile(optimizer='sgd', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='sgd',
+                  loss='binary_crossentropy',
+                  metrics=['accuracy'])
     stopper = callbacks.EarlyStopping(monitor='acc', patience=patience)
     weights = model.get_weights()
 
@@ -721,18 +747,31 @@ def test_ReduceLROnPlateau():
     model = make_model()
 
     # This should reduce the LR after the first epoch (due to high epsilon).
-    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
-                                        min_delta=10, patience=1, cooldown=5)]
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
+    cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss',
+                                        factor=0.1,
+                                        min_delta=10,
+                                        patience=1,
+                                        cooldown=5)]
+    model.fit(X_train, y_train,
+              batch_size=batch_size,
+              validation_data=(X_test, y_test),
+              callbacks=cbks,
+              epochs=5,
+              verbose=2)
+    assert_allclose(
+        float(K.get_value(model.optimizer.lr)), 0.01, atol=K.epsilon())
 
     model = make_model()
     cbks = [callbacks.ReduceLROnPlateau(monitor='val_loss', factor=0.1,
                                         min_delta=0, patience=1, cooldown=5)]
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test), callbacks=cbks, epochs=5, verbose=2)
-    assert_allclose(float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
+    model.fit(X_train, y_train,
+              batch_size=batch_size,
+              validation_data=(X_test, y_test),
+              callbacks=cbks,
+              epochs=5,
+              verbose=2)
+    assert_allclose(
+        float(K.get_value(model.optimizer.lr)), 0.1, atol=K.epsilon())
 
 
 def test_ReduceLROnPlateau_patience():
@@ -823,288 +862,6 @@ def test_CSVLogger(tmpdir):
         assert len(re.findall('epoch', output)) == 1
 
     os.remove(filepath)
-    assert not tmpdir.listdir()
-
-
-@pytest.mark.parametrize('update_freq', ['batch', 'epoch', 9])
-def test_TensorBoard(tmpdir, update_freq):
-    np.random.seed(np.random.randint(1, 1e7))
-    filepath = str(tmpdir / 'logs')
-
-    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
-    y_test = np_utils.to_categorical(y_test)
-    y_train = np_utils.to_categorical(y_train)
-
-    class DummyStatefulMetric(Layer):
-
-        def __init__(self, name='dummy_stateful_metric', **kwargs):
-            super(DummyStatefulMetric, self).__init__(name=name, **kwargs)
-            self.stateful = True
-            self.state = K.variable(value=0, dtype='int32')
-
-        def reset_states(self):
-            pass
-
-        def __call__(self, y_true, y_pred):
-            return self.state
-
-    inp = Input((input_dim,))
-    hidden = Dense(num_hidden, activation='relu')(inp)
-    hidden = Dropout(0.1)(hidden)
-    hidden = BatchNormalization()(hidden)
-    output = Dense(num_classes, activation='softmax')(hidden)
-    model = Model(inputs=inp, outputs=output)
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='sgd',
-                  metrics=['accuracy', DummyStatefulMetric()])
-
-    # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq, embeddings_freq=1, write_images=True,
-                          write_grads=True):
-        return [callbacks.TensorBoard(log_dir=filepath,
-                                      histogram_freq=histogram_freq,
-                                      write_images=write_images,
-                                      write_grads=write_grads,
-                                      embeddings_freq=embeddings_freq,
-                                      embeddings_layer_names=['dense_1'],
-                                      embeddings_data=X_test,
-                                      batch_size=5,
-                                      update_freq=update_freq)]
-
-    # fit without validation data
-    model.fit(X_train, y_train, batch_size=batch_size,
-              callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
-              epochs=2)
-
-    # fit with validation data and accuracy
-    model.fit(X_train, y_train, batch_size=batch_size,
-              validation_data=(X_test, y_test),
-              callbacks=callbacks_factory(histogram_freq=0, write_images=False,
-                                          write_grads=False),
-              epochs=2)
-
-    # fit generator without validation data
-    train_generator = data_generator(X_train, y_train, batch_size)
-    model.fit_generator(train_generator, len(X_train), epochs=2,
-                        callbacks=callbacks_factory(histogram_freq=0,
-                                                    write_images=False,
-                                                    write_grads=False,
-                                                    embeddings_freq=0))
-
-    # fit generator with validation data and accuracy
-    train_generator = data_generator(X_train, y_train, batch_size)
-    model.fit_generator(train_generator, len(X_train), epochs=2,
-                        validation_data=(X_test, y_test),
-                        callbacks=callbacks_factory(histogram_freq=1,
-                                                    write_images=False,
-                                                    write_grads=False))
-
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
-
-
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-def test_TensorBoard_histogram_freq_must_have_validation_data(tmpdir):
-    np.random.seed(np.random.randint(1, 1e7))
-    filepath = str(tmpdir / 'logs')
-
-    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
-    y_test = np_utils.to_categorical(y_test)
-    y_train = np_utils.to_categorical(y_train)
-
-    inp = Input((input_dim,))
-    hidden = Dense(num_hidden, activation='relu')(inp)
-    hidden = Dropout(0.1)(hidden)
-    output = Dense(num_classes, activation='softmax')(hidden)
-    model = Model(inputs=inp, outputs=output)
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='sgd',
-                  metrics=['accuracy'])
-
-    # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq, embeddings_freq=1, write_images=True,
-                          write_grads=True):
-        return [callbacks.TensorBoard(log_dir=filepath,
-                                      histogram_freq=histogram_freq,
-                                      write_images=write_images,
-                                      write_grads=write_grads,
-                                      embeddings_freq=embeddings_freq,
-                                      embeddings_layer_names=['dense_1'],
-                                      embeddings_data=X_test,
-                                      batch_size=5)]
-
-    # fit without validation data should raise ValueError if histogram_freq > 0
-    with pytest.raises(ValueError) as raised_exception:
-        model.fit(X_train, y_train, batch_size=batch_size,
-                  callbacks=callbacks_factory(histogram_freq=1), epochs=3)
-    assert 'validation_data must be provided' in str(raised_exception.value)
-
-    train_generator = data_generator(X_train, y_train, batch_size)
-    validation_generator = data_generator(X_test, y_test, batch_size)
-
-    # fit generator without validation data should raise ValueError if
-    # histogram_freq > 0
-    with pytest.raises(ValueError) as raised_exception:
-        model.fit_generator(train_generator,
-                            len(X_train), epochs=2,
-                            callbacks=callbacks_factory(histogram_freq=1,
-                                                        write_images=False,
-                                                        write_grads=False))
-    assert 'validation_data must be provided' in str(raised_exception.value)
-
-    # fit generator with validation data generator should raise ValueError if
-    # histogram_freq > 0
-    with pytest.raises(ValueError) as raised_exception:
-        model.fit_generator(train_generator, len(X_train), epochs=2,
-                            validation_data=validation_generator,
-                            validation_steps=1,
-                            callbacks=callbacks_factory(histogram_freq=1,
-                                                        write_images=False,
-                                                        write_grads=False))
-    assert 'validation_data must be provided' in str(raised_exception.value)
-
-
-def test_TensorBoard_multi_input_output(tmpdir):
-    np.random.seed(np.random.randint(1, 1e7))
-    filepath = str(tmpdir / 'logs')
-
-    (X_train, y_train), (X_test, y_test) = get_data_callbacks(
-        input_shape=(input_dim, input_dim))
-
-    y_test = np_utils.to_categorical(y_test)
-    y_train = np_utils.to_categorical(y_train)
-
-    inp1 = Input((input_dim, input_dim))
-    inp2 = Input((input_dim, input_dim))
-    inp_3d = add([inp1, inp2])
-    inp_2d = GlobalAveragePooling1D()(inp_3d)
-    # test a layer with a list of output tensors
-    inp_pair = Lambda(lambda x: x)([inp_3d, inp_2d])
-    hidden = dot(inp_pair, axes=-1)
-    hidden = Dense(num_hidden, activation='relu')(hidden)
-    hidden = Dropout(0.1)(hidden)
-    output1 = Dense(num_classes, activation='softmax')(hidden)
-    output2 = Dense(num_classes, activation='softmax')(hidden)
-    model = Model(inputs=[inp1, inp2], outputs=[output1, output2])
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='sgd',
-                  metrics=['accuracy'])
-
-    # we must generate new callbacks for each test, as they aren't stateless
-    def callbacks_factory(histogram_freq, embeddings_freq=1, write_images=True,
-                          write_grads=True):
-        return [callbacks.TensorBoard(log_dir=filepath,
-                                      histogram_freq=histogram_freq,
-                                      write_images=write_images,
-                                      write_grads=write_grads,
-                                      embeddings_freq=embeddings_freq,
-                                      embeddings_layer_names=['dense_1'],
-                                      embeddings_data=[X_test] * 2,
-                                      batch_size=5)]
-
-    # fit without validation data
-    model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
-              callbacks=callbacks_factory(histogram_freq=0, embeddings_freq=0),
-              epochs=3)
-
-    # fit with validation data and accuracy
-    model.fit([X_train] * 2, [y_train] * 2, batch_size=batch_size,
-              validation_data=([X_test] * 2, [y_test] * 2),
-              callbacks=callbacks_factory(histogram_freq=1, write_images=False,
-                                          write_grads=False),
-              epochs=2)
-
-    train_generator = data_generator([X_train] * 2, [y_train] * 2, batch_size)
-
-    # fit generator without validation data
-    model.fit_generator(train_generator, len(X_train), epochs=2,
-                        callbacks=callbacks_factory(histogram_freq=0,
-                                                    embeddings_freq=0,
-                                                    write_images=False,
-                                                    write_grads=False))
-
-    # fit generator with validation data and accuracy
-    model.fit_generator(train_generator, len(X_train), epochs=2,
-                        validation_data=([X_test] * 2, [y_test] * 2),
-                        callbacks=callbacks_factory(histogram_freq=1,
-                                                    write_images=False,
-                                                    write_grads=False))
-
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
-
-
-def test_TensorBoard_convnet(tmpdir):
-    np.random.seed(np.random.randint(1, 1e7))
-    filepath = str(tmpdir / 'logs')
-
-    input_shape = (16, 16, 3)
-    (x_train, y_train), (x_test, y_test) = get_data_callbacks(
-        num_train=500,
-        num_test=200,
-        input_shape=input_shape)
-    y_train = np_utils.to_categorical(y_train)
-    y_test = np_utils.to_categorical(y_test)
-
-    model = Sequential([
-        Conv2D(filters=8, kernel_size=3,
-               activation='relu',
-               input_shape=input_shape),
-        MaxPooling2D(pool_size=2),
-        Conv2D(filters=4, kernel_size=(3, 3),
-               activation='relu', padding='same'),
-        BatchNormalization(),
-        GlobalAveragePooling2D(),
-        Dense(num_classes, activation='softmax')
-    ])
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='rmsprop',
-                  metrics=['accuracy'])
-    tsb = callbacks.TensorBoard(log_dir=filepath, histogram_freq=1,
-                                write_images=True, write_grads=True,
-                                batch_size=16)
-    cbks = [tsb]
-    model.summary()
-    history = model.fit(x_train, y_train, epochs=2, batch_size=16,
-                        validation_data=(x_test, y_test),
-                        callbacks=cbks,
-                        verbose=0)
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
-    assert not tmpdir.listdir()
-
-
-def test_TensorBoard_display_float_from_logs(tmpdir):
-    filepath = str(tmpdir / 'logs')
-
-    input_shape = (3,)
-    (x_train, y_train), _ = get_data_callbacks(num_train=10,
-                                               num_test=0,
-                                               input_shape=input_shape)
-    y_train = np_utils.to_categorical(y_train)
-
-    model = Sequential([
-        Dense(num_classes, activation='softmax')
-    ])
-    model.compile(loss='categorical_crossentropy',
-                  optimizer='rmsprop')
-
-    class CustomCallback(callbacks.Callback):
-
-        def on_epoch_end(self, epoch, logs=None):
-            logs['test'] = 0.
-
-    tsb = callbacks.TensorBoard(log_dir=filepath,
-                                batch_size=16)
-    cbks = [CustomCallback(), tsb]
-    model.fit(x_train, y_train, epochs=2, batch_size=16,
-              callbacks=cbks,
-              verbose=0)
-    assert os.path.isdir(filepath)
-    shutil.rmtree(filepath)
     assert not tmpdir.listdir()
 
 
