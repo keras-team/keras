@@ -940,20 +940,21 @@ class LearningRateScheduler(Callback):
 
 
 class TensorBoard(Callback):
-    """TensorBoard basic visualizations.
+    """Enable visualizations for TensorBoard.
 
     [TensorBoard](https://www.tensorflow.org/guide/summaries_and_tensorboard)
     is a visualization tool provided with TensorFlow.
 
-    This callback writes a log for TensorBoard, which allows
-    you to visualize dynamic graphs of your training and test
-    metrics, as well as activation histograms for the different
-    layers in your model.
+    This callback logs events for TensorBoard, including:
+    * Metrics summary plots
+    * Training graph visualization
+    * Activation histograms
+    * Sampled profiling
 
     If you have installed TensorFlow with pip, you should be able
     to launch TensorBoard from the command line:
     ```sh
-    tensorboard --logdir=/full_path_to_your_logs
+    tensorboard --logdir=path_to_your_logs
     ```
 
     When using a backend other than TensorFlow, TensorBoard will still work
@@ -998,6 +999,9 @@ class TensorBoard(Callback):
             the callback will write the metrics and losses to TensorBoard every
             10000 samples. Note that writing too frequently to TensorBoard
             can slow down your training.
+        profile_batch: Profile the batch to sample compute characteristics. By
+            default, it will profile the second batch. Set profile_batch=0 to
+            disable profiling.
     """
 
     def __init__(self, log_dir='./logs',
@@ -1010,12 +1014,14 @@ class TensorBoard(Callback):
                  embeddings_layer_names=None,
                  embeddings_metadata=None,
                  embeddings_data=None,
-                 update_freq='epoch'):
+                 update_freq='epoch',
+                 profile_batch=2):
         super(TensorBoard, self).__init__()
-        global tf, projector
+        global tf, projector, profiler
         try:
             import tensorflow as tf
             from tensorflow.contrib.tensorboard.plugins import projector
+            from tensorflow.python.eager import profiler
         except ImportError:
             raise ImportError('You need the TensorFlow module installed to '
                               'use TensorBoard.')
@@ -1037,6 +1043,10 @@ class TensorBoard(Callback):
                 warnings.warn('You are not using the TensorFlow backend. '
                               'embeddings_freq was set to 0')
                 embeddings_freq = 0
+            if profile_batch != 0:
+                warnings.warn('You are not using the TensorFlow backend. '
+                              'profile_batch was set to 0')
+                profile_batch = 0
 
         self.log_dir = log_dir
         self.histogram_freq = histogram_freq
@@ -1056,6 +1066,10 @@ class TensorBoard(Callback):
             self.update_freq = update_freq
         self.samples_seen = 0
         self.samples_seen_at_last_write = 0
+        self._total_batches_seen = 0
+        self._profile_batch = profile_batch
+        # One profiler session is running if it is True.
+        self._is_profiling = False
 
     def set_model(self, model):
         self.model = model
@@ -1272,7 +1286,15 @@ class TensorBoard(Callback):
             self.writer.add_summary(summary, index)
         self.writer.flush()
 
+    def on_train_begin(self, logs=None):
+        if self._profile_batch == 1:
+            profiler.start()
+            self._is_profiling = True
+
     def on_train_end(self, _):
+        if self._is_profiling:
+            profiler.save(self.log_dir, profiler.stop())
+            self._is_profiling = False
         self.writer.close()
 
     def on_batch_end(self, batch, logs=None):
@@ -1282,6 +1304,14 @@ class TensorBoard(Callback):
             if samples_seen_since >= self.update_freq:
                 self._write_logs(logs, self.samples_seen)
                 self.samples_seen_at_last_write = self.samples_seen
+        self._total_batches_seen += 1
+        if self._is_profiling:
+            profiler.save(self.log_dir, profiler.stop())
+            self._is_profiling = False
+        elif (not self._is_profiling and
+              self._total_batches_seen == self._profile_batch - 1):
+            profiler.start()
+            self._is_profiling = True
 
 
 class ReduceLROnPlateau(Callback):
