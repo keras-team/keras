@@ -996,7 +996,7 @@ class TensorBoard(Callback):
             the losses and metrics to TensorBoard after each batch. The same
             applies for `'epoch'`. If using an integer, let's say `10000`,
             the callback will write the metrics and losses to TensorBoard every
-            10000 batches. Note that writing too frequently to TensorBoard
+            10000 samples. Use your models batch size for saving every batch. Note that writing too frequently to TensorBoard
             can slow down your training.
     """
 
