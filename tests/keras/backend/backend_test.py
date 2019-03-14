@@ -553,7 +553,6 @@ class TestBackend(object):
         check_two_tensor_operation('maximum', (4, 2), (4, 2), WITH_NP)
         check_two_tensor_operation('minimum', (4, 2), (4, 2), WITH_NP)
 
-
     # assumes first uid will always be the same
     def test_reset_uids(self):
         first = K.get_uid()
