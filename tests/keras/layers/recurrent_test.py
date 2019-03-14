@@ -69,35 +69,35 @@ def test_stateful_invalid_use(layer_class):
 @rnn_test
 @pytest.mark.skipif((K.backend() in ['theano']),
                     reason='Not supported.')
-def test_dropout(layer_class):
-    for unroll in [True, False]:
-        layer_test(layer_class,
-                   kwargs={'units': units,
-                           'dropout': 0.1,
-                           'recurrent_dropout': 0.1,
-                           'unroll': unroll},
-                   input_shape=(num_samples, timesteps, embedding_dim))
+@pytest.mark.parametrize('unroll', [True, False])
+def test_dropout(layer_class, unroll):
+    layer_test(layer_class,
+                kwargs={'units': units,
+                        'dropout': 0.1,
+                        'recurrent_dropout': 0.1,
+                        'unroll': unroll},
+                input_shape=(num_samples, timesteps, embedding_dim))
 
-        # Test that dropout is applied during training
-        x = K.ones((num_samples, timesteps, embedding_dim))
-        layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
-                            input_shape=(timesteps, embedding_dim))
-        y = layer(x)
-        assert y._uses_learning_phase
+    # Test that dropout is applied during training
+    x = K.ones((num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
+                        input_shape=(timesteps, embedding_dim))
+    y = layer(x)
+    assert y._uses_learning_phase
 
-        y = layer(x, training=True)
-        assert not getattr(y, '_uses_learning_phase')
+    y = layer(x, training=True)
+    assert not getattr(y, '_uses_learning_phase')
 
-        # Test that dropout is not applied during testing
-        x = np.random.random((num_samples, timesteps, embedding_dim))
-        layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
-                            unroll=unroll,
-                            input_shape=(timesteps, embedding_dim))
-        model = Sequential([layer])
-        assert model.uses_learning_phase
-        y1 = model.predict(x)
-        y2 = model.predict(x)
-        assert_allclose(y1, y2)
+    # Test that dropout is not applied during testing
+    x = np.random.random((num_samples, timesteps, embedding_dim))
+    layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
+                        unroll=unroll,
+                        input_shape=(timesteps, embedding_dim))
+    model = Sequential([layer])
+    assert model.uses_learning_phase
+    y1 = model.predict(x)
+    y2 = model.predict(x)
+    assert_allclose(y1, y2)
 
 
 @rnn_test
@@ -166,7 +166,8 @@ def test_masking_correctness(layer_class):
 
 
 @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
-def test_masking_correctness_output_not_equal_to_first_state():
+@pytest.mark.parametrize('unroll', [True, False])
+def test_masking_correctness_output_not_equal_to_first_state(unroll):
 
     class Cell(keras.layers.Layer):
 
@@ -203,27 +204,27 @@ def test_masking_correctness_output_not_equal_to_first_state():
     # and `num_timesteps - 1` times for remaining samples
     s_final_vals_expected[1:] += num_timesteps
 
-    for unroll in [True, False]:
-        x = Input((num_timesteps, input_size), name="x")
-        x_masked = Masking()(x)
-        s_initial = Input((state_size,), name="s_initial")
-        y, s_final = recurrent.RNN(Cell(),
-                                   return_state=True,
-                                   unroll=unroll)(x_masked, initial_state=s_initial)
-        model = Model([x, s_initial], [y, s_final])
-        model.compile(optimizer='sgd', loss='mse')
+    x = Input((num_timesteps, input_size), name="x")
+    x_masked = Masking()(x)
+    s_initial = Input((state_size,), name="s_initial")
+    y, s_final = recurrent.RNN(Cell(),
+                                return_state=True,
+                                unroll=unroll)(x_masked, initial_state=s_initial)
+    model = Model([x, s_initial], [y, s_final])
+    model.compile(optimizer='sgd', loss='mse')
 
-        y_vals, s_final_vals = model.predict([x_vals, s_initial_vals])
-        assert_allclose(y_vals,
-                        y_vals_expected,
-                        err_msg="Unexpected output for unroll={}".format(unroll))
-        assert_allclose(s_final_vals,
-                        s_final_vals_expected,
-                        err_msg="Unexpected state for unroll={}".format(unroll))
+    y_vals, s_final_vals = model.predict([x_vals, s_initial_vals])
+    assert_allclose(y_vals,
+                    y_vals_expected,
+                    err_msg="Unexpected output for unroll={}".format(unroll))
+    assert_allclose(s_final_vals,
+                    s_final_vals_expected,
+                    err_msg="Unexpected state for unroll={}".format(unroll))
 
 
 @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
-def test_masking_correctness_output_size_not_equal_to_first_state_size():
+@pytest.mark.parametrize('unroll', [True, False])
+def test_masking_correctness_output_size_not_equal_to_first_state_size(unroll):
 
     class Cell(keras.layers.Layer):
 
@@ -260,23 +261,22 @@ def test_masking_correctness_output_size_not_equal_to_first_state_size():
     # and `num_timesteps - 1` times for remaining samples
     s_final_vals_expected[1:] += num_timesteps
 
-    for unroll in [True, False]:
-        x = Input((num_timesteps, input_size), name="x")
-        x_masked = Masking()(x)
-        s_initial = Input((state_size,), name="s_initial")
-        y, s_final = recurrent.RNN(Cell(),
-                                   return_state=True,
-                                   unroll=unroll)(x_masked, initial_state=s_initial)
-        model = Model([x, s_initial], [y, s_final])
-        model.compile(optimizer='sgd', loss='mse')
+    x = Input((num_timesteps, input_size), name="x")
+    x_masked = Masking()(x)
+    s_initial = Input((state_size,), name="s_initial")
+    y, s_final = recurrent.RNN(Cell(),
+                                return_state=True,
+                                unroll=unroll)(x_masked, initial_state=s_initial)
+    model = Model([x, s_initial], [y, s_final])
+    model.compile(optimizer='sgd', loss='mse')
 
-        y_vals, s_final_vals = model.predict([x_vals, s_initial_vals])
-        assert_allclose(y_vals,
-                        y_vals_expected,
-                        err_msg="Unexpected output for unroll={}".format(unroll))
-        assert_allclose(s_final_vals,
-                        s_final_vals_expected,
-                        err_msg="Unexpected state for unroll={}".format(unroll))
+    y_vals, s_final_vals = model.predict([x_vals, s_initial_vals])
+    assert_allclose(y_vals,
+                    y_vals_expected,
+                    err_msg="Unexpected output for unroll={}".format(unroll))
+    assert_allclose(s_final_vals,
+                    s_final_vals_expected,
+                    err_msg="Unexpected state for unroll={}".format(unroll))
 
 
 @rnn_test
@@ -352,12 +352,11 @@ def test_masking_layer():
 
 
 @rnn_test
-def test_from_config(layer_class):
-    stateful_flags = (False, True)
-    for stateful in stateful_flags:
-        l1 = layer_class(units=1, stateful=stateful)
-        l2 = layer_class.from_config(l1.get_config())
-        assert l1.get_config() == l2.get_config()
+@pytest.mark.parametrize('stateful', [True, False])
+def test_from_config(layer_class, stateful):
+    l1 = layer_class(units=1, stateful=stateful)
+    l2 = layer_class.from_config(l1.get_config())
+    assert l1.get_config() == l2.get_config()
 
 
 @rnn_test
