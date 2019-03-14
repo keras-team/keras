@@ -854,17 +854,15 @@ class TestBackend(object):
             return simple_no_states
 
         kwargs_list = [
-            {'go_backwards': False, 'mask': None},
-            {'go_backwards': True, 'mask': None},
-            {'go_backwards': False, 'mask': mask},
-            {'go_backwards': True, 'mask': mask},
+            {'go_backwards': False},
+            {'go_backwards': True},
         ]
         for kwargs in kwargs_list:
             check_rnn_operation(step_function_k=get_step_function(K, wi_k),
                                 step_function_np=get_step_function(KNP, wi),
                                 inputs_np=x,
                                 initial_states_np=[],
-                                mask_np=kwargs.pop('mask', None),
+                                mask_np=None,
                                 **kwargs)
 
     def test_rnn_constants(self):

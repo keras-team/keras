@@ -7,19 +7,19 @@ cache:
 matrix:
     include:
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=INTEGRATION_TESTS PIL=Pillow
+          env: KERAS_BACKEND=tensorflow MODE=INTEGRATION_TESTS PIL=Pillow
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=PEP8_DOC PIL=Pillow
+          env: KERAS_BACKEND=tensorflow MODE=PEP8_DOC PIL=Pillow
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=API
+          env: KERAS_BACKEND=tensorflow MODE=API
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=TF1
+          env: KERAS_BACKEND=tensorflow MODE=TF1
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=TF1
+          env: KERAS_BACKEND=tensorflow MODE=TF1
         - python: 2.7
-          env: KERAS_BACKEND=tensorflow TEST_MODE=TF2
+          env: KERAS_BACKEND=tensorflow MODE=TF2
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow TEST_MODE=TF2
+          env: KERAS_BACKEND=tensorflow MODE=TF2
         - python: 2.7
           env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service" RUN_ONLY_BACKEND_TESTS=1
         - python: 3.6
@@ -60,14 +60,14 @@ install:
   - pip install -e .[tests] --progress-bar off
 
   # install TensorFlow (CPU version).
-  - if [[ "$TEST_MODE" == "TF2" ]]; then
+  - if [[ "$MODE" == "TF2" ]]; then
     pip install tf-nightly-2.0-preview --progress-bar off;
     else
     pip install tensorflow==1.13.1 --progress-bar off;
     fi
 
   # install cntk
-  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$TEST_MODE" == "PEP8_DOC" ]] || [[ "$TEST_MODE" == "API" ]]; then
+  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$MODE" == "PEP8_DOC" ]] || [[ "$MODE" == "API" ]]; then
       ./.travis/install_cntk.sh;
     fi
 
@@ -90,11 +90,11 @@ script:
   # set up keras backend
   - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
   - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
-  - if [[ "$TEST_MODE" == "INTEGRATION_TESTS" ]]; then
+  - if [[ "$MODE" == "INTEGRATION_TESTS" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
-    elif [[ "$TEST_MODE" == "PEP8_DOC" ]]; then
+    elif [[ "$MODE" == "PEP8_DOC" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/docs;
-    elif [[ "$TEST_MODE" == "API" ]]; then
+    elif [[ "$MODE" == "API" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH pip install git+git://www.github.com/keras-team/keras.git && python update_api.py && pip install -e .[tests] --progress-bar off && py.test tests/test_api.py;
     elif [[ "$RUN_ONLY_BACKEND_TESTS" == "1" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test  tests/keras/backend/;

@@ -21,9 +21,7 @@ sequence_len = 2
 @pytest.mark.parametrize('data_format', ['channels_first', 'channels_last'])
 @pytest.mark.parametrize('return_sequences', [True, False])
 @pytest.mark.parametrize('use_mask', [True, False])
-def test_convolutional_recurrent(data_format='channels_last',
-                                 return_sequences=False,
-                                 use_mask=False):
+def test_convolutional_recurrent(data_format, return_sequences, use_mask):
 
     class Masking5D(Masking):
         """Regular masking layer returns wrong shape of mask for RNN"""

@@ -292,7 +292,7 @@ def test_TensorBoard_convnet(tmpdir):
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
                   metrics=['accuracy'])
-    tsb = callbacks.TensorBoard(histogram_freq=1)
+    tsb = callbacks.TensorBoard(filepath, histogram_freq=1)
     cbks = [tsb]
     model.summary()
     history = model.fit(x_train, y_train, epochs=2, batch_size=16,
