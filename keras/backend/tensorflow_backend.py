@@ -186,6 +186,7 @@ def get_session():
             else:
                 num_thread = int(os.environ.get('OMP_NUM_THREADS'))
                 config = tf.ConfigProto(intra_op_parallelism_threads=num_thread,
+                                        inter_op_parallelism_threads=num_thread,
                                         allow_soft_placement=True)
             _SESSION = tf.Session(config=config)
         session = _SESSION
@@ -4468,8 +4469,8 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 
     vals_sparse = tf.gather_nd(labels, indices)
 
-    indices = tf.to_int64(indices)
-    label_shape = tf.to_int64(label_shape)
+    indices = tf.cast(indices, tf.int64)
+    label_shape = tf.cast(label_shape, tf.int64)
     return tf.SparseTensor(indices, vals_sparse, label_shape)
 
 
@@ -4490,19 +4491,18 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
         Tensor with shape (samples,1) containing the
             CTC loss of each element.
     """
-    label_length = tf.to_int32(tf.squeeze(label_length, axis=-1))
-    input_length = tf.to_int32(tf.squeeze(input_length, axis=-1))
-    sparse_labels = tf.to_int32(ctc_label_dense_to_sparse(y_true, label_length))
-
+    label_length = tf.cast(tf.squeeze(label_length, axis=-1), tf.int32)
+    input_length = tf.cast(tf.squeeze(input_length, axis=-1), tf.int32)
+    sparse_labels = tf.cast(
+        ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-
     return tf.expand_dims(ctc.ctc_loss(inputs=y_pred,
                                        labels=sparse_labels,
                                        sequence_length=input_length), 1)
 
 
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
-               top_paths=1):
+               top_paths=1, merge_repeated=False):
     """Decodes the output of a softmax.
 
     Can use either greedy search (also known as best path)
@@ -4513,25 +4513,27 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
             containing the prediction, or output of the softmax.
         input_length: tensor `(samples, )` containing the sequence length for
             each batch item in `y_pred`.
-        greedy: perform much faster best-path search if `true`.
+        greedy: perform much faster best-path search if `True`.
             This does not use a dictionary.
-        beam_width: if `greedy` is `false`: a beam search decoder will be used
+        beam_width: if `greedy` is `False`: a beam search decoder will be used
             with a beam of this width.
-        top_paths: if `greedy` is `false`,
+        top_paths: if `greedy` is `False`,
             how many of the most probable paths will be returned.
+        merge_repeated: if `greedy` is `False`,
+            merge repeated classes in the output beams.
 
     # Returns
         Tuple:
-            List: if `greedy` is `true`, returns a list of one element that
+            List: if `greedy` is `True`, returns a list of one element that
                 contains the decoded sequence.
-                If `false`, returns the `top_paths` most probable
+                If `False`, returns the `top_paths` most probable
                 decoded sequences.
                 Important: blank labels are returned as `-1`.
             Tensor `(top_paths, )` that contains
                 the log probability of each decoded sequence.
     """
     y_pred = tf.log(tf.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
-    input_length = tf.to_int32(input_length)
+    input_length = tf.cast(input_length, tf.int32)
 
     if greedy:
         (decoded, log_prob) = ctc.ctc_greedy_decoder(
@@ -4541,14 +4543,11 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
         (decoded, log_prob) = ctc.ctc_beam_search_decoder(
             inputs=y_pred,
             sequence_length=input_length, beam_width=beam_width,
-            top_paths=top_paths, merge_repeated=False)
+            top_paths=top_paths, merge_repeated=merge_repeated)
 
     decoded_dense = []
     for st in decoded:
-        dense_tensor = tf.sparse_to_dense(st.indices,
-                                          st.dense_shape,
-                                          st.values,
-                                          default_value=-1)
+        dense_tensor = tf.sparse.to_dense(st, default_value=-1)
         decoded_dense.append(dense_tensor)
     return (decoded_dense, log_prob)
 
