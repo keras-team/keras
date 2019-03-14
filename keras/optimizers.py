@@ -555,8 +555,8 @@ class Adamax(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        beta_1: floats, 0 < beta < 1. Generally close to 1.
-        beta_2: floats, 0 < beta < 1. Generally close to 1.
+        beta_1: float, 0 < beta < 1. Generally close to 1.
+        beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
@@ -633,7 +633,7 @@ class Nadam(Optimizer):
     """Nesterov Adam optimizer.
 
     Much like Adam is essentially RMSprop with momentum,
-    Nadam is Adam RMSprop with Nesterov momentum.
+    Nadam is RMSprop with Nesterov momentum.
 
     Default parameters follow those provided in the paper.
     It is recommended to leave the parameters of this optimizer
@@ -641,10 +641,10 @@ class Nadam(Optimizer):
 
     # Arguments
         lr: float >= 0. Learning rate.
-        beta_1: floats, 0 < beta < 1. Generally close to 1.
-        beta_2: floats, 0 < beta < 1. Generally close to 1.
+        beta_1: float, 0 < beta < 1. Generally close to 1.
+        beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
-        schedule_decay: floats, 0 < schedule_decay < 1.
+        schedule_decay: float, 0 < schedule_decay < 1.
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
