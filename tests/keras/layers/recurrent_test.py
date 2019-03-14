@@ -280,26 +280,16 @@ def test_masking_correctness_output_size_not_equal_to_first_state_size():
 
 
 @rnn_test
-def test_implementation_mode(layer_class):
-    for mode in [1, 2]:
-        # Without dropout
-        layer_test(layer_class,
-                   kwargs={'units': units,
-                           'implementation': mode},
-                   input_shape=(num_samples, timesteps, embedding_dim))
-        # With dropout
-        layer_test(layer_class,
-                   kwargs={'units': units,
-                           'implementation': mode,
-                           'dropout': 0.1,
-                           'recurrent_dropout': 0.1},
-                   input_shape=(num_samples, timesteps, embedding_dim))
-        # Without bias
-        layer_test(layer_class,
-                   kwargs={'units': units,
-                           'implementation': mode,
-                           'use_bias': False},
-                   input_shape=(num_samples, timesteps, embedding_dim))
+@pytest.mark.parametrize('mode', [0, 1])
+@pytest.mark.parametrize('dropout', [0, 0.1])
+@pytest.mark.parametrize('use_bias', [True, False])
+def test_implementation(layer_class, mode, dropout, use_bias):
+    layer_test(layer_class,
+                kwargs={'units': units,
+                        'implementation': mode,
+                        'dropout': dropout,
+                        'use_bias': use_bias},
+                input_shape=(num_samples, timesteps, embedding_dim))
 
 
 @rnn_test
