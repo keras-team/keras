@@ -7,7 +7,7 @@ from itertools import compress
 import pytest
 
 modules = ['keras.layers', 'keras.models', 'keras',
-           'keras.backend.tensorflow_backend', 'keras.engine',
+           'keras.backend', 'keras.engine',
            'keras.wrappers', 'keras.utils',
            'keras.callbacks', 'keras.activations',
            'keras.losses', 'keras.models', 'keras.optimizers']
@@ -120,6 +120,9 @@ def member_too_small(member):
 
 
 def assert_args_presence(args, doc, member, name):
+    if not doc:
+        raise ValueError('{} needs a docstring.'.format(name),
+                         member.__module__)
     args_not_in_doc = [arg not in doc for arg in args]
     if any(args_not_in_doc):
         raise ValueError(

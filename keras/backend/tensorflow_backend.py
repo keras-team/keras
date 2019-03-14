@@ -47,24 +47,22 @@ tf_keras_backend.set_floatx(floatx())
 tf_keras_backend.set_epsilon(epsilon())
 tf_keras_backend.set_image_data_format(image_data_format())
 
-# Redefine config access/setting methods
-floatx = tf_keras_backend.floatx
-epsilon = tf_keras_backend.epsilon
-image_data_format = tf_keras_backend.image_data_format
-set_floatx = tf_keras_backend.set_floatx
-set_epsilon = tf_keras_backend.set_floatx
-set_image_data_format = tf_keras_backend.set_image_data_format
 
 # Private TF Keras utils
 get_graph = tf_keras_backend.get_graph
-get_uid = tf_keras_backend.get_uid
-reset_uids = tf_keras_backend.reset_uids
-manual_variable_initialization = tf_keras_backend.manual_variable_initialization
-learning_phase_scope = tf_keras_backend.learning_phase_scope  # TODO
+# learning_phase_scope = tf_keras_backend.learning_phase_scope  # TODO
 name_scope = tf.name_scope
 
 
 def symbolic(func):
+    """Decorator used in TensorFlow 2.0 to enter the Keras graph.
+
+    # Arguments
+        func: Function to decorate.
+
+    # Returns
+        Decorated function.
+    """
     if _is_tf_1():
         return func
 
@@ -83,6 +81,14 @@ def is_symbolic(x):
 
 
 def eager(func):
+    """Decorator used in TensorFlow 2.0 to exit the Keras graph.
+
+    # Arguments
+        func: Function to decorate.
+
+    # Returns
+        Decorated function.
+    """
     if _is_tf_1():
         return func
 
@@ -99,6 +105,207 @@ def eager(func):
             _SYMBOLIC_SCOPE.value = prev_value
         return out
     return eager_fn_wrapper
+
+
+def get_uid(prefix=''):
+    """Provides a unique UID given a string prefix.
+
+    # Arguments
+        prefix: string.
+
+    # Returns
+        An integer.
+
+    # Example
+    ```python
+        >>> keras.backend.get_uid('dense')
+        1
+        >>> keras.backend.get_uid('dense')
+        2
+    ```
+
+    """
+    return tf_keras_backend.get_uid(prefix)
+
+
+def manual_variable_initialization(value):
+    """Sets the manual variable initialization flag.
+
+    This boolean flag determines whether
+    variables should be initialized
+    as they are instantiated (default), or if
+    the user should handle the initialization.
+
+    # Arguments
+        value: Python boolean.
+    """
+    tf_keras_backend.manual_variable_initialization(value)
+
+
+def epsilon():
+    """Returns the value of the fuzz factor used in numeric expressions.
+
+    # Returns
+        A float.
+
+    # Example
+    ```python
+        >>> keras.backend.epsilon()
+        1e-07
+    ```
+    """
+    return tf_keras_backend.epsilon()
+
+
+def reset_uids():
+    """Resets graph identifiers."""
+    tf_keras_backend.reset_uids()
+
+
+def set_epsilon(e):
+    """Sets the value of the fuzz factor used in numeric expressions.
+
+    # Arguments
+        e: float. New value of epsilon.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.epsilon()
+        1e-07
+        >>> K.set_epsilon(1e-05)
+        >>> K.epsilon()
+        1e-05
+    ```
+    """
+    tf_keras_backend.set_epsilon(e)
+
+
+def floatx():
+    """Returns the default float type, as a string.
+    (e.g. 'float16', 'float32', 'float64').
+
+    # Returns
+        String, the current default float type.
+
+    # Example
+    ```python
+        >>> keras.backend.floatx()
+        'float32'
+    ```
+    """
+    return tf_keras_backend.floatx()
+
+
+def set_floatx(floatx):
+    """Sets the default float type.
+
+    # Arguments
+        floatx: String, 'float16', 'float32', or 'float64'.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.floatx()
+        'float32'
+        >>> K.set_floatx('float16')
+        >>> K.floatx()
+        'float16'
+    ```
+    """
+    tf_keras_backend.set_floatx(floatx)
+
+
+def cast_to_floatx(x):
+    """Cast a Numpy array to the default Keras float type.
+
+    # Arguments
+        x: Numpy array.
+
+    # Returns
+        The same Numpy array, cast to its new type.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.floatx()
+        'float32'
+        >>> arr = numpy.array([1.0, 2.0], dtype='float64')
+        >>> arr.dtype
+        dtype('float64')
+        >>> new_arr = K.cast_to_floatx(arr)
+        >>> new_arr
+        array([ 1.,  2.], dtype=float32)
+        >>> new_arr.dtype
+        dtype('float32')
+    ```
+    """
+    return tf_keras_backend.cast_to_floatx(x)
+
+
+def image_data_format():
+    """Returns the default image data format convention.
+
+    # Returns
+        A string, either `'channels_first'` or `'channels_last'`
+
+    # Example
+    ```python
+        >>> keras.backend.image_data_format()
+        'channels_first'
+    ```
+    """
+    return tf_keras_backend.image_data_format()
+
+
+def set_image_data_format(data_format):
+    """Sets the value of the data format convention.
+
+    # Arguments
+        data_format: string. `'channels_first'` or `'channels_last'`.
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.image_data_format()
+        'channels_first'
+        >>> K.set_image_data_format('channels_last')
+        >>> K.image_data_format()
+        'channels_last'
+    ```
+    """
+    tf_keras_backend.set_image_data_format(data_format)
+
+
+def normalize_data_format(value):
+    """Checks that the value correspond to a valid data format.
+
+    # Arguments
+        value: String or None. `'channels_first'` or `'channels_last'`.
+
+    # Returns
+        A string, either `'channels_first'` or `'channels_last'`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.normalize_data_format(None)
+        'channels_first'
+        >>> K.normalize_data_format('channels_last')
+        'channels_last'
+    ```
+
+    # Raises
+        ValueError: if `value` or the global `data_format` invalid.
+    """
+    if value is None:
+        value = image_data_format()
+    data_format = value.lower()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('The `data_format` argument must be one of '
+                         '"channels_first", "channels_last". Received: ' +
+                         str(value))
+    return data_format
 
 
 @symbolic
@@ -139,37 +346,6 @@ def set_learning_phase(value):
     tf_keras_backend.set_learning_phase(value)
 
 
-def normalize_data_format(value):
-    """Checks that the value correspond to a valid data format.
-
-    # Arguments
-        value: String or None. `'channels_first'` or `'channels_last'`.
-
-    # Returns
-        A string, either `'channels_first'` or `'channels_last'`
-
-    # Example
-    ```python
-        >>> from keras import backend as K
-        >>> K.normalize_data_format(None)
-        'channels_first'
-        >>> K.normalize_data_format('channels_last')
-        'channels_last'
-    ```
-
-    # Raises
-        ValueError: if `value` or the global `data_format` invalid.
-    """
-    if value is None:
-        value = image_data_format()
-    data_format = value.lower()
-    if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('The `data_format` argument must be one of '
-                         '"channels_first", "channels_last". Received: ' +
-                         str(value))
-    return data_format
-
-
 def get_session():
     """Returns the TF session to be used by the backend.
 
@@ -185,6 +361,10 @@ def get_session():
 
     # Returns
         A TensorFlow session.
+
+    # Raises
+        RuntimeError: if no session is available
+            (e.g. when using TensorFlow 2.0).
     """
     if not _is_tf_1():
         raise RuntimeError(
@@ -202,6 +382,10 @@ def set_session(session):
 
     # Arguments
         session: A TF Session.
+
+    # Raises
+        RuntimeError: if no session is available
+            (e.g. when using TensorFlow 2.0).
     """
     if not _is_tf_1():
         raise RuntimeError(
@@ -613,6 +797,8 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
     try:
+        if isinstance(x.shape, tuple):
+            return x.shape
         return tuple(x.shape.as_list())
     except ValueError:
         return None
