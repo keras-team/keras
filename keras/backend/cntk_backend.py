@@ -2285,22 +2285,15 @@ def one_hot(indices, num_classes):
 def get_value(x):
     if isinstance(
             x,
-            C.variables.Parameter) or isinstance(
-            x,
-            C.variables.Constant):
+            (C.variables.Parameter, C.variables.Constant)):
         return x.value
     else:
         return eval(x)
 
 
 def batch_get_value(xs):
-    result = []
-    for x in xs:
-        if (isinstance(x, C.variables.Parameter) or
-           isinstance(x, C.variables.Constant)):
-            result.append(x.value)
-        else:
-            result.append(eval(x))
+    result = [get_value(x) for x in xs]
+
     return result
 
 
