@@ -719,6 +719,9 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
         dtype = floatx()
     x = tf_keras_backend.placeholder(
         shape=shape, ndim=ndim, dtype=dtype, sparse=sparse, name=name)
+    if shape is None:
+        if ndim is not None:
+            shape = tuple(None for _ in range(ndim))
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
