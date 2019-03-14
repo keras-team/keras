@@ -7,12 +7,12 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation
 from keras.wrappers.scikit_learn import KerasClassifier, KerasRegressor
 
-input_dim = 5
-hidden_dims = 5
-num_train = 100
-num_test = 50
+input_dim = 2
+hidden_dims = 2
+num_train = 10
+num_test = 5
 num_classes = 3
-batch_size = 32
+batch_size = 4
 epochs = 1
 verbosity = 0
 optim = 'adam'
