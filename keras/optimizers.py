@@ -761,10 +761,10 @@ class TFOptimizer(Optimizer):
         raise NotImplementedError
 
     @classmethod
-    def from_config(self, config):
-        if isinstance(self.optimizer, tf.keras.optimizers.Optimizer):
-            return self.optimizer.from_config
-        raise NotImplementedError
+    def from_config(cls, config):
+        if tf.__version__.startswith('1.'):
+            raise NotImplementedError
+        return cls(**config)
 
 
 # Aliases.
