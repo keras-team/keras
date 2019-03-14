@@ -66,7 +66,7 @@ class Model(Network):
                 will then be the *weighted sum* of all individual losses,
                 weighted by the `loss_weights` coefficients.
                 If a list, it is expected to have a 1:1 mapping
-                to the model's outputs. If a tensor, it is expected to map
+                to the model's outputs. If a dict, it is expected to map
                 output names (strings) to scalar coefficients.
             sample_weight_mode: If you need to do timestep-wise
                 sample weighting (2D weights), set this to `"temporal"`.
