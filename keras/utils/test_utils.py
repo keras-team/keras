@@ -54,7 +54,8 @@ def get_test_data(num_train=1000, num_test=500, input_shape=(10,),
 
 def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
                input_data=None, expected_output=None,
-               expected_output_dtype=None, fixed_batch_size=False):
+               expected_output_dtype=None, fixed_batch_size=False,
+               test_compile=True):
     """Test routine for a layer with a single input tensor
     and single output tensor.
     """
@@ -118,7 +119,7 @@ def layer_test(layer_cls, kwargs={}, input_shape=None, input_dtype=None,
 
     # test training mode (e.g. useful when the layer has a
     # different behavior at training and testing time).
-    if has_arg(layer.call, 'training'):
+    if test_compile and has_arg(layer.call, 'training'):
         model.compile('rmsprop', 'mse')
         model.train_on_batch(input_data, actual_output)
 

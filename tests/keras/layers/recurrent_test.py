@@ -16,6 +16,11 @@ from keras import backend as K
 num_samples, timesteps, embedding_dim, units = 2, 5, 4, 3
 embedding_num = 12
 
+_random_buffer = np.random.random(500)
+
+def rand(shape):
+    return _random_buffer[:np.prod(shape)].reshape(shape)
+
 
 rnn_test = pytest.mark.parametrize('layer_class',
                                    [recurrent.SimpleRNN,
@@ -44,7 +49,7 @@ def test_dynamic_behavior(layer_class):
     model.add(layer)
     model.compile('sgd', 'mse')
     x = np.random.random((num_samples, timesteps, embedding_dim))
-    y = np.random.random((num_samples, units))
+    y = rand((num_samples, units))
     model.train_on_batch(x, y)
 
 
@@ -58,8 +63,8 @@ def test_stateful_invalid_use(layer_class):
     model = Sequential()
     model.add(layer)
     model.compile('sgd', 'mse')
-    x = np.random.random((num_samples * 2, timesteps, embedding_dim))
-    y = np.random.random((num_samples * 2, units))
+    x = rand((num_samples * 2, timesteps, embedding_dim))
+    y = rand((num_samples * 2, units))
     with pytest.raises(ValueError):
         model.fit(x, y)
     with pytest.raises(ValueError):
@@ -89,7 +94,7 @@ def test_dropout(layer_class, unroll):
     assert not getattr(y, '_uses_learning_phase')
 
     # Test that dropout is not applied during testing
-    x = np.random.random((num_samples, timesteps, embedding_dim))
+    x = rand((num_samples, timesteps, embedding_dim))
     layer = layer_class(units, dropout=0.5, recurrent_dropout=0.5,
                         unroll=unroll,
                         input_shape=(timesteps, embedding_dim))
@@ -188,10 +193,10 @@ def test_masking_correctness_output_not_equal_to_first_state(unroll):
     state_size = input_size = 3  # also equal to `output_size`
 
     # random inputs and state values
-    x_vals = np.random.random((num_samples, num_timesteps, input_size))
+    x_vals = rand((num_samples, num_timesteps, input_size))
     # last timestep masked for first sample (all zero inputs masked by Masking layer)
     x_vals[0, -1, :] = 0
-    s_initial_vals = np.random.random((num_samples, state_size))
+    s_initial_vals = rand((num_samples, state_size))
 
     # final outputs equal to last inputs
     y_vals_expected = x_vals[:, -1].copy()
@@ -245,10 +250,10 @@ def test_masking_correctness_output_size_not_equal_to_first_state_size(unroll):
     input_size = state_size = 7
 
     # random inputs and state values
-    x_vals = np.random.random((num_samples, num_timesteps, input_size))
+    x_vals = rand((num_samples, num_timesteps, input_size))
     # last timestep masked for first sample (all zero inputs masked by Masking layer)
     x_vals[0, -1, :] = 0
-    s_initial_vals = np.random.random((num_samples, state_size))
+    s_initial_vals = rand((num_samples, state_size))
 
     # final outputs equal to last inputs concatenated
     y_vals_expected = np.concatenate([x_vals[:, -1]] * 2, axis=-1)
@@ -289,7 +294,8 @@ def test_implementation(layer_class, mode, dropout, use_bias):
                         'implementation': mode,
                         'dropout': dropout,
                         'use_bias': use_bias},
-                input_shape=(num_samples, timesteps, embedding_dim))
+                input_data=rand((num_samples, timesteps, embedding_dim)),
+                test_compile=dropout and use_bias)
 
 
 @rnn_test
@@ -334,8 +340,8 @@ def test_masking_layer():
     ''' This test based on a previously failing issue here:
     https://github.com/keras-team/keras/issues/1567
     '''
-    inputs = np.random.random((6, 3, 4))
-    targets = np.abs(np.random.random((6, 3, 5)))
+    inputs = rand((6, 3, 4))
+    targets = np.abs(rand((6, 3, 5)))
     targets /= targets.sum(axis=-1, keepdims=True)
 
     model = Sequential()
@@ -376,10 +382,10 @@ def test_specify_initial_state_keras_tensor(layer_class):
     model = Model([inputs] + initial_state, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-    inputs = np.random.random((num_samples, timesteps, embedding_dim))
-    initial_state = [np.random.random((num_samples, units))
+    inputs = rand((num_samples, timesteps, embedding_dim))
+    initial_state = [rand((num_samples, units))
                      for _ in range(num_states)]
-    targets = np.random.random((num_samples, units))
+    targets = rand((num_samples, units))
     model.fit([inputs] + initial_state, targets)
 
 
@@ -397,8 +403,8 @@ def test_specify_initial_state_non_keras_tensor(layer_class):
     model = Model(inputs, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-    inputs = np.random.random((num_samples, timesteps, embedding_dim))
-    targets = np.random.random((num_samples, units))
+    inputs = rand((num_samples, timesteps, embedding_dim))
+    targets = rand((num_samples, units))
     model.fit(inputs, targets)
 
 
@@ -444,10 +450,10 @@ def test_initial_states_as_other_inputs(layer_class):
     model = Model(inputs, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-    main_inputs = np.random.random((num_samples, timesteps, embedding_dim))
-    initial_state = [np.random.random((num_samples, units))
+    main_inputs = rand((num_samples, timesteps, embedding_dim))
+    initial_state = [rand((num_samples, units))
                      for _ in range(num_states)]
-    targets = np.random.random((num_samples, units))
+    targets = rand((num_samples, units))
     model.train_on_batch([main_inputs] + initial_state, targets)
 
 
@@ -459,17 +465,17 @@ def test_specify_state_with_masking(layer_class):
     num_states = 2 if layer_class is recurrent.LSTM else 1
 
     inputs = Input((timesteps, embedding_dim))
-    _ = Masking()(inputs)
+    masked_inputs = Masking()(inputs)
     initial_state = [Input((units,)) for _ in range(num_states)]
-    output = layer_class(units)(inputs, initial_state=initial_state)
+    output = layer_class(units)(masked_inputs, initial_state=initial_state)
 
     model = Model([inputs] + initial_state, output)
     model.compile(loss='categorical_crossentropy', optimizer='adam')
 
-    inputs = np.random.random((num_samples, timesteps, embedding_dim))
-    initial_state = [np.random.random((num_samples, units))
+    inputs = rand((num_samples, timesteps, embedding_dim))
+    initial_state = [rand((num_samples, units))
                      for _ in range(num_states)]
-    targets = np.random.random((num_samples, units))
+    targets = rand((num_samples, units))
     model.fit([inputs] + initial_state, targets)
 
 
@@ -484,7 +490,7 @@ def test_return_state(layer_class):
     assert len(state) == num_states
     model = Model(inputs, state[0])
 
-    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    inputs = rand((num_samples, timesteps, embedding_dim))
     state = model.predict(inputs)
     np.testing.assert_allclose(K.eval(layer.states[0]), state, atol=1e-4)
 
@@ -498,7 +504,7 @@ def test_state_reuse(layer_class):
     output = layer_class(units)(output, initial_state=state)
     model = Model(inputs, output)
 
-    inputs = np.random.random((num_samples, timesteps, embedding_dim))
+    inputs = rand((num_samples, timesteps, embedding_dim))
     outputs = model.predict(inputs)
 
 
@@ -514,8 +520,8 @@ def test_state_reuse_with_dropout(layer_class):
     output = layer_class(units)(input2, initial_state=state)
     model = Model([input1, input2], output)
 
-    inputs = [np.random.random((num_samples, timesteps, embedding_dim)),
-              np.random.random((num_samples, timesteps, embedding_dim))]
+    inputs = [rand((num_samples, timesteps, embedding_dim)),
+              rand((num_samples, timesteps, embedding_dim))]
     outputs = model.predict(inputs)
 
 
@@ -527,7 +533,7 @@ def test_minimal_rnn_cell_non_layer():
             self.units = units
             self.state_size = units
             self.kernel = keras.backend.variable(
-                np.random.random((input_dim, units)))
+                rand((input_dim, units)))
 
         def call(self, inputs, states):
             prev_output = states[0]
@@ -562,7 +568,7 @@ def test_minimal_rnn_cell_non_layer_multiple_states():
             self.units = units
             self.state_size = (units, units)
             self.kernel = keras.backend.variable(
-                np.random.random((input_dim, units)))
+                rand((input_dim, units)))
 
         def call(self, inputs, states):
             prev_output_1 = states[0]
@@ -636,7 +642,7 @@ def test_minimal_rnn_cell_layer():
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test basic case serialization.
-    x_np = np.random.random((6, 5, 5))
+    x_np = rand((6, 5, 5))
     y_np = model.predict(x_np)
     weights = model.get_weights()
     config = layer.get_config()
@@ -659,7 +665,7 @@ def test_minimal_rnn_cell_layer():
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test stacked RNN serialization.
-    x_np = np.random.random((6, 5, 5))
+    x_np = rand((6, 5, 5))
     y_np = model.predict(x_np)
     weights = model.get_weights()
     config = layer.get_config()
@@ -684,7 +690,7 @@ def test_builtin_rnn_cell_layer(cell_class):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test basic case serialization.
-    x_np = np.random.random((6, 5, 5))
+    x_np = rand((6, 5, 5))
     y_np = model.predict(x_np)
     weights = model.get_weights()
     config = layer.get_config()
@@ -706,7 +712,7 @@ def test_builtin_rnn_cell_layer(cell_class):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
     # Test stacked RNN serialization.
-    x_np = np.random.random((6, 5, 5))
+    x_np = rand((6, 5, 5))
     y_np = model.predict(x_np)
     weights = model.get_weights()
     config = layer.get_config()
@@ -729,8 +735,8 @@ def test_stacked_rnn_dropout():
     y = layer(x)
     model = keras.models.Model(x, y)
     model.compile('sgd', 'mse')
-    x_np = np.random.random((6, 5, 5))
-    y_np = np.random.random((6, 3))
+    x_np = rand((6, 5, 5))
+    y_np = rand((6, 3))
     model.train_on_batch(x_np, y_np)
 
 
@@ -789,8 +795,8 @@ def test_batch_size_equal_one(layer_class):
     outputs = layer(inputs)
     model = Model(inputs, outputs)
     model.compile('sgd', 'mse')
-    x = np.random.random((1, timesteps, embedding_dim))
-    y = np.random.random((1, units))
+    x = rand((1, timesteps, embedding_dim))
+    y = rand((1, units))
     model.train_on_batch(x, y)
 
 
@@ -851,8 +857,8 @@ def test_rnn_cell_with_constants_layer():
     )
 
     # Test basic case serialization.
-    x_np = np.random.random((6, 5, 5))
-    c_np = np.random.random((6, 3))
+    x_np = rand((6, 5, 5))
+    c_np = rand((6, 3))
     y_np = model.predict([x_np, c_np])
     weights = model.get_weights()
     config = layer.get_config()
@@ -888,8 +894,8 @@ def test_rnn_cell_with_constants_layer():
     )
 
     # Test stacked RNN serialization.
-    x_np = np.random.random((6, 5, 5))
-    c_np = np.random.random((6, 3))
+    x_np = rand((6, 5, 5))
+    c_np = rand((6, 3))
     y_np = model.predict([x_np, c_np])
     weights = model.get_weights()
     config = layer.get_config()
@@ -960,9 +966,9 @@ def test_rnn_cell_with_constants_layer_passing_initial_state():
     )
 
     # Test basic case serialization.
-    x_np = np.random.random((6, 5, 5))
-    s_np = np.random.random((6, 32))
-    c_np = np.random.random((6, 3))
+    x_np = rand((6, 5, 5))
+    s_np = rand((6, 32))
+    c_np = rand((6, 3))
     y_np = model.predict([x_np, s_np, c_np])
     weights = model.get_weights()
     config = layer.get_config()
