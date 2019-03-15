@@ -12,7 +12,7 @@ hidden_dims = 2
 num_train = 10
 num_test = 5
 num_classes = 3
-batch_size = 4
+batch_size = 2
 epochs = 1
 verbosity = 0
 optim = 'adam'
@@ -129,6 +129,8 @@ def test_regression_build_fn():
         batch_size=batch_size, epochs=epochs)
 
     assert_regression_works(reg)
+    assert_regression_predict_shape_correct(reg, 0)
+    assert_regression_predict_shape_correct(reg, 1)
 
 
 def test_regression_class_build_fn():
@@ -167,20 +169,7 @@ def assert_regression_works(reg):
     assert preds.shape == (num_test, )
 
 
-def test_regression_predict_shape_correct_num_test_0():
-    assert_regression_predict_shape_correct(num_test=0)
-
-
-def test_regression_predict_shape_correct_num_test_1():
-    assert_regression_predict_shape_correct(num_test=1)
-
-
-def assert_regression_predict_shape_correct(num_test):
-    reg = KerasRegressor(
-        build_fn=build_fn_reg, hidden_dims=hidden_dims,
-        batch_size=batch_size, epochs=epochs)
-    reg.fit(X_train, y_train, batch_size=batch_size, epochs=epochs)
-
+def assert_regression_predict_shape_correct(reg, num_test):
     preds = reg.predict(X_test[:num_test], batch_size=batch_size)
     assert preds.shape == (num_test, )
 
