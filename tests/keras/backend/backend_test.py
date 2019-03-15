@@ -1156,6 +1156,7 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=1)
 
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):
         batch_size = 20
         num_classes = 10
@@ -1166,10 +1167,10 @@ class TestBackend(object):
 
         # (k == 0 or k > num_classes) does not raise an error
         # but just return an unmeaningful tensor.
-        for k in range(num_classes + 1):
+        for k in range(1, num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
-                      for b in [KTH, KTF]]
+                      for b in WITH_NP]
             assert_list_pairwise(z_list)
 
         # Identical prediction test case:
@@ -1184,7 +1185,7 @@ class TestBackend(object):
         for k in range(1, num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
-                      for b in [KTH, KTF]]
+                      for b in WITH_NP]
             assert_list_pairwise(z_list)
 
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [
