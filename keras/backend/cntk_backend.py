@@ -13,8 +13,6 @@ from collections import defaultdict
 from contextlib import contextmanager
 import warnings
 
-evaluate = eval  # Separate python eval keyword from K.eval
-
 C.set_global_option('align_axis', 1)
 
 b_any = any
@@ -2775,9 +2773,8 @@ def arange(start, stop=None, step=1, dtype='float32'):
             # Handle case where start is a tensor
             start = 0 if start.value < 0 else start.value
 
-    result = C.variables.Constant(np.arange(start, stop, step),
-                                  dtype=evaluate('np.' + dtype))
-    return result
+    ctype = _convert_string_dtype(dtype)
+    return variable(value=np.arange(start, stop, step).astype(ctype), dtype=dtype, name=name)
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
