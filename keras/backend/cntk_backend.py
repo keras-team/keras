@@ -2766,7 +2766,7 @@ def arange(start, stop=None, step=1, dtype='float32', name=None):
     """
     # Match the behavior of numpy and Theano by returning an empty sequence.
     if stop is None:
-        start = start if isinstance(start, (int, long, float)) else start.value
+        start = start if isinstance(start, (int, float)) else start.value
         start = start if start >= 0 else 0
 
     ctype = _convert_string_dtype(dtype)
