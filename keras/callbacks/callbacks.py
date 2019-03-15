@@ -939,7 +939,6 @@ class LearningRateScheduler(Callback):
         logs['lr'] = K.get_value(self.model.optimizer.lr)
 
 
-
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.
 

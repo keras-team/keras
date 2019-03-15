@@ -102,12 +102,12 @@ class TensorBoard(tf.keras.callbacks.TensorBoard):
                           'embeddings display when using TensorFlow 2.0. '
                           'Embeddings-related arguments are ignored.')
         super(TensorBoard, self).__init__(
-                log_dir=log_dir,
-                histogram_freq=histogram_freq,
-                write_graph=write_graph,
-                write_images=write_images,
-                update_freq=update_freq,
-                **kwargs)
+            log_dir=log_dir,
+            histogram_freq=histogram_freq,
+            write_graph=write_graph,
+            write_images=write_images,
+            update_freq=update_freq,
+            **kwargs)
 
     def set_model(self, model):
         """Sets Keras model and writes graph if specified."""
