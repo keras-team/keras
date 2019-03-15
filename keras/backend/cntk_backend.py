@@ -2749,7 +2749,7 @@ def cumprod(x, axis=0):
     raise NotImplementedError
 
 
-def arange(start, stop=None, step=1, dtype='float32'):
+def arange(start, stop=None, step=1, dtype='float32', name=None):
     """Creates a 1D tensor containing a sequence of integers.
     The function arguments use the same convention as
     Theano's arange: if only one argument is provided,
@@ -2774,7 +2774,9 @@ def arange(start, stop=None, step=1, dtype='float32'):
             start = 0 if start.value < 0 else start.value
 
     ctype = _convert_string_dtype(dtype)
-    return variable(value=np.arange(start, stop, step).astype(ctype), dtype=dtype, name=name)
+    return variable(value=np.arange(start, stop, step).astype(ctype),
+                    dtype=dtype,
+                    name=name)
 
 
 def ctc_label_dense_to_sparse(labels, label_lengths):
