@@ -316,6 +316,12 @@ def l2_normalize(x, axis=-1):
     return x / np.sqrt(y)
 
 
+def in_top_k(predictions, targets, k):
+    top_k = np.argsort(-predictions)[:, :k]
+    targets = targets.reshape(-1, 1)
+    return np.any(targets == top_k, axis=-1)
+
+
 def binary_crossentropy(target, output, from_logits=False):
     if not from_logits:
         output = np.clip(output, 1e-7, 1 - 1e-7)
