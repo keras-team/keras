@@ -808,6 +808,9 @@ def zeros_like(x, dtype=None, name=None):
     ```
     {{np_implementation}}
     """
+    if dtype is None:
+        dtype = floatx()
+    tf_dtype = tf.as_dtype(dtype)
     return tf.zeros_like(x, dtype=dtype, name=name)
 
 
@@ -834,6 +837,9 @@ def ones_like(x, dtype=None, name=None):
     ```
     {{np_implementation}}
     """
+    if dtype is None:
+        dtype = floatx()
+    tf_dtype = tf.as_dtype(dtype)
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
