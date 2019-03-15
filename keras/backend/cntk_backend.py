@@ -2735,7 +2735,14 @@ def to_dense(tensor):
 
 
 def cumsum(x, axis=0):
-    raise NotImplementedError
+    dim = x.shape[axis]
+    U = C.constant(np.triu(np.ones((dim, dim))).astype(x.dtype))
+    if axis != -1:
+        x = C.swapaxes(x, -1, axis)
+    out = C.times(x, U)
+    if axis != -1:
+        out = C.swapaxes(out, -1, axis)
+    return out
 
 
 def cumprod(x, axis=0):
