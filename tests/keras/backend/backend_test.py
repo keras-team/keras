@@ -659,7 +659,7 @@ class TestBackend(object):
         new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
         assert_list_pairwise(new_val_list)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='Uses the `fetches` argument.')
     def test_function_tf_fetches(self):
         # Additional operations can be passed to tf.Session().run() via its
@@ -681,7 +681,7 @@ class TestBackend(object):
         assert output == [30.]
         assert K.get_session().run(fetches=[x, y]) == [11., 5.]
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='Uses the `feed_dict` argument.')
     def test_function_tf_feed_dict(self):
         # Additional substitutions can be passed to `tf.Session().run()` via its

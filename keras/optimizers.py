@@ -407,7 +407,7 @@ class Adadelta(Optimizer):
         accumulators = [K.zeros(shape, name='accumulator_' + str(i))
                         for (i, shape) in enumerate(shapes)]
         delta_accumulators = [K.zeros(shape, name='delta_accumulator_' + str(i))
-                        for (i, shape) in enumerate(shapes)]
+                              for (i, shape) in enumerate(shapes)]
         self.weights = accumulators + delta_accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -508,11 +508,12 @@ class Adam(Optimizer):
 
         if self.amsgrad:
             vhats = [K.zeros(K.int_shape(p),
-                dtype=K.dtype(p),
-                name='vhat_' + str(i))
-                for (i, p) in enumerate(params)]
+                     dtype=K.dtype(p),
+                     name='vhat_' + str(i))
+                     for (i, p) in enumerate(params)]
         else:
-            vhats = [K.zeros(1, name='vhat_' + str(i)) for i in range(len(params))]
+            vhats = [K.zeros(1, name='vhat_' + str(i))
+                     for i in range(len(params))]
         self.weights = [self.iterations] + ms + vs + vhats
 
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
