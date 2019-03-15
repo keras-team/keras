@@ -826,7 +826,7 @@ def test_multi_output_mask():
 def test_constant_initializer_with_numpy():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,),
-                    kernel_initializer=Constant(np.ones((3, 2)))))
+                    kernel_initializer=Constant(1.)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
