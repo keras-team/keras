@@ -23,8 +23,10 @@ np.random.seed(42)
     num_train=num_train, num_test=num_test, input_shape=(input_dim,),
     classification=True, num_classes=num_classes)
 
-
+_clf_model_cache = {}
 def build_fn_clf(hidden_dims):
+    if hidden_dims in _clf_model_cache:
+        return _clf_model_cache[hidden_dims]
     model = Sequential()
     model.add(Dense(input_dim, input_shape=(input_dim,)))
     model.add(Activation('relu'))
@@ -34,6 +36,7 @@ def build_fn_clf(hidden_dims):
     model.add(Activation('softmax'))
     model.compile(optimizer='sgd', loss='categorical_crossentropy',
                   metrics=['accuracy'])
+    _clf_model_cache[hidden_dims] = model
     return model
 
 
@@ -109,8 +112,10 @@ def assert_string_classification_works(clf):
     assert proba.shape == (num_test, num_classes)
     assert np.allclose(np.sum(proba, axis=1), np.ones(num_test))
 
-
+_reg_model_cache = {}
 def build_fn_reg(hidden_dims=50):
+    if hidden_dims in _reg_model_cache:
+        return _reg_model_cache[hidden_dims]
     model = Sequential()
     model.add(Dense(input_dim, input_shape=(input_dim,)))
     model.add(Activation('relu'))
@@ -120,6 +125,7 @@ def build_fn_reg(hidden_dims=50):
     model.add(Activation('linear'))
     model.compile(optimizer='sgd', loss='mean_absolute_error',
                   metrics=['accuracy'])
+    _reg_model_cache[hidden_dims] = model
     return model
 
 
