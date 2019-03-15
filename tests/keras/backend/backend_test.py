@@ -1156,7 +1156,7 @@ class TestBackend(object):
 
         # (k == 0 or k > num_classes) does not raise an error
         # but just return an unmeaningful tensor.
-        for k in range(num_classes + 1):
+        for k in range(1, num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in WITH_NP]
