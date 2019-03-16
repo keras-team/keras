@@ -1029,8 +1029,8 @@ class TestBackend(object):
             # not updated last timestep:
             assert_allclose(K.eval(last_states[0]), expected_last_state)
 
-    @pytest.mark.skipif(K.backend() == 'cntk',
-                        reason='The logsumexp is not optimized in CNTK.')
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='The optimization is applied only with TensorFlow.')
     def test_logsumexp_optim(self):
         '''
         Check if optimization works.
