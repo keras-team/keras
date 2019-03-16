@@ -1067,11 +1067,12 @@ def tile(x, n):
         return y
     elif len(n) < len(shape):  # Padding the axis
         n = tuple([1 for _ in range(len(shape) - len(n))]) + n
-        y._keras_shape = tuple([None if a is None else a * b
-                                for (a, b) in zip(shape, n)])
-        return y
     elif len(n) != len(shape):
         raise NotImplementedError
+
+    y._keras_shape = tuple([None if a is None else a * b
+                            for (a, b) in zip(shape, n)])
+    return y
 
 
 def flatten(x):
