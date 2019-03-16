@@ -178,7 +178,7 @@ def exponential(x):
     # Arguments:
         x: Input tensor
 
-    # Results
+    # Returns
         The exponential activation: `exp(x)`
     """
     return K.exp(x)
@@ -190,7 +190,7 @@ def linear(x):
     # Arguments
         x: Input tensor
 
-    # Results
+    # Returns
         The linear (identity) activation: `x`
     """
     return x
