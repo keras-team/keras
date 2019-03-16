@@ -428,10 +428,11 @@ class TestBackend(object):
                     assert y._keras_shape == K.int_shape(y)
 
     def test_tile(self):
-        shape = (3, 4)
-        arr = np.arange(np.prod(shape)).reshape(shape)
-        check_single_tensor_operation('tile', arr, WITH_NP, n=[2, 1])
-        check_single_tensor_operation('tile', (2, 5), WITH_NP, n=[5, 2])
+        check_single_tensor_operation('tile', (3, 4), WITH_NP, n=2)
+        check_single_tensor_operation('tile', (3, 4), WITH_NP, n=(2, 1))
+        check_single_tensor_operation('tile', (3, 4, 5), WITH_NP, n=2)
+        check_single_tensor_operation('tile', (3, 4, 5), WITH_NP, n=(1, 2))
+        check_single_tensor_operation('tile', (3, 4, 5), WITH_NP, n=(3, 1, 2))
 
         # test theano shape inference when
         # input shape has None entries
