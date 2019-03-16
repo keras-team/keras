@@ -231,10 +231,10 @@ The default input size for this model is 299x299.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `'max'` means that global max pooling will
         be applied.
@@ -286,10 +286,10 @@ The default input size for this model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `'max'` means that global max pooling will
         be applied.
@@ -341,10 +341,10 @@ The default input size for this model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `'max'` means that global max pooling will
         be applied.
@@ -405,10 +405,10 @@ The default input size for this model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `'max'` means that global max pooling will
         be applied.
@@ -466,10 +466,10 @@ The default input size for this model is 299x299.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `'max'` means that global max pooling will
         be applied.
@@ -521,10 +521,10 @@ The default input size for this model is 299x299.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `'max'` means that global max pooling will
         be applied.
@@ -589,10 +589,10 @@ The default input size for this model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model
     will be the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a
         2D tensor.
     - `'max'` means that global max pooling will
@@ -651,10 +651,10 @@ The default input size for this model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model will be
         the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `avg` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a 2D tensor.
     - `max` means that global max pooling will
         be applied.
@@ -712,10 +712,10 @@ NASNetMobile model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model
     will be the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a
         2D tensor.
     - `'max'` means that global max pooling will
@@ -783,10 +783,10 @@ The default input size for this model is 224x224.
     when `include_top` is `False`.
     - `None` means that the output of the model
     will be the 4D tensor output of the
-        last convolutional layer.
+        last convolutional block.
     - `'avg'` means that global average pooling
         will be applied to the output of the
-        last convolutional layer, and thus
+        last convolutional block, and thus
         the output of the model will be a
         2D tensor.
     - `'max'` means that global max pooling will
