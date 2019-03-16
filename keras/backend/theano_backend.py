@@ -101,16 +101,6 @@ def to_dense(tensor):
         return tensor
 
 
-def _is_explicit_shape(shape):
-    if hasattr(shape, '__iter__'):
-        for x in shape:
-            if x is not None:
-                if not isinstance(x, int):
-                    return False
-        return True
-    return False
-
-
 NAME_SCOPE_STACK = []
 
 
@@ -1066,33 +1056,22 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
+    if isinstance(n, int):
+        n = (n,)
+    elif isinstance(n, list):
+        n = tuple(n)
+
     y = T.tile(x, n)
-    if hasattr(x, '_keras_shape'):
-        if _is_explicit_shape(n):
-            output_shape = x._keras_shape[:-len(n)]
-            for i, j in zip(x._keras_shape, n):
-                if i is None:
-                    output_shape += (None,)
-                else:
-                    output_shape += (i * j,)
-        elif isinstance(n, int):
-            output_shape = x._keras_shape[:-1]
-            if x._keras_shape[-1] is None:
-                output_shape += (None,)
-            else:
-                output_shape += (x._keras_shape[-1] * n,)
-        else:
-            # symbolic n
-            if n.ndim == 0:
-                # n is a scalar
-                output_shape = x._keras_shape[:-1] + (None,)
-            elif hasattr(n, '_keras_shape'):
-                # n is a vector
-                n_size = n._keras_shape[0]
-                output_shape = x._keras_shape[:-n_size] + (None,) * n_size
-            else:
-                output_shape = (None,) * x.ndim
-        y._keras_shape = output_shape
+    shape = int_shape(x)
+    if shape is None:
+        return y
+    elif len(n) < len(shape):  # Padding the axis
+        n = tuple([1 for _ in range(len(shape) - len(n))]) + n
+    elif len(n) != len(shape):
+        raise NotImplementedError
+
+    y._keras_shape = tuple([None if a is None else a * b
+                            for (a, b) in zip(shape, n)])
     return y
 
 
