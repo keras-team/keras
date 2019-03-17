@@ -1,5 +1,5 @@
 '''
-#Knowledge transfer with Net2Net
+# Knowledge transfer with Net2Net
 This is an implementation of Net2Net experiment with MNIST in
 ['Net2Net: Accelerating Learning via Knowledge Transfer'
 ](http://arxiv.org/abs/1511.05641)
