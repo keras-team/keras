@@ -35,7 +35,7 @@ except ImportError:
 
 try:
     getargspec = inspect.getfullargspec
-except:  # getargspec() is deprecated since Python 3.0
+except AttributeError:  # getargspec() is deprecated since Python 3.0
     getargspec = inspect.getargspec
 
 
