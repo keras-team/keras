@@ -1,5 +1,5 @@
 '''
-#Recurrent neural network initialization
+# Recurrent neural network initialization
 
 This is a reproduction of the IRNN experiment
 with pixel-by-pixel sequential MNIST in
