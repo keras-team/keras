@@ -33,6 +33,11 @@ try:
 except ImportError:
     tf_file_io = None
 
+try:
+    getargspec = inspect.getfullargspec
+except AttributeError:  # getargspec() is deprecated since Python 3.0
+    getargspec = inspect.getargspec
+
 
 def _serialize_model(model, h5dict, include_optimizer=True):
     """Model serialization logic.
@@ -422,7 +427,7 @@ def allow_read_from_gcs(load_function):
         if name in kwargs:
             arg = kwargs.pop(name)
             return arg, args, kwargs
-        argnames = inspect.getargspec(f)[0]
+        argnames = getargspec(f)[0]
         for i, (argname, arg) in enumerate(zip(argnames, args)):
             if argname == name:
                 return arg, args[:i] + args[i + 1:], kwargs
@@ -587,7 +592,7 @@ def model_from_yaml(yaml_string, custom_objects=None):
     # Returns
         A Keras model instance (uncompiled).
     """
-    config = yaml.load(yaml_string)
+    config = yaml.load(yaml_string, Loader=yaml.FullLoader)
     from ..layers import deserialize
     return deserialize(config, custom_objects=custom_objects)
 
