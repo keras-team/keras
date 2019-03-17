@@ -507,11 +507,6 @@ class TestBackend(object):
         check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
         check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
 
-        check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
-        check_single_tensor_operation('logsumexp', (4, 2),
-                                      WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
-
         check_single_tensor_operation('prod', (4, 2), WITH_NP)
         check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
         check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
@@ -1023,29 +1018,21 @@ class TestBackend(object):
             # not updated last timestep:
             assert_allclose(K.eval(last_states[0]), expected_last_state)
 
-    @pytest.mark.parametrize('x_np,axis,keepdims', [
-        (np.array([1.1, 0.8, 0.9]), 0, False),
-        (np.array([[1.1, 0.8, 0.9]]), 0, False),
-        (np.array([[1.1, 0.8, 0.9]]), 1, False),
-        (np.array([[1.1, 0.8, 0.9]]), -1, False),
-        (np.array([[1.1, 0.8, 0.9]]), 1, True),
-        (np.array([[1.1], [1.2]]), 0, False),
-        (np.array([[1.1], [1.2]]), 1, False),
-        (np.array([[1.1], [1.2]]), -1, False),
-        (np.array([[1.1], [1.2]]), -1, True),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), None, False),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 0, False),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
-    ])
-    def test_logsumexp(self, x_np, axis, keepdims):
-        '''
-        Check if K.logsumexp works properly for values close to one.
-        '''
-        x = K.variable(x_np)
-        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
-                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
-                        rtol=1e-5)
+    @pytest.mark.parametrize('shape', [(3, ), (1, 3), (2, 1), (4, 2), (4, 2, 3)])
+    def test_logsumexp(self, shape):
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=None)
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=0)
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=-1)
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=-1,
+                                      keepdims=True)
+        if len(shape) > 1:
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=1)
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=1,
+                                          keepdims=True)
+        if len(shape) > 2:
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=[1, -1])
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=[1, -1],
+                                          keepdims=True)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='The optimization is applied only with TensorFlow.')

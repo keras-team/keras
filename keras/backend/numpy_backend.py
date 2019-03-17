@@ -372,7 +372,7 @@ def std(x, axis=None, keepdims=False):
 def logsumexp(x, axis=None, keepdims=False):
     if isinstance(axis, list):
         axis = tuple(axis)
-    return sp.misc.logsumexp(x, axis=axis, keepdims=keepdims)
+    return sp.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
