@@ -1,5 +1,5 @@
 '''
-#MNIST classification with TensorFlow's Dataset API.
+# MNIST classification with TensorFlow's Dataset API.
 
 Introduced in TensorFlow 1.3, the Dataset API is now the
 standard method for loading data into TensorFlow models.
