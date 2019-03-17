@@ -132,10 +132,10 @@ def tanh(x):
     """Hyperbolic tangent activation function.
 
     # Arguments
-        x: Input Tensor
+        x: Input tensor.
 
     # Returns
-        The hyperbolic tangent activation:
+        The hyperbolic activation:
         `tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))`
 
     """
@@ -146,10 +146,10 @@ def sigmoid(x):
     """Sigmoid activation function.
 
     # Arguments
-        x: Input tensor
+        x: Input tensor.
 
     # Returns
-        The sigmoid activation: `1 / (1 + exp(-x)) `
+        The sigmoid activation: `1 / (1 + exp(-x))`.
     """
     return K.sigmoid(x)
 
@@ -176,10 +176,10 @@ def exponential(x):
     """Exponential (base e) activation function.
 
     # Arguments:
-        x: Input tensor
+        x: Input tensor.
 
     # Returns
-        The exponential activation: `exp(x)`
+        Exponential activation: `exp(x)`.
     """
     return K.exp(x)
 
@@ -188,10 +188,10 @@ def linear(x):
     """Linear (i.e. identity) activation function.
 
     # Arguments
-        x: Input tensor
+        x: Input tensor.
 
     # Returns
-        The linear (identity) activation: `x`
+        Input tensor, unchanged.
     """
     return x
 
