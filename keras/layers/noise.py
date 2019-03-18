@@ -105,6 +105,8 @@ class GaussianDropout(Layer):
 
 class AlphaDropout(Layer):
     """Applies Alpha Dropout to the input.
+    
+    As it is a regularization layer, it is only active at training time.
 
     Alpha Dropout is a `Dropout` that keeps mean and variance of inputs
     to their original values, in order to ensure the self-normalizing property
