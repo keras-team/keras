@@ -1879,8 +1879,6 @@ def pool2d(x, pool_size, strides=(1, 1),
     data_format = normalize_data_format(data_format)
 
     padding = _preprocess_border_mode(padding)
-    strides = strides
-    pool_size = pool_size
     x = _preprocess_conv2d_input(x, data_format)
     if pool_mode == 'max':
         x = C.pooling(
