@@ -2241,7 +2241,7 @@ class ZeroPadding3D(_ZeroPadding):
                 is applied to height and width.
             - If tuple of 3 ints:
                 interpreted as three different
-                symmetric padding values for height and width:
+                symmetric padding values for depth, height, and width:
                 `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
