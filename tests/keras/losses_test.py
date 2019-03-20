@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Mar 20 15:11:52 2019
+
+@author: gagandeep
+"""
+
 import pytest
 import numpy as np
 
@@ -88,6 +96,16 @@ def test_sparse_categorical_crossentropy_4d():
     assert np.isclose(expected_loss, np.mean(loss))
 
 
+def test_support_vector_regression_loss():
+    y_pred = K.variable(np.array([[0.4, 0.1, 0.5],
+                                  [0.1, 0.3, 0.6]]))
+    y_true = K.variable(np.array([[0, 0, 1],
+                                  [1, 0, 2]]))
+    expected_loss = ((0.3 + 0 + 0.3) + (0.8 + 0.2 + 1.3)) / 2
+    loss = K.eval(losses.support_vector_regression_loss(y_true, y_pred))
+    assert np.isclose(expected_loss, np.mean(loss))
+
+
 class MSE_MAE_loss:
     """Loss function with internal state, for testing serialization code."""
     def __init__(self, mse_fraction):
@@ -131,3 +149,4 @@ def test_serializing_model_with_loss_class(tmpdir):
 
 if __name__ == '__main__':
     pytest.main([__file__])
+
