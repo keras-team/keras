@@ -2240,8 +2240,8 @@ class ZeroPadding3D(_ZeroPadding):
             - If int: the same symmetric padding
                 is applied to height and width.
             - If tuple of 3 ints:
-                interpreted as two different
-                symmetric padding values for height and width:
+                interpreted as three different
+                symmetric padding values for depth, height, and width:
                 `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
@@ -2496,7 +2496,7 @@ class Cropping3D(_Cropping):
             - If int: the same symmetric cropping
                 is applied to depth, height, and width.
             - If tuple of 3 ints:
-                interpreted as two different
+                interpreted as three different
                 symmetric cropping values for depth, height, and width:
                 `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
             - If tuple of 3 tuples of 2 ints:
