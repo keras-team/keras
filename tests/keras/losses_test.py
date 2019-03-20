@@ -141,4 +141,3 @@ def test_serializing_model_with_loss_class(tmpdir):
 
 if __name__ == '__main__':
     pytest.main([__file__])
-
