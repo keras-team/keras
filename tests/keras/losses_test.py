@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 20 15:11:52 2019
-
-@author: gagandeep
-"""
-
 import pytest
 import numpy as np
 
