@@ -1727,6 +1727,12 @@ class DepthwiseConv2D(Conv2D):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be 'channels_last'.
+        dilation_rate: an integer or tuple/list of 2 integers, specifying
+            the dilation rate to use for dilated convolution.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+            Currently, specifying any `dilation_rate` value != 1 is
+            incompatible with specifying any stride value != 1.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -1774,6 +1780,7 @@ class DepthwiseConv2D(Conv2D):
                  padding='valid',
                  depth_multiplier=1,
                  data_format=None,
+                 dilation_rate=(1, 1),
                  activation=None,
                  use_bias=True,
                  depthwise_initializer='glorot_uniform',
@@ -1790,6 +1797,7 @@ class DepthwiseConv2D(Conv2D):
             strides=strides,
             padding=padding,
             data_format=data_format,
+            dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
             bias_regularizer=bias_regularizer,
