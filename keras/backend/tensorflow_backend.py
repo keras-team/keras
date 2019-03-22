@@ -2913,14 +2913,15 @@ def get_variable_shape(x):
 def print_tensor(x, message=''):
     """Prints `message` and the tensor value when evaluated.
 
-     Note that `print_tensor` returns a new tensor identical to `x`
-     which should be used in the following code. Otherwise the
-     print operation is not taken into account during evaluation.
+    Note that `print_tensor` returns a new tensor identical to `x`
+    which should be used in the following code. Otherwise the
+    print operation is not taken into account during evaluation.
 
-     # Example
-     ```python
-         >>> x = K.print_tensor(x, message="x is: ")
-     ```
+    # Example
+
+    ```python
+        >>> x = K.print_tensor(x, message="x is: ")
+    ```
 
     # Arguments
         x: Tensor to print.
