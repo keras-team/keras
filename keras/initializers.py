@@ -80,8 +80,11 @@ class RandomNormal(Initializer):
         self.seed = seed
 
     def __call__(self, shape, dtype=None):
-        return K.random_normal(shape, self.mean, self.stddev,
-                               dtype=dtype, seed=self.seed)
+        x = K.random_normal(shape, self.mean, self.stddev,
+                            dtype=dtype, seed=self.seed)
+        if self.seed is not None:
+            self.seed += 1
+        return x
 
     def get_config(self):
         return {
@@ -108,8 +111,11 @@ class RandomUniform(Initializer):
         self.seed = seed
 
     def __call__(self, shape, dtype=None):
-        return K.random_uniform(shape, self.minval, self.maxval,
-                                dtype=dtype, seed=self.seed)
+        x = K.random_uniform(shape, self.minval, self.maxval,
+                             dtype=dtype, seed=self.seed)
+        if self.seed is not None:
+            self.seed += 1
+        return x
 
     def get_config(self):
         return {
@@ -141,8 +147,11 @@ class TruncatedNormal(Initializer):
         self.seed = seed
 
     def __call__(self, shape, dtype=None):
-        return K.truncated_normal(shape, self.mean, self.stddev,
-                                  dtype=dtype, seed=self.seed)
+        x = K.truncated_normal(shape, self.mean, self.stddev,
+                               dtype=dtype, seed=self.seed)
+        if self.seed is not None:
+            self.seed += 1
+        return x
 
     def get_config(self):
         return {
@@ -210,12 +219,15 @@ class VarianceScaling(Initializer):
         if self.distribution == 'normal':
             # 0.879... = scipy.stats.truncnorm.std(a=-2, b=2, loc=0., scale=1.)
             stddev = np.sqrt(scale) / .87962566103423978
-            return K.truncated_normal(shape, 0., stddev,
-                                      dtype=dtype, seed=self.seed)
+            x = K.truncated_normal(shape, 0., stddev,
+                                   dtype=dtype, seed=self.seed)
         else:
             limit = np.sqrt(3. * scale)
-            return K.random_uniform(shape, -limit, limit,
-                                    dtype=dtype, seed=self.seed)
+            x = K.random_uniform(shape, -limit, limit,
+                                 dtype=dtype, seed=self.seed)
+        if self.seed is not None:
+            self.seed += 1
+        return x
 
     def get_config(self):
         return {
@@ -251,6 +263,7 @@ class Orthogonal(Initializer):
         rng = np.random
         if self.seed is not None:
             rng = np.random.RandomState(self.seed)
+            self.seed += 1
         a = rng.normal(0.0, 1.0, flat_shape)
         u, _, v = np.linalg.svd(a, full_matrices=False)
         # Pick the one with the correct shape.

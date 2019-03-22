@@ -1378,8 +1378,7 @@ def get_variable_shape(x):
 
 
 def print_tensor(x, message=''):
-    """Print the message and the tensor when evaluated and return the same
-    tensor.
+    """Print the message & the tensor when evaluated & return the same tensor.
     """
     p_op = Print(message)
     return p_op(x)
