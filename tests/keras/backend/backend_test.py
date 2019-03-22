@@ -630,7 +630,7 @@ class TestBackend(object):
                         reason='cntk doesn\'t support gradient in this way.')
     def test_gradient(self):
         val = np.random.random((4, 2))
-        x_list = [k.variable(val) for k in [KTH, KTF]]
+        x_list = [k.placeholder(shape=(4, 2)) for k in [KTH, KTF]]
         z_list = []
         zero_list = []
         for x, k in zip(x_list, [KTH, KTF]):
@@ -638,9 +638,12 @@ class TestBackend(object):
             loss = k.sum(exp)
             zero_loss = k.stop_gradient(loss)
             grad = k.gradients(loss, [exp])
+
             zero_grad = k.gradients(loss + zero_loss, [exp])
-            z_list.append(k.eval(grad[0]))
-            zero_list.append(k.eval(zero_grad[0]))
+            grad_eval_fn = k.function([x], [grad[0]])
+            zero_grad_eval_fn = k.function([x], [zero_grad[0]])
+            z_list.append(grad_eval_fn([val])[0])
+            zero_list.append(zero_grad_eval_fn([val])[0])
 
         assert_list_pairwise(z_list)
         assert_list_pairwise(zero_list)
