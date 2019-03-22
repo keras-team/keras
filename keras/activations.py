@@ -130,12 +130,26 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
 
 def tanh(x):
     """Hyperbolic tangent activation function.
+
+    # Arguments
+        x: Input tensor.
+
+    # Returns
+        The hyperbolic activation:
+        `tanh(x) = (exp(x) - exp(-x)) / (exp(x) + exp(-x))`
+
     """
     return K.tanh(x)
 
 
 def sigmoid(x):
     """Sigmoid activation function.
+
+    # Arguments
+        x: Input tensor.
+
+    # Returns
+        The sigmoid activation: `1 / (1 + exp(-x))`.
     """
     return K.sigmoid(x)
 
@@ -160,12 +174,24 @@ def hard_sigmoid(x):
 
 def exponential(x):
     """Exponential (base e) activation function.
+
+    # Arguments:
+        x: Input tensor.
+
+    # Returns
+        Exponential activation: `exp(x)`.
     """
     return K.exp(x)
 
 
 def linear(x):
     """Linear (i.e. identity) activation function.
+
+    # Arguments
+        x: Input tensor.
+
+    # Returns
+        Input tensor, unchanged.
     """
     return x
 
