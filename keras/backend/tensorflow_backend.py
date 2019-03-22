@@ -14,6 +14,7 @@ from tensorflow.python.ops import functional_ops
 from tensorflow.python.ops import ctc_ops as ctc
 from .common import floatx, epsilon, image_data_format
 
+import sys
 import functools
 import threading
 
@@ -1203,7 +1204,9 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    return tf_state_ops.assign(x, new_x)
+    op = tf_state_ops.assign(x, new_x)
+    with tf.control_dependencies([op]):
+        return tf.identity(x)
 
 
 @symbolic
@@ -1217,7 +1220,9 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    return tf_state_ops.assign_add(x, increment)
+    op = tf_state_ops.assign_add(x, increment)
+    with tf.control_dependencies([op]):
+        return tf.identity(x)
 
 
 @symbolic
@@ -1231,7 +1236,9 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    return tf_state_ops.assign_sub(x, decrement)
+    op = tf_state_ops.assign_sub(x, decrement)
+    with tf.control_dependencies([op]):
+        return tf.identity(x)
 
 
 @symbolic
@@ -2880,6 +2887,7 @@ def get_variable_shape(x):
     return int_shape(x)
 
 
+@symbolic
 def print_tensor(x, message=''):
     """Prints `message` and the tensor value when evaluated.
 
@@ -2899,8 +2907,9 @@ def print_tensor(x, message=''):
     # Returns
         The same tensor `x`, unchanged.
     """
-    # TODO
-    return tf.Print(x, [x], message)
+    op = tf.print(message, x, output_stream=sys.stdout)
+    with tf.control_dependencies([op]):
+        return tf.identity(x)
 
 
 # GRAPH MANIPULATION

@@ -480,11 +480,18 @@ class TestBackend(object):
         else:
             assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
 
-    def test_print_tensor(self):
+    def test_print_tensor(self, capsys):
+        for k in [KTH, KTF]:
+            x = k.placeholder((1, 1))
+            y = k.print_tensor(x, 'msg')
+            fn = k.function([x], [y])
+            _ = fn([np.ones((1, 1))])
+            out, err = capsys.readouterr()
+            # Theano inserts "__str__ = " for no good reason
+            assert out.replace('__str__ = ', '') == 'msg [[1.]]\n'
+
         check_single_tensor_operation('print_tensor', (), WITH_NP)
         check_single_tensor_operation('print_tensor', (2,), WITH_NP)
-        check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
-        check_single_tensor_operation('print_tensor', (1, 2, 3), WITH_NP)
 
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2), WITH_NP)
@@ -581,27 +588,39 @@ class TestBackend(object):
 
     @pytest.mark.skipif(K.backend() == 'theano',
                         reason='theano returns tuples for update ops')
-    def test_update_add(self):
-        x = np.random.randn(3, 4)
+    def test_update(self):
+        x = np.ones((3, 4))
         x_var = K.variable(x)
-        increment = np.random.randn(3, 4)
+        new_x = np.random.random((3, 4))
 
-        x += increment
-        K.eval(K.update_add(x_var, increment))
+        op = K.update(x_var, new_x)
+        K.eval(op)
 
-        assert_allclose(x, K.eval(x_var), atol=1e-05)
+        assert_allclose(new_x, K.eval(x_var), atol=1e-05)
+
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='theano returns tuples for update ops')
+    def test_update_add(self):
+        x = np.ones((3, 4))
+        x_var = K.variable(x)
+        increment = np.random.random((3, 4))
+
+        op = K.update_add(x_var, increment)
+        K.eval(op)
+
+        assert_allclose(x + increment, K.eval(x_var), atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'theano',
                         reason='theano returns tuples for update ops')
     def test_update_sub(self):
-        x = np.random.randn(3, 4)
+        x = np.ones((3, 4))
         x_var = K.variable(x)
-        decrement = np.random.randn(3, 4)
+        decrement = np.random.random((3, 4))
 
-        x -= decrement
-        K.eval(K.update_sub(x_var, decrement))
+        op = K.update_sub(x_var, decrement)
+        K.eval(op)
 
-        assert_allclose(x, K.eval(x_var), atol=1e-05)
+        assert_allclose(x - decrement, K.eval(x_var), atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'cntk',
                         reason='cntk doesn\'t support gradient in this way.')
@@ -712,7 +731,7 @@ class TestBackend(object):
         assert output == [21.]
         assert K.get_session().run(fetches=[x, y]) == [30., 40.]
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='Uses the `options` and `run_metadata` arguments.')
     def test_function_tf_run_options_with_run_metadata(self):
         from tensorflow.core.protobuf import config_pb2
@@ -1363,58 +1382,41 @@ class TestBackend(object):
         assert_allclose(y1, y2, atol=1e-05)
 
     def test_random_normal(self):
-        # test standard normal as well as a normal with a different set of parameters
+        # TODO: make this a parameterized test
         for mean, std in [(0., 1.), (-10., 5.)]:
-            rand = K.eval(K.random_normal((300, 200),
-                                          mean=mean, stddev=std, seed=1337))
-            assert rand.shape == (300, 200)
+            rand = K.eval(K.random_normal((200, 200),
+                                          mean=mean,
+                                          stddev=std))
+            assert rand.shape == (200, 200)
             assert np.abs(np.mean(rand) - mean) < std * 0.015
             assert np.abs(np.std(rand) - std) < std * 0.015
-
-            # test that random_normal also generates different values when used
-            # within a function
-            r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
-            samples = np.array([K.eval(r) for _ in range(200)])
-            assert np.abs(np.mean(samples) - mean) < std * 0.015
-            assert np.abs(np.std(samples) - std) < std * 0.015
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
-        rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
-        assert rand.shape == (200, 100)
+        rand = K.eval(K.random_uniform((200, 200), min_val, max_val))
+        assert rand.shape == (200, 200)
         assert np.abs(np.mean(rand)) < 0.015
         assert max_val - 0.015 < np.max(rand) <= max_val
         assert min_val + 0.015 > np.min(rand) >= min_val
 
-        r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
-        samples = np.array([K.eval(r) for _ in range(200)])
-        assert np.abs(np.mean(samples)) < 0.015
-        assert max_val - 0.015 < np.max(samples) <= max_val
-        assert min_val + 0.015 > np.min(samples) >= min_val
-
     def test_random_binomial(self):
         p = 0.5
-        rand = K.eval(K.random_binomial((200, 100), p))
-        assert rand.shape == (200, 100)
+        rand = K.eval(K.random_binomial((200, 200), p))
+        assert rand.shape == (200, 200)
         assert np.abs(np.mean(rand) - p) < 0.015
         assert np.max(rand) == 1
         assert np.min(rand) == 0
-
-        r = K.random_binomial((10, 10), p)
-        samples = np.array([K.eval(r) for _ in range(200)])
-        assert np.abs(np.mean(samples) - p) < 0.015
-        assert np.max(samples) == 1
-        assert np.min(samples) == 0
 
     def test_truncated_normal(self):
         mean = 0.
         std = 1.
         min_val = -2.
         max_val = 2.
-        rand = K.eval(K.truncated_normal((300, 200),
-                                         mean=mean, stddev=std, seed=1337))
-        assert rand.shape == (300, 200)
+        rand = K.eval(K.truncated_normal((200, 200),
+                                         mean=mean,
+                                         stddev=std))
+        assert rand.shape == (200, 200)
         assert np.abs(np.mean(rand) - mean) < 0.015
         assert np.max(rand) <= max_val
         assert np.min(rand) >= min_val
@@ -2121,16 +2123,6 @@ class TestBackend(object):
         assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
                            np.asarray([-5., -4., 0., 4., 9.],
                                       dtype=np.float32))
-
-    @pytest.mark.skipif(K.backend() != 'tensorflow' or KTF._is_tf_1(),
-                        reason='This test is for tensorflow parallelism.')
-    def test_tensorflow_session_parallelism_settings(self, monkeypatch):
-        for threads in [1, 2]:
-            K.clear_session()
-            monkeypatch.setenv('OMP_NUM_THREADS', str(threads))
-            cfg = K.get_session()._config
-            assert cfg.intra_op_parallelism_threads == threads
-            assert cfg.inter_op_parallelism_threads == threads
 
 
 if __name__ == '__main__':
