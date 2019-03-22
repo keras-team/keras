@@ -2937,6 +2937,7 @@ def print_tensor(x, message=''):
 
 # GRAPH MANIPULATION
 
+
 def function(inputs, outputs, updates=None, **kwargs):
     if _is_tf_1():
         v1_variable_initialization()

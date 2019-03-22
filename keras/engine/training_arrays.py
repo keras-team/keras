@@ -329,7 +329,6 @@ def predict_loop(model, f, ins,
 
             batch_logs = {'batch': batch_index, 'size': len(batch_ids)}
             callbacks._call_batch_hook('predict', 'begin', batch_index, batch_logs)
-            print('ins_batch', ins_batch)
             batch_outs = f(ins_batch)
             batch_outs = to_list(batch_outs)
             if batch_index == 0:

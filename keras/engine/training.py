@@ -1017,7 +1017,7 @@ class Model(Network):
         elif validation_steps:
             do_validation = True
             if self._uses_dynamic_learning_phase():
-                val_inputs = [0.]
+                val_inputs = [0]
 
         # Prepare input arrays and training function.
         if self._uses_dynamic_learning_phase():
