@@ -433,14 +433,18 @@ def test_separable_conv_2d_invalid():
 
 
 @pytest.mark.parametrize(
-    'padding,strides,multiplier',
-    [(padding, strides, multiplier)
+    'padding,strides,multiplier,dilation_rate',
+    [(padding, strides, multiplier, dilation_rate)
      for padding in _convolution_paddings
      for strides in [(1, 1), (2, 2)]
      for multiplier in [1, 2]
-     if not (padding == 'same' and strides != (1, 1))]
+     for dilation_rate in [(1, 1), (2, 2), (2, 1), (1, 2)]
+     if (not (padding == 'same' and strides != (1, 1))
+         and not (dilation_rate != (1, 1) and strides != (1, 1))
+         and not (dilation_rate != (1, 1) and multiplier == dilation_rate[0])
+         and not (dilation_rate != (1, 1) and K.backend() == 'cntk'))]
 )
-def test_depthwise_conv_2d(padding, strides, multiplier):
+def test_depthwise_conv_2d(padding, strides, multiplier, dilation_rate):
     num_samples = 2
     stack_size = 3
     num_row = 7
@@ -450,7 +454,8 @@ def test_depthwise_conv_2d(padding, strides, multiplier):
                kwargs={'kernel_size': (3, 3),
                        'padding': padding,
                        'strides': strides,
-                       'depth_multiplier': multiplier},
+                       'depth_multiplier': multiplier,
+                       'dilation_rate': dilation_rate},
                input_shape=(num_samples,
                             num_row,
                             num_col,
