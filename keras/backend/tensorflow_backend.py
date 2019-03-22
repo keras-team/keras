@@ -603,8 +603,6 @@ def variable(value, dtype=None, name=None, constraint=None):
                [ 3.,  4.]])
     ```
     """
-    if dtype is None:
-        dtype = floatx()
     v = tf_keras_backend.variable(
         value, dtype=dtype, name=name, constraint=constraint)
     if hasattr(value, 'tocoo'):
@@ -629,10 +627,8 @@ def constant(value, dtype=None, shape=None, name=None):
     # Returns
         A Constant Tensor.
     """
-    if dtype is None:
-        dtype = floatx()
-    with tf_ops.init_scope():
-        return tf.constant(value, dtype=dtype, shape=shape, name=name)
+    return tf_keras_backend.constant(
+        value, dtype=dtype, shape=shape, name=name)
 
 
 def is_keras_tensor(x):
