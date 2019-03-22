@@ -431,10 +431,11 @@ class TestBackend(object):
                     assert y._keras_shape == K.int_shape(y)
 
     def test_tile(self):
-        shape = (3, 4)
-        arr = np.arange(np.prod(shape)).reshape(shape)
-        check_single_tensor_operation('tile', arr, WITH_NP, n=[2, 1])
-        check_single_tensor_operation('tile', (2, 5), WITH_NP, n=[5, 2])
+        check_single_tensor_operation('tile', (3, 4), WITH_NP, n=2)
+        check_single_tensor_operation('tile', (3, 4), WITH_NP, n=(2, 1))
+        check_single_tensor_operation('tile', (3, 4, 5), WITH_NP, n=2)
+        check_single_tensor_operation('tile', (3, 4, 5), WITH_NP, n=(1, 2))
+        check_single_tensor_operation('tile', (3, 4, 5), WITH_NP, n=(3, 1, 2))
 
         # test theano shape inference when
         # input shape has None entries
@@ -516,11 +517,6 @@ class TestBackend(object):
         check_single_tensor_operation('std', (4, 2), WITH_NP, axis=1, keepdims=True)
         check_single_tensor_operation('std', (4, 2, 3), WITH_NP, axis=[1, -1])
 
-        check_single_tensor_operation('logsumexp', (4, 2), WITH_NP)
-        check_single_tensor_operation('logsumexp', (4, 2),
-                                      WITH_NP, axis=1, keepdims=True)
-        check_single_tensor_operation('logsumexp', (4, 2, 3), WITH_NP, axis=[1, -1])
-
         check_single_tensor_operation('prod', (4, 2), WITH_NP)
         check_single_tensor_operation('prod', (4, 2), WITH_NP, axis=1, keepdims=True)
         check_single_tensor_operation('prod', (4, 2, 3), WITH_NP, axis=[1, -1])
@@ -572,10 +568,13 @@ class TestBackend(object):
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
                                                       'cumsum and cumprod yet')
-    def test_cumsum_cumprod(self):
+    def test_cumsum(self):
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
 
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
+                                                      'cumprod yet')
+    def test_cumprod(self):
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
 
@@ -1039,29 +1038,21 @@ class TestBackend(object):
             # not updated last timestep:
             assert_allclose(K.eval(last_states[0]), expected_last_state)
 
-    @pytest.mark.parametrize('x_np,axis,keepdims', [
-        (np.array([1.1, 0.8, 0.9]), 0, False),
-        (np.array([[1.1, 0.8, 0.9]]), 0, False),
-        (np.array([[1.1, 0.8, 0.9]]), 1, False),
-        (np.array([[1.1, 0.8, 0.9]]), -1, False),
-        (np.array([[1.1, 0.8, 0.9]]), 1, True),
-        (np.array([[1.1], [1.2]]), 0, False),
-        (np.array([[1.1], [1.2]]), 1, False),
-        (np.array([[1.1], [1.2]]), -1, False),
-        (np.array([[1.1], [1.2]]), -1, True),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), None, False),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 0, False),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), 1, False),
-        (np.array([[1.1, 1.2, 1.3], [0.9, 0.7, 1.4]]), -1, False),
-    ])
-    def test_logsumexp(self, x_np, axis, keepdims):
-        '''
-        Check if K.logsumexp works properly for values close to one.
-        '''
-        x = K.variable(x_np)
-        assert_allclose(K.eval(K.logsumexp(x, axis=axis, keepdims=keepdims)),
-                        np.log(np.sum(np.exp(x_np), axis=axis, keepdims=keepdims)),
-                        rtol=1e-5)
+    @pytest.mark.parametrize('shape', [(3, ), (1, 3), (2, 1), (4, 2), (4, 2, 3)])
+    def test_logsumexp(self, shape):
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=None)
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=0)
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=-1)
+        check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=-1,
+                                      keepdims=True)
+        if len(shape) > 1:
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=1)
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=1,
+                                          keepdims=True)
+        if len(shape) > 2:
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=[1, -1])
+            check_single_tensor_operation('logsumexp', shape, WITH_NP, axis=[1, -1],
+                                          keepdims=True)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='The optimization is applied only with TensorFlow.')
@@ -1173,6 +1164,7 @@ class TestBackend(object):
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=1)
 
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):
         batch_size = 20
         num_classes = 10
@@ -1183,10 +1175,10 @@ class TestBackend(object):
 
         # (k == 0 or k > num_classes) does not raise an error
         # but just return an unmeaningful tensor.
-        for k in range(num_classes + 1):
+        for k in range(1, num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
-                      for b in [KTH, KTF]]
+                      for b in WITH_NP]
             assert_list_pairwise(z_list)
 
         # Identical prediction test case:
@@ -1201,7 +1193,7 @@ class TestBackend(object):
         for k in range(1, num_classes + 1):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
-                      for b in [KTH, KTF]]
+                      for b in WITH_NP]
             assert_list_pairwise(z_list)
 
     @pytest.mark.parametrize('op,input_shape,kernel_shape,padding,data_format', [

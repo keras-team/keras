@@ -843,11 +843,9 @@ def tile(x, n):
 
     shape = int_shape(x)
     num_dynamic_axis = _get_dynamic_axis_num(x)
-    # Padding the axis
-    if len(n) < len(shape):
+    if len(n) < len(shape):  # Padding the axis
         n = tuple([1 for _ in range(len(shape) - len(n))]) + n
-
-    if len(n) != len(shape):
+    elif len(n) != len(shape):
         raise NotImplementedError
 
     i = num_dynamic_axis
@@ -1881,8 +1879,6 @@ def pool2d(x, pool_size, strides=(1, 1),
     data_format = normalize_data_format(data_format)
 
     padding = _preprocess_border_mode(padding)
-    strides = strides
-    pool_size = pool_size
     x = _preprocess_conv2d_input(x, data_format)
     if pool_mode == 'max':
         x = C.pooling(
@@ -2735,7 +2731,14 @@ def to_dense(tensor):
 
 
 def cumsum(x, axis=0):
-    raise NotImplementedError
+    dim = x.shape[axis]
+    U = C.constant(np.triu(np.ones((dim, dim))).astype(x.dtype))
+    if axis != -1:
+        x = C.swapaxes(x, -1, axis)
+    out = C.times(x, U)
+    if axis != -1:
+        out = C.swapaxes(out, -1, axis)
+    return out
 
 
 def cumprod(x, axis=0):

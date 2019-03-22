@@ -586,6 +586,7 @@ def test_saving_model_with_long_weights_names():
     f = x
     for i in range(4):
         f = Dense(2, name='nested_model_dense_%d' % (i,))(f)
+    f = Dense(2, name='nested_model_dense_4', trainable=False)(f)
     # This layer name will make the `weights_name`
     # HDF5 attribute blow out of proportion.
     f = Dense(2, name='nested_model_output' + ('x' * (2**15)))(f)
