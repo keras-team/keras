@@ -757,11 +757,12 @@ def ones(shape, dtype=None, name=None):
     return v
 
 
-def eye(size, dtype=None, name=None):
+def eye(N, M=None, dtype=None, name=None):
     """Instantiate an identity matrix and returns it.
 
     # Arguments
-        size: Integer, number of rows/columns.
+        N: Integer, number of rows.
+        M: Integer, number of columns. If None, defaults to N.
         dtype: String, data type of returned Keras variable.
         name: String, name of returned Keras variable.
 
@@ -782,7 +783,9 @@ def eye(size, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    return variable(tf.eye(size, dtype=tf_dtype), dtype, name)
+    if M is None:
+        M = N
+    return variable(tf.eye(N, M, dtype=tf_dtype), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):

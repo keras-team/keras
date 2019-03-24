@@ -315,12 +315,12 @@ def ones(shape, dtype=None, name=None):
     return variable(np.ones(shape), dtype, name)
 
 
-def eye(size, dtype=None, name=None):
+def eye(N, M=None, dtype=None, name=None):
     """Instantiates an identity matrix.
     """
     if dtype is None:
         dtype = floatx()
-    return variable(np.eye(size), dtype, name)
+    return variable(np.eye(N, M), dtype, name)
 
 
 def ones_like(x, dtype=None, name=None):

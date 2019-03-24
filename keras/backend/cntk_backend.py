@@ -520,10 +520,10 @@ def ones(shape, dtype=None, name=None):
     return variable(value=np.ones(shape, ctype), dtype=dtype, name=name)
 
 
-def eye(size, dtype=None, name=None):
+def eye(N, M=None, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
-    return variable(np.eye(size), dtype, name)
+    return variable(np.eye(N, M), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
