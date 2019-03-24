@@ -556,8 +556,6 @@ class TestBackend(object):
         K.reset_uids()
         assert K.get_uid() == first
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
-                                                      'cumsum and cumprod yet')
     def test_cumsum(self):
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
