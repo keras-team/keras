@@ -621,18 +621,18 @@ def is_sequence(seq):
 def should_run_validation(validation_freq, epoch):
     """Checks if validation should be run this epoch.
 
-    Arguments:
-    validation_freq: Integer or list. If an integer, specifies how many training
-      epochs to run before a new validation run is performed. If a list,
-      specifies the epochs on which to run validation.
-    epoch: Integer, the number of the training epoch just completed.
+    # Arguments
+        validation_freq: Integer or list. If an integer, specifies how many training
+          epochs to run before a new validation run is performed. If a list,
+          specifies the epochs on which to run validation.
+        epoch: Integer, the number of the training epoch just completed.
 
-    Returns:
-    Bool, True if validation should be run.
+    # Returns
+        Bool, True if validation should be run.
 
-    Raises:
-    ValueError: if `validation_freq` is an Integer and less than 1, or if
-    it is neither an Integer nor a Sequence.
+    # Raises
+        ValueError: if `validation_freq` is an Integer and less than 1, or if
+        it is neither an Integer nor a Sequence.
     """
     # `epoch` is 0-indexed internally but 1-indexed in the public API.
     one_indexed_epoch = epoch + 1
