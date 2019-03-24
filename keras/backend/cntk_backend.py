@@ -2731,6 +2731,8 @@ def to_dense(tensor):
 
 
 def cumsum(x, axis=0):
+    warnings.warn('Warning: CNTK does not support a native \`cumsum\` operation. '
+                  'This non-native \`cumsum\` may not be fully optimized. ')
     dim = x.shape[axis]
     U = C.constant(np.triu(np.ones((dim, dim))).astype(x.dtype))
     if axis != -1:
@@ -2742,7 +2744,24 @@ def cumsum(x, axis=0):
 
 
 def cumprod(x, axis=0):
-    raise NotImplementedError
+    warnings.warn('Warning: CNTK does not support a native \`cumprod\` operation. '
+                  'This non-native \`cumprod\` may not be fully optimized. ')
+    shape = x.shape
+    out = x
+    for rep in range(shape[axis] - 1):
+        sliced_shape = list(shape)
+        sliced_shape[axis] = rep + 1
+        if axis == 0:
+            _x = x[rep:(rep+1)]
+        elif axis == 1:
+            _x = x[:, rep:(rep+1)]
+        elif axis == 2:
+            _x = x[:, :, rep:(rep+1)]
+        y = concatenate([ones(sliced_shape, dtype=x.dtype),
+                         repeat_elements(_x, rep=shape[axis]-1-rep, axis=axis)],
+                        axis=axis)
+        out = C.element_times(out, y)
+    return out
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
