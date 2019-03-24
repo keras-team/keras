@@ -2752,13 +2752,13 @@ def cumprod(x, axis=0):
         sliced_shape = list(shape)
         sliced_shape[axis] = rep + 1
         if axis == 0:
-            _x = x[rep:(rep+1)]
+            _x = x[rep:(rep + 1)]
         elif axis == 1:
-            _x = x[:, rep:(rep+1)]
+            _x = x[:, rep:(rep + 1)]
         elif axis == 2:
-            _x = x[:, :, rep:(rep+1)]
+            _x = x[:, :, rep:(rep + 1)]
         y = concatenate([ones(sliced_shape, dtype=x.dtype),
-                         repeat_elements(_x, rep=shape[axis]-1-rep, axis=axis)],
+                         repeat_elements(_x, rep=shape[axis] - 1 - rep, axis=axis)],
                         axis=axis)
         out = C.element_times(out, y)
     return out
