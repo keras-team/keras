@@ -523,7 +523,11 @@ def ones(shape, dtype=None, name=None):
 def eye(size, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
-    return variable(np.eye(size), dtype, name)
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return variable(np.eye(n, m), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):

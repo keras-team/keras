@@ -250,24 +250,18 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.set_learning_phase(2)
 
-    def test_eye(self):
+    def test_creation_operations(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('eye', (3, 2), WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('eye', (3, 4), WITH_NP, shape_or_val=False)
 
-    def test_ones(self):
         check_single_tensor_operation('ones', (3, 5, 10, 8),
                                       WITH_NP, shape_or_val=False)
-
-    def test_zeros(self):
         check_single_tensor_operation('zeros', (3, 5, 10, 8),
                                       WITH_NP, shape_or_val=False)
 
-    def test_ones_like(self):
-        check_single_tensor_operation('ones_like', (3, 5, 10, 8),
-                                      WITH_NP, shape_or_val=True)
-
-    def test_zeros_like(self):
-        check_single_tensor_operation('zeros_like', (3, 5, 10, 8),
-                                      WITH_NP, shape_or_val=True)
+        check_single_tensor_operation('ones_like', (3, 5, 10, 8), WITH_NP)
+        check_single_tensor_operation('zeros_like', (3, 5, 10, 8), WITH_NP)
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
