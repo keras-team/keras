@@ -284,11 +284,7 @@ class Identity(Initializer):
             raise ValueError(
                 'Identity matrix initializer can only be used for 2D matrices.')
 
-<<<<<<< HEAD
         return self.gain * K.eye((shape[0], shape[1]), dtype=dtype)
-=======
-        return self.gain * np.eye(shape[0], shape[1], dtype=dtype)
->>>>>>> aa6ab9b8ca49e88c1e5d6a32386ddbce456a1438
 
     def get_config(self):
         return {
