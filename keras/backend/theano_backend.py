@@ -1314,6 +1314,11 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
+    elif isinstance(axes, tuple):
+        axes = list(axes)
+    for i in range(len(axes)):
+        if axes[i] == -1:
+            axes[i] = x.ndim - 1
     slices = []
     for i in range(x.ndim):
         if i in axes:
