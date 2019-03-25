@@ -369,9 +369,6 @@ class TestBackend(object):
             assert_allclose(z, z_np, atol=1e-05)
 
     def test_shape_operations(self):
-        check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
-                                   axis=-1, concat_args=True)
-
         check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), WITH_NP,
                                       pattern=(2, 0, 1))
@@ -1924,21 +1921,20 @@ class TestBackend(object):
         assert k_s_d.shape == k_d.shape
         assert_allclose(k_s_d, k_d, atol=1e-05)
 
-    def test_stack(self):
-        tensor_list = [np.random.randn(5, 4, 6, 10) for _ in range(5)]
-        stack_axis = 3
-        results = []
-        if WITH_NP[0] == KC:
-            check_two_tensor_operation('stack', (5, 4, 6, 10),
-                                       (5, 4, 6, 10), WITH_NP,
-                                       axis=stack_axis, concat_args=True)
-        else:
-            for k in WITH_NP:
-                tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
-                out = k.eval(k.stack(tensor_list_var, axis=stack_axis))
-                results.append(out)
-
-            assert_list_pairwise(results)
+    @pytest.mark.parametrize('shape,shape2,axis', [
+        ((5, 2), (7, 2), 0),
+        ((5, 4, 6), (5, 3, 6), 1),
+        ((5, 4, 6, 10), (5, 4, 6, 2), 3),
+        ((5, 4, 6, 3), (5, 4, 6, 2), -1),
+    ])
+    def test_concat_operations(self, shape, shape2, axis):
+        # In stack, each array must have the same shape.
+        check_two_tensor_operation('stack', shape, shape, WITH_NP,
+                                   axis=axis, concat_args=True)
+        check_two_tensor_operation('concatenate', shape, shape2, WITH_NP,
+                                   axis=axis, concat_args=True)
+        check_two_tensor_operation('concatenate', shape, shape2, WITH_NP,
+                                   axis=axis, concat_args=True)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_map(self):
