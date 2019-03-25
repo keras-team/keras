@@ -1760,23 +1760,14 @@ class TestBackend(object):
         assert np.alltrue(decode_pred_np == decode_pred)
         assert np.allclose(log_prob_pred_np, log_prob_pred)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
-                        reason='tensorflow-way slice is '
-                        'only supported in tensorflow.')
-    @pytest.mark.parametrize('x_size', [
+    @pytest.mark.parametrize('size', [
         [1, 1, 3],
         [1, 2, 3],
         [2, 1, 3]
     ])
-    def test_slice(self, x_size):
-        npt = np.array([[[1, 1, 1], [2, 2, 2]],
-                       [[3, 3, 3], [4, 4, 4]],
-                       [[5, 5, 5], [6, 6, 6]]])
-        x_start = [1, 0, 0]
-        tft = K.constant(npt)
-        test_input = K.eval(K.slice(tft, x_start, x_size))
-        expected = KNP.slice(npt, x_start, x_size)
-        assert np.allclose(test_input, expected)
+    def test_slice(self, size):
+        check_single_tensor_operation('slice', (3, 2, 3), WITH_NP,
+                                      start=[1, 0, 0], size=size)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Beam search is only implemented with '

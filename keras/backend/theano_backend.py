@@ -1320,7 +1320,9 @@ def reverse(x, axes):
 
 
 def slice(x, start, size):
-    raise NotImplementedError
+    out = x[tuple([py_slice(i, i + j) for (i, j) in zip(start, size)])]
+    out._keras_shape = tuple(size)
+    return out
 
 
 def pattern_broadcast(x, broadcastable):
