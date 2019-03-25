@@ -761,8 +761,7 @@ def eye(size, dtype=None, name=None):
     """Instantiate an identity matrix and returns it.
 
     # Arguments
-        N: Integer, number of rows.
-        M: Integer, number of columns. If None, defaults to N.
+        size: Tuple, number of rows and columns. If Integer, number of rows.
         dtype: String, data type of returned Keras variable.
         name: String, name of returned Keras variable.
 
@@ -772,11 +771,13 @@ def eye(size, dtype=None, name=None):
     # Example
     ```python
         >>> from keras import backend as K
-        >>> kvar = K.eye(3)
-        >>> K.eval(kvar)
+        >>> K.eval(K.eye(3))
         array([[ 1.,  0.,  0.],
                [ 0.,  1.,  0.],
                [ 0.,  0.,  1.]], dtype=float32)
+        >>> K.eval(K.eye((2, 3)))
+        array([[1., 0., 0.],
+               [0., 1., 0.]], dtype=float32)
     ```
     {{np_implementation}}
     """
