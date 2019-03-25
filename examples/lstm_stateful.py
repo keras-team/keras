@@ -86,7 +86,7 @@ def gen_uniform_amp(amp=1, xn=10000):
     -amp and +amp
     and of length xn
 
-    Arguments:
+    # Arguments
         amp: maximum/minimum range of uniform data
         xn: length of series
     """

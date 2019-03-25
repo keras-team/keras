@@ -253,24 +253,18 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.set_learning_phase(2)
 
-    def test_eye(self):
+    def test_creation_operations(self):
         check_single_tensor_operation('eye', 3, WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('eye', (3, 2), WITH_NP, shape_or_val=False)
+        check_single_tensor_operation('eye', (3, 4), WITH_NP, shape_or_val=False)
 
-    def test_ones(self):
         check_single_tensor_operation('ones', (3, 5, 10, 8),
                                       WITH_NP, shape_or_val=False)
-
-    def test_zeros(self):
         check_single_tensor_operation('zeros', (3, 5, 10, 8),
                                       WITH_NP, shape_or_val=False)
 
-    def test_ones_like(self):
-        check_single_tensor_operation('ones_like', (3, 5, 10, 8),
-                                      WITH_NP, shape_or_val=True)
-
-    def test_zeros_like(self):
-        check_single_tensor_operation('zeros_like', (3, 5, 10, 8),
-                                      WITH_NP, shape_or_val=True)
+        check_single_tensor_operation('ones_like', (3, 5, 10, 8), WITH_NP)
+        check_single_tensor_operation('zeros_like', (3, 5, 10, 8), WITH_NP)
 
     def test_linear_operations(self):
         check_two_tensor_operation('dot', (4, 2), (2, 4), WITH_NP)
@@ -299,8 +293,8 @@ class TestBackend(object):
 
         check_single_tensor_operation('transpose', (4, 2), WITH_NP)
         check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
-        if K.backend() != 'cntk':
-            check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(0, -1))
 
     def test_random_variables(self):
         check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
@@ -571,14 +565,10 @@ class TestBackend(object):
         K.reset_uids()
         assert K.get_uid() == first
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
-                                                      'cumsum and cumprod yet')
     def test_cumsum(self):
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
-                                                      'cumprod yet')
     def test_cumprod(self):
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
@@ -1146,31 +1136,28 @@ class TestBackend(object):
         check_single_tensor_operation('softmax', (4, 5, 3), WITH_NP, axis=1)
         check_single_tensor_operation('softmax', (4, 5, 3, 10), WITH_NP, axis=2)
 
-        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2),
-                                   WITH_NP, from_logits=True)
-        # cross_entropy call require the label is a valid probability distribution,
-        # otherwise it is garbage in garbage out...
-        # due to the algo difference, we can't guarantee CNTK has the same result
-        # on the garbage input.
-        # so create a separate test case for valid label input
-        if K.backend() != 'cntk':
-            check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2),
-                                       WITH_NP, from_logits=True)
-        xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
-                           [0.20225059, -0.38956559], [-0.13805378, 0.08506755]],
-                          dtype=np.float32)
-        yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
-                           [0.64916514, 0.35083486], [0.47028078, 0.52971922]],
-                          dtype=np.float32)
-        check_two_tensor_operation('categorical_crossentropy', yval, xval, WITH_NP,
-                                   cntk_two_dynamicity=True, from_logits=True)
-        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2),
-                                   WITH_NP, from_logits=False)
-        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2),
-                                   WITH_NP, from_logits=False)
-
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=1)
+
+    def test_crossentropy(self):
+        # toy label matrix (4 samples, 2 classes)
+        label = np.array([[.4, .6], [.3, .7], [.1, .9], [.2, .8]], dtype=np.float32)
+        check_two_tensor_operation('binary_crossentropy', label, (4, 2), WITH_NP)
+        check_two_tensor_operation('binary_crossentropy', label, (4, 2),
+                                   WITH_NP, from_logits=True)
+        check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
+                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
+                                   WITH_NP, cntk_two_dynamicity=True,
+                                   from_logits=True)
+
+        # toy label matrix (2 samples, 3 classes)
+        label = np.array([[.4, .1, .5], [.2, .6, .2]], dtype=np.float32)
+        check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
+                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
+                                   WITH_NP, cntk_two_dynamicity=True,
+                                   from_logits=True)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):

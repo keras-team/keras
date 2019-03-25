@@ -169,7 +169,7 @@ def plot_model(model,
         expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
 
-    # Returns:
+    # Returns
         A Jupyter notebook Image object if Jupyter is installed.
         This enables in-line display of the model plots in notebooks.
     """

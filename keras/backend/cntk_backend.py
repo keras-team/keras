@@ -523,7 +523,11 @@ def ones(shape, dtype=None, name=None):
 def eye(size, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
-    return variable(np.eye(size), dtype, name)
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return variable(np.eye(n, m), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
@@ -2742,7 +2746,22 @@ def cumsum(x, axis=0):
 
 
 def cumprod(x, axis=0):
-    raise NotImplementedError
+    shape = x.shape
+    out = x
+    for rep in range(shape[axis] - 1):
+        sliced_shape = list(shape)
+        sliced_shape[axis] = rep + 1
+        if axis == 0:
+            _x = x[rep:(rep + 1)]
+        elif axis == 1:
+            _x = x[:, rep:(rep + 1)]
+        elif axis == 2:
+            _x = x[:, :, rep:(rep + 1)]
+        y = concatenate([ones(sliced_shape, dtype=x.dtype),
+                         repeat_elements(_x, rep=shape[axis] - 1 - rep, axis=axis)],
+                        axis=axis)
+        out = C.element_times(out, y)
+    return out
 
 
 def arange(start, stop=None, step=1, dtype='int32'):
