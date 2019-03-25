@@ -43,10 +43,10 @@ else:
 
 
 def check_dtype(var, dtype):
-    if K.backend() == 'theano':
-        assert var.dtype == dtype
-    else:
+    if K.backend() == 'tensorflow':
         assert var.dtype.name == '%s_ref' % dtype
+    else:
+        assert var.dtype == dtype
 
 
 def cntk_func_tensors(function_name, shapes_or_vals, **kwargs):
