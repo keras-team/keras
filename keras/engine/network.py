@@ -960,7 +960,7 @@ class Network(Layer):
         def add_unprocessed_node(layer, node_data):
             """Add node to layer list
 
-            Args:
+            # Arguments
                 layer: layer object
                 node_data: Node data specifying layer call
             """
@@ -972,11 +972,11 @@ class Network(Layer):
         def process_node(layer, node_data):
             """Reconstruct node by linking to inbound layers
 
-            Args:
+            # Arguments
                 layer: Layer to process
                 node_data: List of layer configs
 
-            Raises:
+            # Raises
                 ValueError: For incorrect layer config
                 LookupError: If layer required is not found
             """

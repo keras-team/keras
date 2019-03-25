@@ -175,7 +175,7 @@ def hard_sigmoid(x):
 def exponential(x):
     """Exponential (base e) activation function.
 
-    # Arguments:
+    # Arguments
         x: Input tensor.
 
     # Returns
