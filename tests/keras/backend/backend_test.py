@@ -2079,14 +2079,17 @@ class TestBackend(object):
             with pytest.raises(TypeError):
                 K.variable('', dtype='unsupported')
 
-    def test_clip_supports_tensor_arguments(self):
+    @pytest.mark.parametrize('shape', [(4, 2), (2, 3)])
+    def test_clip_supports_tensor_arguments(self, shape):
         # GitHub issue: 11435
-        x = K.variable([-10., -5., 0., 5., 10.])
-        min_value = K.variable([-5., -4., 0., 3., 5.])
-        max_value = K.variable([5., 4., 1., 4., 9.])
-
-        assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
-                           np.asarray([-5., -4., 0., 4., 9.], dtype=np.float32))
+        _, x = parse_shape_or_val(shape)
+        _, min_val = parse_shape_or_val(shape)
+        max_val = min_val + 1.
+        x_k = K.variable(x)
+        min_val_k = K.variable(min_val)
+        max_val_k = K.variable(max_val)
+        assert np.allclose(K.eval(K.clip(x_k, min_val_k, max_val_k)),
+                           KNP.eval(KNP.clip(x, min_val, max_val)))
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='This test is for tensorflow parallelism.')
