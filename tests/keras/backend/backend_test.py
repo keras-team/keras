@@ -1760,14 +1760,19 @@ class TestBackend(object):
         assert np.alltrue(decode_pred_np == decode_pred)
         assert np.allclose(log_prob_pred_np, log_prob_pred)
 
-    @pytest.mark.parametrize('size', [
-        [1, 1, 3],
-        [1, 2, 3],
-        [2, 1, 3]
+    @pytest.mark.parametrize('shape,start,size', [
+        ((2, 5), (0, 1), (2, 3)),
+        ((2, 5), (1, 0), (1, 4)),
+        ((3, 2, 3), (1, 1, 0), (1, 1, 3)),
+        ((3, 2, 3), (1, 0, 0), (1, 2, 3)),
+        ((3, 2, 3), (1, 0, 0), (2, 1, 3)),
     ])
-    def test_slice(self, size):
-        check_single_tensor_operation('slice', (3, 2, 3), WITH_NP,
-                                      start=[1, 0, 0], size=size)
+    def test_slice(self, shape, start, size):
+        check_single_tensor_operation('slice', shape, WITH_NP,
+                                      start=start, size=size)
+        with pytest.raises(ValueError):
+            K.slice(K.variable(np.random.random(shape)),
+                    start=[1, 0, 0, 0], size=size)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Beam search is only implemented with '

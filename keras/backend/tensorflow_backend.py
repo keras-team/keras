@@ -2620,6 +2620,8 @@ def slice(x, start, size):
 
     {{np_implementation}}
     """
+    if not (len(int_shape(x)) == len(start) == len(size)):
+        raise ValueError('The dimension and the size of indices should match.')
     return tf.slice(x, start, size)
 
 
