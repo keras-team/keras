@@ -554,8 +554,6 @@ class TestBackend(object):
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP)
         check_single_tensor_operation('cumsum', (4, 2), WITH_NP, axis=1)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='cntk does not support '
-                                                      'cumprod yet')
     def test_cumprod(self):
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP)
         check_single_tensor_operation('cumprod', (4, 2), WITH_NP, axis=1)
