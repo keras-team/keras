@@ -290,8 +290,8 @@ class TestBackend(object):
 
         check_single_tensor_operation('transpose', (4, 2), WITH_NP)
         check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=1)
-        if K.backend() != 'cntk':
-            check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(1, 2))
+        check_single_tensor_operation('reverse', (4, 3, 2), WITH_NP, axes=(0, -1))
 
     def test_random_variables(self):
         check_single_tensor_operation('random_uniform_variable', (2, 3), WITH_NP,
