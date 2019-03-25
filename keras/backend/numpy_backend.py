@@ -683,8 +683,12 @@ def ones_like(x, dtype=floatx(), name=None):
     return np.ones_like(x, dtype=dtype)
 
 
-def eye(N, M=None, dtype=None, name=None):
-    return np.eye(N, M, dtype=dtype)
+def eye(size, dtype=None, name=None):
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return np.eye(n, m, dtype=dtype)
 
 
 def resize_images(x, height_factor, width_factor, data_format):

@@ -757,7 +757,7 @@ def ones(shape, dtype=None, name=None):
     return v
 
 
-def eye(N, M=None, dtype=None, name=None):
+def eye(size, dtype=None, name=None):
     """Instantiate an identity matrix and returns it.
 
     # Arguments
@@ -783,9 +783,11 @@ def eye(N, M=None, dtype=None, name=None):
     if dtype is None:
         dtype = floatx()
     tf_dtype = tf.as_dtype(dtype)
-    if M is None:
-        M = N
-    return variable(tf.eye(N, M, dtype=tf_dtype), dtype, name)
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return variable(tf.eye(n, m, dtype=tf_dtype), dtype, name)
 
 
 def zeros_like(x, dtype=None, name=None):
