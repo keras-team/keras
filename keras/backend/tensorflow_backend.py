@@ -2624,8 +2624,13 @@ def slice(x, start, size):
         new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
         ```
 
+    # Raises
+        ValueError: if the dimension and the size of indices mismatches.
+
     {{np_implementation}}
     """
+    if not (len(int_shape(x)) == len(start) == len(size)):
+        raise ValueError('The dimension and the size of indices should match.')
     return tf.slice(x, start, size)
 
 
