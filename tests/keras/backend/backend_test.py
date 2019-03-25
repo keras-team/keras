@@ -1415,10 +1415,9 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.conv3d(dummy_x_3d, dummy_w_3d, data_format='channels_middle')
 
-        if K.backend() != 'theano':
-            with pytest.raises(ValueError):
-                K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
-                                   data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
+                               data_format='channels_middle')
 
         with pytest.raises(ValueError):
             K.depthwise_conv2d(dummy_x_2d, dummy_w_2d,
