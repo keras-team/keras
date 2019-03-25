@@ -2731,8 +2731,6 @@ def to_dense(tensor):
 
 
 def cumsum(x, axis=0):
-    warnings.warn('Warning: CNTK does not support a native \`cumsum\` operation. '
-                  'This non-native \`cumsum\` may not be fully optimized. ')
     dim = x.shape[axis]
     U = C.constant(np.triu(np.ones((dim, dim))).astype(x.dtype))
     if axis != -1:
@@ -2744,8 +2742,6 @@ def cumsum(x, axis=0):
 
 
 def cumprod(x, axis=0):
-    warnings.warn('Warning: CNTK does not support a native \`cumprod\` operation. '
-                  'This non-native \`cumprod\` may not be fully optimized. ')
     shape = x.shape
     out = x
     for rep in range(shape[axis] - 1):
