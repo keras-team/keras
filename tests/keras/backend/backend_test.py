@@ -1108,31 +1108,28 @@ class TestBackend(object):
         check_single_tensor_operation('softmax', (4, 5, 3), WITH_NP, axis=1)
         check_single_tensor_operation('softmax', (4, 5, 3, 10), WITH_NP, axis=2)
 
-        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2),
-                                   WITH_NP, from_logits=True)
-        # cross_entropy call require the label is a valid probability distribution,
-        # otherwise it is garbage in garbage out...
-        # due to the algo difference, we can't guarantee CNTK has the same result
-        # on the garbage input.
-        # so create a separate test case for valid label input
-        if K.backend() != 'cntk':
-            check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2),
-                                       WITH_NP, from_logits=True)
-        xval = np.asarray([[0.26157712, 0.0432167], [-0.43380741, 0.30559841],
-                           [0.20225059, -0.38956559], [-0.13805378, 0.08506755]],
-                          dtype=np.float32)
-        yval = np.asarray([[0.46221867, 0.53778133], [0.51228984, 0.48771016],
-                           [0.64916514, 0.35083486], [0.47028078, 0.52971922]],
-                          dtype=np.float32)
-        check_two_tensor_operation('categorical_crossentropy', yval, xval, WITH_NP,
-                                   cntk_two_dynamicity=True, from_logits=True)
-        check_two_tensor_operation('binary_crossentropy', (4, 2), (4, 2),
-                                   WITH_NP, from_logits=False)
-        check_two_tensor_operation('categorical_crossentropy', (4, 2), (4, 2),
-                                   WITH_NP, from_logits=False)
-
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=-1)
         check_single_tensor_operation('l2_normalize', (4, 3), WITH_NP, axis=1)
+
+    def test_crossentropy(self):
+        # toy label matrix (4 samples, 2 classes)
+        label = np.array([[.4, .6], [.3, .7], [.1, .9], [.2, .8]], dtype=np.float32)
+        check_two_tensor_operation('binary_crossentropy', label, (4, 2), WITH_NP)
+        check_two_tensor_operation('binary_crossentropy', label, (4, 2),
+                                   WITH_NP, from_logits=True)
+        check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
+                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
+                                   WITH_NP, cntk_two_dynamicity=True,
+                                   from_logits=True)
+
+        # toy label matrix (2 samples, 3 classes)
+        label = np.array([[.4, .1, .5], [.2, .6, .2]], dtype=np.float32)
+        check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
+                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
+                                   WITH_NP, cntk_two_dynamicity=True,
+                                   from_logits=True)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):
