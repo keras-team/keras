@@ -2363,8 +2363,10 @@ def elu(x, alpha=1.):
 
 def in_top_k(predictions, targets, k):
     _targets = C.one_hot(targets, predictions.shape[-1])
-    result = C.classification_error(predictions, _targets, topN=k)
-    return 1 - C.reshape(result, shape=())
+    result = [C.classification_error(predictions[i], _targets[i], topN=k)
+              for i in range(predictions.shape[0])]
+    result = concatenate(result, axis=-1)
+    return 1 - C.reshape(result, shape=(-1,))
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),

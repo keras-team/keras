@@ -1128,7 +1128,6 @@ class TestBackend(object):
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):
         batch_size = 20
         num_classes = 10
