@@ -1128,7 +1128,6 @@ class TestBackend(object):
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):
         batch_size = 20
         num_classes = 10
@@ -1139,7 +1138,7 @@ class TestBackend(object):
 
         # (k == 0 or k > num_classes) does not raise an error
         # but just return an unmeaningful tensor.
-        for k in range(1, num_classes + 1):
+        for k in range(1, 2 if K.backend() == 'cntk' else (num_classes + 1)):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in WITH_NP]
@@ -1154,7 +1153,7 @@ class TestBackend(object):
             predictions[i, idx_identical] = predictions[i, 0]
         targets = np.zeros(batch_size, dtype='int32')
 
-        for k in range(1, num_classes + 1):
+        for k in range(1, 2 if K.backend() == 'cntk' else (num_classes + 1)):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in WITH_NP]
