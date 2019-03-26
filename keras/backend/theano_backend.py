@@ -101,16 +101,6 @@ def to_dense(tensor):
         return tensor
 
 
-def _is_explicit_shape(shape):
-    if hasattr(shape, '__iter__'):
-        for x in shape:
-            if x is not None:
-                if not isinstance(x, int):
-                    return False
-        return True
-    return False
-
-
 NAME_SCOPE_STACK = []
 
 
@@ -330,7 +320,11 @@ def eye(size, dtype=None, name=None):
     """
     if dtype is None:
         dtype = floatx()
-    return variable(np.eye(size), dtype, name)
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return variable(np.eye(n, m), dtype, name)
 
 
 def ones_like(x, dtype=None, name=None):
@@ -1066,33 +1060,22 @@ def arange(start, stop=None, step=1, dtype='int32'):
 
 
 def tile(x, n):
+    if isinstance(n, int):
+        n = (n,)
+    elif isinstance(n, list):
+        n = tuple(n)
+
     y = T.tile(x, n)
-    if hasattr(x, '_keras_shape'):
-        if _is_explicit_shape(n):
-            output_shape = x._keras_shape[:-len(n)]
-            for i, j in zip(x._keras_shape, n):
-                if i is None:
-                    output_shape += (None,)
-                else:
-                    output_shape += (i * j,)
-        elif isinstance(n, int):
-            output_shape = x._keras_shape[:-1]
-            if x._keras_shape[-1] is None:
-                output_shape += (None,)
-            else:
-                output_shape += (x._keras_shape[-1] * n,)
-        else:
-            # symbolic n
-            if n.ndim == 0:
-                # n is a scalar
-                output_shape = x._keras_shape[:-1] + (None,)
-            elif hasattr(n, '_keras_shape'):
-                # n is a vector
-                n_size = n._keras_shape[0]
-                output_shape = x._keras_shape[:-n_size] + (None,) * n_size
-            else:
-                output_shape = (None,) * x.ndim
-        y._keras_shape = output_shape
+    shape = int_shape(x)
+    if shape is None:
+        return y
+    elif len(n) < len(shape):  # Padding the axis
+        n = tuple([1 for _ in range(len(shape) - len(n))]) + n
+    elif len(n) != len(shape):
+        raise NotImplementedError
+
+    y._keras_shape = tuple([None if a is None else a * b
+                            for (a, b) in zip(shape, n)])
     return y
 
 
@@ -1331,6 +1314,11 @@ def reverse(x, axes):
     """
     if isinstance(axes, int):
         axes = [axes]
+    elif isinstance(axes, tuple):
+        axes = list(axes)
+    for i in range(len(axes)):
+        if axes[i] == -1:
+            axes[i] = x.ndim - 1
     slices = []
     for i in range(x.ndim):
         if i in axes:
@@ -1341,7 +1329,11 @@ def reverse(x, axes):
 
 
 def slice(x, start, size):
-    raise NotImplementedError
+    if not (len(int_shape(x)) == len(start) == len(size)):
+        raise ValueError('The dimension and the size of indices should match.')
+    out = x[tuple([py_slice(i, i + j) for (i, j) in zip(start, size)])]
+    out._keras_shape = tuple(size)
+    return out
 
 
 def pattern_broadcast(x, broadcastable):
@@ -2944,5 +2936,6 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
     raise NotImplementedError
 
 
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1,
+               merge_repeated=False):
     raise NotImplementedError

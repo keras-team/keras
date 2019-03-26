@@ -1,59 +1,68 @@
 """
-#Train a simple CNN-Capsule Network on the CIFAR10 small images dataset.
+This example trains a simple CNN-Capsule Network on the CIFAR10 data set.
 
 Without Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs,
-and 79% after 15 epochs, and overfitting after 20 epochs
+It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs,
+and overfitting after 20 epochs
 
 With Data Augmentation:
-It gets to 75% validation accuracy in 10 epochs,
-and 79% after 15 epochs, and 83% after 30 epochs.
-In my test, highest validation accuracy is 83.79% after 50 epochs.
+It gets to 75% validation accuracy in 10 epochs, 79% after 15 epochs,
+and 83% after 30 epochs.
 
-This is a fast Implement, just 20s/epoch with a gtx 1070 gpu.
+The highest achieved validation accuracy is 83.79% after 50 epochs.
+This is a fast implementation that takes just 20s/epoch on a GTX 1070 GPU.
+
+The paper "Dynamic Routing Between Capsules": https://arxiv.org/abs/1710.09829
 """
-
 from __future__ import print_function
-from keras import backend as K
-from keras.layers import Layer
+
 from keras import activations
+from keras import backend as K
+from keras import layers
 from keras import utils
 from keras.datasets import cifar10
 from keras.models import Model
-from keras.layers import *
 from keras.preprocessing.image import ImageDataGenerator
 
 
-# the squashing function.
-# we use 0.5 in stead of 1 in hinton's paper.
-# if 1, the norm of vector will be zoomed out.
-# if 0.5, the norm will be zoomed in while original norm is less than 0.5
-# and be zoomed out while original norm is greater than 0.5.
 def squash(x, axis=-1):
+    """The Squashing Function.
+    The nonlinear activation function used in Capsule Network
+    # Arguments
+        x: Input Tensor.
+        axis: Integer axis along which the squashing function is to be applied.
+
+    # Returns
+        Tensor with scaled value of the input tensor
+    """
     s_squared_norm = K.sum(K.square(x), axis, keepdims=True) + K.epsilon()
     scale = K.sqrt(s_squared_norm) / (0.5 + s_squared_norm)
     return scale * x
 
 
-# define our own softmax function instead of K.softmax
-# because K.softmax can not specify axis.
-def softmax(x, axis=-1):
-    ex = K.exp(x - K.max(x, axis=axis, keepdims=True))
-    return ex / K.sum(ex, axis=axis, keepdims=True)
-
-
-# define the margin loss like hinge loss
 def margin_loss(y_true, y_pred):
+    """Margin loss
+
+    # Arguments
+        y_true: tensor of true targets.
+        y_pred: tensor of predicted targets.
+
+    # Returns
+        Tensor with one scalar loss entry per sample.
+    """
     lamb, margin = 0.5, 0.1
     return K.sum(y_true * K.square(K.relu(1 - margin - y_pred)) + lamb * (
         1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
 
 
-class Capsule(Layer):
-    """A Capsule Implement with Pure Keras
-    There are two vesions of Capsule.
-    One is like dense layer (for the fixed-shape input),
-    and the other is like timedistributed dense (for various length input).
+class Capsule(layers.Layer):
+    """Capsule Network
+
+    A Capsule Network Layer implementation in Keras
+    There are two versions of Capsule Networks.
+    One is similar to dense layer (for the fixed-shape input),
+    and the other is similar to time distributed dense layer
+    (for inputs of varied length).
 
     The input shape of Capsule must be (batch_size,
                                         input_num_capsule,
@@ -63,9 +72,15 @@ class Capsule(Layer):
                              num_capsule,
                              dim_capsule
                             )
+    The Capsule implementation is from https://github.com/bojone/Capsule/
 
-    Capsule Implement is from https://github.com/bojone/Capsule/
-    Capsule Paper: https://arxiv.org/abs/1710.09829
+
+    # Arguments
+        num_capsule: An integer, the number of capsules.
+        dim_capsule: An integer, the dimensions of the capsule.
+        routings: An integer, the number of routings.
+        share_weights: A boolean, sets weight sharing between layers.
+        activation: A string, the activation function to be applied.
     """
 
     def __init__(self,
@@ -103,17 +118,17 @@ class Capsule(Layer):
                 initializer='glorot_uniform',
                 trainable=True)
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         """Following the routing algorithm from Hinton's paper,
         but replace b = b + <u,v> with b = <u,v>.
 
-        This change can improve the feature representation of Capsule.
+        This change can improve the feature representation of the capsule.
 
         However, you can replace
             b = K.batch_dot(outputs, hat_inputs, [2, 3])
         with
             b += K.batch_dot(outputs, hat_inputs, [2, 3])
-        to realize a standard routing.
+        to get standard routing.
         """
 
         if self.share_weights:
@@ -129,18 +144,18 @@ class Capsule(Layer):
         hat_inputs = K.permute_dimensions(hat_inputs, (0, 2, 1, 3))
 
         b = K.zeros_like(hat_inputs[:, :, :, 0])
+        print(self.routings)
         for i in range(self.routings):
-            c = softmax(b, 1)
+            c = K.softmax(b, 1)
             o = self.activation(K.batch_dot(c, hat_inputs, [2, 2]))
             if i < self.routings - 1:
                 b = K.batch_dot(o, hat_inputs, [2, 3])
                 if K.backend() == 'theano':
                     o = K.sum(o, axis=1)
-
         return o
 
     def compute_output_shape(self, input_shape):
-        return (None, self.num_capsule, self.dim_capsule)
+        return None, self.num_capsule, self.dim_capsule
 
 
 batch_size = 128
@@ -155,34 +170,30 @@ x_test /= 255
 y_train = utils.to_categorical(y_train, num_classes)
 y_test = utils.to_categorical(y_test, num_classes)
 
-# A common Conv2D model
-input_image = Input(shape=(None, None, 3))
-x = Conv2D(64, (3, 3), activation='relu')(input_image)
-x = Conv2D(64, (3, 3), activation='relu')(x)
-x = AveragePooling2D((2, 2))(x)
-x = Conv2D(128, (3, 3), activation='relu')(x)
-x = Conv2D(128, (3, 3), activation='relu')(x)
+# A simple Conv2D model
+input_image = layers.Input(shape=(None, None, 3))
+x = layers.Conv2D(64, (3, 3), activation='relu')(input_image)
+x = layers.Conv2D(64, (3, 3), activation='relu')(x)
+x = layers.AveragePooling2D((2, 2))(x)
+x = layers.Conv2D(128, (3, 3), activation='relu')(x)
+x = layers.Conv2D(128, (3, 3), activation='relu')(x)
 
+# Now, we reshape it to (batch_size, input_num_capsule, input_dim_capsule)
+# then connect a capsule layer.
+# The output of final model is the lengths of 10 capsules, which have 16 dimensions.
+# The length of the output vector of the capsule expresses the probability of
+# existence of the entity, so the problem becomes a 10 two-classification problem.
 
-"""now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
-then connect a Capsule layer.
-
-the output of final model is the lengths of 10 Capsule, whose dim=16.
-
-the length of Capsule is the proba,
-so the problem becomes a 10 two-classification problem.
-"""
-
-x = Reshape((-1, 128))(x)
+x = layers.Reshape((-1, 128))(x)
 capsule = Capsule(10, 16, 3, True)(x)
-output = Lambda(lambda z: K.sqrt(K.sum(K.square(z), 2)))(capsule)
+output = layers.Lambda(lambda z: K.sqrt(K.sum(K.square(z), 2)))(capsule)
 model = Model(inputs=input_image, outputs=output)
 
-# we use a margin loss
+# Margin loss is used
 model.compile(loss=margin_loss, optimizer='adam', metrics=['accuracy'])
 model.summary()
 
-# we can compare the performance with or without data augmentation
+# Compare the performance with and without data augmentation
 data_augmentation = True
 
 if not data_augmentation:
@@ -196,7 +207,7 @@ if not data_augmentation:
         shuffle=True)
 else:
     print('Using real-time data augmentation.')
-    # This will do preprocessing and realtime data augmentation:
+    # This will do preprocessing and real-time data augmentation:
     datagen = ImageDataGenerator(
         featurewise_center=False,  # set input mean to 0 over the dataset
         samplewise_center=False,  # set each sample mean to 0

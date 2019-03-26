@@ -1,38 +1,40 @@
-'''Example script showing how to use a stateful LSTM model
-and how its stateless counterpart performs.
+'''
+#How to use a stateful LSTM model, stateful vs stateless LSTM performance comparison
 
-More documentation about the Keras LSTM model can be found at
-https://keras.io/layers/recurrent/#lstm
+[More documentation about the Keras LSTM model](/layers/recurrent/#lstm)
 
 The models are trained on an input/output pair, where
 the input is a generated uniformly distributed
-random sequence of length = "input_len",
-and the output is a moving average of the input with window length = "tsteps".
-Both "input_len" and "tsteps" are defined in the "editable parameters" section.
+random sequence of length = `input_len`,
+and the output is a moving average of the input with window length = `tsteps`.
+Both `input_len` and `tsteps` are defined in the "editable parameters"
+section.
 
-A larger "tsteps" value means that the LSTM will need more memory
+A larger `tsteps` value means that the LSTM will need more memory
 to figure out the input-output relationship.
-This memory length is controlled by the "lahead" variable (more details below).
+This memory length is controlled by the `lahead` variable (more details below).
 
 The rest of the parameters are:
-- input_len: the length of the generated input sequence
-- lahead: the input sequence length that the LSTM
+
+- `input_len`: the length of the generated input sequence
+- `lahead`: the input sequence length that the LSTM
   is trained on for each output point
-- batch_size, epochs: same parameters as in the model.fit(...) function
+- `batch_size`, `epochs`: same parameters as in the `model.fit(...)`
+  function
 
-When lahead > 1, the model input is preprocessed to a "rolling window view"
-of the data, with the window length = "lahead".
-This is similar to sklearn's "view_as_windows"
-with "window_shape" being a single number
-Ref: http://scikit-image.org/docs/0.10.x/api/skimage.util.html#view-as-windows
+When `lahead > 1`, the model input is preprocessed to a "rolling window view"
+of the data, with the window length = `lahead`.
+This is similar to sklearn's `view_as_windows`
+with `window_shape` [being a single number.](
+http://scikit-image.org/docs/0.10.x/api/skimage.util.html#view-as-windows)
 
-When lahead < tsteps, only the stateful LSTM converges because its
+When `lahead < tsteps`, only the stateful LSTM converges because its
 statefulness allows it to see beyond the capability that lahead
 gave it to fit the n-point average. The stateless LSTM does not have
-this capability, and hence is limited by its "lahead" parameter,
+this capability, and hence is limited by its `lahead` parameter,
 which is not sufficient to see the n-point average.
 
-When lahead >= tsteps, both the stateful and stateless LSTM converge.
+When `lahead >= tsteps`, both the stateful and stateless LSTM converge.
 '''
 from __future__ import print_function
 import numpy as np
@@ -84,7 +86,7 @@ def gen_uniform_amp(amp=1, xn=10000):
     -amp and +amp
     and of length xn
 
-    Arguments:
+    # Arguments
         amp: maximum/minimum range of uniform data
         xn: length of series
     """

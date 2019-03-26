@@ -7,7 +7,7 @@ These models have a number of methods and attributes in common:
 - `model.layers` is a flattened list of the layers comprising the model.
 - `model.inputs` is the list of input tensors of the model.
 - `model.outputs` is the list of output tensors of the model.
-- `model.summary()` prints a summary representation of your model. Shortcut for [utils.print_summary](/utils/#print_summary)
+- `model.summary()` prints a summary representation of your model. For layers with multiple outputs, `multiple` is displayed instead of each individual output shape due to size limitations. Shortcut for [utils.print_summary](/utils/#print_summary)
 - `model.get_config()` returns a dictionary containing the configuration of the model. The model can be reinstantiated from its config via:
 
 ```python
