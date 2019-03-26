@@ -2629,7 +2629,9 @@ def slice(x, start, size):
 
     {{np_implementation}}
     """
-    if not (len(int_shape(x)) == len(start) == len(size)):
+    len_start = int_shape(start)[0] if is_tensor(start) else len(start)
+    len_size = int_shape(size)[0] if is_tensor(size) else len(size)
+    if not (len(int_shape(x)) == len_start == len_size):
         raise ValueError('The dimension and the size of indices should match.')
     return tf.slice(x, start, size)
 
