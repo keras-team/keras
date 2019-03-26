@@ -212,13 +212,6 @@ class H5Dict(object):
             _is_path_instance(path)
         )
 
-    @staticmethod
-    def opens_file(path):
-        """Check if `path`, when used for instantiation of a `H5Dict`, will cause
-        `H5Dict` to open a file.
-        """
-        return isinstance(path, six.string_types) or _is_path_instance(path)
-
     def __setitem__(self, attr, val):
         if self.read_only:
             raise ValueError('Cannot set item in read-only mode.')
