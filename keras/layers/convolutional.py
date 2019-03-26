@@ -202,10 +202,10 @@ class _Conv(Layer):
                 stride=self.strides[i],
                 dilation=self.dilation_rate[i])
             new_space.append(new_dim)
-       if self.data_format == 'channels_last':
-           return (input_shape[0],) + tuple(new_space) + (self.filters,)
-       elif self.data_format == 'channels_first':
-           return (input_shape[0], self.filters) + tuple(new_space)
+        if self.data_format == 'channels_last':
+            return (input_shape[0], new_space[0], new_space[1], self.filters)
+        elif self.data_format == 'channels_first':
+            return (input_shape[0], self.filters, new_space[0], new_space[1])
 
 
     def get_config(self):
@@ -1854,25 +1854,25 @@ class DepthwiseConv2D(Conv2D):
         return outputs
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            rows = input_shape[2]
-            cols = input_shape[3]
-            out_filters = input_shape[1] * self.depth_multiplier
-        elif self.data_format == 'channels_last':
-            rows = input_shape[1]
-            cols = input_shape[2]
+        if self.data_format == 'channels_last':
+            space = input_shape[1:-1]
             out_filters = input_shape[3] * self.depth_multiplier
-
-        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
-                                             self.padding,
-                                             self.strides[0])
-        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
-                                             self.padding,
-                                             self.strides[1])
-        if self.data_format == 'channels_first':
-            return (input_shape[0], out_filters, rows, cols)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, out_filters)
+        elif self.data_format == 'channels_first':
+            space = input_shape[2:]
+            out_filters = input_shape[1] * self.depth_multiplier
+        new_space = []
+        for i in range(len(space)):
+            new_dim = conv_utils.conv_output_length(
+                space[i],
+                self.kernel_size[i],
+                padding=self.padding,
+                stride=self.strides[i],
+                dilation=self.dilation_rate[i])
+            new_space.append(new_dim)
+        if self.data_format == 'channels_last':
+            return (input_shape[0], new_space[0], new_space[1], out_filters)
+        elif self.data_format == 'channels_first':
+            return (input_shape[0], out_filters, new_space[0], new_space[1])
 
     def get_config(self):
         config = super(DepthwiseConv2D, self).get_config()
