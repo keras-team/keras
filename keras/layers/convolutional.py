@@ -203,10 +203,9 @@ class _Conv(Layer):
                 dilation=self.dilation_rate[i])
             new_space.append(new_dim)
         if self.data_format == 'channels_last':
-            return (input_shape[0], new_space[0], new_space[1], self.filters)
+            return (input_shape[0],) + tuple(new_space) + (self.filters,)
         elif self.data_format == 'channels_first':
-            return (input_shape[0], self.filters, new_space[0], new_space[1])
-
+            return (input_shape[0], self.filters) + tuple(new_space)
 
     def get_config(self):
         config = {
