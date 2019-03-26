@@ -191,28 +191,22 @@ class _Conv(Layer):
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_last':
             space = input_shape[1:-1]
-            new_space = []
-            for i in range(len(space)):
-                new_dim = conv_utils.conv_output_length(
-                    space[i],
-                    self.kernel_size[i],
-                    padding=self.padding,
-                    stride=self.strides[i],
-                    dilation=self.dilation_rate[i])
-                new_space.append(new_dim)
-            return (input_shape[0],) + tuple(new_space) + (self.filters,)
-        if self.data_format == 'channels_first':
+        elif self.data_format == 'channels_first':
             space = input_shape[2:]
-            new_space = []
-            for i in range(len(space)):
-                new_dim = conv_utils.conv_output_length(
-                    space[i],
-                    self.kernel_size[i],
-                    padding=self.padding,
-                    stride=self.strides[i],
-                    dilation=self.dilation_rate[i])
-                new_space.append(new_dim)
-            return (input_shape[0], self.filters) + tuple(new_space)
+        new_space = []
+        for i in range(len(space)):
+            new_dim = conv_utils.conv_output_length(
+                space[i],
+                self.kernel_size[i],
+                padding=self.padding,
+                stride=self.strides[i],
+                dilation=self.dilation_rate[i])
+            new_space.append(new_dim)
+       if self.data_format == 'channels_last':
+           return (input_shape[0],) + tuple(new_space) + (self.filters,)
+       elif self.data_format == 'channels_first':
+           return (input_shape[0], self.filters) + tuple(new_space)
+
 
     def get_config(self):
         config = {
