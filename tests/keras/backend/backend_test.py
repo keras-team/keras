@@ -44,11 +44,9 @@ else:
 
 def check_dtype(var, dtype):
     if K.backend() == 'tensorflow':
-        assert var.dtype.name == '%s_ref' % dtype
-    elif K.backend() == 'cntk':
-        assert dtype in str(var.dtype)
+        assert dtype in str(var.dtype.name)
     else:
-        assert var.dtype == dtype
+        assert dtype in str(var.dtype)
 
 
 def cntk_func_tensors(function_name, shapes_or_vals, **kwargs):
