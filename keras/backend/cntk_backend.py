@@ -2792,8 +2792,52 @@ def map_fn(fn, elems, name=None, dtype=None):
 
 
 def foldl(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
+    """Reduce elems using fn to combine them from left to right.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance `lambda acc, x: acc + x`
+        elems: tensor
+        initializer: The first value used (`elems[0]` in case of None)
+        name: A string name for the foldl node in the graph
+
+    # Returns
+        Same type and shape as `initializer`
+    """
+    if initializer is None:
+        initializer = elems[0]
+        elems = elems[1:]
+
+    if shape(elems)[0] == 1:
+        return reshape(fn(initializer, elems[0]), shape(initializer)[1:])
+    else:
+        return reshape(foldl(fn, elems[1:],
+                             initializer=fn(initializer, elems[0]),
+                             name=name),
+                       shape(initializer)[1:])
 
 
 def foldr(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
+    """Reduce elems using fn to combine them from right to left.
+
+    # Arguments
+        fn: Callable that will be called upon each element in elems and an
+            accumulator, for instance `lambda acc, x: acc + x`
+        elems: tensor
+        initializer: The first value used (`elems[-1]` in case of None)
+        name: A string name for the foldr node in the graph
+
+    # Returns
+        Same type and shape as `initializer`
+    """
+    if initializer is None:
+        initializer = elems[-1]
+        elems = elems[:-1]
+
+    if shape(elems)[0] == 1:
+        return reshape(fn(initializer, elems[-1]), shape(initializer)[1:])
+    else:
+        return reshape(foldr(fn, elems[:-1],
+                             initializer=fn(initializer, elems[-1]),
+                             name=name),
+                       shape(initializer)[1:])
