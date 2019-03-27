@@ -30,7 +30,7 @@ ResNet1001 v2|111|     - %|            95.08+-.14 %|  -
 from __future__ import print_function
 import keras
 from keras.layers import Dense, Conv2D, BatchNormalization, Activation
-from keras.layers import AveragePooling2D, Input, Flatten, DepthwiseConv2D
+from keras.layers import AveragePooling2D, Input, Flatten
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler, CSVLogger
 from keras.callbacks import ReduceLROnPlateau
