@@ -660,11 +660,17 @@ class ModelCheckpoint(Callback):
             be `min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
         period: Interval (number of epochs) between checkpoints.
+        load_weights_on_restart: Whether the training should restore the model.
+            If True, the model will attempt to load the checkpoint file from
+            `filepath` at the start of `model.fit()`. This saves the need of
+            manually calling `model.load_weights()` before `model.fit(). 
+            The callback gives up loading if the filepath does not exist, and
+            raises ValueError if format does not match. Defaults to False.
     """
 
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
-                 mode='auto', period=1):
+                 mode='auto', period=1, load_weights_on_restart=False):
         super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
@@ -673,6 +679,7 @@ class ModelCheckpoint(Callback):
         self.save_weights_only = save_weights_only
         self.period = period
         self.epochs_since_last_save = 0
+        self.load_weights_on_restart = load_weights_on_restart
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -693,6 +700,15 @@ class ModelCheckpoint(Callback):
             else:
                 self.monitor_op = np.less
                 self.best = np.Inf
+
+    def on_train_begin(self, logs=None):
+        if (self.load_weights_on_restart and self.filepath is not None and
+            os.path.exists(self.filepath)):
+            try:
+              self.model.load_weights(self.filepath)
+            except (IOError, ValueError) as e:
+              raise ValueError('Error loading file from {}. Reason: {}'.format(
+              self.filepath, e))
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
