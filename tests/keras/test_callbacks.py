@@ -491,6 +491,76 @@ def test_ModelCheckpoint(tmpdir):
     os.remove(filepath.format(epoch=2))
     os.remove(filepath.format(epoch=4))
     assert not tmpdir.listdir()
+    
+    
+def _run_load_weights_on_restart_test_common_iterations(self):
+
+    (X_train, y_train), (X_test, y_test) = get_data_callbacks()
+    y_test = np_utils.to_categorical(y_test)
+    y_train = np_utils.to_categorical(y_train)
+
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(loss='categorical_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+
+    filepath = os.path.join(self.get_temp_dir(), 'checkpoint.h5')
+
+    # The filepath shouldn't exist at the beginning.
+    assert not os.path.exists(filepath)
+    model.fit(
+        X_train,
+        epochs=3,
+        callbacks=[
+            callbacks.ModelCheckpoint(
+                filepath=filepath, save_weights_only=True)
+        ])
+
+    # The filepath should exist after fitting with callback.
+    assert os.path.exists(filepath)
+    model.fit(train_ds, epochs=1)
+    weights_after_one_more_epoch = model.get_weights()
+
+    # The filepath should continue to exist after fitting without callback.
+    assert os.path.exists(filepath)
+
+    return model, X_train, filepath, weights_after_one_more_epoch
+
+
+@staticmethod
+def get_ModelCheckpoint_load_weights_on_restart_true_test(save_weights_only):
+
+    def func(self):
+        (model, X_train, filepath, weights_after_one_more_epoch
+        ) = self._run_load_weights_on_restart_test_common_iterations()
+
+        model.fit(
+            X_train,
+            epochs=1,
+            callbacks=[
+                keras.callbacks.ModelCheckpoint(
+                    filepath=filepath,
+                    save_weights_only=save_weights_only,
+                    load_weights_on_restart=True)
+            ])
+        weights_after_model_restoring_and_one_more_epoch = model.get_weights()
+
+        # Asserting the weights one epoch after initial fitting and another epoch
+        # after that are closed, if a ModelCheckpoint with
+        # load_weights_on_restart=True is given (so the model is restored at the
+        # beginning of training).
+        assert_allclose(weights_after_one_more_epoch,
+                            weights_after_model_restoring_and_one_more_epoch)
+
+    return func
+
+test_model_checkpoint_load_weights_on_restart_true_save_weights_only_true = \
+      get_ModelCheckpoint_load_weights_on_restart_true_test.__func__(True)
+
+test_model_checkpoint_load_weights_on_restart_true_save_weights_only_false = \
+      get_ModelCheckpoint_load_weights_on_restart_true_test.__func__(False)
 
 
 def test_EarlyStopping():
