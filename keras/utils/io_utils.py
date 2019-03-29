@@ -374,16 +374,15 @@ h5dict = H5Dict
 
 
 def load_from_binary_h5py(load_function, stream):
-    """Calls `load_function` on a in memory `h5py.File` read from the binary
-    `stream`.
+    """Calls `load_function` on a `h5py.File` read from the binary `stream`.
 
-    # Arguments:
+    # Arguments
         load_function: A function that takes a `h5py.File`, reads from it, and
             returns any object.
         stream: Any file-like object implementing the method `read` that returns
             `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
 
-    # Returns:
+    # Returns
         The object returned by `load_function`.
     """
     # Implementation based on suggestion solution here:
@@ -404,10 +403,11 @@ def load_from_binary_h5py(load_function, stream):
 
 
 def save_to_binary_h5py(save_function, stream):
-    """Calls `save_function` on an in memory `h5py.File` which is subsequently
-    written to the binary `stream`.
+    """Calls `save_function` on an in memory `h5py.File`.
+    
+    The file is subsequently written to the binary `stream`.
 
-     # Arguments:
+     # Arguments
         save_function: A function that takes a `h5py.File`, writes to it and
             (optionally) returns any object.
         stream: Any file-like object implementing the method `write` that accepts
