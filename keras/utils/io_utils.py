@@ -404,7 +404,7 @@ def load_from_binary_h5py(load_function, stream):
 
 def save_to_binary_h5py(save_function, stream):
     """Calls `save_function` on an in memory `h5py.File`.
-    
+
     The file is subsequently written to the binary `stream`.
 
      # Arguments
