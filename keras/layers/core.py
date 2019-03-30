@@ -137,9 +137,9 @@ class Dropout(Layer):
         config = {'rate': self.rate,
                   'noise_shape': self.noise_shape,
                   'seed': self.seed
-                 }
+                  }
         if self.drop_at_test_time:
-            config['drop_at_test_time']=True
+            config['drop_at_test_time'] = True
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -682,7 +682,8 @@ class Lambda(Layer):
                           for shape, dtype in zip(input_shape, self._input_dtypes)]
                     x = self.call(xs)
                 else:
-                    x = K.placeholder(shape=input_shape, dtype=self._input_dtypes)
+                    x = K.placeholder(shape=input_shape,
+                                      dtype=self._input_dtypes)
                     x = self.call(x)
                 if isinstance(x, list):
                     return [K.int_shape(x_elem) for x_elem in x]
