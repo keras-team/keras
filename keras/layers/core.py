@@ -101,11 +101,13 @@ class Dropout(Layer):
     # References
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](
            http://www.jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf)
-        - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](
+        - [Dropout as a Bayesian Approximation: Representing Model Uncertainty 
+           in Deep Learning](
            https://arxiv.org/abs/1506.02142)
     """
     @interfaces.legacy_dropout_support
-    def __init__(self, rate, noise_shape=None, seed=None, drop_at_test_time=False, **kwargs):
+    def __init__(self, rate, noise_shape=None, seed=None, 
+                 drop_at_test_time=False, **kwargs):
         super(Dropout, self).__init__(**kwargs)
         self.rate = min(1., max(0., rate))
         self.noise_shape = noise_shape
