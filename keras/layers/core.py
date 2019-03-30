@@ -136,9 +136,10 @@ class Dropout(Layer):
     def get_config(self):
         config = {'rate': self.rate,
                   'noise_shape': self.noise_shape,
-                  'seed': self.seed,
-                  'drop_at_test_time': self.drop_at_test_time
+                  'seed': self.seed
                  }
+        if self.drop_at_test_time:
+            config['drop_at_test_time']=True
         base_config = super(Dropout, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
