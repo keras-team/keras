@@ -94,11 +94,15 @@ class Dropout(Layer):
             you want the dropout mask to be the same for all timesteps,
             you can use `noise_shape=(batch_size, 1, features)`.
         seed: A Python integer to use as random seed.
-        drop_at_test_time: wether to use
+        drop_at_test_time: if True, apply dropout at test time.
+            Note: This will introduce non-deterministic predictions at 
+            test time, use with caution.
 
     # References
         - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](
            http://www.jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf)
+        - [Dropout as a Bayesian Approximation: Representing Model Uncertainty in Deep Learning](
+           https://arxiv.org/abs/1506.02142)
     """
     @interfaces.legacy_dropout_support
     def __init__(self, rate, noise_shape=None, seed=None, drop_at_test_time=False, **kwargs):
