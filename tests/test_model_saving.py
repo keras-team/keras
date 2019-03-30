@@ -1,8 +1,9 @@
-
+import io
 import pytest
 import os
 import h5py
 import tempfile
+from contextlib import contextmanager
 import numpy as np
 from numpy.testing import assert_allclose
 from numpy.testing import assert_raises
@@ -106,7 +107,7 @@ def test_sequential_model_saving_2():
         assert_allclose(out, new_out, atol=1e-05)
 
 
-def test_functional_model_saving():
+def _get_sample_model_and_input():
     inputs = Input(shape=(3,))
     x = Dense(2)(inputs)
     outputs = Dense(3)(x)
@@ -118,8 +119,13 @@ def test_functional_model_saving():
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
     model.train_on_batch(x, y)
-    out = model.predict(x)
 
+    return model, x
+
+
+def test_functional_model_saving():
+    model, x = _get_sample_model_and_input()
+    out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
     new_model_disk = load_model(fname)
@@ -138,17 +144,7 @@ def test_functional_model_saving():
 
 
 def test_model_saving_to_pre_created_h5py_file():
-    inputs = Input(shape=(3,))
-    x = Dense(2)(inputs)
-    outputs = Dense(3)(x)
-
-    model = Model(inputs, outputs)
-    model.compile(loss=losses.MSE,
-                  optimizer=optimizers.Adam(),
-                  metrics=[metrics.categorical_accuracy])
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
+    model, x = _get_sample_model_and_input()
 
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
@@ -174,44 +170,56 @@ def test_model_saving_to_pre_created_h5py_file():
     assert_allclose(out, out2, atol=1e-05)
 
 
+@contextmanager
+def temp_filename(filename):
+    """Context that returns a temporary filename and deletes the file on exit if
+    it still exists (so that this is not forgotten).
+    """
+    _, temp_fname = tempfile.mkstemp(filename)
+    yield temp_fname
+    if os.path.exists(temp_fname):
+        os.remove(temp_fname)
+
+
 def test_model_saving_to_binary_stream():
-    inputs = Input(shape=(3,))
-    x = Dense(2)(inputs)
-    outputs = Dense(3)(x)
-
-    model = Model(inputs, outputs)
-    model.compile(loss=losses.MSE,
-                  optimizer=optimizers.Adam(),
-                  metrics=[metrics.categorical_accuracy])
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
-
+    model, x = _get_sample_model_and_input()
     out = model.predict(x)
-    _, fname = tempfile.mkstemp('.h5')
-    with h5py.File(fname, mode='r+') as h5file:
-        save_model(model, h5file)
-        loaded_model = load_model(h5file)
-        out2 = loaded_model.predict(x)
+
+    with temp_filename('h5') as fname:
+        # save directly to binary file
+        with open(fname, 'wb') as raw_file:
+            save_model(model, raw_file)
+        # Load the data the usual way, and make sure the model is intact.
+        with h5py.File(fname, mode='r') as h5file:
+            loaded_model = load_model(h5file)
+    out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
-    # Save the model to an in-memory-only h5 file.
-    with h5py.File('does not matter', driver='core',
-                   backing_store=False) as h5file:
-        save_model(model, h5file)
-        h5file.flush()  # Very important! Otherwise you get all zeroes below.
-        binary_data = h5file.fid.get_file_image()
 
-        # Make sure the binary data is correct by saving it to a file manually
-        # and then loading it the usual way.
-        with open(fname, 'wb') as raw_file:
-            raw_file.write(binary_data)
+def test_model_loading_from_binary_stream():
+    model, x = _get_sample_model_and_input()
+    out = model.predict(x)
 
-    # Load the manually-saved binary data, and make sure the model is intact.
-    with h5py.File(fname, mode='r') as h5file:
-        loaded_model = load_model(h5file)
-        out2 = loaded_model.predict(x)
+    with temp_filename('h5') as fname:
+        # save the model the usual way
+        with h5py.File(fname, mode='w') as h5file:
+            save_model(model, h5file)
+        # Load the data binary, and make sure the model is intact.
+        with open(fname, 'rb') as raw_file:
+            loaded_model = load_model(raw_file)
+    out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
 
+
+def test_model_save_load_binary_in_memory():
+    model, x = _get_sample_model_and_input()
+    out = model.predict(x)
+
+    stream = io.BytesIO()
+    save_model(model, stream)
+    stream.seek(0)
+    loaded_model = load_model(stream)
+    out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
 
