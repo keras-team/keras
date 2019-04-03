@@ -328,10 +328,14 @@ def eye(size, dtype=None, name=None):
 
 
 def ones_like(x, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
     return T.ones_like(x, dtype=dtype)
 
 
 def zeros_like(x, dtype=None, name=None):
+    if dtype is None:
+        dtype = floatx()
     return T.zeros_like(x, dtype=dtype)
 
 
