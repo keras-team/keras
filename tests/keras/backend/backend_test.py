@@ -1948,7 +1948,6 @@ class TestBackend(object):
         assert_allclose(x.sum(axis=1), kx, atol=1e-05)
         assert_allclose(kx, kx2, atol=1e-05)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
         kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
@@ -1956,7 +1955,6 @@ class TestBackend(object):
         assert (3,) == kx.shape
         assert_allclose(x.sum(axis=0), kx, atol=1e-05)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_foldr(self):
         # This test aims to make sure that we walk the array from right to left
         # and checks it in the following way: multiplying left to right 1e-40
