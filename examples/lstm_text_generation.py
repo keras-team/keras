@@ -98,7 +98,6 @@ def on_epoch_end(epoch, _):
             next_index = sample(preds, diversity)
             next_char = indices_char[next_index]
 
-            generated += next_char
             sentence = sentence[1:] + next_char
 
             sys.stdout.write(next_char)
