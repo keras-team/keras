@@ -532,12 +532,16 @@ def eye(size, dtype=None, name=None):
 
 def zeros_like(x, dtype=None, name=None):
     name = name or ''
-    return C.zeros_like(x, name)
+    if dtype is None:
+        dtype = floatx()
+    return C.cast(C.zeros_like(x, name), dtype)
 
 
 def ones_like(x, dtype=None, name=None):
     name = name or ''
-    return C.ones_like(x, name)
+    if dtype is None:
+        dtype = floatx()
+    return C.cast(C.ones_like(x, name), dtype)
 
 
 def count_params(x):
