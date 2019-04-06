@@ -41,9 +41,8 @@ print('Indexing word vectors.')
 embeddings_index = {}
 with open(os.path.join(GLOVE_DIR, 'glove.6B.100d.txt')) as f:
     for line in f:
-        values = line.split()
-        word = values[0]
-        coefs = np.asarray(values[1:], dtype='float32')
+        word, coefs = line.split(maxsplit=1)
+        coefs = np.fromstring(coefs, 'f', sep=' ')
         embeddings_index[word] = coefs
 
 print('Found %s word vectors.' % len(embeddings_index))
