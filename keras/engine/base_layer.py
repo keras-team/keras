@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import copy
 import re
 from six.moves import zip
 
@@ -441,7 +440,7 @@ class Layer(object):
 
             # Handle mask propagation.
             previous_mask = _collect_previous_mask(inputs)
-            user_kwargs = copy.copy(kwargs)
+            user_kwargs = kwargs.copy()
             if not is_all_none(previous_mask):
                 # The previous layer generated a mask.
                 if has_arg(self.call, 'mask'):
