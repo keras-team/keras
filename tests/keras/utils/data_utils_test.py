@@ -430,7 +430,7 @@ def test_finite_generator_enqueuer_processes():
 
 @pytest.mark.skipif('TRAVIS_PYTHON_VERSION' in os.environ,
                     reason='Takes 150s to run')
-def test_missing_inputs():
+def DISABLED_test_missing_inputs():
     missing_idx = 10
 
     class TimeOutSequence(DummySequence):
