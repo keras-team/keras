@@ -486,9 +486,6 @@ class TestBackend(object):
             # Theano inserts "__str__ = " for no good reason
             assert out.replace('__str__ = ', '') == 'msg [[1.]]\n'
 
-        check_single_tensor_operation('print_tensor', (), WITH_NP)
-        check_single_tensor_operation('print_tensor', (2,), WITH_NP)
-
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2), WITH_NP)
         check_single_tensor_operation('max', (4, 2), WITH_NP, axis=1, keepdims=True)
@@ -661,7 +658,9 @@ class TestBackend(object):
             x_list.append(x)
             y = k.placeholder(ndim=2)
             exp = k.square(x) + y
-            update = x * 2
+            # Need to use `identity` to make this symbolic
+            # (TODO: fix in tf.keras)
+            update = k.identity(x) * 2
             f = k.function([y], [exp], updates=[(x, update)])
             f_list.append(f)
 
@@ -941,8 +940,8 @@ class TestBackend(object):
         expected_outputs = inputs_vals.copy()
         # but for the second sample all outputs in masked region should be the same
         # as last output before masked region
-        expected_outputs[1, -mask_last_num_timesteps:] = \
-            expected_outputs[1, -(mask_last_num_timesteps + 1)]
+        expected_outputs[1, -mask_last_num_timesteps:] = expected_outputs[
+            1, -(mask_last_num_timesteps + 1)]
 
         expected_state = initial_state_vals.copy()
         # first state should be incremented for every timestep (no masking)
@@ -951,9 +950,9 @@ class TestBackend(object):
         expected_state[1] += (num_timesteps - mask_last_num_timesteps)
 
         # verify same expected output for `unroll=true/false`
-        inputs = K.variable(inputs_vals)
-        initial_states = [K.variable(initial_state_vals)]
-        mask = K.variable(mask_vals)
+        inputs = K.constant(inputs_vals)
+        initial_states = [K.constant(initial_state_vals)]
+        mask = K.constant(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
@@ -986,9 +985,9 @@ class TestBackend(object):
         # same as the second to final output (before masked region)
         expected_outputs[-1, -1] = expected_outputs[-1, -2]
 
-        inputs = K.variable(inputs_vals)
-        initial_states = [K.variable(initial_state_vals)]
-        mask = K.variable(mask_vals)
+        inputs = K.constant(inputs_vals)
+        initial_states = [K.constant(initial_state_vals)]
+        mask = K.constant(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
@@ -1138,10 +1137,12 @@ class TestBackend(object):
     def test_crossentropy(self):
         # toy label matrix (4 samples, 2 classes)
         label = np.array([[.4, .6], [.3, .7], [.1, .9], [.2, .8]], dtype=np.float32)
-        check_two_tensor_operation('binary_crossentropy', label, (4, 2), WITH_NP)
+        binary_targets = np.array([[.3, .7], [.2, .8], [.4, .6], [.1, .9]], dtype=np.float32)
+        categorical_targets = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=np.float32)
+        check_two_tensor_operation('binary_crossentropy', label, binary_targets, WITH_NP)
         check_two_tensor_operation('binary_crossentropy', label, (4, 2),
                                    WITH_NP, from_logits=True)
-        check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
+        check_two_tensor_operation('categorical_crossentropy', label, categorical_targets,
                                    WITH_NP, cntk_two_dynamicity=True)
         check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
                                    WITH_NP, cntk_two_dynamicity=True,
@@ -1149,7 +1150,8 @@ class TestBackend(object):
 
         # toy label matrix (2 samples, 3 classes)
         label = np.array([[.4, .1, .5], [.2, .6, .2]], dtype=np.float32)
-        check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
+        categorical_targets = np.array([[0, 1, 0], [1, 0, 0]], dtype=np.float32)
+        check_two_tensor_operation('categorical_crossentropy', label, categorical_targets,
                                    WITH_NP, cntk_two_dynamicity=True)
         check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
                                    WITH_NP, cntk_two_dynamicity=True,
