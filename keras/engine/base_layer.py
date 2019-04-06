@@ -145,7 +145,7 @@ class Layer(object):
 
             # Set dtype.
             self.dtype = kwargs.get('dtype') or kwargs.get('input_dtype') \
-                            or K.floatx()
+                or K.floatx()
 
         self._initial_weights = kwargs.get('weights')
 
