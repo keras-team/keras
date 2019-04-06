@@ -986,7 +986,7 @@ def eye(size, dtype=None, name=None):
     else:
         n, m = size, size
     with tf_ops.init_scope():
-        return variable(tf.eye(n, m, dtype=tf_dtype), dtype, name)
+        return variable(tf.eye(n, m, dtype=dtype), dtype, name)
 
 
 @symbolic
@@ -1013,6 +1013,8 @@ def zeros_like(x, dtype=None, name=None):
     ```
     {{np_implementation}}
     """
+    if dtype is None:
+        dtype = floatx()
     return tf.zeros_like(x, dtype=dtype, name=name)
 
 
@@ -1040,6 +1042,8 @@ def ones_like(x, dtype=None, name=None):
     ```
     {{np_implementation}}
     """
+    if dtype is None:
+        dtype = floatx()
     return tf.ones_like(x, dtype=dtype, name=name)
 
 
@@ -2843,8 +2847,17 @@ def slice(x, start, size):
         new_x = x[start[0]: start[0] + size[0], ..., start[-1]: start[-1] + size[-1]]
         ```
 
+    # Raises
+        ValueError: if the dimension and the size of indices mismatches.
+
     {{np_implementation}}
     """
+    x_shape = int_shape(x)
+    if (x_shape is not None) and (x_shape[0] is not None):
+        len_start = int_shape(start)[0] if is_tensor(start) else len(start)
+        len_size = int_shape(size)[0] if is_tensor(size) else len(size)
+        if not (len(int_shape(x)) == len_start == len_size):
+            raise ValueError('The dimension and the size of indices should match.')
     return tf.slice(x, start, size)
 
 

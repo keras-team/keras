@@ -6,6 +6,7 @@ from __future__ import print_function
 import numpy as np
 from collections import defaultdict
 import sys
+import contextlib
 
 
 import six
@@ -183,16 +184,10 @@ class H5Dict(object):
     """
 
     def __init__(self, path, mode='a'):
-        def is_path_instance(path):
-            # We can't use isinstance here because it would require
-            # us to add pathlib2 to the Python 2 dependencies.
-            class_name = type(path).__name__
-            return class_name == 'PosixPath' or class_name == 'WindowsPath'
-
         if isinstance(path, h5py.Group):
             self.data = path
             self._is_file = False
-        elif isinstance(path, six.string_types) or is_path_instance(path):
+        elif isinstance(path, six.string_types) or _is_path_instance(path):
             self.data = h5py.File(path, mode=mode)
             self._is_file = True
         elif isinstance(path, dict):
@@ -206,6 +201,16 @@ class H5Dict(object):
             raise TypeError('Required Group, str, Path or dict. '
                             'Received: {}.'.format(type(path)))
         self.read_only = mode == 'r'
+
+    @staticmethod
+    def is_supported_type(path):
+        """Check if `path` is of supported type for instantiating a `H5Dict`"""
+        return (
+            isinstance(path, h5py.Group) or
+            isinstance(path, dict) or
+            isinstance(path, six.string_types) or
+            _is_path_instance(path)
+        )
 
     def __setitem__(self, attr, val):
         if self.read_only:
@@ -358,5 +363,68 @@ class H5Dict(object):
             return self[key]
         return default
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
 
 h5dict = H5Dict
+
+
+def load_from_binary_h5py(load_function, stream):
+    """Calls `load_function` on a `h5py.File` read from the binary `stream`.
+
+    # Arguments
+        load_function: A function that takes a `h5py.File`, reads from it, and
+            returns any object.
+        stream: Any file-like object implementing the method `read` that returns
+            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
+
+    # Returns
+        The object returned by `load_function`.
+    """
+    # Implementation based on suggestion solution here:
+    #   https://github.com/keras-team/keras/issues/9343#issuecomment-440903847
+    binary_data = stream.read()
+    file_access_property_list = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
+    file_access_property_list.set_fapl_core(backing_store=False)
+    file_access_property_list.set_file_image(binary_data)
+    file_id_args = {'fapl': file_access_property_list,
+                    'flags': h5py.h5f.ACC_RDONLY,
+                    'name': b'in-memory-h5py'}  # name does not matter
+    h5_file_args = {'backing_store': False,
+                    'driver': 'core',
+                    'mode': 'r'}
+    with contextlib.closing(h5py.h5f.open(**file_id_args)) as file_id:
+        with h5py.File(file_id, **h5_file_args) as h5_file:
+            return load_function(h5_file)
+
+
+def save_to_binary_h5py(save_function, stream):
+    """Calls `save_function` on an in memory `h5py.File`.
+
+    The file is subsequently written to the binary `stream`.
+
+     # Arguments
+        save_function: A function that takes a `h5py.File`, writes to it and
+            (optionally) returns any object.
+        stream: Any file-like object implementing the method `write` that accepts
+            `bytes` data (e.g. `io.BytesIO`).
+     """
+    with h5py.File('in-memory-h5py', driver='core', backing_store=False) as h5file:
+        # note that filename does not matter here.
+        return_value = save_function(h5file)
+        h5file.flush()
+        binary_data = h5file.fid.get_file_image()
+    stream.write(binary_data)
+
+    return return_value
+
+
+def _is_path_instance(path):
+    # We can't use isinstance here because it would require
+    # us to add pathlib2 to the Python 2 dependencies.
+    class_name = type(path).__name__
+    return class_name == 'PosixPath' or class_name == 'WindowsPath'

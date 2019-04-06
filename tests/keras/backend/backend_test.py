@@ -5,7 +5,6 @@ import scipy.sparse as sparse
 import warnings
 
 from keras import backend as K
-from keras.backend import floatx, set_floatx, variable
 from keras.utils.conv_utils import convert_kernel
 from keras.backend import numpy_backend as KNP
 
@@ -47,10 +46,10 @@ else:
 
 
 def check_dtype(var, dtype):
-    if K.backend() == 'theano':
-        assert var.dtype == dtype
+    if K.backend() == 'tensorflow':
+        assert dtype in str(var.dtype.name)
     else:
-        assert var.dtype.name == '%s_ref' % dtype
+        assert dtype in str(var.dtype)
 
 
 def cntk_func_tensors(function_name, shapes_or_vals, **kwargs):
@@ -372,9 +371,6 @@ class TestBackend(object):
             assert_allclose(z, z_np, atol=1e-05)
 
     def test_shape_operations(self):
-        check_two_tensor_operation('concatenate', (4, 3), (4, 2), WITH_NP,
-                                   axis=-1, concat_args=True)
-
         check_single_tensor_operation('reshape', (4, 2), WITH_NP, shape=(8, 1))
         check_single_tensor_operation('permute_dimensions', (4, 2, 3), WITH_NP,
                                       pattern=(2, 0, 1))
@@ -1159,7 +1155,6 @@ class TestBackend(object):
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Bug in CNTK')
     def test_in_top_k(self):
         batch_size = 20
         num_classes = 10
@@ -1170,7 +1165,7 @@ class TestBackend(object):
 
         # (k == 0 or k > num_classes) does not raise an error
         # but just return an unmeaningful tensor.
-        for k in range(1, num_classes + 1):
+        for k in range(1, 2 if K.backend() == 'cntk' else (num_classes + 1)):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in WITH_NP]
@@ -1185,7 +1180,7 @@ class TestBackend(object):
             predictions[i, idx_identical] = predictions[i, 0]
         targets = np.zeros(batch_size, dtype='int32')
 
-        for k in range(1, num_classes + 1):
+        for k in range(1, 2 if K.backend() == 'cntk' else (num_classes + 1)):
             z_list = [b.eval(b.in_top_k(b.variable(predictions, dtype='float32'),
                                         b.variable(targets, dtype='int32'), k))
                       for b in WITH_NP]
@@ -1429,10 +1424,9 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.conv3d(dummy_x_3d, dummy_w_3d, data_format='channels_middle')
 
-        if K.backend() != 'theano':
-            with pytest.raises(ValueError):
-                K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
-                                   data_format='channels_middle')
+        with pytest.raises(ValueError):
+            K.separable_conv2d(dummy_x_2d, dummy_w_2d, dummy_w1x1_2d,
+                               data_format='channels_middle')
 
         with pytest.raises(ValueError):
             K.depthwise_conv2d(dummy_x_2d, dummy_w_2d,
@@ -1760,23 +1754,19 @@ class TestBackend(object):
         assert np.alltrue(decode_pred_np == decode_pred)
         assert np.allclose(log_prob_pred_np, log_prob_pred)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
-                        reason='tensorflow-way slice is '
-                        'only supported in tensorflow.')
-    @pytest.mark.parametrize('x_size', [
-        [1, 1, 3],
-        [1, 2, 3],
-        [2, 1, 3]
+    @pytest.mark.parametrize('shape,start,size', [
+        ((2, 5), (0, 1), (2, 3)),
+        ((2, 5), (1, 0), (1, 4)),
+        ((3, 2, 3), (1, 1, 0), (1, 1, 3)),
+        ((3, 2, 3), (1, 0, 0), (1, 2, 3)),
+        ((3, 2, 3), (1, 0, 0), (2, 1, 3)),
     ])
-    def test_slice(self, x_size):
-        npt = np.array([[[1, 1, 1], [2, 2, 2]],
-                       [[3, 3, 3], [4, 4, 4]],
-                       [[5, 5, 5], [6, 6, 6]]])
-        x_start = [1, 0, 0]
-        tft = K.constant(npt)
-        test_input = K.eval(K.slice(tft, x_start, x_size))
-        expected = KNP.slice(npt, x_start, x_size)
-        assert np.allclose(test_input, expected)
+    def test_slice(self, shape, start, size):
+        check_single_tensor_operation('slice', shape, WITH_NP,
+                                      start=start, size=size)
+        with pytest.raises(ValueError):
+            K.slice(K.variable(np.random.random(shape)),
+                    start=[1, 0, 0, 0], size=size)
 
     @pytest.mark.skipif(K.backend() != 'tensorflow',
                         reason='Beam search is only implemented with '
@@ -1935,21 +1925,20 @@ class TestBackend(object):
         assert k_s_d.shape == k_d.shape
         assert_allclose(k_s_d, k_d, atol=1e-05)
 
-    def test_stack(self):
-        tensor_list = [np.random.randn(5, 4, 6, 10) for _ in range(5)]
-        stack_axis = 3
-        results = []
-        if WITH_NP[0] == KC:
-            check_two_tensor_operation('stack', (5, 4, 6, 10),
-                                       (5, 4, 6, 10), WITH_NP,
-                                       axis=stack_axis, concat_args=True)
-        else:
-            for k in WITH_NP:
-                tensor_list_var = [k.variable(tensor) for tensor in tensor_list]
-                out = k.eval(k.stack(tensor_list_var, axis=stack_axis))
-                results.append(out)
-
-            assert_list_pairwise(results)
+    @pytest.mark.parametrize('shape,shape2,axis', [
+        ((5, 2), (7, 2), 0),
+        ((5, 4, 6), (5, 3, 6), 1),
+        ((5, 4, 6, 10), (5, 4, 6, 2), 3),
+        ((5, 4, 6, 3), (5, 4, 6, 2), -1),
+    ])
+    def test_concat_operations(self, shape, shape2, axis):
+        # In stack, each array must have the same shape.
+        check_two_tensor_operation('stack', shape, shape, WITH_NP,
+                                   axis=axis, concat_args=True)
+        check_two_tensor_operation('concatenate', shape, shape2, WITH_NP,
+                                   axis=axis, concat_args=True)
+        check_two_tensor_operation('concatenate', shape, shape2, WITH_NP,
+                                   axis=axis, concat_args=True)
 
     @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_map(self):
@@ -1969,7 +1958,6 @@ class TestBackend(object):
         assert_allclose(x.sum(axis=1), kx, atol=1e-05)
         assert_allclose(kx, kx2, atol=1e-05)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_foldl(self):
         x = np.random.rand(10, 3).astype(np.float32)
         kx = K.eval(K.foldl(lambda a, b: a + b, K.variable(x)))
@@ -1977,7 +1965,6 @@ class TestBackend(object):
         assert (3,) == kx.shape
         assert_allclose(x.sum(axis=0), kx, atol=1e-05)
 
-    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported.')
     def test_foldr(self):
         # This test aims to make sure that we walk the array from right to left
         # and checks it in the following way: multiplying left to right 1e-40
@@ -2043,73 +2030,49 @@ class TestBackend(object):
         check_two_tensor_operation('in_test_phase', (2, 3), (2, 3), WITH_NP,
                                    training=training)
 
-    def test_setfloatx_incorrect_values(self):
+    @pytest.mark.parametrize('dtype', ['', 'beerfloat', 123])
+    def test_setfloatx_incorrect_values(self, dtype):
         # Keep track of the old value
-        old_floatx = floatx()
-        # Try some incorrect values
-        initial = floatx()
-        for value in ['', 'beerfloat', 123]:
-            with pytest.raises(ValueError):
-                set_floatx(value)
-        assert floatx() == initial
-        # Restore old value
-        set_floatx(old_floatx)
+        old_floatx = K.floatx()
+        with pytest.raises(ValueError):
+            K.set_floatx(dtype)
+        assert K.floatx() == old_floatx
 
-    def DISABLED_test_setfloatx_correct_values(self):
-        """Disabled because it is not thread safe at this time."""
+    @pytest.mark.parametrize('dtype', ['float16', 'float32', 'float64'])
+    def test_setfloatx_correct_values(self, dtype):
         # Keep track of the old value
-        old_floatx = floatx()
+        old_floatx = K.floatx()
         # Check correct values
-        for value in ['float16', 'float32', 'float64']:
-            set_floatx(value)
-            assert floatx() == value
+        K.set_floatx(dtype)
+        assert K.floatx() == dtype
+        # Make sure that changes to the global floatx are effectively
+        # taken into account by the backend.
+        check_dtype(K.variable([10]), dtype)
         # Restore old value
-        set_floatx(old_floatx)
+        K.set_floatx(old_floatx)
 
-    @pytest.mark.skipif((K.backend() == 'cntk'),
-                        reason='cntk does not support float16')
-    def DISABLED_test_set_floatx(self):
-        """Disabled because it is not thread safe at this time.
+    @pytest.mark.parametrize('dtype', ['float16', 'float32', 'float64'])
+    def test_dtype(self, dtype):
+        assert K.dtype(K.variable(1, dtype=dtype)) == dtype
 
-        Make sure that changes to the global floatx are effectively
-        taken into account by the backend.
-        """
-        # Keep track of the old value
-        old_floatx = floatx()
-
-        set_floatx('float16')
-        var = variable([10])
-        check_dtype(var, 'float16')
-
-        set_floatx('float64')
-        var = variable([10])
-        check_dtype(var, 'float64')
-
-        # Restore old value
-        set_floatx(old_floatx)
-
-    def test_dtype(self):
-        assert K.dtype(K.variable(1, dtype='float64')) == 'float64'
-        assert K.dtype(K.variable(1, dtype='float32')) == 'float32'
-        assert K.dtype(K.variable(1, dtype='float16')) == 'float16'
-
+    @pytest.mark.skipif(K.backend() == 'cntk', reason='Not supported')
     def test_variable_support_bool_dtype(self):
-        # Github issue: 7819
-        if K.backend() == 'tensorflow':
-            assert K.dtype(K.variable(1, dtype='int16')) == 'int16'
-            assert K.dtype(K.variable(False, dtype='bool')) == 'bool'
-            with pytest.raises(TypeError):
-                K.variable('', dtype='unsupported')
+        assert K.dtype(K.variable(1, dtype='int16')) == 'int16'
+        assert K.dtype(K.variable(False, dtype='bool')) == 'bool'
+        with pytest.raises(TypeError):
+            K.variable('', dtype='unsupported')
 
-    def test_clip_supports_tensor_arguments(self):
+    @pytest.mark.parametrize('shape', [(4, 2), (2, 3)])
+    def test_clip_supports_tensor_arguments(self, shape):
         # GitHub issue: 11435
-        x = K.variable([-10., -5., 0., 5., 10.])
-        min_value = K.variable([-5., -4., 0., 3., 5.])
-        max_value = K.variable([5., 4., 1., 4., 9.])
-
-        assert np.allclose(K.eval(K.clip(x, min_value, max_value)),
-                           np.asarray([-5., -4., 0., 4., 9.],
-                                      dtype=np.float32))
+        _, x = parse_shape_or_val(shape)
+        _, min_val = parse_shape_or_val(shape)
+        max_val = min_val + 1.
+        x_k = K.variable(x)
+        min_val_k = K.variable(min_val)
+        max_val_k = K.variable(max_val)
+        assert np.allclose(K.eval(K.clip(x_k, min_val_k, max_val_k)),
+                           KNP.eval(KNP.clip(x, min_val, max_val)))
 
 
 if __name__ == '__main__':

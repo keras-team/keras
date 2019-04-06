@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import inspect
 import collections
 import copy
 import numpy as np
@@ -296,6 +297,22 @@ def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                         'This loss expects '
                         'targets to have the same shape '
                         'as the output.')
+
+
+def check_generator_arguments(y=None, sample_weight=None,
+                              validation_split=None):
+    """Validates arguments passed when using a generator."""
+    if y is not None:
+        raise ValueError('`y` argument is not supported when data is'
+                         'a generator or Sequence instance. Instead pass targets'
+                         ' as the second element of the generator.')
+    if sample_weight is not None:
+        raise ValueError('`sample_weight` argument is not supported when data is'
+                         'a generator or Sequence instance. Instead pass sample'
+                         ' weights as the third element of the generator.')
+    if validation_split:
+        raise ValueError('If your data is in the form of a Python generator, '
+                         'you cannot use `validation_split`.')
 
 
 def collect_metrics(metrics, output_names):
@@ -618,6 +635,11 @@ def is_sequence(seq):
             or set(dir(Sequence())).issubset(set(dir(seq) + ['use_sequence_api'])))
 
 
+def is_generator_or_sequence(x):
+    """Check if `x` is a Keras generator type."""
+    return inspect.isgenerator(x) or is_sequence(x)
+
+
 def should_run_validation(validation_freq, epoch):
     """Checks if validation should be run this epoch.
 
@@ -646,3 +668,48 @@ def should_run_validation(validation_freq, epoch):
         raise ValueError('`validation_freq` must be an Integer or '
                          '`collections.Container` (e.g. list, tuple, etc.)')
     return one_indexed_epoch in validation_freq
+
+
+def get_static_batch_size(layer):
+    """Gets the static batch size of a Layer.
+
+    # Arguments
+        layer: a `Layer` instance.
+
+    # Returns
+        The static batch size of a Layer.
+    """
+    batch_input_shape, _ = get_input_shape_and_dtype(layer)
+    if batch_input_shape is not None:
+        return batch_input_shape[0]
+    return None
+
+
+def get_input_shape_and_dtype(layer):
+    """Retrieves input shape and input dtype of layer if applicable.
+
+    # Arguments
+        layer: Layer (or model) instance.
+
+    # Returns
+        Tuple (input_shape, input_dtype). Both could be None if the layer
+        does not have a defined input shape.
+
+    # Raises
+      ValueError: in case an empty Sequential or Functional model is passed.
+    """
+    def _is_graph_model(layer):
+        return ((hasattr(layer, '_is_graph_network') and layer._is_graph_network) or
+                layer.__class__.__name__ == 'Sequential')
+
+    # In case of nested models: recover the first layer
+    # of the deepest model to infer input shape and dtype.
+    # Subclassed Models may not have been built so can't be checked.
+    while _is_graph_model(layer):
+        if not layer.layers:
+            raise ValueError('An empty Model cannot be used as a Layer.')
+        layer = layer.layers[0]
+
+    if hasattr(layer, '_batch_input_shape'):
+        return layer._batch_input_shape, layer.dtype
+    return None, None
