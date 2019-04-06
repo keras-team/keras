@@ -35,7 +35,7 @@ class Zeros(Initializer):
     """
 
     def __call__(self, shape, dtype=None):
-        return K.constant(0, shape=shape, dtype=dtype)
+        return K.zeros(shape=shape, dtype=dtype)
 
 
 class Ones(Initializer):
@@ -43,7 +43,7 @@ class Ones(Initializer):
     """
 
     def __call__(self, shape, dtype=None):
-        return K.constant(1, shape=shape, dtype=dtype)
+        return K.ones(shape=shape, dtype=dtype)
 
 
 class Constant(Initializer):
