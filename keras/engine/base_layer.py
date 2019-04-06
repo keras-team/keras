@@ -138,26 +138,16 @@ class Layer(object):
             if 'batch_input_shape' in kwargs:
                 batch_input_shape = tuple(kwargs['batch_input_shape'])
             elif 'input_shape' in kwargs:
-                if 'batch_size' in kwargs:
-                    batch_size = kwargs['batch_size']
-                else:
-                    batch_size = None
+                batch_size = kwargs.get('batch_size')
                 batch_input_shape = (
                     batch_size,) + tuple(kwargs['input_shape'])
             self.batch_input_shape = batch_input_shape
 
             # Set dtype.
-            dtype = kwargs.get('dtype')
-            if dtype is None:
-                dtype = kwargs.get('input_dtype')
-            if dtype is None:
-                dtype = K.floatx()
-            self.dtype = dtype
+            self.dtype = kwargs.get('dtype') or kwargs.get('input_dtype') \
+                            or K.floatx()
 
-        if 'weights' in kwargs:
-            self._initial_weights = kwargs['weights']
-        else:
-            self._initial_weights = None
+        self._initial_weights = kwargs.get('weights')
 
     @staticmethod
     def _node_key(layer, node_index):
