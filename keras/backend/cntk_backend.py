@@ -532,12 +532,16 @@ def eye(size, dtype=None, name=None):
 
 def zeros_like(x, dtype=None, name=None):
     name = name or ''
-    return C.zeros_like(x, name)
+    if dtype is None:
+        dtype = floatx()
+    return C.cast(C.zeros_like(x, name), dtype)
 
 
 def ones_like(x, dtype=None, name=None):
     name = name or ''
-    return C.ones_like(x, name)
+    if dtype is None:
+        dtype = floatx()
+    return C.cast(C.ones_like(x, name), dtype)
 
 
 def count_params(x):
@@ -2363,8 +2367,10 @@ def elu(x, alpha=1.):
 
 def in_top_k(predictions, targets, k):
     _targets = C.one_hot(targets, predictions.shape[-1])
-    result = C.classification_error(predictions, _targets, topN=k)
-    return 1 - C.reshape(result, shape=())
+    result = [C.classification_error(predictions[i], _targets[i], topN=k)
+              for i in range(predictions.shape[0])]
+    result = concatenate(result, axis=-1)
+    return 1 - C.reshape(result, shape=(-1,))
 
 
 def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
@@ -2577,7 +2583,11 @@ def reverse(x, axes):
 
 
 def slice(x, start, size):
-    raise NotImplementedError
+    if not (len(int_shape(x)) == len(start) == len(size)):
+        raise ValueError('The dimension and the size of indices should match.')
+    out = x[tuple([py_slice(i, i + j) for (i, j) in zip(start, size)])]
+    out._keras_shape = tuple(size)
+    return out
 
 
 def _reshape_batch(x, shape):
@@ -2786,8 +2796,102 @@ def map_fn(fn, elems, name=None, dtype=None):
 
 
 def foldl(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
+    """Reduce `elems` by `fn` combined them from left to right on dimension 0.
+
+    # Arguments
+        fn: Callable that will be called upon each element in `elems`
+            (and on the optional `initializer`) passed as a second argument.
+            The first argument passed to `fn` is the accumulator which is the
+            accumulated value calculated from the preceding invocation of `fn`.
+            Example For `fn`:
+            ```python
+            lambda acc, x: acc + x
+            ```
+        elems: Tensor
+        initializer: (optional) Tensor, the initial value for the accumulator.
+            In case of None value is provided during the call
+            the first value is used (`elems[0]`) as `initializer` from `elems`
+        name: (optional) String, name for the foldl node in the graph.
+
+    # Returns
+        Same type and shape as `initializer`
+
+    # Raises:
+        TypeError: if `fn` is not callable.
+        TypeError: if `initializer` is neither a tensor nor None value.
+        TypeError: if `elems` is not a tensor.
+    """
+    if not callable(fn):
+        raise TypeError("`fn` must be callable.")
+    if initializer is not None and not is_tensor(initializer):
+        raise TypeError("`initializer` must be a tensor or None")
+    if not is_tensor(elems):
+        raise TypeError('`elems` must be a tensor')
+
+    if initializer is None and shape(elems)[0] > 1:
+        initializer = elems[0]
+        elems = elems[1:]
+    elif initializer is None:
+        initializer = elems[0]
+        elems = None
+
+    accumulator = initializer
+    if elems is not None:
+        for i in range(shape(elems)[0]):
+            accumulator = fn(accumulator, elems[i])
+
+    if name is not None:
+        accumulator.name = str(name)
+
+    return reshape(accumulator, shape(initializer)[1:])
 
 
 def foldr(fn, elems, initializer=None, name=None):
-    raise NotImplementedError
+    """Reduce `elems` by `fn` combined them from right to left on dimension 0.
+
+    # Arguments
+        fn: Callable that will be called upon each element in `elems`
+            (and on the optional `initializer`) passed as a second argument.
+            The first argument passed to `fn` is the accumulator which is the
+            accumulated value calculated from the preceding invocation of `fn`.
+            Example For `fn`:
+            ```python
+            lambda acc, x: acc + x
+            ```
+        elems: Tensor
+        initializer: (optional) Tensor, the initial value for the accumulator.
+            In case of None value is provided during the call
+            the last value is used (`elems[-1]`) as `initializer` from `elems`
+        name: (optional) String, name for the foldr node in the graph.
+
+    # Returns
+        Same type and shape as `initializer`
+
+    # Raises:
+        TypeError: if `fn` is not callable.
+        TypeError: if `initializer` is neither a tensor nor None value.
+        TypeError: if `elems` is not a tensor.
+    """
+    if not callable(fn):
+        raise TypeError("`fn` must be callable.")
+    if initializer is not None and not is_tensor(initializer):
+        raise TypeError("`initializer` must be a tensor or None")
+    if not is_tensor(elems):
+        raise TypeError('`elems` must be a tensor')
+
+    if initializer is None and shape(elems)[0] > 1:
+        initializer = elems[-1]
+        elems = elems[:-1]
+    elif initializer is None:
+        initializer = elems[0]
+        elems = None
+
+    accumulator = initializer
+    if elems is not None:
+        for i in range(shape(elems)[0]):
+            accumulator = fn(accumulator, elems[-i])
+
+    if name is not None:
+        accumulator.name = str(name)
+
+    return reshape(accumulator, shape(initializer)[1:])
