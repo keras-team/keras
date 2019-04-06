@@ -282,8 +282,8 @@ class Identity(Initializer):
     """Initializer that generates the identity matrix.
 
     Only use for 2D matrices.
-    If the desired matrix is not square, it pads with zeros on the
-    additional rows/columns
+    If the desired matrix is not square, it gets padded
+    with zeros for the additional rows/columns.
 
     # Arguments
         gain: Multiplicative factor to apply to the identity matrix.
@@ -292,11 +292,12 @@ class Identity(Initializer):
     def __init__(self, gain=1.):
         self.gain = gain
 
+    @K.eager
     def __call__(self, shape, dtype=None):
         if len(shape) != 2:
             raise ValueError(
-                'Identity matrix initializer can only be used for 2D matrices.')
-
+                'Identity matrix initializer '
+                'can only be used for 2D matrices.')
         return self.gain * K.eye((shape[0], shape[1]), dtype=dtype)
 
     def get_config(self):

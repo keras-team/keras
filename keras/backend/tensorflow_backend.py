@@ -986,7 +986,10 @@ def eye(size, dtype=None, name=None):
     else:
         n, m = size, size
     with tf_ops.init_scope():
-        return variable(tf.eye(n, m, dtype=dtype), dtype, name)
+        v = tf.eye(n, m, dtype=dtype, name=name)
+        if py_all(v.shape.as_list()):
+            return variable(v, dtype=dtype, name=name)
+        return v
 
 
 @symbolic
