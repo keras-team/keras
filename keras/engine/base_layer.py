@@ -144,8 +144,12 @@ class Layer(object):
             self.batch_input_shape = batch_input_shape
 
             # Set dtype.
-            self.dtype = kwargs.get('dtype') or kwargs.get('input_dtype') \
-                or K.floatx()
+            dtype = kwargs.get('dtype')
+            if dtype is None:
+                dtype = kwargs.get('input_dtype')
+            if dtype is None:
+                dtype = K.floatx()
+            self.dtype = dtype
 
         self._initial_weights = kwargs.get('weights')
 
