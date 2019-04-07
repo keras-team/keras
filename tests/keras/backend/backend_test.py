@@ -1137,13 +1137,17 @@ class TestBackend(object):
     def test_crossentropy(self):
         # toy label matrix (4 samples, 2 classes)
         label = np.array([[.4, .6], [.3, .7], [.1, .9], [.2, .8]], dtype=np.float32)
-        binary_targets = np.array([[.3, .7], [.2, .8], [.4, .6], [.1, .9]], dtype=np.float32)
-        categorical_targets = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=np.float32)
-        check_two_tensor_operation('binary_crossentropy', label, binary_targets, WITH_NP)
+        binary_targets = np.array([[.3, .7], [.2, .8], [.4, .6], [.1, .9]],
+                                  dtype=np.float32)
+        categorical_targets = np.array([[1, 0], [1, 0], [0, 1], [0, 1]],
+                                       dtype=np.float32)
+        check_two_tensor_operation(
+            'binary_crossentropy', label, binary_targets, WITH_NP)
         check_two_tensor_operation('binary_crossentropy', label, (4, 2),
                                    WITH_NP, from_logits=True)
-        check_two_tensor_operation('categorical_crossentropy', label, categorical_targets,
-                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation(
+            'categorical_crossentropy', label, categorical_targets,
+            WITH_NP, cntk_two_dynamicity=True)
         check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
@@ -1151,8 +1155,9 @@ class TestBackend(object):
         # toy label matrix (2 samples, 3 classes)
         label = np.array([[.4, .1, .5], [.2, .6, .2]], dtype=np.float32)
         categorical_targets = np.array([[0, 1, 0], [1, 0, 0]], dtype=np.float32)
-        check_two_tensor_operation('categorical_crossentropy', label, categorical_targets,
-                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation(
+            'categorical_crossentropy', label, categorical_targets,
+            WITH_NP, cntk_two_dynamicity=True)
         check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
