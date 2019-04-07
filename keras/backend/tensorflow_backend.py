@@ -3698,8 +3698,6 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
             `"channels_last"` nor `"channels_first"`.
     """
     data_format = normalize_data_format(data_format)
-    if isinstance(output_shape, (tuple, list)):
-        output_shape = tf.stack(output_shape)
 
     # tf.nn.atrous_conv2d_transpose input only supports NHWC format
     if data_format == 'channels_first' and dilation_rate != (1, 1):
@@ -3715,8 +3713,9 @@ def conv2d_transpose(x, kernel, output_shape, strides=(1, 1),
                         output_shape[3],
                         output_shape[1])
     if output_shape[0] is None:
-        output_shape = (tf.shape(x)[0],) + tuple(output_shape[1:])
-        output_shape = tf.stack(list(output_shape))
+        output_shape = (shape(x)[0],) + tuple(output_shape[1:])
+
+    output_shape = tf.stack(list(output_shape))
 
     padding = _preprocess_padding(padding)
     if tf_data_format == 'NHWC':
