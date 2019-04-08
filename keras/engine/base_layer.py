@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import copy
 import re
 from six.moves import zip
 
@@ -139,10 +138,7 @@ class Layer(object):
             if 'batch_input_shape' in kwargs:
                 batch_input_shape = tuple(kwargs['batch_input_shape'])
             elif 'input_shape' in kwargs:
-                if 'batch_size' in kwargs:
-                    batch_size = kwargs['batch_size']
-                else:
-                    batch_size = None
+                batch_size = kwargs.get('batch_size')
                 batch_input_shape = (
                     batch_size,) + tuple(kwargs['input_shape'])
             self.batch_input_shape = batch_input_shape
@@ -155,10 +151,7 @@ class Layer(object):
                 dtype = K.floatx()
             self.dtype = dtype
 
-        if 'weights' in kwargs:
-            self._initial_weights = kwargs['weights']
-        else:
-            self._initial_weights = None
+        self._initial_weights = kwargs.get('weights')
 
     @staticmethod
     def _node_key(layer, node_index):
@@ -441,7 +434,7 @@ class Layer(object):
 
             # Handle mask propagation.
             previous_mask = _collect_previous_mask(inputs)
-            user_kwargs = copy.copy(kwargs)
+            user_kwargs = kwargs.copy()
             if not is_all_none(previous_mask):
                 # The previous layer generated a mask.
                 if has_arg(self.call, 'mask'):
