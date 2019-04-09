@@ -4,14 +4,30 @@ about: Select this if you're using Keras with the TensorFlow backend (default).
 
 ---
 
-Please make sure that the boxes below are checked before you submit your issue.
-If your issue is an **implementation question**, please ask your question on [StackOverflow](http://stackoverflow.com/questions/tagged/keras) or [on the Keras Slack channel](https://keras-slack-autojoin.herokuapp.com/) instead of opening a GitHub issue.
+<em>Please make sure that this is a Bug or a Feature Request and provide all applicable information asked by the template.
+If your issue is an **implementation question**, please ask your question on [StackOverflow](http://stackoverflow.com/questions/tagged/keras) or [on the Keras Slack channel](https://keras-slack-autojoin.herokuapp.com/) instead of opening a GitHub issue.</em>  
 
-Thank you!
+**System information**  
+- Have I written custom code (as opposed to using example directory):  
+- OS Platform and Distribution (e.g., Linux Ubuntu 16.04):  
+- TensorFlow backend (yes / no):  
+- TensorFlow version:  
+- Keras version:  
+- Python version:  
+- CUDA/cuDNN version:  
+- GPU model and memory:  
 
-- [ ] Check that you are up-to-date with the master branch of Keras. You can update with:
-`pip install git+git://github.com/keras-team/keras.git --upgrade --no-deps`
+You can obtain the TensorFlow version with:  
+python -c "import tensorflow as tf; print(tf.GIT_VERSION, tf.VERSION)"  
+You can obtain the Keras version with:  
+python -c 'import keras as k; print(k.__version__)'  
 
-- [ ] Check that your version of TensorFlow is up-to-date. The installation instructions can be found [here](https://www.tensorflow.org/get_started/os_setup).
+**Describe the current behavior**  
 
-- [ ] Provide a link to a GitHub Gist of a Python script that can reproduce your issue (or just copy the script here if it is short).
+**Describe the expected behavior**  
+
+**Code to reproduce the issue**  
+Provide a reproducible test case that is the bare minimum necessary to generate the problem.  
+
+**Other info / logs**  
+Include any logs or source code that would be helpful to diagnose the problem. If including tracebacks, please include the full traceback. Large logs and files should be attached.  
