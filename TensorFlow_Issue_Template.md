@@ -1,4 +1,4 @@
-<em>Please make sure that this is a bug or a Feature Request and provide following information.</em>
+<em>Please make sure that this is a Bug or a Feature Request and provide following information.</em>
 
 **System information**  
 -Have I written custom code (as opposed to using example directory):  
