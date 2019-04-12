@@ -303,7 +303,9 @@ class ImageDataGenerator(image.ImageDataGenerator):
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "channels_last".
         validation_split: Float. Fraction of images reserved for validation
-            (strictly between 0 and 1).
+            (strictly between 0 and 1). e.g. validation_split = 0.1 and subset
+            is "validation" in .flow(), the returned validation set will be the
+            first 10% of the data.
         dtype: Dtype to use for the generated arrays.
 
     # Examples
