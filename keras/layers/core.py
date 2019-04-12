@@ -498,7 +498,7 @@ class Flatten(Layer):
         if not all(input_shape[1:]):
             raise ValueError('The shape of the input to "Flatten" '
                              'is not fully defined '
-                             '(got ' + str(input_shape[1:]) + '. '
+                             '(got ' + str(input_shape[1:]) + '). '
                              'Make sure to pass a complete "input_shape" '
                              'or "batch_input_shape" argument to the first '
                              'layer in your model.')
