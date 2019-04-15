@@ -147,30 +147,45 @@ def model_to_dot(model,
                 for inbound_layer in node.inbound_layers:
                     inbound_layer_id = str(id(inbound_layer))
                     # if inbound_layer is not Model or wrapped Model
-                    if (not (expand_nested and isinstance(inbound_layer, Model))) and (
-                        not (expand_nested and isinstance(inbound_layer, Wrapper) and isinstance(inbound_layer.layer, Model))):
+                    if (not (expand_nested and (
+                            isinstance(inbound_layer, Model)))
+                            ) and (
+                            not (expand_nested and (
+                            isinstance(inbound_layer, Wrapper)) and (
+                            isinstance(inbound_layer.layer, Model))) ):
                         # if current layer is not Model or wrapped Model
-                        if (not (expand_nested and isinstance(layer, Model))) and (
-                            not (expand_nested and isinstance(layer, Wrapper) and isinstance(layer.layer, Model))):
+                        if (not (expand_nested and (
+                                isinstance(layer, Model)))
+                                ) and (
+                                not (expand_nested and
+                                (isinstance(layer, Wrapper)) and (
+                                isinstance(layer.layer, Model))) ):
                             assert dot.get_node(inbound_layer_id)
                             assert dot.get_node(layer_id)
                             dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
                         # if current layer is Model
                         elif expand_nested and isinstance(layer, Model):
-                            if not dot.get_edge(inbound_layer_id, sub_n_first_node.get_name()):
-                                dot.add_edge(pydot.Edge(inbound_layer_id, sub_n_first_node.get_name()))
+                            if not dot.get_edge(inbound_layer_id,
+                                                sub_n_first_node.get_name()):
+                                dot.add_edge(pydot.Edge(inbound_layer_id,
+                                                sub_n_first_node.get_name()))
                         # if current layer is wrapped Model
-                        elif expand_nested and isinstance(layer, Wrapper) and isinstance(layer.layer, Model):
+                        elif expand_nested and isinstance(layer, Wrapper) and (
+                                isinstance(layer.layer, Model)):
                             dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
-                            dot.add_edge(pydot.Edge(layer_id, sub_w_first_node.get_name()))
+                            dot.add_edge(pydot.Edge(layer_id,
+                                                sub_w_first_node.get_name()))
                     # if inbound_layer is Model
                     elif expand_nested and isinstance(inbound_layer, Model):
                         if not dot.get_edge(sub_n_last_node.get_name(), layer_id):
-                            dot.add_edge(pydot.Edge(sub_n_last_node.get_name(), layer_id))
+                            dot.add_edge(pydot.Edge(sub_n_last_node.get_name(),
+                                                        layer_id))
                     # if inbound_layer is wrapped Model
-                    elif expand_nested and isinstance(inbound_layer, Wrapper) and isinstance(inbound_layer.layer, Model):
+                    elif expand_nested and isinstance(inbound_layer, Wrapper) and (
+                                isinstance(inbound_layer.layer, Model)):
                         if not dot.get_edge(sub_w_last_node.get_name(), layer_id):
-                            dot.add_edge(pydot.Edge(sub_w_last_node.get_name(), layer_id))
+                            dot.add_edge(pydot.Edge(sub_w_last_node.get_name(),
+                                                        layer_id))
     return dot
 
 
