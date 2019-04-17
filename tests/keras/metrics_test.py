@@ -87,13 +87,13 @@ def test_top_k_categorical_accuracy():
     y_true = K.variable(np.array([[0, 1, 0], [1, 0, 0]]))
     success_result = K.eval(metrics.top_k_categorical_accuracy(y_true, y_pred,
                                                                k=3))
-    assert success_result == 1
+    assert np.mean(success_result) == 1
     partial_result = K.eval(metrics.top_k_categorical_accuracy(y_true, y_pred,
                                                                k=2))
-    assert partial_result == 0.5
+    assert np.mean(partial_result) == 0.5
     failure_result = K.eval(metrics.top_k_categorical_accuracy(y_true, y_pred,
                                                                k=1))
-    assert failure_result == 0
+    assert np.mean(failure_result) == 0
 
 
 @pytest.mark.skipif((K.backend() == 'cntk'),
@@ -110,15 +110,15 @@ def test_sparse_top_k_categorical_accuracy(y_pred, y_true):
     success_result = K.eval(
         metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=3))
 
-    assert success_result == 1
+    assert np.mean(success_result) == 1
     partial_result = K.eval(
         metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=2))
 
-    assert partial_result == 0.5
+    assert np.mean(partial_result) == 0.5
     failure_result = K.eval(
         metrics.sparse_top_k_categorical_accuracy(y_true, y_pred, k=1))
 
-    assert failure_result == 0
+    assert np.mean(failure_result) == 0
 
 
 # TODO: resolve flakyness issue. Tracked with #11064
