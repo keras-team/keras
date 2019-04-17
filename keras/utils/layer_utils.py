@@ -37,8 +37,8 @@ def print_summary(model, line_length=None, positions=None, print_fn=None,
             You can set it to a custom function
             in order to capture the string summary.
             It defaults to `print` (prints to stdout).
-        disp_kernel_info: [bool] Append kernel size information at the end 
-            of the layer name. 
+        disp_kernel_info: [bool] Append kernel size information at the end
+            of the layer name.
             By definition, it will only work for convolutional layers.
             Default = True.
     """
@@ -122,7 +122,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=None,
         cls_name = layer.__class__.__name__
         kernel_size_str = ''
         if disp_kernel_info and 'conv' in cls_name.lower():
-            kernel_size_str = '_(' + 'x'.join(map(str,layer.kernel_size)) + ')' 
+            kernel_size_str = '_(' + 'x'.join(map(str, layer.kernel_size)) + ')'
         fields = [name + kernel_size_str + ' (' + cls_name + ')',
                   output_shape, layer.count_params()]
         print_row(fields, positions)
@@ -154,7 +154,7 @@ def print_summary(model, line_length=None, positions=None, print_fn=None,
         cls_name = layer.__class__.__name__
         kernel_size_str = ''
         if disp_kernel_info and 'conv' in cls_name.lower():
-            kernel_size_str = '_(' + 'x'.join(map(str,layer.kernel_size)) + ')' 
+            kernel_size_str = '_(' + 'x'.join(map(str, layer.kernel_size)) + ')'
         if not connections:
             first_connection = ''
         else:
