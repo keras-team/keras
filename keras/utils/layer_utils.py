@@ -21,7 +21,8 @@ def count_params(weights):
     return int(np.sum([K.count_params(p) for p in set(weights)]))
 
 
-def print_summary(model, line_length=None, positions=None, print_fn=None):
+def print_summary(model, line_length=None, positions=None, print_fn=None,
+                  disp_kernel_info=True):
     """Prints a summary of a model.
 
     # Arguments
@@ -36,6 +37,10 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
             You can set it to a custom function
             in order to capture the string summary.
             It defaults to `print` (prints to stdout).
+        disp_kernel_info: [bool] Append kernel size information at the end 
+            of the layer name. 
+            By definition, it will only work for convolutional layers.
+            Default = True.
     """
     if print_fn is None:
         print_fn = print
@@ -74,14 +79,14 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
 
     if sequential_like:
         line_length = line_length or 65
-        positions = positions or [.45, .85, 1.]
+        positions = positions or [.48, .88, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
         to_display = ['Layer (type)', 'Output Shape', 'Param #']
     else:
         line_length = line_length or 98
-        positions = positions or [.33, .55, .67, 1.]
+        positions = positions or [.36, .58, .70, 1.]
         if positions[-1] <= 1:
             positions = [int(line_length * p) for p in positions]
         # header names for the different log elements
@@ -115,7 +120,10 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
             output_shape = 'multiple'
         name = layer.name
         cls_name = layer.__class__.__name__
-        fields = [name + ' (' + cls_name + ')',
+        kernel_size_str = ''
+        if disp_kernel_info and 'conv' in cls_name.lower():
+            kernel_size_str = '_(' + 'x'.join(map(str,layer.kernel_size)) + ')' 
+        fields = [name + kernel_size_str + ' (' + cls_name + ')',
                   output_shape, layer.count_params()]
         print_row(fields, positions)
 
@@ -144,11 +152,14 @@ def print_summary(model, line_length=None, positions=None, print_fn=None):
 
         name = layer.name
         cls_name = layer.__class__.__name__
+        kernel_size_str = ''
+        if disp_kernel_info and 'conv' in cls_name.lower():
+            kernel_size_str = '_(' + 'x'.join(map(str,layer.kernel_size)) + ')' 
         if not connections:
             first_connection = ''
         else:
             first_connection = connections[0]
-        fields = [name +
+        fields = [name + kernel_size_str +
                   ' (' + cls_name + ')',
                   output_shape,
                   layer.count_params(),

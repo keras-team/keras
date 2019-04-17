@@ -1276,7 +1276,8 @@ class Network(Layer):
         """
         return yaml.dump(self._updated_config(), **kwargs)
 
-    def summary(self, line_length=None, positions=None, print_fn=None):
+    def summary(self, line_length=None, positions=None, print_fn=None,
+                disp_kernel_info=True):
         """Prints a string summary of the network.
 
         # Arguments
@@ -1302,7 +1303,8 @@ class Network(Layer):
         return print_layer_summary(self,
                                    line_length=line_length,
                                    positions=positions,
-                                   print_fn=print_fn)
+                                   print_fn=print_fn,
+                                   disp_kernel_info=disp_kernel_info)
 
     def __getstate__(self):
         return saving.pickle_model(self)
