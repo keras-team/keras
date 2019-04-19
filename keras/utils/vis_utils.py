@@ -4,6 +4,8 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+from ..models import Model
+from ..layers.wrappers import Wrapper
 
 # `pydot` is an optional dependency,
 # see `extras_require` in `setup.py`.
@@ -32,13 +34,10 @@ def _check_pydot():
 
 
 def is_model(layer):
-    from ..models import Model
     return isinstance(layer, Model)
 
 
 def is_wrapped_model(layer):
-    from ..layers.wrappers import Wrapper
-    from ..models import Model
     return isinstance(layer, Wrapper) and isinstance(layer.layer, Model)
 
 
