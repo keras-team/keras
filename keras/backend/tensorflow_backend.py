@@ -208,7 +208,11 @@ def get_session():
                         uninitialized_vars.append(v)
                     v._keras_initialized = True
                 if uninitialized_vars:
-                    session.run(tf.variables_initializer(uninitialized_vars))
+                    if(tf.__version__.startswith("0.") and int(tf.__version__.split(".")[1])<12): # For tf version <0.12.0
+                        session.run(tf.initialize_variables(uninitialized_vars))
+                    else: # For tf version >= 0.12.0
+                        session.run(tf.variables_initializer(uninitialized_vars))
+ 
     # hack for list_devices() function.
     # list_devices() function is not available under tensorflow r1.3.
     if not hasattr(session, 'list_devices'):
