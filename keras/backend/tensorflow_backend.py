@@ -208,9 +208,13 @@ def get_session():
                         uninitialized_vars.append(v)
                     v._keras_initialized = True
                 if uninitialized_vars:
-                    if(tf.__version__.startswith("0.") and int(tf.__version__.split(".")[1])<12): # For tf version <0.12.0
+                    tf_major_ver = int(tf.__version__.split(".")[0])
+                    tf_minor_ver = int(tf.__version__.split(".")[1])
+                    if(tf_major_ver == 0 and tf_minor_ver < 12): 
+                        # For tf version < 0.12.0
                         session.run(tf.initialize_variables(uninitialized_vars))
-                    else: # For tf version >= 0.12.0
+                    else: 
+                        # For tf version >= 0.12.0
                         session.run(tf.variables_initializer(uninitialized_vars))
  
     # hack for list_devices() function.
