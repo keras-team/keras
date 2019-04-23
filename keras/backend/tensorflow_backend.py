@@ -210,13 +210,12 @@ def get_session():
                 if uninitialized_vars:
                     tf_major_ver = int(tf.__version__.split(".")[0])
                     tf_minor_ver = int(tf.__version__.split(".")[1])
-                    if(tf_major_ver == 0 and tf_minor_ver < 12): 
+                    if(tf_major_ver == 0 and tf_minor_ver < 12):
                         # For tf version < 0.12.0
                         session.run(tf.initialize_variables(uninitialized_vars))
-                    else: 
+                    else:
                         # For tf version >= 0.12.0
                         session.run(tf.variables_initializer(uninitialized_vars))
- 
     # hack for list_devices() function.
     # list_devices() function is not available under tensorflow r1.3.
     if not hasattr(session, 'list_devices'):
