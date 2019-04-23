@@ -24,9 +24,9 @@ from keras.models import Model
 inputs = Input(shape=(784,))
 
 # a layer instance is callable on a tensor, and returns a tensor
-x = Dense(64, activation='relu')(inputs)
-x = Dense(64, activation='relu')(x)
-predictions = Dense(10, activation='softmax')(x)
+hidden_layer_1 = Dense(64, activation='relu')(inputs)
+hidden_layer_2 = Dense(64, activation='relu')(hidden_layer_1)
+predictions = Dense(10, activation='softmax')(hidden_layer_2)
 
 # This creates a model that includes
 # the Input layer and three Dense layers
