@@ -55,7 +55,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb.npz',
                     file_hash='599dadb1135973df5b59232a0e9a887c')
-    with np.load(path) as f:
+    with np.load(path, allow_pickle=True) as f:
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
 
