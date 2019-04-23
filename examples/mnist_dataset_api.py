@@ -1,20 +1,21 @@
-'''MNIST classification with TensorFlow's Dataset API.
+'''
+# MNIST classification with TensorFlow's Dataset API.
 
 Introduced in TensorFlow 1.3, the Dataset API is now the
 standard method for loading data into TensorFlow models.
 A Dataset is a sequence of elements, which are themselves
-composed of tf.Tensor components. For more details, see:
-https://www.tensorflow.org/programmers_guide/datasets
+composed of `tf.Tensor` components. For more details, see:
+[tensorflow/datasets](https://www.tensorflow.org/programmers_guide/datasets)
 
 To use this with Keras, we make a dataset out of elements
 of the form (input batch, output batch). From there, we
 create a one-shot iterator and a graph node corresponding
-to its get_next() method. Its components are then provided
-to the network's Input layer and the Model.compile() method,
+to its `get_next()` method. Its components are then provided
+to the network's Input layer and the `Model.compile()` method,
 respectively.
 
 This example is intended to closely follow the
-mnist_tfrecord.py example.
+`mnist_tfrecord.py` example.
 '''
 import numpy as np
 import os
