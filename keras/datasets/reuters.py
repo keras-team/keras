@@ -53,7 +53,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/reuters.npz',
                     file_hash='87aedbeb0cb229e378797a632c1997b6')
-    with np.load(path) as f:
+    with np.load(path, allow_pickle=True) as f:
         xs, labels = f['x'], f['y']
 
     rng = np.random.RandomState(seed)
