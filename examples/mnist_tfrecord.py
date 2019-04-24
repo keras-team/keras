@@ -1,4 +1,5 @@
-'''MNIST dataset with TFRecords, the standard TensorFlow data format.
+'''
+# MNIST dataset with TFRecords, the standard TensorFlow data format.
 
 TFRecord is a data format supported throughout TensorFlow.
 This example demonstrates how to load TFRecord data using
@@ -27,7 +28,7 @@ because rewiring networks is not yet supported.
 For this reason, changing the data input source means
 model weights must be saved and the model rebuilt
 from scratch to connect the new input data.
-validation cannot currently be performed as training
+Validation cannot currently be performed as training
 progresses, and must be performed after training completes.
 This example demonstrates how to train with input
 tensors, save the model weights, and then evaluate the
