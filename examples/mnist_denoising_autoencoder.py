@@ -1,4 +1,5 @@
-'''Trains a denoising autoencoder on MNIST dataset.
+'''
+# Trains a denoising autoencoder on MNIST dataset.
 
 Denoising is one of the classic applications of autoencoders.
 The denoising process removes unwanted noise that corrupted the
