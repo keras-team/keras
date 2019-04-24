@@ -1,6 +1,8 @@
-'''Example of how to use sklearn wrapper
+'''
+# Example of how to use sklearn wrapper
 
-Builds simple CNN models on MNIST and uses sklearn's GridSearchCV to find best model
+Builds simple CNN models on MNIST and uses sklearn's GridSearchCV to find
+best model.
 '''
 
 from __future__ import print_function
