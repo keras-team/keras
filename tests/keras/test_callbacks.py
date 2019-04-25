@@ -514,8 +514,6 @@ def test_ModelCheckpoint(tmpdir):
     assert not tmpdir.listdir()
 
 
-
-
 def test_EarlyStopping():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_data_callbacks()

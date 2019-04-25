@@ -703,7 +703,6 @@ class ModelCheckpoint(Callback):
                 raise ValueError("To use max_checkpoints you must specifify"
                                  " a filepath with a format string.")
 
-
     def on_epoch_end(self, epoch, logs=None):
         def save_model(filepath):
             if self.save_weights_only:
