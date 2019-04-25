@@ -427,6 +427,7 @@ def test_ModelCheckpoint(tmpdir):
     (X_train, y_train), (X_test, y_test) = get_data_callbacks()
     y_test = np_utils.to_categorical(y_test)
     y_train = np_utils.to_categorical(y_train)
+
     # case 1
     monitor = 'val_loss'
     save_best_only = False
@@ -491,6 +492,25 @@ def test_ModelCheckpoint(tmpdir):
     os.remove(filepath.format(epoch=2))
     os.remove(filepath.format(epoch=4))
     assert not tmpdir.listdir()
+
+    # case 6 (max_checkpoints)
+    period = 1
+    filepath = 'checkpoint.{epoch:02d}.h5'
+    max_checkpoints = 2
+    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
+                                      save_best_only=save_best_only, mode=mode,
+                                      period=period, max_checkpoints=max_checkpoints)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
+    assert os.path.isfile(filepath.format(epoch=3))
+    assert os.path.isfile(filepath.format(epoch=4))
+    assert not os.path.exists(filepath.format(epoch=1))
+    assert not os.path.exists(filepath.format(epoch=2))
+    os.remove(filepath.format(epoch=3))
+    os.remove(filepath.format(epoch=4))
+    assert not tmpdir.listdir()
+
+
 
 
 def test_EarlyStopping():
