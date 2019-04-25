@@ -497,9 +497,12 @@ def test_ModelCheckpoint(tmpdir):
     period = 1
     filepath = 'checkpoint.{epoch:02d}.h5'
     max_checkpoints = 2
-    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
-                                      save_best_only=save_best_only, mode=mode,
-                                      period=period, max_checkpoints=max_checkpoints)]
+    cbks = [callbacks.ModelCheckpoint(filepath,
+                                      monitor=monitor,
+                                      save_best_only=save_best_only,
+                                      mode=mode,
+                                      period=period,
+                                      max_checkpoints=max_checkpoints)]
     model.fit(X_train, y_train, batch_size=batch_size,
               validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
     assert os.path.isfile(filepath.format(epoch=3))

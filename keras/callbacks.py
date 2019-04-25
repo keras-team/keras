@@ -697,7 +697,8 @@ class ModelCheckpoint(Callback):
 
         if self.max_checkpoints:
             num_fields = len([tokens[1]
-                for tokens in string.Formatter().parse(filepath) if tokens[1]])
+                             for tokens in string.Formatter().parse(filepath)
+                             if tokens[1]])
             if num_fields == 0:
                 raise ValueError("To use max_checkpoints you must specifify"
                                  " a filepath with a format string.")
