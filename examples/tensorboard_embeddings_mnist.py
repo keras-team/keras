@@ -1,4 +1,6 @@
-'''Trains a simple convnet on the MNIST dataset and embeds test data.
+'''
+# Tensorboard Embeddings MNIST
+Trains a simple convnet on the MNIST dataset and embeds test data.
 
 The test data is embedded using the weights of the final dense layer, just
 before the classification head. This embedding can then be visualized using
