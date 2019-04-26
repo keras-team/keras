@@ -1,4 +1,5 @@
-'''Example of VAE on MNIST dataset using CNN
+'''
+# VAE on MNIST dataset using CNN
 
 The VAE has a modular design. The encoder, decoder and VAE
 are 3 models that share weights. After training the VAE model,
@@ -6,11 +7,11 @@ the encoder can be used to  generate latent vectors.
 The decoder can be used to generate MNIST digits by sampling the
 latent vector from a Gaussian distribution with mean=0 and std=1.
 
-# Reference
+**Reference**
 
 [1] Kingma, Diederik P., and Max Welling.
 "Auto-encoding variational bayes."
-https://arxiv.org/abs/1312.6114
+<https://arxiv.org/abs/1312.6114>
 '''
 
 from __future__ import absolute_import
