@@ -1,10 +1,11 @@
-'''Neural doodle with Keras
+'''
+# Neural doodle with Keras
 
-# Script Usage
+## Script Usage
 
-## Arguments
-```
---nlabels:              # of regions (colors) in mask images
+**Arguments**
+```sh
+--nlabels:              number of regions (colors) in mask images
 --style-image:          image to learn style from
 --style-mask:           semantic labels for style image
 --target-mask:          semantic labels for target image (your doodle)
@@ -12,40 +13,39 @@
 --target-image-prefix:  path prefix for generated target images
 ```
 
-## Example 1: doodle using a style image, style mask
+**Example 1:** doodle using a style image, style mask
 and target mask.
-```
+```sh
 python neural_doodle.py --nlabels 4 --style-image Monet/style.png \
 --style-mask Monet/style_mask.png --target-mask Monet/target_mask.png \
 --target-image-prefix generated/monet
 ```
 
-## Example 2: doodle using a style image, style mask,
+** Example 2:** doodle using a style image, style mask,
 target mask and an optional content image.
-```
+```sh
 python neural_doodle.py --nlabels 4 --style-image Renoir/style.png \
 --style-mask Renoir/style_mask.png --target-mask Renoir/target_mask.png \
 --content-image Renoir/creek.jpg \
 --target-image-prefix generated/renoir
 ```
 
-# References
+**References**
 
-- [Dmitry Ulyanov's blog on fast-neural-doodle]
-    (http://dmitryulyanov.github.io/feed-forward-neural-doodle/)
-- [Torch code for fast-neural-doodle]
-    (https://github.com/DmitryUlyanov/fast-neural-doodle)
-- [Torch code for online-neural-doodle]
-    (https://github.com/DmitryUlyanov/online-neural-doodle)
-- [Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images]
-    (http://arxiv.org/abs/1603.03417)
-- [Discussion on parameter tuning]
-    (https://github.com/keras-team/keras/issues/3705)
+- [Dmitry Ulyanov's blog on fast-neural-doodle](
+  http://dmitryulyanov.github.io/feed-forward-neural-doodle/)
+- [Torch code for fast-neural-doodle](
+  https://github.com/DmitryUlyanov/fast-neural-doodle)
+- [Torch code for online-neural-doodle](
+  https://github.com/DmitryUlyanov/online-neural-doodle)
+- [Paper Texture Networks: Feed-forward Synthesis of Textures and Stylized Images](
+  http://arxiv.org/abs/1603.03417)
+- [Discussion on parameter tuning](https://github.com/keras-team/keras/issues/3705)
 
-# Resources
+**Resources**
 
 Example images can be downloaded from
-https://github.com/DmitryUlyanov/fast-neural-doodle/tree/master/data
+<https://github.com/DmitryUlyanov/fast-neural-doodle/tree/master/data>
 '''
 from __future__ import print_function
 import time
