@@ -1,5 +1,6 @@
-# -*- coding: utf-8 -*-
-
+'''
+# Class Activation Maps
+'''
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
