@@ -1,29 +1,30 @@
-'''Neural style transfer with Keras.
+'''
+# Neural style transfer with Keras.
 
 Run the script with:
-```
+```sh
 python neural_style_transfer.py path_to_your_base_image.jpg \
-    path_to_your_reference.jpg prefix_for_results
+path_to_your_reference.jpg prefix_for_results
 ```
 e.g.:
-```
+```sh
 python neural_style_transfer.py img/tuebingen.jpg \
-    img/starry_night.jpg results/my_result
+img/starry_night.jpg results/my_result
 ```
 Optional parameters:
-```
---iter, To specify the number of iterations \
-    the style transfer takes place (Default is 10)
---content_weight, The weight given to the content loss (Default is 0.025)
---style_weight, The weight given to the style loss (Default is 1.0)
---tv_weight, The weight given to the total variation loss (Default is 1.0)
+```sh
+--iter           To specify the number of iterations \
+the style transfer takes place (Default is 10)
+--content_weight The weight given to the content loss (Default is 0.025)
+--style_weight   The weight given to the style loss (Default is 1.0)
+--tv_weight      The weight given to the total variation loss (Default is 1.0)
 ```
 
 It is preferable to run this script on GPU, for speed.
 
-Example result: https://twitter.com/fchollet/status/686631033085677568
+Example result: <https://twitter.com/fchollet/status/686631033085677568>
 
-# Details
+**Details**
 
 Style transfer consists in generating an image
 with the same "content" as a base image, but with the
@@ -48,8 +49,9 @@ scales (fairly large scales --defined by the depth of the layer considered).
 image (extracted from a deep layer) and the features of the combination image,
 keeping the generated image close enough to the original one.
 
-# References
-    - [A Neural Algorithm of Artistic Style](http://arxiv.org/abs/1508.06576)
+**References**
+
+- [A Neural Algorithm of Artistic Style](http://arxiv.org/abs/1508.06576)
 '''
 
 from __future__ import print_function
