@@ -90,3 +90,4 @@ nav:
   - Stateful LSTM: examples/lstm_stateful.md
   - LSTM for text generation: examples/lstm_text_generation.md
   - Auxiliary Classifier GAN: examples/mnist_acgan.md
+  - MNIST SWWAE: examples/mnist_swwae.md

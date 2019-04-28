@@ -1,26 +1,28 @@
-'''Trains a stacked what-where autoencoder built on residual blocks on the
+'''
+# Stacked what-where autoencoder
+Trains a stacked what-where autoencoder built on residual blocks on the
 MNIST dataset. It exemplifies two influential methods that have been developed
 in the past few years.
 
-The first is the idea of properly 'unpooling.' During any max pool, the
+The first is the idea of properly 'unpooling'. During any max pool, the
 exact location (the 'where') of the maximal value in a pooled receptive field
 is lost, however it can be very useful in the overall reconstruction of an
 input image. Therefore, if the 'where' is handed from the encoder
 to the corresponding decoder layer, features being decoded can be 'placed' in
 the right location, allowing for reconstructions of much higher fidelity.
 
-# References
+**References**
 
 - Visualizing and Understanding Convolutional Networks
-  Matthew D Zeiler, Rob Fergus
-  https://arxiv.org/abs/1311.2901v3
+   by Matthew D Zeiler, Rob Fergus
+  <https://arxiv.org/abs/1311.2901v3>
 - Stacked What-Where Auto-encoders
-  Junbo Zhao, Michael Mathieu, Ross Goroshin, Yann LeCun
-  https://arxiv.org/abs/1506.02351v8
+  by Junbo Zhao, Michael Mathieu, Ross Goroshin, Yann LeCun
+  <https://arxiv.org/abs/1506.02351v8>
 
 The second idea exploited here is that of residual learning. Residual blocks
 ease the training process by allowing skip connections that give the network
-the ability to be as linear (or non-linear) as the data sees fit.  This allows
+the ability to be as linear (or non-linear) as the data sees fit. This allows
 for much deep networks to be easily trained. The residual element seems to
 be advantageous in the context of this example as it allows a nice symmetry
 between the encoder and decoder. Normally, in the decoder, the final
@@ -30,13 +32,14 @@ its output is linear or non-linear is determined by the data it is fed.
 However, in order to cap the reconstruction in this example, a hard softmax is
 applied as a bias because we know the MNIST digits are mapped to [0, 1].
 
-# References
+**References**
+
 - Deep Residual Learning for Image Recognition
-  Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
-  https://arxiv.org/abs/1512.03385v1
+  by Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+  <https://arxiv.org/abs/1512.03385v1>
 - Identity Mappings in Deep Residual Networks
-  Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
-  https://arxiv.org/abs/1603.05027v3
+  by Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun
+  <https://arxiv.org/abs/1603.05027v3>
 '''
 from __future__ import print_function
 import numpy as np
