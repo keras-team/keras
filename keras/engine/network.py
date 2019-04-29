@@ -1105,7 +1105,7 @@ class Network(Layer):
         # Arguments
             filepath: one of the following:
             - string, path where to save the model, or
-            - h5py.Group object where to save the model
+            - h5py.File or h5py.Group object where to save the model
             overwrite: Whether to silently overwrite any existing file at the
                 target location, or provide the user with a manual prompt.
 
@@ -1129,9 +1129,12 @@ class Network(Layer):
 
         try:
             saving.save_weights_to_hdf5_group(f, self.layers)
+
+            if isinstance(f, h5py.File):  # f could also be a h5py.Group object
+                f.flush()
         finally:
             if opened_new_file:
-                f.flush()
+                f.close()
 
     def load_weights(self, filepath, by_name=False,
                      skip_mismatch=False, reshape=False):
@@ -1152,7 +1155,7 @@ class Network(Layer):
         # Arguments
             filepath: one of the following:
             - string, path to the saved model, or
-            - h5py.Group object from which to load the model
+            - h5py.File or h5py.Group object from which to load the model
             by_name: Boolean, whether to load weights by name
                 or by topological order.
             skip_mismatch: Boolean, whether to skip loading of layers
