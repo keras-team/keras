@@ -197,7 +197,11 @@ def model_to_dot(model,
                         # if inbound_layer is Model
                         elif is_model(inbound_layer):
                             name = sub_n_last_node[inbound_layer.name].get_name()
-                            add_edge(dot, name, layer_id)
+                            if is_model(layer):
+                                output_name = sub_n_first_node[layer.name].get_name()
+                                add_edge(dot, name, output_name)
+                            else:
+                                add_edge(dot, name, layer_id)
                         # if inbound_layer is wrapped Model
                         elif is_wrapped_model(inbound_layer):
                             inbound_layer_name = inbound_layer.layer.name
