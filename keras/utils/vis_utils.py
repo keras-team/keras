@@ -115,7 +115,7 @@ def model_to_dot(model,
                 # sub_w : submodel_wrapper
                 sub_w_nodes = submodel_wrapper.get_nodes()
                 sub_w_first_node[layer.layer.name] = sub_w_nodes[0]
-                sub_w_last_node[layer.layer.name] = sub_w_nodes[len(sub_w_nodes) - 1]
+                sub_w_last_node[layer.layer.name] = sub_w_nodes[-1]
                 dot.add_subgraph(submodel_wrapper)
             else:
                 layer_name = '{}({})'.format(layer_name, layer.layer.name)
@@ -130,7 +130,7 @@ def model_to_dot(model,
             # sub_n : submodel_not_wrapper
             sub_n_nodes = submodel_not_wrapper.get_nodes()
             sub_n_first_node[layer.name] = sub_n_nodes[0]
-            sub_n_last_node[layer.name] = sub_n_nodes[len(sub_n_nodes) - 1]
+            sub_n_last_node[layer.name] = sub_n_nodes[-1]
             dot.add_subgraph(submodel_not_wrapper)
 
         # Create node's label.
