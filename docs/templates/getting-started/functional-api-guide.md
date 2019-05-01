@@ -86,6 +86,7 @@ The integers will be between 1 and 10,000 (a vocabulary of 10,000 words) and the
 from keras.layers import Input, Embedding, LSTM, Dense
 from keras.models import Model
 import numpy as np
+np.random.seed(0)  # Set a random seed for reproducibility
 
 # Headline input: meant to receive sequences of 100 integers, between 1 and 10000.
 # Note that we can name any layer by passing it a "name" argument.
