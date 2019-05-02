@@ -128,6 +128,8 @@ Then, you can install Keras itself. There are two ways to install Keras:
 
 - **Install Keras from PyPI (recommended):**
 
+Note: The installation steps assume you are on Linux/Mac environment. If you are on Windows, you will need to remove sudo while running the below commands.
+
 ```sh
 sudo pip install keras
 ```
