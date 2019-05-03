@@ -378,7 +378,7 @@ image_input = Input(shape=(224, 224, 3))
 encoded_image = vision_model(image_input)
 
 # Next, let's define a language model to encode the question into a vector.
-# Each question will be at most 100 word long,
+# Each question will be at most 100 words long,
 # and we will index words as integers from 1 to 9999.
 question_input = Input(shape=(100,), dtype='int32')
 embedded_question = Embedding(input_dim=10000, output_dim=256, input_length=100)(question_input)
