@@ -13,9 +13,6 @@ to its get_next() method. Its components are then provided
 to the network's Input layer and the Model.compile() method,
 respectively.
 
-Note that from TensorFlow 1.4, tf.contrib.data is deprecated
-and tf.data is preferred. See the release notes for details.
-
 This example is intended to closely follow the
 mnist_tfrecord.py example.
 '''
@@ -29,7 +26,6 @@ from keras import layers
 from keras.datasets import mnist
 
 import tensorflow as tf
-from tensorflow.contrib.data import Dataset
 
 
 if K.backend() != 'tensorflow':
@@ -65,7 +61,7 @@ x_train = np.expand_dims(x_train, -1)
 y_train = tf.one_hot(y_train, num_classes)
 
 # Create the dataset and its associated one-shot iterator.
-dataset = Dataset.from_tensor_slices((x_train, y_train))
+dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
 dataset = dataset.repeat()
 dataset = dataset.shuffle(buffer_size)
 dataset = dataset.batch(batch_size)

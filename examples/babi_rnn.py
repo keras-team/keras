@@ -1,4 +1,5 @@
-'''Trains two recurrent neural networks based upon a story and a question.
+'''
+# Trains two recurrent neural networks based upon a story and a question.
 
 The resulting merged vector is then queried to answer a range of bAbI tasks.
 
@@ -8,8 +9,8 @@ http://arxiv.org/abs/1502.05698
 
 Task Number                  | FB LSTM Baseline | Keras QA
 ---                          | ---              | ---
-QA1 - Single Supporting Fact | 50               | 100.0
-QA2 - Two Supporting Facts   | 20               | 50.0
+QA1 - Single Supporting Fact | 50               | 52.1
+QA2 - Two Supporting Facts   | 20               | 37.0
 QA3 - Three Supporting Facts | 20               | 20.5
 QA4 - Two Arg. Relations     | 61               | 62.9
 QA5 - Three Arg. Relations   | 70               | 61.9
@@ -32,11 +33,11 @@ QA20 - Agent's Motivations   | 91               | 90.7
 For the resources related to the bAbI project, refer to:
 https://research.facebook.com/researchers/1543934539189348
 
-# Notes
+### Notes
 
 - With default word, sentence, and query vector sizes, the GRU model achieves:
-  - 100% test accuracy on QA1 in 20 epochs (2 seconds per epoch on CPU)
-  - 50% test accuracy on QA2 in 20 epochs (16 seconds per epoch on CPU)
+  - 52.1% test accuracy on QA1 in 20 epochs (2 seconds per epoch on CPU)
+  - 37.0% test accuracy on QA2 in 20 epochs (16 seconds per epoch on CPU)
 In comparison, the Facebook paper achieves 50% and 20% for the LSTM baseline.
 
 - The task does not traditionally parse the question separately. This likely
@@ -49,7 +50,7 @@ of only 1000. 1000 was used in order to be comparable to the original paper.
 
 - Experiment with GRU, LSTM, and JZS1-3 as they give subtly different results.
 
-- The length and noise (i.e. 'useless' story components) impact the ability for
+- The length and noise (i.e. 'useless' story components) impact the ability of
 LSTMs / GRUs to provide the correct answer. Given only the supporting facts,
 these RNNs can achieve 100% accuracy on many tasks. Memory networks and neural
 networks that use attentional processes can efficiently search through this
@@ -78,7 +79,7 @@ def tokenize(sent):
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
-    return [x.strip() for x in re.split('(\W+)?', sent) if x.strip()]
+    return [x.strip() for x in re.split(r'(\W+)?', sent) if x.strip()]
 
 
 def parse_stories(lines, only_supporting=False):
@@ -98,7 +99,6 @@ def parse_stories(lines, only_supporting=False):
         if '\t' in line:
             q, a, supporting = line.split('\t')
             q = tokenize(q)
-            substory = None
             if only_supporting:
                 # Only select the related substory
                 supporting = map(int, supporting.split())
@@ -123,7 +123,8 @@ def get_stories(f, only_supporting=False, max_length=None):
     '''
     data = parse_stories(f.readlines(), only_supporting=only_supporting)
     flatten = lambda data: reduce(lambda x, y: x + y, data)
-    data = [(flatten(story), q, answer) for story, q, answer in data if not max_length or len(flatten(story)) < max_length]
+    data = [(flatten(story), q, answer) for story, q, answer in data
+            if not max_length or len(flatten(story)) < max_length]
     return data
 
 
@@ -140,24 +141,28 @@ def vectorize_stories(data, word_idx, story_maxlen, query_maxlen):
         xs.append(x)
         xqs.append(xq)
         ys.append(y)
-    return pad_sequences(xs, maxlen=story_maxlen), pad_sequences(xqs, maxlen=query_maxlen), np.array(ys)
+    return (pad_sequences(xs, maxlen=story_maxlen),
+            pad_sequences(xqs, maxlen=query_maxlen), np.array(ys))
 
 RNN = recurrent.LSTM
 EMBED_HIDDEN_SIZE = 50
 SENT_HIDDEN_SIZE = 100
 QUERY_HIDDEN_SIZE = 100
 BATCH_SIZE = 32
-EPOCHS = 40
+EPOCHS = 20
 print('RNN / Embed / Sent / Query = {}, {}, {}, {}'.format(RNN,
                                                            EMBED_HIDDEN_SIZE,
                                                            SENT_HIDDEN_SIZE,
                                                            QUERY_HIDDEN_SIZE))
 
 try:
-    path = get_file('babi-tasks-v1-2.tar.gz', origin='https://s3.amazonaws.com/text-datasets/babi_tasks_1-20_v1-2.tar.gz')
+    path = get_file('babi-tasks-v1-2.tar.gz',
+                    origin='https://s3.amazonaws.com/text-datasets/'
+                           'babi_tasks_1-20_v1-2.tar.gz')
 except:
     print('Error downloading dataset, please download it manually:\n'
-          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2.tar.gz\n'
+          '$ wget http://www.thespermwhale.com/jaseweston/babi/tasks_1-20_v1-2'
+          '.tar.gz\n'
           '$ mv tasks_1-20_v1-2.tar.gz ~/.keras/datasets/babi-tasks-v1-2.tar.gz')
     raise
 
@@ -197,17 +202,13 @@ print('Build model...')
 
 sentence = layers.Input(shape=(story_maxlen,), dtype='int32')
 encoded_sentence = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(sentence)
-encoded_sentence = layers.Dropout(0.3)(encoded_sentence)
+encoded_sentence = RNN(SENT_HIDDEN_SIZE)(encoded_sentence)
 
 question = layers.Input(shape=(query_maxlen,), dtype='int32')
 encoded_question = layers.Embedding(vocab_size, EMBED_HIDDEN_SIZE)(question)
-encoded_question = layers.Dropout(0.3)(encoded_question)
-encoded_question = RNN(EMBED_HIDDEN_SIZE)(encoded_question)
-encoded_question = layers.RepeatVector(story_maxlen)(encoded_question)
+encoded_question = RNN(QUERY_HIDDEN_SIZE)(encoded_question)
 
-merged = layers.add([encoded_sentence, encoded_question])
-merged = RNN(EMBED_HIDDEN_SIZE)(merged)
-merged = layers.Dropout(0.3)(merged)
+merged = layers.concatenate([encoded_sentence, encoded_question])
 preds = layers.Dense(vocab_size, activation='softmax')(merged)
 
 model = Model([sentence, question], preds)
@@ -220,6 +221,8 @@ model.fit([x, xq], y,
           batch_size=BATCH_SIZE,
           epochs=EPOCHS,
           validation_split=0.05)
+
+print('Evaluation')
 loss, acc = model.evaluate([tx, txq], ty,
                            batch_size=BATCH_SIZE)
 print('Test loss / test accuracy = {:.4f} / {:.4f}'.format(loss, acc))

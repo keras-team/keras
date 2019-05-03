@@ -2,7 +2,7 @@
 
 ## What is a "backend"?
 
-Keras is a model-level library, providing high-level building blocks for developing deep learning models. It does not handle itself low-level operations such as tensor products, convolutions and so on. Instead, it relies on a specialized, well-optimized tensor manipulation library to do so, serving as the "backend engine" of Keras. Rather than picking one single tensor library and making the implementation of Keras tied to that library, Keras handles the problem in a modular way, and several different backend engines can be plugged seamlessly into Keras.
+Keras is a model-level library, providing high-level building blocks for developing deep learning models. It does not handle low-level operations such as tensor products, convolutions and so on itself. Instead, it relies on a specialized, well optimized tensor manipulation library to do so, serving as the "backend engine" of Keras. Rather than picking one single tensor library and making the implementation of Keras tied to that library, Keras handles the problem in a modular way, and several different backend engines can be plugged seamlessly into Keras.
 
 At this time, Keras has three backend implementations available: the **TensorFlow** backend, the **Theano** backend, and the **CNTK** backend.
 
@@ -44,6 +44,20 @@ override what is defined in your config file :
 KERAS_BACKEND=tensorflow python -c "from keras import backend"
 Using TensorFlow backend.
 ```
+
+In Keras it is possible to load more backends than `"tensorflow"`, `"theano"`, and `"cntk"`. Keras can use external backends as well, and this can be performed by changing the `keras.json` configuration file, and the `"backend"` setting. Suppose you have a Python module called `my_module` that you wanted to use as your external backend. The `keras.json` configuration file would be changed as follows:
+
+```
+{
+    "image_data_format": "channels_last",
+    "epsilon": 1e-07,
+    "floatx": "float32",
+    "backend": "my_package.my_module"
+}
+```
+An external backend must be validated in order to be used, a valid backend must have the following functions: `placeholder`, `variable` and `function`.
+
+If an external backend is not valid due to missing a required entry, an error will be logged notifying which entry/entries are missing.
 
 ----
 

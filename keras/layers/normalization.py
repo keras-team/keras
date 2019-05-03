@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..engine import Layer, InputSpec
+from ..engine.base_layer import Layer, InputSpec
 from .. import initializers
 from .. import regularizers
 from .. import constraints
@@ -53,7 +53,8 @@ class BatchNormalization(Layer):
         Same shape as input.
 
     # References
-        - [Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
+        - [Batch Normalization: Accelerating Deep Network Training by
+           Reducing Internal Covariate Shift](https://arxiv.org/abs/1502.03167)
     """
 
     @interfaces.legacy_batchnorm_support
@@ -82,7 +83,8 @@ class BatchNormalization(Layer):
         self.beta_initializer = initializers.get(beta_initializer)
         self.gamma_initializer = initializers.get(gamma_initializer)
         self.moving_mean_initializer = initializers.get(moving_mean_initializer)
-        self.moving_variance_initializer = initializers.get(moving_variance_initializer)
+        self.moving_variance_initializer = (
+            initializers.get(moving_variance_initializer))
         self.beta_regularizer = regularizers.get(beta_regularizer)
         self.gamma_regularizer = regularizers.get(gamma_regularizer)
         self.beta_constraint = constraints.get(beta_constraint)
@@ -161,6 +163,7 @@ class BatchNormalization(Layer):
                     broadcast_moving_variance,
                     broadcast_beta,
                     broadcast_gamma,
+                    axis=self.axis,
                     epsilon=self.epsilon)
             else:
                 return K.batch_normalization(
@@ -169,6 +172,7 @@ class BatchNormalization(Layer):
                     self.moving_variance,
                     self.beta,
                     self.gamma,
+                    axis=self.axis,
                     epsilon=self.epsilon)
 
         # If the learning phase is *static* and set to inference:
@@ -184,6 +188,8 @@ class BatchNormalization(Layer):
             sample_size = K.prod([K.shape(inputs)[axis]
                                   for axis in reduction_axes])
             sample_size = K.cast(sample_size, dtype=K.dtype(inputs))
+            if K.backend() == 'tensorflow' and sample_size.dtype != 'float32':
+                sample_size = K.cast(sample_size, dtype='float32')
 
             # sample variance - unbiased estimator of population variance
             variance *= sample_size / (sample_size - (1.0 + self.epsilon))
@@ -210,8 +216,10 @@ class BatchNormalization(Layer):
             'scale': self.scale,
             'beta_initializer': initializers.serialize(self.beta_initializer),
             'gamma_initializer': initializers.serialize(self.gamma_initializer),
-            'moving_mean_initializer': initializers.serialize(self.moving_mean_initializer),
-            'moving_variance_initializer': initializers.serialize(self.moving_variance_initializer),
+            'moving_mean_initializer':
+                initializers.serialize(self.moving_mean_initializer),
+            'moving_variance_initializer':
+                initializers.serialize(self.moving_variance_initializer),
             'beta_regularizer': regularizers.serialize(self.beta_regularizer),
             'gamma_regularizer': regularizers.serialize(self.gamma_regularizer),
             'beta_constraint': constraints.serialize(self.beta_constraint),

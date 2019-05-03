@@ -16,23 +16,21 @@ from .. import activations
 from .. import initializers
 from .. import regularizers
 from .. import constraints
-from ..engine import InputSpec
-from ..engine import Layer
+from ..engine.base_layer import InputSpec
+from ..engine.base_layer import Layer
 from ..utils.generic_utils import func_dump
 from ..utils.generic_utils import func_load
 from ..utils.generic_utils import deserialize_keras_object
 from ..utils.generic_utils import has_arg
-from ..utils import conv_utils
 from ..legacy import interfaces
 
 
 class Masking(Layer):
     """Masks a sequence by using a mask value to skip timesteps.
 
-    For each timestep in the input tensor (dimension #1 in the tensor),
-    if all values in the input tensor at that timestep
-    are equal to `mask_value`, then the timestep will be masked (skipped)
-    in all downstream layers (as long as they support masking).
+    If all features for a given sample timestep are equal to `mask_value`,
+    then the sample timestep will be masked (skipped) in all downstream layers
+    (as long as they support masking).
 
     If any downstream layer does not support masking yet receives such
     an input mask, an exception will be raised.
@@ -41,10 +39,10 @@ class Masking(Layer):
 
     Consider a Numpy data array `x` of shape `(samples, timesteps, features)`,
     to be fed to an LSTM layer.
-    You want to mask timestep #3 and #5 because you lack data for
-    these timesteps. You can:
+    You want to mask sample #0 at timestep #3, and sample #2 at timestep #5,
+    because you lack features for these sample timesteps. You can do:
 
-        - set `x[:, 3, :] = 0.` and `x[:, 5, :] = 0.`
+        - set `x[0, 3, :] = 0.` and `x[2, 5, :] = 0.`
         - insert a `Masking` layer with `mask_value=0.` before the LSTM layer:
 
     ```python
@@ -52,6 +50,9 @@ class Masking(Layer):
         model.add(Masking(mask_value=0., input_shape=(timesteps, features)))
         model.add(LSTM(32))
     ```
+
+    # Arguments
+        mask_value: Either None or mask value to skip
     """
 
     def __init__(self, mask_value=0., **kwargs):
@@ -60,7 +61,8 @@ class Masking(Layer):
         self.mask_value = mask_value
 
     def compute_mask(self, inputs, mask=None):
-        return K.any(K.not_equal(inputs, self.mask_value), axis=-1)
+        output_mask = K.any(K.not_equal(inputs, self.mask_value), axis=-1)
+        return output_mask
 
     def call(self, inputs):
         boolean_mask = K.any(K.not_equal(inputs, self.mask_value),
@@ -94,7 +96,8 @@ class Dropout(Layer):
         seed: A Python integer to use as random seed.
 
     # References
-        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
+        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](
+           http://www.jmlr.org/papers/volume15/srivastava14a/srivastava14a.pdf)
     """
     @interfaces.legacy_dropout_support
     def __init__(self, rate, noise_shape=None, seed=None, **kwargs):
@@ -157,7 +160,8 @@ class SpatialDropout1D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
+        - [Efficient Object Localization Using Convolutional Networks](
+           https://arxiv.org/abs/1411.4280)
     """
 
     @interfaces.legacy_spatialdropout1d_support
@@ -202,18 +206,14 @@ class SpatialDropout2D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
+        - [Efficient Object Localization Using Convolutional Networks](
+           https://arxiv.org/abs/1411.4280)
     """
 
     @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout2D, self).__init__(rate, **kwargs)
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('`data_format` must be in '
-                             '{`"channels_last"`, `"channels_first"`}')
-        self.data_format = data_format
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=4)
 
     def _get_noise_shape(self, inputs):
@@ -255,18 +255,14 @@ class SpatialDropout3D(Dropout):
         Same as input
 
     # References
-        - [Efficient Object Localization Using Convolutional Networks](https://arxiv.org/abs/1411.4280)
+        - [Efficient Object Localization Using Convolutional Networks](
+           https://arxiv.org/abs/1411.4280)
     """
 
     @interfaces.legacy_spatialdropoutNd_support
     def __init__(self, rate, data_format=None, **kwargs):
         super(SpatialDropout3D, self).__init__(rate, **kwargs)
-        if data_format is None:
-            data_format = K.image_data_format()
-        if data_format not in {'channels_last', 'channels_first'}:
-            raise ValueError('`data_format` must be in '
-                             '{`"channels_last"`, `"channels_first"`}')
-        self.data_format = data_format
+        self.data_format = K.normalize_data_format(data_format)
         self.input_spec = InputSpec(ndim=5)
 
     def _get_noise_shape(self, inputs):
@@ -467,19 +463,25 @@ class Flatten(Layer):
     """Flattens the input. Does not affect the batch size.
 
     # Arguments
-        data_format: A string, one of `channels_last` (default) or `channels_first`.
-          The ordering of the dimensions in the inputs.
-          `channels_last` corresponds to inputs with shape
-          `(batch, ..., channels)` while `channels_first` corresponds to
-          inputs with shape `(batch, channels, ...)`.
+        data_format: A string,
+            one of `channels_last` (default) or `channels_first`.
+            The ordering of the dimensions in the inputs.
+            The purpose of this argument is to preserve weight
+            ordering when switching a model from one data format
+            to another.
+            `channels_last` corresponds to inputs with shape
+            `(batch, ..., channels)` while `channels_first` corresponds to
+            inputs with shape `(batch, channels, ...)`.
+            It defaults to the `image_data_format` value found in your
+            Keras config file at `~/.keras/keras.json`.
+            If you never set it, then it will be "channels_last".
 
     # Example
 
     ```python
         model = Sequential()
-        model.add(Conv2D(64, 3, 3,
-                         border_mode='same',
-                         input_shape=(3, 32, 32)))
+        model.add(Conv2D(64, (3, 3),
+                         input_shape=(3, 32, 32), padding='same',))
         # now: model.output_shape == (None, 64, 32, 32)
 
         model.add(Flatten())
@@ -487,16 +489,16 @@ class Flatten(Layer):
     ```
     """
 
-    def __init__(self, data_format='channels_last', **kwargs):
+    def __init__(self, data_format=None, **kwargs):
         super(Flatten, self).__init__(**kwargs)
         self.input_spec = InputSpec(min_ndim=3)
-        self.data_format = conv_utils.normalize_data_format(data_format)
+        self.data_format = K.normalize_data_format(data_format)
 
     def compute_output_shape(self, input_shape):
         if not all(input_shape[1:]):
             raise ValueError('The shape of the input to "Flatten" '
                              'is not fully defined '
-                             '(got ' + str(input_shape[1:]) + '. '
+                             '(got ' + str(input_shape[1:]) + '). '
                              'Make sure to pass a complete "input_shape" '
                              'or "batch_input_shape" argument to the first '
                              'layer in your model.')
@@ -591,10 +593,30 @@ class Lambda(Layer):
         model.add(Lambda(antirectifier,
                          output_shape=antirectifier_output_shape))
     ```
+    ```python
+        # add a layer that returns the hadamard product
+        # and sum of it from two input tensors
+
+        def hadamard_product_sum(tensors):
+            out1 = tensors[0] * tensors[1]
+            out2 = K.sum(out1, axis=-1)
+            return [out1, out2]
+
+        def hadamard_product_sum_output_shape(input_shapes):
+            shape1 = list(input_shapes[0])
+            shape2 = list(input_shapes[1])
+            assert shape1 == shape2  # else hadamard product isn't possible
+            return [tuple(shape1), tuple(shape2[:-1])]
+
+        x1 = Dense(32)(input_1)
+        x2 = Dense(32)(input_2)
+        layer = Lambda(hadamard_product_sum, hadamard_product_sum_output_shape)
+        x_hadamard, x_sum = layer([x1, x2])
+    ```
 
     # Arguments
         function: The function to be evaluated.
-            Takes input tensor as first argument.
+            Takes input tensor or list of tensors as first argument.
         output_shape: Expected output shape from function.
             Only relevant when using Theano.
             Can be a tuple or function.
@@ -606,6 +628,8 @@ class Lambda(Layer):
                  `output_shape = (None, ) + output_shape`
             If a function, it specifies the entire shape as a function of the
             input shape: `output_shape = f(input_shape)`
+        mask: Either None (indicating no masking) or a Tensor indicating the
+          input mask for Embedding.
         arguments: optional dictionary of keyword arguments to be passed
             to the function.
 
@@ -616,7 +640,7 @@ class Lambda(Layer):
 
     # Output shape
         Specified by `output_shape` argument
-        (or auto-inferred when using TensorFlow).
+        (or auto-inferred when using TensorFlow or CNTK).
     """
 
     @interfaces.legacy_lambda_support
@@ -624,6 +648,7 @@ class Lambda(Layer):
                  mask=None, arguments=None, **kwargs):
         super(Lambda, self).__init__(**kwargs)
         self.function = function
+        self._input_dtypes = None
         self.arguments = arguments if arguments else {}
         if mask is not None:
             self.supports_masking = True
@@ -641,13 +666,14 @@ class Lambda(Layer):
 
     def compute_output_shape(self, input_shape):
         if self._output_shape is None:
-            # With TensorFlow, we can infer the output shape directly:
-            if K.backend() == 'tensorflow':
+            # With TensorFlow or CNTK, we can infer the output shape directly:
+            if K.backend() in ('tensorflow', 'cntk'):
                 if isinstance(input_shape, list):
-                    xs = [K.placeholder(shape=shape) for shape in input_shape]
+                    xs = [K.placeholder(shape=shape, dtype=dtype)
+                          for shape, dtype in zip(input_shape, self._input_dtypes)]
                     x = self.call(xs)
                 else:
-                    x = K.placeholder(shape=input_shape)
+                    x = K.placeholder(shape=input_shape, dtype=self._input_dtypes)
                     x = self.call(x)
                 if isinstance(x, list):
                     return [K.int_shape(x_elem) for x_elem in x]
@@ -672,7 +698,8 @@ class Lambda(Layer):
         else:
             shape = self._output_shape(input_shape)
             if not isinstance(shape, (list, tuple)):
-                raise ValueError('`output_shape` function must return a tuple or a list of tuples.')
+                raise ValueError('`output_shape` function must return a tuple or '
+                                 'a list of tuples.')
             if isinstance(shape, list):
                 if isinstance(shape[0], int) or shape[0] is None:
                     shape = tuple(shape)
@@ -682,6 +709,10 @@ class Lambda(Layer):
         arguments = self.arguments
         if has_arg(self.function, 'mask'):
             arguments['mask'] = mask
+        if isinstance(inputs, list):
+            self._input_dtypes = [K.dtype(x) for x in inputs]
+        else:
+            self._input_dtypes = K.dtype(inputs)
         return self.function(inputs, **arguments)
 
     def compute_mask(self, inputs, mask=None):
@@ -876,7 +907,7 @@ class Dense(Layer):
     def call(self, inputs):
         output = K.dot(inputs, self.kernel)
         if self.use_bias:
-            output = K.bias_add(output, self.bias)
+            output = K.bias_add(output, self.bias, data_format='channels_last')
         if self.activation is not None:
             output = self.activation(output)
         return output
@@ -897,7 +928,8 @@ class Dense(Layer):
             'bias_initializer': initializers.serialize(self.bias_initializer),
             'kernel_regularizer': regularizers.serialize(self.kernel_regularizer),
             'bias_regularizer': regularizers.serialize(self.bias_regularizer),
-            'activity_regularizer': regularizers.serialize(self.activity_regularizer),
+            'activity_regularizer':
+                regularizers.serialize(self.activity_regularizer),
             'kernel_constraint': constraints.serialize(self.kernel_constraint),
             'bias_constraint': constraints.serialize(self.bias_constraint)
         }

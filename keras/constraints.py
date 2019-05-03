@@ -26,7 +26,7 @@ class MaxNorm(Constraint):
     to have a norm less than or equal to a desired value.
 
     # Arguments
-        m: the maximum norm for the incoming weights.
+        max_value: the maximum norm for the incoming weights.
         axis: integer, axis along which to calculate weight norms.
             For instance, in a `Dense` layer the weight matrix
             has shape `(input_dim, output_dim)`,
@@ -40,7 +40,8 @@ class MaxNorm(Constraint):
             `(rows, cols, input_depth)`.
 
     # References
-        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
+        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](
+           http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
     def __init__(self, max_value=2, axis=0):

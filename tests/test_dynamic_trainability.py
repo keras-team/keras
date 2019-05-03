@@ -2,12 +2,10 @@ from __future__ import absolute_import
 from __future__ import print_function
 import pytest
 
-from keras.utils.test_utils import keras_test
 from keras.models import Model, Sequential
 from keras.layers import Dense, Input
 
 
-@keras_test
 def test_layer_trainability_switch():
     # with constructor argument, in Sequential
     model = Sequential()
@@ -38,7 +36,6 @@ def test_layer_trainability_switch():
     assert model.trainable_weights == []
 
 
-@keras_test
 def test_model_trainability_switch():
     # a non-trainable model has no trainable weights
     x = Input(shape=(1,))
@@ -54,7 +51,6 @@ def test_model_trainability_switch():
     assert model.trainable_weights == []
 
 
-@keras_test
 def test_nested_model_trainability():
     # a Sequential inside a Model
     inner_model = Sequential()

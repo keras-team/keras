@@ -1,13 +1,18 @@
-'''This example demonstrates the use of fasttext for text classification
+'''
+#This example demonstrates the use of fasttext for text classification
 
 Based on Joulin et al's paper:
 
-Bags of Tricks for Efficient Text Classification
-https://arxiv.org/abs/1607.01759
+[Bags of Tricks for Efficient Text Classification
+](https://arxiv.org/abs/1607.01759)
 
 Results on IMDB datasets with uni and bi-gram embeddings:
-    Uni-gram: 0.8813 test accuracy after 5 epochs. 8s/epoch on i7 cpu.
-    Bi-gram : 0.9056 test accuracy after 5 epochs. 2s/epoch on GTx 980M gpu.
+
+Embedding|Accuracy, 5 epochs|Speed (s/epoch)|Hardware
+:--------|-----------------:|----:|:-------
+Uni-gram |            0.8813|    8|i7 CPU
+Bi-gram  |            0.9056|    2|GTx 980M GPU
+
 '''
 
 from __future__ import print_function
@@ -75,8 +80,10 @@ print('Loading data...')
 (x_train, y_train), (x_test, y_test) = imdb.load_data(num_words=max_features)
 print(len(x_train), 'train sequences')
 print(len(x_test), 'test sequences')
-print('Average train sequence length: {}'.format(np.mean(list(map(len, x_train)), dtype=int)))
-print('Average test sequence length: {}'.format(np.mean(list(map(len, x_test)), dtype=int)))
+print('Average train sequence length: {}'.format(
+    np.mean(list(map(len, x_train)), dtype=int)))
+print('Average test sequence length: {}'.format(
+    np.mean(list(map(len, x_test)), dtype=int)))
 
 if ngram_range > 1:
     print('Adding {}-gram features'.format(ngram_range))
@@ -100,8 +107,10 @@ if ngram_range > 1:
     # Augmenting x_train and x_test with n-grams features
     x_train = add_ngram(x_train, token_indice, ngram_range)
     x_test = add_ngram(x_test, token_indice, ngram_range)
-    print('Average train sequence length: {}'.format(np.mean(list(map(len, x_train)), dtype=int)))
-    print('Average test sequence length: {}'.format(np.mean(list(map(len, x_test)), dtype=int)))
+    print('Average train sequence length: {}'.format(
+        np.mean(list(map(len, x_train)), dtype=int)))
+    print('Average test sequence length: {}'.format(
+        np.mean(list(map(len, x_test)), dtype=int)))
 
 print('Pad sequences (samples x time)')
 x_train = sequence.pad_sequences(x_train, maxlen=maxlen)

@@ -5,11 +5,9 @@ from keras import layers
 from keras import models
 from keras import backend as K
 from keras.utils.test_utils import layer_test
-from keras.utils.test_utils import keras_test
 from keras.layers import merge
 
 
-@keras_test
 def test_merge_add():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
@@ -42,7 +40,6 @@ def test_merge_add():
         add_layer.compute_mask([i1, i2, i3], [None, None])
 
 
-@keras_test
 def test_merge_subtract():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
@@ -77,7 +74,6 @@ def test_merge_subtract():
         subtract_layer([i1])
 
 
-@keras_test
 def test_merge_multiply():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
@@ -98,7 +94,6 @@ def test_merge_multiply():
     assert_allclose(out, x1 * x2 * x3, atol=1e-4)
 
 
-@keras_test
 def test_merge_average():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
@@ -117,7 +112,6 @@ def test_merge_average():
     assert_allclose(out, 0.5 * (x1 + x2), atol=1e-4)
 
 
-@keras_test
 def test_merge_maximum():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
@@ -136,7 +130,6 @@ def test_merge_maximum():
     assert_allclose(out, np.maximum(x1, x2), atol=1e-4)
 
 
-@keras_test
 def test_merge_minimum():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
@@ -155,7 +148,6 @@ def test_merge_minimum():
     assert_allclose(out, np.minimum(x1, x2), atol=1e-4)
 
 
-@keras_test
 def test_merge_concatenate():
     i1 = layers.Input(shape=(None, 5))
     i2 = layers.Input(shape=(None, 5))
@@ -208,7 +200,6 @@ def test_merge_concatenate():
         concat_layer([i1])
 
 
-@keras_test
 def test_merge_dot():
     i1 = layers.Input(shape=(4,))
     i2 = layers.Input(shape=(4,))
@@ -238,7 +229,6 @@ def test_merge_dot():
     assert_allclose(out, expected, atol=1e-4)
 
 
-@keras_test
 def test_merge_broadcast():
     # shapes provided
     i1 = layers.Input(shape=(4, 5))
@@ -286,6 +276,16 @@ def test_merge_broadcast():
             out = model.predict([x1, x2])
             assert out.shape == (2, 4, 5)
         K.ndim = k_ndim
+
+
+def test_masking_concatenate():
+    input1 = layers.Input(shape=(6,))
+    input2 = layers.Input(shape=(6,))
+    x1 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input1)
+    x2 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input2)
+    x = layers.concatenate([x1, x2])
+    x = layers.wrappers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
+    models.Model(inputs=[input1, input2], outputs=[x])
 
 
 if __name__ == '__main__':

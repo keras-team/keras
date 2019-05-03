@@ -37,12 +37,13 @@ USER $NB_USER
 
 ARG python_version=3.6
 
+RUN conda config --append channels conda-forge
 RUN conda install -y python=${python_version} && \
     pip install --upgrade pip && \
     pip install \
       sklearn_pandas \
-      tensorflow-gpu && \
-    pip install https://cntk.ai/PythonWheel/GPU/cntk-2.1-cp36-cp36m-linux_x86_64.whl && \
+      tensorflow-gpu \
+      cntk-gpu && \
     conda install \
       bcolz \
       h5py \
@@ -52,22 +53,27 @@ RUN conda install -y python=${python_version} && \
       notebook \
       Pillow \
       pandas \
+      pydot \
       pygpu \
       pyyaml \
       scikit-learn \
       six \
-      theano && \
+      theano \
+      mkdocs \
+      && \
     git clone git://github.com/keras-team/keras.git /src && pip install -e /src[tests] && \
     pip install git+git://github.com/keras-team/keras.git && \
     conda clean -yt
 
 ADD theanorc /home/keras/.theanorc
 
+ENV LC_ALL=C.UTF-8
+ENV LANG=C.UTF-8
+
 ENV PYTHONPATH='/src/:$PYTHONPATH'
 
-WORKDIR /src
+WORKDIR /data
 
 EXPOSE 8888
 
 CMD jupyter notebook --port=8888 --ip=0.0.0.0
-

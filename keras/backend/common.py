@@ -41,8 +41,9 @@ def set_epsilon(e):
         1e-05
     ```
     """
+
     global _EPSILON
-    _EPSILON = e
+    _EPSILON = float(e)
 
 
 def floatx():
@@ -111,7 +112,7 @@ def cast_to_floatx(x):
 
 
 def image_data_format():
-    """Returns the default image data format convention ('channels_first' or 'channels_last').
+    """Returns the default image data format convention.
 
     # Returns
         A string, either `'channels_first'` or `'channels_last'`
@@ -145,6 +146,37 @@ def set_image_data_format(data_format):
     if data_format not in {'channels_last', 'channels_first'}:
         raise ValueError('Unknown data_format:', data_format)
     _IMAGE_DATA_FORMAT = str(data_format)
+
+
+def normalize_data_format(value):
+    """Checks that the value correspond to a valid data format.
+
+    # Arguments
+        value: String or None. `'channels_first'` or `'channels_last'`.
+
+    # Returns
+        A string, either `'channels_first'` or `'channels_last'`
+
+    # Example
+    ```python
+        >>> from keras import backend as K
+        >>> K.normalize_data_format(None)
+        'channels_first'
+        >>> K.normalize_data_format('channels_last')
+        'channels_last'
+    ```
+
+    # Raises
+        ValueError: if `value` or the global `data_format` invalid.
+    """
+    if value is None:
+        value = image_data_format()
+    data_format = value.lower()
+    if data_format not in {'channels_first', 'channels_last'}:
+        raise ValueError('The `data_format` argument must be one of '
+                         '"channels_first", "channels_last". Received: ' +
+                         str(value))
+    return data_format
 
 
 # Legacy methods

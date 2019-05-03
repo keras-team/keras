@@ -55,18 +55,18 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb.npz',
                     file_hash='599dadb1135973df5b59232a0e9a887c')
-    with np.load(path) as f:
+    with np.load(path, allow_pickle=True) as f:
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
 
-    np.random.seed(seed)
+    rng = np.random.RandomState(seed)
     indices = np.arange(len(x_train))
-    np.random.shuffle(indices)
+    rng.shuffle(indices)
     x_train = x_train[indices]
     labels_train = labels_train[indices]
 
     indices = np.arange(len(x_test))
-    np.random.shuffle(indices)
+    rng.shuffle(indices)
     x_test = x_test[indices]
     labels_test = labels_test[indices]
 
@@ -91,9 +91,11 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     # reserve 'index_from' (=3 by default) characters:
     # 0 (padding), 1 (start), 2 (OOV)
     if oov_char is not None:
-        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x] for x in xs]
+        xs = [[w if (skip_top <= w < num_words) else oov_char for w in x]
+              for x in xs]
     else:
-        xs = [[w for w in x if skip_top <= w < num_words] for x in xs]
+        xs = [[w for w in x if skip_top <= w < num_words]
+              for x in xs]
 
     idx = len(x_train)
     x_train, y_train = np.array(xs[:idx]), np.array(labels[:idx])
@@ -103,7 +105,7 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
 
 
 def get_word_index(path='imdb_word_index.json'):
-    """Retrieves the dictionary mapping word indices back to words.
+    """Retrieves the dictionary mapping words to word indices.
 
     # Arguments
         path: where to cache the data (relative to `~/.keras/dataset`).
@@ -111,8 +113,9 @@ def get_word_index(path='imdb_word_index.json'):
     # Returns
         The word index dictionary.
     """
-    path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
-                    file_hash='bfafd718b763782e994055a2d397834f')
+    path = get_file(
+        path,
+        origin='https://s3.amazonaws.com/text-datasets/imdb_word_index.json',
+        file_hash='bfafd718b763782e994055a2d397834f')
     with open(path) as f:
         return json.load(f)

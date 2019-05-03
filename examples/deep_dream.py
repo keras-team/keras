@@ -1,17 +1,18 @@
-'''Deep Dreaming in Keras.
+'''
+#Deep Dreaming in Keras.
 
 Run the script with:
-```
+```python
 python deep_dream.py path_to_your_base_image.jpg prefix_for_results
 ```
 e.g.:
-```
+```python
 python deep_dream.py img/mypic.jpg results/dream
 ```
 '''
 from __future__ import print_function
 
-from keras.preprocessing.image import load_img, img_to_array
+from keras.preprocessing.image import load_img, save_img, img_to_array
 import numpy as np
 import scipy
 import argparse
@@ -83,7 +84,8 @@ layer_dict = dict([(layer.name, layer) for layer in model.layers])
 loss = K.variable(0.)
 for layer_name in settings['features']:
     # Add the L2 norm of the features of a layer to the loss.
-    assert layer_name in layer_dict.keys(), 'Layer ' + layer_name + ' not found in model.'
+    if layer_name not in layer_dict:
+        raise ValueError('Layer ' + layer_name + ' not found in model.')
     coeff = settings['features'][layer_name]
     x = layer_dict[layer_name].output
     # We avoid border artifacts by only involving non-border pixels in the loss.
@@ -133,11 +135,6 @@ def gradient_ascent(x, iterations, step, max_loss=None):
         print('..Loss value at', i, ':', loss_value)
         x += step * grad_values
     return x
-
-
-def save_img(img, fname):
-    pil_img = deprocess_image(np.copy(img))
-    scipy.misc.imsave(fname, pil_img)
 
 
 """Process:
@@ -192,4 +189,4 @@ for shape in successive_shapes:
     img += lost_detail
     shrunk_original_img = resize_img(original_img, shape)
 
-save_img(img, fname=result_prefix + '.png')
+save_img(result_prefix + '.png', deprocess_image(np.copy(img)))

@@ -14,8 +14,8 @@ from keras.datasets import cifar10
 
 - __Returns:__
     - 2 tuples:
-        - __x_train, x_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32).
-        - __y_train, y_test__: uint8 array of category labels (integers in range 0-9) with shape (num_samples,).
+        - __x_train, x_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32) or (num_samples, 32, 32, 3) based on the `image_data_format` backend setting of either `channels_first` or `channels_last` respectively.
+        - __y_train, y_test__: uint8 array of category labels (integers in range 0-9) with shape (num_samples, 1).
 
 
 ---
@@ -34,8 +34,8 @@ from keras.datasets import cifar100
 
 - __Returns:__
     - 2 tuples:
-        - __x_train, x_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32).
-        - __y_train, y_test__: uint8 array of category labels with shape (num_samples,).
+        - __x_train, x_test__: uint8 array of RGB image data with shape (num_samples, 3, 32, 32) or (num_samples, 32, 32, 3) based on the `image_data_format` backend setting of either `channels_first` or `channels_last` respectively.
+        - __y_train, y_test__: uint8 array of category labels with shape (num_samples, 1).
 
 - __Arguments:__
 

@@ -263,6 +263,8 @@ from keras.layers import Dense, Dropout
 from keras.layers import Embedding
 from keras.layers import LSTM
 
+max_features = 1024
+
 model = Sequential()
 model.add(Embedding(max_features, output_dim=256))
 model.add(LSTM(128))
@@ -284,6 +286,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.layers import Embedding
 from keras.layers import Conv1D, GlobalAveragePooling1D, MaxPooling1D
+
+seq_length = 64
 
 model = Sequential()
 model.add(Conv1D(64, 3, activation='relu', input_shape=(seq_length, 100)))

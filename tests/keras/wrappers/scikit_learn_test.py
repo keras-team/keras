@@ -75,7 +75,8 @@ def test_classify_inherit_class_build_fn():
 
 
 def assert_classification_works(clf):
-    clf.fit(X_train, y_train, sample_weight=np.ones(X_train.shape[0]), batch_size=batch_size, epochs=epochs)
+    clf.fit(X_train, y_train, sample_weight=np.ones(X_train.shape[0]),
+            batch_size=batch_size, epochs=epochs)
 
     score = clf.score(X_train, y_train, batch_size=batch_size)
     assert np.isscalar(score) and np.isfinite(score)
@@ -166,16 +167,38 @@ def assert_regression_works(reg):
     assert preds.shape == (num_test, )
 
 
+def test_regression_predict_shape_correct_num_test_0():
+    assert_regression_predict_shape_correct(num_test=0)
+
+
+def test_regression_predict_shape_correct_num_test_1():
+    assert_regression_predict_shape_correct(num_test=1)
+
+
+def assert_regression_predict_shape_correct(num_test):
+    reg = KerasRegressor(
+        build_fn=build_fn_reg, hidden_dims=hidden_dims,
+        batch_size=batch_size, epochs=epochs)
+    reg.fit(X_train, y_train, batch_size=batch_size, epochs=epochs)
+
+    preds = reg.predict(X_test[:num_test], batch_size=batch_size)
+    assert preds.shape == (num_test, )
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
 
 # Usage of sklearn's grid_search
 # from sklearn import grid_search
-# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128], epochs=[2], verbose=[0])
+# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128],
+#                   epochs=[2], verbose=[0])
 # classifier = Inherit_class_build_fn_clf()
 # clf = grid_search.GridSearchCV(classifier, parameters)
 # clf.fit(X_train, y_train)
-# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128], epochs=[2], verbose=[0])
+# parameters = dict(hidden_dims = [20, 30], batch_size=[64, 128],
+#                   epochs=[2], verbose=[0])
 # regressor = Inherit_class_build_fn_reg()
-# reg = grid_search.GridSearchCV(regressor, parameters, scoring='mean_squared_error', n_jobs=1, cv=2, verbose=2)
+# reg = grid_search.GridSearchCV(regressor, parameters,
+#                                scoring='mean_squared_error',
+#                                n_jobs=1, cv=2, verbose=2)
 # reg.fit(X_train_reg, y_train_reg)

@@ -53,12 +53,12 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/reuters.npz',
                     file_hash='87aedbeb0cb229e378797a632c1997b6')
-    with np.load(path) as f:
+    with np.load(path, allow_pickle=True) as f:
         xs, labels = f['x'], f['y']
 
-    np.random.seed(seed)
+    rng = np.random.RandomState(seed)
     indices = np.arange(len(xs))
-    np.random.shuffle(indices)
+    rng.shuffle(indices)
     xs = xs[indices]
     labels = labels[indices]
 
@@ -89,7 +89,7 @@ def load_data(path='reuters.npz', num_words=None, skip_top=0,
 
 
 def get_word_index(path='reuters_word_index.json'):
-    """Retrieves the dictionary mapping word indices back to words.
+    """Retrieves the dictionary mapping words to word indices.
 
     # Arguments
         path: where to cache the data (relative to `~/.keras/dataset`).
@@ -97,10 +97,9 @@ def get_word_index(path='reuters_word_index.json'):
     # Returns
         The word index dictionary.
     """
-    path = get_file(path,
-                    origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json',
-                    file_hash='4d44cc38712099c9e383dc6e5f11a921')
-    f = open(path)
-    data = json.load(f)
-    f.close()
-    return data
+    path = get_file(
+        path,
+        origin='https://s3.amazonaws.com/text-datasets/reuters_word_index.json',
+        file_hash='4d44cc38712099c9e383dc6e5f11a921')
+    with open(path) as f:
+        return json.load(f)

@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..engine import Layer
+from ..engine.base_layer import Layer
 from .. import backend as K
 import numpy as np
 from ..legacy import interfaces
@@ -74,7 +74,8 @@ class GaussianDropout(Layer):
         Same shape as input.
 
     # References
-        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting Srivastava, Hinton, et al. 2014](http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
+        - [Dropout: A Simple Way to Prevent Neural Networks from Overfitting](
+           http://www.cs.toronto.edu/~rsalakhu/papers/srivastava14a.pdf)
     """
 
     @interfaces.legacy_gaussiandropout_support
@@ -115,6 +116,8 @@ class AlphaDropout(Layer):
         rate: float, drop probability (as with `Dropout`).
             The multiplicative noise will have
             standard deviation `sqrt(rate / (1 - rate))`.
+        noise_shape: A 1-D `Tensor` of type `int32`, representing the
+            shape for randomly generated keep/drop flags.
         seed: A Python integer to use as random seed.
 
     # Input shape

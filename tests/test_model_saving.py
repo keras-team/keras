@@ -1,24 +1,38 @@
+import io
 import pytest
 import os
 import h5py
 import tempfile
+from contextlib import contextmanager
 import numpy as np
 from numpy.testing import assert_allclose
 from numpy.testing import assert_raises
 
 from keras import backend as K
+from keras.engine.saving import preprocess_weights_for_loading
 from keras.models import Model, Sequential
-from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed, LSTM
+from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
+from keras.layers import Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
 from keras.layers import Conv2D, Flatten
-from keras.layers import Input
+from keras.layers import Input, InputLayer
+from keras.initializers import Constant
 from keras import optimizers
 from keras import losses
 from keras import metrics
-from keras.utils.test_utils import keras_test
 from keras.models import save_model, load_model
+from keras.utils.test_utils import tf_file_io_proxy
+try:
+    from unittest.mock import patch
+except:
+    from mock import patch
 
 
-@keras_test
+skipif_no_tf_gpu = pytest.mark.skipif(
+    (K.backend() != 'tensorflow' or
+     not K.tensorflow_backend._get_available_gpus()),
+    reason='Requires TensorFlow backend and a GPU')
+
+
 def test_sequential_model_saving():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
@@ -33,26 +47,33 @@ def test_sequential_model_saving():
     model.train_on_batch(x, y)
 
     out = model.predict(x)
+
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-
-    new_model = load_model(fname)
+    new_model_disk = load_model(fname)
     os.remove(fname)
 
-    out2 = new_model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcs_filepath = file_io_proxy.get_filepath(filename=fname)
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
 
-    # test that new updates are the same with both models
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3, 3))
-    model.train_on_batch(x, y)
-    new_model.train_on_batch(x, y)
-    out = model.predict(x)
-    out2 = new_model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    x2 = np.random.random((1, 3))
+    y2 = np.random.random((1, 3, 3))
+    model.train_on_batch(x2, y2)
+    out_2 = model.predict(x2)
+
+    for new_model in [new_model_disk, new_model_gcs]:
+        new_out = new_model.predict(x)
+        assert_allclose(out, new_out, atol=1e-05)
+        # test that new updates are the same with both models
+        new_model.train_on_batch(x2, y2)
+        new_out_2 = new_model.predict(x2)
+        assert_allclose(out_2, new_out_2, atol=1e-05)
 
 
-@keras_test
 def test_sequential_model_saving_2():
     # test with custom optimizer, loss
     custom_opt = optimizers.rmsprop
@@ -65,58 +86,65 @@ def test_sequential_model_saving_2():
     x = np.random.random((1, 3))
     y = np.random.random((1, 3))
     model.train_on_batch(x, y)
-
     out = model.predict(x)
+
+    load_kwargs = {'custom_objects': {'custom_opt': custom_opt,
+                                      'custom_loss': custom_loss}}
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-
-    model = load_model(fname,
-                       custom_objects={'custom_opt': custom_opt,
-                                       'custom_loss': custom_loss})
+    new_model_disk = load_model(fname, **load_kwargs)
     os.remove(fname)
 
-    out2 = model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcs_filepath = file_io_proxy.get_filepath(filename=fname)
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath, **load_kwargs)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
+
+    for new_model in [new_model_disk, new_model_gcs]:
+        new_out = new_model.predict(x)
+        assert_allclose(out, new_out, atol=1e-05)
 
 
-@keras_test
+def _get_sample_model_and_input():
+    inputs = Input(shape=(3,))
+    x = Dense(2)(inputs)
+    outputs = Dense(3)(x)
+
+    model = Model(inputs, outputs)
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.Adam(),
+                  metrics=[metrics.categorical_accuracy])
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 3))
+    model.train_on_batch(x, y)
+
+    return model, x
+
+
 def test_functional_model_saving():
-    inputs = Input(shape=(3,))
-    x = Dense(2)(inputs)
-    outputs = Dense(3)(x)
-
-    model = Model(inputs, outputs)
-    model.compile(loss=losses.MSE,
-                  optimizer=optimizers.Adam(),
-                  metrics=[metrics.categorical_accuracy])
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
-
+    model, x = _get_sample_model_and_input()
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
-
-    model = load_model(fname)
+    new_model_disk = load_model(fname)
     os.remove(fname)
 
-    out2 = model.predict(x)
-    assert_allclose(out, out2, atol=1e-05)
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcs_filepath = file_io_proxy.get_filepath(filename=fname)
+        save_model(model, gcs_filepath)
+        file_io_proxy.assert_exists(gcs_filepath)
+        new_model_gcs = load_model(gcs_filepath)
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
+
+    for new_model in [new_model_disk, new_model_gcs]:
+        new_out = new_model.predict(x)
+        assert_allclose(out, new_out, atol=1e-05)
 
 
-@keras_test
 def test_model_saving_to_pre_created_h5py_file():
-    inputs = Input(shape=(3,))
-    x = Dense(2)(inputs)
-    outputs = Dense(3)(x)
-
-    model = Model(inputs, outputs)
-    model.compile(loss=losses.MSE,
-                  optimizer=optimizers.Adam(),
-                  metrics=[metrics.categorical_accuracy])
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
+    model, x = _get_sample_model_and_input()
 
     out = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
@@ -134,50 +162,67 @@ def test_model_saving_to_pre_created_h5py_file():
         out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
-
-@keras_test
-def test_model_saving_to_binary_stream():
-    inputs = Input(shape=(3,))
-    x = Dense(2)(inputs)
-    outputs = Dense(3)(x)
-
-    model = Model(inputs, outputs)
-    model.compile(loss=losses.MSE,
-                  optimizer=optimizers.Adam(),
-                  metrics=[metrics.categorical_accuracy])
-    x = np.random.random((1, 3))
-    y = np.random.random((1, 3))
-    model.train_on_batch(x, y)
-
-    out = model.predict(x)
-    _, fname = tempfile.mkstemp('.h5')
     with h5py.File(fname, mode='r+') as h5file:
-        save_model(model, h5file)
-        loaded_model = load_model(h5file)
+        g = h5file.create_group('model')
+        save_model(model, g)
+        loaded_model = load_model(g)
         out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
-    # Save the model to an in-memory-only h5 file.
-    with h5py.File('does not matter', driver='core',
-                   backing_store=False) as h5file:
-        save_model(model, h5file)
-        h5file.flush()  # Very important! Otherwise you get all zeroes below.
-        binary_data = h5file.fid.get_file_image()
 
-        # Make sure the binary data is correct by saving it to a file manually
-        # and then loading it the usual way.
+@contextmanager
+def temp_filename(filename):
+    """Context that returns a temporary filename and deletes the file on exit if
+    it still exists (so that this is not forgotten).
+    """
+    _, temp_fname = tempfile.mkstemp(filename)
+    yield temp_fname
+    if os.path.exists(temp_fname):
+        os.remove(temp_fname)
+
+
+def test_model_saving_to_binary_stream():
+    model, x = _get_sample_model_and_input()
+    out = model.predict(x)
+
+    with temp_filename('h5') as fname:
+        # save directly to binary file
         with open(fname, 'wb') as raw_file:
-            raw_file.write(binary_data)
-
-    # Load the manually-saved binary data, and make sure the model is intact.
-    with h5py.File(fname, mode='r') as h5file:
-        loaded_model = load_model(h5file)
-        out2 = loaded_model.predict(x)
-
+            save_model(model, raw_file)
+        # Load the data the usual way, and make sure the model is intact.
+        with h5py.File(fname, mode='r') as h5file:
+            loaded_model = load_model(h5file)
+    out2 = loaded_model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
+def test_model_loading_from_binary_stream():
+    model, x = _get_sample_model_and_input()
+    out = model.predict(x)
+
+    with temp_filename('h5') as fname:
+        # save the model the usual way
+        with h5py.File(fname, mode='w') as h5file:
+            save_model(model, h5file)
+        # Load the data binary, and make sure the model is intact.
+        with open(fname, 'rb') as raw_file:
+            loaded_model = load_model(raw_file)
+    out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+def test_model_save_load_binary_in_memory():
+    model, x = _get_sample_model_and_input()
+    out = model.predict(x)
+
+    stream = io.BytesIO()
+    save_model(model, stream)
+    stream.seek(0)
+    loaded_model = load_model(stream)
+    out2 = loaded_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
 def test_saving_multiple_metrics_outputs():
     inputs = Input(shape=(5,))
     x = Dense(5)(inputs)
@@ -206,7 +251,6 @@ def test_saving_multiple_metrics_outputs():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_without_compilation():
     """Test saving model without compiling.
     """
@@ -220,13 +264,12 @@ def test_saving_without_compilation():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_right_after_compilation():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
-    model.model._make_train_function()
+    model._make_train_function()
 
     _, fname = tempfile.mkstemp('.h5')
     save_model(model, fname)
@@ -234,7 +277,6 @@ def test_saving_right_after_compilation():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_unused_layers_is_ok():
     a = Input(shape=(256, 512, 6))
     b = Input(shape=(256, 512, 1))
@@ -248,7 +290,6 @@ def test_saving_unused_layers_is_ok():
     os.remove(fname)
 
 
-@keras_test
 def test_loading_weights_by_name_and_reshape():
     """
     test loading model weights by name on:
@@ -290,7 +331,6 @@ def test_loading_weights_by_name_and_reshape():
         model.load_weights(fname, by_name=False, reshape=False)
     model.load_weights(fname, by_name=False, reshape=True)
     model.load_weights(fname, by_name=True, reshape=True)
-    os.remove(fname)
 
     out2 = model.predict(x)
     assert_allclose(np.squeeze(out), np.squeeze(out2), atol=1e-05)
@@ -301,8 +341,36 @@ def test_loading_weights_by_name_and_reshape():
             if old_weights[i]:
                 assert_allclose(old_weights[i][j], new_weights[j], atol=1e-05)
 
+    # delete and recreate model with `use_bias=False`
+    del(model)
+    model = Sequential()
+    model.add(Conv2D(2, (1, 1), input_shape=(1, 1, 1), use_bias=False, name='rick'))
+    model.add(Flatten())
+    model.add(Dense(3, name='morty'))
+    with pytest.raises(ValueError,
+                       match=r'.* expects [0-9]+ .* but the saved .* [0-9]+ .*'):
+        model.load_weights(fname)
+    with pytest.raises(ValueError,
+                       match=r'.* expects [0-9]+ .* but the saved .* [0-9]+ .*'):
+        model.load_weights(fname, by_name=True)
+    with pytest.warns(UserWarning,
+                      match=r'Skipping loading .* due to mismatch .*'):
+        model.load_weights(fname, by_name=True, skip_mismatch=True)
 
-@keras_test
+    # delete and recreate model with `filters=10`
+    del(model)
+    model = Sequential()
+    model.add(Conv2D(10, (1, 1), input_shape=(1, 1, 1), name='rick'))
+    with pytest.raises(ValueError,
+                       match=r'.* has shape .* but the saved .* shape .*'):
+        model.load_weights(fname, by_name=True)
+    with pytest.raises(ValueError,
+                       match=r'.* load .* [0-9]+ layers into .* [0-9]+ layers.'):
+        model.load_weights(fname)
+
+    os.remove(fname)
+
+
 def test_loading_weights_by_name_2():
     """
     test loading model weights by name on:
@@ -361,7 +429,6 @@ def test_loading_weights_by_name_2():
     assert_allclose(np.zeros_like(jessica[1]), jessica[1])  # biases init to 0
 
 
-@keras_test
 def test_loading_weights_by_name_skip_mismatch():
     """
     test skipping layers while loading model weights by name on:
@@ -414,7 +481,6 @@ def square_fn(x):
     return x * x
 
 
-@keras_test
 def test_saving_lambda_custom_objects():
     inputs = Input(shape=(3,))
     x = Lambda(lambda x: square_fn(x), output_shape=(3,))(inputs)
@@ -439,7 +505,6 @@ def test_saving_lambda_custom_objects():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_lambda_numpy_array_arguments():
     mean = np.random.random((4, 2, 3))
     std = np.abs(np.random.random((4, 2, 3))) + 1e-5
@@ -459,7 +524,6 @@ def test_saving_lambda_numpy_array_arguments():
     assert_allclose(std, model.layers[1].arguments['std'])
 
 
-@keras_test
 def test_saving_custom_activation_function():
     x = Input(shape=(3,))
     output = Dense(3, activation=K.cos)(x)
@@ -483,7 +547,6 @@ def test_saving_custom_activation_function():
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_model_with_long_layer_names():
     # This layer name will make the `layers_name` HDF5 attribute blow
     # out of proportion. Note that it fits into the internal HDF5
@@ -519,19 +582,19 @@ def test_saving_model_with_long_layer_names():
 
     os.remove(fname)
 
-    # The chunking of layer names array should have happend.
+    # The chunking of layer names array should have happened.
     assert n_layer_names_arrays > 0
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_model_with_long_weights_names():
     x = Input(shape=(2,), name='nested_model_input')
     f = x
     for i in range(4):
         f = Dense(2, name='nested_model_dense_%d' % (i,))(f)
+    f = Dense(2, name='nested_model_dense_4', trainable=False)(f)
     # This layer name will make the `weights_name`
     # HDF5 attribute blow out of proportion.
     f = Dense(2, name='nested_model_output' + ('x' * (2**15)))(f)
@@ -559,19 +622,19 @@ def test_saving_model_with_long_weights_names():
     # Check that the HDF5 files contains chunked array
     # of weight names.
     with h5py.File(fname, 'r') as h5file:
-        n_weight_names_arrays = len([attr for attr in h5file['model_weights']['nested_model'].attrs
-                                     if attr.startswith('weight_names')])
+        attrs = [attr for attr in h5file['model_weights']['nested_model'].attrs
+                 if attr.startswith('weight_names')]
+        n_weight_names_arrays = len(attrs)
 
     os.remove(fname)
 
-    # The chunking of layer names array should have happend.
+    # The chunking of layer names array should have happened.
     assert n_weight_names_arrays > 0
 
     out2 = model.predict(x)
     assert_allclose(out, out2, atol=1e-05)
 
 
-@keras_test
 def test_saving_recurrent_layer_with_init_state():
     vector_size = 8
     input_length = 20
@@ -591,7 +654,6 @@ def test_saving_recurrent_layer_with_init_state():
     os.remove(fname)
 
 
-@keras_test
 def test_saving_recurrent_layer_without_bias():
     vector_size = 8
     input_length = 20
@@ -605,6 +667,290 @@ def test_saving_recurrent_layer_without_bias():
 
     loaded_model = load_model(fname)
     os.remove(fname)
+
+
+def test_loop_model_saving():
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    model.compile(loss=losses.MSE,
+                  optimizer=optimizers.RMSprop(lr=0.0001),
+                  metrics=[metrics.categorical_accuracy])
+
+    x = np.random.random((1, 3))
+    y = np.random.random((1, 2))
+    _, fname = tempfile.mkstemp('.h5')
+
+    for _ in range(3):
+        model.train_on_batch(x, y)
+        save_model(model, fname, overwrite=True)
+        out = model.predict(x)
+
+    new_model = load_model(fname)
+    os.remove(fname)
+
+    out2 = new_model.predict(x)
+    assert_allclose(out, out2, atol=1e-05)
+
+
+def test_saving_constant_initializer_with_numpy():
+    """Test saving and loading model of constant initializer with numpy inputs.
+    """
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,),
+                    kernel_initializer=Constant(np.ones((3, 2)))))
+    model.add(Dense(3))
+    model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+    model = load_model(fname)
+    os.remove(fname)
+
+
+def test_save_load_weights_gcs():
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    org_weights = model.get_weights()
+
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcs_filepath = file_io_proxy.get_filepath(
+            filename='test_save_load_weights_gcs.h5')
+        # we should not use same filename in several tests to allow for parallel
+        # execution
+        model.save_weights(gcs_filepath)
+        model.set_weights([np.random.random(w.shape) for w in org_weights])
+        for w, org_w in zip(model.get_weights(), org_weights):
+            assert not (w == org_w).all()
+        model.load_weights(gcs_filepath)
+        for w, org_w in zip(model.get_weights(), org_weights):
+            assert_allclose(w, org_w)
+
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
+
+
+def test_saving_overwrite_option():
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    org_weights = model.get_weights()
+    new_weights = [np.random.random(w.shape) for w in org_weights]
+
+    _, fname = tempfile.mkstemp('.h5')
+    save_model(model, fname)
+    model.set_weights(new_weights)
+
+    with patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
+        ask.return_value = False
+        save_model(model, fname, overwrite=False)
+        ask.assert_called_once()
+        new_model = load_model(fname)
+        for w, org_w in zip(new_model.get_weights(), org_weights):
+            assert_allclose(w, org_w)
+
+        ask.return_value = True
+        save_model(model, fname, overwrite=False)
+        assert ask.call_count == 2
+        new_model = load_model(fname)
+        for w, new_w in zip(new_model.get_weights(), new_weights):
+            assert_allclose(w, new_w)
+
+    os.remove(fname)
+
+
+def test_saving_overwrite_option_gcs():
+    model = Sequential()
+    model.add(Dense(2, input_shape=(3,)))
+    org_weights = model.get_weights()
+    new_weights = [np.random.random(w.shape) for w in org_weights]
+
+    with tf_file_io_proxy('keras.engine.saving.tf_file_io') as file_io_proxy:
+        gcs_filepath = file_io_proxy.get_filepath(
+            filename='test_saving_overwrite_option_gcs.h5')
+        # we should not use same filename in several tests to allow for parallel
+        # execution
+        save_model(model, gcs_filepath)
+        model.set_weights(new_weights)
+
+        with patch('keras.engine.saving.ask_to_proceed_with_overwrite') as ask:
+            ask.return_value = False
+            save_model(model, gcs_filepath, overwrite=False)
+            ask.assert_called_once()
+            new_model = load_model(gcs_filepath)
+            for w, org_w in zip(new_model.get_weights(), org_weights):
+                assert_allclose(w, org_w)
+
+            ask.return_value = True
+            save_model(model, gcs_filepath, overwrite=False)
+            assert ask.call_count == 2
+            new_model = load_model(gcs_filepath)
+            for w, new_w in zip(new_model.get_weights(), new_weights):
+                assert_allclose(w, new_w)
+
+        file_io_proxy.delete_file(gcs_filepath)  # cleanup
+
+
+@pytest.mark.parametrize('implementation', [1, 2], ids=['impl1', 'impl2'])
+@pytest.mark.parametrize('bidirectional',
+                         [False, True],
+                         ids=['single', 'bidirectional'])
+@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
+@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
+@pytest.mark.parametrize('model_nest_level',
+                         [1, 2],
+                         ids=['model_plain', 'model_nested'])
+@pytest.mark.parametrize('model_type',
+                         ['func', 'seq'],
+                         ids=['model_func', 'model_seq'])
+@skipif_no_tf_gpu
+def test_load_weights_between_noncudnn_rnn(rnn_type, to_cudnn, bidirectional,
+                                           implementation, model_nest_level,
+                                           model_type):
+    input_size = 10
+    timesteps = 6
+    input_shape = (timesteps, input_size)
+    units = 2
+    num_samples = 32
+    inputs = np.random.random((num_samples, timesteps, input_size))
+
+    rnn_layer_kwargs = {
+        'recurrent_activation': 'sigmoid',
+        # ensure biases are non-zero and properly converted
+        'bias_initializer': 'random_uniform',
+        'implementation': implementation
+    }
+    if rnn_type == 'LSTM':
+        rnn_layer_class = LSTM
+        cudnn_rnn_layer_class = CuDNNLSTM
+    else:
+        rnn_layer_class = GRU
+        cudnn_rnn_layer_class = CuDNNGRU
+        rnn_layer_kwargs['reset_after'] = True
+
+    layer = rnn_layer_class(units, **rnn_layer_kwargs)
+    if bidirectional:
+        layer = Bidirectional(layer)
+
+    cudnn_layer = cudnn_rnn_layer_class(units)
+    if bidirectional:
+        cudnn_layer = Bidirectional(cudnn_layer)
+
+    model = _make_nested_model(input_shape, layer, model_nest_level, model_type)
+    cudnn_model = _make_nested_model(input_shape, cudnn_layer,
+                                     model_nest_level, model_type)
+
+    if to_cudnn:
+        _convert_model_weights(model, cudnn_model)
+    else:
+        _convert_model_weights(cudnn_model, model)
+
+    assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
+
+
+def _make_nested_model(input_shape, layer, level=1, model_type='func'):
+    # example: make_nested_seq_model((1,), Dense(10), level=2).summary()
+    def make_nested_seq_model(input_shape, layer, level=1):
+        model = layer
+        for i in range(1, level + 1):
+            layers = [InputLayer(input_shape), model] if (i == 1) else [model]
+            model = Sequential(layers)
+        return model
+
+    # example: make_nested_func_model((1,), Dense(10), level=2).summary()
+    def make_nested_func_model(input_shape, layer, level=1):
+        input = Input(input_shape)
+        model = layer
+        for i in range(level):
+            model = Model(input, model(input))
+        return model
+
+    if model_type == 'func':
+        return make_nested_func_model(input_shape, layer, level)
+    elif model_type == 'seq':
+        return make_nested_seq_model(input_shape, layer, level)
+
+
+def _convert_model_weights(source_model, target_model):
+    _, fname = tempfile.mkstemp('.h5')
+    source_model.save_weights(fname)
+    target_model.load_weights(fname)
+    os.remove(fname)
+
+
+@pytest.mark.parametrize('to_cudnn', [False, True], ids=['from_cudnn', 'to_cudnn'])
+@pytest.mark.parametrize('rnn_type', ['LSTM', 'GRU'], ids=['LSTM', 'GRU'])
+@skipif_no_tf_gpu
+def test_load_weights_between_noncudnn_rnn_time_distributed(rnn_type, to_cudnn):
+    """
+    Similar test as  test_load_weights_between_noncudnn_rnn() but has different
+    rank of input due to usage of TimeDistributed. Issue: #10356.
+    """
+    input_size = 10
+    steps = 6
+    timesteps = 6
+    input_shape = (timesteps, steps, input_size)
+    units = 2
+    num_samples = 32
+    inputs = np.random.random((num_samples,) + input_shape)
+
+    rnn_layer_kwargs = {
+        'recurrent_activation': 'sigmoid',
+        # ensure biases are non-zero and properly converted
+        'bias_initializer': 'random_uniform',
+    }
+    if rnn_type == 'LSTM':
+        rnn_layer_class = LSTM
+        cudnn_rnn_layer_class = CuDNNLSTM
+    else:
+        rnn_layer_class = GRU
+        cudnn_rnn_layer_class = CuDNNGRU
+        rnn_layer_kwargs['reset_after'] = True
+
+    layer = rnn_layer_class(units, **rnn_layer_kwargs)
+    layer = TimeDistributed(layer)
+
+    cudnn_layer = cudnn_rnn_layer_class(units)
+    cudnn_layer = TimeDistributed(cudnn_layer)
+
+    model = _make_nested_model(input_shape, layer)
+    cudnn_model = _make_nested_model(input_shape, cudnn_layer)
+
+    if to_cudnn:
+        _convert_model_weights(model, cudnn_model)
+    else:
+        _convert_model_weights(cudnn_model, model)
+
+    assert_allclose(model.predict(inputs), cudnn_model.predict(inputs), atol=1e-4)
+
+
+@skipif_no_tf_gpu
+def test_preprocess_weights_for_loading_gru_incompatible():
+    """
+    Loading weights between incompatible layers should fail fast with an exception.
+    """
+    def gru(cudnn=False, **kwargs):
+        layer_class = CuDNNGRU if cudnn else GRU
+        return layer_class(2, input_shape=[3, 5], **kwargs)
+
+    def initialize_weights(layer):
+        # A model is needed to initialize weights.
+        _ = Sequential([layer])
+        return layer
+
+    def assert_not_compatible(src, dest, message):
+        with pytest.raises(ValueError) as ex:
+            preprocess_weights_for_loading(dest,
+                                           initialize_weights(src).get_weights())
+        assert message in ex.value.message
+
+    assert_not_compatible(gru(), gru(cudnn=True),
+                          'GRU(reset_after=False) is not compatible with CuDNNGRU')
+    assert_not_compatible(gru(cudnn=True), gru(),
+                          'CuDNNGRU is not compatible with GRU(reset_after=False)')
+    assert_not_compatible(gru(), gru(reset_after=True),
+                          'GRU(reset_after=False) is not compatible with '
+                          'GRU(reset_after=True)')
+    assert_not_compatible(gru(reset_after=True), gru(),
+                          'GRU(reset_after=True) is not compatible with '
+                          'GRU(reset_after=False)')
 
 
 if __name__ == '__main__':

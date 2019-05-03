@@ -1,8 +1,8 @@
-# note: topology.Node is an internal class,
+# note: `Node` is an internal class,
 # it isn't meant to be used by Keras users.
-from .topology import InputSpec
-from .topology import Input
-from .topology import InputLayer
-from .topology import Layer
-from .topology import get_source_inputs
+from .input_layer import Input
+from .input_layer import InputLayer
+from .base_layer import InputSpec
+from .base_layer import Layer
+from .network import get_source_inputs
 from .training import Model

@@ -1,6 +1,20 @@
 site_name: Keras Documentation
-theme: readthedocs
-# theme_dir: theme
+theme:
+  name: null
+  custom_dir: theme
+  static_templates:
+    - 404.html
+  include_search_page: true
+  search_index_only: false
+  highlightjs: true
+  hljs_languages: []
+  include_homepage_in_sidebar: true
+  prev_next_buttons_location: bottom
+  navigation_depth: 4
+  titles_only: false
+  sticky_navigation: true
+  collapse_navigation: true
+
 docs_dir: sources
 repo_url: http://github.com/keras-team/keras
 site_url: http://keras.io/
@@ -9,7 +23,7 @@ site_description: 'Documentation for Keras, the Python Deep Learning library.'
 dev_addr: '0.0.0.0:8000'
 google_analytics: ['UA-61785484-1', 'keras.io']
 
-pages:
+nav:
 - Home: index.md
 - Why use Keras: why-use-keras.md
 - Getting started:
@@ -53,3 +67,26 @@ pages:
 - Scikit-learn API: scikit-learn-api.md
 - Utils: utils.md
 - Contributing: contributing.md
+- Examples:
+  - Addition RNN: examples/addition_rnn.md
+  - Custom layer - antirectifier: examples/antirectifier.md
+  - Baby RNN: examples/babi_rnn.md
+  - Baby MemNN: examples/babi_memnn.md
+  - CIFAR-10 CNN: examples/cifar10_cnn.md
+  - CIFAR-10 CNN-Capsule: examples/cifar10_cnn_capsule.md
+  - CIFAR-10 CNN with augmentation (TF): examples/cifar10_cnn_tfaugment2d.md
+  - CIFAR-10 ResNet: examples/cifar10_resnet.md
+  - Convolution filter visualization: examples/conv_filter_visualization.md
+  - Convolutional LSTM: examples/conv_lstm.md
+  - Deep Dream: examples/deep_dream.md
+  - Image OCR: examples/image_ocr.md
+  - Bidirectional LSTM: examples/imdb_bidirectional_lstm.md
+  - 1D CNN for text classification: examples/imdb_cnn.md
+  - Sentiment classification CNN-LSTM: examples/imdb_cnn_lstm.md
+  - Fasttext for text classification: examples/imdb_fasttext.md
+  - Sentiment classification LSTM: examples/imdb_lstm.md
+  - Sequence to sequence - training: examples/lstm_seq2seq.md
+  - Sequence to sequence - prediction: examples/lstm_seq2seq_restore.md
+  - Stateful LSTM: examples/lstm_stateful.md
+  - LSTM for text generation: examples/lstm_text_generation.md
+  - Auxiliary Classifier GAN: examples/mnist_acgan.md

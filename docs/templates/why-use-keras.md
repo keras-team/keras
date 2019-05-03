@@ -14,15 +14,18 @@ There are countless deep learning frameworks available today. Why use Keras rath
 
 ## Keras has broad adoption in the industry and the research community
 
-With over 200,000 individual users as of November 2017, Keras has stronger adoption in both the industry and the research community than any other deep learning framework except TensorFlow itself (and Keras is commonly used in conjunction with TensorFlow).
+<a href='https://towardsdatascience.com/deep-learning-framework-power-scores-2018-23607ddf297a'>
+    <img style='width: 80%; margin-left: 10%;' src='https://s3.amazonaws.com/keras.io/img/dl_frameworks_power_scores.png'/>
+</a>
+<p style='font-style: italic; font-size: 10pt; text-align: center;'>
+    Deep learning frameworks ranking computed by Jeff Hale, based on 11 data sources across 7 categories
+</i>
+
+With over 250,000 individual users as of mid-2018, Keras has stronger adoption in both the industry and the research community than any other deep learning framework except TensorFlow itself (and the Keras API is the official frontend of TensorFlow, via the `tf.keras` module).
 
 You are already constantly interacting with features built with Keras -- it is in use at Netflix, Uber, Yelp, Instacart, Zocdoc, Square, and many others. It is especially popular among startups that place deep learning at the core of their products.
 
-Keras is also a favorite among deep learning researchers, coming in #2 in terms of mentions in scientific papers uploaded to the preprint server [arXiv.org](https://arxiv.org/archive/cs):
-
-<img src='/img/arxiv-mentions.png' style='width:500px; display: block; margin: 0 auto;'/>
-
-Keras has also been adopted by researchers at large scientific organizations, in particular CERN and NASA.
+Keras is also a favorite among deep learning researchers, coming in #2 in terms of mentions in scientific papers uploaded to the preprint server [arXiv.org](https://arxiv.org/archive/cs). Keras has also been adopted by researchers at large scientific organizations, in particular CERN and NASA.
 
 ---
 
@@ -30,13 +33,13 @@ Keras has also been adopted by researchers at large scientific organizations, in
 
 Your Keras models can be easily deployed across a greater range of platforms than any other deep learning framework:
 
-- On iOS, via [Apple’s CoreML](https://developer.apple.com/documentation/coreml) (Keras support officially provided by Apple)
-- On Android, via the TensorFlow Android runtime. Example: [Not Hotdog app](https://medium.com/@timanglade/how-hbos-silicon-valley-built-not-hotdog-with-mobile-tensorflow-keras-react-native-ef03260747f3)
-- In the browser, via GPU-accelerated JavaScript runtimes such as [Keras.js](https://transcranial.github.io/keras-js/#/) and [WebDNN](https://mil-tokyo.github.io/webdnn/)
-- On Google Cloud, via [TensorFlow-Serving](https://www.tensorflow.org/serving/)
-- [In a Python webapp backend (such as a Flask app)](https://blog.keras.io/building-a-simple-keras-deep-learning-rest-api.html)
-- On the JVM, via [DL4J model import provided by SkyMind](https://deeplearning4j.org/model-import-keras)
-- On Raspberry Pi
+- On iOS, via [Apple’s CoreML](https://developer.apple.com/documentation/coreml) (Keras support officially provided by Apple). Here's [a tutorial](https://www.pyimagesearch.com/2018/04/23/running-keras-models-on-ios-with-coreml/).
+- On Android, via the TensorFlow Android runtime. Example: [Not Hotdog app](https://medium.com/@timanglade/how-hbos-silicon-valley-built-not-hotdog-with-mobile-tensorflow-keras-react-native-ef03260747f3).
+- In the browser, via GPU-accelerated JavaScript runtimes such as [Keras.js](https://transcranial.github.io/keras-js/#/) and [WebDNN](https://mil-tokyo.github.io/webdnn/).
+- On Google Cloud, via [TensorFlow-Serving](https://www.tensorflow.org/serving/).
+- [In a Python webapp backend (such as a Flask app)](https://blog.keras.io/building-a-simple-keras-deep-learning-rest-api.html).
+- On the JVM, via [DL4J model import provided by SkyMind](https://deeplearning4j.org/model-import-keras).
+- On Raspberry Pi.
 
 ---
 
@@ -48,7 +51,7 @@ Your Keras models can be developed with a range of different [deep learning back
 - The CNTK backend (from Microsoft)
 - The Theano backend
 
-Amazon is also currently working on developing a MXNet backend for Keras.
+Amazon also has [a fork of Keras which uses MXNet as backend](https://github.com/awslabs/keras-apache-mxnet).
 
 As such, your Keras model can be trained on a number of different hardware platforms beyond CPUs:
 
@@ -69,7 +72,7 @@ As such, your Keras model can be trained on a number of different hardware platf
 
 ## Keras development is backed by key companies in the deep learning ecosystem
 
-Keras development is backed primarily by Google, and the Keras API comes packaged in TensorFlow as `tf.keras`. Additionally, Microsoft maintains the CNTK Keras backend. Amazon AWS is developing MXNet support. Other contributing companies include NVIDIA, Uber, and Apple (with CoreML).
+Keras development is backed primarily by Google, and the Keras API comes packaged in TensorFlow as `tf.keras`. Additionally, Microsoft maintains the CNTK Keras backend. Amazon AWS is maintaining the Keras fork with MXNet support. Other contributing companies include NVIDIA, Uber, and Apple (with CoreML).
 
 <img src='/img/google-logo.png' style='width:200px; margin-right:15px;'/>
 <img src='/img/microsoft-logo.png' style='width:200px; margin-right:15px;'/>
