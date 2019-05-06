@@ -52,7 +52,8 @@ class CallbackList(object):
 
     def _reset_batch_timing(self):
         self._delta_t_batch = 0.
-        self._delta_ts = defaultdict(lambda: deque([], maxlen=self.queue_length))
+        self._delta_ts = defaultdict(
+            lambda: deque([], maxlen=self.queue_length))
 
     def append(self, callback):
         self.callbacks.append(callback)
@@ -87,8 +88,8 @@ class CallbackList(object):
 
         delta_t_median = np.median(self._delta_ts[hook_name])
         if (self._delta_t_batch > 0. and
-           delta_t_median > 0.95 * self._delta_t_batch and
-           delta_t_median > 0.1):
+            delta_t_median > 0.95 * self._delta_t_batch and
+                delta_t_median > 0.1):
             warnings.warn(
                 'Method (%s) is slow compared '
                 'to the batch update (%f). Check your callbacks.'
@@ -723,11 +724,61 @@ class ModelCheckpoint(Callback):
                                   (epoch + 1, self.monitor, self.best))
             else:
                 if self.verbose > 0:
-                    print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+                    print('\nEpoch %05d: saving model to %s' %
+                          (epoch + 1, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
                     self.model.save(filepath, overwrite=True)
+
+
+class KeepBest(ModelCheckpoint):
+    """
+    Keep and return best model
+
+    See documentation from ModelCheckpoint for full description
+    # Arguments
+        monitor: quantity to monitor.
+        verbose: verbosity mode, 0 or 1.
+        mode: one of {auto, min, max}.
+            If `save_best_only=True`, the decision
+            to overwrite the current save file is made
+            based on either the maximization or the
+            minimization of the monitored quantity. For `val_acc`,
+            this should be `max`, for `val_loss` this should
+            be `min`, etc. In `auto` mode, the direction is
+            automatically inferred from the name of the monitored quantity.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(filepath=None, *args, **kwargs)
+
+    def on_train_begin(self, logs=None):
+        self.best_weights = self.model.get_weights()
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        current = logs.get(self.monitor)
+        if current is None:
+            print('Can pick best model only with %s available, '
+                  'skipping.' % (self.monitor), RuntimeWarning)
+        else:
+            if self.monitor_op(current, self.best):
+                if self.verbose > 0:
+                    print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
+                          ' storing weights.\n'
+                          % (epoch + 1, self.monitor, self.best,
+                             current))
+                self.best = current
+                self.best_epochs = epoch + 1
+                self.best_weights = self.model.get_weights()
+
+    def on_train_end(self, logs=None):
+        if self.verbose > 0:
+            print('Using epoch %05d with %s: %0.5f' % (self.best_epochs,
+                                                       self.monitor,
+                                                       self.best))
+        self.model.set_weights(self.best_weights)
 
 
 class EarlyStopping(Callback):
@@ -893,7 +944,8 @@ class RemoteMonitor(Callback):
                 send[k] = v
         try:
             if self.send_as_json:
-                requests.post(self.root + self.path, json=send, headers=self.headers)
+                requests.post(self.root + self.path,
+                              json=send, headers=self.headers)
             else:
                 requests.post(self.root + self.path,
                               {self.field: json.dumps(send)},
@@ -1148,7 +1200,8 @@ class TensorBoard(Callback):
                     embedding_size = np.prod(embedding_input.shape[1:])
                     embedding_input = tf.reshape(embedding_input,
                                                  (step, int(embedding_size)))
-                    shape = (self.embeddings_data[0].shape[0], int(embedding_size))
+                    shape = (self.embeddings_data[0].shape[0], int(
+                        embedding_size))
                     embedding = tf.Variable(tf.zeros(shape),
                                             name=layer.name + '_embedding')
                     embeddings_vars[layer.name] = embedding
@@ -1237,7 +1290,8 @@ class TensorBoard(Callback):
                         feed_dict = {_input: embeddings_data[idx][batch]
                                      for idx, _input in enumerate(self.model.input)}
                     else:
-                        feed_dict = {self.model.input: embeddings_data[0][batch]}
+                        feed_dict = {
+                            self.model.input: embeddings_data[0][batch]}
 
                     feed_dict.update({self.batch_id: i, self.step: step})
 
@@ -1356,7 +1410,7 @@ class ReduceLROnPlateau(Callback):
                           RuntimeWarning)
             self.mode = 'auto'
         if (self.mode == 'min' or
-           (self.mode == 'auto' and 'acc' not in self.monitor)):
+                (self.mode == 'auto' and 'acc' not in self.monitor)):
             self.monitor_op = lambda a, b: np.less(a, b - self.min_delta)
             self.best = np.Inf
         else:
@@ -1469,7 +1523,8 @@ class CSVLogger(Callback):
 
         if self.model.stop_training:
             # We set NA so that csv parsers do not fail for this last epoch.
-            logs = dict([(k, logs[k] if k in logs else 'NA') for k in self.keys])
+            logs = dict([(k, logs[k] if k in logs else 'NA')
+                         for k in self.keys])
 
         if not self.writer:
             class CustomDialect(csv.excel):
