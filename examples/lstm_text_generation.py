@@ -32,7 +32,6 @@ with io.open(path, encoding='utf-8') as f:
 print('corpus length:', len(text))
 
 ''' 
-# Example
 corpus length: 600893
 total chars: 57
 nb sequences: 200285
@@ -85,35 +84,11 @@ def sample(preds, temperature=1.0):
 
 def on_epoch_end(epoch, _):
     # Function invoked at end of each epoch. Prints generated text.
-    
-    '''
-    #Example
-    Epoch 1/60
-    200285/200285 [==============================] - 248s 1ms/step - loss: 1.9578
-
-    ----- Generating text after Epoch: 0
-    ----- diversity: 0.2
-    ----- Generating with seed: "k and distracted by the herding-instinct"
-    k and distracted by the herding-instinct of the from the world and in the still and and which all the self all and and all the sall the religion of the say and and the great and and and and and all the read the such a presence and and and and and and and all the surpession of the far the strange and and as all the self and in the still and and and and and and the from the self-all the interposes of the same in the from the from the far 
-    ----- diversity: 0.5
-    ----- Generating with seed: "k and distracted by the herding-instinct"
-    k and distracted by the herding-instinct and his real all the stally himself one the great and and in only and in the become one count with impersist will that is as as all from the reary to all and the read the undoul one in a self understard think the fact stands of the every in the relaping and the from the self the sall the with it is a "the strang of the which standes and can un an are and have and and which the sense and which he 
-    ----- diversity: 1.0
-    ----- Generating with seed: "k and distracted by the herding-instinct"
-    k and distracted by the herding-instinct and in a we lowt ir, and ow deson that for the liffulay as self.gees. them, an eneat eduat catacted so say that despinc monthess: and our all =hen in prochaden lite. the
-    loves, they mike prifice to disequences not obeci, alvomanischminc some, have witk the
-    labine enargerung, which granes; not
-    praninces lives listuelequopy,
-    no, have the stharent atthirbs evestarive doul, the regoon;"--st his for g
-    ----- diversity: 1.2
-    ----- Generating with seed: "k and distracted by the herding-instinct"
-    k and distracted by the herding-instinct, potensk"."
-    '''
-    
     print()
     print('----- Generating text after Epoch: %d' % epoch)
 
     start_index = random.randint(0, len(text) - maxlen - 1)
+    # Loop in list[0.2, 0.5, 1.0, 1.2]
     for diversity in [0.2, 0.5, 1.0, 1.2]:
         print('----- diversity:', diversity)
 
