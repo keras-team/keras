@@ -31,13 +31,13 @@ with io.open(path, encoding='utf-8') as f:
     text = f.read().lower()
 print('corpus length:', len(text))
 
-''' 
+"""
 corpus length: 600893
 total chars: 57
 nb sequences: 200285
 Vectorization...
 Build model...
-'''
+"""
 chars = sorted(list(set(text)))
 print('total chars:', len(chars))
 char_indices = dict((c, i) for i, c in enumerate(chars))
