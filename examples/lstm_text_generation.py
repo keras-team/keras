@@ -84,7 +84,6 @@ def sample(preds, temperature=1.0):
 
 def on_epoch_end(epoch, _):
     # Function invoked at end of each epoch. Prints generated text.
-    
     """
     #Example
     Epoch 1/60
@@ -99,7 +98,6 @@ def on_epoch_end(epoch, _):
     ----- diversity: 1.2
     ----- Generating with seed: "k and distracted by the herding-instinct"
     """
-    
     print()
     print('----- Generating text after Epoch: %d' % epoch)
 
