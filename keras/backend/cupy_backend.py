@@ -762,6 +762,3 @@ expand_dims = np.expand_dims
 squeeze = np.squeeze
 cos = np.cos
 sin = np.sin
-×
-Drag and Drop
-The image will be downloaded by Fatkun
