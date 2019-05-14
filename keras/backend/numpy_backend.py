@@ -3,7 +3,12 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
+try:
+    import cupy as np
+except:
+    pass
+else:
+    import numpy as np
 import scipy.signal as signal
 import scipy as sp
 from .common import floatx
