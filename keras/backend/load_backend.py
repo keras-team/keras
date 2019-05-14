@@ -90,7 +90,7 @@ elif _BACKEND == 'tensorflow':
 elif _BACKEND == 'numpy':
     sys.stderr.write('Using Numpy backend.\n')
     from .numpy_backend import *
-elif _BACKEND == 'numpy':
+elif _BACKEND == 'cupy':
     sys.stderr.write('Using CuPy backend.\n')
     from .cupy_backend import *
 else:
