@@ -7,7 +7,7 @@
 
 ## You have just found Keras.
 
-Keras is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), [Theano](https://github.com/Theano/Theano) or [Numpy](https://github.com/numpy/numpy)(or [Cupy](https://github.com/cupy/cupy) for GPU users). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
+Keras is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), [Theano](https://github.com/Theano/Theano) or [Numpy](https://github.com/numpy/numpy)(or [CuPy](https://github.com/cupy/cupy) for GPU users). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
 
 Use Keras if you need a deep learning library that:
 
@@ -117,6 +117,8 @@ Before installing Keras, please install one of its backend engines: TensorFlow, 
 - [TensorFlow installation instructions](https://www.tensorflow.org/install/).
 - [Theano installation instructions](http://deeplearning.net/software/theano/install.html#install).
 - [CNTK installation instructions](https://docs.microsoft.com/en-us/cognitive-toolkit/setup-cntk-on-your-machine).
+- [Numpy installation instructions](https://scipy.org/install.html)
+- [CuPy installation instructions](https://docs-cupy.chainer.org/en/stable/install.html)
 
 You may also consider installing the following **optional dependencies**:
 
