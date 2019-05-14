@@ -87,6 +87,9 @@ elif _BACKEND == 'theano':
 elif _BACKEND == 'tensorflow':
     sys.stderr.write('Using TensorFlow backend.\n')
     from .tensorflow_backend import *
+elif _BACKEND == 'numpy':
+    sys.stderr.write('Using Numpy backend.\n')
+    from .numpy_backend import *
 else:
     # Try and load external backend.
     try:
