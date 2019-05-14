@@ -112,7 +112,7 @@ In the [examples folder](https://github.com/keras-team/keras/tree/master/example
 
 ## Installation
 
-Before installing Keras, please install one of its backend engines: TensorFlow, Theano, or CNTK. We recommend the TensorFlow backend.
+Before installing Keras, please install one of its backend engines: TensorFlow, Theano, CNTK, Numpy or CuPy. We recommend the TensorFlow backend.
 
 - [TensorFlow installation instructions](https://www.tensorflow.org/install/).
 - [Theano installation instructions](http://deeplearning.net/software/theano/install.html#install).
