@@ -26,8 +26,9 @@ class BaseWrapper(object):
         **sk_params: model parameters & fitting parameters
 
     The `build_fn` should construct, compile and return a Keras model, which
-    will then be used to fit/predict. One of the following
-    three values could be passed to `build_fn`:
+    will then be used to fit/predict. It must accept `input_shape` and
+    `output_shape` as arguments, both of which are tuples of integers. One of
+    the following three values could be passed to `build_fn`:
     1. A function
     2. An instance of a class that implements the `__call__` method
     3. None. This means you implement a class that inherits from either
@@ -131,20 +132,19 @@ class BaseWrapper(object):
             history : object
                 details about the training history at each epoch.
         """
+        input_shape = x.shape[1:]
+        output_shape = y.shape[1:]
         if self.build_fn is None:
-            self.model = self.__call__(**self.filter_sk_params(self.__call__))
+            self.model = self.__call__(input_shape, output_shape,
+                                       **self.filter_sk_params(self.__call__))
         elif (not isinstance(self.build_fn, types.FunctionType) and
               not isinstance(self.build_fn, types.MethodType)):
-            self.model = self.build_fn(
-                **self.filter_sk_params(self.build_fn.__call__))
+            self.model = self.build_fn(input_shape, output_shape,
+                                       **self.filter_sk_params(
+                                           self.build_fn.__call__))
         else:
-            self.model = self.build_fn(**self.filter_sk_params(self.build_fn))
-
-        loss_name = self.model.loss
-        if hasattr(loss_name, '__name__'):
-            loss_name = loss_name.__name__
-        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
-            y = to_categorical(y)
+            self.model = self.build_fn(input_shape, output_shape,
+                                       **self.filter_sk_params(self.build_fn))
 
         fit_args = copy.deepcopy(self.filter_sk_params(Sequential.fit))
         fit_args.update(kwargs)
@@ -177,6 +177,8 @@ class KerasClassifier(BaseWrapper):
     """Implementation of the scikit-learn classifier API for Keras.
     """
 
+    _estimator_type = "classifier"
+
     def fit(self, x, y, sample_weight=None, **kwargs):
         """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
 
@@ -207,6 +209,8 @@ class KerasClassifier(BaseWrapper):
         self.n_classes_ = len(self.classes_)
         if sample_weight is not None:
             kwargs['sample_weight'] = sample_weight
+        if len(y.shape) != 2:
+            y = to_categorical(y)
         return super(KerasClassifier, self).fit(x, y, **kwargs)
 
     def predict(self, x, **kwargs):
@@ -304,6 +308,8 @@ class KerasClassifier(BaseWrapper):
 class KerasRegressor(BaseWrapper):
     """Implementation of the scikit-learn regressor API for Keras.
     """
+
+    _estimator_type = "regressor"
 
     def predict(self, x, **kwargs):
         """Returns predictions for the given test data.

@@ -1,6 +1,6 @@
 # Wrappers for the Scikit-Learn API
 
-You can use `Sequential` Keras models (single-input only) as part of your Scikit-Learn workflow via the wrappers found at `keras.wrappers.scikit_learn.py`.
+You can use `Sequential` (or single-input/output `Model`) Keras models as part of your Scikit-Learn workflow via the wrappers found at `keras.wrappers.scikit_learn.py`.
 
 There are two wrappers available:
 
@@ -13,9 +13,10 @@ There are two wrappers available:
 - __build_fn__: callable function or class instance
 - __sk_params__: model parameters & fitting parameters
 
-`build_fn` should construct, compile and return a Keras model, which
-will then be used to fit/predict. One of the following
-three values could be passed to `build_fn`:
+The `build_fn` should construct, compile and return a Keras model, which
+will then be used to fit/predict. It must accept `input_shape` and
+`output_shape` as arguments, both of which are tuples of integers. One of
+the following three values could be passed to `build_fn`:
 
 1. A function
 2. An instance of a class that implements the `__call__` method
