@@ -173,7 +173,8 @@ class SGD(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.momentum = K.variable(momentum, name='momentum')
             self.decay = K.variable(self.initial_decay, name='decay')
         self._momentum = True if momentum > 0. else False
@@ -252,7 +253,8 @@ class RMSprop(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         self._momentum = True if momentum > 0. else False
         with K.name_scope(self.__class__.__name__):
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(self.initial_decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -292,7 +294,8 @@ class RMSprop(Optimizer):
             if m:
                 if mg:
                     new_mg = self.rho * mg + (1. - self.rho) * g
-                    new_m = self.momentum * m + lr * g / K.sqrt(new_a - K.square(new_mg) + self.epsilon)
+                    new_m = self.momentum * m + lr * g / K.sqrt(
+                        new_a - K.square(new_mg) + self.epsilon)
                     self.updates.append(K.update(mg, new_mg))
                 else:
                     new_m = self.momentum * m + lr * g / K.sqrt(new_a + self.epsilon)
@@ -304,7 +307,7 @@ class RMSprop(Optimizer):
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
 
-            self.updates.append(K.update(p, new_p)) 
+            self.updates.append(K.update(p, new_p))
 
         return self.updates
 
@@ -350,7 +353,8 @@ class Adagrad(Optimizer):
     def __init__(self, learning_rate=0.001, initial_accumulator_value=0.1, **kwargs):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.decay = K.variable(self.initial_decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
         self.epsilon = kwargs.pop('epsilon', K.epsilon())
@@ -361,7 +365,8 @@ class Adagrad(Optimizer):
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         shapes = [K.int_shape(p) for p in params]
-        accumulators = [K.variable(np.full(shape, self._initial_accumulator_value)) for shape in shapes]
+        accumulators = [K.variable(np.full(shape, self._initial_accumulator_value))
+                        for shape in shapes]
         self.weights = [self.iterations] + accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
@@ -427,7 +432,8 @@ class Adadelta(Optimizer):
     def __init__(self, learning_rate=0.001, rho=0.95, **kwargs):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.decay = K.variable(self.initial_decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
         self.rho = rho
@@ -510,7 +516,8 @@ class Adam(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(self.initial_decay, name='decay')
@@ -599,7 +606,8 @@ class Adamax(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(self.initial_decay, name='decay')
@@ -678,7 +686,8 @@ class Nadam(Optimizer):
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.m_schedule = K.variable(1., name='m_schedule')
-            self.lr = K.variable(kwargs.pop('lr', learning_rate), name='learning_rate')
+            kwargs.pop('lr', learning_rate)
+            self.lr = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
         self.epsilon = kwargs.pop('epsilon', K.epsilon())

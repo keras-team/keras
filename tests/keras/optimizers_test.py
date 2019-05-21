@@ -90,7 +90,8 @@ def test_rmsprop():
     _test_optimizer(optimizers.RMSprop(decay=1e-3))
     _test_optimizer(optimizers.RMSprop(learning_rate=0.1, epsilon=0.01, decay=0.1))
     _test_optimizer(optimizers.RMSprop(learning_rate=0.1, momentum=0.1))
-    _test_optimizer(optimizers.RMSprop(learning_rate=0.1, momentum=0.1, centered=True))
+    _test_optimizer(optimizers.RMSprop(learning_rate=0.1, momentum=0.1,
+                                       centered=True))
 
 
 def test_adagrad():
@@ -127,7 +128,7 @@ def test_adam():
     new_adam = optimizers.Adam(learning_rate=0.1, epsilon=0.01, decay=0.1)
     _test_optimizer(new_adam)
     num_vars = int((len(adam.weights) - 1) / 2)
-    ms = adam.weights[1:num_vars+1]
+    ms = adam.weights[1:(num_vars + 1)]
     adam.weights.extend([K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in ms])
     new_adam.set_weights(adam.get_weights())
     _test_optimizer(new_adam)
@@ -149,6 +150,7 @@ def test_nadam():
     weights = nadam.get_weights()
     new_nadam.set_weights([weights[0]] + weights[1:])
     _test_optimizer(new_nadam)
+
 
 def test_adam_amsgrad():
     _test_optimizer(optimizers.Adam(amsgrad=True))
