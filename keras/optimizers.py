@@ -191,34 +191,28 @@ class SGD(Optimizer):
                                                       K.dtype(self.decay))))
         self.weights = [self.iterations]
         if self._momentum:
-            # momentum optimizer
             shapes = [K.int_shape(p) for p in params]
             moments = [K.zeros(shape) for shape in shapes]
             self.weights.extend([K.zeros(shape) for shape in shapes])
-
-            for p, g, m in zip(params, grads, moments):
+        else:
+            moments = [None] * len(params)
+        for p, g, m in zip(params, grads, moments):
+            if self._momentum:
+                # momentum optimizer
                 v = self.momentum * m - lr * g  # velocity
                 self.updates.append(K.update(m, v))
-
                 if self.nesterov:
                     new_p = p + self.momentum * v - lr * g
                 else:
                     new_p = p + v
-
-                # Apply constraints.
-                if getattr(p, 'constraint', None) is not None:
-                    new_p = p.constraint(new_p)
-
-                self.updates.append(K.update(p, new_p))
-        else:
-            # sgd optimizer
-            for p, g in zip(params, grads):
+            else:
+                # sgd optimizer.
                 new_p = p - lr * g
-                # Apply constraints.
-                if getattr(p, 'constraint', None) is not None:
-                    new_p = p.constraint(new_p)
+            # Apply constraints.
+            if getattr(p, 'constraint', None) is not None:
+                new_p = p.constraint(new_p)
 
-                self.updates.append(K.update(p, new_p))
+            self.updates.append(K.update(p, new_p))
 
         return self.updates
 
