@@ -173,7 +173,7 @@ class SGD(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.momentum = K.variable(momentum, name='momentum')
             self.decay = K.variable(self.initial_decay, name='decay')
@@ -253,7 +253,7 @@ class RMSprop(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         self._momentum = True if momentum > 0. else False
         with K.name_scope(self.__class__.__name__):
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(self.initial_decay, name='decay')
@@ -321,7 +321,7 @@ class RMSprop(Optimizer):
         super(RMSprop, self).set_weights(weights)
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.lr)),
                   'rho': float(K.get_value(self.rho)),
                   'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
@@ -353,7 +353,7 @@ class Adagrad(Optimizer):
     def __init__(self, learning_rate=0.001, initial_accumulator_value=0.1, **kwargs):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.decay = K.variable(self.initial_decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -432,7 +432,7 @@ class Adadelta(Optimizer):
     def __init__(self, learning_rate=0.001, rho=0.95, **kwargs):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.decay = K.variable(self.initial_decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -516,7 +516,7 @@ class Adam(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
@@ -606,7 +606,7 @@ class Adamax(Optimizer):
         self.initial_decay = kwargs.pop('decay', 0.0)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
@@ -686,7 +686,7 @@ class Nadam(Optimizer):
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.m_schedule = K.variable(1., name='m_schedule')
-            kwargs.pop('lr', learning_rate)
+            learning_rate = kwargs.pop('lr', learning_rate)
             self.lr = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
