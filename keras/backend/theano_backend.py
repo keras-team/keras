@@ -1690,17 +1690,10 @@ def in_train_phase(x, alt, training=None):
     else:
         uses_learning_phase = False
 
-    if training is 1 or training is True:
-        if callable(x):
-            return x()
-        else:
-            return x
-
-    elif training is 0 or training is False:
-        if callable(alt):
-            return alt()
-        else:
-            return alt
+    if training in (1, True):
+        return x() if callable(x) else x
+    elif training in (0, False):
+        return alt() if callable(alt) else alt
 
     if callable(x):
         x = x()

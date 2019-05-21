@@ -179,7 +179,7 @@ def test_node_construction():
     a_layer, a_node_index, a_tensor_index = a._keras_history
     b_layer, b_node_index, b_tensor_index = b._keras_history
     assert len(a_layer._inbound_nodes) == 1
-    assert a_tensor_index is 0
+    assert a_tensor_index == 0
     node = a_layer._inbound_nodes[a_node_index]
     assert node.outbound_layer == a_layer
 
