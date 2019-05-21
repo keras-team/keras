@@ -100,7 +100,7 @@ def test_adagrad():
     _test_optimizer(optimizers.Adagrad(lr=0.01, decay=1e-3))
     new_adagrad = optimizers.Adagrad(learning_rate=0.01,
                                      initial_accumulator_value=0.001,
-                                     epsilon=0.01, decay=0.01)
+                                     epsilon=0.001, decay=0.001)
     _test_optimizer(new_adagrad)
     # test backward compatibility for adding opt.iterations.
     assert len(adagrad.get_weights()) == len(new_adagrad.get_weights())
@@ -113,7 +113,7 @@ def test_adadelta():
     _test_optimizer(adadelta, target=0.6)
     _test_optimizer(optimizers.Adadelta(lr=1.0, decay=1e-3), target=0.6)
     new_adadelta = optimizers.Adadelta(learning_rate=1.0,
-                                       epsilon=0.01, decay=0.01)
+                                       epsilon=0.001, decay=0.001)
     _test_optimizer(new_adadelta, target=0.6)
     # test backward compatibility for adding opt.iterations.
     assert len(adadelta.get_weights()) == len(new_adadelta.get_weights())
@@ -137,7 +137,7 @@ def test_adam():
 def test_adamax():
     _test_optimizer(optimizers.Adamax(lr=0.002))
     _test_optimizer(optimizers.Adamax(lr=0.002, decay=1e-3))
-    _test_optimizer(optimizers.Adamax(learning_rate=0.002, epsilon=0.01, decay=0.1))
+    _test_optimizer(optimizers.Adamax(learning_rate=0.002, epsilon=0.001, decay=0.001))
 
 
 def test_nadam():
