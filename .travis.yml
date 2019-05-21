@@ -1,4 +1,3 @@
-sudo: required
 dist: trusty
 language: python
 cache:
