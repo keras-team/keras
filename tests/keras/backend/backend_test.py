@@ -1069,8 +1069,6 @@ class TestBackend(object):
         # non scalar
         shapes = []
         shapes.append([(4, 3, 2), (4, 3, 2), (4, 3, 2)])
-        shapes.append([(4, 3,), (4, 3, 2), (4, 3, 2)])
-        shapes.append([(4,), (4, 3, 2), (4, 3, 2)])
         for s in shapes:
             z_list = []
             arrays = list(map(np.random.random, s))

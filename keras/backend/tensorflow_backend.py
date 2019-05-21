@@ -627,8 +627,9 @@ def constant(value, dtype=None, shape=None, name=None):
     # Returns
         A Constant Tensor.
     """
-    return tf_keras_backend.constant(
-        value, dtype=dtype, shape=shape, name=name)
+    with tf_ops.init_scope():
+        return tf_keras_backend.constant(
+            value, dtype=dtype, shape=shape, name=name)
 
 
 def is_keras_tensor(x):
