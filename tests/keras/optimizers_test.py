@@ -137,7 +137,8 @@ def test_adam():
 def test_adamax():
     _test_optimizer(optimizers.Adamax(lr=0.002))
     _test_optimizer(optimizers.Adamax(lr=0.002, decay=1e-3))
-    _test_optimizer(optimizers.Adamax(learning_rate=0.002, epsilon=0.001, decay=0.001))
+    _test_optimizer(optimizers.Adamax(learning_rate=0.002, epsilon=0.001,
+                                      decay=0.001))
 
 
 def test_nadam():
