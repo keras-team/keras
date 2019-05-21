@@ -548,7 +548,7 @@ class Adam(Optimizer):
             if self.amsgrad:
                 vhat_t = K.maximum(vhat, v_t)
                 p_t = p - lr_t * m_t / (K.sqrt(vhat_t) + self.epsilon)
-                self.updates.append(K.update(vhat, vhat_t))  
+                self.updates.append(K.update(vhat, vhat_t))
             else:
                 p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
             new_p = p_t
