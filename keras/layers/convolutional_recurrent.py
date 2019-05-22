@@ -254,7 +254,7 @@ class ConvRNN2D(RNN):
             import tensorflow as tf
             kernel = tf.zeros(tuple(shape))
         else:
-            K.zeros(tuple(shape))
+            kernel = K.zeros(tuple(shape))
         initial_state = self.cell.input_conv(initial_state,
                                              kernel,
                                              padding=self.cell.padding)
