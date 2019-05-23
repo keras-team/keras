@@ -13,6 +13,7 @@ from .utils.generic_utils import deserialize_keras_object
 from .utils.generic_utils import serialize_keras_object
 
 
+@six.add_metaclass(abc.ABCMeta)
 class Loss(object):
     """Loss base class.
 
@@ -94,7 +95,7 @@ class Loss(object):
             y_true: Ground truth values, with the same shape as 'y_pred'.
             y_pred: The predicted values.
         """
-        NotImplementedError('Must be implemented in subclasses.')
+        raise NotImplementedError('Must be implemented in subclasses.')
 
 
 class LossFunctionWrapper(Loss):
