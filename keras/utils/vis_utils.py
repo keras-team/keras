@@ -88,6 +88,11 @@ def model_to_dot(model,
         dot.set('dpi', dpi)
         dot.set_node_defaults(shape='record')
 
+    sub_n_first_node = {}
+    sub_n_last_node = {}
+    sub_w_first_node = {}
+    sub_w_last_node = {}
+
     if isinstance(model, Sequential):
         if not model.built:
             model.build()
@@ -109,8 +114,8 @@ def model_to_dot(model,
                                                 subgraph=True)
                 # sub_w : submodel_wrapper
                 sub_w_nodes = submodel_wrapper.get_nodes()
-                sub_w_first_node = sub_w_nodes[0]
-                sub_w_last_node = sub_w_nodes[len(sub_w_nodes) - 1]
+                sub_w_first_node[layer.layer.name] = sub_w_nodes[0]
+                sub_w_last_node[layer.layer.name] = sub_w_nodes[-1]
                 dot.add_subgraph(submodel_wrapper)
             else:
                 layer_name = '{}({})'.format(layer_name, layer.layer.name)
@@ -124,8 +129,8 @@ def model_to_dot(model,
                                                 subgraph=True)
             # sub_n : submodel_not_wrapper
             sub_n_nodes = submodel_not_wrapper.get_nodes()
-            sub_n_first_node = sub_n_nodes[0]
-            sub_n_last_node = sub_n_nodes[len(sub_n_nodes) - 1]
+            sub_n_first_node[layer.name] = sub_n_nodes[0]
+            sub_n_last_node[layer.name] = sub_n_nodes[-1]
             dot.add_subgraph(submodel_not_wrapper)
 
         # Create node's label.
@@ -181,19 +186,28 @@ def model_to_dot(model,
                             # if current layer is Model
                             elif is_model(layer):
                                 add_edge(dot, inbound_layer_id,
-                                         sub_n_first_node.get_name())
+                                         sub_n_first_node[layer.name].get_name())
                             # if current layer is wrapped Model
                             elif is_wrapped_model(layer):
                                 dot.add_edge(pydot.Edge(inbound_layer_id,
                                                         layer_id))
+                                name = sub_w_first_node[layer.layer.name].get_name()
                                 dot.add_edge(pydot.Edge(layer_id,
-                                                        sub_w_first_node.get_name()))
+                                                        name))
                         # if inbound_layer is Model
                         elif is_model(inbound_layer):
-                            add_edge(dot, sub_n_last_node.get_name(), layer_id)
+                            name = sub_n_last_node[inbound_layer.name].get_name()
+                            if is_model(layer):
+                                output_name = sub_n_first_node[layer.name].get_name()
+                                add_edge(dot, name, output_name)
+                            else:
+                                add_edge(dot, name, layer_id)
                         # if inbound_layer is wrapped Model
                         elif is_wrapped_model(inbound_layer):
-                            add_edge(dot, sub_w_last_node.get_name(), layer_id)
+                            inbound_layer_name = inbound_layer.layer.name
+                            add_edge(dot,
+                                     sub_w_last_node[inbound_layer_name].get_name(),
+                                     layer_id)
     return dot
 
 
