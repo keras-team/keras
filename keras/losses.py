@@ -157,6 +157,11 @@ class MeanSquaredError(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.MeanSquaredError())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) name for the loss.
     """
 
     def __init__(self,
