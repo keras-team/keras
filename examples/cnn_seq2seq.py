@@ -1,12 +1,12 @@
-'''
-#Sequence to sequence example in Keras (character-level).
+'''# Sequence-to-sequence example in Keras (character-level).
 
 This script demonstrates how to implement a basic character-level CNN
 sequence-to-sequence model. We apply it to translating
 short English sentences into short French sentences,
 character-by-character. Note that it is fairly unusual to
 do character-level machine translation, as word-level
-models are more common in this domain.
+models are much more common in this domain. This example
+is for demonstration purposes only.
 
 **Summary of the algorithm**
 
@@ -120,21 +120,21 @@ for i, (input_text, target_text) in enumerate(zip(input_texts, target_texts)):
 # Define an input sequence and process it.
 encoder_inputs = Input(shape=(None, num_encoder_tokens))
 # Encoder
-x_encoder = Convolution1D(256, kernel_size=3, activation="relu",
-                          padding="same")(encoder_inputs)
-x_encoder = Convolution1D(256, kernel_size=3, activation="relu",
-                          padding="same", dilation_rate=2)(x_encoder)
-x_encoder = Convolution1D(256, kernel_size=3, activation="relu",
-                          padding="same", dilation_rate=4)(x_encoder)
+x_encoder = Convolution1D(256, kernel_size=3, activation='relu',
+                          padding='causal')(encoder_inputs)
+x_encoder = Convolution1D(256, kernel_size=3, activation='relu',
+                          padding='causal', dilation_rate=2)(x_encoder)
+x_encoder = Convolution1D(256, kernel_size=3, activation='relu',
+                          padding='causal', dilation_rate=4)(x_encoder)
 
 decoder_inputs = Input(shape=(None, num_decoder_tokens))
 # Decoder
-x_decoder = Convolution1D(256, kernel_size=3, activation="relu",
-                          padding="causal")(decoder_inputs)
-x_decoder = Convolution1D(256, kernel_size=3, activation="relu",
-                          padding="causal", dilation_rate=2)(x_decoder)
-x_decoder = Convolution1D(256, kernel_size=3, activation="relu",
-                          padding="causal", dilation_rate=4)(x_decoder)
+x_decoder = Convolution1D(256, kernel_size=3, activation='relu',
+                          padding='causal')(decoder_inputs)
+x_decoder = Convolution1D(256, kernel_size=3, activation='relu',
+                          padding='causal', dilation_rate=2)(x_decoder)
+x_decoder = Convolution1D(256, kernel_size=3, activation='relu',
+                          padding='causal', dilation_rate=4)(x_decoder)
 # Attention
 attention = Dot(axes=[2, 2])([x_decoder, x_encoder])
 attention = Activation('softmax')(attention)
@@ -142,10 +142,10 @@ attention = Activation('softmax')(attention)
 context = Dot(axes=[2, 1])([attention, x_encoder])
 decoder_combined_context = Concatenate(axis=-1)([context, x_decoder])
 
-decoder_outputs = Convolution1D(64, kernel_size=3, activation="relu",
-                                padding="causal")(decoder_combined_context)
-decoder_outputs = Convolution1D(64, kernel_size=3, activation="relu",
-                                padding="causal")(decoder_outputs)
+decoder_outputs = Convolution1D(64, kernel_size=3, activation='relu',
+                                padding='causal')(decoder_combined_context)
+decoder_outputs = Convolution1D(64, kernel_size=3, activation='relu',
+                                padding='causal')(decoder_outputs)
 # Output
 decoder_dense = Dense(num_decoder_tokens, activation='softmax')
 decoder_outputs = decoder_dense(decoder_outputs)
@@ -153,6 +153,7 @@ decoder_outputs = decoder_dense(decoder_outputs)
 # Define the model that will turn
 # `encoder_input_data` & `decoder_input_data` into `decoder_target_data`
 model = Model([encoder_inputs, decoder_inputs], decoder_outputs)
+model.summary()
 
 # Run training
 model.compile(optimizer='adam', loss='categorical_crossentropy')
