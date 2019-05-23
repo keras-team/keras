@@ -17,21 +17,21 @@ class Loss(object):
     """Loss base class.
 
     To be implemented by subclasses:
-    * `call()`: Contains the logic for loss calculation using `y_true`, `y_pred`.
+        * `call()`: Contains the logic for loss calculation using `y_true`, `y_pred`.
 
     Example subclass implementation:
-    ```
+    ```python
     class MeanSquaredError(Loss):
-    def call(self, y_true, y_pred):
-      y_pred = ops.convert_to_tensor(y_pred)
-      y_true = math_ops.cast(y_true, y_pred.dtype)
-      return K.mean(math_ops.square(y_pred - y_true), axis=-1)
+        def call(self, y_true, y_pred):
+            y_pred = ops.convert_to_tensor(y_pred)
+            y_true = math_ops.cast(y_true, y_pred.dtype)
+            return K.mean(math_ops.square(y_pred - y_true), axis=-1)
     ```
 
-    Args:
-    reduction: (Optional) Type of loss Reduction to apply to loss.
-      Default value is `SUM_OVER_BATCH_SIZE`.
-    name: Optional name for the op.
+    # Arguments
+        reduction: (Optional) Type of loss Reduction to apply to loss.
+          Default value is `SUM_OVER_BATCH_SIZE`.
+        name: Optional name for the op.
     """
 
     def __init__(self,
@@ -43,10 +43,10 @@ class Loss(object):
     def __call__(self, y_true, y_pred, sample_weight=None):
         """Invokes the `Loss` instance.
 
-        Args:
-          y_true: Ground truth values.
-          y_pred: The predicted values.
-          sample_weight: Optional `Tensor` whose rank is either 0, or the same rank
+        # Arguments
+            y_true: Ground truth values.
+            y_pred: The predicted values.
+            sample_weight: Optional `Tensor` whose rank is either 0, or the same rank
             as `y_true`, or is broadcastable to `y_true`. `sample_weight` acts as a
             coefficient for the loss. If a scalar is provided, then the loss is
             simply scaled by the given value. If `sample_weight` is a tensor of size
@@ -56,12 +56,12 @@ class Loss(object):
             loss of each measurable element of `y_pred` is scaled by the
             corresponding value of `sample_weight`.
 
-        Returns:
-          Weighted loss float `Tensor`. If `reduction` is `NONE`, this has the same
-            shape as `y_true`; otherwise, it is scalar.
+        # Returns
+            Weighted loss float `Tensor`. If `reduction` is `NONE`, this has the same
+                shape as `y_true`; otherwise, it is scalar.
 
-        Raises:
-          ValueError: If the shape of `sample_weight` is invalid.
+        # Raises
+            ValueError: If the shape of `sample_weight` is invalid.
         """
         # If we are wrapping a lambda function strip '<>' from the name as it is not
         # accepted in scope name.
@@ -75,10 +75,10 @@ class Loss(object):
     def from_config(cls, config):
         """Instantiates a `Loss` from its config (output of `get_config()`).
 
-        Args:
+        # Arguments
             config: Output of `get_config()`.
 
-        Returns:
+        # Returns
             A `Loss` instance.
         """
         return cls(**config)
@@ -90,9 +90,9 @@ class Loss(object):
     def call(self, y_true, y_pred):
         """Invokes the `Loss` instance.
 
-        Args:
-          y_true: Ground truth values, with the same shape as 'y_pred'.
-          y_pred: The predicted values.
+        # Arguments
+            y_true: Ground truth values, with the same shape as 'y_pred'.
+            y_pred: The predicted values.
         """
         NotImplementedError('Must be implemented in subclasses.')
 
@@ -100,13 +100,13 @@ class Loss(object):
 class LossFunctionWrapper(Loss):
     """Wraps a loss function in the `Loss` class.
 
-    Args:
-    fn: The loss function to wrap, with signature `fn(y_true, y_pred,
-      **kwargs)`.
-    reduction: (Optional) Type of loss reduction to apply to loss.
-      Default value is `SUM_OVER_BATCH_SIZE`.
-    name: (Optional) name for the loss.
-    **kwargs: The keyword arguments that are passed on to `fn`.
+    # Arguments
+        fn: The loss function to wrap, with signature `fn(y_true, y_pred,
+            **kwargs)`.
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) name for the loss.
+        **kwargs: The keyword arguments that are passed on to `fn`.
     """
 
     def __init__(self,
@@ -121,12 +121,12 @@ class LossFunctionWrapper(Loss):
     def call(self, y_true, y_pred):
         """Invokes the `LossFunctionWrapper` instance.
 
-        Args:
-          y_true: Ground truth values.
-          y_pred: The predicted values.
+        # Arguments
+            y_true: Ground truth values.
+            y_pred: The predicted values.
 
-        Returns:
-          Loss values per sample.
+        # Returns
+            Loss values per sample.
         """
         return self.fn(y_true, y_pred, **self._fn_kwargs)
 
@@ -149,7 +149,6 @@ class MeanSquaredError(LossFunctionWrapper):
     ```python
     mse = keras.losses.MeanSquaredError()
     loss = mse([0., 0., 1., 1.], [1., 1., 1., 0.])
-    print('Loss: ', loss.numpy())  # Loss: 0.75
     ```
 
     Usage with the `compile` API:

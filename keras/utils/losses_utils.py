@@ -14,9 +14,9 @@ class Reduction(object):
     Contains the following values:
 
     * `NONE`: Un-reduced weighted losses with the same shape as input. When this
-      reduction type used with built-in Keras training loops like
-      `fit`/`evaluate`, the unreduced vector loss is passed to the optimizer but
-      the reported loss will be a scalar value.
+        reduction type used with built-in Keras training loops like
+        `fit`/`evaluate`, the unreduced vector loss is passed to the optimizer but
+        the reported loss will be a scalar value.
     * `SUM`: Scalar sum of weighted losses.
     * `SUM_OVER_BATCH_SIZE`: Scalar `SUM` divided by number of elements in losses.
     """
@@ -43,16 +43,16 @@ def squeeze_or_expand_dimensions(y_pred, y_true, sample_weight):
     from the new rank of `y_pred`.
     If `sample_weight` is scalar, it is kept scalar.
 
-    # Arguments:
-      y_pred: Predicted values, a `Tensor` of arbitrary dimensions.
-      y_true: Optional label `Tensor` whose dimensions match `y_pred`.
-      sample_weight: Optional weight scalar or `Tensor` whose dimensions match
-        `y_pred`.
+    # Arguments
+        y_pred: Predicted values, a `Tensor` of arbitrary dimensions.
+        y_true: Optional label `Tensor` whose dimensions match `y_pred`.
+        sample_weight: Optional weight scalar or `Tensor` whose dimensions match
+            `y_pred`.
 
-    # Returns:
-      Tuple of `y_pred`, `y_true` and `sample_weight`. Each of them possibly has
-      the last dimension squeezed, `sample_weight` could be extended by one
-      dimension.
+    # Returns
+        Tuple of `y_pred`, `y_true` and `sample_weight`. Each of them possibly has
+        the last dimension squeezed, `sample_weight` could be extended by one
+        dimension.
     """
     if y_true is not None:
         y_pred_rank = K.ndim(y_pred)
@@ -101,20 +101,20 @@ def compute_weighted_loss(losses,
                           name=None):
     """Computes the weighted loss.
 
-    # Arguments:
-      losses: `Tensor` of shape `[batch_size, d1, ... dN]`.
-      sample_weight: Optional `Tensor` whose rank is either 0, or the same rank as
-        `losses`, or be broadcastable to `losses`.
-      reduction: (Optional) Type of Reduction to apply to loss.
-        Default value is `SUM_OVER_BATCH_SIZE`.
-      name: Optional name for the op.
+    # Arguments
+        losses: `Tensor` of shape `[batch_size, d1, ... dN]`.
+        sample_weight: Optional `Tensor` whose rank is either 0, or the same rank as
+        `   losses`, or be broadcastable to `losses`.
+        reduction: (Optional) Type of Reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: Optional name for the op.
 
-    # Raises:
-      ValueError: If the shape of `sample_weight` is not compatible with `losses`.
+    # Raises
+        ValueError: If the shape of `sample_weight` is not compatible with `losses`.
 
-    # Returns:
-      Weighted loss `Tensor` of the same type as `losses`. If `reduction` is
-      `NONE`, this has the same shape as `losses`; otherwise, it is scalar.
+    # Returns
+        Weighted loss `Tensor` of the same type as `losses`. If `reduction` is
+            `NONE`, this has the same shape as `losses`; otherwise, it is scalar.
     """
     Reduction.validate(reduction)
     if sample_weight is None:
