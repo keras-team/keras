@@ -374,6 +374,18 @@ def count_params(x):
 
 def cast(x, dtype):
     return T.cast(x, dtype)
+    
+
+def size(x, name=None):
+    """Returns the size of a tensor.
+    # Arguments
+        x: The input tensor.
+        name: A name for the operation (optional).
+    # Returns
+        Size of the tensor.
+    ```
+    """
+    return sum(ones_like(x, name=name))
 
 
 # UPDATES OPS
