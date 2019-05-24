@@ -831,6 +831,29 @@ def ndim(x):
     return x.shape.rank
 
 
+def size(x, name=None):
+    """Returns the size of a tensor.
+
+    # Arguments
+        x: Tensor or variable.
+        name: A name for the operation (optional).
+
+    # Returns
+        Size of the tensor.
+
+    # Examples
+    ```python
+    >>> from keras import backend as K
+    >>> val = np.array([[1, 2], [3, 4]])
+    >>> kvar = K.variable(value=val)
+    >>> K.size(inputs)
+    <tf.Tensor: id=9, shape=(), dtype=int32, numpy=4>
+    ```
+
+    """
+    return tf.size(x, name=name)
+
+
 def dtype(x):
     """Returns the dtype of a Keras tensor or variable, as a string.
 
