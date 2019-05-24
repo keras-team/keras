@@ -840,5 +840,25 @@ def test_constant_initializer_with_numpy():
     model_from_yaml(yaml_str).summary()
 
 
+@pytest.mark.skipif(K.backend() == 'ctnk',
+                    reason='Float64 not supported with CNTK.')
+def test_initialization_dtype():
+    class TestLayer(Layer):
+        def __init__(self):
+            super(TestLayer, self).__init__(dtype='int64')
+            self.w = self.add_weight('w', [], initializer=Constant(1))
+
+    layer = TestLayer()
+    assert K.dtype(layer.w) == 'int64'
+
+    class TestModel(Model):
+        def __init__(self):
+            super(TestModel, self).__init__(dtype='int64')
+            self.w = self.add_weight('w', [], initializer=Constant(1))
+
+    model = TestModel()
+    assert K.dtype(model.w) == 'int64'
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
