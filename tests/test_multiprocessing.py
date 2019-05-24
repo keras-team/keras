@@ -127,7 +127,7 @@ def test_multiprocessing_training():
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=STEPS_PER_EPOCH,
@@ -163,7 +163,7 @@ def test_multiprocessing_training():
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(True),
                                 steps_per_epoch=STEPS_PER_EPOCH,
@@ -202,7 +202,7 @@ def test_multiprocessing_training():
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(True),
                                 steps_per_epoch=STEPS_PER_EPOCH,
@@ -334,7 +334,7 @@ def test_multiprocessing_training_from_file(in_tmpdir):
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=STEPS_PER_EPOCH,
@@ -359,7 +359,7 @@ def test_multiprocessing_training_from_file(in_tmpdir):
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=STEPS_PER_EPOCH,
@@ -482,7 +482,7 @@ def test_multiprocessing_predicting():
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.predict_generator(custom_generator(),
                                     steps=STEPS,
@@ -501,7 +501,7 @@ def test_multiprocessing_predicting():
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.predict_generator(custom_generator(),
                                     steps=STEPS,
@@ -598,7 +598,7 @@ def test_multiprocessing_evaluating():
     #     process boundaries
     #       -> make sure `evaluate_generator()` raises raises ValueError
     #          exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
                                      steps=STEPS,
@@ -617,7 +617,7 @@ def test_multiprocessing_evaluating():
     #   - BUT on Windows, `multiprocessing` won't marshall generators across
     #     process boundaries -> make sure `evaluate_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
                                      steps=STEPS,
@@ -719,7 +719,7 @@ def test_multiprocessing_fit_error():
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
@@ -742,7 +742,7 @@ def test_multiprocessing_fit_error():
     #     process boundaries -> make sure `fit_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(RuntimeError):
             model.fit_generator(custom_generator(),
                                 steps_per_epoch=samples,
@@ -859,7 +859,7 @@ def test_multiprocessing_evaluate_error():
     #     process boundaries -> make sure `evaluate_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(ValueError):
             model.evaluate_generator(custom_generator(),
                                      steps=good_batches * WORKERS + 1,
@@ -880,7 +880,7 @@ def test_multiprocessing_evaluate_error():
     #     process boundaries -> make sure `evaluate_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(RuntimeError):
             model.evaluate_generator(custom_generator(),
                                      steps=good_batches + 1,
@@ -989,7 +989,7 @@ def test_multiprocessing_predict_error():
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(StopIteration):
             model.predict_generator(custom_generator(),
                                     steps=good_batches * WORKERS + 1,
@@ -1010,7 +1010,7 @@ def test_multiprocessing_predict_error():
     #     process boundaries -> make sure `predict_generator()` raises ValueError
     #     exception and does not attempt to run the generator.
     #   - On other platforms, make sure `RuntimeError` exception bubbles up
-    if os.name is 'nt':
+    if os.name == 'nt':
         with pytest.raises(RuntimeError):
             model.predict_generator(custom_generator(),
                                     steps=good_batches + 1,
