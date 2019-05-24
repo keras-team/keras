@@ -149,6 +149,7 @@ from .load_backend import normalize_data_format
 from .load_backend import name_scope
 from .load_backend import symbolic
 from .load_backend import eager
+from .load_backend import size
 
 if backend() == 'theano':
     from .load_backend import pattern_broadcast

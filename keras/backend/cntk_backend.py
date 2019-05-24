@@ -559,6 +559,10 @@ def cast(x, dtype):
     return x
 
 
+def size(x, name=None):
+    return sum(ones_like(x, name=name))
+
+
 def dot(x, y):
     if len(x.shape) > 2 or len(y.shape) > 2:
         y_shape = int_shape(y)
