@@ -840,7 +840,7 @@ def test_constant_initializer_with_numpy():
     model_from_yaml(yaml_str).summary()
 
 
-@pytest.mark.skipif(K.backend() == 'ctnk',
+@pytest.mark.skipif(K.backend() == 'cntk',
                     reason='Float64 not supported with CNTK.')
 def test_initialization_dtype():
     class TestLayer(Layer):
