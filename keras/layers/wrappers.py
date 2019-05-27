@@ -216,7 +216,7 @@ class TimeDistributed(Wrapper):
         if input_shape[0]:
             # batch size matters, use rnn-based implementation
             def step(x, _):
-                global uses_learning_phase
+                nonlocal uses_learning_phase
                 output = self.layer.call(x, **kwargs)
                 if hasattr(output, '_uses_learning_phase'):
                     uses_learning_phase = (output._uses_learning_phase or
