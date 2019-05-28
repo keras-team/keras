@@ -12,6 +12,7 @@ all_metrics = [
     metrics.categorical_accuracy,
     metrics.mean_squared_error,
     metrics.mean_absolute_error,
+    metrics.root_mean_squared_percentage_error,
     metrics.mean_absolute_percentage_error,
     metrics.mean_squared_logarithmic_error,
     metrics.squared_hinge,

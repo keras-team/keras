@@ -9,6 +9,7 @@ from keras.utils.generic_utils import custom_object_scope
 
 allobj = [losses.mean_squared_error,
           losses.mean_absolute_error,
+          losses.root_mean_squared_percentage_error,
           losses.mean_absolute_percentage_error,
           losses.mean_squared_logarithmic_error,
           losses.squared_hinge,

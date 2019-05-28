@@ -18,6 +18,12 @@ def mean_absolute_error(y_true, y_pred):
     return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 
+def root_mean_squared_percentage_error(y_true, y_pred):
+    diff = K.sqrt(K.square((y_true - y_pred) / K.clip(K.square(y_true),
+                                            K.epsilon(),
+                                            None)))  
+
+
 def mean_absolute_percentage_error(y_true, y_pred):
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
