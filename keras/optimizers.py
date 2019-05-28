@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import six
 import copy
-import numpy as np
 from six.moves import zip
 
 from . import backend as K
@@ -162,24 +161,23 @@ class SGD(Optimizer):
     learning rate decay, and Nesterov momentum.
 
     # Arguments
-        learning_rate: float >= 0. Learning rate.
+        lr: float >= 0. Learning rate.
         momentum: float >= 0. Parameter that accelerates SGD
             in the relevant direction and dampens oscillations.
+        decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
     """
 
-    def __init__(self, learning_rate=0.01, momentum=0.,
+    def __init__(self, lr=0.01, momentum=0., decay=0.,
                  nesterov=False, **kwargs):
-        self.initial_decay = kwargs.pop('decay', 0.0)
+        super(SGD, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
+            self.lr = K.variable(lr, name='lr')
             self.momentum = K.variable(momentum, name='momentum')
-            self.decay = K.variable(self.initial_decay, name='decay')
-        self._momentum = True if momentum > 0. else False
+            self.decay = K.variable(decay, name='decay')
+        self.initial_decay = decay
         self.nesterov = nesterov
-        super(SGD, self).__init__(**kwargs)
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -190,35 +188,28 @@ class SGD(Optimizer):
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
-        self.weights = [self.iterations]
-        if self._momentum:
-            shapes = [K.int_shape(p) for p in params]
-            moments = [K.zeros(shape) for shape in shapes]
-            self.weights.extend([K.zeros(shape) for shape in shapes])
-        else:
-            moments = [None] * len(params)
+        # momentum
+        shapes = [K.int_shape(p) for p in params]
+        moments = [K.zeros(shape) for shape in shapes]
+        self.weights = [self.iterations] + moments
         for p, g, m in zip(params, grads, moments):
-            if self._momentum:
-                # momentum optimizer
-                v = self.momentum * m - lr * g  # velocity
-                self.updates.append(K.update(m, v))
-                if self.nesterov:
-                    new_p = p + self.momentum * v - lr * g
-                else:
-                    new_p = p + v
+            v = self.momentum * m - lr * g  # velocity
+            self.updates.append(K.update(m, v))
+
+            if self.nesterov:
+                new_p = p + self.momentum * v - lr * g
             else:
-                # sgd optimizer.
-                new_p = p - lr * g
+                new_p = p + v
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
 
             self.updates.append(K.update(p, new_p))
-
         return self.updates
 
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'momentum': float(K.get_value(self.momentum)),
                   'decay': float(K.get_value(self.decay)),
                   'nesterov': self.nesterov}
@@ -234,41 +225,34 @@ class RMSprop(Optimizer):
     (except the learning rate, which can be freely tuned).
 
     # Arguments
-        learning_rate: float >= 0. Learning rate.
+        lr: float >= 0. Learning rate.
         rho: float >= 0.
-        momentum: float hyperparameter >= 0 that accelerates RMSprop in the relevant
-            direction and dampens oscillations.
-        centered: If True, gradients are normalized by the estimated variance of
-            the gradient; if False, by the uncentered second moment. Setting this to
-            True may help with training, but is slightly more expensive in terms of
-            computation and memory. Defaults to False.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [rmsprop: Divide the gradient by a running average of its recent magnitude
            ](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
-    def __init__(self, learning_rate=0.001, rho=0.9, momentum=0., centered=False,
+    def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0.,
                  **kwargs):
-        self.initial_decay = kwargs.pop('decay', 0.0)
-        self._momentum = True if momentum > 0. else False
-        with K.name_scope(self.__class__.__name__):
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
-            self.rho = K.variable(rho, name='rho')
-            self.decay = K.variable(self.initial_decay, name='decay')
-            self.iterations = K.variable(0, dtype='int64', name='iterations')
-            if self._momentum:
-                self.momentum = K.variable(momentum, name='momentum')
-        self.epsilon = kwargs.pop('epsilon', K.epsilon())
-        self.centered = centered
         super(RMSprop, self).__init__(**kwargs)
+        with K.name_scope(self.__class__.__name__):
+            self.lr = K.variable(lr, name='lr')
+            self.rho = K.variable(rho, name='rho')
+            self.decay = K.variable(decay, name='decay')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.epsilon = epsilon
+        self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         accumulators = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-        self.weights = [self.iterations] + accumulators
+        self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
@@ -276,52 +260,21 @@ class RMSprop(Optimizer):
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
 
-        if self._momentum:
-            ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-            self.weights.extend(ms)
-            if self.centered:
-                mgs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-                self.weights.extend(mgs)
-            else:
-                mgs = [None] * len(params)
-        else:
-            ms = [None] * len(params)
-            mgs = [None] * len(params)
-
-        for p, g, a, m, mg in zip(params, grads, accumulators, ms, mgs):
+        for p, g, a in zip(params, grads, accumulators):
+            # update accumulator
             new_a = self.rho * a + (1. - self.rho) * K.square(g)
             self.updates.append(K.update(a, new_a))
-            if m:
-                if mg:
-                    new_mg = self.rho * mg + (1. - self.rho) * g
-                    new_m = self.momentum * m + lr * g / K.sqrt(
-                        new_a - K.square(new_mg) + self.epsilon)
-                    self.updates.append(K.update(mg, new_mg))
-                else:
-                    new_m = self.momentum * m + lr * g / K.sqrt(new_a + self.epsilon)
-                self.updates.append(K.update(m, new_m))
-                new_p = p - new_m
-            else:
-                new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+            new_p = p - lr * g / (K.sqrt(new_a) + self.epsilon)
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
 
             self.updates.append(K.update(p, new_p))
-
         return self.updates
 
-    def set_weights(self, weights):
-        params = self.weights
-        # Override set_weights for backward compatibility of Keras 2.2.4 optimizer
-        # since it does not include iteration at head of the weight list. Set
-        # iteration to 0.
-        if len(params) == len(weights) + 1:
-            weights = [np.array(0)] + weights
-        super(RMSprop, self).set_weights(weights)
-
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'rho': float(K.get_value(self.rho)),
                   'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
@@ -341,33 +294,32 @@ class Adagrad(Optimizer):
     at their default values.
 
     # Arguments
-        learning_rate: float >= 0. Initial learning rate.
-        initial_accumulator_value: A floating point value.
-            Starting value for the accumulators, must be positive.
+        lr: float >= 0. Initial learning rate.
+        epsilon: float >= 0. If `None`, defaults to `K.epsilon()`.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adaptive Subgradient Methods for Online Learning and Stochastic
            Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     """
 
-    def __init__(self, learning_rate=0.001, initial_accumulator_value=0.1, **kwargs):
-        self.initial_decay = kwargs.pop('decay', 0.0)
-        with K.name_scope(self.__class__.__name__):
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
-            self.decay = K.variable(self.initial_decay, name='decay')
-            self.iterations = K.variable(0, dtype='int64', name='iterations')
-        self.epsilon = kwargs.pop('epsilon', K.epsilon())
-        self._initial_accumulator_value = initial_accumulator_value
+    def __init__(self, lr=0.01, epsilon=None, decay=0., **kwargs):
         super(Adagrad, self).__init__(**kwargs)
+        with K.name_scope(self.__class__.__name__):
+            self.lr = K.variable(lr, name='lr')
+            self.decay = K.variable(decay, name='decay')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.epsilon = epsilon
+        self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
         grads = self.get_gradients(loss, params)
         shapes = [K.int_shape(p) for p in params]
-        accumulators = [K.variable(np.full(shape, self._initial_accumulator_value))
-                        for shape in shapes]
-        self.weights = [self.iterations] + accumulators
+        accumulators = [K.zeros(shape) for shape in shapes]
+        self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
@@ -387,19 +339,10 @@ class Adagrad(Optimizer):
             self.updates.append(K.update(p, new_p))
         return self.updates
 
-    def set_weights(self, weights):
-        params = self.weights
-        # Override set_weights for backward compatibility of Keras 2.2.4 optimizer
-        # since it does not include iteration at head of the weight list. Set
-        # iteration to 0.
-        if len(params) == len(weights) + 1:
-            weights = [np.array(0)] + weights
-        super(Adagrad, self).set_weights(weights)
-
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'decay': float(K.get_value(self.decay)),
-                  'initial_accumulator_value': self._initial_accumulator_value}
+                  'epsilon': self.epsilon}
         base_config = super(Adagrad, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -419,26 +362,30 @@ class Adadelta(Optimizer):
     at their default values.
 
     # Arguments
-        learning_rate: float >= 0. Initial learning rate, defaults to 1.
+        lr: float >= 0. Initial learning rate, defaults to 1.
             It is recommended to leave it at the default value.
         rho: float >= 0. Adadelta decay factor, corresponding to fraction of
             gradient to keep at each time step.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        decay: float >= 0. Initial learning rate decay.
 
     # References
         - [Adadelta - an adaptive learning rate method](
            https://arxiv.org/abs/1212.5701)
     """
 
-    def __init__(self, learning_rate=0.001, rho=0.95, **kwargs):
-        self.initial_decay = kwargs.pop('decay', 0.0)
-        with K.name_scope(self.__class__.__name__):
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
-            self.decay = K.variable(self.initial_decay, name='decay')
-            self.iterations = K.variable(0, dtype='int64', name='iterations')
-        self.rho = rho
-        self.epsilon = kwargs.pop('epsilon', K.epsilon())
+    def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0.,
+                 **kwargs):
         super(Adadelta, self).__init__(**kwargs)
+        with K.name_scope(self.__class__.__name__):
+            self.lr = K.variable(lr, name='lr')
+            self.decay = K.variable(decay, name='decay')
+            self.iterations = K.variable(0, dtype='int64', name='iterations')
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.rho = rho
+        self.epsilon = epsilon
+        self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -446,7 +393,7 @@ class Adadelta(Optimizer):
         shapes = [K.int_shape(p) for p in params]
         accumulators = [K.zeros(shape) for shape in shapes]
         delta_accumulators = [K.zeros(shape) for shape in shapes]
-        self.weights = [self.iterations] + accumulators + delta_accumulators
+        self.weights = accumulators + delta_accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
         lr = self.lr
@@ -474,19 +421,11 @@ class Adadelta(Optimizer):
             self.updates.append(K.update(d_a, new_d_a))
         return self.updates
 
-    def set_weights(self, weights):
-        params = self.weights
-        # Override set_weights for backward compatibility of Keras 2.2.4 optimizer
-        # since it does not include iteration at head of the weight list. Set
-        # iteration to 0.
-        if len(params) == len(weights) + 1:
-            weights = [np.array(0)] + weights
-        super(Adadelta, self).set_weights(weights)
-
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'rho': self.rho,
-                  'decay': float(K.get_value(self.decay))}
+                  'decay': float(K.get_value(self.decay)),
+                  'epsilon': self.epsilon}
         base_config = super(Adadelta, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -497,9 +436,11 @@ class Adam(Optimizer):
     Default parameters follow those provided in the original paper.
 
     # Arguments
-        learning_rate: float >= 0. Learning rate.
+        lr: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        decay: float >= 0. Learning rate decay over each update.
         amsgrad: boolean. Whether to apply the AMSGrad variant of this
             algorithm from the paper "On the Convergence of Adam and
             Beyond".
@@ -511,19 +452,20 @@ class Adam(Optimizer):
            https://openreview.net/forum?id=ryQu7f-RZ)
     """
 
-    def __init__(self, learning_rate=0.001, beta_1=0.9, beta_2=0.999,
-                 amsgrad=False, **kwargs):
-        self.initial_decay = kwargs.pop('decay', 0.0)
+    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
+                 epsilon=None, decay=0., amsgrad=False, **kwargs):
+        super(Adam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
+            self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
-            self.decay = K.variable(self.initial_decay, name='decay')
-        self.epsilon = kwargs.pop('epsilon', K.epsilon())
+            self.decay = K.variable(decay, name='decay')
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.epsilon = epsilon
+        self.initial_decay = decay
         self.amsgrad = amsgrad
-        super(Adam, self).__init__(**kwargs)
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -541,46 +483,39 @@ class Adam(Optimizer):
 
         ms = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
         vs = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-        self.weights = [self.iterations] + ms + vs
         if self.amsgrad:
             vhats = [K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in params]
-            self.weights.extend(vhats)
         else:
-            vhats = [None] * len(params)
+            vhats = [K.zeros(1) for _ in params]
+        self.weights = [self.iterations] + ms + vs + vhats
+
         for p, g, m, v, vhat in zip(params, grads, ms, vs, vhats):
             m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
             v_t = (self.beta_2 * v) + (1. - self.beta_2) * K.square(g)
-            self.updates.append(K.update(m, m_t))
-            self.updates.append(K.update(v, v_t))
             if self.amsgrad:
                 vhat_t = K.maximum(vhat, v_t)
                 p_t = p - lr_t * m_t / (K.sqrt(vhat_t) + self.epsilon)
                 self.updates.append(K.update(vhat, vhat_t))
             else:
                 p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+
+            self.updates.append(K.update(m, m_t))
+            self.updates.append(K.update(v, v_t))
             new_p = p_t
+
             # Apply constraints.
             if getattr(p, 'constraint', None) is not None:
                 new_p = p.constraint(new_p)
-            self.updates.append(K.update(p, new_p))
 
+            self.updates.append(K.update(p, new_p))
         return self.updates
 
-    def set_weights(self, weights):
-        params = self.weights
-        # If the weights are generated by Keras V1 optimizer, it includes vhats
-        # even without amsgrad, i.e, V1 optimizer has 3x + 1 variables, while V2
-        # optimizer has 2x + 1 variables. Filter vhats out for compatibility.
-        num_vars = int((len(params) - 1) / 2)
-        if len(weights) == 3 * num_vars + 1:
-            weights = weights[:len(params)]
-        super(Adam, self).set_weights(weights)
-
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
                   'decay': float(K.get_value(self.decay)),
+                  'epsilon': self.epsilon,
                   'amsgrad': self.amsgrad}
         base_config = super(Adam, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -593,26 +528,30 @@ class Adamax(Optimizer):
     Default parameters follow those provided in the paper.
 
     # Arguments
-        learning_rate: float >= 0. Learning rate.
+        lr: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        decay: float >= 0. Learning rate decay over each update.
 
     # References
         - [Adam - A Method for Stochastic Optimization](
            https://arxiv.org/abs/1412.6980v8)
     """
 
-    def __init__(self, learning_rate=0.001, beta_1=0.9, beta_2=0.999, **kwargs):
-        self.initial_decay = kwargs.pop('decay', 0.0)
+    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
+                 epsilon=None, decay=0., **kwargs):
+        super(Adamax, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
+            self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
-            self.decay = K.variable(self.initial_decay, name='decay')
-        self.epsilon = kwargs.pop('epsilon', K.epsilon())
-        super(Adamax, self).__init__(**kwargs)
+            self.decay = K.variable(decay, name='decay')
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.epsilon = epsilon
+        self.initial_decay = decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -652,10 +591,11 @@ class Adamax(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
-                  'decay': float(K.get_value(self.decay))}
+                  'decay': float(K.get_value(self.decay)),
+                  'epsilon': self.epsilon}
         base_config = super(Adamax, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -671,9 +611,11 @@ class Nadam(Optimizer):
     at their default values.
 
     # Arguments
-        learning_rate: float >= 0. Learning rate.
+        lr: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
+        epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
+        schedule_decay: float, 0 < schedule_decay < 1.
 
     # References
         - [Nadam report](http://cs229.stanford.edu/proj2015/054_report.pdf)
@@ -681,17 +623,19 @@ class Nadam(Optimizer):
            http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
     """
 
-    def __init__(self, learning_rate=0.001, beta_1=0.9, beta_2=0.999, **kwargs):
-        self.schedule_decay = kwargs.pop('schedule_decay', 0.004)
+    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
+                 epsilon=None, schedule_decay=0.004, **kwargs):
+        super(Nadam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.m_schedule = K.variable(1., name='m_schedule')
-            learning_rate = kwargs.pop('lr', learning_rate)
-            self.lr = K.variable(learning_rate, name='learning_rate')
+            self.lr = K.variable(lr, name='lr')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
-        self.epsilon = kwargs.pop('epsilon', K.epsilon())
-        super(Nadam, self).__init__(**kwargs)
+        if epsilon is None:
+            epsilon = K.epsilon()
+        self.epsilon = epsilon
+        self.schedule_decay = schedule_decay
 
     @interfaces.legacy_get_updates_support
     def get_updates(self, loss, params):
@@ -713,7 +657,7 @@ class Nadam(Optimizer):
         ms = [K.zeros(shape) for shape in shapes]
         vs = [K.zeros(shape) for shape in shapes]
 
-        self.weights = [self.iterations, self.m_schedule] + ms + vs
+        self.weights = [self.iterations] + ms + vs
 
         for p, g, m, v in zip(params, grads, ms, vs):
             # the following equations given in [1]
@@ -738,19 +682,11 @@ class Nadam(Optimizer):
             self.updates.append(K.update(p, new_p))
         return self.updates
 
-    def set_weights(self, weights):
-        params = self.weights
-        # Override set_weights for backward compatibility of Keras 2.2.4 optimizer
-        # since it does not include iteration at head of the weight list. Set
-        # iteration to 0.
-        if len(params) == len(weights) + 1:
-            weights = [weights[0]] + [np.array(1.)] + weights[1:]
-        super(Nadam, self).set_weights(weights)
-
     def get_config(self):
-        config = {'learning_rate': float(K.get_value(self.lr)),
+        config = {'lr': float(K.get_value(self.lr)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
+                  'epsilon': self.epsilon,
                   'schedule_decay': self.schedule_decay}
         base_config = super(Nadam, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
