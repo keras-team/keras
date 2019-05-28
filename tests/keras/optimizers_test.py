@@ -81,35 +81,76 @@ def test_no_grad():
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
+    sgd = optimizers.SGD(learning_rate=0.01, momentum=0.9, decay=0.1, nesterov=True)
+    _test_optimizer(sgd)
 
 
 def test_rmsprop():
     _test_optimizer(optimizers.RMSprop())
     _test_optimizer(optimizers.RMSprop(decay=1e-3))
+    _test_optimizer(optimizers.RMSprop(learning_rate=0.1, epsilon=0.01, decay=0.1))
+    _test_optimizer(optimizers.RMSprop(learning_rate=0.1, momentum=0.1))
+    _test_optimizer(optimizers.RMSprop(learning_rate=0.1, momentum=0.1,
+                                       centered=True))
 
 
 def test_adagrad():
-    _test_optimizer(optimizers.Adagrad())
-    _test_optimizer(optimizers.Adagrad(decay=1e-3))
+    adagrad = optimizers.Adagrad(lr=0.01)
+    _test_optimizer(adagrad)
+    _test_optimizer(optimizers.Adagrad(lr=0.01, decay=1e-3))
+    new_adagrad = optimizers.Adagrad(learning_rate=0.01,
+                                     initial_accumulator_value=0.001,
+                                     epsilon=0.001, decay=0.001)
+    _test_optimizer(new_adagrad)
+    # test backward compatibility for adding opt.iterations.
+    assert len(adagrad.get_weights()) == len(new_adagrad.get_weights())
+    new_adagrad.set_weights(adagrad.get_weights()[1:])
+    _test_optimizer(new_adagrad)
 
 
 def test_adadelta():
-    _test_optimizer(optimizers.Adadelta(), target=0.6)
-    _test_optimizer(optimizers.Adadelta(decay=1e-3), target=0.6)
+    adadelta = optimizers.Adadelta(lr=1.0)
+    _test_optimizer(adadelta, target=0.6)
+    _test_optimizer(optimizers.Adadelta(lr=1.0, decay=1e-3), target=0.6)
+    new_adadelta = optimizers.Adadelta(learning_rate=1.0,
+                                       epsilon=0.001, decay=0.001)
+    _test_optimizer(new_adadelta, target=0.6)
+    # test backward compatibility for adding opt.iterations.
+    assert len(adadelta.get_weights()) == len(new_adadelta.get_weights())
+    new_adadelta.set_weights(adadelta.get_weights()[1:])
+    _test_optimizer(new_adadelta, target=0.6)
 
 
 def test_adam():
-    _test_optimizer(optimizers.Adam())
+    adam = optimizers.Adam()
+    _test_optimizer(adam)
     _test_optimizer(optimizers.Adam(decay=1e-3))
+    new_adam = optimizers.Adam(learning_rate=0.1, epsilon=0.01, decay=0.1)
+    _test_optimizer(new_adam)
+    num_vars = int((len(adam.weights) - 1) / 2)
+    ms = adam.weights[1:(num_vars + 1)]
+    adam.weights.extend([K.zeros(K.int_shape(p), dtype=K.dtype(p)) for p in ms])
+    new_adam.set_weights(adam.get_weights())
+    _test_optimizer(new_adam)
 
 
 def test_adamax():
-    _test_optimizer(optimizers.Adamax())
-    _test_optimizer(optimizers.Adamax(decay=1e-3))
+    _test_optimizer(optimizers.Adamax(lr=0.002))
+    _test_optimizer(optimizers.Adamax(lr=0.002, decay=1e-3))
+    _test_optimizer(optimizers.Adamax(learning_rate=0.002, epsilon=0.001,
+                                      decay=0.001))
 
 
 def test_nadam():
-    _test_optimizer(optimizers.Nadam())
+    nadam = optimizers.Nadam()
+    _test_optimizer(nadam)
+    new_nadam = optimizers.Nadam(learning_rate=0.1, epsilon=0.01, schedule_decay=0.1)
+    _test_optimizer(new_nadam)
+    # test backward compatibility for adding opt.m_schedule.
+    assert len(nadam.get_weights()) == len(new_nadam.get_weights())
+    weights = nadam.get_weights()
+    new_nadam.set_weights([weights[0]] + weights[1:])
+    _test_optimizer(new_nadam)
 
 
 def test_adam_amsgrad():
