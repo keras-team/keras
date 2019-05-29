@@ -188,8 +188,8 @@ class MeanAbsoluteError(LossFunctionWrapper):
     Usage with the `compile` API:
 
     ```python
-    model = tf.keras.Model(inputs, outputs)
-    model.compile('sgd', loss=tf.keras.losses.MeanAbsoluteError())
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.MeanAbsoluteError())
     ```
 
     # Arguments
@@ -205,12 +205,69 @@ class MeanAbsoluteError(LossFunctionWrapper):
             mean_absolute_error, name=name, reduction=reduction)
 
 
+class BinaryCrossentropy(LossFunctionWrapper):
+    """Computes the cross-entropy loss between true labels and predicted labels.
+
+    Use this cross-entropy loss when there are only two label classes (assumed to
+    be 0 and 1). For each example, there should be a single floating-point value
+    per prediction.
+
+    In the snippet below, each of the four examples has only a single
+    floating-pointing value, and both `y_pred` and `y_true` have the shape
+    `[batch_size]`.
+
+    Standalone usage:
+
+    ```python
+    bce = keras.losses.BinaryCrossentropy()
+    loss = bce([0., 0., 1., 1.], [1., 1., 1., 0.])
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.BinaryCrossentropy())
+    ```
+
+    # Arguments
+        from_logits: Whether to interpret `y_pred` as a tensor of
+            [logit](https://en.wikipedia.org/wiki/Logit) values. By default,
+            we assume that `y_pred` contains probabilities
+            (i.e., values in [0, 1]).
+        label_smoothing: Float in [0, 1]. When 0, no smoothing occurs. When > 0, we
+            compute the loss between the predicted labels and a smoothed version of
+            the true labels, where the smoothing squeezes the labels towards 0.5.
+            Larger values of `label_smoothing` correspond to heavier smoothing.
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the op.
+    """
+
+    def __init__(self,
+                 from_logits=False,
+                 label_smoothing=0,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='binary_crossentropy'):
+        super(BinaryCrossentropy, self).__init__(
+            binary_crossentropy,
+            name=name,
+            reduction=reduction,
+            from_logits=from_logits,
+            label_smoothing=label_smoothing)
+        self.from_logits = from_logits
+
+
 def mean_squared_error(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
     y_true = K.cast(y_true, y_pred.dtype)
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_error(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
     y_true = K.cast(y_true, y_pred.dtype)
     return K.mean(K.abs(y_pred - y_true), axis=-1)
 
@@ -270,8 +327,18 @@ def sparse_categorical_crossentropy(y_true, y_pred):
     return K.sparse_categorical_crossentropy(y_true, y_pred)
 
 
-def binary_crossentropy(y_true, y_pred):
-    return K.mean(K.binary_crossentropy(y_true, y_pred), axis=-1)
+def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
+    y_true = K.cast(y_true, y_pred.dtype)
+    label_smoothing = K.cast_to_floatx(label_smoothing)
+
+    def _smooth_labels():
+        return y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
+
+    y_true = K.switch(K.greater(label_smoothing, 0), _smooth_labels, lambda: y_true)
+    return K.mean(
+        K.binary_crossentropy(y_true, y_pred, from_logits=from_logits), axis=-1)
 
 
 def kullback_leibler_divergence(y_true, y_pred):
