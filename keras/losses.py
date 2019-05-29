@@ -172,11 +172,46 @@ class MeanSquaredError(LossFunctionWrapper):
             mean_squared_error, name=name, reduction=reduction)
 
 
+class MeanAbsoluteError(LossFunctionWrapper):
+    """Computes the mean of absolute difference between labels and predictions.
+
+    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
+    then the mean absolute error value is 3/4 (0.75).
+
+    Standalone usage:
+
+    ```python
+    mae = keras.losses.MeanAbsoluteError()
+    loss = mae([0., 0., 1., 1.], [1., 1., 1., 0.])
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = tf.keras.Model(inputs, outputs)
+    model.compile('sgd', loss=tf.keras.losses.MeanAbsoluteError())
+    ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) name for the loss.
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='mean_absolute_error'):
+        super(MeanAbsoluteError, self).__init__(
+            mean_absolute_error, name=name, reduction=reduction)
+
+
 def mean_squared_error(y_true, y_pred):
+    y_true = K.cast(y_true, y_pred.dtype)
     return K.mean(K.square(y_pred - y_true), axis=-1)
 
 
 def mean_absolute_error(y_true, y_pred):
+    y_true = K.cast(y_true, y_pred.dtype)
     return K.mean(K.abs(y_pred - y_true), axis=-1)
 
 

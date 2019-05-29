@@ -167,7 +167,7 @@ class TestMeanSquaredError:
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
         sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.isclose(K.eval(loss), 587 / 6, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 97.833, rtol=1e-3)
 
     def test_zero_weighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -199,6 +199,82 @@ class TestMeanSquaredError:
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
         assert np.isclose(K.eval(loss), 227.69998, rtol=1e-3)
+
+
+class TestMeanAbsoluteError:
+
+    def test_config(self):
+        mae_obj = losses.MeanAbsoluteError(
+            reduction=losses_utils.Reduction.SUM, name='mae_1')
+        assert mae_obj.name == 'mae_1'
+        assert mae_obj.reduction == losses_utils.Reduction.SUM
+
+    def test_all_correct_unweighted(self):
+        mae_obj = losses.MeanAbsoluteError()
+        y_true = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        loss = mae_obj(y_true, y_true)
+        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3)
+
+    def test_unweighted(self):
+        mae_obj = losses.MeanAbsoluteError()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        loss = mae_obj(y_true, y_pred)
+        assert np.isclose(K.eval(loss), 5.5, rtol=1e-3)
+
+    def test_scalar_weighted(self):
+        mae_obj = keras.losses.MeanAbsoluteError()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        loss = mae_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), 12.65, rtol=1e-3)
+
+    def test_sample_weighted(self):
+        mae_obj = keras.losses.MeanAbsoluteError()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        sample_weight = K.constant([1.2, 3.4], shape=(2, 1))
+        loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 81.4 / 6, rtol=1e-3)
+
+    def test_timestep_weighted(self):
+        mae_obj = keras.losses.MeanAbsoluteError()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
+        sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+        loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 13.833, rtol=1e-3)
+
+    def test_zero_weighted(self):
+        mae_obj = keras.losses.MeanAbsoluteError()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        loss = mae_obj(y_true, y_pred, sample_weight=0)
+        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3)
+
+    def test_invalid_sample_weight(self):
+        mae_obj = keras.losses.MeanAbsoluteError()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
+        sample_weight = K.constant([3, 6, 5, 0], shape=(2, 2))
+        with pytest.raises(Exception):
+            mae_obj(y_true, y_pred, sample_weight=sample_weight)
+
+    def test_no_reduction(self):
+        mae_obj = keras.losses.MeanAbsoluteError(
+            reduction=losses_utils.Reduction.NONE)
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        loss = mae_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.allclose(K.eval(loss), [10.7333, 14.5666], rtol=1e-3)
+
+    def test_sum_reduction(self):
+        mae_obj = keras.losses.MeanAbsoluteError(
+            reduction=losses_utils.Reduction.SUM)
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+        loss = mae_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), 25.29999, rtol=1e-3)
 
 
 if __name__ == '__main__':
