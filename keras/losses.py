@@ -224,6 +224,11 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.MeanAbsolutePercentageError())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) name for the loss.
     """
 
     def __init__(self,
@@ -252,6 +257,11 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.MeanSquaredLogarithmicError())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) name for the loss.
     """
 
     def __init__(self,
