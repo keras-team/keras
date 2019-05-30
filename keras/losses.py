@@ -205,6 +205,34 @@ class MeanAbsoluteError(LossFunctionWrapper):
             mean_absolute_error, name=name, reduction=reduction)
 
 
+class MeanAbsolutePercentageError(LossFunctionWrapper):
+    """Computes the mean absolute percentage error between `y_true` and `y_pred`.
+
+    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
+    then the mean absolute percentage error value is 5e+08.
+
+    Standalone usage:
+
+    ```python
+    mape = keras.losses.MeanAbsolutePercentageError()
+    loss = mape([0., 0., 1., 1.], [1., 1., 1., 0.])
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.MeanAbsolutePercentageError())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='mean_absolute_percentage_error'):
+        super(MeanAbsolutePercentageError, self).__init__(
+            mean_absolute_percentage_error, name=name, reduction=reduction)
+
+
 class BinaryCrossentropy(LossFunctionWrapper):
     """Computes the cross-entropy loss between true labels and predicted labels.
 
