@@ -233,6 +233,34 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
             mean_absolute_percentage_error, name=name, reduction=reduction)
 
 
+class MeanSquaredLogarithmicError(LossFunctionWrapper):
+    """Computes the mean squared logarithmic error between `y_true` and `y_pred`.
+
+    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
+    then the mean squared logarithmic error value is 0.36034.
+
+    Standalone usage:
+
+    ```python
+    msle = keras.losses.MeanSquaredLogarithmicError()
+    loss = msle([0., 0., 1., 1.], [1., 1., 1., 0.])
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.MeanSquaredLogarithmicError())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='mean_squared_logarithmic_error'):
+        super(MeanSquaredLogarithmicError, self).__init__(
+            mean_squared_logarithmic_error, name=name, reduction=reduction)
+
+
 class BinaryCrossentropy(LossFunctionWrapper):
     """Computes the cross-entropy loss between true labels and predicted labels.
 
@@ -301,6 +329,9 @@ def mean_absolute_error(y_true, y_pred):
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
+    y_true = K.cast(y_true, y_pred.dtype)
     diff = K.abs((y_true - y_pred) / K.clip(K.abs(y_true),
                                             K.epsilon(),
                                             None))
@@ -308,6 +339,9 @@ def mean_absolute_percentage_error(y_true, y_pred):
 
 
 def mean_squared_logarithmic_error(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
+    y_true = K.cast(y_true, y_pred.dtype)
     first_log = K.log(K.clip(y_pred, K.epsilon(), None) + 1.)
     second_log = K.log(K.clip(y_true, K.epsilon(), None) + 1.)
     return K.mean(K.square(first_log - second_log), axis=-1)
