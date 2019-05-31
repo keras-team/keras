@@ -9,22 +9,14 @@ from .. import utils
 
 import keras_applications
 
-if not hasattr(keras_applications, 'get_submodules_from_kwargs'):
-    keras_applications.set_keras_submodules(
-        backend=backend,
-        layers=layers,
-        models=models,
-        utils=utils)
-
 
 def keras_modules_injection(base_fun):
 
     def wrapper(*args, **kwargs):
-        if hasattr(keras_applications, 'get_submodules_from_kwargs'):
-            kwargs['backend'] = backend
-            kwargs['layers'] = layers
-            kwargs['models'] = models
-            kwargs['utils'] = utils
+        kwargs['backend'] = backend
+        kwargs['layers'] = layers
+        kwargs['models'] = models
+        kwargs['utils'] = utils
         return base_fun(*args, **kwargs)
 
     return wrapper
