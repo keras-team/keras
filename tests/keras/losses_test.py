@@ -540,8 +540,6 @@ class TestBinaryCrossentropy:
             from_logits=True, label_smoothing=label_smoothing)
         loss = bce_obj(y_true, logits)
         expected_value = (100.0 + 50.0 * label_smoothing) / 3.0
-        print('LOSS VALUE', K.eval(loss))
-        print('EXPECTED VALUE', expected_value)
         assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
 
 
