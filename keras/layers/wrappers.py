@@ -207,6 +207,7 @@ class TimeDistributed(Wrapper):
         return (child_output_shape[0], timesteps) + child_output_shape[1:]
 
     def call(self, inputs, training=None, mask=None):
+        global uses_learning_phase
         kwargs = {}
         if has_arg(self.layer.call, 'training'):
             kwargs['training'] = training
