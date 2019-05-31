@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import numpy as np
 from scipy.sparse import issparse
+import warnings
 
 from .training_utils import batch_shuffle
 from .training_utils import check_num_samples
@@ -183,6 +184,9 @@ def fit_loop(model, fit_function, fit_inputs,
                 np.random.shuffle(index_array)
 
             batches = make_batches(num_train_samples, batch_size)
+            if len(batches) == 0:
+                warnings.warn('batches count is 0 and this run will do noop')
+            batch_index = 0
             for batch_index, (batch_start, batch_end) in enumerate(batches):
                 batch_ids = index_array[batch_start:batch_end]
                 try:

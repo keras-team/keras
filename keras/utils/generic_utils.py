@@ -388,10 +388,11 @@ class Progbar(object):
                 sys.stdout.write('\n')
 
             if self.target is not None:
-                numdigits = int(np.floor(np.log10(self.target))) + 1
+                numdigits = int(np.floor(np.log10(self.target or 1))) + 1
                 barstr = '%%%dd/%d [' % (numdigits, self.target)
                 bar = barstr % current
-                prog = float(current) / self.target
+                # if target is 0 we considering progress as auto-completed (1.0)
+                prog = (float(current) / self.target) if self.target else 1.0
                 prog_width = int(self.width * prog)
                 if prog_width > 0:
                     bar += ('=' * (prog_width - 1))

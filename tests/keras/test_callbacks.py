@@ -493,6 +493,127 @@ def test_ModelCheckpoint(tmpdir):
     assert not tmpdir.listdir()
 
 
+@pytest.fixture
+def model_and_data():
+    np.random.seed(1337)
+    (x_train, y_train), (x_test, y_test) = get_data_callbacks()
+    model = Sequential()
+    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(num_classes, activation='softmax'))
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer='rmsprop',
+        metrics=['accuracy']
+    )
+    return dict(
+        model=model,
+        x_test=x_test,
+        y_test=np_utils.to_categorical(y_test),
+        x_train=x_train,
+        y_train=np_utils.to_categorical(y_train),
+    )
+
+
+class TestProgbarLogger(object):
+    """
+    Test ProgbarLogger execution and known regressions
+    """
+
+    def test_verbose_run(self, model_and_data):
+        """
+        Run with verbose=1 mode
+        """
+        model_and_data['model'].fit(
+            model_and_data['x_train'],
+            model_and_data['y_train'],
+            batch_size=batch_size,
+            validation_data=(model_and_data['x_test'], model_and_data['y_test']),
+            callbacks=[callbacks.ProgbarLogger(count_mode='samples')],
+            epochs=13,
+            verbose=1)
+
+    def test_silent_run(self, model_and_data):
+        """
+        Run with verbose=0 mode to test regression with fingerprint:
+        `AttributeError: 'ProgbarLogger' object has no attribute 'target'` #12898
+        """
+        model_and_data['model'].fit(
+            model_and_data['x_train'],
+            model_and_data['y_train'],
+            batch_size=batch_size,
+            validation_data=(model_and_data['x_test'], model_and_data['y_test'],),
+            callbacks=[callbacks.ProgbarLogger(count_mode='samples')],
+            epochs=13,
+            verbose=0)
+
+    def test_zero_cycle_verbose_run(self, model_and_data):
+        """
+        Run with 0-length training cycle to ensure that finalization callbacks
+        are not missing attributes which might be lazy-initialized
+        only after first batch is executed
+        with verbose output enabled
+        """
+        model_and_data['model'].fit(
+            model_and_data['x_train'],
+            model_and_data['y_train'],
+            batch_size=batch_size,
+            validation_data=(model_and_data['x_test'], model_and_data['y_test'],),
+            callbacks=[callbacks.ProgbarLogger(count_mode='samples')],
+            epochs=0,
+            verbose=1)
+
+    def test_zero_cycle_silent_run(self, model_and_data):
+        """
+        Run with 0-length training cycle to ensure that finalization callbacks
+        are not missing attributes which might be lazy-initialized
+        only after first batch is executed
+        with suppressed verbose output
+        """
+        model_and_data['model'].fit(
+            model_and_data['x_train'],
+            model_and_data['y_train'],
+            batch_size=batch_size,
+            validation_data=(model_and_data['x_test'], model_and_data['y_test'],),
+            callbacks=[callbacks.ProgbarLogger(count_mode='samples')],
+            epochs=0,
+            verbose=0)
+
+    def test_empty_data_verbose_run(self, model_and_data):
+        """
+        Check for regression of:
+        * "AttributeError: 'ProgbarLogger' object has no attribute 'log_values'"
+          #3657
+        * "AttributeError: 'ProgbarLogger' object has no attribute 'log_values'"
+          #8944 (dup)
+        with verbose output enabled
+        """
+        model_and_data['model'].fit(
+            np.ndarray(shape=(0, 2,)),
+            np.ndarray(shape=(0, 2,)),
+            batch_size=batch_size,
+            validation_data=(np.ndarray(shape=(0, 2)), np.ndarray(shape=(0, 2)),),
+            callbacks=[callbacks.ProgbarLogger(count_mode='samples')],
+            epochs=13,
+            verbose=1)
+
+    def test_empty_data_silent_run(self, model_and_data):
+        """
+        This test is checking for possible init flaws in silent mode
+        with empty data similar to #3657
+        """
+        model_and_data['model'].fit(
+            np.ndarray(shape=(0, 2,)),
+            np.ndarray(shape=(0, 2,)),
+            batch_size=batch_size,
+            validation_data=(
+                np.ndarray(shape=(0, 2)),
+                np.ndarray(shape=(0, 2)),
+            ),
+            callbacks=[callbacks.ProgbarLogger(count_mode='samples')],
+            epochs=13,
+            verbose=0)
+
+
 def test_EarlyStopping():
     np.random.seed(1337)
     (X_train, y_train), (X_test, y_test) = get_data_callbacks()

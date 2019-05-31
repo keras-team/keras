@@ -549,6 +549,12 @@ class ProgbarLogger(Callback):
     # Raises
         ValueError: In case of invalid `count_mode`.
     """
+    verbose = None
+    epochs = None
+    log_values = None
+    target = 0
+    seen = 0
+    progbar = None
 
     def __init__(self, count_mode='samples',
                  stateful_metrics=None):
@@ -567,19 +573,22 @@ class ProgbarLogger(Callback):
     def on_train_begin(self, logs=None):
         self.verbose = self.params['verbose']
         self.epochs = self.params['epochs']
+        self.log_values = []
+        if self.target is 0:
+            warnings.warn('%s count is 0 and this run will do noop' %
+                          ('steps' if self.use_steps else 'samples'))
 
     def on_epoch_begin(self, epoch, logs=None):
+        if self.use_steps:
+            self.target = self.params['steps']
+        else:
+            self.target = self.params['samples']
+        self.seen = 0
         if self.verbose:
             print('Epoch %d/%d' % (epoch + 1, self.epochs))
-            if self.use_steps:
-                target = self.params['steps']
-            else:
-                target = self.params['samples']
-            self.target = target
             self.progbar = Progbar(target=self.target,
                                    verbose=self.verbose,
                                    stateful_metrics=self.stateful_metrics)
-        self.seen = 0
 
     def on_batch_begin(self, batch, logs=None):
         if self.seen < self.target:
