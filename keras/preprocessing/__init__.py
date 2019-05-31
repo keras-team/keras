@@ -7,8 +7,6 @@ from .. import utils
 
 import keras_preprocessing
 
-keras_preprocessing.set_keras_submodules(backend=backend, utils=utils)
-
 from . import image
 from . import sequence
 from . import text
