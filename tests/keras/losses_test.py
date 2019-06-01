@@ -543,5 +543,173 @@ class TestBinaryCrossentropy:
         assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
 
 
+class TestCategoricalCrossentropy:
+
+    def test_config(self):
+        cce_obj = losses.CategoricalCrossentropy(
+            reduction=losses_utils.Reduction.SUM, name='bce_1')
+        assert cce_obj.name == 'bce_1'
+        assert cce_obj.reduction == losses_utils.Reduction.SUM
+
+    def test_all_correct_unweighted(self):
+        y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = K.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
+        cce_obj = losses.CategoricalCrossentropy()
+        loss = cce_obj(y_true, y_pred)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[10., 0., 0.], [0., 10., 0.], [0., 0., 10.]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
+
+    def test_unweighted(self):
+        cce_obj = losses.CategoricalCrossentropy()
+        y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = K.constant(
+            [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        loss = cce_obj(y_true, y_pred)
+        assert np.isclose(K.eval(loss), .3239, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        assert np.isclose(K.eval(loss), .05737, atol=1e-3)
+
+    def test_scalar_weighted(self):
+        cce_obj = losses.CategoricalCrossentropy()
+        y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = K.constant(
+            [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        loss = cce_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), .7449, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), .132, atol=1e-3)
+
+    def test_sample_weighted(self):
+        cce_obj = losses.CategoricalCrossentropy()
+        y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        y_pred = K.constant(
+            [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        sample_weight = K.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 1.0696, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.CategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 0.31829, atol=1e-3)
+
+    def test_no_reduction(self):
+        y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.CategoricalCrossentropy(
+            from_logits=True, reduction=losses_utils.Reduction.NONE)
+        loss = cce_obj(y_true, logits)
+        assert np.allclose(K.eval(loss), (0.001822, 0.000459, 0.169846), atol=1e-3)
+
+    def test_label_smoothing(self):
+        logits = K.constant([[100.0, -100.0, -100.0]])
+        y_true = K.constant([[1, 0, 0]])
+        label_smoothing = 0.1
+        # Softmax Cross Entropy Loss: -\sum_i p_i \log q_i
+        # where for a softmax activation
+        # \log q_i = x_i - \log \sum_j \exp x_j
+        #          = x_i - x_max - \log \sum_j \exp (x_j - x_max)
+        # For our activations, [100, -100, -100]
+        # \log ( exp(0) + exp(-200) + exp(-200) ) = 0
+        # so our log softmaxes become: [0, -200, -200]
+        # Label smoothing: z' = z * (1 - L) + L/n
+        #                  1  = 1 - L + L/n
+        #                  0  = L/n
+        # Applying the above two fns to the given input:
+        # -0 * (1 - L + L/n) + 200 * L/n + 200 * L/n = 400 L/n
+        cce_obj = losses.CategoricalCrossentropy(
+            from_logits=True, label_smoothing=label_smoothing)
+        loss = cce_obj(y_true, logits)
+        expected_value = 400.0 * label_smoothing / 3.0
+        assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
+
+
+class TestSparseCategoricalCrossentropy:
+
+    def test_config(self):
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            reduction=losses_utils.Reduction.SUM, name='scc')
+        assert cce_obj.name == 'scc'
+        assert cce_obj.reduction == losses_utils.Reduction.SUM
+
+    def test_all_correct_unweighted(self):
+        y_true = K.constant([[0], [1], [2]])
+        y_pred = K.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        loss = cce_obj(y_true, y_pred)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[10., 0., 0.], [0., 10., 0.], [0., 0., 10.]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
+
+    def test_unweighted(self):
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        y_true = K.constant([0, 1, 2])
+        y_pred = K.constant(
+            [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        loss = cce_obj(y_true, y_pred)
+        assert np.isclose(K.eval(loss), .3239, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits)
+        assert np.isclose(K.eval(loss), .0573, atol=1e-3)
+
+    def test_scalar_weighted(self):
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        y_true = K.constant([[0], [1], [2]])
+        y_pred = K.constant(
+            [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        loss = cce_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), .7449, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), .1317, atol=1e-3)
+
+    def test_sample_weighted(self):
+        cce_obj = losses.SparseCategoricalCrossentropy()
+        y_true = K.constant([[0], [1], [2]])
+        y_pred = K.constant(
+            [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        sample_weight = K.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
+        loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 1.0696, atol=1e-3)
+
+        # Test with logits.
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
+        loss = cce_obj(y_true, logits, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 0.31829, atol=1e-3)
+
+    def test_no_reduction(self):
+        y_true = K.constant([[0], [1], [2]])
+        logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+        cce_obj = losses.SparseCategoricalCrossentropy(
+            from_logits=True, reduction=losses_utils.Reduction.NONE)
+        loss = cce_obj(y_true, logits)
+        assert np.allclose(K.eval(loss), (0.001822, 0.000459, 0.169846), atol=1e-3)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
