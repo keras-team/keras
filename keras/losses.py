@@ -379,6 +379,57 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             label_smoothing=label_smoothing)
 
 
+class SparseCategoricalCrossentropy(LossFunctionWrapper):
+    """Computes the crossentropy loss between the labels and predictions.
+
+    Use this crossentropy loss function when there are two or more label classes.
+    We expect labels to be provided as integers. If you want to provide labels
+    using `one-hot` representation, please use `CategoricalCrossentropy` loss.
+    There should be `# classes` floating point values per feature for `y_pred`
+    and a single floating point value per feature for `y_true`.
+
+    In the snippet below, there is a single floating point value per example for
+    `y_true` and `# classes` floating pointing values per example for `y_pred`.
+    The shape of `y_true` is `[batch_size]` and the shape of `y_pred` is
+    `[batch_size, num_classes]`.
+
+    Standalone usage:
+
+    ```python
+    cce = keras.losses.SparseCategoricalCrossentropy()
+    loss = cce(
+        [0, 1, 2],
+        [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.SparseCategoricalCrossentropy())
+    ```
+
+    # Arguments
+        from_logits: Whether to interpret `y_pred` as a tensor of
+            [logit](https://en.wikipedia.org/wiki/Logit) values. By default,
+            we assume that `y_pred` contains probabilities
+            (i.e., values in [0, 1]).
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the op.
+    """
+
+    def __init__(self,
+                 from_logits=False,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='sparse_categorical_crossentropy'):
+        super(SparseCategoricalCrossentropy, self).__init__(
+            sparse_categorical_crossentropy,
+            name=name,
+            reduction=reduction,
+            from_logits=from_logits)
+
+
 def mean_squared_error(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
@@ -460,8 +511,9 @@ def categorical_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=
     return K.categorical_crossentropy(y_true, y_pred, from_logits=from_logits)
 
 
-def sparse_categorical_crossentropy(y_true, y_pred):
-    return K.sparse_categorical_crossentropy(y_true, y_pred)
+def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
+    return K.sparse_categorical_crossentropy(
+        y_true, y_pred, from_logits=from_logits, axis=axis)
 
 
 def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
