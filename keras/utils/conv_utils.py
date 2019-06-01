@@ -99,7 +99,7 @@ def conv_output_length(input_length, filter_size,
     if input_length is None:
         return None
     assert padding in {'same', 'valid', 'full', 'causal'}
-    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    dilated_filter_size = (filter_size - 1) * dilation + 1
     if padding == 'same':
         output_length = input_length
     elif padding == 'valid':
@@ -157,7 +157,7 @@ def deconv_length(dim_size, stride_size, kernel_size, padding,
         return None
 
     # Get the dilated kernel size
-    kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
+    kernel_size = (kernel_size - 1) * dilation + 1
 
     # Infer length if output padding is None, else compute the exact length
     if output_padding is None:
