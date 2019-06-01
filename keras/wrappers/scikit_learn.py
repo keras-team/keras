@@ -12,7 +12,7 @@ import numpy as np
 from ..utils.np_utils import to_categorical
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
-from ..models import Sequential
+from ..models import Model, Sequential
 
 
 class BaseWrapper(object):
@@ -71,8 +71,9 @@ class BaseWrapper(object):
         # Raises
             ValueError: if any member of `params` is not a valid argument.
         """
-        legal_params_fns = [Sequential.fit, Sequential.predict,
-                            Sequential.predict_classes, Sequential.evaluate]
+        legal_params_fns = [Sequential.evaluate, Sequential.fit,
+                            Sequential.predict, Sequential.predict_classes,
+                            Model.evaluate, Model.fit, Model.predict]
         if self.build_fn is None:
             legal_params_fns.append(self.__call__)
         elif (not isinstance(self.build_fn, types.FunctionType) and
@@ -120,11 +121,20 @@ class BaseWrapper(object):
         """Constructs a new model with `build_fn` & fit the model to `(x, y)`.
 
         # Arguments
-            x : array-like, shape `(n_samples, n_features)`
-                Training samples where `n_samples` is the number of samples
-                and `n_features` is the number of features.
-            y : array-like, shape `(n_samples,)` or `(n_samples, n_outputs)`
-                True labels for `x`.
+            x: Input data. It could be:
+                - A Numpy array (or array-like), or a list of arrays
+                  (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding
+                  array/tensors, if the model has named inputs.
+                - None (default) if feeding from framework-native
+                  tensors (e.g. TensorFlow data tensors).
+            y: Target data. Like the input data `x`,
+                it could be either Numpy array(s), framework-native tensor(s),
+                list of Numpy arrays (if the model has multiple outputs) or
+                None (default) if feeding from framework-native tensors
+                (e.g. TensorFlow data tensors).
+                If output layers in the model are named, you can also pass a
+                dictionary mapping output names to Numpy arrays.
             **kwargs: dictionary arguments
                 Legal arguments are the arguments of `Sequential.fit`
 
@@ -132,8 +142,18 @@ class BaseWrapper(object):
             history : object
                 details about the training history at each epoch.
         """
-        input_shape = x.shape[1:]
-        output_shape = y.shape[1:]
+        if isinstance(x, dict):
+            input_shape = {k: v.shape[1:] for k, v in x.items()}
+        elif isinstance(x, list) or isinstance(x, tuple):
+            input_shape = [i.shape[1:] for i in x]
+        else:
+            input_shape = x.shape[1:]
+        if isinstance(y, dict):
+            output_shape = {k: v.shape[1:] for k, v in y.items()}
+        elif isinstance(y, list) or isinstance(y, tuple):
+            output_shape = [i.shape[1:] for i in y]
+        else:
+            output_shape = y.shape[1:]
         if self.build_fn is None:
             self.model = self.__call__(input_shape, output_shape,
                                        **self.filter_sk_params(self.__call__))
@@ -171,6 +191,56 @@ class BaseWrapper(object):
                 res.update({name: value})
         res.update(override)
         return res
+
+    def predict(self, x, **kwargs):
+        """Returns predictions for the given test data.
+
+        # Arguments
+            x: Input data. It could be:
+                - A Numpy array (or array-like), or a list of arrays
+                  (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding
+                  array/tensors, if the model has named inputs.
+                - None (default) if feeding from framework-native
+                  tensors (e.g. TensorFlow data tensors).
+            **kwargs: dictionary arguments
+                Legal arguments are the arguments of `Model.predict`.
+
+        # Returns
+            Numpy array(s) of predictions.
+        """
+        kwargs = self.filter_sk_params(Model.predict, kwargs)
+        return self.model.predict(x, **kwargs)
+
+    def score(self, x, y, **kwargs):
+        """Returns the mean loss on the given test data and labels.
+
+        # Arguments
+            x: Input data. It could be:
+                - A Numpy array (or array-like), or a list of arrays
+                  (in case the model has multiple inputs).
+                - A dict mapping input names to the corresponding
+                  array/tensors, if the model has named inputs.
+                - None (default) if feeding from framework-native
+                  tensors (e.g. TensorFlow data tensors).
+            y: Target data. Like the input data `x`,
+                it could be either Numpy array(s), framework-native tensor(s),
+                list of Numpy arrays (if the model has multiple outputs) or
+                None (default) if feeding from framework-native tensors
+                (e.g. TensorFlow data tensors).
+                If output layers in the model are named, you can also pass a
+                dictionary mapping output names to Numpy arrays.
+            **kwargs: dictionary arguments
+                Legal arguments are the arguments of `Model.evaluate`.
+
+        # Returns
+            Scalar test loss (if the model has a single output and no metrics)
+            or list of scalars (if the model has multiple outputs
+            and/or metrics). The attribute `model.metrics_names` will give you
+            the display labels for the scalar outputs.
+        """
+        kwargs = self.filter_sk_params(Model.evaluate, kwargs)
+        return self.model.evaluate(x, y, **kwargs)
 
 
 class KerasClassifier(BaseWrapper):

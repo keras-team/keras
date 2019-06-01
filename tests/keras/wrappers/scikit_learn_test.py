@@ -191,9 +191,9 @@ if __name__ == '__main__':
 
 
 # from keras import backend as K
-# from keras.layers import Conv2D, Dense, Flatten, Input
+# from keras.layers import Concatenate, Conv2D, Dense, Flatten, Input
 # from keras.models import Model
-# from keras.wrappers.scikit_learn import KerasClassifier, KerasRegressor
+# from keras.utils.np_utils import to_categorical
 # import numpy as np
 # import pickle
 # from scipy.stats import randint
@@ -204,6 +204,9 @@ if __name__ == '__main__':
 # from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 # from sklearn.pipeline import Pipeline
 # from sklearn.preprocessing import StandardScaler
+
+# from keras.wrappers.scikit_learn import (BaseWrapper, KerasClassifier,
+#                                          KerasRegressor)
 
 
 # def load_digits8x8():
@@ -239,8 +242,7 @@ if __name__ == '__main__':
 #     model = Sequential()
 #     for size in hidden_layer_sizes:
 #         model.add(Dense(size, activation='relu'))
-#     model.add(Dense(np.prod(output_shape, dtype=np.uint8),
-#                     activation='softmax'))
+#     model.add(Dense(np.prod(output_shape), activation='softmax'))
 #     model.compile('adam', loss='categorical_crossentropy', metrics=['accuracy'])
 #     return model
 
@@ -251,23 +253,37 @@ if __name__ == '__main__':
 #     model.add(Flatten())
 #     for size in hidden_layer_sizes:
 #         model.add(Dense(size, activation='relu'))
-#     model.add(Dense(np.prod(output_shape, dtype=np.uint8),
-#                     activation='softmax'))
+#     model.add(Dense(np.prod(output_shape), activation='softmax'))
 #     model.compile('adam', loss='categorical_crossentropy', metrics=['accuracy'])
 #     return model
 
 
 # def build_fn_clscf(input_shape, output_shape, hidden_layer_sizes=[]):
-#     # https://github.com/keras-team/keras/issues/5176
 #     x = Input(shape=input_shape)
 #     z = Conv2D(3, (3, 3))(x)
 #     z = Flatten()(z)
 #     for size in hidden_layer_sizes:
 #         z = Dense(size, activation='relu')(z)
-#     y = Dense(np.prod(output_shape, dtype=np.uint8),
-#                     activation='softmax')(z)
+#     y = Dense(np.prod(output_shape), activation='softmax')(z)
 #     model = Model(inputs=x, outputs=y)
 #     model.compile('adam', loss='categorical_crossentropy', metrics=['accuracy'])
+#     return model
+
+
+# def build_fn_multi(input_shape, output_shape, hidden_layer_sizes=[]):
+#     features = Input(shape=input_shape['features'], name='features')
+#     class_in = Input(shape=input_shape['class_in'], name='class_in')
+#     z = Concatenate()([features, class_in])
+#     for size in hidden_layer_sizes:
+#         z = Dense(size, activation='relu')(z)
+#     onehot = Dense(np.prod(output_shape['onehot']), activation='softmax',
+#                    name='onehot')(z)
+#     class_out = Dense(np.prod(output_shape['class_out']), name='class_out')(z)
+#     model = Model(inputs=[features, class_in], outputs=[onehot, class_out])
+#     model.compile('adam',
+#                   loss={'onehot': 'categorical_crossentropy',
+#                         'class_out': 'mse'},
+#                   metrics={'onehot': 'accuracy'})
 #     return model
 
 
@@ -328,3 +344,25 @@ if __name__ == '__main__':
 #         base_estimator = KerasClassifier(build_fn, epochs=1)
 #         estimator = CalibratedClassifierCV(base_estimator=base_estimator)
 #         check(estimator, loader)
+
+
+# def test_standalone_multi():
+#     """Tests standalone estimator with multiple inputs and outputs."""
+#     estimator = BaseWrapper(build_fn_multi, epochs=1)
+#     data = load_iris()
+#     features = data.data
+#     klass = data.target.reshape((-1, 1)).astype(np.float32)
+#     onehot = to_categorical(data.target)
+#     estimator.fit({'features': features, 'class_in': klass},
+#                   {'onehot': onehot, 'class_out': klass})
+#     preds = estimator.predict({'features': features, 'class_in': klass})
+#     score = estimator.score({'features': features, 'class_in': klass},
+#                             {'onehot': onehot, 'class_out': klass})
+#     serialized_estimator = pickle.dumps(estimator)
+#     K.clear_session()
+#     deserialized_estimator = pickle.loads(serialized_estimator)
+#     preds = deserialized_estimator.predict({'features': features,
+#                                             'class_in': klass})
+#     score = deserialized_estimator.score({'features': features,
+#                                           'class_in': klass},
+#                                          {'onehot': onehot, 'class_out': klass})

@@ -8,6 +8,8 @@ There are two wrappers available:
 
 `keras.wrappers.scikit_learn.KerasRegressor(build_fn=None, **sk_params)`, which implements the Scikit-Learn regressor interface.
 
+Also, the more general `Model` Keras models can be used with the generic `keras.wrappers.scikit_learn.BaseWrapper(build_fn=None, **sk_params)` wrapper, but they will not be compatible with Scikit-Learn unless restricted to single-input and single-output.
+
 ### Arguments
 
 - __build_fn__: callable function or class instance
@@ -15,14 +17,15 @@ There are two wrappers available:
 
 The `build_fn` should construct, compile and return a Keras model, which
 will then be used to fit/predict. It must accept `input_shape` and
-`output_shape` as arguments, both of which are tuples of integers. One of
-the following three values could be passed to `build_fn`:
+`output_shape` as arguments, both of which are tuples of integers or
+dictionaries (for named multi-input/output models). One of the following three
+values could be passed to `build_fn`:
 
 1. A function
 2. An instance of a class that implements the `__call__` method
 3. None. This means you implement a class that inherits from either
-`KerasClassifier` or `KerasRegressor`. The `__call__` method of the
-present class will then be treated as the default `build_fn`.
+`BaseWrapper`, `KerasClassifier` or `KerasRegressor`. The `__call__` method of
+the present class will then be treated as the default `build_fn`.
 
 `sk_params` takes both model parameters and fitting parameters. Legal model
 parameters are the arguments of `build_fn`. Note that like all other
@@ -38,7 +41,8 @@ fitting (predicting) parameters are selected in the following order:
 `fit`, `predict`, `predict_proba`, and `score` methods
 2. Values passed to `sk_params`
 3. The default values of the `keras.models.Sequential`
-`fit`, `predict`, `predict_proba` and `score` methods
+`fit`, `predict`, `predict_proba` and `score` methods, or the default values of
+the `keras.models.Model` `fit`, `predict` and `score` methods.
 
 When using scikit-learn's `grid_search` API, legal tunable parameters are
 those you could pass to `sk_params`, including fitting parameters.
