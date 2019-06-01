@@ -48,6 +48,7 @@ setup(name='Keras',
                     'pytest-cov',
                     'pandas',
                     'requests',
+                    'scikit-learn',
                     'markdown'],
       },
       classifiers=[
