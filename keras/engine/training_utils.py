@@ -13,7 +13,7 @@ import warnings
 from .. import backend as K
 from .. import losses
 from ..utils import Sequence
-from ..utils.generic_utils import to_list
+from ..utils import generic_utils
 
 
 def standardize_single_array(x):
@@ -252,7 +252,8 @@ def check_array_length_consistency(inputs, targets, weights=None):
 def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
     """Does validation on the compatibility of targets and loss functions.
 
-    This helps prevent users from using loss functions incorrectly.
+    This helps prevent users from using loss functions incorrectly. This check
+    is purely for UX purposes.
 
     # Arguments
         targets: list of Numpy arrays of targets.
@@ -263,13 +264,16 @@ def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
         ValueError: if a loss function or target array
             is incompatible with an output.
     """
-    key_losses = {losses.mean_squared_error,
-                  losses.binary_crossentropy,
-                  losses.categorical_crossentropy}
+    key_loss_fns = {
+        losses.mean_squared_error, losses.binary_crossentropy,
+        losses.categorical_crossentropy
+    }
+    key_loss_classes = (losses.MeanSquaredError, losses.BinaryCrossentropy,
+                        losses.CategoricalCrossentropy)
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
         if y is None or loss is None:
             continue
-        if loss is losses.categorical_crossentropy:
+        if losses.is_categorical_crossentropy(loss):
             if y.shape[-1] == 1:
                 raise ValueError(
                     'You are passing a target array of shape ' + str(y.shape) +
@@ -287,15 +291,20 @@ def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                     'Alternatively, you can use the loss function '
                     '`sparse_categorical_crossentropy` instead, '
                     'which does expect integer targets.')
-        if loss in key_losses:
+        is_loss_wrapper = isinstance(loss, losses.LossFunctionWrapper)
+        if (isinstance(loss, key_loss_classes) or (is_loss_wrapper and
+                                                   (loss.fn in key_loss_fns))):
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
                 if out_dim is not None and target_dim != out_dim:
+                    loss_name = loss.name
+                    if loss_name is None:
+                        loss_type = loss.fn if is_loss_wrapper else type(loss)
+                        loss_name = loss_type.__name__
                     raise ValueError(
                         'A target array with shape ' + str(y.shape) +
                         ' was passed for an output of shape ' + str(shape) +
-                        ' while using as loss `' + loss.__name__ + '`. '
-                        'This loss expects '
-                        'targets to have the same shape '
+                        ' while using as loss `' + loss_name + '`. '
+                        'This loss expects  targets to have the same shape '
                         'as the output.')
 
 
@@ -347,7 +356,7 @@ def collect_metrics(metrics, output_names):
                           .format(unknown_output_names, output_names))
         for name in output_names:
             output_metrics = metrics.get(name, [])
-            output_metrics = to_list(output_metrics)
+            output_metrics = generic_utils.to_list(output_metrics)
             nested_metrics.append(output_metrics)
         return nested_metrics
     else:
@@ -713,3 +722,111 @@ def get_input_shape_and_dtype(layer):
     if hasattr(layer, '_batch_input_shape'):
         return layer._batch_input_shape, layer.dtype
     return None, None
+
+
+def get_loss_function(loss):
+    """Returns the loss corresponding to the loss input in `compile` API."""
+    if loss is None or isinstance(loss, losses.Loss):
+        return loss
+
+    # Deserialize loss configuration, if needed.
+    if isinstance(loss, collections.Mapping):
+        loss = losses.get(loss)
+
+    # Custom callable class.
+    if callable(loss) and not hasattr(loss, '__name__'):
+        return loss
+
+    # Wrap loss function with signature `(y_true, y_pred, **kwargs)`
+    # in `LossFunctionWrapper` class.
+    loss_fn = losses.get(loss)
+
+    # For losses which are given as strings/functions in the compile API,
+    # we always set the loss reduction type to be `SUM_OVER_BATCH_SIZE`..
+    return losses.LossFunctionWrapper(
+        loss_fn,
+        name=loss_fn.__name__,
+        reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE)
+
+
+def prepare_loss_functions(loss, output_names):
+    """Converts loss to a list of loss functions.
+
+    # Arguments
+        loss: String (name of objective function), objective function or
+            `Loss` instance. If the model has multiple outputs, you can use
+            a different loss on each output by passing a dictionary or a
+            list of losses. The loss value that will be minimized by the model
+            will then be the sum of all individual losses.
+        output_names: List of model output names.
+
+    # Returns
+        A list of loss objective functions.
+
+    # Raises:
+        ValueError: If loss is a dict with keys not in model output names,
+            or if loss is a list with len not equal to model outputs.
+    """
+    if isinstance(loss, collections.Mapping):
+        generic_utils.check_for_unexpected_keys('loss', loss, output_names)
+        loss_functions = []
+        for name in output_names:
+            if name not in loss:
+                logging.warning(
+                    'Output {0} missing from loss dictionary. We assume '
+                    'this was done on purpose. The fit and evaluate APIs will not '
+                    'be expecting any data to be passed to {0}.'.format(name))
+            loss_functions.append(get_loss_function(loss.get(name, None)))
+    elif isinstance(loss, six.string_types):
+        loss_functions = [get_loss_function(loss) for _ in output_names]
+    elif isinstance(loss, collections.Sequence):
+        if len(loss) != len(output_names):
+            raise ValueError('When passing a list as loss, it should have one entry '
+                             'per model outputs. The model has {} outputs, but you '
+                             'passed loss={}'.format(len(output_names), loss))
+        loss_functions = nest.map_structure(get_loss_function, loss)
+    else:
+        loss_functions = [get_loss_function(loss) for _ in range(len(output_names))]
+
+    return loss_functions
+
+
+def prepare_loss_weights(output_names, loss_weights=None):
+    """Converts loss weights to a list of loss weights.
+
+    # Arguments
+        output_names: List of model output names.
+        loss_weights: Optional list or dictionary specifying scalar coefficients
+            (Python floats) to weight the loss contributions of different model
+            outputs. The loss value that will be minimized by the model will then be
+            the *weighted sum* of all individual losses, weighted by the
+            `loss_weights` coefficients. If a list, it is expected to have a 1:1
+            mapping to the model's outputs. If a dict, it is expected to map
+            output names (strings) to scalar coefficients.
+
+    # Returns
+        A list of loss weights of python floats.
+
+    # Raises
+        ValueError: If loss weight is a dict with key not in model output names,
+            or if loss is a list with len not equal to model outputs.
+    """
+    if loss_weights is None:
+        weights_list = [1.] * len(output_names)
+    elif isinstance(loss_weights, collections.Mapping):
+        generic_utils.check_for_unexpected_keys('loss_weights', loss_weights,
+                                                output_names)
+        weights_list = [loss_weights.get(name, 1.) for name in output_names]
+    elif isinstance(loss_weights, list):
+        if len(loss_weights) != len(output_names):
+            raise ValueError('When passing a list as loss_weights, '
+                             'it should have one entry per model output. '
+                             'The model has ' + str(len(output_names)) +
+                             ' outputs, but you passed loss_weights=' +
+                             str(loss_weights))
+        weights_list = loss_weights
+    else:
+        raise TypeError('Could not interpret loss_weights argument: ' +
+                        str(loss_weights) + ' - expected a list of dicts.')
+
+    return weights_list

@@ -51,8 +51,8 @@ class Model(Network):
         # Arguments
             optimizer: String (name of optimizer) or optimizer instance.
                 See [optimizers](/optimizers).
-            loss: String (name of objective function) or objective function.
-                See [losses](/losses).
+            loss: String (name of objective function) or objective function or
+                `Loss` instance. See [losses](/losses).
                 If the model has multiple outputs, you can use a different loss
                 on each output by passing a dictionary or a list of losses.
                 The loss value that will be minimized by the model
@@ -98,7 +98,7 @@ class Model(Network):
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
         self.optimizer = optimizers.get(optimizer)
-        self.loss = loss or []
+        self.loss = loss or {}
         self.metrics = metrics or []
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
@@ -112,6 +112,10 @@ class Model(Network):
             # time the model gets called on training data.
             return
         self._is_compiled = True
+
+        # Prepare list of loss functions, same size as model outputs.
+        self.loss_functions = training_utils.prepare_loss_functions(
+            self.loss, self.output_names)
 
         # Prepare loss functions.
         if isinstance(loss, dict):
