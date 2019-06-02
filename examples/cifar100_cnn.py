@@ -31,7 +31,7 @@ print(x_test.shape[0], 'test samples')
 y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
-#Build the network of vgg for 10 classes with dropout and weight decay.
+# Build the network of vgg for 10 classes with dropout and weight decay.
 
 model = Sequential()
 model.add(Conv2D(64, (3, 3), padding='same',
