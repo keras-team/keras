@@ -116,8 +116,8 @@ model.add(BatchNormalization())
 model.add(Dropout(0.4))
 
 model.add(Conv2D(512, (3, 3),
-         padding='same',
-         kernel_regularizer=regularizers.l2(weight_decay)))
+          padding='same',
+          kernel_regularizer=regularizers.l2(weight_decay)))
 model.add(Activation('relu'))
 model.add(BatchNormalization())
 model.add(Dropout(0.4))
