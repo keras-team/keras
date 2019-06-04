@@ -134,8 +134,6 @@ def compute_weighted_loss(losses,
         if losses_shape != weights_shape:
             weights_rank = K.ndim(sample_weight)
             losses_rank = K.ndim(losses)
-            print('&'*80 + 'WEIGHTS: ', weights_shape)
-            print('&'*80 + 'LOSSES', losses_shape)
 
             # Raise error if ndim of weights is > losses.
             if weights_rank > losses_rank:
@@ -147,16 +145,17 @@ def compute_weighted_loss(losses,
             for i in range(weights_rank, losses_rank):
                 sample_weight = K.expand_dims(sample_weight, axis=i)
 
-
             for i in range(weights_rank):
-                if (weights_shape[i] is not None and losses_shape[i] is not None and 
+                if (weights_shape[i] is not None and losses_shape[i] is not None and
                         weights_shape[i] != losses_shape[i]):
                     # Cannot be broadcasted.
                     if weights_shape[i] != 1:
                         raise ValueError(
-                            'Incompatible shapes: `losses` {} vs `sample_weight` {}'.format(
+                            'Incompatible shapes: `losses` {} vs '
+                            '`sample_weight` {}'.format(
                                 losses_shape, weights_shape))
-                    sample_weight = K.repeat_elements(sample_weight, losses_shape[i], axis=i)
+                    sample_weight = K.repeat_elements(
+                        sample_weight, losses_shape[i], axis=i)
 
         # Apply weights to losses.
         weighted_losses = sample_weight * losses
