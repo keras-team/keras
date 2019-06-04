@@ -10,7 +10,7 @@ from flaky import flaky
 
 import keras
 from keras import losses
-from keras.layers import Activation, Dense, Dropout, Conv2D, Concatenate
+from keras.layers import Layer, Activation, Dense, Dropout, Conv2D, Concatenate
 from keras.engine import Input
 from keras.engine.training import Model
 from keras.engine import training_utils
@@ -1749,6 +1749,28 @@ def test_validation_freq():
         validation_freq=[4, 2, 2, 1],
         callbacks=[val_counter])
     assert val_counter.val_runs == 3
+
+
+def test_loss_correctness():
+    class Bias(Layer):
+
+        def build(self, input_shape):
+            self.bias = self.add_weight('bias', (1,), initializer='zeros')
+
+        def call(self, inputs):
+            return inputs + self.bias
+
+    inp = Input(shape=(1,))
+    out = Bias()(inp)
+    model = Model(inp, out)
+    model.compile(
+        keras.optimizers.SGD(lr=0.1),
+        loss=keras.losses.MeanAbsoluteError())
+
+    x = np.array([[0.], [1.], [2.]])
+    y = np.array([[0.5], [2.], [3.5]])
+    history = model.fit(x, y, batch_size=3, epochs=5)
+    np.allclose(history.history['loss'], [1., 0.9, 0.8, 0.7, 0.6])
 
 
 if __name__ == '__main__':
