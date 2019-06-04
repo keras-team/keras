@@ -520,6 +520,11 @@ class BaseLogger(Callback):
                     else:
                         logs[k] = self.totals[k] / self.seen
 
+    def get_cofig(self):
+        config = {'stateful_metrics': self.stateful_metrics,
+                  }
+        return config
+
 
 class TerminateOnNaN(Callback):
     """Callback that terminates training when a NaN loss is encountered.
@@ -532,6 +537,10 @@ class TerminateOnNaN(Callback):
             if np.isnan(loss) or np.isinf(loss):
                 print('Batch %d: Invalid loss, terminating training' % (batch))
                 self.model.stop_training = True
+
+    def get_config(self):
+        config = {}
+        return config
 
 
 class ProgbarLogger(Callback):
@@ -610,6 +619,11 @@ class ProgbarLogger(Callback):
         if self.verbose:
             self.progbar.update(self.seen, self.log_values)
 
+    def get_config(self):
+        config = {'stateful_metrics': self.stateful_metrics,
+                  'use_steps': self.use_steps}
+        return config
+
 
 class History(Callback):
     """Callback that records events into a `History` object.
@@ -628,6 +642,10 @@ class History(Callback):
         self.epoch.append(epoch)
         for k, v in logs.items():
             self.history.setdefault(k, []).append(v)
+
+    def get_config(self):
+        config = {}
+        return config
 
 
 class ModelCheckpoint(Callback):
@@ -729,6 +747,16 @@ class ModelCheckpoint(Callback):
                 else:
                     self.model.save(filepath, overwrite=True)
 
+    def get_config(self):
+        config = {'filepath': self.filepath,
+                  'monitor': self.monitor,
+                  'verbose': self.verbose,
+                  'save_best_only': self.save_best_only,
+                  'save_weights_only': self.save_weights_only,
+                  'mode': self.mode,
+                  'period': self.period}
+        return config
+
 
 class EarlyStopping(Callback):
     """Stop training when a monitored quantity has stopped improving.
@@ -772,21 +800,22 @@ class EarlyStopping(Callback):
         self.baseline = baseline
         self.patience = patience
         self.verbose = verbose
+        self.mode = mode
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
         self.restore_best_weights = restore_best_weights
         self.best_weights = None
 
-        if mode not in ['auto', 'min', 'max']:
+        if self.mode not in ['auto', 'min', 'max']:
             warnings.warn('EarlyStopping mode %s is unknown, '
                           'fallback to auto mode.' % mode,
                           RuntimeWarning)
-            mode = 'auto'
+            self.mode = 'auto'
 
-        if mode == 'min':
+        if self.mode == 'min':
             self.monitor_op = np.less
-        elif mode == 'max':
+        elif self.mode == 'max':
             self.monitor_op = np.greater
         else:
             if 'acc' in self.monitor:
@@ -842,6 +871,16 @@ class EarlyStopping(Callback):
                 (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
             )
         return monitor_value
+
+    def get_config(self):
+        config = {'monitor': self.monitor,
+                  'min_delta': self.min_delta,
+                  'patience': self.patience,
+                  'verbose': self.verbose,
+                  'mode': self.mode,
+                  'baseline': self.baseline,
+                  'restore_best_weights': self.restore_best_weights}
+        return config
 
 
 class RemoteMonitor(Callback):
@@ -902,6 +941,14 @@ class RemoteMonitor(Callback):
             warnings.warn('Warning: could not reach RemoteMonitor '
                           'root server at ' + str(self.root))
 
+    def get_config(self):
+        config = {'root': self.root,
+                  'path': self.path,
+                  'field': self.field,
+                  'headers': self.headers,
+                  'send_as_json': self.send_as_json}
+        return config
+
 
 class LearningRateScheduler(Callback):
     """Learning rate scheduler.
@@ -937,6 +984,11 @@ class LearningRateScheduler(Callback):
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
         logs['lr'] = K.get_value(self.model.optimizer.lr)
+
+    def get_config(self):
+        config = {'schedule': self.schedule,
+                  'verbose': self.verbose}
+        return config
 
 
 class TensorBoard(Callback):
@@ -1283,6 +1335,19 @@ class TensorBoard(Callback):
                 self._write_logs(logs, self.samples_seen)
                 self.samples_seen_at_last_write = self.samples_seen
 
+    def get_config(self):
+        config = {'log_dir': self.log_dir,
+                  'histogram_freq': self.histogram_freq,
+                  'batch_size': self.batch_size,
+                  'write_graph': self.write_graph,
+                  'write_grads': self.write_grads,
+                  'write_images': self.write_images,
+                  'embeddings_freq': self.embeddings_freq,
+                  'embeddings_metadata': self.embeddings_metadata,
+                  'embeddings_data': self.embeddings_data,
+                  'update_freq': self.update_freq}
+        return config
+
 
 class ReduceLROnPlateau(Callback):
     """Reduce learning rate when a metric has stopped improving.
@@ -1404,6 +1469,17 @@ class ReduceLROnPlateau(Callback):
     def in_cooldown(self):
         return self.cooldown_counter > 0
 
+    def get_config(self):
+        config = {'monitor': self.monitor,
+                  'factor': self.factor,
+                  'patience': self.patience,
+                  'verbose': self.verbose,
+                  'mode': self.mode,
+                  'min_delta': self.min_delta,
+                  'cooldown': self.cooldown,
+                  'min_lr': self.min_lr}
+        return config
+
 
 class CSVLogger(Callback):
     """Callback that streams epoch results to a csv file.
@@ -1492,6 +1568,12 @@ class CSVLogger(Callback):
         self.csv_file.close()
         self.writer = None
 
+    def get_config(self):
+        config = {'filename': self.filename,
+                  'separator': self.sep,
+                  'append': self.append}
+        return config
+
 
 class LambdaCallback(Callback):
     r"""Callback for creating simple, custom callbacks on-the-fly.
@@ -1579,3 +1661,6 @@ class LambdaCallback(Callback):
             self.on_train_end = on_train_end
         else:
             self.on_train_end = lambda logs: None
+
+    def get_config(self):
+        raise NotImplementedError
