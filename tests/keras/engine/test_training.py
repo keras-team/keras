@@ -665,6 +665,34 @@ def test_fit_generator_shape():
     assert np.shape(out) == shape_0
 
 
+def test_training_with_loss_instance():
+    a = Input(shape=(3,), name='input_a')
+    b = Input(shape=(3,), name='input_b')
+
+    dense = Dense(4, name='dense')
+    c = dense(a)
+    d = dense(b)
+    e = Dropout(0.5, name='dropout')(c)
+
+    model = Model([a, b], [d, e])
+    loss_weights = [1., 0.5]
+    model.compile(
+        'sgd',
+        loss=losses.MeanSquaredError(),
+        metrics=['mae'],
+        loss_weights=loss_weights)
+
+    input_a_np = np.random.random((10, 3))
+    input_b_np = np.random.random((10, 3))
+
+    output_d_np = np.random.random((10, 4))
+    output_e_np = np.random.random((10, 4))
+
+    model.fit([input_a_np, input_b_np], [output_d_np, output_e_np],
+              epochs=1,
+              batch_size=5)
+
+
 @pytest.mark.skipif(sys.version_info < (3,),
                     reason='Cannot catch warnings in python 2')
 def test_warnings():
@@ -788,7 +816,7 @@ def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
     with pytest.raises(ValueError) as exc:
         training_utils.check_loss_and_target_compatibility(
-            [a], [losses.categorical_crossentropy], [a.shape])
+            [a], [losses.CategoricalCrossentropy()], [a.shape])
 
     assert 'You are passing a target array' in str(exc)
 
@@ -797,7 +825,7 @@ def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
     with pytest.raises(ValueError) as exc:
         training_utils.check_loss_and_target_compatibility(
-            [a], [losses.categorical_crossentropy], [(2, 3, 6)])
+            [a], [losses.CategoricalCrossentropy()], [(2, 3, 6)])
 
     assert 'targets to have the same shape' in str(exc)
 

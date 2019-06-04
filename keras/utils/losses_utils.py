@@ -128,7 +128,9 @@ def compute_weighted_loss(losses,
         losses, _, sample_weight = squeeze_or_expand_dimensions(
             losses, None, sample_weight)
 
-        weighted_losses = losses * sample_weight
+        print('<'*50, 'LOSS: ', losses)
+        print('<'*50, 'SW: ', sample_weight)
+        weighted_losses = sample_weight * losses
         # Apply reduction function to the individual weighted losses.
         loss = reduce_weighted_loss(weighted_losses, reduction)
         # Convert the result back to the input type.

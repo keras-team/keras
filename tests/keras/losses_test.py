@@ -28,7 +28,7 @@ class MSE_MAE_loss:
     def __init__(self, mse_fraction):
         self.mse_fraction = mse_fraction
 
-    def __call__(self, y_true, y_pred):
+    def __call__(self, y_true, y_pred, sample_weight=None):
         return (self.mse_fraction * losses.mse(y_true, y_pred) +
                 (1 - self.mse_fraction) * losses.mae(y_true, y_pred))
 
