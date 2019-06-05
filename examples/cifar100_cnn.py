@@ -1,6 +1,5 @@
 '''
 #Train a simple deep CNN on the CIFAR100 images dataset.
-
 It gets to 73% validation accuracy in 25 epochs, and 75% after 50 epochs.
 '''
 
@@ -10,14 +9,20 @@ from keras.datasets import cifar100
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
-from keras.layers import Conv2D, MaxPooling2D
+from keras.layers import Conv2D, MaxPooling2D, BatchNormalization
+from keras import regularizers
 import os
+from keras import optimizers
+import numpy as np
+from keras import backend as K
 
 batch_size = 32
 num_classes = 100
 epochs = 100
+weight_decay = 0.0005
 data_augmentation = True
 num_predictions = 200
+x_shape=[32,32,3]
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'cifar100vgg.h5'
 
@@ -35,7 +40,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
 model.add(Conv2D(64, (3, 3), padding='same',
-                 input_shape=self.x_shape,
+                 input_shape=x_shape,
                  kernel_regularizer=regularizers.l2(weight_decay)))
 model.add(Activation('relu'))
 model.add(BatchNormalization())
@@ -138,7 +143,7 @@ model.add(Activation('relu'))
 model.add(BatchNormalization())
 
 model.add(Dropout(0.5))
-model.add(Dense(self.num_classes))
+model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
 # initiate SGD optimizer
