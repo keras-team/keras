@@ -22,7 +22,7 @@ epochs = 100
 weight_decay = 0.0005
 data_augmentation = True
 num_predictions = 200
-x_shape=[32,32,3]
+x_shape = [32, 32, 3]
 save_dir = os.path.join(os.getcwd(), 'saved_models')
 model_name = 'cifar100vgg.h5'
 
