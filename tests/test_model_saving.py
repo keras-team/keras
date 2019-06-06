@@ -38,7 +38,7 @@ def test_sequential_model_saving():
     model.add(Dense(2, input_shape=(3,)))
     model.add(RepeatVector(3))
     model.add(TimeDistributed(Dense(3)))
-    model.compile(loss=losses.MSE,
+    model.compile(loss=losses.MeanSquaredError(),
                   optimizer=optimizers.RMSprop(lr=0.0001),
                   metrics=[metrics.categorical_accuracy],
                   sample_weight_mode='temporal')

@@ -128,7 +128,38 @@ def compute_weighted_loss(losses,
         losses, _, sample_weight = squeeze_or_expand_dimensions(
             losses, None, sample_weight)
 
-        weighted_losses = losses * sample_weight
+        # Broadcast weights if possible.
+        weights_shape = K.int_shape(sample_weight)
+        losses_shape = K.int_shape(losses)
+        if losses_shape != weights_shape:
+            weights_rank = K.ndim(sample_weight)
+            losses_rank = K.ndim(losses)
+
+            # Raise error if ndim of weights is > losses.
+            if weights_rank > losses_rank:
+                raise ValueError(
+                    'Incompatible shapes: `losses` {} vs `sample_weight` {}'.format(
+                        losses_shape, weights_shape))
+
+            # Expand dim of weights to match ndim of losses, if required.
+            for i in range(weights_rank, losses_rank):
+                sample_weight = K.expand_dims(sample_weight, axis=i)
+
+            for i in range(weights_rank):
+                if (weights_shape[i] is not None and losses_shape[i] is not None and
+                        weights_shape[i] != losses_shape[i]):
+                    # Cannot be broadcasted.
+                    if weights_shape[i] != 1:
+                        raise ValueError(
+                            'Incompatible shapes: `losses` {} vs '
+                            '`sample_weight` {}'.format(
+                                losses_shape, weights_shape))
+                    sample_weight = K.repeat_elements(
+                        sample_weight, losses_shape[i], axis=i)
+
+        # Apply weights to losses.
+        weighted_losses = sample_weight * losses
+
         # Apply reduction function to the individual weighted losses.
         loss = reduce_weighted_loss(weighted_losses, reduction)
         # Convert the result back to the input type.
