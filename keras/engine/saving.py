@@ -17,6 +17,7 @@ from functools import wraps
 import numpy as np
 
 from .. import backend as K
+from .. import losses
 from .. import optimizers
 from ..utils.io_utils import H5Dict
 from ..utils.io_utils import ask_to_proceed_with_overwrite
@@ -347,7 +348,10 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
                                            custom_objects=custom_objects)
 
         # Recover loss functions and metrics.
-        loss = convert_custom_objects(training_config['loss'])
+        loss_config = training_config['loss']  # Deserialize loss class.
+        if isinstance(loss_config, dict) and 'class_name' in loss_config:
+            loss_config = losses.get(loss_config)
+        loss = convert_custom_objects(loss_config)
         metrics = convert_custom_objects(training_config['metrics'])
         sample_weight_mode = training_config['sample_weight_mode']
         loss_weights = training_config['loss_weights']

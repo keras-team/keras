@@ -28,7 +28,7 @@ class MSE_MAE_loss:
     def __init__(self, mse_fraction):
         self.mse_fraction = mse_fraction
 
-    def __call__(self, y_true, y_pred):
+    def __call__(self, y_true, y_pred, sample_weight=None):
         return (self.mse_fraction * losses.mse(y_true, y_pred) +
                 (1 - self.mse_fraction) * losses.mae(y_true, y_pred))
 
@@ -123,6 +123,24 @@ class TestLossFunctions:
         with custom_object_scope({'MSE_MAE_loss': MSE_MAE_loss}):
             loaded_model = keras.models.load_model(model_filename)
             loaded_model.predict(np.random.rand(128, 2))
+
+    def test_loss_wrapper(self):
+        loss_fn = losses.get('mse')
+        mse_obj = losses.LossFunctionWrapper(loss_fn, name=loss_fn.__name__)
+
+        assert mse_obj.name == 'mean_squared_error'
+        assert (mse_obj.reduction == losses_utils.Reduction.SUM_OVER_BATCH_SIZE)
+
+        y_true = K.constant([[1., 9.], [2., 5.]])
+        y_pred = K.constant([[4., 8.], [12., 3.]])
+        sample_weight = K.constant([1.2, 0.5])
+        loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        # mse = [((4 - 1)^2 + (8 - 9)^2) / 2, ((12 - 2)^2 + (3 - 5)^2) / 2]
+        # mse = [5, 52]
+        # weighted_mse = [5 * 1.2, 52 * 0.5] = [6, 26]
+        # reduced_weighted_mse = (6 + 26) / 2 =
+        np.allclose(K.eval(loss), 16, atol=1e-2)
 
 
 class TestMeanSquaredError:

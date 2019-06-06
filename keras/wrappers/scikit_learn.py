@@ -9,6 +9,7 @@ import types
 
 import numpy as np
 
+from .. import losses
 from ..utils.np_utils import to_categorical
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
@@ -140,10 +141,8 @@ class BaseWrapper(object):
         else:
             self.model = self.build_fn(**self.filter_sk_params(self.build_fn))
 
-        loss_name = self.model.loss
-        if hasattr(loss_name, '__name__'):
-            loss_name = loss_name.__name__
-        if loss_name == 'categorical_crossentropy' and len(y.shape) != 2:
+        if (losses.is_categorical_crossentropy(self.model.loss) and
+                len(y.shape) != 2):
             y = to_categorical(y)
 
         fit_args = copy.deepcopy(self.filter_sk_params(Sequential.fit))

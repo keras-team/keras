@@ -557,12 +557,12 @@ cosine = cosine_proximity
 
 
 def is_categorical_crossentropy(loss):
-    return (isinstance(loss, CategoricalCrossentropy or
+    return (isinstance(loss, CategoricalCrossentropy) or
             (isinstance(loss, LossFunctionWrapper) and
                 loss.fn == categorical_crossentropy) or
             (hasattr(loss, '__name__') and
                 loss.__name__ == 'categorical_crossentropy') or
-            loss == 'categorical_crossentropy'))
+            loss == 'categorical_crossentropy')
 
 
 def serialize(loss):
