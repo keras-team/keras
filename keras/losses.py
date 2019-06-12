@@ -436,15 +436,15 @@ class Hinge(LossFunctionWrapper):
     provided we will convert them to -1 or 1.
     Usage:
     ```python
-    h = tf.keras.losses.Hinge()
+    h = keras.losses.Hinge()
     loss = h([-1., 1., 1.], [0.6, -0.7, -0.5])
     # loss = max(0, 1 - y_true * y_pred) = [1.6 + 1.7 + 1.5] / 3
     print('Loss: ', loss.numpy())  # Loss: 1.6
     ```
-    Usage with tf.keras API:
+    Usage with keras API:
     ```python
-    model = tf.keras.Model(inputs, outputs)
-    model.compile('sgd', loss=tf.keras.losses.Hinge())
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.Hinge())
     ```
     """
 
@@ -463,15 +463,15 @@ class SquaredHinge(LossFunctionWrapper):
     provided we will convert them to -1 or 1.
     Usage:
     ```python
-    sh = tf.keras.losses.SquaredHinge()
+    sh = keras.losses.SquaredHinge()
     loss = sh([-1., 1., 1.], [0.6, -0.7, -0.5])
     # loss = (max(0, 1 - y_true * y_pred))^2 = [1.6^2 + 1.7^2 + 1.5^2] / 3
     print('Loss: ', loss.numpy())  # Loss: 2.566666
     ```
-    Usage with tf.keras API:
+    Usage with keras API:
     ```python
-    model = tf.keras.Model(inputs, outputs)
-    model.compile('sgd', loss=tf.keras.losses.SquaredHinge())
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.SquaredHinge())
     ```
     """
 
@@ -488,14 +488,14 @@ class CategoricalHinge(LossFunctionWrapper):
     """Computes the categorical hinge loss between `y_true` and `y_pred`.
     Usage:
     ```python
-    ch = tf.keras.losses.CategoricalHinge()
+    ch = keras.losses.CategoricalHinge()
     loss = ch([0., 1., 1.], [1., 0., 1.])
     print('Loss: ', loss.numpy())  # Loss: 1.0
     ```
-    Usage with tf.keras API:
+    Usage with keras API:
     ```python
-    model = tf.keras.Model(inputs, outputs)
-    model.compile('sgd', loss=tf.keras.losses.CategoricalHinge())
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.CategoricalHinge())
     ```
     """
 
