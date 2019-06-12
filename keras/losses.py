@@ -484,6 +484,30 @@ class SquaredHinge(LossFunctionWrapper):
             reduction=reduction)
 
 
+class CategoricalHinge(LossFunctionWrapper):
+    """Computes the categorical hinge loss between `y_true` and `y_pred`.
+    Usage:
+    ```python
+    ch = tf.keras.losses.CategoricalHinge()
+    loss = ch([0., 1., 1.], [1., 0., 1.])
+    print('Loss: ', loss.numpy())  # Loss: 1.0
+    ```
+    Usage with tf.keras API:
+    ```python
+    model = tf.keras.Model(inputs, outputs)
+    model.compile('sgd', loss=tf.keras.losses.CategoricalHinge())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='categorical_hinge'):
+        super(CategoricalHinge, self).__init__(
+            categorical_hinge,
+            name=name,
+            reduction=reduction)
+
+
 def mean_squared_error(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
@@ -532,6 +556,9 @@ def hinge(y_true, y_pred):
 
 
 def categorical_hinge(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
+    y_true = K.cast(y_true, y_pred.dtype)
     pos = K.sum(y_true * y_pred, axis=-1)
     neg = K.max((1. - y_true) * y_pred, axis=-1)
     return K.maximum(0., neg - pos + 1.)
