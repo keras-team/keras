@@ -439,7 +439,6 @@ class Hinge(LossFunctionWrapper):
     h = keras.losses.Hinge()
     loss = h([-1., 1., 1.], [0.6, -0.7, -0.5])
     # loss = max(0, 1 - y_true * y_pred) = [1.6 + 1.7 + 1.5] / 3
-    print('Loss: ', loss.numpy())  # Loss: 1.6
     ```
     Usage with keras API:
     ```python
@@ -466,7 +465,6 @@ class SquaredHinge(LossFunctionWrapper):
     sh = keras.losses.SquaredHinge()
     loss = sh([-1., 1., 1.], [0.6, -0.7, -0.5])
     # loss = (max(0, 1 - y_true * y_pred))^2 = [1.6^2 + 1.7^2 + 1.5^2] / 3
-    print('Loss: ', loss.numpy())  # Loss: 2.566666
     ```
     Usage with keras API:
     ```python
@@ -490,7 +488,6 @@ class CategoricalHinge(LossFunctionWrapper):
     ```python
     ch = keras.losses.CategoricalHinge()
     loss = ch([0., 1., 1.], [1., 0., 1.])
-    print('Loss: ', loss.numpy())  # Loss: 1.0
     ```
     Usage with keras API:
     ```python
