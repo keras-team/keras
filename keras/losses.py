@@ -430,6 +430,33 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             from_logits=from_logits)
 
 
+class Hinge(LossFunctionWrapper):
+    """Computes the hinge loss between `y_true` and `y_pred`.
+    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
+    provided we will convert them to -1 or 1.
+    Usage:
+    ```python
+    h = tf.keras.losses.Hinge()
+    loss = h([-1., 1., 1.], [0.6, -0.7, -0.5])
+    # loss = max(0, 1 - y_true * y_pred) = [1.6 + 1.7 + 1.5] / 3
+    print('Loss: ', loss.numpy())  # Loss: 1.6
+    ```
+    Usage with tf.keras API:
+    ```python
+    model = tf.keras.Model(inputs, outputs)
+    model.compile('sgd', loss=tf.keras.losses.Hinge())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name=None):
+        super(Hinge, self).__init__(
+            hinge,
+            name=name,
+            reduction=reduction)
+
+
 def mean_squared_error(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
@@ -468,6 +495,9 @@ def squared_hinge(y_true, y_pred):
 
 
 def hinge(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
+    y_true = K.cast(y_true, y_pred.dtype)
     return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
 
