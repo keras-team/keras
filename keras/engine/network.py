@@ -48,6 +48,7 @@ class Network(Layer):
                 - ndim
                 - dtype
         trainable (boolean)
+        dtype
         input_shape
         output_shape
         weights (list of variables)
@@ -95,7 +96,7 @@ class Network(Layer):
             # Subclassed network
             self._init_subclassed_network(**kwargs)
 
-    def _base_init(self, name=None):
+    def _base_init(self, name=None, trainable=True, dtype=None):
         # The following are implemented as property functions:
         # self.trainable_weights
         # self.non_trainable_weights
@@ -112,7 +113,10 @@ class Network(Layer):
         # This acts just like the `trainable` attribute of any layer instance.
         # It does not affect users of the underlying layers, only users of the
         # Network instance.
-        self.trainable = True
+        self.trainable = trainable
+        if dtype is None:
+            dtype = K.floatx()
+        self.dtype = dtype
         self._is_compiled = False
         self._expects_training_arg = False
         self._initial_weights = None
@@ -123,6 +127,8 @@ class Network(Layer):
             self.optimizer = None
 
         # Private attributes to implement compatibility with Layer.
+        self._trainable_weights = []
+        self._non_trainable_weights = []
         self._updates = []
         self._losses = []
         self._per_input_losses = {}
@@ -136,7 +142,7 @@ class Network(Layer):
         self._outbound_nodes = []
         self._inbound_nodes = []
 
-    def _init_graph_network(self, inputs, outputs, name=None):
+    def _init_graph_network(self, inputs, outputs, name=None, **kwargs):
         self._uses_inputs_arg = True
         # Normalize and set self.inputs, self.outputs.
         self.inputs = to_list(inputs, allow_tuple=True)
@@ -186,7 +192,7 @@ class Network(Layer):
                                  'the output of a Keras `Layer` '
                                  '(thus holding past layer metadata). '
                                  'Found: ' + str(x))
-        self._base_init(name=name)
+        self._base_init(name=name, **kwargs)
         self._compute_previous_mask = (
             has_arg(self.call, 'mask') or
             hasattr(self, 'compute_mask'))
@@ -290,8 +296,8 @@ class Network(Layer):
         for layer in self._output_layers:
             self.output_names.append(layer.name)
 
-    def _init_subclassed_network(self, name=None):
-        self._base_init(name=name)
+    def _init_subclassed_network(self, name=None, **kwargs):
+        self._base_init(name=name, **kwargs)
         self._is_graph_network = False
         self._expects_training_arg = has_arg(self.call, 'training')
         self._uses_inputs_arg = has_arg(self.call, 'inputs')
