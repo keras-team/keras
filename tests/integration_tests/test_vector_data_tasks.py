@@ -43,11 +43,11 @@ def test_vector_classification():
 
 
 def test_vector_classification_functional():
-    (x_train, y_train), (x_test, y_test) = get_test_data(num_train=500,
-                                                         num_test=200,
-                                                         input_shape=(20,),
-                                                         classification=True,
-                                                         num_classes=num_classes)
+    (x_train, y_train), _ = get_test_data(num_train=500,
+                                          num_test=200,
+                                          input_shape=(20,),
+                                          classification=True,
+                                          num_classes=num_classes)
     # Test with functional API
     inputs = layers.Input(shape=(x_train.shape[-1],))
     x = layers.Dense(16, activation=keras.activations.relu)(inputs)
@@ -59,7 +59,7 @@ def test_vector_classification_functional():
                   optimizer=keras.optimizers.Adam(1e-3),
                   metrics=['acc'])
     history = model.fit(x_train, y_train, epochs=15, batch_size=16,
-                        validation_data=(x_test, y_test),
+                        validation_data=(x_train, y_train),
                         verbose=0)
     assert(history.history['val_acc'][-1] > 0.8)
 

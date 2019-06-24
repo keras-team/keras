@@ -135,17 +135,16 @@ def test_sequential(in_tmpdir):
 
     model.train_on_batch(x_train[:32], y_train[:32])
 
-    loss = model.evaluate(x_test, y_test)
+    loss_np = model.evaluate(x_test, y_test)
+    predict_np = model.predict(x_test)
 
-    prediction = model.predict_generator(data_generator(x_test, y_test), 1,
-                                         max_queue_size=2, verbose=1)
-    gen_loss = model.evaluate_generator(data_generator(x_test, y_test, 50), 1,
-                                        max_queue_size=2)
-    pred_loss = K.eval(K.mean(losses.get(model.loss)(K.variable(y_test),
-                                                     K.variable(prediction))))
+    generator_pred_np = model.predict_generator(data_generator(x_test, y_test), 1,
+                                                max_queue_size=2, verbose=1)
+    generator_loss_np = model.evaluate_generator(data_generator(x_test, y_test, 50), 1,
+                                                 max_queue_size=2)
 
-    assert(np.isclose(pred_loss, loss))
-    assert(np.isclose(gen_loss, loss))
+    assert_allclose(loss_np, generator_loss_np, atol=1e-5)
+    assert_allclose(predict_np, generator_pred_np, atol=1e-5)
 
     model.predict(x_test, verbose=0)
     model.predict_classes(x_test, verbose=0)
@@ -163,7 +162,7 @@ def test_sequential(in_tmpdir):
     os.remove(fname)
 
     nloss = model.evaluate(x_test, y_test, verbose=0)
-    assert(loss == nloss)
+    assert(loss_np == nloss)
 
     # Test serialization
     config = model.get_config()

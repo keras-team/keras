@@ -180,7 +180,7 @@ def test_masked_temporal():
     The ground-truth best cross-entropy loss should, then be -log(0.5) = 0.69
 
     '''
-    np.random.seed(1338)
+    np.random.seed(1337)
 
     model = Sequential()
     model.add(layers.Embedding(10, 10, mask_zero=True))

@@ -20,6 +20,7 @@ from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
+from ..utils import losses_utils
 from ..legacy import interfaces
 
 
@@ -122,7 +123,10 @@ class Model(Network):
                 skip_target_weighing_indices.append(i)
 
         # Prepare output masks.
-        masks = [getattr(x, '_keras_mask', None) for x in self.outputs]
+        masks = self.compute_mask(self.inputs, mask=None)
+        if masks is None:
+            masks = [None for _ in self.outputs]
+        masks = to_list(masks)
 
         # Prepare list loss weights, same size of model outputs.
         self.loss_weights_list = training_utils.prepare_loss_weights(
@@ -214,15 +218,18 @@ class Model(Network):
                     # custom handling of accuracy/crossentropy
                     # (because of class mode duality)
                     output_shape = K.int_shape(self.outputs[i])
+                    loss_fn = self.loss_functions[i]
+                    if isinstance(loss_fn, losses.LossFunctionWrapper):
+                        loss_fn = loss_fn.fn
+
                     if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
+                       loss_fn == losses.binary_crossentropy):
                         # case: binary accuracy/crossentropy
                         if metric in ('accuracy', 'acc'):
                             metric_fn = metrics_module.binary_accuracy
                         elif metric in ('crossentropy', 'ce'):
                             metric_fn = metrics_module.binary_crossentropy
-                    elif (self.loss_functions[i] ==
-                          losses.sparse_categorical_crossentropy):
+                    elif (loss_fn == losses.sparse_categorical_crossentropy):
                         # case: categorical accuracy/crossentropy
                         # with sparse targets
                         if metric in ('accuracy', 'acc'):
@@ -692,7 +699,7 @@ class Model(Network):
                 loss_name = self.output_names[i] + '_loss'
                 with K.name_scope(loss_name):
                     if mask is not None:
-                        mask = math_ops.cast(mask, y_pred.dtype)
+                        mask = K.cast(mask, y_pred.dtype)
                         # Update weights with mask.
                         if sample_weight is None:
                             sample_weight = mask
