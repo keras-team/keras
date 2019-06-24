@@ -319,6 +319,10 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
         # Recover loss functions and metrics.
         loss = convert_custom_objects(training_config['loss'])
         metrics = convert_custom_objects(training_config['metrics'])
+        # Earlier versions of keras didn't dump weighted_metrics properly. Use
+        # a get to avoid failing if the key is missing
+        weighted_metrics = convert_custom_objects(
+            training_config.get('weighted_metrics'))
         sample_weight_mode = training_config['sample_weight_mode']
         loss_weights = training_config['loss_weights']
 
@@ -326,6 +330,7 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
         model.compile(optimizer=optimizer,
                       loss=loss,
                       metrics=metrics,
+                      weighted_metrics=weighted_metrics,
                       loss_weights=loss_weights,
                       sample_weight_mode=sample_weight_mode)
 
