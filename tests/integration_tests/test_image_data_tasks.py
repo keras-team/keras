@@ -68,7 +68,7 @@ def test_image_data_generator_training():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     history = model.fit_generator(img_gen.flow(x_train, y_train, batch_size=16),
-                                  epochs=10,
+                                  epochs=12,
                                   validation_data=img_gen.flow(x_test, y_test,
                                                                batch_size=16),
                                   verbose=0)
