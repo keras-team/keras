@@ -1269,7 +1269,8 @@ class GRUCell(Layer):
         input_dim = input_shape[-1]
 
         if isinstance(self.recurrent_initializer, initializers.Identity):
-            def recurrent_identity(shape, gain=1.):
+            def recurrent_identity(shape, gain=1., dtype=None):
+                del dtype
                 return gain * np.concatenate(
                     [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
 
@@ -1872,7 +1873,8 @@ class LSTMCell(Layer):
         input_dim = input_shape[-1]
 
         if type(self.recurrent_initializer).__name__ == 'Identity':
-            def recurrent_identity(shape, gain=1.):
+            def recurrent_identity(shape, gain=1., dtype=None):
+                del dtype
                 return gain * np.concatenate(
                     [np.identity(shape[0])] * (shape[1] // shape[0]), axis=1)
 

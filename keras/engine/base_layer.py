@@ -57,6 +57,7 @@ class Layer(object):
             or `K.in_test_phase()`.
         weights: The concatenation of the lists trainable_weights and
             non_trainable_weights (in this order).
+        dtype:  Default dtype of the layers's weights.
 
 
     # Methods
@@ -143,13 +144,13 @@ class Layer(object):
                     batch_size,) + tuple(kwargs['input_shape'])
             self.batch_input_shape = batch_input_shape
 
-            # Set dtype.
-            dtype = kwargs.get('dtype')
-            if dtype is None:
-                dtype = kwargs.get('input_dtype')
-            if dtype is None:
-                dtype = K.floatx()
-            self.dtype = dtype
+        # Set dtype.
+        dtype = kwargs.get('dtype')
+        if dtype is None:
+            dtype = kwargs.get('input_dtype')
+        if dtype is None:
+            dtype = K.floatx()
+        self.dtype = dtype
 
         self._initial_weights = kwargs.get('weights')
 
@@ -238,8 +239,8 @@ class Layer(object):
         """
         initializer = initializers.get(initializer)
         if dtype is None:
-            dtype = K.floatx()
-        weight = K.variable(initializer(shape),
+            dtype = self.dtype
+        weight = K.variable(initializer(shape, dtype=dtype),
                             dtype=dtype,
                             name=name,
                             constraint=constraint)
