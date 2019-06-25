@@ -162,19 +162,20 @@ class SGD(Optimizer):
     learning rate decay, and Nesterov momentum.
 
     # Arguments
-        lr: float >= 0. Learning rate.
+        learning_rate: float >= 0. Learning rate.
         momentum: float >= 0. Parameter that accelerates SGD
             in the relevant direction and dampens oscillations.
         decay: float >= 0. Learning rate decay over each update.
         nesterov: boolean. Whether to apply Nesterov momentum.
     """
 
-    def __init__(self, lr=0.01, momentum=0., decay=0.,
+    def __init__(self, learning_rate=0.01, momentum=0., decay=0.,
                  nesterov=False, **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(SGD, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.momentum = K.variable(momentum, name='momentum')
             self.decay = K.variable(decay, name='decay')
         self.initial_decay = decay
@@ -186,7 +187,7 @@ class SGD(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        lr = self.learning_rate
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
@@ -212,7 +213,7 @@ class SGD(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'momentum': float(K.get_value(self.momentum)),
                   'decay': float(K.get_value(self.decay)),
                   'nesterov': self.nesterov}
@@ -228,7 +229,7 @@ class RMSprop(Optimizer):
     (except the learning rate, which can be freely tuned).
 
     # Arguments
-        lr: float >= 0. Learning rate.
+        learning_rate: float >= 0. Learning rate.
         rho: float >= 0.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
@@ -238,11 +239,12 @@ class RMSprop(Optimizer):
            ](http://www.cs.toronto.edu/~tijmen/csc321/slides/lecture_slides_lec6.pdf)
     """
 
-    def __init__(self, lr=0.001, rho=0.9, epsilon=None, decay=0.,
+    def __init__(self, learning_rate=0.001, rho=0.9, epsilon=None, decay=0.,
                  **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(RMSprop, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.rho = K.variable(rho, name='rho')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
@@ -262,7 +264,7 @@ class RMSprop(Optimizer):
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        lr = self.learning_rate
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
@@ -281,7 +283,7 @@ class RMSprop(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'rho': float(K.get_value(self.rho)),
                   'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
@@ -301,7 +303,7 @@ class Adagrad(Optimizer):
     at their default values.
 
     # Arguments
-        lr: float >= 0. Initial learning rate.
+        learning_rate: float >= 0. Initial learning rate.
         epsilon: float >= 0. If `None`, defaults to `K.epsilon()`.
         decay: float >= 0. Learning rate decay over each update.
 
@@ -310,10 +312,11 @@ class Adagrad(Optimizer):
            Optimization](http://www.jmlr.org/papers/volume12/duchi11a/duchi11a.pdf)
     """
 
-    def __init__(self, lr=0.01, epsilon=None, decay=0., **kwargs):
+    def __init__(self, learning_rate=0.01, epsilon=None, decay=0., **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(Adagrad, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
         if epsilon is None:
@@ -331,7 +334,7 @@ class Adagrad(Optimizer):
         self.weights = accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        lr = self.learning_rate
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
@@ -349,7 +352,7 @@ class Adagrad(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
         base_config = super(Adagrad, self).get_config()
@@ -371,7 +374,7 @@ class Adadelta(Optimizer):
     at their default values.
 
     # Arguments
-        lr: float >= 0. Initial learning rate, defaults to 1.
+        learning_rate: float >= 0. Initial learning rate, defaults to 1.
             It is recommended to leave it at the default value.
         rho: float >= 0. Adadelta decay factor, corresponding to fraction of
             gradient to keep at each time step.
@@ -383,11 +386,12 @@ class Adadelta(Optimizer):
            https://arxiv.org/abs/1212.5701)
     """
 
-    def __init__(self, lr=1.0, rho=0.95, epsilon=None, decay=0.,
+    def __init__(self, learning_rate=1.0, rho=0.95, epsilon=None, decay=0.,
                  **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(Adadelta, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.decay = K.variable(decay, name='decay')
             self.iterations = K.variable(0, dtype='int64', name='iterations')
         if epsilon is None:
@@ -408,7 +412,7 @@ class Adadelta(Optimizer):
         self.weights = accumulators + delta_accumulators
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        lr = self.learning_rate
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
@@ -434,7 +438,7 @@ class Adadelta(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'rho': self.rho,
                   'decay': float(K.get_value(self.decay)),
                   'epsilon': self.epsilon}
@@ -448,7 +452,7 @@ class Adam(Optimizer):
     Default parameters follow those provided in the original paper.
 
     # Arguments
-        lr: float >= 0. Learning rate.
+        learning_rate: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
@@ -464,12 +468,13 @@ class Adam(Optimizer):
            https://openreview.net/forum?id=ryQu7f-RZ)
     """
 
-    def __init__(self, lr=0.001, beta_1=0.9, beta_2=0.999,
+    def __init__(self, learning_rate=0.001, beta_1=0.9, beta_2=0.999,
                  epsilon=None, decay=0., amsgrad=False, **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(Adam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
@@ -485,7 +490,7 @@ class Adam(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        lr = self.learning_rate
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
@@ -535,7 +540,7 @@ class Adam(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
                   'decay': float(K.get_value(self.decay)),
@@ -552,7 +557,7 @@ class Adamax(Optimizer):
     Default parameters follow those provided in the paper.
 
     # Arguments
-        lr: float >= 0. Learning rate.
+        learning_rate: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
@@ -563,12 +568,13 @@ class Adamax(Optimizer):
            https://arxiv.org/abs/1412.6980v8)
     """
 
-    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
+    def __init__(self, learning_rate=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=None, decay=0., **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(Adamax, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(decay, name='decay')
@@ -583,7 +589,7 @@ class Adamax(Optimizer):
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
-        lr = self.lr
+        lr = self.learning_rate
         if self.initial_decay > 0:
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
@@ -618,7 +624,7 @@ class Adamax(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
                   'decay': float(K.get_value(self.decay)),
@@ -638,7 +644,7 @@ class Nadam(Optimizer):
     at their default values.
 
     # Arguments
-        lr: float >= 0. Learning rate.
+        learning_rate: float >= 0. Learning rate.
         beta_1: float, 0 < beta < 1. Generally close to 1.
         beta_2: float, 0 < beta < 1. Generally close to 1.
         epsilon: float >= 0. Fuzz factor. If `None`, defaults to `K.epsilon()`.
@@ -650,13 +656,14 @@ class Nadam(Optimizer):
            http://www.cs.toronto.edu/~fritz/absps/momentum.pdf)
     """
 
-    def __init__(self, lr=0.002, beta_1=0.9, beta_2=0.999,
+    def __init__(self, learning_rate=0.002, beta_1=0.9, beta_2=0.999,
                  epsilon=None, schedule_decay=0.004, **kwargs):
+        learning_rate = kwargs.pop('lr', None) or learning_rate
         super(Nadam, self).__init__(**kwargs)
         with K.name_scope(self.__class__.__name__):
             self.iterations = K.variable(0, dtype='int64', name='iterations')
             self.m_schedule = K.variable(1., name='m_schedule')
-            self.lr = K.variable(lr, name='lr')
+            self.learning_rate = K.variable(learning_rate, name='learning_rate')
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
         if epsilon is None:
@@ -702,7 +709,8 @@ class Nadam(Optimizer):
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(v, v_t))
 
-            p_t = p - self.lr * m_t_bar / (K.sqrt(v_t_prime) + self.epsilon)
+            p_t = (p - self.learning_rate * m_t_bar / (K.sqrt(v_t_prime) +
+                   self.epsilon))
             new_p = p_t
 
             # Apply constraints.
@@ -713,7 +721,7 @@ class Nadam(Optimizer):
         return self.updates
 
     def get_config(self):
-        config = {'lr': float(K.get_value(self.lr)),
+        config = {'learning_rate': float(K.get_value(self.learning_rate)),
                   'beta_1': float(K.get_value(self.beta_1)),
                   'beta_2': float(K.get_value(self.beta_2)),
                   'epsilon': self.epsilon,
