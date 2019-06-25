@@ -138,10 +138,12 @@ def test_sequential(in_tmpdir):
     loss_np = model.evaluate(x_test, y_test)
     predict_np = model.predict(x_test)
 
-    generator_pred_np = model.predict_generator(data_generator(x_test, y_test), 1,
-                                                max_queue_size=2, verbose=1)
-    generator_loss_np = model.evaluate_generator(data_generator(x_test, y_test, 50), 1,
-                                                 max_queue_size=2)
+    generator_pred_np = model.predict_generator(
+        data_generator(x_test, y_test), 1,
+        max_queue_size=2, verbose=1)
+    generator_loss_np = model.evaluate_generator(
+        data_generator(x_test, y_test, 50), 1,
+        max_queue_size=2)
 
     assert_allclose(loss_np, generator_loss_np, atol=1e-5)
     assert_allclose(predict_np, generator_pred_np, atol=1e-5)
