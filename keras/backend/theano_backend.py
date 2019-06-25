@@ -374,7 +374,7 @@ def count_params(x):
 
 def cast(x, dtype):
     return T.cast(x, dtype)
-    
+
 
 def size(x, name=None):
     """Returns the size of a tensor.
