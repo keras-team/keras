@@ -154,6 +154,11 @@ class Optimizer(object):
     def from_config(cls, config):
         return cls(**config)
 
+    @property
+    def lr(self):
+        # Legacy support.
+        return self.learning_rate
+
 
 class SGD(Optimizer):
     """Stochastic gradient descent optimizer.
