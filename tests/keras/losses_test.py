@@ -8,23 +8,39 @@ from keras.utils import losses_utils
 from keras.utils.generic_utils import custom_object_scope
 
 
-allobj = [losses.mean_squared_error,
-          losses.mean_absolute_error,
-          losses.mean_absolute_percentage_error,
-          losses.mean_squared_logarithmic_error,
-          losses.squared_hinge,
-          losses.hinge,
-          losses.categorical_crossentropy,
-          losses.binary_crossentropy,
-          losses.kullback_leibler_divergence,
-          losses.poisson,
-          losses.cosine_proximity,
-          losses.logcosh,
-          losses.categorical_hinge]
+all_functions = [losses.mean_squared_error,
+                 losses.mean_absolute_error,
+                 losses.mean_absolute_percentage_error,
+                 losses.mean_squared_logarithmic_error,
+                 losses.squared_hinge,
+                 losses.hinge,
+                 losses.categorical_crossentropy,
+                 losses.binary_crossentropy,
+                 losses.kullback_leibler_divergence,
+                 losses.poisson,
+                 losses.cosine_proximity,
+                 losses.logcosh,
+                 losses.categorical_hinge]
+all_classes = [
+    losses.Hinge,
+    losses.SquaredHinge,
+    losses.CategoricalHinge,
+    losses.Poisson,
+    losses.LogCosh,
+    losses.KLDivergence,
+    losses.Huber,
+    # losses.SparseCategoricalCrossentropy,
+    losses.BinaryCrossentropy,
+    losses.MeanSquaredLogarithmicError,
+    losses.MeanAbsolutePercentageError,
+    losses.MeanAbsoluteError,
+    losses.MeanSquaredError,
+]
 
 
-class MSE_MAE_loss:
+class MSE_MAE_loss(object):
     """Loss function with internal state, for testing serialization code."""
+
     def __init__(self, mse_fraction):
         self.mse_fraction = mse_fraction
 
@@ -36,21 +52,21 @@ class MSE_MAE_loss:
         return {'mse_fraction': self.mse_fraction}
 
 
-class TestLossFunctions:
+class TestLossFunctions(object):
 
-    def test_objective_shapes_3d(self):
+    @pytest.mark.parametrize('loss_fn', all_functions)
+    def test_objective_shapes_3d(self, loss_fn):
         y_a = K.variable(np.random.random((5, 6, 7)))
         y_b = K.variable(np.random.random((5, 6, 7)))
-        for obj in allobj:
-            objective_output = obj(y_a, y_b)
-            assert K.eval(objective_output).shape == (5, 6)
+        objective_output = loss_fn(y_a, y_b)
+        assert K.eval(objective_output).shape == (5, 6)
 
-    def test_objective_shapes_2d(self):
+    @pytest.mark.parametrize('loss_fn', all_functions)
+    def test_objective_shapes_2d(self, loss_fn):
         y_a = K.variable(np.random.random((6, 7)))
         y_b = K.variable(np.random.random((6, 7)))
-        for obj in allobj:
-            objective_output = obj(y_a, y_b)
-            assert K.eval(objective_output).shape == (6,)
+        objective_output = loss_fn(y_a, y_b)
+        assert K.eval(objective_output).shape == (6,)
 
     def test_cce_one_hot(self):
         y_a = K.variable(np.random.randint(0, 7, (5, 6)))
@@ -143,6 +159,27 @@ class TestLossFunctions:
         np.allclose(K.eval(loss), 16, atol=1e-2)
 
 
+class TestLossClasses(object):
+
+    @pytest.mark.parametrize('cls', all_classes)
+    def test_objective_shapes_3d(self, cls):
+        y_a = K.variable(np.random.random((5, 6, 7)))
+        y_b = K.variable(np.random.random((5, 6, 7)))
+        sw = K.variable(np.random.random((5, 6)))
+        obj_fn = cls(name='test')
+        objective_output = obj_fn(y_a, y_b, sample_weight=sw)
+        assert K.eval(objective_output).shape == ()
+
+    @pytest.mark.parametrize('cls', all_classes)
+    def test_objective_shapes_2d(self, cls):
+        y_a = K.variable(np.random.random((6, 7)))
+        y_b = K.variable(np.random.random((6, 7)))
+        sw = K.variable(np.random.random((6,)))
+        obj_fn = cls(name='test')
+        objective_output = obj_fn(y_a, y_b, sample_weight=sw)
+        assert K.eval(objective_output).shape == ()
+
+
 class TestMeanSquaredError:
 
     def test_config(self):
@@ -219,7 +256,7 @@ class TestMeanSquaredError:
         assert np.isclose(K.eval(loss), 227.69998, rtol=1e-3)
 
 
-class TestMeanAbsoluteError:
+class TestMeanAbsoluteError(object):
 
     def test_config(self):
         mae_obj = losses.MeanAbsoluteError(
@@ -295,7 +332,7 @@ class TestMeanAbsoluteError:
         assert np.isclose(K.eval(loss), 25.29999, rtol=1e-3)
 
 
-class TestMeanAbsolutePercentageError:
+class TestMeanAbsolutePercentageError(object):
 
     def test_config(self):
         mape_obj = losses.MeanAbsolutePercentageError(
@@ -355,7 +392,7 @@ class TestMeanAbsolutePercentageError:
         assert np.allclose(K.eval(loss), [621.8518, 352.6666], rtol=1e-3)
 
 
-class TestMeanSquaredLogarithmicError:
+class TestMeanSquaredLogarithmicError(object):
 
     def test_config(self):
         msle_obj = losses.MeanSquaredLogarithmicError(
@@ -401,7 +438,7 @@ class TestMeanSquaredLogarithmicError:
         assert np.allclose(K.eval(loss), 0.0, rtol=1e-3)
 
 
-class TestBinaryCrossentropy:
+class TestBinaryCrossentropy(object):
 
     def test_config(self):
         bce_obj = losses.BinaryCrossentropy(
@@ -561,7 +598,7 @@ class TestBinaryCrossentropy:
         assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
 
 
-class TestCategoricalCrossentropy:
+class TestCategoricalCrossentropy(object):
 
     def test_config(self):
         cce_obj = losses.CategoricalCrossentropy(
@@ -656,7 +693,7 @@ class TestCategoricalCrossentropy:
         assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
 
 
-class TestSparseCategoricalCrossentropy:
+class TestSparseCategoricalCrossentropy(object):
 
     def test_config(self):
         cce_obj = losses.SparseCategoricalCrossentropy(
