@@ -24,7 +24,8 @@ class Embedding(Layer):
     ```python
       model = Sequential()
       model.add(Embedding(1000, 64, input_length=10))
-      # the model will take as input an integer matrix of size (batch, input_length).
+      # the model will take as input a matrix of round numbers cast as floats. Their size will be (batch, input_length).
+      # If the input is just an integer matrix, then the training does not work right.
       # the largest integer (i.e. word index) in the input should be
       # no larger than 999 (vocabulary size).
       # now model.output_shape == (None, 10, 64), where None is the batch dimension.
