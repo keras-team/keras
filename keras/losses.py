@@ -142,9 +142,6 @@ class LossFunctionWrapper(Loss):
 class MeanSquaredError(LossFunctionWrapper):
     """Computes the mean of squares of errors between labels and predictions.
 
-    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
-    then the mean squared error value is 3/4 (0.75).
-
     Standalone usage:
 
     ```python
@@ -174,9 +171,6 @@ class MeanSquaredError(LossFunctionWrapper):
 
 class MeanAbsoluteError(LossFunctionWrapper):
     """Computes the mean of absolute difference between labels and predictions.
-
-    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
-    then the mean absolute error value is 3/4 (0.75).
 
     Standalone usage:
 
@@ -208,9 +202,6 @@ class MeanAbsoluteError(LossFunctionWrapper):
 class MeanAbsolutePercentageError(LossFunctionWrapper):
     """Computes the mean absolute percentage error between `y_true` and `y_pred`.
 
-    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
-    then the mean absolute percentage error value is 5e+08.
-
     Standalone usage:
 
     ```python
@@ -240,9 +231,6 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
 
 class MeanSquaredLogarithmicError(LossFunctionWrapper):
     """Computes the mean squared logarithmic error between `y_true` and `y_pred`.
-
-    For example, if `y_true` is [0., 0., 1., 1.] and `y_pred` is [1., 1., 1., 0.]
-    then the mean squared logarithmic error value is 0.36034.
 
     Standalone usage:
 
@@ -430,6 +418,157 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             from_logits=from_logits)
 
 
+class Hinge(LossFunctionWrapper):
+    """Computes the hinge loss between `y_true` and `y_pred`.
+
+    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
+    provided we will convert them to -1 or 1.
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.Hinge())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='hinge'):
+        super(Hinge, self).__init__(hinge, name=name, reduction=reduction)
+
+
+class SquaredHinge(LossFunctionWrapper):
+    """Computes the squared hinge loss between `y_true` and `y_pred`.
+
+    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
+    provided we will convert them to -1 or 1.
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.SquaredHinge())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='squared_hinge'):
+        super(SquaredHinge, self).__init__(
+            squared_hinge, name=name, reduction=reduction)
+
+
+class CategoricalHinge(LossFunctionWrapper):
+    """Computes the categorical hinge loss between `y_true` and `y_pred`.
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.CategoricalHinge())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='categorical_hinge'):
+        super(CategoricalHinge, self).__init__(
+            categorical_hinge, name=name, reduction=reduction)
+
+
+class Poisson(LossFunctionWrapper):
+    """Computes the Poisson loss between `y_true` and `y_pred`.
+
+    `loss = y_pred - y_true * log(y_pred)`
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.Poisson())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='poisson'):
+        super(Poisson, self).__init__(poisson, name=name, reduction=reduction)
+
+
+class LogCosh(LossFunctionWrapper):
+    """Computes the logarithm of the hyperbolic cosine of the prediction error.
+
+    `logcosh = log((exp(x) + exp(-x))/2)`,
+    where x is the error (y_pred - y_true)
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.LogCosh())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='logcosh'):
+        super(LogCosh, self).__init__(logcosh, name=name, reduction=reduction)
+
+
+class KLDivergence(LossFunctionWrapper):
+    """Computes Kullback-Leibler divergence loss between `y_true` and `y_pred`.
+
+    `loss = y_true * log(y_true / y_pred)`
+
+    See: https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.KLDivergence())
+    ```
+    """
+
+    def __init__(self,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='kullback_leibler_divergence'):
+        super(KLDivergence, self).__init__(
+            kullback_leibler_divergence, name=name, reduction=reduction)
+
+
+class Huber(LossFunctionWrapper):
+    """Computes the Huber loss between `y_true` and `y_pred`.
+
+    Given `x = y_true - y_pred`:
+    ```
+    loss = 0.5 * x^2                  if |x| <= d
+    loss = 0.5 * d^2 + d * (|x| - d)  if |x| > d
+    ```
+    where d is `delta`. See: https://en.wikipedia.org/wiki/Huber_loss
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss=keras.losses.Huber())
+    ```
+
+    # Arguments
+        delta: A float, the point where the Huber loss function changes from a
+            quadratic to linear.
+        reduction: (Optional) Type of reduction to apply to loss.
+        name: Optional name for the op.
+    """
+    def __init__(self,
+                 delta=1.0,
+                 reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE,
+                 name='huber_loss'):
+        super(Huber, self).__init__(
+            huber_loss, name=name, reduction=reduction, delta=delta)
+
+
 def mean_squared_error(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
@@ -495,6 +634,14 @@ def logcosh(y_true, y_pred):
     def _logcosh(x):
         return x + K.softplus(-2. * x) - K.log(2.)
     return K.mean(_logcosh(y_pred - y_true), axis=-1)
+
+
+def huber_loss(y_true, y_pred, delta=1.0):
+    error = y_pred - y_true
+    abs_error = K.abs(error)
+    quadratic = K.minimum(abs_error, delta)
+    linear = abs_error - quadratic
+    return 0.5 * K.square(quadratic) + delta * linear
 
 
 def categorical_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
