@@ -32,7 +32,7 @@ class Loss(object):
     # Arguments
         reduction: (Optional) Type of loss Reduction to apply to loss.
           Default value is `SUM_OVER_BATCH_SIZE`.
-        name: Optional name for the op.
+        name: Optional name for the object.
     """
 
     def __init__(self,
@@ -295,7 +295,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
             Larger values of `label_smoothing` correspond to heavier smoothing.
         reduction: (Optional) Type of loss reduction to apply to loss.
             Default value is `SUM_OVER_BATCH_SIZE`.
-        name: (Optional) Name for the op.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -351,7 +351,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             Larger values of `label_smoothing` correspond to heavier smoothing.
         reduction: (Optional) Type of loss reduction to apply to loss.
             Default value is `SUM_OVER_BATCH_SIZE`.
-        name: (Optional) Name for the op.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -404,7 +404,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
             (i.e., values in [0, 1]).
         reduction: (Optional) Type of loss reduction to apply to loss.
             Default value is `SUM_OVER_BATCH_SIZE`.
-        name: (Optional) Name for the op.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -430,6 +430,11 @@ class Hinge(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.Hinge())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -450,6 +455,11 @@ class SquaredHinge(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.SquaredHinge())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -468,6 +478,11 @@ class CategoricalHinge(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.CategoricalHinge())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -488,6 +503,11 @@ class Poisson(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.Poisson())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -508,6 +528,11 @@ class LogCosh(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.LogCosh())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -529,6 +554,11 @@ class KLDivergence(LossFunctionWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss=keras.losses.KLDivergence())
     ```
+
+    # Arguments
+        reduction: (Optional) Type of loss reduction to apply to loss.
+            Default value is `SUM_OVER_BATCH_SIZE`.
+        name: (Optional) Name for the object.
     """
 
     def __init__(self,
@@ -559,7 +589,7 @@ class Huber(LossFunctionWrapper):
         delta: A float, the point where the Huber loss function changes from a
             quadratic to linear.
         reduction: (Optional) Type of reduction to apply to loss.
-        name: Optional name for the op.
+        name: Optional name for the object.
     """
     def __init__(self,
                  delta=1.0,
