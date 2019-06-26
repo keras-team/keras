@@ -1139,8 +1139,8 @@ class TensorBoard(Callback):
             self.assign_embeddings = []
             embeddings_vars = {}
 
-            self.batch_id = batch_id = tf.placeholder(tf.int32)
-            self.step = step = tf.placeholder(tf.int32)
+            self.batch_id = batch_id = tf.compat.v1.placeholder(tf.int32)
+            self.step = step = tf.compat.v1.placeholder(tf.int32)
 
             for layer in self.model.layers:
                 if layer.name in embeddings_layer_names:

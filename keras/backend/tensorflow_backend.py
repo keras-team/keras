@@ -460,7 +460,7 @@ def is_keras_tensor(x):
         >>> np_var = numpy.array([1, 2])
         >>> K.is_keras_tensor(np_var) # A numpy array is not a symbolic tensor.
         ValueError
-        >>> k_var = tf.placeholder('float32', shape=(1,1))
+        >>> k_var = tf.compat.v1.placeholder('float32', shape=(1,1))
         >>> # A variable indirectly created outside of keras is not a Keras tensor.
         >>> K.is_keras_tensor(k_var)
         False
@@ -526,7 +526,7 @@ def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
     if sparse:
         x = tf.sparse_placeholder(dtype, shape=shape, name=name)
     else:
-        x = tf.placeholder(dtype, shape=shape, name=name)
+        x = tf.compat.v1.placeholder(dtype, shape=shape, name=name)
     x._keras_shape = shape
     x._uses_learning_phase = False
     return x
@@ -2686,7 +2686,7 @@ def set_value(x, value):
         assign_placeholder = x._assign_placeholder
         assign_op = x._assign_op
     else:
-        assign_placeholder = tf.placeholder(tf_dtype, shape=value.shape)
+        assign_placeholder = tf.compat.v1.placeholder(tf_dtype, shape=value.shape)
         assign_op = x.assign(assign_placeholder)
         x._assign_placeholder = assign_placeholder
         x._assign_op = assign_op
@@ -2710,7 +2710,7 @@ def batch_set_value(tuples):
                 assign_placeholder = x._assign_placeholder
                 assign_op = x._assign_op
             else:
-                assign_placeholder = tf.placeholder(tf_dtype,
+                assign_placeholder = tf.compat.v1.placeholder(tf_dtype,
                                                     shape=value.shape)
                 assign_op = x.assign(assign_placeholder)
                 x._assign_placeholder = assign_placeholder
