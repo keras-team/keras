@@ -13,6 +13,11 @@ from keras.layers import LSTM
 from keras.layers import Conv1D, MaxPooling1D
 from keras.datasets import imdb
 
+# Temporary workaround
+import numpy
+old = numpy.load
+numpy.load = lambda *a,**k: old(*a,**k,allow_pickle=True)
+
 # Embedding
 max_features = 20000
 maxlen = 100
