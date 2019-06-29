@@ -787,5 +787,64 @@ class TestHinge:
         loss = hinge_obj(y_true, y_pred, sample_weight=0)
         assert np.allclose(K.eval(loss), 0., atol=1e-3)
 
+
+class TestSquaredHinge:
+
+    def test_config(self):
+        sq_hinge_obj = losses.SquaredHinge(
+            reduction=losses_utils.Reduction.SUM, name='sq_hinge_loss')
+        assert sq_hinge_obj.name == 'sq_hinge_loss'
+        assert sq_hinge_obj.reduction == losses_utils.Reduction.SUM
+
+    def test_unweighted(self):
+        sq_hinge_obj = losses.SquaredHinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+
+        loss = sq_hinge_obj(y_true, y_pred)
+        assert np.allclose(K.eval(loss), 0.364, atol=1e-3)
+
+    def test_scalar_weighted(self):
+        sq_hinge_obj = losses.SquaredHinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+
+        loss = sq_hinge_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.allclose(K.eval(loss), 0.837, atol=1e-3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = sq_hinge_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), K.eval(loss_2), atol=1e-3)
+
+    def test_sample_weighted(self):
+        sq_hinge_obj = losses.SquaredHinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+
+        sample_weight = K.constant([1.2, 3.4])
+        loss = sq_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(K.eval(loss), 0.704, atol=1e-3)
+
+    def test_timestep_weighted(self):
+        sq_hinge_obj = losses.SquaredHinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]], shape=(2, 4, 1))
+        y_pred = K.constant(
+            [[-0.3, 0.2, -0.1, 1.6], [-0.25, -1., 0.5, 0.6]], shape=(2, 4, 1))
+        sample_weight = K.constant([3, 6, 5, 0, 4, 2, 1, 3], shape=(2, 4))
+
+        loss = sq_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(K.eval(loss), 1.542, atol=1e-3)
+
+    def test_zero_weighted(self):
+        sq_hinge_obj = losses.SquaredHinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+        loss = sq_hinge_obj(y_true, y_pred, sample_weight=0)
+        assert np.allclose(K.eval(loss), 0., atol=1e-3)
+
 if __name__ == '__main__':
     pytest.main([__file__])
