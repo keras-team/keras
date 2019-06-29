@@ -432,8 +432,8 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
 
 class Hinge(LossFunctionWrapper):
     """Computes the hinge loss between `y_true` and `y_pred`.
-    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
-    provided we will convert them to -1 or 1.
+    `y_true` values are expected to be -1 or 1.
+    If binary (0 or 1) labels are provided we will convert them to -1 or 1.
     Usage:
     ```python
     h = keras.losses.Hinge()
@@ -458,8 +458,8 @@ class Hinge(LossFunctionWrapper):
 
 class SquaredHinge(LossFunctionWrapper):
     """Computes the squared hinge loss between `y_true` and `y_pred`.
-    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
-    provided we will convert them to -1 or 1.
+    `y_true` values are expected to be -1 or 1.
+    If binary (0 or 1) labels are provided we will convert them to -1 or 1.
     Usage:
     ```python
     sh = keras.losses.SquaredHinge()
