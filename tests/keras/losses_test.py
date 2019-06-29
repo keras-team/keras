@@ -846,5 +846,67 @@ class TestSquaredHinge:
         loss = sq_hinge_obj(y_true, y_pred, sample_weight=0)
         assert np.allclose(K.eval(loss), 0., atol=1e-3)
 
+
+class TestCategoricalHinge:
+
+    def test_config(self):
+        cat_hinge_obj = losses.CategoricalHinge(
+            reduction=losses_utils.Reduction.SUM, name='cat_hinge_loss')
+        assert cat_hinge_obj.name == 'cat_hinge_loss'
+        assert cat_hinge_obj.reduction == losses_utils.Reduction.SUM
+
+    def test_unweighted(self):
+        cat_hinge_obj = losses.CategoricalHinge()
+        y_true = K.constant([1, 9, 2, -5], shape=(2, 2))
+        y_pred = K.constant([4, 8, 12, 8],
+                            shape=(2, 2),
+                            dtype=dtypes.float32)
+        loss = cat_hinge_obj(y_true, y_pred)
+
+        assert np.isclose(K.eval(loss), 32.5, atol=1e-3)
+
+    def test_scalar_weighted(self):
+        cat_hinge_obj = losses.CategoricalHinge()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3],
+                            shape=(2, 3),
+                            dtype=dtypes.float32)
+        loss = cat_hinge_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), 83.95, atol=1e-3)
+
+        # Verify we get the same output when the same input is given
+        loss_2 = cat_hinge_obj(y_true, y_pred, sample_weight=2.3)
+        assert np.isclose(K.eval(loss), K.eval(loss_2), atol=1e-3)
+
+    def test_sample_weighted(self):
+        cat_hinge_obj = losses.CategoricalHinge()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3],
+                            shape=(2, 3),
+                            dtype=dtypes.float32)
+        sample_weight = K.constant([1.2, 3.4], shape=(2, 1))
+        loss = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 124.1, atol=1e-3)
+
+    def test_timestep_weighted(self):
+        cat_hinge_obj = losses.CategoricalHinge()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3],
+                            shape=(2, 3, 1),
+                            dtype=dtypes.float32)
+        sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+        loss = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.isclose(K.eval(loss), 4.0, atol=1e-3)
+
+    def test_zero_weighted(self):
+        cat_hinge_obj = losses.CategoricalHinge()
+        y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+        y_pred = K.constant([4, 8, 12, 8, 1, 3],
+                            shape=(2, 3),
+                            dtype=dtypes.float32)
+        loss = cat_hinge_obj(y_true, y_pred, sample_weight=0)
+        assert np.isclose(K.eval(loss), 0., atol=1e-3)
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
