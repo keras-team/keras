@@ -1187,7 +1187,6 @@ def count_params(x):
     return np.prod(int_shape(x))
 
 
-@symbolic
 def cast(x, dtype):
     """Casts a tensor to a different dtype and returns it.
 
@@ -1223,7 +1222,6 @@ def cast(x, dtype):
 # UPDATES OPS
 
 
-@symbolic
 def update(x, new_x):
     """Update the value of `x` to `new_x`.
 
@@ -1234,12 +1232,9 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    op = tf_state_ops.assign(x, new_x)
-    with tf.control_dependencies([op]):
-        return tf.identity(x)
+    return tf_state_ops.assign(x, new_x)
 
 
-@symbolic
 def update_add(x, increment):
     """Update the value of `x` by adding `increment`.
 
@@ -1250,12 +1245,9 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    op = tf_state_ops.assign_add(x, increment)
-    with tf.control_dependencies([op]):
-        return tf.identity(x)
+    return tf_state_ops.assign_add(x, increment)
 
 
-@symbolic
 def update_sub(x, decrement):
     """Update the value of `x` by subtracting `decrement`.
 
@@ -1266,9 +1258,7 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    op = tf_state_ops.assign_sub(x, decrement)
-    with tf.control_dependencies([op]):
-        return tf.identity(x)
+    return tf_state_ops.assign_sub(x, decrement)
 
 
 @symbolic
