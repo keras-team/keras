@@ -6,7 +6,7 @@ from keras import metrics
 from keras import backend as K
 
 
-class TestKerasSum:
+class TestSum:
 
     def test_sum(self):
         m = metrics.Sum(name='my_sum', dtype='float32')
@@ -69,3 +69,105 @@ class TestKerasSum:
         # result = (prev: 57.5) + 0.5 + 1 + 1.5 + 1 + 0.25 + 2
         assert np.isclose(result, 63.75, 2)
         assert np.isclose(K.eval(m.total), 63.75, 2)
+
+
+class TestMean:
+
+    def test_mean(self):
+        m = metrics.Mean(name='my_mean')
+
+        # check config
+        assert m.name == 'my_mean'
+        assert m.stateful
+        assert m.dtype == 'float32'
+        assert len(m.weights) == 2
+
+        # check initial state
+        assert K.eval(m.total) == 0
+        assert K.eval(m.count) == 0
+
+        # check __call__()
+        assert K.eval(m(100)) == 100
+        assert K.eval(m.total) == 100
+        assert K.eval(m.count) == 1
+
+        # check update_state() and result()
+        update_op = m.update_state([1, 5])
+        K.eval(update_op)
+        assert np.isclose(K.eval(m.result()), 106 / 3)
+        assert K.eval(m.total) == 106  # 100 + 1 + 5
+        assert K.eval(m.count) == 3
+
+        # check reset_states()
+        m.reset_states()
+        assert K.eval(m.total) == 0
+        assert K.eval(m.count) == 0
+
+        # Check save and restore config
+        m2 = metrics.Mean.from_config(m.get_config())
+        assert m2.name == 'my_mean'
+        assert m2.stateful
+        assert m2.dtype == 'float32'
+        assert len(m2.weights) == 2
+
+    def test_mean_with_sample_weight(self):
+        m = metrics.Mean(dtype='float64')
+        assert m.dtype == 'float64'
+
+        # check scalar weight
+        result_t = m(100, sample_weight=0.5)
+        assert K.eval(result_t) == 50 / 0.5
+        assert K.eval(m.total) == 50
+        assert K.eval(m.count) == 0.5
+
+        # check weights not scalar and weights rank matches values rank
+        result_t = m([1, 5], sample_weight=[1, 0.2])
+        result = K.eval(result_t)
+        assert np.isclose(result, 52 / 1.7)
+        assert np.isclose(K.eval(m.total), 52)  # 50 + 1 + 5 * 0.2
+        assert np.isclose(K.eval(m.count), 1.7)  # 0.5 + 1.2
+
+        # check weights broadcast
+        result_t = m([1, 2], sample_weight=0.5)
+        assert np.isclose(K.eval(result_t), 53.5 / 2.7, rtol=3)
+        assert np.isclose(K.eval(m.total), 53.5, rtol=3)  # 52 + 0.5 + 1
+        assert np.isclose(K.eval(m.count), 2.7, rtol=3)  # 1.7 + 0.5 + 0.5
+
+        # check weights squeeze
+        result_t = m([1, 5], sample_weight=[[1], [0.2]])
+        assert np.isclose(K.eval(result_t), 55.5 / 3.9, rtol=3)
+        assert np.isclose(K.eval(m.total), 55.5, rtol=3)  # 53.5 + 1 + 1
+        assert np.isclose(K.eval(m.count), 3.9, rtol=3)  # 2.7 + 1.2
+
+        # check weights expand
+        result_t = m([[1], [5]], sample_weight=[1, 0.2])
+        assert np.isclose(K.eval(result_t), 57.5 / 5.1, rtol=3)
+        assert np.isclose(K.eval(m.total), 57.5, rtol=3)  # 55.5 + 1 + 1
+        assert np.isclose(K.eval(m.count), 5.1, rtol=3)  # 3.9 + 1.2
+
+    def test_multiple_instances(self):
+        m = metrics.Mean()
+        m2 = metrics.Mean()
+
+        assert m.name == 'mean'
+        assert m2.name == 'mean'
+
+        # check initial state
+        assert K.eval(m.total) == 0
+        assert K.eval(m.count) == 0
+        assert K.eval(m2.total) == 0
+        assert K.eval(m2.count) == 0
+
+        # check __call__()
+        assert K.eval(m(100)) == 100
+        assert K.eval(m.total) == 100
+        assert K.eval(m.count) == 1
+        assert K.eval(m2.total) == 0
+        assert K.eval(m2.count) == 0
+
+        assert K.eval(m2([63, 10])) == 36.5
+        assert K.eval(m2.total) == 73
+        assert K.eval(m2.count) == 2
+        assert K.eval(m.result()) == 100
+        assert K.eval(m.total) == 100
+        assert K.eval(m.count) == 1
