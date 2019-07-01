@@ -82,6 +82,7 @@ class Metric(Layer):
 
     def reset_states(self):
         """Resets all of the metric state variables.
+
         This function is called between epochs/steps,
         when a metric is evaluated during training.
         """
@@ -95,6 +96,7 @@ class Metric(Layer):
     @abc.abstractmethod
     def result(self):
         """Computes and returns the metric value tensor.
+
         Result computation is an idempotent operation that simply calculates the
         metric value using the state variables.
         """
@@ -122,6 +124,7 @@ class Reduce(Metric):
 
     def __init__(self, reduction, name, dtype=None):
         """Creates a `Reduce` instance.
+
         # Arguments
             reduction: a metrics `Reduction` enum value.
             name: string name of the metric instance.
@@ -136,9 +139,11 @@ class Reduce(Metric):
 
     def update_state(self, values, sample_weight=None):
         """Accumulates statistics for computing the reduction metric.
+
         For example, if `values` is [1, 3, 5, 7] and reduction=SUM_OVER_BATCH_SIZE,
         then the value of `result()` is 4. If the `sample_weight` is specified as
         [1, 1, 0, 0] then value of `result()` would be 2.
+
         # Arguments
             values: Per-example value.
             sample_weight: Optional weighting of each example. Defaults to 1.
