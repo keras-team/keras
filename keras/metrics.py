@@ -180,8 +180,7 @@ class Reduce(Metric):
             raise NotImplementedError(
                 'reduction [%s] not implemented' % self.reduction)
 
-        with K.control_dependencies([update_total_op]):
-            return K.update_add(self.count, num_values)
+        return K.update_add(self.count, num_values)
 
     def result(self):
         if self.reduction == metrics_utils.Reduction.SUM:
@@ -217,12 +216,46 @@ class Sum(Reduce):
 
     def __init__(self, name='sum', dtype=None):
         """Creates a `Sum` instance.
+
         # Arguments
             name: (Optional) string name of the metric instance.
             dtype: (Optional) data type of the metric result.
         """
         super(Sum, self).__init__(reduction=metrics_utils.Reduction.SUM,
                                   name=name, dtype=dtype)
+
+
+class Mean(Reduce):
+    """Computes the (weighted) mean of the given values.
+
+    For example, if values is [1, 3, 5, 7] then the mean is 4.
+    If the weights were specified as [1, 1, 0, 0] then the mean would be 2.
+
+    This metric creates two variables, `total` and `count` that are used to
+    compute the average of `values`. This average is ultimately returned as `mean`
+    which is an idempotent operation that simply divides `total` by `count`.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage:
+
+    ```python
+    m = tf.keras.metrics.Mean()
+    m.update_state([1, 3, 5, 7])
+    m.result()
+    ```
+    """
+
+    def __init__(self, name='mean', dtype=None):
+        """Creates a `Mean` instance.
+
+        #Arguments
+            name: (Optional) string name of the metric instance.
+            dtype: (Optional) data type of the metric result.
+        """
+        super(Mean, self).__init__(
+            reduction=metrics_utils.Reduction.WEIGHTED_MEAN, name=name, dtype=dtype)
 
 
 def binary_accuracy(y_true, y_pred):
