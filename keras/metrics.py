@@ -151,12 +151,14 @@ class Reduce(Metric):
         values = K.cast(values, self.dtype)
         if sample_weight is not None:
             sample_weight = K.cast(sample_weight, self.dtype)
+
             # Update dimensions of weights to match with values if possible.
             values, _, sample_weight = losses_utils.squeeze_or_expand_dimensions(
                 values, sample_weight=sample_weight)
 
             # Broadcast weights if possible.
-            sample_weight = losses_utils.broadcast_weights(sample_weight, values)
+            sample_weight = losses_utils.broadcast_weights(values, sample_weight)
+
             values = values * sample_weight
 
         value_sum = K.sum(values)

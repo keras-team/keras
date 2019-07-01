@@ -35,7 +35,7 @@ class Reduction(object):
             raise ValueError('Invalid Reduction Key %s.' % key)
 
 
-def squeeze_or_expand_dimensions(y_pred, y_true, sample_weight):
+def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
     """Squeeze or expand last dimension if needed.
 
     1. Squeezes last dim of `y_pred` or `y_true` if their rank differs by 1.
@@ -66,7 +66,7 @@ def squeeze_or_expand_dimensions(y_pred, y_true, sample_weight):
             y_true = K.squeeze(y_true, -1)
 
     if sample_weight is None:
-        return y_pred, y_true, None
+        return y_pred, y_true
 
     y_pred_rank = K.ndim(y_pred)
     weights_rank = K.ndim(sample_weight)
@@ -99,6 +99,7 @@ def broadcast_weights(values, sample_weight):
     # Broadcast weights if possible.
     weights_shape = K.int_shape(sample_weight)
     values_shape = K.int_shape(values)
+
     if values_shape != weights_shape:
         weights_rank = K.ndim(sample_weight)
         values_rank = K.ndim(values)
