@@ -95,6 +95,38 @@ def reduce_weighted_loss(weighted_losses, reduction=Reduction.SUM_OVER_BATCH_SIZ
     return loss
 
 
+def broadcast_weights(values, sample_weight):
+    # Broadcast weights if possible.
+    weights_shape = K.int_shape(sample_weight)
+    values_shape = K.int_shape(values)
+    if values_shape != weights_shape:
+        weights_rank = K.ndim(sample_weight)
+        values_rank = K.ndim(values)
+
+        # Raise error if ndim of weights is > values.
+        if weights_rank > values_rank:
+            raise ValueError(
+                'Incompatible shapes: `values` {} vs `sample_weight` {}'.format(
+                    values_shape, weights_shape))
+
+        # Expand dim of weights to match ndim of values, if required.
+        for i in range(weights_rank, values_rank):
+            sample_weight = K.expand_dims(sample_weight, axis=i)
+
+        for i in range(weights_rank):
+            if (weights_shape[i] is not None and values_shape[i] is not None and
+                    weights_shape[i] != values_shape[i]):
+                # Cannot be broadcasted.
+                if weights_shape[i] != 1:
+                    raise ValueError(
+                        'Incompatible shapes: `values` {} vs '
+                        '`sample_weight` {}'.format(
+                            values_shape, weights_shape))
+                sample_weight = K.repeat_elements(
+                    sample_weight, values_shape[i], axis=i)
+    return sample_weight
+
+
 def compute_weighted_loss(losses,
                           sample_weight=None,
                           reduction=Reduction.SUM_OVER_BATCH_SIZE,
@@ -129,33 +161,7 @@ def compute_weighted_loss(losses,
             losses, None, sample_weight)
 
         # Broadcast weights if possible.
-        weights_shape = K.int_shape(sample_weight)
-        losses_shape = K.int_shape(losses)
-        if losses_shape != weights_shape:
-            weights_rank = K.ndim(sample_weight)
-            losses_rank = K.ndim(losses)
-
-            # Raise error if ndim of weights is > losses.
-            if weights_rank > losses_rank:
-                raise ValueError(
-                    'Incompatible shapes: `losses` {} vs `sample_weight` {}'.format(
-                        losses_shape, weights_shape))
-
-            # Expand dim of weights to match ndim of losses, if required.
-            for i in range(weights_rank, losses_rank):
-                sample_weight = K.expand_dims(sample_weight, axis=i)
-
-            for i in range(weights_rank):
-                if (weights_shape[i] is not None and losses_shape[i] is not None and
-                        weights_shape[i] != losses_shape[i]):
-                    # Cannot be broadcasted.
-                    if weights_shape[i] != 1:
-                        raise ValueError(
-                            'Incompatible shapes: `losses` {} vs '
-                            '`sample_weight` {}'.format(
-                                losses_shape, weights_shape))
-                    sample_weight = K.repeat_elements(
-                        sample_weight, losses_shape[i], axis=i)
+        sample_weight = broadcast_weights(losses, sample_weight)
 
         # Apply weights to losses.
         weighted_losses = sample_weight * losses
