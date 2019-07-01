@@ -6,6 +6,7 @@ from __future__ import print_function
 
 class Reduction(object):
     """Types of metrics reduction.
+
     Contains the following values:
     * `SUM`: Scalar sum of weighted values.
     * `SUM_OVER_BATCH_SIZE`: Scalar `SUM` of weighted values divided by
@@ -20,8 +21,10 @@ class Reduction(object):
 
 def update_state_wrapper(update_state_fn):
     """Decorator to wrap metric `update_state()` with `add_update()`.
+
     # Arguments
         update_state_fn: function that accumulates metric statistics.
+
     # Returns
         Decorated function that wraps `update_state_fn()` with `add_update()`.
     """
