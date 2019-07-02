@@ -71,6 +71,12 @@ class Metric(Layer):
             metrics_utils.update_state_wrapper(update_state_fn), obj)
         return obj
 
+    def __call__(self, *args, **kwargs):
+        """Accumulates statistics and then computes metric result value."""
+        update_op = self.update_state(*args, **kwargs)
+        with K.control_dependencies([update_op]):
+            return self.result()
+
     def get_config(self):
         """Returns the serializable config of the metric."""
         return {'name': self.name, 'dtype': self.dtype}
@@ -157,7 +163,8 @@ class Reduce(Metric):
             values = values * sample_weight
 
         value_sum = K.sum(values)
-        update_total_op = K.update_add(self.total, value_sum)
+        with K.control_dependencies([value_sum]):
+            update_total_op = K.update_add(self.total, value_sum)
 
         # Exit early if the reduction doesn't have a denominator.
         if self.reduction == metrics_utils.Reduction.SUM:
@@ -175,7 +182,8 @@ class Reduce(Metric):
             raise NotImplementedError(
                 'reduction [%s] not implemented' % self.reduction)
 
-        return K.update_add(self.count, num_values)
+        with K.control_dependencies([update_total_op]):
+            return K.update_add(self.count, num_values)
 
     def result(self):
         if self.reduction == metrics_utils.Reduction.SUM:

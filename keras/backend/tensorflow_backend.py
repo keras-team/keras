@@ -4502,7 +4502,21 @@ def ctc_decode(y_pred, input_length, greedy=True, beam_width=100,
     for st in decoded:
         dense_tensor = tf.sparse.to_dense(st, default_value=-1)
         decoded_dense.append(dense_tensor)
-    return (decoded_dense, log_prob)
+
+
+def control_dependencies(control_inputs):
+    """A context manager that specifies control dependencies for all operations
+    constructed within the context.
+
+    # Arguments
+        control_inputs: A list of Operation or Tensor objects which must be executed
+        or computed before running the operations defined in the context. Can also
+        be None to clear the control dependencies.
+
+    # Returns
+        A context manager.
+    """
+    return tf.control_dependencies(control_inputs)
 
 
 # HIGH ORDER FUNCTIONS

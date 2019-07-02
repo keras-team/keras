@@ -150,6 +150,7 @@ from .load_backend import name_scope
 from .load_backend import symbolic
 from .load_backend import eager
 from .load_backend import size
+from .load_backend import control_dependencies
 
 if backend() == 'theano':
     from .load_backend import pattern_broadcast
