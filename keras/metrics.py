@@ -61,7 +61,7 @@ class Metric(Layer):
         super(Metric, self).__init__(name=name, dtype=dtype, **kwargs)
         self.stateful = True  # All metric layers are stateful.
         self.built = True
-        self.dtype = K.floatx() if dtype is None else dtype
+        self.dtype = dtype or K.floatx()
 
     def __new__(cls, *args, **kwargs):
         obj = super(Metric, cls).__new__(cls)
@@ -70,11 +70,6 @@ class Metric(Layer):
         obj.update_state = types.MethodType(
             metrics_utils.update_state_wrapper(update_state_fn), obj)
         return obj
-
-    def __call__(self, *args, **kwargs):
-        """Accumulates statistics and then computes metric result value."""
-        update_op = self.update_state(*args, **kwargs)
-        return self.result()
 
     def get_config(self):
         """Returns the serializable config of the metric."""

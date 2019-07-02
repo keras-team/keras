@@ -6,7 +6,7 @@ from keras import metrics
 from keras import backend as K
 
 
-class TestSum:
+class TestSum(object):
 
     def test_sum(self):
         m = metrics.Sum(name='my_sum', dtype='float32')
@@ -71,7 +71,7 @@ class TestSum:
         assert np.isclose(K.eval(m.total), 63.75, 2)
 
 
-class TestMean:
+class TestMean(object):
 
     def test_mean(self):
         m = metrics.Mean(name='my_mean')
