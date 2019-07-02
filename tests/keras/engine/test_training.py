@@ -788,7 +788,7 @@ def test_check_last_is_one():
         training_utils.check_loss_and_target_compatibility(
             [a], [losses.categorical_crossentropy], [a.shape])
 
-    assert 'You are passing a target array' in str(exc)
+    assert 'You are passing a target array' in str(exc.value)
 
 
 def test_check_bad_shape():
@@ -797,7 +797,7 @@ def test_check_bad_shape():
         training_utils.check_loss_and_target_compatibility(
             [a], [losses.categorical_crossentropy], [(2, 3, 6)])
 
-    assert 'targets to have the same shape' in str(exc)
+    assert 'targets to have the same shape' in str(exc.value)
 
 
 @pytest.mark.parametrize('input_metrics,expected_output', [
