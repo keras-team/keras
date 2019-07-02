@@ -2899,3 +2899,11 @@ def foldr(fn, elems, initializer=None, name=None):
         accumulator.name = str(name)
 
     return reshape(accumulator, shape(initializer)[1:])
+
+
+def control_dependencies(control_inputs):
+    @contextmanager
+    def nullcontextmanager():
+        yield
+
+    return nullcontextmanager()
