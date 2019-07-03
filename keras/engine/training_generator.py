@@ -50,6 +50,11 @@ def fit_generator(model,
                         ' and multiple workers may duplicate your data.'
                         ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
+    
+    # If steps_per_epoch is provided initially, we won't recompute
+    # steps_per_epoch everytime, else recompute
+    recompute_steps_per_epoch = not steps_per_epoch
+
     if steps_per_epoch is None:
         if use_sequence_api:
             steps_per_epoch = len(generator)
@@ -257,18 +262,19 @@ def fit_generator(model,
             if callbacks.model.stop_training:
                 break
             # If generator is an instance of `keras.utils.Sequence`
-            if use_sequence_api:
+            if recompute_steps_per_epoch and use_sequence_api:
                 # If `on_epoch_end` method is implemented
-                if hasattr(generator , 'on_epoch_end'):
+                if hasattr(generator, 'on_epoch_end'):
                     # Call `on_epoch_end` here instead of doing it inside
                     # `_run()` method in OrderedEnqueuer
                     try:
                         generator.on_epoch_end(epoch)
-                    except TypeError: # If doesn't take epoch as parameter
+                    except TypeError:
+                        # If doesn't take epoch as parameter
                         generator.on_epoch_end()
                 # Recomute steps_per_epochs in case if Sequence changes it's length
                 steps_per_epoch = len(generator)
-                # Update progress bar 
+                # Update progress bar
                 # (Need api to set single parameter instead of passing all)
                 callbacks.set_params({
                     'epochs': epochs,
