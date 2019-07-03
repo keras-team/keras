@@ -256,6 +256,24 @@ def fit_generator(model,
             epoch += 1
             if callbacks.model.stop_training:
                 break
+            # If generator is an instance of `keras.utils.Sequence`
+            if use_sequence_api:
+                # If `on_epoch_end` method is implemented
+                if hasattr(generator,'on_epoch_end'):
+                    # Call `on_epoch_end` here instead of doing it inside
+                    # `_run()` method in OrderedEnqueuer
+                    generator.on_epoch_end(epoch)
+                # Recomute steps_per_epochs in case if Sequence changes it's length
+                steps_per_epoch = len(generator)
+                # Update progress bar 
+                # (Need api to set single parameter instead of passing all)
+                callbacks.set_params({
+                    'epochs': epochs,
+                    'steps': steps_per_epoch,
+                    'verbose': verbose,
+                    'do_validation': do_validation,
+                    'metrics': callback_metrics,
+                })
 
     finally:
         try:

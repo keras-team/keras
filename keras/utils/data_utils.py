@@ -561,9 +561,12 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
     def _run(self):
         """Submits request to the executor and queue the `Future` objects."""
-        sequence = list(range(len(self.sequence)))
         self._send_sequence()  # Share the initial sequence
         while True:
+            # Calculate sequence length each time because of changing
+            # batch_size(if applied)
+            sequence = list(range(len(self.sequence)))
+
             if self.shuffle:
                 random.shuffle(sequence)
 
@@ -583,7 +586,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
                     return
 
             # Call the internal on epoch end.
-            self.sequence.on_epoch_end()
+            # Don't call `sequence.on_epoch_end()` here and instead call
+            # it in `fit_generator` after each epoch.
+            # self.sequence.on_epoch_end()
             self._send_sequence()  # Update the pool
 
     def get(self):
