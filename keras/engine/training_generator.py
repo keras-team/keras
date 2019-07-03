@@ -259,10 +259,13 @@ def fit_generator(model,
             # If generator is an instance of `keras.utils.Sequence`
             if use_sequence_api:
                 # If `on_epoch_end` method is implemented
-                if hasattr(generator,'on_epoch_end'):
+                if hasattr(generator , 'on_epoch_end'):
                     # Call `on_epoch_end` here instead of doing it inside
                     # `_run()` method in OrderedEnqueuer
-                    generator.on_epoch_end(epoch)
+                    try:
+                        generator.on_epoch_end(epoch)
+                    except TypeError: # If doesn't take epoch as parameter
+                        generator.on_epoch_end()
                 # Recomute steps_per_epochs in case if Sequence changes it's length
                 steps_per_epoch = len(generator)
                 # Update progress bar 
