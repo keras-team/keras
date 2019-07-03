@@ -54,8 +54,6 @@ def result_wrapper(result_fn):
         Decorated function that wraps `result()` with identity op.
     """
     def decorated(metric_obj, *args, **kwargs):
-        """Decorated function with `add_update()`."""
-
         return K.identity(result_fn(*args, **kwargs))
 
     return decorated
