@@ -255,7 +255,7 @@ class RNN(Layer):
                 for the cell, the value will be inferred by the first element
                 of the `state_size`.
             It is also possible for `cell` to be a list of RNN cell instances,
-            in which cases the cells get stacked on after the other in the RNN,
+            in which cases the cells get stacked one after the other in the RNN,
             implementing an efficient stacked RNN.
         return_sequences: Boolean. Whether to return the last output
             in the output sequence, or the full sequence.
