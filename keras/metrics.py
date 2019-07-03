@@ -65,10 +65,12 @@ class Metric(Layer):
 
     def __new__(cls, *args, **kwargs):
         obj = super(Metric, cls).__new__(cls)
-        update_state_fn = obj.update_state
 
         obj.update_state = types.MethodType(
-            metrics_utils.update_state_wrapper(update_state_fn), obj)
+            metrics_utils.update_state_wrapper(obj.update_state), obj)
+
+        obj.result = types.MethodType(
+            metrics_utils.result_wrapper(obj.result), obj)
         return obj
 
     def __call__(self, *args, **kwargs):
