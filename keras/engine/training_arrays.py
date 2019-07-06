@@ -104,7 +104,7 @@ def fit_loop(model, fit_function, fit_inputs,
 
     model.history = cbks.History()
     _callbacks = [cbks.BaseLogger(
-        stateful_metrics=model.stateful_metric_names)]
+        stateful_metrics=model.metrics[1:])]
     if verbose:
         if steps_per_epoch is not None:
             count_mode = 'steps'
@@ -113,7 +113,7 @@ def fit_loop(model, fit_function, fit_inputs,
         _callbacks.append(
             cbks.ProgbarLogger(
                 count_mode,
-                stateful_metrics=model.stateful_metric_names))
+                stateful_metrics=model.metrics[1:]))
     _callbacks += (callbacks or []) + [model.history]
     callbacks = cbks.CallbackList(_callbacks)
     out_labels = out_labels or []

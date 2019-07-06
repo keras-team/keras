@@ -49,11 +49,14 @@ class Model(Network):
                 The loss value that will be minimized by the model
                 will then be the sum of all individual losses.
             metrics: List of metrics to be evaluated by the model
-                during training and testing.
-                Typically you will use `metrics=['accuracy']`.
-                To specify different metrics for different outputs of a
-                multi-output model, you could also pass a dictionary,
-                such as `metrics={'output_a': 'accuracy'}`.
+                during training and testing. Typically you will use
+                `metrics=['accuracy']`. To specify different metrics for different
+                outputs of a multi-output model, you could also pass a dictionary,
+                such as
+                `metrics={'output_a': 'accuracy', 'output_b': ['accuracy', 'mse']}`.
+                You can also pass a list (len = len(outputs)) of lists of metrics
+                such as `metrics=[['accuracy'], ['accuracy', 'mse']]` or
+                `metrics=['accuracy', ['accuracy', 'mse']]`.
             loss_weights: Optional list or dictionary specifying scalar
                 coefficients (Python floats) to weight the loss contributions
                 of different model outputs.
@@ -90,10 +93,16 @@ class Model(Network):
         """
         self.optimizer = optimizers.get(optimizer)
         self.loss = loss or {}
-        self.metrics = metrics or []
+        self._compile_metrics = metrics or []
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
-        self.weighted_metrics = weighted_metrics
+        self._compile_weighted_metrics = weighted_metrics
+
+        # List of stateful metric functions. Used for resetting metric state during
+        # training/eval.
+        self._compile_metric_functions = []
+        # List of metric wrappers on output losses.
+        self._output_loss_metrics = None
 
         if not self.built:
             # Model is not compilable because
@@ -197,106 +206,18 @@ class Model(Network):
         self._set_sample_weight_attributes(
             sample_weight_mode, skip_target_weighing_indices)
 
-        # Prepare metrics.
-        self.metrics_names = ['loss']
-        self.metrics_tensors = []
+        # Save all metric attributes per output of the model.
+        self._cache_output_metric_attributes(metrics, weighted_metrics)
 
-        # List of same size as output_names.
-        # contains tuples (metrics for output, names of metrics).
-        nested_metrics = training_utils.collect_metrics(metrics, self.output_names)
-        nested_weighted_metrics = training_utils.collect_metrics(
-            weighted_metrics, self.output_names)
-        self.metrics_updates = []
-        self.stateful_metric_names = []
-        self.stateful_metric_functions = []
+        # Set metric attributes on model.
+        self._set_metric_attributes()
 
-        def handle_metrics(metrics, weights=None):
-            metric_name_prefix = 'weighted_' if weights is not None else ''
-
-            for metric in metrics:
-                if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
-                    # custom handling of accuracy/crossentropy
-                    # (because of class mode duality)
-                    output_shape = K.int_shape(self.outputs[i])
-                    loss_fn = self.loss_functions[i]
-                    if isinstance(loss_fn, losses.LossFunctionWrapper):
-                        loss_fn = loss_fn.fn
-
-                    if (output_shape[-1] == 1 or
-                       loss_fn == losses.binary_crossentropy):
-                        # case: binary accuracy/crossentropy
-                        if metric in ('accuracy', 'acc'):
-                            metric_fn = metrics_module.binary_accuracy
-                        elif metric in ('crossentropy', 'ce'):
-                            metric_fn = metrics_module.binary_crossentropy
-                    elif (loss_fn == losses.sparse_categorical_crossentropy):
-                        # case: categorical accuracy/crossentropy
-                        # with sparse targets
-                        if metric in ('accuracy', 'acc'):
-                            metric_fn = metrics_module.sparse_categorical_accuracy
-                        elif metric in ('crossentropy', 'ce'):
-                            metric_fn = (
-                                metrics_module.sparse_categorical_crossentropy)
-                    else:
-                        # case: categorical accuracy/crossentropy
-                        if metric in ('accuracy', 'acc'):
-                            metric_fn = metrics_module.categorical_accuracy
-                        elif metric in ('crossentropy', 'ce'):
-                            metric_fn = metrics_module.categorical_crossentropy
-                    if metric in ('accuracy', 'acc'):
-                            suffix = 'acc'
-                    elif metric in ('crossentropy', 'ce'):
-                            suffix = 'ce'
-                    weighted_metric_fn = training_utils.weighted_masked_objective(
-                        metric_fn)
-                    metric_name = metric_name_prefix + suffix
-                else:
-                    metric_fn = metrics_module.get(metric)
-                    weighted_metric_fn = training_utils.weighted_masked_objective(
-                        metric_fn)
-                    # Get metric name as string
-                    if hasattr(metric_fn, 'name'):
-                        metric_name = metric_fn.name
-                    else:
-                        metric_name = metric_fn.__name__
-                    metric_name = metric_name_prefix + metric_name
-
-                with K.name_scope(metric_name):
-                    metric_result = weighted_metric_fn(y_true, y_pred,
-                                                       weights=weights,
-                                                       mask=masks[i])
-
-                # Append to self.metrics_names, self.metric_tensors,
-                # self.stateful_metric_names
-                if len(self.output_names) > 1:
-                    metric_name = self.output_names[i] + '_' + metric_name
-                # Dedupe name
-                j = 1
-                base_metric_name = metric_name
-                while metric_name in self.metrics_names:
-                    metric_name = base_metric_name + '_' + str(j)
-                    j += 1
-                self.metrics_names.append(metric_name)
-                self.metrics_tensors.append(metric_result)
-
-                # Keep track of state updates created by
-                # stateful metrics (i.e. metrics layers).
-                if isinstance(metric_fn, Layer) and metric_fn.stateful:
-                    self.stateful_metric_names.append(metric_name)
-                    self.stateful_metric_functions.append(metric_fn)
-                    self.metrics_updates += metric_fn.updates
-        with K.name_scope('metrics'):
-            for i in range(len(self.outputs)):
-                if i in skip_target_indices:
-                    continue
-
-                y_true = self.targets[i]
-                y_pred = self.outputs[i]
-                weights = self.sample_weights[i]
-                output_metrics = nested_metrics[i]
-                output_weighted_metrics = nested_weighted_metrics[i]
-                handle_metrics(output_metrics)
-                handle_metrics(output_weighted_metrics, weights=weights)
+        # Invoke metric functions (unweighted) for all the outputs.
+        self._handle_metrics(
+            self.outputs,
+            targets=self._targets,
+            skip_target_masks=[l is None for l in self.loss_functions],
+            masks=masks)
 
         # Compute total loss.
         # Used to keep track of the total loss value (stateless).
@@ -317,6 +238,37 @@ class Model(Network):
         # Collected trainable weights, sorted in topological order.
         trainable_weights = self.trainable_weights
         self._collected_trainable_weights = trainable_weights
+
+    @property
+    def metrics(self):
+        """Returns the model's metrics added using `compile`, `add_metric` APIs."""
+        metrics = []
+        if self._is_compiled:
+            metrics += self._compile_metric_functions
+        return metrics
+
+    @property
+    def metrics_names(self):
+        """Returns the model's display labels for all outputs."""
+        metrics_names = ['loss']
+        if self._is_compiled:
+            # Add output loss metric names to the metric names list.
+            if len(self._training_endpoints) > 1:
+                metrics_names.extend([
+                    self.output_names[i] + '_loss'
+                    for i in range(len(self.outputs))
+                    if i not in skip_target_indices
+                ])
+
+            # Add compile metrics/weighted metrics' names to the metric names list.
+            metrics_names.extend([m.name for m in self._compile_metric_functions])
+        return metrics_names
+
+    def reset_metrics(self):
+        """Resets the state of metrics."""
+        metrics = self._get_training_eval_metrics()
+        for m in metrics:
+            m.reset_states()
 
     def _check_trainable_weights_consistency(self):
         """Check trainable weights count consistency.
@@ -354,12 +306,17 @@ class Model(Network):
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
                 updates = (self.updates +
-                           training_updates +
-                           self.metrics_updates)
+                           training_updates)
+
+                metrics = self._get_training_eval_metrics()
+                metrics_tensors = [
+                    m._call_result for m in metrics if hasattr(m, '_call_result')
+                ]
+
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(
                     inputs,
-                    [self.total_loss] + self.metrics_tensors,
+                    [self.total_loss] + metrics_tensors,
                     updates=updates,
                     name='train_function',
                     **self._function_kwargs)
@@ -373,12 +330,17 @@ class Model(Network):
                       self._feed_sample_weights)
             if self._uses_dynamic_learning_phase():
                 inputs += [K.learning_phase()]
+
+            metrics = self._get_training_eval_metrics()
+            metrics_tensors = [
+                m._call_result for m in metrics if hasattr(m, '_call_result')
+            ]
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(
                 inputs,
-                [self.total_loss] + self.metrics_tensors,
-                updates=self.state_updates + self.metrics_updates,
+                [self.total_loss] + metrics_tensors,
+                updates=self.state_updates,
                 name='test_function',
                 **self._function_kwargs)
 
@@ -714,8 +676,7 @@ class Model(Network):
                         y_true, y_pred, sample_weight=sample_weight)
 
                 if len(self.outputs) > 1:
-                    self.metrics_tensors.append(output_loss)
-                    self.metrics_names.append(self.output_names[i] + '_loss')
+                    self._output_loss_metrics[i](output_loss)
 
                 if total_loss is None:
                     total_loss = loss_weight * output_loss
@@ -734,6 +695,177 @@ class Model(Network):
                 total_loss += loss_tensor
 
         return total_loss
+
+    def _get_training_eval_metrics(self):
+        """Returns all the metrics that are to be reported.
+
+        This includes the output loss metrics, compile metrics/weighted metrics.
+        """
+        metrics = []
+        if getattr(self, '_output_loss_metrics', None) is not None:
+            metrics.extend(self._output_loss_metrics)
+        if hasattr(self, 'metrics'):
+            metrics.extend(self.metrics)
+        return metrics
+
+    def _cache_output_metric_attributes(self, metrics, weighted_metrics):
+        """Caches metric name and function attributes for every model output."""
+        output_shapes = []
+        for output in self.outputs:
+            if output is None or output.shape.rank is None:
+                output_shapes.append(None)
+            else:
+                output_shapes.append(output.shape.as_list())
+            self._per_output_metrics = training_utils.collect_per_output_metric_info(
+                metrics, self.output_names, output_shapes, self.loss_functions)
+            self._per_output_weighted_metrics = (
+                training_utils.collect_per_output_metric_info(
+                    weighted_metrics,
+                    self.output_names,
+                    output_shapes,
+                    self.loss_functions,
+                    is_weighted=True))
+
+    def _add_unique_metric_name(self, metric_name, output_index):
+        """Makes the metric name unique and adds it to the model's metric name list.
+
+        If there are multiple outputs for which the metrics are calculated, the
+        metric names have to be made unique by appending an integer.
+
+        # Arguments
+            metric_name: Metric name that corresponds to the metric specified by the
+                user. For example: 'acc'.
+            output_index: The index of the model output for which the metric name is
+                being added.
+
+        # Returns
+            string, name of the model's unique metric name
+        """
+        if len(self.output_names) > 1:
+            metric_name = '%s_%s' % (self.output_names[output_index], metric_name)
+        j = 1
+        base_metric_name = metric_name
+        while metric_name in self.metrics_names:
+            metric_name = '%s_%d' % (base_metric_name, j)
+            j += 1
+        return metric_name
+
+    def _set_per_output_metric_attributes(self, metrics_dict, output_index):
+        """Sets the metric attributes on the model for the given output.
+
+        # Arguments
+            metrics_dict: A dict with metric names as keys and metric fns as values.
+            output_index: The index of the model output for which the metric
+                attributes are added.
+
+        # Returns
+            Metrics dict updated with unique metric names as keys.
+        """
+        updated_metrics_dict = collections.OrderedDict()
+        for metric_name, metric_fn in metrics_dict.items():
+            metric_name = self._add_unique_metric_name(metric_name, output_index)
+
+            # Update the name on the metric class to be the unique generated name.
+            metric_fn._name = metric_name
+            updated_metrics_dict[metric_name] = metric_fn
+            # Keep track of metric function.
+            self._compile_metric_functions.append(metric_fn)
+        return updated_metrics_dict
+
+    def _set_metric_attributes(self):
+        """Sets the metric attributes on the model for all the model outputs."""
+        updated_per_output_metrics = []
+        updated_per_output_weighted_metrics = []
+        for i in range(len(self.outputs)):
+            if i in skip_target_indices:
+                updated_per_output_metrics.append(self._per_output_metrics[i])
+                updated_per_output_weighted_metrics.append(
+                    self._per_output_weighted_metrics[i])
+                continue
+            updated_per_output_metrics.append(
+                self._set_per_output_metric_attributes(
+                    self._per_output_metrics[i], i))
+            updated_per_output_weighted_metrics.append(
+                self._set_per_output_metric_attributes(
+                    self._per_output_weighted_metrics[i], i))
+
+        # Create a metric wrapper for each output loss. This computes mean of an
+        # output loss across mini-batches (irrespective of how we reduce within a
+        # batch).
+        if len(self.outputs) > 1:
+            self._output_loss_metrics = [
+                metrics_module.Mean(name=self.output_names[i] + '_loss')
+                for i in range(len(self.loss_functions))
+                if i not in skip_target_indices
+            ]
+
+        self._per_output_metrics = updated_per_output_metrics
+        self._per_output_weighted_metrics = updated_per_output_weighted_metrics
+
+    def _handle_per_output_metrics(self,
+                                   metrics_dict,
+                                   y_true,
+                                   y_pred,
+                                   mask,
+                                   weights=None):
+        """Calls metric functions for a single output.
+
+        # Arguments
+            metrics_dict: A dict with metric names as keys and metric fns as values.
+            y_true: Target output.
+            y_pred: Predicted output.
+            mask: Computed mask value for the current output.
+            weights: Weights to be applied on the current output.
+
+        # Returns
+            A list of metric result tensors.
+        """
+        metric_results = []
+        for metric_name, metric_fn in metrics_dict.items():
+            with K.name_scope(metric_name):
+                metric_result = training_utils.call_metric_function(
+                    metric_fn, y_true, y_pred, weights=weights, mask=mask)
+                metric_results.append(metric_result)
+        return metric_results
+
+    def _handle_metrics(self,
+                        outputs,
+                        targets=None,
+                        skip_target_masks=None,
+                        sample_weights=None,
+                        masks=None):
+        """Handles calling metric functions.
+
+        # Arguments
+            outputs: List of outputs (predictions).
+            targets: List of targets.
+            skip_target_masks: Optional. List of boolean for whether the
+                corresponding target should be ignored or not.
+            sample_weights: Optional list of sample weight arrays.
+            masks: List of computed output mask values.
+
+        Returns:
+          A list of metric result tensors.
+        """
+        skip_target_masks = skip_target_masks or [False] * len(outputs)
+        with K.name_scope('metrics'):
+            # Invoke all metrics added using `compile`.
+            for i in range(len(outputs)):
+                if skip_target_masks[i]:
+                    continue
+                output = outputs[i] if outputs else None
+                target = targets[i] if targets else None
+                output_mask = masks[i] if masks else None
+
+                self._handle_per_output_metrics(
+                    self._per_output_metrics[i], target, output, output_mask)
+                self._handle_per_output_metrics(
+                    self._per_output_weighted_metrics[i],
+                    target,
+                    output,
+                    output_mask,
+                    weights=sample_weights[i] if sample_weights else None)
+        return metric_results
 
     def _get_callback_model(self):
         """Returns the Callback Model for this Model."""
@@ -1326,7 +1458,8 @@ class Model(Network):
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
-                       class_weight=None):
+                       class_weight=None,
+                       reset_metrics=True):
         """Runs a single gradient update on a single batch of data.
 
         # Arguments
@@ -1353,6 +1486,9 @@ class Model(Network):
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
+            reset_metrics: If `True`, the metrics returned will be only for this
+                batch. If `False`, the metrics will be statefully accumulated across
+                batches.
 
         # Returns
             Scalar training loss
@@ -1371,9 +1507,12 @@ class Model(Network):
             ins = x + y + sample_weights
         self._make_train_function()
         outputs = self.train_function(ins)
+
+        if reset_metrics:
+            self.reset_metrics()
         return unpack_singleton(outputs)
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x, y, sample_weight=None, reset_metrics=True):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1394,6 +1533,9 @@ class Model(Network):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
+            reset_metrics: If `True`, the metrics returned will be only for this
+                batch. If `False`, the metrics will be statefully accumulated across
+                batches.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1410,6 +1552,9 @@ class Model(Network):
             ins = x + y + sample_weights
         self._make_test_function()
         outputs = self.test_function(ins)
+
+        if reset_metrics:
+            self.reset_metrics()
         return unpack_singleton(outputs)
 
     def predict_on_batch(self, x):

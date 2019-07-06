@@ -80,12 +80,12 @@ def fit_generator(model,
     # prepare callbacks
     model.history = cbks.History()
     _callbacks = [cbks.BaseLogger(
-        stateful_metrics=model.stateful_metric_names)]
+        stateful_metrics=model.metrics[1:])]
     if verbose:
         _callbacks.append(
             cbks.ProgbarLogger(
                 count_mode='steps',
-                stateful_metrics=model.stateful_metric_names))
+                stateful_metrics=model.metrics[1:]))
     _callbacks += (callbacks or []) + [model.history]
     callbacks = cbks.CallbackList(_callbacks)
 
