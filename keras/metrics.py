@@ -295,8 +295,8 @@ class MeanMetricWrapper(Mean):
         # Returns
             Update op.
         """
-        y_true = K.cast(y_true, self._dtype)
-        y_pred = K.cast(y_pred, self._dtype)
+        y_true = K.cast(y_true, self.dtype)
+        y_pred = K.cast(y_pred, self.dtype)
         y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(y_pred, y_true)
 
         matches = self._fn(y_true, y_pred, **self._fn_kwargs)
@@ -309,6 +309,30 @@ class MeanMetricWrapper(Mean):
             config[k] = K.eval(v) if is_tensor_or_variable(v) else v
         base_config = super(MeanMetricWrapper, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+class MeanSquaredError(MeanMetricWrapper):
+    """Computes the mean squared error between `y_true` and `y_pred`.
+
+    Standalone usage:
+
+    ```python
+    m = keras.metrics.MeanSquaredError()
+    m.update_state([0., 0., 1., 1.], [1., 1., 1., 0.])
+    m.result()
+    ```
+
+    Usage with compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.MeanSquaredError()])
+    ```
+    """
+
+    def __init__(self, name='mean_squared_error', dtype=None):
+        super(MeanSquaredError, self).__init__(
+            mean_squared_error, name, dtype=dtype)
 
 
 def binary_accuracy(y_true, y_pred):

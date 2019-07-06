@@ -171,3 +171,34 @@ class TestMean(object):
         assert K.eval(m.result()) == 100
         assert K.eval(m.total) == 100
         assert K.eval(m.count) == 1
+
+
+class TestMeanSquaredErrorTest(object):
+
+    def test_config(self):
+        mse_obj = metrics.MeanSquaredError(name='my_mse', dtype='int32')
+        assert mse_obj.name == 'my_mse'
+        assert mse_obj.dtype == 'int32'
+
+        # Check save and restore config
+        mse_obj2 = metrics.MeanSquaredError.from_config(mse_obj.get_config())
+        assert mse_obj2.name == 'my_mse'
+        assert mse_obj2.dtype == 'int32'
+
+    def test_unweighted(self):
+        mse_obj = metrics.MeanSquaredError()
+        y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1), (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
+        y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1), (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
+
+        update_op = mse_obj.update_state(y_true, y_pred)
+        K.eval(update_op)
+        result = mse_obj.result()
+        np.isclose(0.5, K.eval(result), atol=1e-5)
+
+    def test_weighted(self):
+        mse_obj = metrics.MeanSquaredError()
+        y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1), (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
+        y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1), (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
+        sample_weight = (1., 1.5, 2., 2.5)
+        result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+        np.isclose(0.54285, K.eval(result), atol=1e-5)
