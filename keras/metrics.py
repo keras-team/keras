@@ -263,6 +263,54 @@ class Mean(Reduce):
             reduction=metrics_utils.Reduction.WEIGHTED_MEAN, name=name, dtype=dtype)
 
 
+class MeanMetricWrapper(Mean):
+    """Wraps a stateless metric function with the Mean metric."""
+
+    def __init__(self, fn, name=None, dtype=None, **kwargs):
+        """Creates a `MeanMetricWrapper` instance.
+
+        # Arguments
+            fn: The metric function to wrap, with signature
+                `fn(y_true, y_pred, **kwargs)`.
+            name: (Optional) string name of the metric instance.
+            dtype: (Optional) data type of the metric result.
+            **kwargs: The keyword arguments that are passed on to `fn`.
+        """
+        super(MeanMetricWrapper, self).__init__(name=name, dtype=dtype)
+        self._fn = fn
+        self._fn_kwargs = kwargs
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        """Accumulates metric statistics.
+
+        `y_true` and `y_pred` should have the same shape.
+
+        # Arguments
+            y_true: The ground truth values.
+            y_pred: The predicted values.
+            sample_weight: Optional weighting of each example. Defaults to 1. Can be
+                a `Tensor` whose rank is either 0, or the same rank as `y_true`,
+                and must be broadcastable to `y_true`.
+
+        # Returns
+            Update op.
+        """
+        y_true = K.cast(y_true, self._dtype)
+        y_pred = K.cast(y_pred, self._dtype)
+        y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(y_pred, y_true)
+
+        matches = self._fn(y_true, y_pred, **self._fn_kwargs)
+        return super(MeanMetricWrapper, self).update_state(
+            matches, sample_weight=sample_weight)
+
+    def get_config(self):
+        config = {}
+        for k, v in six.iteritems(self._fn_kwargs):
+            config[k] = K.eval(v) if is_tensor_or_variable(v) else v
+        base_config = super(MeanMetricWrapper, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
 def binary_accuracy(y_true, y_pred):
     return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
 
