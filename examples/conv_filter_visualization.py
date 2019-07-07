@@ -157,7 +157,7 @@ def visualize_layer(model,
                 if loss_value <= K.epsilon():
                     return None
 
-            # Calulate upscaled dimension
+            # Calculate upscaled dimension
             intermediate_dim = tuple(
                 int(x / (upscaling_factor ** up)) for x in output_dim)
             # Upscale
