@@ -775,11 +775,9 @@ class TestBackend(object):
                                 **kwargs)
 
     def test_rnn_unroll_with_len_1(self):
-        # implement a simple RNN
         num_samples = 4
         input_dim = 5
         output_dim = 3
-        timesteps = 6
 
         _, x = parse_shape_or_val((num_samples, 1, input_dim))
         _, h0 = parse_shape_or_val((num_samples, output_dim))
