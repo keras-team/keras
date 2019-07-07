@@ -773,7 +773,7 @@ class TestBackend(object):
                                 initial_states_np=[h0],
                                 mask_np=kwargs.pop('mask', None),
                                 **kwargs)
-
+    @pytest.mark.skipif(K.backend() == 'theano', reason='Not supported')
     def test_rnn_unroll_with_len_1(self):
         num_samples = 4
         input_dim = 5

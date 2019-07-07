@@ -1484,10 +1484,13 @@ def rnn(step_function, inputs, initial_states,
     assert ndim >= 3, 'Input should be at least 3D.'
 
     if unroll:
-        if input_length is None:
+        if input_length is None]:
             raise ValueError('When specifying `unroll=True`, '
                              'an `input_length` '
                              'must be provided to `rnn`.')
+        if input_length == 1:
+            raise ValueError('`input_length=1` is not
+                             ' supported when `unroll=True`.')
 
     axes = [1, 0] + list(range(2, ndim))
     inputs = inputs.dimshuffle(axes)
