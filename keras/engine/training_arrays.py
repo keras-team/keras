@@ -28,7 +28,6 @@ def fit_loop(model, fit_function, fit_inputs,
              val_function=None,
              val_inputs=None,
              shuffle=True,
-             callback_metrics=None,
              initial_epoch=0,
              steps_per_epoch=None,
              validation_steps=None,
@@ -51,11 +50,6 @@ def fit_loop(model, fit_function, fit_inputs,
         val_function: Keras function to call for validation
         val_inputs: List of tensors to be fed to `val_function`
         shuffle: Whether to shuffle the data at the beginning of each epoch
-        callback_metrics: List of strings, the display names of the metrics
-            passed to the callbacks. They should be the
-            concatenation of list the display names of the outputs of
-             `fit_function` and the list of display names
-             of the outputs of `fit_inputs`.
         initial_epoch: Epoch at which to start training
             (useful for resuming a previous training run)
         steps_per_epoch: Total number of steps (batches of samples)
@@ -103,17 +97,14 @@ def fit_loop(model, fit_function, fit_inputs,
         index_array = np.arange(num_train_samples)
 
     model.history = cbks.History()
-    _callbacks = [cbks.BaseLogger(
-        stateful_metrics=model.metrics[1:])]
+    _callbacks = [cbks.BaseLogger(stateful_metrics=model.metrics_names[1:])]
     if verbose:
         if steps_per_epoch is not None:
             count_mode = 'steps'
         else:
             count_mode = 'samples'
         _callbacks.append(
-            cbks.ProgbarLogger(
-                count_mode,
-                stateful_metrics=model.metrics[1:]))
+            cbks.ProgbarLogger(count_mode, stateful_metrics=model.metrics_names[1:]))
     _callbacks += (callbacks or []) + [model.history]
     callbacks = cbks.CallbackList(_callbacks)
     out_labels = out_labels or []
@@ -121,6 +112,9 @@ def fit_loop(model, fit_function, fit_inputs,
     # it's possible to callback a different model than itself
     # (used by Sequential models)
     callback_model = model._get_callback_model()
+    callback_metrics = list(model.metrics_names)
+    if do_validation:
+        callback_metrics += ['val_' + n for n in model.metrics_names]
 
     callbacks.set_model(callback_model)
     callbacks.set_params({
@@ -130,7 +124,7 @@ def fit_loop(model, fit_function, fit_inputs,
         'samples': num_train_samples,
         'verbose': verbose,
         'do_validation': do_validation,
-        'metrics': callback_metrics or [],
+        'metrics': callback_metrics,
     })
     callbacks._call_begin_hook('train')
     callbacks.model.stop_training = False
@@ -148,9 +142,7 @@ def fit_loop(model, fit_function, fit_inputs,
             indices_for_conversion_to_dense.append(i)
 
     for epoch in range(initial_epoch, epochs):
-        # Reset stateful metrics
-        for m in model.stateful_metric_functions:
-            m.reset_states()
+        model.reset_metrics()
         callbacks.on_epoch_begin(epoch)
         epoch_logs = {}
         if steps_per_epoch is not None:
@@ -373,15 +365,7 @@ def test_loop(model, f, ins,
         the display labels for the scalar outputs.
     """
 
-    if hasattr(model, 'metrics'):
-        for m in model.stateful_metric_functions:
-            m.reset_states()
-        stateful_metric_indices = [
-            i for i, name in enumerate(model.metrics_names)
-            if str(name) in model.stateful_metric_names]
-    else:
-        stateful_metric_indices = []
-
+    model.reset_metrics()
     num_samples = check_num_samples(ins,
                                     batch_size=batch_size,
                                     steps=steps,
@@ -392,9 +376,7 @@ def test_loop(model, f, ins,
         callbacks = cbks.CallbackList(callbacks)
         callback_model = model._get_callback_model()
         callbacks.set_model(callback_model)
-        callback_metrics = []
-        if hasattr(model, 'metrics_names'):
-            callback_metrics = list(model.metrics_names)
+        callback_metrics = list(model.metrics_names)
         callback_params = {
             'batch_size': batch_size,
             'steps': steps,
@@ -433,7 +415,7 @@ def test_loop(model, f, ins,
                 if step == 0:
                     outs.extend([0.] * len(batch_outs))
                 for i, batch_out in enumerate(batch_outs):
-                    if i in stateful_metric_indices:
+                    if i == 0:  # Index 0 == `Loss`
                         outs[i] = float(batch_out)
                     else:
                         outs[i] += batch_out
@@ -442,16 +424,13 @@ def test_loop(model, f, ins,
                     outs.append(0.)
                 outs[0] += batch_outs
 
-            if hasattr(model, 'metrics_names'):
-                for l, o in zip(model.metrics_names, batch_outs):
-                    batch_logs[l] = o
+            for l, o in zip(model.metrics_names, batch_outs):
+                batch_logs[l] = o
             callbacks._call_batch_hook('test', 'end', step, batch_logs)
 
             if verbose == 1:
                 progbar.update(step + 1)
-        for i in range(len(outs)):
-            if i not in stateful_metric_indices:
-                outs[i] /= steps
+        outs[0] /= steps  # Index 0 == `Loss`
     else:
         batches = make_batches(num_samples, batch_size)
         index_array = np.arange(num_samples)
@@ -472,24 +451,21 @@ def test_loop(model, f, ins,
                 if batch_index == 0:
                     outs.extend([0.] * len(batch_outs))
                 for i, batch_out in enumerate(batch_outs):
-                    if i in stateful_metric_indices:
-                        outs[i] = batch_out
-                    else:
+                    if i == 0:  # Index 0 == `Loss`
                         outs[i] += batch_out * len(batch_ids)
+                    else:
+                        outs[i] = batch_out
             else:
                 if batch_index == 0:
                     outs.append(0.)
                 outs[0] += batch_outs * len(batch_ids)
 
-            if hasattr(model, 'metrics_names'):
-                for l, o in zip(model.metrics_names, batch_outs):
-                    batch_logs[l] = o
+            for l, o in zip(model.metrics_names, batch_outs):
+                batch_logs[l] = o
             callbacks._call_batch_hook('test', 'end', batch_index, batch_logs)
 
             if verbose == 1:
                 progbar.update(batch_end)
-        for i in range(len(outs)):
-            if i not in stateful_metric_indices:
-                outs[i] /= num_samples
+        outs[0] /= num_samples  # Index 0 == `Loss`
     callbacks._call_end_hook('test')
     return unpack_singleton(outs)

@@ -466,7 +466,7 @@ def test_ModelCheckpoint(tmpdir):
 
     # case 3
     mode = 'max'
-    monitor = 'val_acc'
+    monitor = 'val_accuracy'
     cbks = [callbacks.ModelCheckpoint(filepath,
                                       monitor=monitor,
                                       save_best_only=save_best_only,

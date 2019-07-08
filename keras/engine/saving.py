@@ -179,8 +179,8 @@ def _serialize_model(model, h5dict, include_optimizer=True):
                     'config': model.optimizer.get_config()
                 },
                 'loss': model.loss,
-                'metrics': model.metrics,
-                'weighted_metrics': model.weighted_metrics,
+                'metrics': model._compile_metrics,
+                'weighted_metrics': model._compile_weighted_metrics,
                 'sample_weight_mode': model.sample_weight_mode,
                 'loss_weights': model.loss_weights,
             }, default=get_json_type).encode('utf8')

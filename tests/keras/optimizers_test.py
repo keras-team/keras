@@ -39,7 +39,7 @@ def _test_optimizer(optimizer, target=0.75):
                   metrics=['accuracy'])
 
     history = model.fit(x_train, y_train, epochs=3, batch_size=16, verbose=0)
-    assert history.history['acc'][-1] >= target
+    assert history.history['accuracy'][-1] >= target
     config = optimizers.serialize(optimizer)
     optim = optimizers.deserialize(config)
     new_config = optimizers.serialize(optim)
