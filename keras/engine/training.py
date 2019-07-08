@@ -4,6 +4,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import warnings
 import copy
 import numpy as np
@@ -124,11 +125,11 @@ class Model(Network):
 
         # if loss function is None, then this output will be skipped during total
         # loss calculation and feed targets preparation.
-        skip_target_indices = []
+        self.skip_target_indices = []
         skip_target_weighing_indices = []
         for i, loss_function in enumerate(self.loss_functions):
             if loss_function is None:
-                skip_target_indices.append(i)
+                self.skip_target_indices.append(i)
                 skip_target_weighing_indices.append(i)
 
         # Prepare output masks.
@@ -177,7 +178,7 @@ class Model(Network):
                                 target_tensors)
 
         for i in range(len(self.outputs)):
-            if i in skip_target_indices:
+            if i in self.skip_target_indices:
                 self.targets.append(None)
             else:
                 shape = K.int_shape(self.outputs[i])
@@ -215,8 +216,9 @@ class Model(Network):
         # Invoke metric functions (unweighted) for all the outputs.
         self._handle_metrics(
             self.outputs,
-            targets=self._targets,
+            targets=self.targets,
             skip_target_masks=[l is None for l in self.loss_functions],
+            sample_weights=self.sample_weights,
             masks=masks)
 
         # Compute total loss.
@@ -224,7 +226,7 @@ class Model(Network):
         # eg., total_loss = loss_weight_1 * output_1_loss_fn(...) +
         #                   loss_weight_2 * output_2_loss_fn(...) +
         #                   layer losses.
-        self.total_loss = self._prepare_total_loss(skip_target_indices, masks)
+        self.total_loss = self._prepare_total_loss(masks)
 
         # Functions for train, test and predict will
         # be compiled lazily when required.
@@ -253,11 +255,11 @@ class Model(Network):
         metrics_names = ['loss']
         if self._is_compiled:
             # Add output loss metric names to the metric names list.
-            if len(self._training_endpoints) > 1:
+            if len(self.outputs) > 1:
                 metrics_names.extend([
                     self.output_names[i] + '_loss'
                     for i in range(len(self.outputs))
-                    if i not in skip_target_indices
+                    if i not in self.skip_target_indices
                 ])
 
             # Add compile metrics/weighted metrics' names to the metric names list.
@@ -528,7 +530,8 @@ class Model(Network):
                     target_tensors = None
                 self.compile(optimizer=self.optimizer,
                              loss=self.loss,
-                             metrics=self.metrics,
+                             metrics=self._compile_metrics,
+                             weighted_metrics=self._compile_weighted_metrics,
                              loss_weights=self.loss_weights,
                              target_tensors=target_tensors)
 
@@ -638,7 +641,7 @@ class Model(Network):
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
 
-    def _prepare_total_loss(self, skip_target_indices=None, masks=None):
+    def _prepare_total_loss(self, masks=None):
         """Computes total loss from loss functions.
 
         # Arguments
@@ -649,14 +652,13 @@ class Model(Network):
         # Returns
             A list of loss weights of python floats.
         """
-        skip_target_indices = skip_target_indices or []
         total_loss = None
         with K.name_scope('loss'):
             zipped_inputs = zip(self.targets, self.outputs, self.loss_functions,
                                 self.sample_weights, masks, self.loss_weights_list)
             for i, (y_true, y_pred, loss_fn, sample_weight, mask,
                     loss_weight) in enumerate(zipped_inputs):
-                if i in skip_target_indices:
+                if i in self.skip_target_indices:
                     continue
                 loss_name = self.output_names[i] + '_loss'
                 with K.name_scope(loss_name):
@@ -716,15 +718,15 @@ class Model(Network):
                 output_shapes.append(None)
             else:
                 output_shapes.append(output.shape.as_list())
-            self._per_output_metrics = training_utils.collect_per_output_metric_info(
-                metrics, self.output_names, output_shapes, self.loss_functions)
-            self._per_output_weighted_metrics = (
-                training_utils.collect_per_output_metric_info(
-                    weighted_metrics,
-                    self.output_names,
-                    output_shapes,
-                    self.loss_functions,
-                    is_weighted=True))
+        self._per_output_metrics = training_utils.collect_per_output_metric_info(
+            metrics, self.output_names, output_shapes, self.loss_functions)
+        self._per_output_weighted_metrics = (
+            training_utils.collect_per_output_metric_info(
+                weighted_metrics,
+                self.output_names,
+                output_shapes,
+                self.loss_functions,
+                is_weighted=True))
 
     def _add_unique_metric_name(self, metric_name, output_index):
         """Makes the metric name unique and adds it to the model's metric name list.
@@ -743,6 +745,7 @@ class Model(Network):
         """
         if len(self.output_names) > 1:
             metric_name = '%s_%s' % (self.output_names[output_index], metric_name)
+
         j = 1
         base_metric_name = metric_name
         while metric_name in self.metrics_names:
@@ -766,7 +769,7 @@ class Model(Network):
             metric_name = self._add_unique_metric_name(metric_name, output_index)
 
             # Update the name on the metric class to be the unique generated name.
-            metric_fn._name = metric_name
+            metric_fn.name = metric_name
             updated_metrics_dict[metric_name] = metric_fn
             # Keep track of metric function.
             self._compile_metric_functions.append(metric_fn)
@@ -777,7 +780,7 @@ class Model(Network):
         updated_per_output_metrics = []
         updated_per_output_weighted_metrics = []
         for i in range(len(self.outputs)):
-            if i in skip_target_indices:
+            if i in self.skip_target_indices:
                 updated_per_output_metrics.append(self._per_output_metrics[i])
                 updated_per_output_weighted_metrics.append(
                     self._per_output_weighted_metrics[i])
@@ -796,7 +799,6 @@ class Model(Network):
             self._output_loss_metrics = [
                 metrics_module.Mean(name=self.output_names[i] + '_loss')
                 for i in range(len(self.loss_functions))
-                if i not in skip_target_indices
             ]
 
         self._per_output_metrics = updated_per_output_metrics
@@ -816,17 +818,12 @@ class Model(Network):
             y_pred: Predicted output.
             mask: Computed mask value for the current output.
             weights: Weights to be applied on the current output.
-
-        # Returns
-            A list of metric result tensors.
         """
-        metric_results = []
+
         for metric_name, metric_fn in metrics_dict.items():
             with K.name_scope(metric_name):
                 metric_result = training_utils.call_metric_function(
                     metric_fn, y_true, y_pred, weights=weights, mask=mask)
-                metric_results.append(metric_result)
-        return metric_results
 
     def _handle_metrics(self,
                         outputs,
@@ -843,9 +840,6 @@ class Model(Network):
                 corresponding target should be ignored or not.
             sample_weights: Optional list of sample weight arrays.
             masks: List of computed output mask values.
-
-        Returns:
-          A list of metric result tensors.
         """
         skip_target_masks = skip_target_masks or [False] * len(outputs)
         with K.name_scope('metrics'):
@@ -865,7 +859,6 @@ class Model(Network):
                     output,
                     output_mask,
                     weights=sample_weights[i] if sample_weights else None)
-        return metric_results
 
     def _get_callback_model(self):
         """Returns the Callback Model for this Model."""
@@ -1210,10 +1203,7 @@ class Model(Network):
         if do_validation:
             self._make_test_function()
             val_function = self.test_function
-            callback_metrics = copy.copy(out_labels) + [
-                'val_' + n for n in out_labels]
         else:
-            callback_metrics = copy.copy(out_labels)
             val_function = None
             val_inputs = []
 
@@ -1227,7 +1217,6 @@ class Model(Network):
                                         val_function=val_function,
                                         val_inputs=val_inputs,
                                         shuffle=shuffle,
-                                        callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
                                         steps_per_epoch=steps_per_epoch,
                                         validation_steps=validation_steps,

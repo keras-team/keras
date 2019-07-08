@@ -54,6 +54,8 @@ def result_wrapper(result_fn):
         Decorated function that wraps `result()` with identity op.
     """
     def decorated(metric_obj, *args, **kwargs):
-        return K.identity(result_fn(*args, **kwargs))
+        result_t = K.identity(result_fn(*args, **kwargs))
+        metric_obj._call_result = result_t
+        return result_t
 
     return decorated

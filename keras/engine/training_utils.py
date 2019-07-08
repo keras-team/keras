@@ -10,9 +10,11 @@ import copy
 import numpy as np
 import six
 import warnings
+from collections import OrderedDict
 
 from .. import backend as K
 from .. import losses
+from .. import metrics as metrics_module
 from ..utils import Sequence
 from ..utils import generic_utils
 from ..utils import losses_utils
@@ -324,47 +326,6 @@ def check_generator_arguments(y=None, sample_weight=None,
     if validation_split:
         raise ValueError('If your data is in the form of a Python generator, '
                          'you cannot use `validation_split`.')
-
-
-def collect_metrics(metrics, output_names):
-    """Maps metric functions to model outputs.
-
-    # Arguments
-        metrics: a list or dict of metric functions.
-        output_names: a list of the names (strings) of model outputs.
-
-    # Returns
-        A list (one entry per model output) of lists of metric functions.
-        For instance, if the model has 2 outputs, and for the first output
-        we want to compute "binary_accuracy" and "binary_crossentropy",
-        and just "binary_accuracy" for the second output,
-        the list would look like:
-            `[[binary_accuracy, binary_crossentropy], [binary_accuracy]]`
-
-    # Raises
-        TypeError: if an incorrect type is passed for the `metrics` argument.
-    """
-    if not metrics:
-        return [[] for _ in output_names]
-    if isinstance(metrics, list):
-        # we then apply all metrics to all outputs.
-        return [copy.copy(metrics) for _ in output_names]
-    elif isinstance(metrics, dict):
-        nested_metrics = []
-        if not set(metrics.keys()).issubset(set(output_names)):
-            unknown_output_names = list(set(metrics.keys()) - set(output_names))
-            warnings.warn('Invalid layer name for metric computations: '
-                          '{}. Available names are {}.'
-                          .format(unknown_output_names, output_names))
-        for name in output_names:
-            output_metrics = metrics.get(name, [])
-            output_metrics = generic_utils.to_list(output_metrics)
-            nested_metrics.append(output_metrics)
-        return nested_metrics
-    else:
-        raise TypeError('Type of `metrics` argument not understood. '
-                        'Expected a list or dictionary, found: ' +
-                        str(metrics))
 
 
 def batch_shuffle(index_array, batch_size):
@@ -910,3 +871,165 @@ def prepare_loss_weights(output_names, loss_weights=None):
                         str(loss_weights) + ' - expected a list of dicts.')
 
     return weights_list
+
+
+def collect_per_output_metric_info(metrics,
+                                   output_names,
+                                   output_shapes,
+                                   loss_fns,
+                                   is_weighted=False):
+    """Maps metric names and functions to model outputs.
+
+    # Arguments
+        metrics: a list or a list of lists or a dict of metric functions.
+        output_names: a list of the names (strings) of model outputs.
+        output_shapes: a list of the shapes (strings) of model outputs.
+        loss_fns: a list of the loss functions corresponding to the model outputs.
+        is_weighted: Boolean indicating whether the given metrics are weighted.
+
+    # Returns
+        A list (one entry per model output) of dicts.
+        For instance, if the model has 2 outputs, and for the first output
+        we want to compute "binary_accuracy" and "binary_crossentropy",
+        and just "binary_accuracy" for the second output,
+        the list would look like: `[{
+            'acc': binary_accuracy(),
+            'ce': binary_crossentropy(),
+        }, {
+            'acc': binary_accuracy(),
+        }]`
+
+    # Raises
+        TypeError: if an incorrect type is passed for the `metrics` argument.
+    """
+    if not metrics:
+        return [{} for _ in output_names]
+
+    if isinstance(metrics, list):
+        any_sub_list = any(isinstance(m, list) for m in metrics)
+        if any_sub_list:
+            if len(metrics) != len(output_names):
+                raise ValueError('When passing a list of lists as `metrics`, '
+                                 'it should have one entry per model output. '
+                                 'The model has ' + str(len(output_names)) +
+                                 ' outputs, but you passed metrics=' + str(metrics))
+            # User has provided a list of len = len(outputs).
+            nested_metrics = [generic_utils.to_list(m) for m in metrics]
+        else:
+            # If it is a single list we then apply all metrics to all outputs.
+            if len(output_names) > 1:
+                nested_metrics = []
+                for _ in output_names:
+                    nested_metrics.append(
+                        [metrics_module.clone_metric(m) for m in metrics])
+            else:
+                nested_metrics = [metrics]
+    elif isinstance(metrics, collections.Mapping):
+        generic_utils.check_for_unexpected_keys('metrics', metrics, output_names)
+        nested_metrics = []
+        for name in output_names:
+            output_metrics = generic_utils.to_list(metrics.get(name, []))
+            nested_metrics.append(output_metrics)
+    else:
+        raise TypeError('Type of `metrics` argument not understood. '
+                        'Expected a list or dictionary, found: ' + str(metrics))
+
+    per_output_metrics = []
+    for i, metrics in enumerate(nested_metrics):
+        metrics_dict = OrderedDict()
+        for metric in metrics:
+            metric_name = get_metric_name(metric, is_weighted)
+            metric_fn = get_metric_function(
+                metric, output_shape=output_shapes[i], loss_fn=loss_fns[i])
+
+            # If the metric function is not stateful, we create a stateful version.
+            if not isinstance(metric_fn, metrics_module.Metric):
+                metric_fn = metrics_module.MeanMetricWrapper(
+                    metric_fn, name=metric_name)
+            metrics_dict[metric_name] = metric_fn
+        per_output_metrics.append(metrics_dict)
+
+    return per_output_metrics
+
+
+def get_metric_name(metric, weighted=False):
+    """Returns the name corresponding to the given metric input.
+
+    # Arguments
+        metric: Metric function name or reference.
+        weighted: Boolean indicating if the given metric is weighted.
+
+    # Returns
+        The metric name.
+    """
+    # We keep the string that the user has set in compile as the metric name.
+    if isinstance(metric, six.string_types):
+        return metric
+
+    metric = metrics_module.get(metric)
+    return metric.name if hasattr(metric, 'name') else metric.__name__
+
+
+def get_metric_function(metric, output_shape=None, loss_fn=None):
+    """Returns the metric function corresponding to the given metric input.
+
+    # Arguments
+        metric: Metric function name or reference.
+        output_shape: The shape of the output that this metric will be calculated
+            for.
+        loss_fn: The loss function used.
+
+    # Returns
+        The metric function.
+    """
+    if metric not in ['accuracy', 'acc', 'crossentropy', 'ce']:
+        return metrics_module.get(metric)
+
+    is_sparse_categorical_crossentropy = (
+        isinstance(loss_fn, losses.SparseCategoricalCrossentropy) or
+        (isinstance(loss_fn, losses.LossFunctionWrapper) and
+         loss_fn.fn == losses.sparse_categorical_crossentropy))
+
+    is_binary_crossentropy = (
+        isinstance(loss_fn, losses.BinaryCrossentropy) or
+        (isinstance(loss_fn, losses.LossFunctionWrapper) and
+         loss_fn.fn == losses.binary_crossentropy))
+
+    if metric in ['accuracy', 'acc']:
+        if output_shape[-1] == 1 or is_binary_crossentropy:
+            return metrics_module.binary_accuracy
+        elif is_sparse_categorical_crossentropy:
+            return metrics_module.sparse_categorical_accuracy
+        # If the output_shape[-1] is not 1, then we know output is `categorical`.
+        # We assume it is sparse categorical only if loss is explicitly given
+        # as sparse categorical crossentropy loss.
+        return metrics_module.categorical_accuracy
+    else:
+        if output_shape[-1] == 1 or is_binary_crossentropy:
+            return metrics_module.binary_crossentropy
+        elif is_sparse_categorical_crossentropy:
+            return metrics_module.sparse_categorical_crossentropy
+        return metrics_module.categorical_crossentropy
+
+
+def call_metric_function(metric_fn,
+                         y_true,
+                         y_pred=None,
+                         weights=None,
+                         mask=None):
+    """Invokes metric function and returns the metric result tensor."""
+    if mask is not None:
+        mask = math_ops.cast(mask, y_pred.dtype)
+        if weights is None:
+            # Use mask as sample weight.
+            weights = mask
+        else:
+            # Update dimensions of weights to match with mask.
+            mask, _, weights = tf_losses_utils.squeeze_or_expand_dimensions(
+                mask, sample_weight=weights)
+            weights *= mask
+
+    if y_pred is not None:
+        return metric_fn(y_true, y_pred, sample_weight=weights)
+    # `Mean` metric only takes a single value.
+    return metric_fn(y_true, sample_weight=weights)
