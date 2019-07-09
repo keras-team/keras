@@ -37,7 +37,7 @@ def test_vector_classification():
     history = model.fit(x_train, y_train, epochs=15, batch_size=16,
                         validation_data=(x_test, y_test),
                         verbose=0)
-    assert(history.history['val_acc'][-1] > 0.8)
+    assert(history.history['val_accuracy'][-1] > 0.8)
     config = model.get_config()
     model = Sequential.from_config(config)
 
@@ -57,11 +57,11 @@ def test_vector_classification_functional():
     model = keras.models.Model(inputs, outputs)
     model.compile(loss=keras.losses.sparse_categorical_crossentropy,
                   optimizer=keras.optimizers.Adam(1e-3),
-                  metrics=['acc'])
+                  metrics=['accuracy'])
     history = model.fit(x_train, y_train, epochs=15, batch_size=16,
                         validation_data=(x_train, y_train),
                         verbose=0)
-    assert(history.history['val_acc'][-1] > 0.8)
+    assert(history.history['val_accuracy'][-1] > 0.8)
 
 
 def test_vector_regression():
