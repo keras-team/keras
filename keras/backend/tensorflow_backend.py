@@ -4509,9 +4509,10 @@ def control_dependencies(control_inputs):
     """A context manager that specifies control dependencies.
 
     # Arguments
-        control_inputs: A list of Operation or Tensor objects which must be executed
-        or computed before running the operations defined in the context. Can also
-        be None to clear the control dependencies.
+        control_inputs: A list of Operation or Tensor objects
+            which must be executed
+            or computed before running the operations defined in the context.
+            Can also be None to clear the control dependencies.
 
     # Returns
         A context manager.

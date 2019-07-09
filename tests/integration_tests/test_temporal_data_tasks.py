@@ -38,7 +38,7 @@ def test_temporal_classification():
     history = model.fit(x_train, y_train, epochs=4, batch_size=10,
                         validation_data=(x_test, y_test),
                         verbose=0)
-    assert(history.history['acc'][-1] >= 0.8)
+    assert(history.history['accuracy'][-1] >= 0.8)
     config = model.get_config()
     model = Sequential.from_config(config)
 
@@ -69,7 +69,7 @@ def test_temporal_classification_functional():
     history = model.fit(x_train, y_train, epochs=4, batch_size=10,
                         validation_data=(x_test, y_test),
                         verbose=0)
-    assert(history.history['acc'][-1] >= 0.8)
+    assert(history.history['accuracy'][-1] >= 0.8)
 
 
 def test_temporal_regression():

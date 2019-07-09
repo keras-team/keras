@@ -41,7 +41,7 @@ def test_tf_optimizer():
                   metrics=['accuracy'])
     history = model.fit(x_train, y_train, epochs=8, batch_size=16,
                         validation_data=(x_test, y_test), verbose=2)
-    assert history.history['val_acc'][-1] >= target
+    assert history.history['val_accuracy'][-1] >= target
 
     # Test saving.
     _, fname = tempfile.mkstemp('.h5')
