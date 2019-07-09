@@ -1489,7 +1489,7 @@ def rnn(step_function, inputs, initial_states,
                              'an `input_length` '
                              'must be provided to `rnn`.')
         if input_length == 1:
-            raise ValueError('`input_length=1` is not
+            raise ValueError('`input_length=1` is not'
                              ' supported when `unroll=True`.')
 
     axes = [1, 0] + list(range(2, ndim))
