@@ -177,84 +177,88 @@ def fit_generator(model,
             callbacks.on_epoch_begin(epoch)
             steps_done = 0
             batch_index = 0
-            while steps_done < steps_per_epoch:
-                generator_output = next(output_generator)
+            
+            try:
+                while steps_done < steps_per_epoch:
+                    generator_output = next(output_generator)
 
-                if not hasattr(generator_output, '__len__'):
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
+                    if not hasattr(generator_output, '__len__'):
+                        raise ValueError('Output of generator should be '
+                                         'a tuple `(x, y, sample_weight)` '
+                                         'or `(x, y)`. Found: ' +
+                                         str(generator_output))
 
-                if len(generator_output) == 2:
-                    x, y = generator_output
-                    sample_weight = None
-                elif len(generator_output) == 3:
-                    x, y, sample_weight = generator_output
-                else:
-                    raise ValueError('Output of generator should be '
-                                     'a tuple `(x, y, sample_weight)` '
-                                     'or `(x, y)`. Found: ' +
-                                     str(generator_output))
-                if x is None or len(x) == 0:
-                    # Handle data tensors support when no input given
-                    # step-size = 1 for data tensors
-                    batch_size = 1
-                elif isinstance(x, list):
-                    batch_size = x[0].shape[0]
-                elif isinstance(x, dict):
-                    batch_size = list(x.values())[0].shape[0]
-                else:
-                    batch_size = x.shape[0]
-                # build batch logs
-                batch_logs = {'batch': batch_index, 'size': batch_size}
-                callbacks.on_batch_begin(batch_index, batch_logs)
-
-                outs = model.train_on_batch(x, y,
-                                            sample_weight=sample_weight,
-                                            class_weight=class_weight)
-
-                outs = to_list(outs)
-                for l, o in zip(out_labels, outs):
-                    batch_logs[l] = o
-
-                callbacks._call_batch_hook('train', 'end', batch_index, batch_logs)
-
-                batch_index += 1
-                steps_done += 1
-
-                # Epoch finished.
-                if (steps_done >= steps_per_epoch and
-                        do_validation and
-                        should_run_validation(validation_freq, epoch)):
-                    # Note that `callbacks` here is an instance of
-                    # `keras.callbacks.CallbackList`
-                    if val_gen:
-                        val_outs = model.evaluate_generator(
-                            val_enqueuer_gen,
-                            validation_steps,
-                            callbacks=callbacks,
-                            workers=0)
+                    if len(generator_output) == 2:
+                        x, y = generator_output
+                        sample_weight = None
+                    elif len(generator_output) == 3:
+                        x, y, sample_weight = generator_output
                     else:
-                        # No need for try/except because
-                        # data has already been validated.
-                        val_outs = model.evaluate(
-                            val_x, val_y,
-                            batch_size=batch_size,
-                            sample_weight=val_sample_weights,
-                            callbacks=callbacks,
-                            verbose=0)
-                    val_outs = to_list(val_outs)
-                    # Same labels assumed.
-                    for l, o in zip(out_labels, val_outs):
-                        epoch_logs['val_' + l] = o
+                        raise ValueError('Output of generator should be '
+                                         'a tuple `(x, y, sample_weight)` '
+                                         'or `(x, y)`. Found: ' +
+                                         str(generator_output))
+                    if x is None or len(x) == 0:
+                        # Handle data tensors support when no input given
+                        # step-size = 1 for data tensors
+                        batch_size = 1
+                    elif isinstance(x, list):
+                        batch_size = x[0].shape[0]
+                    elif isinstance(x, dict):
+                        batch_size = list(x.values())[0].shape[0]
+                    else:
+                        batch_size = x.shape[0]
+                    # build batch logs
+                    batch_logs = {'batch': batch_index, 'size': batch_size}
+                    callbacks.on_batch_begin(batch_index, batch_logs)
 
+                    outs = model.train_on_batch(x, y,
+                                                sample_weight=sample_weight,
+                                                class_weight=class_weight)
+
+                    outs = to_list(outs)
+                    for l, o in zip(out_labels, outs):
+                        batch_logs[l] = o
+
+                    callbacks._call_batch_hook('train', 'end', batch_index, batch_logs)
+
+                    batch_index += 1
+                    steps_done += 1
+
+                    # Epoch finished.
+                    if (steps_done >= steps_per_epoch and
+                            do_validation and
+                            should_run_validation(validation_freq, epoch)):
+                        # Note that `callbacks` here is an instance of
+                        # `keras.callbacks.CallbackList`
+                        if val_gen:
+                            val_outs = model.evaluate_generator(
+                                val_enqueuer_gen,
+                                validation_steps,
+                                callbacks=callbacks,
+                                workers=0)
+                        else:
+                            # No need for try/except because
+                            # data has already been validated.
+                            val_outs = model.evaluate(
+                                val_x, val_y,
+                                batch_size=batch_size,
+                                sample_weight=val_sample_weights,
+                                callbacks=callbacks,
+                                verbose=0)
+                        val_outs = to_list(val_outs)
+                        # Same labels assumed.
+                        for l, o in zip(out_labels, val_outs):
+                            epoch_logs['val_' + l] = o
+
+                    if callbacks.model.stop_training:
+                        break
+
+                callbacks.on_epoch_end(epoch, epoch_logs)
+                epoch += 1
                 if callbacks.model.stop_training:
                     break
-
-            callbacks.on_epoch_end(epoch, epoch_logs)
-            epoch += 1
-            if callbacks.model.stop_training:
+            except StopIteration:
                 break
 
     finally:
