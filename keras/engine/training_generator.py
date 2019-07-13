@@ -176,8 +176,7 @@ def fit_generator(model,
                 m.reset_states()
             callbacks.on_epoch_begin(epoch)
             steps_done = 0
-            batch_index = 0
-            
+            batch_index = 0            
             try:
                 while steps_done < steps_per_epoch:
                     generator_output = next(output_generator)
@@ -221,7 +220,6 @@ def fit_generator(model,
                         batch_logs[l] = o
 
                     callbacks._call_batch_hook('train', 'end', batch_index, batch_logs)
-
                     batch_index += 1
                     steps_done += 1
 
