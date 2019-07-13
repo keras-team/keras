@@ -13,6 +13,7 @@ allobj = [losses.mean_squared_error,
           losses.mean_squared_logarithmic_error,
           losses.squared_hinge,
           losses.hinge,
+          losses.huber,
           losses.categorical_crossentropy,
           losses.binary_crossentropy,
           losses.kullback_leibler_divergence,
@@ -56,6 +57,16 @@ def test_categorical_hinge():
                                   [1, 0, 0]]))
     expected_loss = ((0.3 - 0.2 + 1) + (0.7 - 0.1 + 1)) / 2.0
     loss = K.eval(losses.categorical_hinge(y_true, y_pred))
+    assert np.isclose(expected_loss, np.mean(loss))
+
+
+def test_huber():
+    y_pred = K.variable(np.array([[0.3],
+                                  [0.09]]))
+    y_true = K.variable(np.array([[0.29],
+                                  [0.1]]))
+    expected_loss = (0.5 * (0.3 - 0.29)**2) + (0.5 * (0.09 - 0.1)**2)
+    loss = K.eval(losses.huber(y_true, y_pred))
     assert np.isclose(expected_loss, np.mean(loss))
 
 
