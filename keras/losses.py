@@ -6,6 +6,7 @@ from __future__ import print_function
 
 import six
 import tensorflow as tf
+import numpy as np
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
 from .utils.generic_utils import serialize_keras_object
@@ -42,7 +43,7 @@ def hinge(y_true, y_pred):
 
 def huber(y_true, y_pred, huber_delta=0.1):
     error = y_true - y_pred
-    cond = K.abs(error) < tf.convert_to_tensor(huber_delta)
+    cond = np.abs(error) < huber_delta
     squared_loss = 0.5 * K.square(error)
     linear_loss = huber_delta * (K.abs(error) - 0.5 * huber_delta)
     ans = tf.where(cond, squared_loss, linear_loss)
