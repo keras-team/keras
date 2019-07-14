@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import six
+import tensorflow as tf
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
 from .utils.generic_utils import serialize_keras_object
@@ -40,9 +41,12 @@ def hinge(y_true, y_pred):
 
 
 def huber(y_true, y_pred, huber_delta=0.1):
-    r = K.abs(y_true - y_pred)
-    r = K.switch(r < huber_delta, 0.5 * r**2, huber_delta * (r - 0.5 * huber_delta))
-    return K.sum(r, axis=-1)
+    error = y_true - y_pred
+    cond = K.abs(error) < huber_delta
+    squared_loss = 0.5 * K.square(error)
+    linear_loss = huber_delta * (K.abs(error) - 0.5 * huber_delta)
+    ans = tf.where(cond, squared_loss, linear_loss)
+    return K.sum(ans, axis=-1)
 
 
 def categorical_hinge(y_true, y_pred):
