@@ -46,7 +46,7 @@ def huber(y_true, y_pred, huber_delta=0.1):
     cond = K.less(K.abs(error), huber_delta)
     squared_loss = 0.5 * K.square(error)
     linear_loss = huber_delta * (K.abs(error) - 0.5 * huber_delta)
-    ans = tf.where(cond, squared_loss, linear_loss)
+    ans = tf.where(K.eval(cond), squared_loss, linear_loss)
     return K.sum(ans, axis=-1)
 
 
