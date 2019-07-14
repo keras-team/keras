@@ -40,9 +40,9 @@ def hinge(y_true, y_pred):
 
 
 def huber(y_true, y_pred, huber_delta=0.1):
-    x = K.abs(y_true - y_pred)
-    x = K.switch(x < huber_delta, 0.5 * x**2, huber_delta * (x - 0.5 * huber_delta))
-    return K.sum(x)
+    r = K.abs(y_true - y_pred)
+    r = K.switch(r < huber_delta, 0.5 * r**2, huber_delta * (r - 0.5 * huber_delta))
+    return K.sum(r, axis=-1)
 
 
 def categorical_hinge(y_true, y_pred):

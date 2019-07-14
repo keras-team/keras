@@ -65,7 +65,7 @@ def test_huber():
                                   [0.09]]))
     y_true = K.variable(np.array([[0.29],
                                   [0.1]]))
-    expected_loss = (0.5 * (0.3 - 0.29)**2) + (0.5 * (0.09 - 0.1)**2)
+    expected_loss = ((0.5 * (0.3 - 0.29)**2) + (0.5 * (0.09 - 0.1)**2)) / 2.0
     loss = K.eval(losses.huber(y_true, y_pred))
     assert np.isclose(expected_loss, np.mean(loss))
 
