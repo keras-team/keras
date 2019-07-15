@@ -47,7 +47,7 @@ def huber(y_true, y_pred, huber_delta=0.1):
     squared_loss = 0.5 * K.square(error)
     linear_loss = huber_delta * (K.abs(error) - 0.5 * huber_delta)
     ans = np.where(K.eval(cond), K.eval(squared_loss), K.eval(linear_loss))
-    return K.cast(np.sum(ans, axis=-1), dtype='float64')
+    return tf.convert_to_tensor(np.sum(ans, axis=-1))
 
 
 def categorical_hinge(y_true, y_pred):
