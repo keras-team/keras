@@ -43,11 +43,11 @@ def hinge(y_true, y_pred):
 
 def huber(y_true, y_pred, huber_delta=0.1):
     error = y_true - y_pred
-    cond = K.less(K.abs(error), huber_delta)
+    cond = K.abs(error) < tf.convert_to_tensor(huber_delta)
     squared_loss = 0.5 * K.square(error)
     linear_loss = huber_delta * (K.abs(error) - 0.5 * huber_delta)
-    ans = tf.where(K.eval(cond), squared_loss, linear_loss)
-    return K.sum(ans, axis=-1)
+    ans = np.where(K.eval(cond), K.eval(squared_loss), K.eval(linear_loss))
+    return K.cast(np.sum(ans, axis=-1), dtype='float64')
 
 
 def categorical_hinge(y_true, y_pred):
