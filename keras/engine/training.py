@@ -1311,6 +1311,11 @@ class Model(Network):
 
         Computation is done in batches.
 
+        Note: the internal prediction function is not compiled until the first
+        call to `Model.predict`. If you are using `Model.predict` in a
+        multi-threaded environment, you should explicitly call
+        `Model._make_predict_function` first to avoid problems.
+
         # Arguments
             x: Input data. It could be:
                 - A Numpy array (or array-like), or a list of arrays
