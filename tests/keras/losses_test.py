@@ -29,6 +29,7 @@ all_classes = [
     losses.LogCosh,
     losses.KLDivergence,
     losses.Huber,
+    losses.QuantileHuber,
     # losses.SparseCategoricalCrossentropy,
     losses.BinaryCrossentropy,
     losses.MeanSquaredLogarithmicError,
