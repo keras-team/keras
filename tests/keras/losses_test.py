@@ -451,7 +451,7 @@ class TestBinaryCrossentropy(object):
         y_true = K.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
         bce_obj = losses.BinaryCrossentropy()
         loss = bce_obj(y_true, y_true)
-        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3, atol=1e-6)
 
         # Test with logits.
         logits = K.constant([[100.0, -100.0, -100.0],
@@ -459,7 +459,7 @@ class TestBinaryCrossentropy(object):
                              [-100.0, -100.0, 100.0]])
         bce_obj = losses.BinaryCrossentropy(from_logits=True)
         loss = bce_obj(y_true, logits)
-        assert np.isclose(K.eval(loss), 0.0, 3)
+        assert np.isclose(K.eval(loss), 0.0, 3, atol=1e-6)
 
     def test_unweighted(self):
         y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
@@ -477,7 +477,7 @@ class TestBinaryCrossentropy(object):
         #      = [0, 15.33, 0, 0]
         # Reduced loss = 15.33 / 4
 
-        assert np.isclose(K.eval(loss), 3.833, rtol=1e-3)
+        assert np.isclose(np.mean(K.eval(loss)), 3.985, rtol=1e-3)
 
         # Test with logits.
         y_true = K.constant([[1., 0., 1.], [0., 1., 1.]])
@@ -496,7 +496,7 @@ class TestBinaryCrossentropy(object):
         #      = [(0 + 0 + 0) / 3, 200 / 3]
         # Reduced loss = (0 + 66.666) / 2
 
-        assert np.isclose(K.eval(loss), 33.333, rtol=1e-3)
+        assert np.isclose(np.mean(K.eval(loss)), 33.333, rtol=1e-3)
 
     def test_scalar_weighted(self):
         bce_obj = losses.BinaryCrossentropy()
@@ -515,7 +515,7 @@ class TestBinaryCrossentropy(object):
         # Weighted loss = [0, 15.33 * 2.3, 0, 0]
         # Reduced loss = 15.33 * 2.3 / 4
 
-        assert np.isclose(K.eval(loss), 8.817, rtol=1e-3)
+        assert np.isclose(np.mean(K.eval(loss)), 9.166, rtol=1e-3)
 
         # Test with logits.
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
@@ -529,7 +529,7 @@ class TestBinaryCrossentropy(object):
         # Weighted loss = [0 * 2.3, 66.666 * 2.3]
         # Reduced loss = (0 + 66.666 * 2.3) / 2
 
-        assert np.isclose(K.eval(loss), 76.667, rtol=1e-3)
+        assert np.isclose(np.mean(K.eval(loss)), 76.667, rtol=1e-3)
 
     def test_sample_weighted(self):
         bce_obj = losses.BinaryCrossentropy()
@@ -548,7 +548,7 @@ class TestBinaryCrossentropy(object):
         #      = [0, 15.33, 0, 0]
         # Reduced loss = 15.33 * 1.2 / 4
 
-        assert np.isclose(K.eval(loss), 4.6, rtol=1e-3)
+        assert np.isclose(np.mean(K.eval(loss)), 4.782, rtol=1e-3)
 
         # Test with logits.
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
@@ -563,7 +563,7 @@ class TestBinaryCrossentropy(object):
         # Weighted loss = [0 * 4, 66.666 * 3]
         # Reduced loss = (0 + 66.666 * 3) / 2
 
-        assert np.isclose(K.eval(loss), 100, rtol=1e-3)
+        assert np.isclose(np.mean(K.eval(loss)), 100, rtol=1e-3)
 
     def test_no_reduction(self):
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
