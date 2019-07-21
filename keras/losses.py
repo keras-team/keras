@@ -7,6 +7,7 @@ from __future__ import print_function
 import abc
 import six
 
+import numpy as np
 from . import backend as K
 from .utils import losses_utils
 from .utils.generic_utils import deserialize_keras_object
