@@ -958,7 +958,7 @@ def test_model_saving_with_rnn_initial_state_and_args():
     class CustomRNN(LSTM):
         def call(self, inputs, arg=1, mask=None, training=None, initial_state=None):
             if isinstance(inputs, list):
-                inputs = inputs.copy()
+                inputs = inputs[:]
                 inputs[0] *= arg
             else:
                 inputs *= arg
@@ -976,7 +976,7 @@ def test_model_saving_with_rnn_initial_state_and_args():
     y1 = model.predict(x)
     _, fname = tempfile.mkstemp('.h5')
     with warnings.catch_warnings():
-        warnings.filterwarnings('False serialization warning raised!')
+        warnings.filterwarnings('error')
         model.save(fname)
     model2 = load_model(fname, custom_objects={'CustomRNN': CustomRNN})
     y2 = model2.predict(x)
