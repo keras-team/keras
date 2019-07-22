@@ -538,14 +538,21 @@ class RNN(Layer):
 
         additional_inputs = []
         additional_specs = []
+
+        # tensors and variables are non-serializable and has to be popped
+        # from node arguments to suppress false warning
+
+        args_to_pop = []
         if initial_state is not None:
             kwargs['initial_state'] = initial_state
+            args_to_pop.append('initial_state')
             additional_inputs += initial_state
             self.state_spec = [InputSpec(shape=K.int_shape(state))
                                for state in initial_state]
             additional_specs += self.state_spec
         if constants is not None:
             kwargs['constants'] = constants
+            args_to_pop.append('constants')
             additional_inputs += constants
             self.constants_spec = [InputSpec(shape=K.int_shape(constant))
                                    for constant in constants]
@@ -570,6 +577,8 @@ class RNN(Layer):
             self.input_spec = full_input_spec
             output = super(RNN, self).__call__(full_input, **kwargs)
             self.input_spec = original_input_spec
+            for arg in args_to_pop:
+                self._inbound_nodes[-1].arguments.pop(arg)
             return output
         else:
             return super(RNN, self).__call__(inputs, **kwargs)
