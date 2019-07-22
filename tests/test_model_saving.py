@@ -984,6 +984,5 @@ def test_model_saving_with_rnn_initial_state_and_args():
     os.remove(fname)
 
 
-
 if __name__ == '__main__':
     pytest.main([__file__])
