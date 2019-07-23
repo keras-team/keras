@@ -963,7 +963,7 @@ def test_model_saving_with_rnn_initial_state_and_args():
                 inputs[0] *= arg
                 inputs[0]._keras_shape = shape  # for theano backend
             else:
-                shape = K.int_shape(inputs[0])
+                shape = K.int_shape(inputs)
                 inputs *= arg
                 inputs._keras_shape = shape  # for theano backend
             return super(CustomRNN, self).call(inputs, mask, training, initial_state)
