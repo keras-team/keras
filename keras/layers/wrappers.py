@@ -504,9 +504,12 @@ class Bidirectional(Wrapper):
                     inputs = inputs[:-self._num_constants]
             kwargs['constants'] = constants
         if has_arg(self.layer.call, 'initial_state'):
-            if initial_state is None and len(inputs) > 1:
-                    initial_state = inputs[1:]
-                    inputs = [inputs[0]]
+            if isinstance(inputs, list) and len(inputs) > 1:
+                if initial_state is not None:
+                    raise ValueError('Layer was passed initial state ' +
+                                     'via both kwarg and inputs list)')
+                initial_state = inputs[1:]
+                inputs = [inputs[0]]
             if initial_state is None:
                 forward_state = None
                 backward_state = None
@@ -519,7 +522,7 @@ class Bidirectional(Wrapper):
             y_rev = self.backward_layer.call(inputs,
                                              initial_state=backward_state, **kwargs)
         else:
-            if len(inputs) > 1 or initial_state is not None:
+            if isinstance(inputs, list) and len(inputs) > 1 or initial_state:
                 raise ValueError('Layer does not accept initial_state argument.')
             y = self.forward_layer.call(inputs, **kwargs)
             y_rev = self.backward_layer.call(inputs, **kwargs)
