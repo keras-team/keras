@@ -595,6 +595,18 @@ class RNN(Layer):
                 initial_state = inputs[1:]
             else:
                 initial_state = inputs[1:-self._num_constants]
+                if constants is None:
+                    constants = inputs[-self._num_constants:]
+                elif len(inputs) > 1 + len(initial_state):
+                    raise ValueError('Layer expected ' + str(self._num_constants) +
+                                     'constants but was passed ' +
+                                     str(len(inputs[-self._num_constants]) +
+                                     len(constants)) +
+                                     'constants.')
+                elif len(constants) != self._num_constants:
+                    raise ValueError('Layer expected ' + str(self._num_constants) +
+                                     'constants but was passed ' +
+                                     str(len(constants)) + 'constants.')             
             if len(initial_state) == 0:
                 initial_state = None
             inputs = inputs[0]
