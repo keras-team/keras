@@ -538,6 +538,7 @@ class RNN(Layer):
 
         additional_inputs = []
         additional_specs = []
+
         if initial_state is not None:
             kwargs['initial_state'] = initial_state
             additional_inputs += initial_state
@@ -568,6 +569,10 @@ class RNN(Layer):
             # Perform the call with temporarily replaced input_spec
             original_input_spec = self.input_spec
             self.input_spec = full_input_spec
+            if 'initial_state' in kwargs:
+                kwargs.pop('initial_state')
+            if 'constants' in kwargs:
+                kwargs.pop('constants')
             output = super(RNN, self).__call__(full_input, **kwargs)
             self.input_spec = original_input_spec
             return output
@@ -580,19 +585,37 @@ class RNN(Layer):
              training=None,
              initial_state=None,
              constants=None):
+        if not isinstance(initial_state, (list, tuple, type(None))):
+            initial_state = [initial_state]
+        if not isinstance(constants, (list, tuple, type(None))):
+            constants = [constants]
         # input shape: `(samples, time (padded with zeros), input_dim)`
         # note that the .build() method of subclasses MUST define
         # self.input_spec and self.state_spec with complete input shapes.
         if isinstance(inputs, list):
-            # get initial_state from full input spec
-            # as they could be copied to multiple GPU.
-            if self._num_constants is None:
-                initial_state = inputs[1:]
+            if len(inputs) == 1:
+                inputs = inputs[0]
             else:
-                initial_state = inputs[1:-self._num_constants]
-            if len(initial_state) == 0:
-                initial_state = None
-            inputs = inputs[0]
+                # get initial_state from full input spec
+                # as they could be copied to multiple GPU.
+                if self._num_constants is None:
+                    if initial_state is not None:
+                        raise ValueError('Layer was passed initial state ' +
+                                         'via both kwarg and inputs list)')
+                    initial_state = inputs[1:]
+                else:
+                    if initial_state is not None and inputs[1:-self._num_constants]:
+                        raise ValueError('Layer was passed initial state ' +
+                                         'via both kwarg and inputs list')
+                    initial_state = inputs[1:-self._num_constants]
+                    if constants is None:
+                        constants = inputs[-self._num_constants:]
+                    elif len(inputs) > 1 + len(initial_state):
+                        raise ValueError('Layer was passed constants ' +
+                                         'via both kwarg and inputs list)')
+                if len(initial_state) == 0:
+                    initial_state = None
+                inputs = inputs[0]
         if initial_state is not None:
             pass
         elif self.stateful:
@@ -608,6 +631,7 @@ class RNN(Layer):
                              ' states but was passed ' +
                              str(len(initial_state)) +
                              ' initial states.')
+
         input_shape = K.int_shape(inputs)
         timesteps = input_shape[1]
         if self.unroll and timesteps is None:
