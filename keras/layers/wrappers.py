@@ -477,6 +477,10 @@ class Bidirectional(Wrapper):
             # Perform the call with temporarily replaced input_spec
             original_input_spec = self.input_spec
             self.input_spec = full_input_spec
+            if 'initial_state' in kwargs:
+                kwargs.pop('initial_state')
+            if 'constants' in kwargs:
+                kwargs.pop('constants')
             output = super(Bidirectional, self).__call__(full_input, **kwargs)
             self.input_spec = original_input_spec
             return output
@@ -495,31 +499,31 @@ class Bidirectional(Wrapper):
         if has_arg(self.layer.call, 'mask'):
             kwargs['mask'] = mask
         if has_arg(self.layer.call, 'constants'):
+            if self._num_constants is not None and constants is None:
+                    constants = inputs[-self._num_constants:]
+                    inputs = inputs[:-self._num_constants]
             kwargs['constants'] = constants
-
-        if initial_state is not None and has_arg(self.layer.call, 'initial_state'):
-            forward_inputs = [inputs[0]]
-            backward_inputs = [inputs[0]]
-            pivot = len(initial_state) // 2 + 1
-            # add forward initial state
-            forward_state = inputs[1:pivot]
-            forward_inputs += forward_state
-            if self._num_constants is None:
-                # add backward initial state
-                backward_state = inputs[pivot:]
-                backward_inputs += backward_state
+        if has_arg(self.layer.call, 'initial_state'):
+            if isinstance(inputs, list) and len(inputs) > 1:
+                if initial_state is not None:
+                    raise ValueError('Layer was passed initial state ' +
+                                     'via both kwarg and inputs list)')
+                initial_state = inputs[1:]
+                inputs = [inputs[0]]
+            if initial_state is None:
+                forward_state = None
+                backward_state = None
             else:
-                # add backward initial state
-                backward_state = inputs[pivot:-self._num_constants]
-                backward_inputs += backward_state
-                # add constants for forward and backward layers
-                forward_inputs += inputs[-self._num_constants:]
-                backward_inputs += inputs[-self._num_constants:]
-            y = self.forward_layer.call(forward_inputs,
+                pivot = len(initial_state) // 2
+                forward_state = initial_state[:pivot]
+                backward_state = initial_state[pivot:]
+            y = self.forward_layer.call(inputs,
                                         initial_state=forward_state, **kwargs)
-            y_rev = self.backward_layer.call(backward_inputs,
+            y_rev = self.backward_layer.call(inputs,
                                              initial_state=backward_state, **kwargs)
         else:
+            if isinstance(inputs, list) and len(inputs) > 1 or initial_state:
+                raise ValueError('Layer does not accept initial_state argument.')
             y = self.forward_layer.call(inputs, **kwargs)
             y_rev = self.backward_layer.call(inputs, **kwargs)
 
