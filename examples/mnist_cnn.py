@@ -64,7 +64,7 @@ model.compile(loss=keras.losses.categorical_crossentropy,
 
 model.fit(x_train, y_train,
           batch_size=batch_size,
-          epochs=1,
+          epochs=epochs,
           verbose=1,
           validation_data=(x_test, y_test))
 score = model.evaluate(x_test, y_test, verbose=0)
