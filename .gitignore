@@ -13,6 +13,7 @@ docs/theme/img/*
 tags
 Keras.egg-info
 examples/img/*
+examples/model/*
 
 # test-related
 .coverage
