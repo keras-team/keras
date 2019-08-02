@@ -9,6 +9,7 @@ import warnings
 import copy
 import numpy as np
 
+
 from .network import Network
 from .base_layer import Layer
 from . import training_utils
@@ -442,7 +443,8 @@ class Model(Network):
                 # we have. The user should call `model._set_inputs(placeholders)`
                 # to specify custom placeholders if the need arises.
                 shape = (None,) + v.shape[1:]
-                placeholder = K.placeholder(shape=shape, name=name)
+                # NOTE: maybe as_dtype could be a better option
+                placeholder = K.placeholder(shape=shape, name=name, dtype=str(v.dtype))
                 self.inputs.append(placeholder)
                 self._feed_inputs.append(placeholder)
                 self._feed_input_names.append(name)
