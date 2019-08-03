@@ -717,7 +717,10 @@ class Model(Network):
             if output is None or len(output.shape) == 0:
                 output_shapes.append(None)
             else:
-                output_shapes.append([int(x) for x in list(output.shape)])
+                try:
+                    output_shapes.append(output.shape.as_list())
+                except:
+                    output_shapes.append([int(x) for x in list(output.shape)])
         self._per_output_metrics = training_utils.collect_per_output_metric_info(
             metrics, self.output_names, output_shapes, self.loss_functions)
         self._per_output_weighted_metrics = (
