@@ -715,7 +715,7 @@ def huber_loss(y_true, y_pred, delta=1.0):
 def quantile_huber_loss(y_true, y_pred, delta=1.0, quantile=0.5):
     error = y_true - y_pred
     big_op = (1.0 - quantile) * K.abs(error) - 0.5 * delta * (1.0 - quantile)**2
-    mid_op = (error**2) / (2 * delta)
+    mid_op = (error * error) / (2 * delta)
     small_op = quantile * K.abs(error) - 0.5 * delta * quantile**2
     cond1 = K.less_equal(error, (1 - quantile) * delta)
     result_cond1 = np.where(K.eval(cond1), K.eval(mid_op), K.eval(big_op))
