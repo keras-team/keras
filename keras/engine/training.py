@@ -714,7 +714,7 @@ class Model(Network):
         """Caches metric name and function attributes for every model output."""
         output_shapes = []
         for output in self.outputs:
-            if output is None or output.shape.rank is None:
+            if output is None or len(output.shape) == 0:
                 output_shapes.append(None)
             else:
                 output_shapes.append(output.shape.as_list())
