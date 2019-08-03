@@ -94,7 +94,7 @@ class TestMean(object):
         # check update_state() and result()
         update_op = m.update_state([1, 5])
         K.eval(update_op)
-        assert np.isclose(K.eval(m.result()), 106 / 3)
+        assert np.isclose(K.eval(m.result()), float(106) / float(3))
         assert K.eval(m.total) == 106  # 100 + 1 + 5
         assert K.eval(m.count) == 3
 
