@@ -181,8 +181,8 @@ def assert_regression_predict_shape_correct(num_test):
         batch_size=batch_size, epochs=epochs)
     reg.fit(X_train, y_train, batch_size=batch_size, epochs=epochs)
 
-    preds = reg.predict(X_test[:num_test], batch_size=batch_size)
-    assert preds.shape == (num_test, )
+    preds = reg.predict(X_test[:num_test + 1], batch_size=batch_size)
+    assert preds.shape == (num_test + 1, )
 
 
 if __name__ == '__main__':
