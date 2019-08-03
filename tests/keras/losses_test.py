@@ -452,7 +452,7 @@ class TestBinaryCrossentropy(object):
         y_true = K.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
         bce_obj = losses.BinaryCrossentropy()
         loss = bce_obj(y_true, y_true)
-        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3, atol=1e-6)
+        assert np.isclose(np.mean(K.eval(loss)), 0.0, rtol=1e-3, atol=1e-6)
 
         # Test with logits.
         logits = K.constant([[100.0, -100.0, -100.0],
@@ -460,7 +460,7 @@ class TestBinaryCrossentropy(object):
                              [-100.0, -100.0, 100.0]])
         bce_obj = losses.BinaryCrossentropy(from_logits=True)
         loss = bce_obj(y_true, logits)
-        assert np.isclose(K.eval(loss), 0.0, 3, atol=1e-6)
+        assert np.isclose(np.mean(K.eval(loss)), 0.0, 3, atol=1e-6)
 
     def test_unweighted(self):
         y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
