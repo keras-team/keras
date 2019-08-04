@@ -581,7 +581,7 @@ class TestBackend(object):
         new_x = np.random.random((3, 4))
 
         op = K.update(x_var, new_x)
-        K.eval(op)
+        op2 = K.eval(op)
 
         assert_allclose(new_x, K.eval(x_var), atol=1e-05)
 
