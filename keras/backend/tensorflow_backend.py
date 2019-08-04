@@ -3394,7 +3394,7 @@ def binary_crossentropy(target, output, from_logits=False):
         # transform back to logits
         _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
         output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
-        output = tf.log(output / (1 - output))
+        output = tf.math.log(output / (1 - output))
 
     return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
                                                    logits=output)
