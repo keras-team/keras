@@ -3388,8 +3388,16 @@ def binary_crossentropy(target, output, from_logits=False):
     # Returns
         A tensor.
     """
-    return tf_keras_backend.binary_crossentropy(
-        target, output, from_logits=from_logits)
+    # return tf_keras_backend.binary_crossentropy(
+    #     target, output, from_logits=from_logits)
+    if not from_logits:
+        # transform back to logits
+        _epsilon = _to_tensor(epsilon(), output.dtype.base_dtype)
+        output = tf.clip_by_value(output, _epsilon, 1 - _epsilon)
+        output = tf.log(output / (1 - output))
+
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=target,
+                                                   logits=output)
 
 
 def sigmoid(x):
