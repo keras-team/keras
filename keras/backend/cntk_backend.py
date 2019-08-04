@@ -348,6 +348,7 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
 
+    x = C.Constant(x)
     shape = x.shape
     if hasattr(x, 'dynamic_axes'):
         dynamic_shape = [None for a in x.dynamic_axes]
