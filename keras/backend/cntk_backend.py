@@ -12,7 +12,6 @@ from ..utils.generic_utils import transpose_shape
 from collections import defaultdict
 from contextlib import contextmanager
 import warnings
-import numpy as np
 
 
 C.set_global_option('align_axis', 1)
@@ -349,10 +348,12 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
 
-    shape = x.shape
+    # shape = x.shape
     if hasattr(x, 'dynamic_axes'):
         dynamic_shape = [None for a in x.dynamic_axes]
-        shape = tuple(dynamic_shape) + shape
+        shape = tuple(dynamic_shape)
+    else:
+        shape = x.shape
     return shape
 
 
