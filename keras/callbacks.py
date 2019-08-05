@@ -649,12 +649,6 @@ class ModelCheckpoint(Callback):
         save_best_only: if `save_best_only=True`,
             the latest best model according to
             the quantity monitored will not be overwritten.
-        keep_best_only: If `keep_best_only=True`,
-            only the best saved model according to
-            the quantity monitored will be kept.
-            All other saved models will be deleted.
-            `keep_best_only=True` is only
-            allowed together with `save_best_only=True`.
         save_weights_only: if True, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model
             is saved (`model.save(filepath)`).
@@ -667,6 +661,12 @@ class ModelCheckpoint(Callback):
             be `min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
         period: Interval (number of epochs) between checkpoints.
+        keep_best_only: If `keep_best_only=True`,
+            only the best saved model according to
+            the quantity monitored will be kept.
+            All other saved models will be deleted.
+            `keep_best_only=True` is only
+            allowed together with `save_best_only=True`.
     """
 
     def __init__(self, filepath, monitor='val_loss', verbose=0,
