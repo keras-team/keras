@@ -9,7 +9,6 @@ import warnings
 import copy
 import numpy as np
 
-
 from .network import Network
 from .base_layer import Layer
 from . import training_utils
