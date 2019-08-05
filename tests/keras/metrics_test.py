@@ -233,6 +233,34 @@ def test_stateful_metrics(metrics_mode):
                                history.history['val_true_positives'][-1],
                                atol=1e-5)
 
+def test_true_positives(y_true, y_pred):
+    y_true = K.variable(np.array([0, 1, 1, 1]))
+    y_pred = K.variable(np.array([1, 0, 1, 1]))
+
+    true_pos = metrics.true_positives(y_true, y_pred)
+    assert K.eval(true_positives) == 2
+
+def test_false_positives(y_true, y_pred):
+    y_true = K.variable(np.array([0, 1, 1, 1]))
+    y_pred = K.variable(np.array([1, 0, 1, 1]))
+    
+    false_pos = metrics.false_positives(y_true, y_pred)
+    assert K.eval(false_pos) == 1
+
+def test_true_negatives(y_true, y_pred):
+    y_true = K.variable(np.array([0, 1, 1, 1]))
+    y_pred = K.variable(np.array([1, 0, 1, 1]))
+    
+    true_negs = metrics.true_negatives(y_true, y_pred)
+    assert K.eval(true_negs) == 0
+
+def test_false_negatives(y_true, y_pred):
+    y_true = K.variable(np.array([0, 1, 1, 1]))
+    y_pred = K.variable(np.array([1, 0, 1, 1]))
+    
+    false_negs = metrics.false_negatives(y_true, y_pred)
+    assert K.eval(false_negs) == 1
+
 
 if __name__ == '__main__':
     pytest.main([__file__])

@@ -84,3 +84,22 @@ def get(identifier):
     else:
         raise ValueError('Could not interpret '
                          'metric function identifier:', identifier)
+
+
+def false_negatives(y_true, y_pred):
+    return K.sum(K.cast(K.greater(y_true, K.round(y_pred)), dtype="int32"))
+
+
+def true_negatives(y_true, y_pred):
+    mask = K.cast(K.equal(y_true, 0), dtype='int32')
+    return K.sum(K.cast(K.equal(y_true, K.round(y_pred)), dtype="int32") * mask)
+
+
+def false_positives(y_true, y_pred):
+    return K.sum(K.cast(K.less(y_true, K.round(y_pred)), dtype="int32"))
+
+
+def true_positives(y_true, y_pred):
+    return K.sum(K.cast(K.equal(y_true, K.round(y_pred)) * y_true, dtype="int32"))
+
+
