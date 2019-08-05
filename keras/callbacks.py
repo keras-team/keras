@@ -13,6 +13,7 @@ import time
 import json
 import warnings
 import io
+import sys
 
 from collections import deque
 from collections import OrderedDict
@@ -648,6 +649,12 @@ class ModelCheckpoint(Callback):
         save_best_only: if `save_best_only=True`,
             the latest best model according to
             the quantity monitored will not be overwritten.
+        keep_best_only: If `keep_best_only=True`,
+            only the best saved model according to
+            the quantity monitored will be kept.
+            All other saved models will be deleted.
+            `keep_best_only=True` is only
+            allowed together with `save_best_only=True`.
         save_weights_only: if True, then only the model's weights will be
             saved (`model.save_weights(filepath)`), else the full model
             is saved (`model.save(filepath)`).
@@ -664,7 +671,7 @@ class ModelCheckpoint(Callback):
 
     def __init__(self, filepath, monitor='val_loss', verbose=0,
                  save_best_only=False, save_weights_only=False,
-                 mode='auto', period=1):
+                 mode='auto', period=1, keep_best_only=False):
         super(ModelCheckpoint, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
@@ -673,6 +680,13 @@ class ModelCheckpoint(Callback):
         self.save_weights_only = save_weights_only
         self.period = period
         self.epochs_since_last_save = 0
+        self.last_filepath = None
+
+        if keep_best_only and not save_best_only:
+            raise ValueError('When keep_best_only is set to True '
+                             'save_best_only also has to be set to True!')
+        else:
+            self.keep_best_only = keep_best_only
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -713,10 +727,17 @@ class ModelCheckpoint(Callback):
                                   % (epoch + 1, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
+                        if self.keep_best_only and self.last_filepath is not None:
+                            try:
+                                os.remove(self.last_filepath)
+                            except:
+                                print("Unexpected error deleting old model file:",
+                                      sys.exc_info()[0])
                         if self.save_weights_only:
                             self.model.save_weights(filepath, overwrite=True)
                         else:
                             self.model.save(filepath, overwrite=True)
+                        self.last_filepath = filepath
                     else:
                         if self.verbose > 0:
                             print('\nEpoch %05d: %s did not improve from %0.5f' %

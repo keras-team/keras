@@ -433,7 +433,7 @@ def test_ModelCheckpoint(tmpdir):
     mode = 'auto'
 
     model = Sequential()
-    model.add(Dense(num_hidden, input_dim=input_dim, activation='relu'))
+    model.add(Dense(40, input_dim=input_dim, activation='relu'))
     model.add(Dense(num_classes, activation='softmax'))
     model.compile(loss='categorical_crossentropy',
                   optimizer='rmsprop',
@@ -478,7 +478,7 @@ def test_ModelCheckpoint(tmpdir):
     save_best_only = False
     period = 2
     mode = 'auto'
-    filepath = 'checkpoint.{epoch:02d}.h5'
+    filepath = str(tmpdir / 'checkpoint.{epoch:02d}.h5')
     cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
                                       save_best_only=save_best_only, mode=mode,
                                       period=period)]
@@ -491,6 +491,29 @@ def test_ModelCheckpoint(tmpdir):
     os.remove(filepath.format(epoch=2))
     os.remove(filepath.format(epoch=4))
     assert not tmpdir.listdir()
+
+    # case 6
+    save_best_only = True
+    keep_best_only = True
+    period = 1
+    mode = 'auto'
+    filepath = str(tmpdir / 'checkpoint.{epoch:02d}.h5')
+    cbks = [callbacks.ModelCheckpoint(filepath, monitor=monitor,
+                                      save_best_only=save_best_only, mode=mode,
+                                      period=period,
+                                      keep_best_only=keep_best_only)]
+    model.fit(X_train, y_train, batch_size=batch_size,
+              validation_data=(X_test, y_test), callbacks=cbks, epochs=4)
+    assert not os.path.exists(filepath.format(epoch=1))
+    assert os.path.exists(cbks[0].last_filepath)
+    os.remove(cbks[0].last_filepath)
+    assert not tmpdir.listdir()
+
+
+def test_ModelCheckpoint_save_weights_only():
+    with pytest.raises(ValueError):
+        callbacks.ModelCheckpoint("does_not_matter", save_best_only=False,
+                                  keep_best_only=True)
 
 
 def test_EarlyStopping():
