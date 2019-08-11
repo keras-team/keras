@@ -580,7 +580,7 @@ class Layer(object):
                 instead of an integer.
 
         # Returns
-            An input shape tuple.
+            An output shape tuple.
         """
         return input_shape
 
