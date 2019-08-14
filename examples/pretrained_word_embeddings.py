@@ -41,9 +41,8 @@ print('Indexing word vectors.')
 embeddings_index = {}
 with open(os.path.join(GLOVE_DIR, 'glove.6B.100d.txt')) as f:
     for line in f:
-        values = line.split()
-        word = values[0]
-        coefs = np.asarray(values[1:], dtype='float32')
+        word, coefs = line.split(maxsplit=1)
+        coefs = np.fromstring(coefs, 'f', sep=' ')
         embeddings_index[word] = coefs
 
 print('Found %s word vectors.' % len(embeddings_index))
@@ -102,10 +101,10 @@ y_val = labels[-num_validation_samples:]
 print('Preparing embedding matrix.')
 
 # prepare embedding matrix
-num_words = min(MAX_NUM_WORDS, len(word_index)) + 1
+num_words = min(MAX_NUM_WORDS, len(word_index) + 1)
 embedding_matrix = np.zeros((num_words, EMBEDDING_DIM))
 for word, i in word_index.items():
-    if i > MAX_NUM_WORDS:
+    if i >= MAX_NUM_WORDS:
         continue
     embedding_vector = embeddings_index.get(word)
     if embedding_vector is not None:

@@ -491,8 +491,6 @@ class ConvLSTM2DCell(Layer):
             incompatible with specifying any `strides` value != 1.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
-            (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
@@ -817,8 +815,6 @@ class ConvLSTM2D(ConvRNN2D):
             incompatible with specifying any `strides` value != 1.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
-            (ie. "linear" activation: `a(x) = x`).
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).

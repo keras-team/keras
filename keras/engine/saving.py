@@ -18,8 +18,10 @@ import numpy as np
 
 from .. import backend as K
 from .. import optimizers
-from ..utils.io_utils import ask_to_proceed_with_overwrite
 from ..utils.io_utils import H5Dict
+from ..utils.io_utils import ask_to_proceed_with_overwrite
+from ..utils.io_utils import save_to_binary_h5py
+from ..utils.io_utils import load_from_binary_h5py
 from ..utils import conv_utils
 
 try:
@@ -32,6 +34,11 @@ try:
     from tensorflow.python.lib.io import file_io as tf_file_io
 except ImportError:
     tf_file_io = None
+
+try:
+    getargspec = inspect.getfullargspec
+except AttributeError:  # getargspec() is deprecated since Python 3.0
+    getargspec = inspect.getargspec
 
 
 def _serialize_model(model, h5dict, include_optimizer=True):
@@ -312,6 +319,10 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
         # Recover loss functions and metrics.
         loss = convert_custom_objects(training_config['loss'])
         metrics = convert_custom_objects(training_config['metrics'])
+        # Earlier versions of keras didn't dump weighted_metrics properly. Use
+        # a get to avoid failing if the key is missing
+        weighted_metrics = convert_custom_objects(
+            training_config.get('weighted_metrics'))
         sample_weight_mode = training_config['sample_weight_mode']
         loss_weights = training_config['loss_weights']
 
@@ -319,6 +330,7 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
         model.compile(optimizer=optimizer,
                       loss=loss,
                       metrics=metrics,
+                      weighted_metrics=weighted_metrics,
                       loss_weights=loss_weights,
                       sample_weight_mode=sample_weight_mode)
 
@@ -422,7 +434,7 @@ def allow_read_from_gcs(load_function):
         if name in kwargs:
             arg = kwargs.pop(name)
             return arg, args, kwargs
-        argnames = inspect.getargspec(f)[0]
+        argnames = getargspec(f)[0]
         for i, (argname, arg) in enumerate(zip(argnames, args)):
             if argname == name:
                 return arg, args[:i] + args[i + 1:], kwargs
@@ -470,8 +482,10 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     # Arguments
         model: Keras model instance to be saved.
         filepath: one of the following:
-            - string, path where to save the model, or
+            - string, path to the file to save the model to
             - h5py.File or h5py.Group object where to save the model
+            - any file-like object implementing the method `write` that accepts
+                `bytes` data (e.g. `io.BytesIO`).
         overwrite: Whether we should overwrite any existing
             model at the target location, or instead
             ask the user with a manual prompt.
@@ -483,22 +497,21 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     if h5py is None:
         raise ImportError('`save_model` requires h5py.')
 
-    if not isinstance(filepath, h5py.Group):
-        # If file exists and should not be overwritten.
-        if not overwrite and os.path.isfile(filepath):
+    if H5Dict.is_supported_type(filepath):
+        opens_file = not isinstance(filepath, (dict, h5py.Group))
+        if opens_file and os.path.isfile(filepath) and not overwrite:
             proceed = ask_to_proceed_with_overwrite(filepath)
             if not proceed:
                 return
-        opened_new_file = True
+        with H5Dict(filepath, mode='w') as h5dict:
+            _serialize_model(model, h5dict, include_optimizer)
+    elif hasattr(filepath, 'write') and callable(filepath.write):
+        # write as binary stream
+        def save_function(h5file):
+            _serialize_model(model, H5Dict(h5file), include_optimizer)
+        save_to_binary_h5py(save_function, filepath)
     else:
-        opened_new_file = False
-
-    h5dict = H5Dict(filepath, mode='w')
-    try:
-        _serialize_model(model, h5dict, include_optimizer)
-    finally:
-        if opened_new_file:
-            h5dict.close()
+        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
 
 
 @allow_read_from_gcs
@@ -507,8 +520,10 @@ def load_model(filepath, custom_objects=None, compile=True):
 
     # Arguments
         filepath: one of the following:
-            - string, path to the saved model, or
+            - string, path to the saved model
             - h5py.File or h5py.Group object from which to load the model
+            - any file-like object implementing the method `read` that returns
+            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
         custom_objects: Optional dictionary mapping names
             (strings) to custom classes or functions to be
             considered during deserialization.
@@ -529,14 +544,17 @@ def load_model(filepath, custom_objects=None, compile=True):
     """
     if h5py is None:
         raise ImportError('`load_model` requires h5py.')
-    model = None
-    opened_new_file = not isinstance(filepath, h5py.Group)
-    h5dict = H5Dict(filepath, 'r')
-    try:
-        model = _deserialize_model(h5dict, custom_objects, compile)
-    finally:
-        if opened_new_file:
-            h5dict.close()
+
+    if H5Dict.is_supported_type(filepath):
+        with H5Dict(filepath, mode='r') as h5dict:
+            model = _deserialize_model(h5dict, custom_objects, compile)
+    elif hasattr(filepath, 'write') and callable(filepath.write):
+        def load_function(h5file):
+            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
+        model = load_from_binary_h5py(load_function, filepath)
+    else:
+        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
+
     return model
 
 
@@ -587,7 +605,7 @@ def model_from_yaml(yaml_string, custom_objects=None):
     # Returns
         A Keras model instance (uncompiled).
     """
-    config = yaml.load(yaml_string)
+    config = yaml.load(yaml_string, Loader=yaml.FullLoader)
     from ..layers import deserialize
     return deserialize(config, custom_objects=custom_objects)
 

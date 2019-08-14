@@ -153,14 +153,14 @@ class tf_file_io_proxy(object):
     recommended to use method `get_filepath(filename)` in tests to make them
     pass with and without a real GCS bucket during testing. See example below.
 
-    Arguments:
+    # Arguments
         file_io_module: String identifier of the file_io module import to patch. E.g
             'keras.engine.saving.tf_file_io'
         bucket_name: String identifier of *a real* GCS bucket (with or without the
             'gs://' prefix). A bucket name provided with argument precedes what is
             specified using the GCS_TEST_BUCKET environment variable.
 
-    Example:
+    # Example
     ```python
     model = Sequential()
     model.add(Dense(2, input_shape=(3,)))

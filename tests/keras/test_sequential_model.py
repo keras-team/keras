@@ -339,6 +339,33 @@ def test_clone_functional_model():
     new_model.train_on_batch(None, val_out)
 
 
+def test_clone_functional_model_with_multi_outputs():
+    input_layer = keras.Input(shape=(4,))
+
+    # Layer with single input and multiple outputs
+    layer1 = keras.layers.Lambda(lambda x: [x + 1, x],
+                                 lambda shapes: [shapes, shapes])
+    x_a, x_b = layer1(input_layer)
+
+    class SwapLayer(keras.layers.Layer):
+        def call(self, inputs, **kwargs):
+            return [inputs[1], inputs[0]]
+
+        def compute_output_shape(self, input_shape):
+            return [input_shape[1], input_shape[0]]
+
+    # Layer with multiple inputs and outputs
+    x_a, x_b = SwapLayer()([x_a, x_b])
+    model = keras.Model(inputs=[input_layer], outputs=[x_a, x_b])
+    new_model = keras.models.clone_model(model)
+
+    x_test = np.random.random((10, 4))
+    pred_a, pred_b = model.predict(x_test)
+    pred_new_a, pred_new_b = new_model.predict(x_test)
+    assert(pred_a.all() == pred_new_a.all())
+    assert(pred_b.all() == pred_new_b.all())
+
+
 def test_clone_sequential_model():
     val_a = np.random.random((10, 4))
     val_out = np.random.random((10, 4))

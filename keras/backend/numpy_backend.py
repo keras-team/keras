@@ -316,6 +316,12 @@ def l2_normalize(x, axis=-1):
     return x / np.sqrt(y)
 
 
+def in_top_k(predictions, targets, k):
+    top_k = np.argsort(-predictions)[:, :k]
+    targets = targets.reshape(-1, 1)
+    return np.any(targets == top_k, axis=-1)
+
+
 def binary_crossentropy(target, output, from_logits=False):
     if not from_logits:
         output = np.clip(output, 1e-7, 1 - 1e-7)
@@ -366,7 +372,7 @@ def std(x, axis=None, keepdims=False):
 def logsumexp(x, axis=None, keepdims=False):
     if isinstance(axis, list):
         axis = tuple(axis)
-    return sp.misc.logsumexp(x, axis=axis, keepdims=keepdims)
+    return sp.special.logsumexp(x, axis=axis, keepdims=keepdims)
 
 
 def sum(x, axis=None, keepdims=False):
@@ -678,7 +684,11 @@ def ones_like(x, dtype=floatx(), name=None):
 
 
 def eye(size, dtype=None, name=None):
-    return np.eye(size, dtype=dtype)
+    if isinstance(size, (list, tuple)):
+        n, m = size
+    else:
+        n, m = size, size
+    return np.eye(n, m, dtype=dtype)
 
 
 def resize_images(x, height_factor, width_factor, data_format):
@@ -707,7 +717,8 @@ def one_hot(indices, num_classes):
     return to_categorical(indices, num_classes)
 
 
-def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1):
+def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1,
+               merge_repeated=False):
     num_samples = y_pred.shape[0]
     num_classes = y_pred.shape[-1]
     log_prob = np.zeros((num_samples, 1))

@@ -829,7 +829,7 @@ def test_multi_output_mask():
 def test_constant_initializer_with_numpy():
     model = Sequential()
     model.add(Dense(2, input_shape=(3,),
-                    kernel_initializer=Constant(np.ones((3, 2)))))
+                    kernel_initializer=Constant(1.)))
     model.add(Dense(3))
     model.compile(loss='mse', optimizer='sgd', metrics=['acc'])
 
@@ -838,6 +838,26 @@ def test_constant_initializer_with_numpy():
 
     yaml_str = model.to_yaml()
     model_from_yaml(yaml_str).summary()
+
+
+@pytest.mark.skipif(K.backend() == 'cntk',
+                    reason='Float64 not supported with CNTK.')
+def test_initialization_dtype():
+    class TestLayer(Layer):
+        def __init__(self):
+            super(TestLayer, self).__init__(dtype='int64')
+            self.w = self.add_weight('w', [], initializer=Constant(1))
+
+    layer = TestLayer()
+    assert K.dtype(layer.w) == 'int64'
+
+    class TestModel(Model):
+        def __init__(self):
+            super(TestModel, self).__init__(dtype='int64')
+            self.w = self.add_weight('w', [], initializer=Constant(1))
+
+    model = TestModel()
+    assert K.dtype(model.w) == 'int64'
 
 
 if __name__ == '__main__':

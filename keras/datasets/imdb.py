@@ -55,18 +55,18 @@ def load_data(path='imdb.npz', num_words=None, skip_top=0,
     path = get_file(path,
                     origin='https://s3.amazonaws.com/text-datasets/imdb.npz',
                     file_hash='599dadb1135973df5b59232a0e9a887c')
-    with np.load(path) as f:
+    with np.load(path, allow_pickle=True) as f:
         x_train, labels_train = f['x_train'], f['y_train']
         x_test, labels_test = f['x_test'], f['y_test']
 
-    np.random.seed(seed)
+    rng = np.random.RandomState(seed)
     indices = np.arange(len(x_train))
-    np.random.shuffle(indices)
+    rng.shuffle(indices)
     x_train = x_train[indices]
     labels_train = labels_train[indices]
 
     indices = np.arange(len(x_test))
-    np.random.shuffle(indices)
+    rng.shuffle(indices)
     x_test = x_test[indices]
     labels_test = labels_test[indices]
 

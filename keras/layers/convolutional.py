@@ -191,27 +191,20 @@ class _Conv(Layer):
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_last':
             space = input_shape[1:-1]
-            new_space = []
-            for i in range(len(space)):
-                new_dim = conv_utils.conv_output_length(
-                    space[i],
-                    self.kernel_size[i],
-                    padding=self.padding,
-                    stride=self.strides[i],
-                    dilation=self.dilation_rate[i])
-                new_space.append(new_dim)
-            return (input_shape[0],) + tuple(new_space) + (self.filters,)
-        if self.data_format == 'channels_first':
+        elif self.data_format == 'channels_first':
             space = input_shape[2:]
-            new_space = []
-            for i in range(len(space)):
-                new_dim = conv_utils.conv_output_length(
-                    space[i],
-                    self.kernel_size[i],
-                    padding=self.padding,
-                    stride=self.strides[i],
-                    dilation=self.dilation_rate[i])
-                new_space.append(new_dim)
+        new_space = []
+        for i in range(len(space)):
+            new_dim = conv_utils.conv_output_length(
+                space[i],
+                self.kernel_size[i],
+                padding=self.padding,
+                stride=self.strides[i],
+                dilation=self.dilation_rate[i])
+            new_space.append(new_dim)
+        if self.data_format == 'channels_last':
+            return (input_shape[0],) + tuple(new_space) + (self.filters,)
+        elif self.data_format == 'channels_first':
             return (input_shape[0], self.filters) + tuple(new_space)
 
     def get_config(self):
@@ -1553,7 +1546,7 @@ class SeparableConv1D(_SeparableConv):
 class SeparableConv2D(_SeparableConv):
     """Depthwise separable 2D convolution.
 
-    Separable convolutions consist in first performing
+    Separable convolution performs first
     a depthwise spatial convolution
     (which acts on each input channel separately)
     followed by a pointwise convolution which mixes together the resulting
@@ -1692,10 +1685,10 @@ class SeparableConv2D(_SeparableConv):
 
 
 class DepthwiseConv2D(Conv2D):
-    """Depthwise separable 2D convolution.
+    """Depthwise 2D convolution.
 
-    Depthwise Separable convolutions consists in performing
-    just the first step in a depthwise spatial convolution
+    Depthwise convolution performs
+    just the first step of a depthwise spatial convolution
     (which acts on each input channel separately).
     The `depth_multiplier` argument controls how many
     output channels are generated per input channel in the depthwise step.
@@ -1727,6 +1720,12 @@ class DepthwiseConv2D(Conv2D):
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be 'channels_last'.
+        dilation_rate: an integer or tuple/list of 2 integers, specifying
+            the dilation rate to use for dilated convolution.
+            Can be a single integer to specify the same value for
+            all spatial dimensions.
+            Currently, specifying any `dilation_rate` value != 1 is
+            incompatible with specifying any stride value != 1.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -1774,6 +1773,7 @@ class DepthwiseConv2D(Conv2D):
                  padding='valid',
                  depth_multiplier=1,
                  data_format=None,
+                 dilation_rate=(1, 1),
                  activation=None,
                  use_bias=True,
                  depthwise_initializer='glorot_uniform',
@@ -1790,6 +1790,7 @@ class DepthwiseConv2D(Conv2D):
             strides=strides,
             padding=padding,
             data_format=data_format,
+            dilation_rate=dilation_rate,
             activation=activation,
             use_bias=use_bias,
             bias_regularizer=bias_regularizer,
@@ -1860,25 +1861,25 @@ class DepthwiseConv2D(Conv2D):
         return outputs
 
     def compute_output_shape(self, input_shape):
-        if self.data_format == 'channels_first':
-            rows = input_shape[2]
-            cols = input_shape[3]
-            out_filters = input_shape[1] * self.depth_multiplier
-        elif self.data_format == 'channels_last':
-            rows = input_shape[1]
-            cols = input_shape[2]
+        if self.data_format == 'channels_last':
+            space = input_shape[1:-1]
             out_filters = input_shape[3] * self.depth_multiplier
-
-        rows = conv_utils.conv_output_length(rows, self.kernel_size[0],
-                                             self.padding,
-                                             self.strides[0])
-        cols = conv_utils.conv_output_length(cols, self.kernel_size[1],
-                                             self.padding,
-                                             self.strides[1])
-        if self.data_format == 'channels_first':
-            return (input_shape[0], out_filters, rows, cols)
-        elif self.data_format == 'channels_last':
-            return (input_shape[0], rows, cols, out_filters)
+        elif self.data_format == 'channels_first':
+            space = input_shape[2:]
+            out_filters = input_shape[1] * self.depth_multiplier
+        new_space = []
+        for i in range(len(space)):
+            new_dim = conv_utils.conv_output_length(
+                space[i],
+                self.kernel_size[i],
+                padding=self.padding,
+                stride=self.strides[i],
+                dilation=self.dilation_rate[i])
+            new_space.append(new_dim)
+        if self.data_format == 'channels_last':
+            return (input_shape[0], new_space[0], new_space[1], out_filters)
+        elif self.data_format == 'channels_first':
+            return (input_shape[0], out_filters, new_space[0], new_space[1])
 
     def get_config(self):
         config = super(DepthwiseConv2D, self).get_config()
@@ -2240,8 +2241,8 @@ class ZeroPadding3D(_ZeroPadding):
             - If int: the same symmetric padding
                 is applied to height and width.
             - If tuple of 3 ints:
-                interpreted as two different
-                symmetric padding values for height and width:
+                interpreted as three different
+                symmetric padding values for depth, height, and width:
                 `(symmetric_dim1_pad, symmetric_dim2_pad, symmetric_dim3_pad)`.
             - If tuple of 3 tuples of 2 ints:
                 interpreted as
@@ -2496,7 +2497,7 @@ class Cropping3D(_Cropping):
             - If int: the same symmetric cropping
                 is applied to depth, height, and width.
             - If tuple of 3 ints:
-                interpreted as two different
+                interpreted as three different
                 symmetric cropping values for depth, height, and width:
                 `(symmetric_dim1_crop, symmetric_dim2_crop, symmetric_dim3_crop)`.
             - If tuple of 3 tuples of 2 ints:

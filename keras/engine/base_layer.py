@@ -4,7 +4,6 @@ from __future__ import print_function
 from __future__ import absolute_import
 from __future__ import division
 
-import copy
 import re
 from six.moves import zip
 
@@ -58,6 +57,7 @@ class Layer(object):
             or `K.in_test_phase()`.
         weights: The concatenation of the lists trainable_weights and
             non_trainable_weights (in this order).
+        dtype:  Default dtype of the layers's weights.
 
 
     # Methods
@@ -139,26 +139,20 @@ class Layer(object):
             if 'batch_input_shape' in kwargs:
                 batch_input_shape = tuple(kwargs['batch_input_shape'])
             elif 'input_shape' in kwargs:
-                if 'batch_size' in kwargs:
-                    batch_size = kwargs['batch_size']
-                else:
-                    batch_size = None
+                batch_size = kwargs.get('batch_size')
                 batch_input_shape = (
                     batch_size,) + tuple(kwargs['input_shape'])
             self.batch_input_shape = batch_input_shape
 
-            # Set dtype.
-            dtype = kwargs.get('dtype')
-            if dtype is None:
-                dtype = kwargs.get('input_dtype')
-            if dtype is None:
-                dtype = K.floatx()
-            self.dtype = dtype
+        # Set dtype.
+        dtype = kwargs.get('dtype')
+        if dtype is None:
+            dtype = kwargs.get('input_dtype')
+        if dtype is None:
+            dtype = K.floatx()
+        self.dtype = dtype
 
-        if 'weights' in kwargs:
-            self._initial_weights = kwargs['weights']
-        else:
-            self._initial_weights = None
+        self._initial_weights = kwargs.get('weights')
 
     @staticmethod
     def _node_key(layer, node_index):
@@ -245,8 +239,8 @@ class Layer(object):
         """
         initializer = initializers.get(initializer)
         if dtype is None:
-            dtype = K.floatx()
-        weight = K.variable(initializer(shape),
+            dtype = self.dtype
+        weight = K.variable(initializer(shape, dtype=dtype),
                             dtype=dtype,
                             name=name,
                             constraint=constraint)
@@ -441,7 +435,7 @@ class Layer(object):
 
             # Handle mask propagation.
             previous_mask = _collect_previous_mask(inputs)
-            user_kwargs = copy.copy(kwargs)
+            user_kwargs = kwargs.copy()
             if not is_all_none(previous_mask):
                 # The previous layer generated a mask.
                 if has_arg(self.call, 'mask'):

@@ -62,13 +62,6 @@ def _test_application_notop(app, last_dim):
     assert output_shape[-1] == last_dim
 
 
-def test_mobilenet_v2_legacy_import():
-    from keras.applications import mobilenetv2
-    assert hasattr(mobilenetv2, 'MobileNetV2')
-    from keras.applications import mobilenet_v2
-    assert hasattr(mobilenet_v2, 'MobileNetV2')
-
-
 def test_applications():
     for _ in range(3):
         app, last_dim = random.choice(MODEL_LIST)
