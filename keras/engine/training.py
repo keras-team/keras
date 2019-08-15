@@ -1,4 +1,4 @@
- """Training-related part of the Keras engine.
+"""Training-related part of the Keras engine.
 """
 from __future__ import absolute_import
 from __future__ import division
