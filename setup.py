@@ -24,7 +24,7 @@ and is distributed under the MIT license.
 '''
 
 setup(name='Keras',
-      version='2.2.4',
+      version='2.2.5',
       description='Deep Learning for humans',
       long_description=long_description,
       author='Francois Chollet',
@@ -37,8 +37,8 @@ setup(name='Keras',
                         'six>=1.9.0',
                         'pyyaml',
                         'h5py',
-                        'keras_applications>=1.0.6',
-                        'keras_preprocessing>=1.0.5'],
+                        'keras_applications>=1.0.8',
+                        'keras_preprocessing>=1.1.0'],
       extras_require={
           'visualize': ['pydot>=1.2.4'],
           'tests': ['pytest',
