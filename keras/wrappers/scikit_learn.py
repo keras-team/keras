@@ -320,8 +320,10 @@ class KerasRegressor(BaseWrapper):
                 Predictions.
         """
         kwargs = self.filter_sk_params(Sequential.predict, kwargs)
-        preds = self.model.predict(x, **kwargs)
-        return np.squeeze(preds, axis=len(preds.shape) - 1)
+        preds = np.array(self.model.predict(x, **kwargs))
+        if preds.shape[-1] == 1:
+            return np.squeeze(preds, axis=-1)
+        return preds
 
     def score(self, x, y, **kwargs):
         """Returns the mean loss on the given test data and labels.
