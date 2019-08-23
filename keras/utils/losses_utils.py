@@ -114,17 +114,19 @@ def broadcast_weights(values, sample_weight):
         for i in range(weights_rank, values_rank):
             sample_weight = K.expand_dims(sample_weight, axis=i)
 
-        for i in range(weights_rank):
-            if (weights_shape[i] is not None and values_shape[i] is not None and
+        if weights_shape is not None and values_shape is not None:
+            for i in range(weights_rank):
+                if (weights_shape[i] is not None and
+                    values_shape[i] is not None and
                     weights_shape[i] != values_shape[i]):
-                # Cannot be broadcasted.
-                if weights_shape[i] != 1:
-                    raise ValueError(
-                        'Incompatible shapes: `values` {} vs '
-                        '`sample_weight` {}'.format(
-                            values_shape, weights_shape))
-                sample_weight = K.repeat_elements(
-                    sample_weight, values_shape[i], axis=i)
+                    # Cannot be broadcasted.
+                    if weights_shape[i] != 1:
+                        raise ValueError(
+                            'Incompatible shapes: `values` {} vs '
+                            '`sample_weight` {}'.format(
+                                values_shape, weights_shape))
+                    sample_weight = K.repeat_elements(
+                        sample_weight, values_shape[i], axis=i)
     return sample_weight
 
 

@@ -95,7 +95,7 @@ class TensorBoard(Callback):
             import tensorflow as tf
             from tensorflow.contrib.tensorboard.plugins import projector
         except ImportError:
-            raise ImportError('You need the TensorFlow module installed to '
+            raise ImportError('You need the TensorFlow (v1) module installed to '
                               'use TensorBoard.')
 
         if K.backend() != 'tensorflow':

@@ -159,8 +159,13 @@ def constant(value, dtype=None, shape=None, name=None):
         dtype = floatx()
     if shape is None:
         shape = ()
-    np_value = value * np.ones(shape)
-    const = T.constant(np_value,
+    if not is_tensor(value):
+        value = np.array(value)
+        if len(value.shape) == 0:
+            value = value * np.ones(shape)
+        if shape and value.shape != shape:
+            value = np.reshape(value, shape)
+    const = T.constant(value,
                        dtype=dtype,
                        name=_prepare_name(name, 'constant'))
     const._keras_shape = shape
@@ -220,7 +225,8 @@ def is_keras_tensor(x):
 
 def is_tensor(x):
     return isinstance(x, (T.TensorVariable,
-                          T.sharedvar.TensorSharedVariable))
+                          T.sharedvar.TensorSharedVariable,
+                          T.TensorConstant))
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
