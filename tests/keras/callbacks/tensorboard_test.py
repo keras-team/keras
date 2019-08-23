@@ -21,6 +21,10 @@ train_samples = 20
 test_samples = 20
 
 
+if K.backend() != 'tensorflow':
+    pytestmark = pytest.mark.skip
+
+
 def data_generator(x, y, batch_size):
     x = to_list(x)
     y = to_list(y)

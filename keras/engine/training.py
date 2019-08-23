@@ -714,10 +714,10 @@ class Model(Network):
         """Caches metric name and function attributes for every model output."""
         output_shapes = []
         for output in self.outputs:
-            if output is None or output.shape.rank is None:
+            if output is None:
                 output_shapes.append(None)
             else:
-                output_shapes.append(output.shape.as_list())
+                output_shapes.append(list(output.shape))
         self._per_output_metrics = training_utils.collect_per_output_metric_info(
             metrics, self.output_names, output_shapes, self.loss_functions)
         self._per_output_weighted_metrics = (

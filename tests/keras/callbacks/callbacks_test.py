@@ -924,6 +924,7 @@ def test_LambdaCallback():
     assert not p.is_alive()
 
 
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason='Uses TensorBoard')
 def test_TensorBoard_with_ReduceLROnPlateau(tmpdir):
     import shutil
     np.random.seed(np.random.randint(1, 1e7))
