@@ -61,6 +61,18 @@ _MANUAL_VAR_INIT = False
 _LOCAL_DEVICES = None
 
 
+def _get_default_graph():
+    try:
+        return tf.get_default_graph()
+    except AttributeError:
+        raise RuntimeError(
+            'It looks like you are trying to use '
+            'a version of multi-backend Keras that '
+            'does not support TensorFlow 2.0. We recommend '
+            'using `tf.keras`, or alternatively, '
+            'downgrading to TensorFlow 1.14.')
+
+
 def get_uid(prefix=''):
     """Get the uid for the default graph.
 
@@ -71,7 +83,7 @@ def get_uid(prefix=''):
         A unique identifier for the graph.
     """
     global _GRAPH_UID_DICTS
-    graph = tf.get_default_graph()
+    graph = _get_default_graph()
     if graph not in _GRAPH_UID_DICTS:
         _GRAPH_UID_DICTS[graph] = defaultdict(int)
     _GRAPH_UID_DICTS[graph][prefix] += 1
@@ -101,7 +113,7 @@ def clear_session():
             shape=(),
             name='keras_learning_phase')
     _GRAPH_LEARNING_PHASES = {}
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = phase
+    _GRAPH_LEARNING_PHASES[_get_default_graph()] = phase
 
 
 def manual_variable_initialization(value):
@@ -130,7 +142,7 @@ def learning_phase():
     # Returns
         Learning phase (scalar integer tensor or Python integer).
     """
-    graph = tf.get_default_graph()
+    graph = _get_default_graph()
     if graph not in _GRAPH_LEARNING_PHASES:
         with tf.name_scope(''):
             phase = tf.placeholder_with_default(
@@ -154,7 +166,7 @@ def set_learning_phase(value):
     if value not in {0, 1}:
         raise ValueError('Expected learning phase to be '
                          '0 or 1.')
-    _GRAPH_LEARNING_PHASES[tf.get_default_graph()] = value
+    _GRAPH_LEARNING_PHASES[_get_default_graph()] = value
 
 
 def get_session():
@@ -247,7 +259,7 @@ def _get_current_tf_device():
         the device (`CPU` or `GPU`). If the scope is not explicitly set, it will
         return `None`.
     """
-    g = tf.get_default_graph()
+    g = _get_default_graph()
     op = _TfDeviceCaptureOp()
     g._apply_device_functions(op)
     return op.device
