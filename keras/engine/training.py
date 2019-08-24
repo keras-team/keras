@@ -122,6 +122,7 @@ class Model(Network):
         self._feed_output_names = []
         self._feed_output_shapes = []
         self._feed_loss_fns = []
+        self._metric_updates = []
 
         # if loss function is None, then this output will be skipped during total
         # loss calculation and feed targets preparation.
@@ -308,7 +309,8 @@ class Model(Network):
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
                 updates = (self.updates +
-                           training_updates)
+                           training_updates +
+                           self._metric_updates)
 
                 metrics = self._get_training_eval_metrics()
                 metrics_tensors = [
@@ -342,7 +344,7 @@ class Model(Network):
             self.test_function = K.function(
                 inputs,
                 [self.total_loss] + metrics_tensors,
-                updates=self.state_updates,
+                updates=self.state_updates + self._metric_updates,
                 name='test_function',
                 **self._function_kwargs)
 
@@ -822,8 +824,9 @@ class Model(Network):
 
         for metric_name, metric_fn in metrics_dict.items():
             with K.name_scope(metric_name):
-                metric_result = training_utils.call_metric_function(
+                metric_result, update_ops = training_utils.call_metric_function(
                     metric_fn, y_true, y_pred, weights=weights, mask=mask)
+                self._metric_updates += update_ops
 
     def _handle_metrics(self,
                         outputs,
