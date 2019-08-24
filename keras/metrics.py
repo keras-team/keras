@@ -75,8 +75,11 @@ class Metric(Layer):
 
     def __call__(self, *args, **kwargs):
         """Accumulates statistics and then computes metric result value."""
+        if K.backend() != 'tensorflow':
+            raise RuntimeError(
+                'Metric calling only supported with TensorFlow backend.')
         update_op = self.update_state(*args, **kwargs)
-        with K.control_dependencies([update_op]):
+        with K.control_dependencies([update_op]):  # For TF
             return self.result()
 
     def get_config(self):
@@ -135,10 +138,12 @@ class Reduce(Metric):
         """
         super(Reduce, self).__init__(name=name, dtype=dtype)
         self.reduction = reduction
-        self.total = self.add_weight('total', initializer='zeros')
+        self.total = self.add_weight(
+            'total', initializer='zeros')
         if reduction in [metrics_utils.Reduction.SUM_OVER_BATCH_SIZE,
                          metrics_utils.Reduction.WEIGHTED_MEAN]:
-            self.count = self.add_weight('count', initializer='zeros')
+            self.count = self.add_weight(
+                'count', initializer='zeros')
 
     def update_state(self, values, sample_weight=None):
         """Accumulates statistics for computing the reduction metric.
@@ -150,6 +155,9 @@ class Reduce(Metric):
         # Arguments
             values: Per-example value.
             sample_weight: Optional weighting of each example. Defaults to 1.
+
+        # Returns
+            List of update ops.
         """
         values = K.cast(values, self.dtype)
         if sample_weight is not None:
@@ -165,12 +173,11 @@ class Reduce(Metric):
             values = values * sample_weight
 
         value_sum = K.sum(values)
-        with K.control_dependencies([value_sum]):
-            update_total_op = K.update_add(self.total, value_sum)
+        update_total_op = K.update_add(self.total, value_sum)
 
         # Exit early if the reduction doesn't have a denominator.
         if self.reduction == metrics_utils.Reduction.SUM:
-            return update_total_op
+            return [update_total_op]
 
         # Update `count` for reductions that require a denominator.
         if self.reduction == metrics_utils.Reduction.SUM_OVER_BATCH_SIZE:
@@ -184,8 +191,7 @@ class Reduce(Metric):
             raise NotImplementedError(
                 'reduction [%s] not implemented' % self.reduction)
 
-        with K.control_dependencies([update_total_op]):
-            return K.update_add(self.count, num_values)
+        return [update_total_op, K.update_add(self.count, num_values)]
 
     def result(self):
         if self.reduction == metrics_utils.Reduction.SUM:
