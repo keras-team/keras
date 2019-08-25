@@ -30,8 +30,8 @@ class TestSum(object):
         assert K.eval(m.total) == 100
 
         # check update_state() and result() + state accumulation + tensor input
-        K.eval(m.update_state([1, 5]))
-        assert np.isclose(K.eval(m.result()), 106)
+        result = m([1, 5])
+        assert np.isclose(K.eval(result), 106)
         assert K.eval(m.total) == 106  # 100 + 1 + 5
 
         # check reset_states()
@@ -97,9 +97,8 @@ class TestMean(object):
         assert K.eval(m.count) == 1
 
         # check update_state() and result()
-        update_op = m.update_state([1, 5])
-        K.eval(update_op)
-        assert np.isclose(K.eval(m.result()), 106 / 3)
+        result = m([1, 5])
+        assert np.isclose(K.eval(result), 106 / 3)
         assert K.eval(m.total) == 106  # 100 + 1 + 5
         assert K.eval(m.count) == 3
 
@@ -195,9 +194,7 @@ class TestMeanSquaredErrorTest(object):
         y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1), (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
         y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1), (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
 
-        update_op = mse_obj.update_state(y_true, y_pred)
-        K.eval(update_op)
-        result = mse_obj.result()
+        result = mse_obj(y_true, y_pred)
         np.isclose(0.5, K.eval(result), atol=1e-5)
 
     def test_weighted(self):
