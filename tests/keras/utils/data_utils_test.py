@@ -182,6 +182,24 @@ class DummySequence(Sequence):
         self.inner *= 5.0
 
 
+class LengthChangingSequence(Sequence):
+    def __init__(self, shape, size=100, value=1.0):
+        self.shape = shape
+        self.inner = value
+        self.size = size
+
+    def __getitem__(self, item):
+        time.sleep(0.05)
+        return np.ones(self.shape, dtype=np.uint32) * item * self.inner
+
+    def __len__(self):
+        return self.size
+
+    def on_epoch_end(self):
+        self.size = int(np.ceil(self.size / 2))
+        self.inner *= 5.0
+
+
 class FaultSequence(Sequence):
     def __getitem__(self, item):
         raise IndexError(item, 'is not present')
@@ -376,6 +394,28 @@ def test_on_epoch_end_threads():
     for i in range(100):
         acc.append(next(gen_output)[0, 0, 0, 0])
     assert acc == list([k * 5 for k in range(100)]), (
+        'Order was not keep in GeneratorEnqueuer with processes')
+    enqueuer.stop()
+
+
+def test_on_epoch_end_threads_sequence_change_length():
+    seq = LengthChangingSequence([3, 10, 10, 3])
+    enqueuer = OrderedEnqueuer(seq,
+                               use_multiprocessing=False)
+    enqueuer.start(3, 10)
+    gen_output = enqueuer.get()
+    acc = []
+    for i in range(100):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc == list(range(100)), ('Order was not keep in GeneratorEnqueuer '
+                                     'with threads')
+
+    enqueuer.join_end_of_epoch()
+    assert len(seq) == 50
+    acc = []
+    for i in range(50):
+        acc.append(next(gen_output)[0, 0, 0, 0])
+    assert acc == list([k * 5 for k in range(50)]), (
         'Order was not keep in GeneratorEnqueuer with processes')
     enqueuer.stop()
 
