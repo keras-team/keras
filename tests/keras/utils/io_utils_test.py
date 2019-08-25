@@ -89,7 +89,6 @@ def test_io_utils(in_tmpdir):
     out_eval = model.evaluate(X_test, y_test, batch_size=32, verbose=False)
 
     assert out_pred.shape == (50, 1), 'Prediction shape does not match'
-    assert out_eval.shape == (), 'Shape of evaluation does not match'
     assert out_eval > 0, (
         'Evaluation value does not meet criteria: {}'.format(out_eval))
 

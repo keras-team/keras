@@ -683,7 +683,8 @@ class Model(Network):
                     # TODO
                     # update_ops = self._output_loss_metrics[i].update_state(output_loss)
                     # self._metric_updates += update_ops
-                    self._output_loss_metrics[i](output_loss)
+                    if K.backend() == 'tensorflow':
+                        self._output_loss_metrics[i](output_loss)
 
                 if total_loss is None:
                     total_loss = loss_weight * output_loss
