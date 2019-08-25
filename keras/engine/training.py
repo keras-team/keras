@@ -680,7 +680,8 @@ class Model(Network):
                         y_true, y_pred, sample_weight=sample_weight)
 
                 if len(self.outputs) > 1:
-                    self._output_loss_metrics[i](output_loss)
+                    update_ops = self._output_loss_metrics[i].update_state(output_loss)
+                    self._metric_updates += update_ops
 
                 if total_loss is None:
                     total_loss = loss_weight * output_loss
@@ -698,7 +699,7 @@ class Model(Network):
             for loss_tensor in self.losses:
                 total_loss += loss_tensor
 
-        return total_loss
+        return K.mean(total_loss)
 
     def _get_training_eval_metrics(self):
         """Returns all the metrics that are to be reported.

@@ -1030,10 +1030,12 @@ def call_metric_function(metric_fn,
             weights *= mask
 
     if y_pred is not None:
-        update_op = metric_fn.update_state(y_true, y_pred, sample_weight=weights)
-        result = metric_fn.result()
+        update_ops = metric_fn.update_state(y_true, y_pred, sample_weight=weights)
+        with K.control_dependencies(update_ops):
+            result = metric_fn.result()
     else:
         # `Mean` metric only takes a single value.
-        update_op = metric_fn.update_state(y_true, sample_weight=weights)
-        result = metric_fn.result()
-    return result, update_op
+        update_ops = metric_fn.update_state(y_true, sample_weight=weights)
+        with K.control_dependencies(update_ops):
+            result = metric_fn.result()
+    return result, update_ops
