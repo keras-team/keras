@@ -3,8 +3,12 @@ import inspect
 import re
 import sys
 from itertools import compress
+from keras import backend as K
 
 import pytest
+
+if K.backend() != 'tensorflow':
+    pytestmark = pytest.mark.skip
 
 modules = ['keras.layers', 'keras.models', 'keras',
            'keras.backend', 'keras.engine',

@@ -418,11 +418,11 @@ def test_loop(model, f, ins,
                     if i == 0:  # Index 0 == `Loss`
                         outs[i] = float(batch_out)
                     else:
-                        outs[i] += batch_out
+                        outs[i] += float(batch_out)
             else:
                 if step == 0:
                     outs.append(0.)
-                outs[0] += batch_outs
+                outs[0] += float(batch_outs)
 
             for l, o in zip(model.metrics_names, batch_outs):
                 batch_logs[l] = o
@@ -452,16 +452,16 @@ def test_loop(model, f, ins,
                     outs.extend([0.] * len(batch_outs))
                 for i, batch_out in enumerate(batch_outs):
                     if i == 0:  # Index 0 == `Loss`
-                        outs[i] += batch_out * len(batch_ids)
+                        outs[i] += float(batch_out) * len(batch_ids)
                     else:
-                        outs[i] = batch_out
+                        outs[i] = float(batch_out)
             else:
                 if batch_index == 0:
                     outs.append(0.)
-                outs[0] += batch_outs * len(batch_ids)
+                outs[0] += float(batch_outs) * len(batch_ids)
 
             for l, o in zip(model.metrics_names, batch_outs):
-                batch_logs[l] = o
+                batch_logs[l] = float(o)
             callbacks._call_batch_hook('test', 'end', batch_index, batch_logs)
 
             if verbose == 1:

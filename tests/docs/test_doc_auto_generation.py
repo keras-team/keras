@@ -2,6 +2,12 @@ import os
 from markdown import markdown
 from docs import autogen
 import pytest
+from keras import backend as K
+
+
+if K.backend() != 'tensorflow':
+    pytestmark = pytest.mark.skip
+
 
 test_doc1 = {
     'doc': """Base class for recurrent layers.
