@@ -79,7 +79,7 @@ class Metric(Layer):
             raise RuntimeError(
                 'Metric calling only supported with TensorFlow backend.')
         update_op = self.update_state(*args, **kwargs)
-        with K.control_dependencies([update_op]):  # For TF
+        with K.control_dependencies(update_op):  # For TF
             return self.result()
 
     def get_config(self):
