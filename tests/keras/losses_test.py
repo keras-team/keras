@@ -159,6 +159,11 @@ class TestLossFunctions(object):
         np.allclose(K.eval(loss), 16, atol=1e-2)
 
 
+skipif_not_tf = pytest.mark.skipif(
+    K.backend() != 'tensorflow',
+    reason='Need TensorFlow to __call__ a loss')
+
+
 class TestLossClasses(object):
 
     @pytest.mark.parametrize('cls', all_classes)
@@ -180,6 +185,7 @@ class TestLossClasses(object):
         assert K.eval(objective_output).shape == ()
 
 
+@skipif_not_tf
 class TestMeanSquaredError:
 
     def test_config(self):
@@ -256,6 +262,7 @@ class TestMeanSquaredError:
         assert np.isclose(K.eval(loss), 227.69998, rtol=1e-3)
 
 
+@skipif_not_tf
 class TestMeanAbsoluteError(object):
 
     def test_config(self):
@@ -332,6 +339,7 @@ class TestMeanAbsoluteError(object):
         assert np.isclose(K.eval(loss), 25.29999, rtol=1e-3)
 
 
+@skipif_not_tf
 class TestMeanAbsolutePercentageError(object):
 
     def test_config(self):
@@ -392,6 +400,7 @@ class TestMeanAbsolutePercentageError(object):
         assert np.allclose(K.eval(loss), [621.8518, 352.6666], rtol=1e-3)
 
 
+@skipif_not_tf
 class TestMeanSquaredLogarithmicError(object):
 
     def test_config(self):
@@ -438,6 +447,7 @@ class TestMeanSquaredLogarithmicError(object):
         assert np.allclose(K.eval(loss), 0.0, rtol=1e-3)
 
 
+@skipif_not_tf
 class TestBinaryCrossentropy(object):
 
     def test_config(self):
@@ -598,6 +608,7 @@ class TestBinaryCrossentropy(object):
         assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
 
 
+@skipif_not_tf
 class TestCategoricalCrossentropy(object):
 
     def test_config(self):
@@ -693,6 +704,7 @@ class TestCategoricalCrossentropy(object):
         assert np.isclose(K.eval(loss), expected_value, atol=1e-3)
 
 
+@skipif_not_tf
 class TestSparseCategoricalCrossentropy(object):
 
     def test_config(self):

@@ -6,6 +6,11 @@ from keras import metrics
 from keras import backend as K
 
 
+if K.backend() != 'tensorflow':
+    # Need TensorFlow to use metric.__call__
+    pytestmark = pytest.mark.skip
+
+
 class TestSum(object):
 
     def test_sum(self):
