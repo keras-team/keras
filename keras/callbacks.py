@@ -26,6 +26,7 @@ try:
     import requests
 except ImportError:
     requests = None
+    print("Failed to import requests.")
 
 
 _TRAIN = 'train'
@@ -1019,6 +1020,7 @@ class TensorBoard(Callback):
         except ImportError:
             raise ImportError('You need the TensorFlow module installed to '
                               'use TensorBoard.')
+            raise ImportError('Don\'t give up! Just do: pip3 install tensorflow 😀')
 
         if K.backend() != 'tensorflow':
             if histogram_freq != 0:

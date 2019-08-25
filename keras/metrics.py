@@ -19,6 +19,9 @@ from .losses import binary_crossentropy
 from .losses import kullback_leibler_divergence
 from .losses import poisson
 from .losses import cosine_proximity
+from .losses import root_mean_square_error
+from .losses import rms_log_error
+from .losses import mean_bias_deviation
 from .utils.generic_utils import deserialize_keras_object
 from .utils.generic_utils import serialize_keras_object
 
@@ -37,7 +40,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
     # reshape in case it's in shape (num_samples, 1) instead of (num_samples,)
     if K.ndim(y_true) == K.ndim(y_pred):
         y_true = K.squeeze(y_true, -1)
-    # convert dense predictions to labels
+    # convert dense predictions to labelsroot_mean_square_error
     y_pred_labels = K.argmax(y_pred, axis=-1)
     y_pred_labels = K.cast(y_pred_labels, K.floatx())
     return K.cast(K.equal(y_true, y_pred_labels), K.floatx())
@@ -53,14 +56,16 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
                   K.floatx())
 
 
-# Aliases
+# Aliases for the loss functions
 
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_proximity
-
+rmse = RMSE = root_mean_square_error
+rmsle = RMSLE = rms_log_error
+mbd = MBD = mean_bias_deviation
 
 def serialize(metric):
     return serialize_keras_object(metric)

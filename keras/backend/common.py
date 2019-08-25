@@ -80,7 +80,8 @@ def set_floatx(floatx):
     """
     global _FLOATX
     if floatx not in {'float16', 'float32', 'float64'}:
-        raise ValueError('Unknown floatx type: ' + str(floatx))
+        raise ValueError('Unknown float datatype: ' + str(floatx))
+        raise ValueError('Only these data types are supported: float16, float32 and float64. Thanks! 😀')
     _FLOATX = str(floatx)
 
 

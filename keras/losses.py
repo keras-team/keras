@@ -8,14 +8,19 @@ import six
 from . import backend as K
 from .utils.generic_utils import deserialize_keras_object
 from .utils.generic_utils import serialize_keras_object
+import numpy as np
 
 
 def mean_squared_error(y_true, y_pred):
-    return K.mean(K.square(y_pred - y_true), axis=-1)
-
+    return np.square(np.subtract(y_pred,y_true)).mean() 
 
 def mean_absolute_error(y_true, y_pred):
-    return K.mean(K.abs(y_pred - y_true), axis=-1)
+    predict = np.array(y_pred)
+    actual = np.array(y_true)
+    difference = abs(predict - actual)
+    score = difference.mean()
+
+    return score
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -92,8 +97,48 @@ def cosine_proximity(y_true, y_pred):
     y_pred = K.l2_normalize(y_pred, axis=-1)
     return -K.sum(y_true * y_pred, axis=-1)
 
+def root_mean_square_error(y_pred, targets):
+    """
+    Root Mean Square Error
+    """
+    return np.sqrt(((y_pred - targets) ** 2).mean())
 
-# Aliases.
+def rms_log_error(y_true, y_pred):
+    """
+    Root Mean Square Logarithmic Error
+    """
+    predict = np.array(y_pred)
+    actual = np.array(y_true)
+
+    log_predict = np.log(predict+1)
+    log_actual = np.log(actual+1)
+
+    difference = log_predict - log_actual
+    square_diff = np.square(difference)
+    mean_square_diff = square_diff.mean()
+
+    score = np.sqrt(mean_square_diff)
+
+    return score
+
+def mean_bias_deviation(y_pred, y_true):
+    """
+    Mean Bias Deviation
+    """
+    predict = np.array(y_pred)
+    actual = np.array(y_true)
+
+    difference = predict - actual
+    numerator = np.sum(difference) / len(predict) 
+    denumerator =  np.sum(actual) / len(predict)
+    print(numerator)
+    print(denumerator)
+
+    score = float(numerator) / denumerator * 100
+
+    return score
+
+# Aliases for the loss functions
 
 mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
@@ -101,7 +146,9 @@ mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 kld = KLD = kullback_leibler_divergence
 cosine = cosine_proximity
-
+rmse = RMSE = root_mean_square_error
+rmsle = RMSLE = rms_log_error
+mbd = MBD = mean_bias_deviation
 
 def serialize(loss):
     return serialize_keras_object(loss)

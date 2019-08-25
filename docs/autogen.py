@@ -394,7 +394,7 @@ def generate(sources_dir):
     with open(os.path.join(sources_dir, 'index.md'), 'w') as f:
         f.write(index)
 
-    print('Generating docs for Keras %s.' % keras.__version__)
+    print('Generating docs for Keras version {}.'.format(keras.__version__))
     for page_data in PAGES:
         classes = read_page_data(page_data, 'classes')
 

@@ -103,9 +103,9 @@ else:
             # Make sure we don't override any entries from common, such as epsilon.
             if k not in namespace:
                 namespace[k] = v
-        sys.stderr.write('Using ' + _BACKEND + ' backend.\n')
+        sys.stderr.write('Using {} backend.\n'.format(_BACKEND))
     except ImportError:
-        raise ValueError('Unable to import backend : ' + str(_BACKEND))
+        raise ValueError('Failed to import backend: {}'.format(str(_BACKEND)))
 
 
 def backend():
