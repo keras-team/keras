@@ -23,6 +23,25 @@ load_img = image.load_img
 
 
 def array_to_img(x, data_format=None, scale=True, dtype=None):
+    """Converts a 3D Numpy array to a PIL Image instance.
+
+    # Arguments
+        x: Input Numpy array.
+        data_format: Image data format.
+            either "channels_first" or "channels_last".
+            If omitted (`None`), then `backend.image_data_format()` is used.
+        scale: Whether to rescale image values
+            to be within `[0, 255]`.
+        dtype: Dtype to use.
+            If omitted (`None`), then `backend.floatx()` or `float32` are used.
+
+    # Returns
+        A PIL Image instance.
+
+    # Raises
+        ImportError: if PIL is not available.
+        ValueError: if invalid `x` or `data_format` is passed.
+    """
     if data_format is None:
         data_format = backend.image_data_format()
     if 'dtype' in generic_utils.getargspec(image.array_to_img).args:
