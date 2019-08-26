@@ -38,6 +38,21 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 
 
 def img_to_array(img, data_format=None, dtype=None):
+    """Converts a PIL Image instance to a Numpy array.
+
+    # Arguments
+        img: PIL Image instance.
+        data_format: Image data format, either "channels_first" or "channels_last".
+            If omitted (`None`), then `backend.image_data_format()` is used.
+        dtype: Dtype to use for the returned array.
+            If omitted (`None`), then `backend.floatx()` or `float32` are used.
+
+    # Returns
+        A 3D Numpy array.
+
+    # Raises
+        ValueError: if invalid `img` or `data_format` is passed.
+    """
     if data_format is None:
         data_format = backend.image_data_format()
     if 'dtype' in generic_utils.getargspec(image.img_to_array).args:
