@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+from tensorflow.python.framework import device as tfdev
 from tensorflow.python.framework import ops as tf_ops
 from tensorflow.python.training import moving_averages
 from tensorflow.python.ops import tensor_array_ops
@@ -248,7 +249,12 @@ class _TfDeviceCaptureOp(object):
 
     def _set_device(self, device):
         """This method captures TF's explicit device scope setting."""
+        if tfdev.is_device_spec(device):
+            device = device.to_string()
         self.device = device
+
+    def _set_device_from_string(self, device_str):
+        self.device = device_str
 
 
 def _get_current_tf_device():
@@ -262,7 +268,7 @@ def _get_current_tf_device():
     g = _get_default_graph()
     op = _TfDeviceCaptureOp()
     g._apply_device_functions(op)
-    return op.device
+    return tfdev.DeviceSpec.from_string(op.device)
 
 
 def _is_current_explicit_device(device_type):
