@@ -314,8 +314,7 @@ class Model(Network):
                     training_updates = self.optimizer.get_updates(
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
-                updates = (self.updates +
-                           training_updates)
+                updates = self.updates + training_updates
 
                 metrics = self._get_training_eval_metrics()
                 metrics_tensors = [

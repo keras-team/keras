@@ -946,10 +946,10 @@ class Layer(object):
             return
         if hasattr(value, '_metric_obj'):
             # We track the instance using the metadata on the result tensor.
+            # Use case: model.add_metric(metrics.Mean(name='metric_2')(y))
             self._metrics.append(value._metric_obj)
         else:
-            # Use cases:
-            # model.add_metric(K.sum(y), name='metric_1')
+            # Use cases: model.add_metric(K.sum(y), name='metric_1')
             metric_obj = _create_mean_metric(value, name)
             self._metrics.append(metric_obj)
 
@@ -1164,10 +1164,7 @@ class Layer(object):
 def _create_mean_metric(value, name=None):
     from .. import metrics
     metric_obj = metrics.Mean(name=name)
-
-    update_ops = metric_obj.update_state(value)
-    with K.control_dependencies(update_ops):
-        metric_obj.result()
+    metric_obj(value)
     return metric_obj
 
 

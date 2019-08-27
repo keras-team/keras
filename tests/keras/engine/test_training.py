@@ -1854,7 +1854,7 @@ def test_add_metric_on_model():
     y = Dense(1, kernel_initializer='ones', trainable=False)(x)
     model = Model(x, y)
     model.add_metric(K.sum(y), name='metric_1')
-    # model.add_metric(metrics.Mean(name='metric_2')(y))
+    model.add_metric(metrics.Mean(name='metric_2')(y))
     model.compile('sgd', loss='mse', metrics=['mse'])
 
     inputs = np.ones(shape=(10, 1))
@@ -1865,16 +1865,116 @@ def test_add_metric_on_model():
         epochs=2,
         batch_size=5,
         validation_data=(inputs, targets))
-    print('XXX: HISTORY: ', history.history)
     assert history.history['metric_1'][-1] == 5
     assert history.history['val_metric_1'][-1] == 5
 
+    assert history.history['metric_2'][-1] == 1
+    assert history.history['val_metric_2'][-1] == 1
+
     eval_results = model.evaluate(inputs, targets, batch_size=5)
-    assert eval_results[-1] == 5
+    assert eval_results[-2] == 5
+    assert eval_results[-1] == 1
 
     model.predict(inputs, batch_size=5)
     model.train_on_batch(inputs, targets)
     model.test_on_batch(inputs, targets)
+
+
+def test_add_metric_in_model_call():
+
+    class TestModel(Model):
+
+        def __init__(self):
+            super(TestModel, self).__init__(name='test_model')
+            self.dense1 = keras.layers.Dense(2, kernel_initializer='ones')
+            self.mean = metrics.Mean(name='metric_1')
+
+        def call(self, x):
+            self.add_metric(K.sum(x), name='metric_2')
+            # Provide same name as in the instance created in __init__
+            # for eager mode
+            self.add_metric(self.mean(x), name='metric_1')
+            return self.dense1(x)
+
+    model = TestModel()
+    model.compile(loss='mse', optimizer='sgd')
+
+    x = np.ones(shape=(10, 1))
+    y = np.ones(shape=(10, 2))
+    history = model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
+    assert np.isclose(history.history['metric_1'][-1], 1, 0)
+    assert np.isclose(history.history['val_metric_1'][-1], 1, 0)
+    assert np.isclose(history.history['metric_2'][-1], 5, 0)
+    assert np.isclose(history.history['val_metric_2'][-1], 5, 0)
+
+    eval_results = model.evaluate(x, y, batch_size=5)
+    assert np.isclose(eval_results[1], 1, 0)
+    assert np.isclose(eval_results[2], 5, 0)
+
+    model.predict(x, batch_size=5)
+    model.train_on_batch(x, y)
+    model.test_on_batch(x, y)
+
+
+def test_multiple_add_metric_calls():
+
+    class TestModel(Model):
+
+        def __init__(self):
+            super(TestModel, self).__init__(name='test_model')
+            self.dense1 = keras.layers.Dense(2, kernel_initializer='ones')
+            self.mean1 = metrics.Mean(name='metric_1')
+            self.mean2 = metrics.Mean(name='metric_2')
+
+        def call(self, x):
+            self.add_metric(self.mean2(x), name='metric_2')
+            self.add_metric(self.mean1(x), name='metric_1')
+            self.add_metric(K.sum(x), name='metric_3')
+            return self.dense1(x)
+
+    model = TestModel()
+    model.compile(loss='mse', optimizer='sgd')
+
+    x = np.ones(shape=(10, 1))
+    y = np.ones(shape=(10, 2))
+    history = model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
+    assert np.isclose(history.history['metric_1'][-1], 1, 0)
+    assert np.isclose(history.history['metric_2'][-1], 1, 0)
+    assert np.isclose(history.history['metric_3'][-1], 5, 0)
+
+    eval_results = model.evaluate(x, y, batch_size=5)
+    assert np.allclose(eval_results[1:4], [1, 1, 5], 0.1)
+
+    model.predict(x, batch_size=5)
+    model.train_on_batch(x, y)
+    model.test_on_batch(x, y)
+
+
+def test_add_metric_in_layer_call():
+
+    class TestLayer(Layer):
+
+        def build(self, input_shape):
+            self.a = self.add_weight(
+                'a', (1, 1), initializer='ones', trainable=False)
+            self.built = True
+
+        def call(self, inputs):
+            self.add_metric(K.sum(inputs), name='metric_1')
+            return inputs + 1
+
+    inp = Input(shape=(1,))
+    x = TestLayer(input_shape=(1,))(inp)
+    x = keras.layers.Dense(2, kernel_initializer='ones')(x)
+
+    model = Model(inp, x)
+    model.compile('adam', loss='mse')
+
+    x = np.ones(shape=(10, 1))
+    y = np.ones(shape=(10, 2))
+    history = model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
+    assert np.isclose(history.history['metric_1'][-1], 5, 0)
+    assert np.isclose(history.history['val_metric_1'][-1], 5, 0)
 
 
 if __name__ == '__main__':

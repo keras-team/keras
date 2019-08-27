@@ -1235,7 +1235,7 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    return x.assign(new_x)
+    return tf_state_ops.assign(x, new_x)
 
 
 def update_add(x, increment):
@@ -1248,7 +1248,7 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    return x.assign_add(increment)
+    return tf_state_ops.assign_add(x, increment)
 
 
 def update_sub(x, decrement):
@@ -1261,7 +1261,7 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    return x.assign_sub(decrement)
+    return tf_state_ops.assign_sub(x, decrement)
 
 
 @symbolic

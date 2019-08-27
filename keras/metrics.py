@@ -73,6 +73,7 @@ class Metric(Layer):
             metrics_utils.result_wrapper(obj.result), obj)
         return obj
 
+    @K.symbolic
     def __call__(self, *args, **kwargs):
         """Accumulates statistics and then computes metric result value."""
         if K.backend() != 'tensorflow':
