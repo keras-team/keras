@@ -851,6 +851,9 @@ def size(x, name=None):
     ```
 
     """
+    if is_symbolic(x):
+        with get_graph().as_default():
+            return tf.size(x)
     return tf.size(x, name=name)
 
 
@@ -1232,7 +1235,7 @@ def update(x, new_x):
     # Returns
         The variable `x` updated.
     """
-    return tf_state_ops.assign(x, new_x)
+    return x.assign(new_x)
 
 
 def update_add(x, increment):
@@ -1245,7 +1248,7 @@ def update_add(x, increment):
     # Returns
         The variable `x` updated.
     """
-    return tf_state_ops.assign_add(x, increment)
+    return x.assign_add(increment)
 
 
 def update_sub(x, decrement):
@@ -1258,7 +1261,7 @@ def update_sub(x, decrement):
     # Returns
         The variable `x` updated.
     """
-    return tf_state_ops.assign_sub(x, decrement)
+    return x.assign_sub(decrement)
 
 
 @symbolic

@@ -33,9 +33,9 @@ def update_state_wrapper(update_state_fn):
     def decorated(metric_obj, *args, **kwargs):
         """Decorated function with `add_update()`."""
 
-        update_op = update_state_fn(*args, **kwargs)
-        metric_obj.add_update(update_op)
-        return update_op
+        update_ops = update_state_fn(*args, **kwargs)
+        metric_obj.add_update(update_ops)
+        return update_ops
 
     return decorated
 

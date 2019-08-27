@@ -10,6 +10,7 @@ from flaky import flaky
 
 import keras
 from keras import losses
+from keras import metrics
 from keras.layers import Layer, Activation, Dense, Dropout, Conv2D, Concatenate
 from keras.engine import Input
 from keras.engine.training import Model
@@ -1745,6 +1746,135 @@ def test_loss_correctness():
     y = np.array([[0.5], [2.], [3.5]])
     history = model.fit(x, y, batch_size=3, epochs=5)
     np.allclose(history.history['loss'], [1., 0.9, 0.8, 0.7, 0.6])
+
+
+def test_model_metrics_list():
+
+    class LayerWithAddMetric(Layer):
+
+        def __init__(self):
+            super(LayerWithAddMetric, self).__init__()
+            self.dense = keras.layers.Dense(1, kernel_initializer='ones')
+
+        def __call__(self, inputs):
+            outputs = self.dense(inputs)
+            return outputs
+
+    class LayerWithNestedAddMetricLayer(Layer):
+
+        def __init__(self):
+            super(LayerWithNestedAddMetricLayer, self).__init__()
+            self.layer = LayerWithAddMetric()
+
+        def call(self, inputs):
+            outputs = self.layer(inputs)
+            self.add_metric(K.sum(outputs), name='metric_4')
+            return outputs
+
+    x = Input(shape=(1,))
+    y = LayerWithNestedAddMetricLayer()(x)
+
+    model = keras.models.Model(x, y)
+    model.add_metric(K.sum(y), name='metric_2')
+    model.add_metric(metrics.Mean(name='metric_3')(y))
+
+    model.compile(
+        'sgd',
+        loss='mse',
+        metrics=[metrics.MeanSquaredError('metric_1')])
+
+    # Verify that the metrics added using `compile` and `add_metric` API are
+    # included
+    for m1, m2 in zip([m.name for m in model._compile_metrics], ['metric_1']):
+        assert m1 == m2
+
+    for m1, m2 in zip(
+            [m.name for m in model.metrics],
+            ['metric_1', 'metric_2', 'metric_3', 'metric_4']):
+        assert m1 == m2
+
+
+def test_model_metrics_list_in_call():
+
+    class TestModel(Model):
+
+        def __init__(self):
+            super(TestModel, self).__init__(name='test_model')
+            self.dense1 = keras.layers.Dense(2)
+
+        def call(self, x):
+            self.add_metric(K.sum(x), name='metric_2')
+            return self.dense1(x)
+
+    model = TestModel()
+    model.compile(
+        loss='mse',
+        optimizer='adam',
+        metrics=[metrics.MeanSquaredError('metric_1')])
+    x = np.ones(shape=(10, 1))
+    y = np.ones(shape=(10, 2))
+    model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
+
+    # Verify that the metrics added using `compile` and `add_metric` API are
+    # included
+    for m1, m2 in zip([m.name for m in model._compile_metrics], ['metric_1']):
+        assert m1 == m2
+
+    for m1, m2 in zip(
+            [m.name for m in model.metrics],
+            ['metric_1', 'metric_2']):
+        assert m1 == m2
+
+
+def test_duplicate_metric_name_in_add_metric():
+
+    class TestModel(Model):
+
+        def __init__(self):
+            super(TestModel, self).__init__(name='test_model')
+            self.dense1 = keras.layers.Dense(2, kernel_initializer='ones')
+            self.mean = metrics.Mean(name='metric_1')
+            self.mean2 = metrics.Mean(name='metric_1')
+
+        def call(self, x):
+            self.add_metric(self.mean(x), name='metric_1')
+            return self.dense1(x)
+
+    model = TestModel()
+    model.compile(loss='mse', optimizer='adam')
+
+    x = np.ones(shape=(10, 1))
+    y = np.ones(shape=(10, 2))
+    with pytest.raises(ValueError):
+        model.fit(x, y, epochs=2, batch_size=5, validation_data=(x, y))
+
+
+def test_add_metric_on_model():
+    x = Input(shape=(1,))
+    y = Dense(1, kernel_initializer='ones', trainable=False)(x)
+    model = Model(x, y)
+    model.add_metric(K.sum(y), name='metric_1')
+    # model.add_metric(metrics.Mean(name='metric_2')(y))
+    model.compile('sgd', loss='mse', metrics=['mse'])
+
+    inputs = np.ones(shape=(10, 1))
+    targets = np.zeros(shape=(10, 1))
+    history = model.fit(
+        inputs,
+        targets,
+        epochs=2,
+        batch_size=5,
+        validation_data=(inputs, targets))
+    print('XXX: HISTORY: ', history.history)
+    assert history.history['metric_1'][-1] == 5
+    assert history.history['val_metric_1'][-1] == 5
+
+    eval_results = model.evaluate(inputs, targets, batch_size=5)
+    assert eval_results[-1] == 5
+
+    model.predict(inputs, batch_size=5)
+    model.train_on_batch(inputs, targets)
+    model.test_on_batch(inputs, targets)
 
 
 if __name__ == '__main__':

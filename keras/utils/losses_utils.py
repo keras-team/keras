@@ -118,7 +118,7 @@ def broadcast_weights(values, sample_weight):
             for i in range(weights_rank):
                 if (weights_shape[i] is not None and
                     values_shape[i] is not None and
-                    weights_shape[i] != values_shape[i]):
+                        weights_shape[i] != values_shape[i]):
                     # Cannot be broadcasted.
                     if weights_shape[i] != 1:
                         raise ValueError(
