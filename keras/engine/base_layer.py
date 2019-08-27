@@ -1164,8 +1164,14 @@ class Layer(object):
 def _create_mean_metric(value, name=None):
     from .. import metrics
     metric_obj = metrics.Mean(name=name)
-    metric_obj(value)
+    _call_metric(metric_obj, value)
     return metric_obj
+
+@K.symbolic
+def _call_metric(metric_obj, *args, **kwargs):
+    update_op = metric_obj.update_state(*args, **kwargs)
+    with K.control_dependencies(update_op):  # For TF
+        result_t = metric_obj.result()
 
 
 class InputSpec(object):

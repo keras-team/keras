@@ -79,8 +79,8 @@ class Metric(Layer):
         if K.backend() != 'tensorflow':
             raise RuntimeError(
                 'Metric calling only supported with TensorFlow backend.')
-        update_ops = self.update_state(*args, **kwargs)
-        with K.control_dependencies(update_ops):  # For TF
+        update_op = self.update_state(*args, **kwargs)
+        with K.control_dependencies(update_op):  # For TF
             result_t = self.result()
 
             # We are adding the metric object as metadata on the result tensor.
