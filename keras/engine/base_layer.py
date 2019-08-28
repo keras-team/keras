@@ -462,7 +462,7 @@ class Layer(object):
             inputs_ls = to_list(inputs)
             output_ls_copy = []
             for x in output_ls:
-                if x in inputs_ls:
+                if id(x) in [id(i) for i in inputs_ls]:
                     x = K.identity(x)
                 output_ls_copy.append(x)
             output = unpack_singleton(output_ls_copy)
@@ -968,10 +968,12 @@ class Layer(object):
                 (e.g. L2 weight regularization, which only depends
                 on the layer's weights variables, not on any inputs tensors).
         """
-        if losses is None or losses == []:
+        if losses is None:
             return
         # Update self.losses
         losses = to_list(losses)
+        if losses == []:
+            return
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
@@ -1000,10 +1002,12 @@ class Layer(object):
                 the updates as conditional on these inputs.
                 If None is passed, the updates are assumed unconditional.
         """
-        if updates is None or updates == []:
+        if updates is None:
             return
         # Update self.updates
         updates = to_list(updates)
+        if updates == []:
+            return
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates

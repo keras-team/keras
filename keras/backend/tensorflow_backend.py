@@ -326,11 +326,11 @@ def learning_phase():
     else:
         if isinstance(lp, int):
             return lp
-        if lp in _LEARNING_PHASE_CACHE:
-            return _LEARNING_PHASE_CACHE[lp]
+        if id(lp) in _LEARNING_PHASE_CACHE:
+            return _LEARNING_PHASE_CACHE[id(lp)]
         with name_scope(''):
             int_lp = tf.cast(lp, 'int32', name='learning_phase')
-        _LEARNING_PHASE_CACHE[lp] = int_lp
+        _LEARNING_PHASE_CACHE[id(lp)] = int_lp
         return int_lp
 
 
