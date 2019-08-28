@@ -1487,13 +1487,14 @@ def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
         epochs=1,
         steps_per_epoch=2,
         verbose=0)
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError,
+                       match='should specify the `steps_per_epoch`'):
         model.fit(
             [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
             epochs=1,
             batch_size=5,
             verbose=0)
-    assert 'should specify the `steps_per_epoch`' in str(excinfo.value)
+
     model.train_on_batch([input_a_tf, input_b_tf], [output_d_tf, output_e_tf])
 
     # Test with dictionary inputs
@@ -1534,7 +1535,8 @@ def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
         validation_steps=2,
         verbose=0)
     # Test with validation split
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(ValueError,
+                       match='you cannot use `validation_split`'):
         model.fit(
             [input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
             epochs=2,
@@ -1542,7 +1544,6 @@ def test_training_and_eval_methods_on_symbolic_tensors_multi_io():
             verbose=0,
             validation_split=0.2,
             validation_steps=2)
-    assert 'you cannot use `validation_split`' in str(excinfo.value)
 
     # Test evaluation / prediction methods
     model.evaluate([input_a_tf, input_b_tf], [output_d_tf, output_e_tf],
