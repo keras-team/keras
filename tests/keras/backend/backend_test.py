@@ -2119,6 +2119,5 @@ class TestBackend(object):
                            KNP.eval(KNP.clip(x, min_val, max_val)))
 
 
-
 if __name__ == '__main__':
     pytest.main([__file__])
