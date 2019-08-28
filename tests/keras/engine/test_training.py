@@ -21,6 +21,9 @@ from keras import backend as K
 from keras.utils import Sequence
 from keras.callbacks import Callback
 
+if K.backend() == 'tensorflow':
+    import tensorflow as tf
+
 
 class RandomSequence(Sequence):
     def __init__(self, batch_size, sequence_length=12):
@@ -1246,6 +1249,9 @@ def test_target_tensors():
                          sample_weight={'dense_a': np.random.random((10,))})
 
 
+@pytest.mark.skipif(K.backend() == 'tensorflow' and
+                    tf.__version__.startswith('2'),
+                    reason='Cannot have tensors as dict keys in TF2')
 def test_model_custom_target_tensors():
     a = Input(shape=(3,), name='input_a')
     b = Input(shape=(3,), name='input_b')

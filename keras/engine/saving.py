@@ -835,8 +835,9 @@ def preprocess_weights_for_loading(layer, weights,
 
         # non-trainable weights
         for sublayer in layer.layers:
+            ref_ids = [id(w) for w in sublayer.trainable_weights]
             num_weights = len([l for l in sublayer.weights
-                               if l not in sublayer.trainable_weights])
+                               if id(l) not in ref_ids])
             if num_weights > 0:
                 new_weights.extend(preprocess_weights_for_loading(
                     layer=sublayer,

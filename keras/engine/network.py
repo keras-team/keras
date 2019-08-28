@@ -154,7 +154,7 @@ class Network(Layer):
 
         # User-provided argument validation.
         # Check for redundancy in inputs.
-        if len(set(self.inputs)) != len(self.inputs):
+        if len(set(id(x) for x in self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
@@ -445,8 +445,13 @@ class Network(Layer):
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
 
-        unique_tensors = list(
-            set(x for x in losses if not isinstance(x, (float, int))))
+        unique_tensors = []
+        unique_tensors_ids = set()
+        for x in losses:
+            if not isinstance(x, (float, int)):
+                if id(x) not in unique_tensors_ids:
+                    unique_tensors.append(x)
+                    unique_tensors_ids.add(id(x))
         non_tensors = [x for x in losses if isinstance(x, (float, int))]
         return unique_tensors + non_tensors
 
@@ -1502,7 +1507,7 @@ def _map_graph_network(inputs, outputs):
             layer = node.outbound_layer
             if layer:
                 for x in node.input_tensors:
-                    if x not in computable_tensors:
+                    if id(x) not in [id(ct) for ct in computable_tensors]:
                         raise ValueError('Graph disconnected: '
                                          'cannot obtain value for tensor ' +
                                          str(x) + ' at layer "' +
