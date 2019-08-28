@@ -76,9 +76,6 @@ class Metric(Layer):
     @K.symbolic
     def __call__(self, *args, **kwargs):
         """Accumulates statistics and then computes metric result value."""
-        if K.backend() != 'tensorflow':
-            raise RuntimeError(
-                'Metric calling only supported with TensorFlow backend.')
         update_op = self.update_state(*args, **kwargs)
         with K.control_dependencies(update_op):  # For TF
             result_t = self.result()

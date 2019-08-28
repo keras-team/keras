@@ -1408,16 +1408,32 @@ class Function(object):
             if v not in unique_variables_to_update:
                 unique_variables_to_update[v] = nv
         updates = unique_variables_to_update.items()
+        self.outputs = outputs
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
                                         on_unused_input='ignore',
                                         name=name,
                                         **kwargs)
+        self._metrics = [x for x in outputs if hasattr(x, '_is_metric')]
+        self._metrics_function = theano.function(
+            [], self._metrics,
+            name=name + '_metrics' if name else None)
         self.name = name
 
     def __call__(self, inputs):
         assert isinstance(inputs, (list, tuple))
-        return self.function(*inputs)
+        outputs = self.function(*inputs)
+        if self._metrics:
+            metrics = self._metrics_function()
+        i = 0
+        j = 0
+        for x in self.outputs:
+            if hasattr(x, '_is_metric'):
+                v = metrics[j]
+                outputs[i] = v
+                j += 1
+            i += 1
+        return outputs
 
 
 def _raise_invalid_arg(key):

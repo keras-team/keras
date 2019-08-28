@@ -34,7 +34,7 @@ def test_image_classification():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     model.summary()
-    history = model.fit(x_train, y_train, epochs=10, batch_size=16,
+    history = model.fit(x_train, y_train, epochs=12, batch_size=16,
                         validation_data=(x_test, y_test),
                         verbose=0)
     assert history.history['val_accuracy'][-1] > 0.75
@@ -68,7 +68,7 @@ def test_image_data_generator_training():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     history = model.fit_generator(img_gen.flow(x_train, y_train, batch_size=16),
-                                  epochs=12,
+                                  epochs=15,
                                   validation_data=img_gen.flow(x_test, y_test,
                                                                batch_size=16),
                                   verbose=0)
