@@ -79,8 +79,8 @@ def _test_optimizer(optimizer, target=0.75):
 
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="Only Tensorflow raises a "
-                           "ValueError if the gradient is null.")
+                    reason='Only Tensorflow raises a '
+                           'ValueError if the gradient is null.')
 def test_no_grad():
     inp = Input([3])
     x = Dense(10)(inp)
@@ -94,6 +94,8 @@ def test_no_grad():
                 batch_size=10, epochs=10)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Flaky with CNTK')
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
