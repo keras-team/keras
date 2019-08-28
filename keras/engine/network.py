@@ -1238,6 +1238,10 @@ class Network(Layer):
             else:
                 saving.load_weights_from_hdf5_group(
                     f, self.layers, reshape=reshape)
+            if hasattr(f, 'close'):
+                f.close()
+            elif hasattr(f.file, 'close'):
+                f.file.close()
 
     def _updated_config(self):
         """Util hared between different serialization methods.

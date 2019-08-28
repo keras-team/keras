@@ -12,7 +12,7 @@ Weights are downloaded automatically when instantiating a model. They are stored
 - [Xception](#xception)
 - [VGG16](#vgg16)
 - [VGG19](#vgg19)
-- [ResNet, ResNetV2, ResNeXt](#resnet)
+- [ResNet, ResNetV2](#resnet)
 - [InceptionV3](#inceptionv3)
 - [InceptionResNetV2](#inceptionresnetv2)
 - [MobileNet](#mobilenet)
@@ -181,8 +181,6 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [ResNet50V2](#resnet) | 98 MB | 0.760 | 0.930 | 25,613,800 | - |
 | [ResNet101V2](#resnet) | 171 MB | 0.772 | 0.938 | 44,675,560 | - |
 | [ResNet152V2](#resnet) | 232 MB | 0.780 | 0.942 | 60,380,648 | - |
-| [ResNeXt50](#resnet) | 96 MB | 0.777 | 0.938 | 25,097,128 | - |
-| [ResNeXt101](#resnet) | 170 MB | 0.787 | 0.943 | 44,315,560 | - |
 | [InceptionV3](#inceptionv3) | 92 MB | 0.779 | 0.937 | 23,851,784 | 159 |
 | [InceptionResNetV2](#inceptionresnetv2) | 215 MB | 0.803 | 0.953 | 55,873,736 | 572 |
 | [MobileNet](#mobilenet) | 16 MB | 0.704 | 0.895 | 4,253,864 | 88 |
@@ -212,7 +210,7 @@ Xception V1 model, with weights pre-trained on ImageNet.
 On ImageNet, this model gets to a top-1 validation accuracy of 0.790
 and a top-5 validation accuracy of 0.945.
 
-Note that this model only supports the data format `'channels_last'` (height, width, channels).
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 299x299.
 
@@ -377,12 +375,10 @@ keras.applications.resnet.ResNet152(include_top=True, weights='imagenet', input_
 keras.applications.resnet_v2.ResNet50V2(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
 keras.applications.resnet_v2.ResNet101V2(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
 keras.applications.resnet_v2.ResNet152V2(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.resnext.ResNeXt50(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.resnext.ResNeXt101(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
 ```
 
 
-ResNet, ResNetV2, ResNeXt models, with weights pre-trained on ImageNet.
+ResNet, ResNetV2 models, with weights pre-trained on ImageNet.
 
 This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
@@ -424,7 +420,6 @@ A Keras `Model` instance.
 
 - `ResNet`: [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385)
 - `ResNetV2`: [Identity Mappings in Deep Residual Networks](https://arxiv.org/abs/1603.05027)
-- `ResNeXt`: [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/abs/1611.05431)
 
 ### License
 
@@ -432,7 +427,6 @@ These weights are ported from the following:
 
 - `ResNet`: [The original repository of Kaiming He](https://github.com/KaimingHe/deep-residual-networks) under the [MIT license](https://github.com/KaimingHe/deep-residual-networks/blob/master/LICENSE).
 - `ResNetV2`: [Facebook](https://github.com/facebook/fb.resnet.torch) under the [BSD license](https://github.com/facebook/fb.resnet.torch/blob/master/LICENSE).
-- `ResNeXt`: [Facebook AI Research](https://github.com/facebookresearch/ResNeXt) under the [BSD license](https://github.com/facebookresearch/ResNeXt/blob/master/LICENSE).
 
 -----
 
@@ -555,7 +549,7 @@ keras.applications.mobilenet.MobileNet(input_shape=None, alpha=1.0, depth_multip
 
 MobileNet model, with weights pre-trained on ImageNet.
 
-Note that this model only supports the data format `'channels_last'` (height, width, channels).
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
@@ -747,7 +741,7 @@ keras.applications.mobilenet_v2.MobileNetV2(input_shape=None, alpha=1.0, include
 
 MobileNetV2 model, with weights pre-trained on ImageNet.
 
-Note that this model only supports the data format `'channels_last'` (height, width, channels).
+This model and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
 The default input size for this model is 224x224.
 
