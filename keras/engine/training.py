@@ -122,7 +122,6 @@ class Model(Network):
         self._feed_output_names = []
         self._feed_output_shapes = []
         self._feed_loss_fns = []
-        self._metric_updates = []
 
         # if loss function is None, then this output will be skipped during total
         # loss calculation and feed targets preparation.
@@ -248,6 +247,8 @@ class Model(Network):
         metrics = []
         if self._is_compiled:
             metrics += self._compile_metric_functions
+        metrics.extend(self._metrics)
+        metrics.extend(_get_metrics_from_layers(self._layers))
         return metrics
 
     @property
@@ -265,6 +266,11 @@ class Model(Network):
 
             # Add compile metrics/weighted metrics' names to the metric names list.
             metrics_names.extend([m.name for m in self._compile_metric_functions])
+
+        # Add metric names from layers.
+        for layer in self.layers:
+            metrics_names += [m.name for m in layer._metrics]
+        metrics_names += [m.name for m in self._metrics]
         return metrics_names
 
     def reset_metrics(self):
@@ -308,20 +314,21 @@ class Model(Network):
                     training_updates = self.optimizer.get_updates(
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
-                updates = (self.updates +
-                           training_updates +
-                           self._metric_updates)
+                updates = self.updates + training_updates
 
                 metrics = self._get_training_eval_metrics()
                 metrics_tensors = [
                     m._call_result for m in metrics if hasattr(m, '_call_result')
                 ]
+                metrics_updates = []
+                for m in metrics:
+                    metrics_updates.extend(m.updates)
 
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(
                     inputs,
                     [self.total_loss] + metrics_tensors,
-                    updates=updates,
+                    updates=updates + metrics_updates,
                     name='train_function',
                     **self._function_kwargs)
 
@@ -339,12 +346,17 @@ class Model(Network):
             metrics_tensors = [
                 m._call_result for m in metrics if hasattr(m, '_call_result')
             ]
+
+            metrics_updates = []
+            for m in metrics:
+                metrics_updates.extend(m.updates)
+
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(
                 inputs,
                 [self.total_loss] + metrics_tensors,
-                updates=self.state_updates + self._metric_updates,
+                updates=self.state_updates + metrics_updates,
                 name='test_function',
                 **self._function_kwargs)
 
@@ -681,10 +693,8 @@ class Model(Network):
 
                 if len(self.outputs) > 1:
                     update_ops = self._output_loss_metrics[i].update_state(output_loss)
-                    self._metric_updates += update_ops
-                    result = self._output_loss_metrics[i].result()
-                    self._output_loss_metrics[i]._call_result = result
-
+                    with K.control_dependencies(update_ops):  # For TF
+                        self._output_loss_metrics[i].result()
                 if total_loss is None:
                     total_loss = loss_weight * output_loss
                 else:
@@ -827,9 +837,8 @@ class Model(Network):
 
         for metric_name, metric_fn in metrics_dict.items():
             with K.name_scope(metric_name):
-                metric_result, update_ops = training_utils.call_metric_function(
+                training_utils.call_metric_function(
                     metric_fn, y_true, y_pred, weights=weights, mask=mask)
-                self._metric_updates += update_ops
 
     def _handle_metrics(self,
                         outputs,
@@ -1834,3 +1843,25 @@ class Model(Network):
             workers=workers,
             use_multiprocessing=use_multiprocessing,
             verbose=verbose)
+
+
+def _get_metrics_from_layers(layers):
+    """Returns list of metrics from the given layers.
+    This will not include the `compile` metrics of a model layer.
+
+    # Arguments
+        layers: List of layers.
+
+    # Returns
+        List of metrics.
+    """
+    metrics = []
+    for layer in layers:
+        if isinstance(layer, Model):
+            # We cannot call 'metrics' on the model because we do not want to
+            # include the metrics that were added in compile API of a nested model.
+            metrics.extend(layer._metrics)
+            metrics.extend(_get_metrics_from_layers(layer.layers))
+        else:
+            metrics.extend(layer.metrics)
+    return metrics

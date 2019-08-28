@@ -105,6 +105,10 @@ class Layer(object):
         self._per_input_updates = {}
         self._built = False
 
+        # A list of metric instances corresponding to the metric tensors added using
+        # the `add_metric` API.
+        self._metrics = []
+
         # These lists will be filled via successive calls
         # to self._add_inbound_node().
         self._inbound_nodes = []
@@ -926,6 +930,29 @@ class Layer(object):
                                  'Use `get_output_shape_at(node_index)` '
                                  'instead.')
 
+    @property
+    def metrics(self):
+        return self._metrics
+
+    def add_metric(self, value, name=None):
+        """Adds metric tensor to the layer.
+
+        # Arguments
+            value: Metric tensor.
+            name: String metric name.
+        """
+        match = self._get_existing_metric(name)
+        if match:
+            return
+        if hasattr(value, '_metric_obj'):
+            # We track the instance using the metadata on the result tensor.
+            # Use case: model.add_metric(metrics.Mean(name='metric_2')(y))
+            self._metrics.append(value._metric_obj)
+        else:
+            # Use cases: model.add_metric(K.sum(y), name='metric_1')
+            metric_obj = _create_mean_metric(value, name)
+            self._metrics.append(metric_obj)
+
     def add_loss(self, losses, inputs=None):
         """Adds losses to the layer.
 
@@ -1122,6 +1149,29 @@ class Layer(object):
                                    'You can build it manually via: `' +
                                    self.name + '.build(batch_input_shape)`.')
         return count_params(self.weights)
+
+    def _get_existing_metric(self, name=None):
+        match = [m for m in self._metrics if m.name == name]
+        if not match:
+            return
+        if len(match) > 1:
+            raise ValueError(
+                'Please provide different names for the metrics you have added. '
+                'We found {} metrics with the name: "{}"'.format(len(match), name))
+        return match[0]
+
+
+def _create_mean_metric(value, name=None):
+    from .. import metrics
+    metric_obj = metrics.Mean(name=name)
+    _call_metric(metric_obj, value)
+    return metric_obj
+
+@K.symbolic
+def _call_metric(metric_obj, *args, **kwargs):
+    update_op = metric_obj.update_state(*args, **kwargs)
+    with K.control_dependencies(update_op):  # For TF
+        result_t = metric_obj.result()
 
 
 class InputSpec(object):
