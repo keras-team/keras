@@ -56,6 +56,7 @@ def result_wrapper(result_fn):
     def decorated(metric_obj, *args, **kwargs):
         result_t = K.identity(result_fn(*args, **kwargs))
         metric_obj._call_result = result_t
+        result_t._is_metric = True
         return result_t
 
     return decorated
