@@ -1031,11 +1031,10 @@ def call_metric_function(metric_fn,
 
     if y_pred is not None:
         update_ops = metric_fn.update_state(y_true, y_pred, sample_weight=weights)
-        with K.control_dependencies(update_ops):
-            result = metric_fn.result()
+        with K.control_dependencies(update_ops):  # For TF
+            metric_fn.result()
     else:
         # `Mean` metric only takes a single value.
         update_ops = metric_fn.update_state(y_true, sample_weight=weights)
-        with K.control_dependencies(update_ops):
-            result = metric_fn.result()
-    return result, update_ops
+        with K.control_dependencies(update_ops):  # For TF
+            metric_fn.result()

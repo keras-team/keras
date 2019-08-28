@@ -851,6 +851,9 @@ def size(x, name=None):
     ```
 
     """
+    if is_symbolic(x):
+        with get_graph().as_default():
+            return tf.size(x)
     return tf.size(x, name=name)
 
 

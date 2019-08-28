@@ -134,6 +134,10 @@ class Network(Layer):
         self._per_input_losses = {}
         self._per_input_updates = {}
 
+        # A list of metric instances corresponding to the metric tensors added using
+        # the `add_metric` API.
+        self._metrics = []
+
         # All layers in order of horizontal graph traversal.
         # Entries are unique. Includes input and output layers.
         self._layers = []
@@ -321,9 +325,23 @@ class Network(Layer):
                     self._layers.append(value)
         super(Network, self).__setattr__(name, value)
 
+        # Keep track of metric instance created in subclassed model/layer.
+        # We do this so that we can maintain the correct order of metrics by adding
+        # the instance to the `metrics` list as soon as it is created.
+        from .. import metrics as metrics_module
+        if isinstance(value, metrics_module.Metric):
+            self._metrics.append(value)
+
     @property
     def layers(self):
         return self._layers
+
+    @property
+    def metrics(self):
+        metrics = self._metrics
+        for l in self.layers:
+            metrics += l.metrics
+        return metrics
 
     def get_layer(self, name=None, index=None):
         """Retrieves a layer based on either its name (unique) or index.

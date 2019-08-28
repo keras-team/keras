@@ -73,6 +73,7 @@ class Metric(Layer):
             metrics_utils.result_wrapper(obj.result), obj)
         return obj
 
+    @K.symbolic
     def __call__(self, *args, **kwargs):
         """Accumulates statistics and then computes metric result value."""
         if K.backend() != 'tensorflow':
@@ -80,7 +81,18 @@ class Metric(Layer):
                 'Metric calling only supported with TensorFlow backend.')
         update_op = self.update_state(*args, **kwargs)
         with K.control_dependencies(update_op):  # For TF
-            return self.result()
+            result_t = self.result()
+
+            # We are adding the metric object as metadata on the result tensor.
+            # This is required when we want to use a metric with `add_metric` API on
+            # a Model/Layer in graph mode. This metric instance will later be used
+            # to reset variable state after each epoch of training.
+            # Example:
+            #   model = Model()
+            #   mean = Mean()
+            #   model.add_metric(mean(values), name='mean')
+            result_t._metric_obj = self
+            return result_t
 
     def get_config(self):
         """Returns the serializable config of the metric."""
