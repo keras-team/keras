@@ -46,6 +46,8 @@ def handle_class(name, member):
 
 
 def handle_function(name, member):
+    if name.startswith('_'):
+        return
     if is_accepted(name, member) or member_too_small(member):
         # We don't need to check this one.
         return

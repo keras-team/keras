@@ -832,6 +832,32 @@ def test_check_bad_shape():
             [a], [losses.CategoricalCrossentropy()], [(2, 3, 6)])
 
 
+@pytest.mark.parametrize('input_metrics,expected_output', [
+    (None, [[], []]),
+    (['mse', 'mae'], [['mse', 'mae'], ['mse', 'mae']]),
+    ({'layer_1': 'mae', 'layer_2': 'mse'}, [['mae'], ['mse']]),
+])
+def test_collect_metrics(input_metrics, expected_output):
+    output_names = ['layer_1', 'layer_2']
+
+    output_metrics = training_utils.collect_metrics(input_metrics,
+                                                    output_names)
+    assert output_metrics == expected_output
+
+
+def test_collect_metrics_with_invalid_metrics_format():
+    with pytest.raises(TypeError):
+        training_utils.collect_metrics({'a', 'set', 'type'}, [])
+
+
+def test_collect_metrics_with_invalid_layer_name():
+    with pytest.warns(Warning) as w:
+        training_utils.collect_metrics({'unknown_layer': 'mse'}, ['layer_1'])
+
+    warning_raised = all(['unknown_layer' in str(w_.message) for w_ in w])
+    assert warning_raised, 'Warning was raised for unknown_layer'
+
+
 @pytest.mark.skipif(K.backend() != 'tensorflow',
                     reason='Requires TensorFlow backend')
 def test_model_with_input_feed_tensor():
