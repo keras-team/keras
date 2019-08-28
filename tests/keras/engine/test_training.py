@@ -818,20 +818,18 @@ def test_check_not_failing():
 
 def test_check_last_is_one():
     a = np.random.random((2, 3, 1))
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError,
+                       match='You are passing a target array'):
         training_utils.check_loss_and_target_compatibility(
             [a], [losses.CategoricalCrossentropy()], [a.shape])
-
-    assert 'You are passing a target array' in str(exc)
 
 
 def test_check_bad_shape():
     a = np.random.random((2, 3, 5))
-    with pytest.raises(ValueError) as exc:
+    with pytest.raises(ValueError,
+                       match='targets to have the same shape'):
         training_utils.check_loss_and_target_compatibility(
             [a], [losses.CategoricalCrossentropy()], [(2, 3, 6)])
-
-    assert 'targets to have the same shape' in str(exc)
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow',
