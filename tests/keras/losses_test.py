@@ -205,14 +205,14 @@ class TestMeanSquaredError:
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred)
-        assert np.isclose(K.eval(loss), 49.5, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 49.5, atol=1e-3)
 
     def test_scalar_weighted(self):
         mse_obj = losses.MeanSquaredError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.isclose(K.eval(loss), 113.85, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 113.85, atol=1e-3)
 
     def test_sample_weighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -220,7 +220,7 @@ class TestMeanSquaredError:
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         sample_weight = K.constant([1.2, 3.4], shape=(2, 1))
         loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.isclose(K.eval(loss), 767.8 / 6, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 767.8 / 6, atol=1e-3)
 
     def test_timestep_weighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -228,7 +228,7 @@ class TestMeanSquaredError:
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
         sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.isclose(K.eval(loss), 97.833, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 97.833, atol=1e-3)
 
     def test_zero_weighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -251,7 +251,7 @@ class TestMeanSquaredError:
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.allclose(K.eval(loss), [84.3333, 143.3666], rtol=1e-3)
+        assert np.allclose(K.eval(loss), [84.3333, 143.3666], atol=1e-3)
 
     def test_sum_reduction(self):
         mse_obj = losses.MeanSquaredError(
@@ -259,7 +259,7 @@ class TestMeanSquaredError:
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.isclose(K.eval(loss), 227.69998, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 227.69998, atol=1e-3)
 
 
 @skipif_not_tf
@@ -275,21 +275,21 @@ class TestMeanAbsoluteError(object):
         mae_obj = losses.MeanAbsoluteError()
         y_true = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_true)
-        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
 
     def test_unweighted(self):
         mae_obj = losses.MeanAbsoluteError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred)
-        assert np.isclose(K.eval(loss), 5.5, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 5.5, atol=1e-3)
 
     def test_scalar_weighted(self):
         mae_obj = losses.MeanAbsoluteError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.isclose(K.eval(loss), 12.65, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 12.65, atol=1e-3)
 
     def test_sample_weighted(self):
         mae_obj = losses.MeanAbsoluteError()
@@ -297,7 +297,7 @@ class TestMeanAbsoluteError(object):
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         sample_weight = K.constant([1.2, 3.4], shape=(2, 1))
         loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.isclose(K.eval(loss), 81.4 / 6, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 81.4 / 6, atol=1e-3)
 
     def test_timestep_weighted(self):
         mae_obj = losses.MeanAbsoluteError()
@@ -305,14 +305,14 @@ class TestMeanAbsoluteError(object):
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
         sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.isclose(K.eval(loss), 13.833, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 13.833, atol=1e-3)
 
     def test_zero_weighted(self):
         mae_obj = losses.MeanAbsoluteError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=0)
-        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
 
     def test_invalid_sample_weight(self):
         mae_obj = losses.MeanAbsoluteError()
@@ -328,7 +328,7 @@ class TestMeanAbsoluteError(object):
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.allclose(K.eval(loss), [10.7333, 14.5666], rtol=1e-3)
+        assert np.allclose(K.eval(loss), [10.7333, 14.5666], atol=1e-3)
 
     def test_sum_reduction(self):
         mae_obj = losses.MeanAbsoluteError(
@@ -336,7 +336,7 @@ class TestMeanAbsoluteError(object):
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.isclose(K.eval(loss), 25.29999, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 25.29999, atol=1e-3)
 
 
 @skipif_not_tf
@@ -352,21 +352,21 @@ class TestMeanAbsolutePercentageError(object):
         mape_obj = losses.MeanAbsolutePercentageError()
         y_true = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mape_obj(y_true, y_true)
-        assert np.allclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 0.0, atol=1e-3)
 
     def test_unweighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mape_obj(y_true, y_pred)
-        assert np.allclose(K.eval(loss), 211.8518, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 211.8518, atol=1e-3)
 
     def test_scalar_weighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mape_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.allclose(K.eval(loss), 487.259, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 487.259, atol=1e-3)
 
     def test_sample_weighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
@@ -374,7 +374,7 @@ class TestMeanAbsolutePercentageError(object):
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         sample_weight = K.constant([1.2, 3.4], shape=(2, 1))
         loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.allclose(K.eval(loss), 422.8888, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 422.8888, atol=1e-3)
 
     def test_timestep_weighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
@@ -382,14 +382,14 @@ class TestMeanAbsolutePercentageError(object):
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
         sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
         loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.allclose(K.eval(loss), 694.4445, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 694.4445, atol=1e-3)
 
     def test_zero_weighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mape_obj(y_true, y_pred, sample_weight=0)
-        assert np.allclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 0.0, atol=1e-3)
 
     def test_no_reduction(self):
         mape_obj = losses.MeanAbsolutePercentageError(
@@ -397,7 +397,7 @@ class TestMeanAbsolutePercentageError(object):
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mape_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.allclose(K.eval(loss), [621.8518, 352.6666], rtol=1e-3)
+        assert np.allclose(K.eval(loss), [621.8518, 352.6666], atol=1e-3)
 
 
 @skipif_not_tf
@@ -414,14 +414,14 @@ class TestMeanSquaredLogarithmicError(object):
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = msle_obj(y_true, y_pred)
-        assert np.allclose(K.eval(loss), 1.4370, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 1.4370, atol=1e-3)
 
     def test_scalar_weighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = msle_obj(y_true, y_pred, sample_weight=2.3)
-        assert np.allclose(K.eval(loss), 3.3051, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 3.3051, atol=1e-3)
 
     def test_sample_weighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()
@@ -429,7 +429,7 @@ class TestMeanSquaredLogarithmicError(object):
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         sample_weight = K.constant([1.2, 3.4], shape=(2, 1))
         loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.allclose(K.eval(loss), 3.7856, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 3.7856, atol=1e-3)
 
     def test_timestep_weighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()
@@ -437,14 +437,14 @@ class TestMeanSquaredLogarithmicError(object):
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
         sample_weight = K.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
         loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
-        assert np.allclose(K.eval(loss), 2.6473, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 2.6473, atol=1e-3)
 
     def test_zero_weighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = msle_obj(y_true, y_pred, sample_weight=0)
-        assert np.allclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.allclose(K.eval(loss), 0.0, atol=1e-3)
 
 
 @skipif_not_tf
@@ -460,7 +460,7 @@ class TestBinaryCrossentropy(object):
         y_true = K.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
         bce_obj = losses.BinaryCrossentropy()
         loss = bce_obj(y_true, y_true)
-        assert np.isclose(K.eval(loss), 0.0, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 0.0, atol=1e-3)
 
         # Test with logits.
         logits = K.constant([[100.0, -100.0, -100.0],
@@ -486,7 +486,7 @@ class TestBinaryCrossentropy(object):
         #      = [0, 15.33, 0, 0]
         # Reduced loss = 15.33 / 4
 
-        assert np.isclose(K.eval(loss), 3.833, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 3.833, atol=1e-3)
 
         # Test with logits.
         y_true = K.constant([[1., 0., 1.], [0., 1., 1.]])
@@ -505,7 +505,7 @@ class TestBinaryCrossentropy(object):
         #      = [(0 + 0 + 0) / 3, 200 / 3]
         # Reduced loss = (0 + 66.666) / 2
 
-        assert np.isclose(K.eval(loss), 33.333, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 33.333, atol=1e-3)
 
     def test_scalar_weighted(self):
         bce_obj = losses.BinaryCrossentropy()
@@ -524,7 +524,7 @@ class TestBinaryCrossentropy(object):
         # Weighted loss = [0, 15.33 * 2.3, 0, 0]
         # Reduced loss = 15.33 * 2.3 / 4
 
-        assert np.isclose(K.eval(loss), 8.817, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 8.817, atol=1e-3)
 
         # Test with logits.
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
@@ -538,7 +538,7 @@ class TestBinaryCrossentropy(object):
         # Weighted loss = [0 * 2.3, 66.666 * 2.3]
         # Reduced loss = (0 + 66.666 * 2.3) / 2
 
-        assert np.isclose(K.eval(loss), 76.667, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 76.667, atol=1e-3)
 
     def test_sample_weighted(self):
         bce_obj = losses.BinaryCrossentropy()
@@ -557,7 +557,7 @@ class TestBinaryCrossentropy(object):
         #      = [0, 15.33, 0, 0]
         # Reduced loss = 15.33 * 1.2 / 4
 
-        assert np.isclose(K.eval(loss), 4.6, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 4.6, atol=1e-3)
 
         # Test with logits.
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
@@ -572,7 +572,7 @@ class TestBinaryCrossentropy(object):
         # Weighted loss = [0 * 4, 66.666 * 3]
         # Reduced loss = (0 + 66.666 * 3) / 2
 
-        assert np.isclose(K.eval(loss), 100, rtol=1e-3)
+        assert np.isclose(K.eval(loss), 100, atol=1e-3)
 
     def test_no_reduction(self):
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
@@ -585,7 +585,7 @@ class TestBinaryCrossentropy(object):
         #            (where x = logits and z = y_true)
         # Loss = [(0 + 0 + 0)/3, (200)/3]
 
-        assert np.allclose(K.eval(loss), (0., 66.6666), rtol=1e-3)
+        assert np.allclose(K.eval(loss), (0., 66.6666), atol=1e-3)
 
     def test_label_smoothing(self):
         logits = K.constant([[100.0, -100.0, -100.0]])
