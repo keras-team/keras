@@ -19,7 +19,7 @@ accepted_name = ['from_config']
 accepted_module = ['keras.legacy.layers', 'keras.utils.generic_utils']
 
 # Functions or classes with less than 'MIN_CODE_SIZE' lines can be ignored
-MIN_CODE_SIZE = 12
+MIN_CODE_SIZE = 15
 
 
 def handle_class_init(name, member):
