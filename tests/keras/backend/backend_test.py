@@ -576,8 +576,8 @@ class TestBackend(object):
     def test_log(self):
         check_single_tensor_operation('log', (4, 2), WITH_NP)
 
-    @pytest.mark.skipif(K.backend() == 'theano',
-                        reason='theano returns tuples for update ops')
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='theano returns tuples for updates; cntk buggy')
     def test_update(self):
         x = np.ones((3, 4))
         x_var = K.variable(x)
