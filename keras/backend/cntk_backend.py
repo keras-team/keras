@@ -2342,6 +2342,10 @@ def stop_gradient(variables):
 
 
 def switch(condition, then_expression, else_expression):
+    if callable(then_expression):
+        then_expression = then_expression()
+    if callable(else_expression):
+        else_expression = else_expression()
     ndim_cond = ndim(condition)
     ndim_expr = ndim(then_expression)
     if ndim_cond > ndim_expr:

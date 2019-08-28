@@ -98,7 +98,7 @@ class TestMean(object):
 
         # check update_state() and result()
         result = m([1, 5])
-        assert np.isclose(K.eval(result), 106 / 3)
+        assert np.isclose(K.eval(result), 106. / 3)
         assert K.eval(m.total) == 106  # 100 + 1 + 5
         assert K.eval(m.count) == 3
 
@@ -120,14 +120,14 @@ class TestMean(object):
 
         # check scalar weight
         result_t = m(100, sample_weight=0.5)
-        assert K.eval(result_t) == 50 / 0.5
+        assert K.eval(result_t) == 50. / 0.5
         assert K.eval(m.total) == 50
         assert K.eval(m.count) == 0.5
 
         # check weights not scalar and weights rank matches values rank
         result_t = m([1, 5], sample_weight=[1, 0.2])
         result = K.eval(result_t)
-        assert np.isclose(result, 52 / 1.7)
+        assert np.isclose(result, 52. / 1.7)
         assert np.isclose(K.eval(m.total), 52)  # 50 + 1 + 5 * 0.2
         assert np.isclose(K.eval(m.count), 1.7)  # 0.5 + 1.2
 
