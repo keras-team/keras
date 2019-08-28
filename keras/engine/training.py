@@ -692,7 +692,8 @@ class Model(Network):
                         y_true, y_pred, sample_weight=sample_weight)
 
                 if len(self.outputs) > 1:
-                    update_ops = self._output_loss_metrics[i].update_state(output_loss)
+                    update_ops = self._output_loss_metrics[i].update_state(
+                        output_loss)
                     with K.control_dependencies(update_ops):  # For TF
                         self._output_loss_metrics[i].result()
                 if total_loss is None:
