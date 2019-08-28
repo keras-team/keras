@@ -1167,6 +1167,7 @@ def _create_mean_metric(value, name=None):
     _call_metric(metric_obj, value)
     return metric_obj
 
+
 @K.symbolic
 def _call_metric(metric_obj, *args, **kwargs):
     update_op = metric_obj.update_state(*args, **kwargs)
