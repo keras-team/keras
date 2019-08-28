@@ -677,12 +677,16 @@ def huber_loss(y_true, y_pred, delta=1.0):
 def categorical_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
     y_pred = K.constant(y_pred) if not K.is_tensor(y_pred) else y_pred
     y_true = K.cast(y_true, y_pred.dtype)
-    label_smoothing = K.cast_to_floatx(label_smoothing)
 
     def _smooth_labels():
         num_classes = K.cast(K.shape(y_true)[1], y_pred.dtype)
         return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
-    y_true = K.switch(K.greater(label_smoothing, 0), _smooth_labels, lambda: y_true)
+
+    if label_smoothing is not 0:
+        label_smoothing = K.cast_to_floatx(label_smoothing)
+        y_true = K.switch(K.greater(label_smoothing, 0),
+                          _smooth_labels,
+                          lambda: y_true)
     return K.categorical_crossentropy(y_true, y_pred, from_logits=from_logits)
 
 
@@ -694,11 +698,12 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
 def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
     y_pred = K.constant(y_pred) if not K.is_tensor(y_pred) else y_pred
     y_true = K.cast(y_true, y_pred.dtype)
-    label_smoothing = K.cast_to_floatx(label_smoothing)
-    y_true = K.switch(
-        K.greater(label_smoothing, 0),
-        lambda: y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing,
-        lambda: y_true)
+    if label_smoothing is not 0:
+        label_smoothing = K.cast_to_floatx(label_smoothing)
+        y_true = K.switch(
+            K.greater(label_smoothing, 0),
+            lambda: y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing,
+            lambda: y_true)
     return K.mean(
         K.binary_crossentropy(y_true, y_pred, from_logits=from_logits), axis=-1)
 
