@@ -223,7 +223,7 @@ def test_generator_enqueuer_threads():
 
 
 @skip_generators
-def test_generator_enqueuer_processes():
+def DISABLED_test_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
@@ -259,7 +259,7 @@ def test_generator_enqueuer_fail_threads():
 
 
 @skip_generators
-def test_generator_enqueuer_fail_processes():
+def DISABLED_test_generator_enqueuer_fail_processes():
     enqueuer = GeneratorEnqueuer(create_generator_from_sequence_pcs(
         FaultSequence()), use_multiprocessing=True)
     enqueuer.start(3, 10)
