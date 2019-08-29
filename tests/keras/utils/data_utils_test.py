@@ -415,7 +415,7 @@ def test_finite_generator_enqueuer_threads():
 
 
 @skip_generators
-def test_finite_generator_enqueuer_processes():
+def DISABLED_test_finite_generator_enqueuer_processes():
     enqueuer = GeneratorEnqueuer(create_finite_generator_from_sequence_pcs(
         DummySequence([3, 10, 10, 3])), use_multiprocessing=True)
     enqueuer.start(3, 10)
