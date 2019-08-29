@@ -1443,7 +1443,7 @@ class TestBackend(object):
                                          mean=mean,
                                          stddev=std))
         assert rand.shape == (200, 200)
-        assert np.abs(np.mean(rand) - mean) < 0.015
+        assert np.abs(np.mean(rand) - mean) < 0.016
         assert np.max(rand) <= max_val
         assert np.min(rand) >= min_val
 
