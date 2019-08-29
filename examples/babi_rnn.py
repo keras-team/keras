@@ -79,7 +79,7 @@ def tokenize(sent):
     >>> tokenize('Bob dropped the apple. Where is the apple?')
     ['Bob', 'dropped', 'the', 'apple', '.', 'Where', 'is', 'the', 'apple', '?']
     '''
-    return [x.strip() for x in re.split(r'(\W+)?', sent) if x.strip()]
+    return [x.strip() for x in re.split(r'(\W+)', sent) if x.strip()]
 
 
 def parse_stories(lines, only_supporting=False):
