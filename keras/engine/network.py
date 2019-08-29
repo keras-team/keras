@@ -312,7 +312,7 @@ class Network(Layer):
     def __setattr__(self, name, value):
         # Automatically track layers set as Model
         # attributes for subclassed Models.
-        if isinstance(value, (Layer, Network)):
+        if isinstance(value, Layer):
             try:
                 is_graph_network = self._is_graph_network
             except AttributeError:
@@ -320,17 +320,7 @@ class Network(Layer):
                     'It looks like you are subclassing `Model` and you '
                     'forgot to call `super(YourClass, self).__init__()`.'
                     ' Always start with this line.')
-            if not is_graph_network:
-                if value not in self._layers:
-                    self._layers.append(value)
         super(Network, self).__setattr__(name, value)
-
-        # Keep track of metric instance created in subclassed model/layer.
-        # We do this so that we can maintain the correct order of metrics by adding
-        # the instance to the `metrics` list as soon as it is created.
-        from .. import metrics as metrics_module
-        if isinstance(value, metrics_module.Metric):
-            self._metrics.append(value)
 
     @property
     def layers(self):
@@ -338,7 +328,7 @@ class Network(Layer):
 
     @property
     def metrics(self):
-        metrics = self._metrics
+        metrics = self._metrics[:]
         for l in self.layers:
             metrics += l.metrics
         return metrics
