@@ -1164,6 +1164,25 @@ class Layer(object):
                 'We found {} metrics with the name: "{}"'.format(len(match), name))
         return match[0]
 
+    def __setattr__(self, name, value):
+        # Keep track of metric instance created in subclassed model/layer.
+        # We do this so that we can maintain the correct order of metrics by adding
+        # the instance to the `metrics` list as soon as it is created.
+        from .. import metrics as metrics_module
+        if isinstance(value, metrics_module.Metric):
+            if not hasattr(self,  '_metrics'):
+                self._metrics = []
+            self._metrics.append(value)
+        else:
+            # Automatically track layers set as attributes.
+            if isinstance(value, Layer):
+                if not hasattr(self,  '_layers'):
+                    self._layers = []
+                if value not in self._layers:
+                    self._layers.append(value)
+
+        super(Layer, self).__setattr__(name, value)
+
 
 def _create_mean_metric(value, name=None):
     from .. import metrics
