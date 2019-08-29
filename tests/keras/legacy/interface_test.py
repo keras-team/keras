@@ -808,10 +808,9 @@ def test_cropping3d_legacy_interface():
     assert json.dumps(old_layer.get_config()) == json.dumps(new_layer.get_config())
 
 
-@pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'}
-                    and 'TRAVIS_PYTHON_VERSION' in os.environ,
-                    reason='Generators cannot use `spawn`.')
-def test_generator_methods_interface():
+def DISABLED_test_generator_methods_interface():
+    """This test may cause Travis to hang."""
+
     def train_generator():
         x = np.random.randn(2, 2)
         y = np.random.randint(0, 2, size=[2, 1])
