@@ -13,6 +13,7 @@ import time
 import json
 import warnings
 import io
+import datetime
 
 from collections import deque
 from collections import OrderedDict
@@ -1454,7 +1455,7 @@ class CSVLogger(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-
+        logs['date'] = str(datetime.datetime.now())
         def handle_value(k):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
             if isinstance(k, six.string_types):
