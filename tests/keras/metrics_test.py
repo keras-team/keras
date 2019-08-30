@@ -191,16 +191,120 @@ class TestMeanSquaredErrorTest(object):
 
     def test_unweighted(self):
         mse_obj = metrics.MeanSquaredError()
-        y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1), (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
-        y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1), (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
+        y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+                  (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
+        y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+                  (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
 
         result = mse_obj(y_true, y_pred)
         np.isclose(0.5, K.eval(result), atol=1e-5)
 
     def test_weighted(self):
         mse_obj = metrics.MeanSquaredError()
-        y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1), (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
-        y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1), (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
+        y_true = ((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+                  (1, 1, 1, 1, 0), (0, 0, 0, 0, 1))
+        y_pred = ((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+                  (0, 1, 0, 1, 0), (1, 1, 1, 1, 1))
         sample_weight = (1., 1.5, 2., 2.5)
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
         np.isclose(0.54285, K.eval(result), atol=1e-5)
+
+
+class TestHinge(object):
+
+    def test_config(self):
+        hinge_obj = metrics.Hinge(name='hinge', dtype='int32')
+        assert hinge_obj.name == 'hinge'
+        assert hinge_obj.dtype == 'int32'
+
+        # Check save and restore config
+        hinge_obj2 = metrics.Hinge.from_config(hinge_obj.get_config())
+        assert hinge_obj2.name == 'hinge'
+        assert hinge_obj2.dtype == 'int32'
+
+    def test_unweighted(self):
+        hinge_obj = metrics.Hinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+
+        result = hinge_obj(y_true, y_pred)
+        assert np.allclose(0.506, K.eval(result), atol=1e-3)
+
+    def test_weighted(self):
+        hinge_obj = metrics.Hinge()
+        y_true = K.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+        sample_weight = K.constant([1.5, 2.])
+
+        result = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(0.493, K.eval(result), atol=1e-3)
+
+
+class TestSquaredHinge(object):
+
+    def test_config(self):
+        sq_hinge_obj = metrics.SquaredHinge(name='sq_hinge', dtype='int32')
+        assert sq_hinge_obj.name == 'sq_hinge'
+        assert sq_hinge_obj.dtype == 'int32'
+
+        # Check save and restore config
+        sq_hinge_obj2 = metrics.SquaredHinge.from_config(
+            sq_hinge_obj.get_config())
+        assert sq_hinge_obj2.name == 'sq_hinge'
+        assert sq_hinge_obj2.dtype == 'int32'
+
+    def test_unweighted(self):
+        sq_hinge_obj = metrics.SquaredHinge()
+        y_true = K.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+
+        result = sq_hinge_obj(y_true, y_pred)
+        assert np.allclose(0.364, K.eval(result), atol=1e-3)
+
+    def test_weighted(self):
+        sq_hinge_obj = metrics.SquaredHinge()
+        y_true = K.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
+        y_pred = K.constant([[-0.3, 0.2, -0.1, 1.6],
+                             [-0.25, -1., 0.5, 0.6]])
+        sample_weight = K.constant([1.5, 2.])
+
+        result = sq_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(0.347, K.eval(result), atol=1e-3)
+
+
+class TestCategoricalHinge(object):
+
+    def test_config(self):
+        cat_hinge_obj = metrics.CategoricalHinge(
+            name='cat_hinge', dtype='int32')
+        assert cat_hinge_obj.name == 'cat_hinge'
+        assert cat_hinge_obj.dtype == 'int32'
+
+        # Check save and restore config
+        cat_hinge_obj2 = metrics.CategoricalHinge.from_config(
+            cat_hinge_obj.get_config())
+        assert cat_hinge_obj2.name == 'cat_hinge'
+        assert cat_hinge_obj2.dtype == 'int32'
+
+    def test_unweighted(self):
+        cat_hinge_obj = metrics.CategoricalHinge()
+        y_true = K.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+                             (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
+        y_pred = K.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+                             (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
+
+        result = cat_hinge_obj(y_true, y_pred)
+        assert np.allclose(0.5, K.eval(result), atol=1e-5)
+
+    def test_weighted(self):
+        cat_hinge_obj = metrics.CategoricalHinge()
+        y_true = K.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+                             (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
+        y_pred = K.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+                             (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
+        sample_weight = K.constant((1., 1.5, 2., 2.5))
+        result = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(0.5, K.eval(result), atol=1e-5)

@@ -17,6 +17,7 @@ from .losses import mean_squared_logarithmic_error
 from .losses import hinge
 from .losses import logcosh
 from .losses import squared_hinge
+from .losses import categorical_hinge
 from .losses import categorical_crossentropy
 from .losses import sparse_categorical_crossentropy
 from .losses import binary_crossentropy
@@ -261,7 +262,7 @@ class Mean(Reduce):
     Usage:
 
     ```python
-    m = tf.keras.metrics.Mean()
+    m = keras.metrics.Mean()
     m.update_state([1, 3, 5, 7])
     m.result()
     ```
@@ -348,6 +349,91 @@ class MeanSquaredError(MeanMetricWrapper):
     def __init__(self, name='mean_squared_error', dtype=None):
         super(MeanSquaredError, self).__init__(
             mean_squared_error, name, dtype=dtype)
+
+
+class Hinge(MeanMetricWrapper):
+    """Computes the hinge metric between `y_true` and `y_pred`.
+
+    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
+    provided we will convert them to -1 or 1.
+    For example, if `y_true` is [-1., 1., 1.], and `y_pred` is [0.6, -0.7, -0.5]
+    the hinge metric value is 1.6.
+
+    Usage:
+
+    ```python
+    m = keras.metrics.Hinge()
+    m.update_state([-1., 1., 1.], [0.6, -0.7, -0.5])
+    # result = max(0, 1-y_true * y_pred) = [1.6 + 1.7 + 1.5] / 3
+    # Final result: 1.6
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.Hinge()])
+    ```
+    """
+
+    def __init__(self, name='hinge', dtype=None):
+        super(Hinge, self).__init__(hinge, name, dtype=dtype)
+
+
+class SquaredHinge(MeanMetricWrapper):
+    """Computes the squared hinge metric between `y_true` and `y_pred`.
+
+    `y_true` values are expected to be -1 or 1. If binary (0 or 1) labels are
+    provided we will convert them to -1 or 1.
+    For example, if `y_true` is [-1., 1., 1.], and `y_pred` is [0.6, -0.7, -0.5]
+    the squared hinge metric value is 2.6.
+
+    Usage:
+
+    ```python
+    m = keras.metrics.SquaredHinge()
+    m.update_state([-1., 1., 1.], [0.6, -0.7, -0.5])
+    # result = max(0, 1-y_true * y_pred) = [1.6^2 + 1.7^2 + 1.5^2] / 3
+    # Final result: 2.6
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.SquaredHinge()])
+    ```
+    """
+
+    def __init__(self, name='squared_hinge', dtype=None):
+        super(SquaredHinge, self).__init__(squared_hinge, name, dtype=dtype)
+
+
+class CategoricalHinge(MeanMetricWrapper):
+    """Computes the categorical hinge metric between `y_true` and `y_pred`.
+
+    For example, if `y_true` is [0., 1., 1.], and `y_pred` is [1., 0., 1.]
+    the categorical hinge metric value is 1.0.
+
+    Usage:
+
+    ```python
+    m = keras.metrics.CategoricalHinge()
+    m.update_state([0., 1., 1.], [1., 0., 1.])
+    # Final result: 1.0
+    ```
+
+    Usage with the `compile` API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.CategoricalHinge()])
+    ```
+    """
+
+    def __init__(self, name='categorical_hinge', dtype=None):
+        super(CategoricalHinge, self).__init__(
+            categorical_hinge, name, dtype=dtype)
 
 
 def binary_accuracy(y_true, y_pred):
