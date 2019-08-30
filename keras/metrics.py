@@ -415,6 +415,48 @@ class BinaryAccuracy(MeanMetricWrapper):
             binary_accuracy, name, dtype=dtype, threshold=threshold)
 
 
+class CategoricalAccuracy(MeanMetricWrapper):
+    """Calculates how often predictions matches labels.
+
+    For example, if `y_true` is [[0, 0, 1], [0, 1, 0]] and `y_pred` is
+    [[0.1, 0.9, 0.8], [0.05, 0.95, 0]] then the categorical accuracy is 1/2 or .5.
+    If the weights were specified as [0.7, 0.3] then the categorical accuracy
+    would be .3. You can provide logits of classes as `y_pred`, since argmax of
+    logits and probabilities are same.
+
+    This metric creates two local variables, `total` and `count` that are used to
+    compute the frequency with which `y_pred` matches `y_true`. This frequency is
+    ultimately returned as `categorical accuracy`: an idempotent operation that
+    simply divides `total` by `count`.
+
+    `y_pred` and `y_true` should be passed in as vectors of probabilities, rather
+    than as labels. If necessary, use `tf.one_hot` to expand `y_true` as a vector.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+        'sgd',
+        loss='mse',
+        metrics=[keras.metrics.CategoricalAccuracy()])
+    ```
+    """
+
+    def __init__(self, name='categorical_accuracy', dtype=None):
+        """Creates a `CategoricalAccuracy` instance.
+
+        Args:
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+        """
+        super(CategoricalAccuracy, self).__init__(
+            categorical_accuracy, name, dtype=dtype)
+
+
 def accuracy(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
