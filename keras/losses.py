@@ -633,10 +633,12 @@ def mean_squared_logarithmic_error(y_true, y_pred):
 
 
 def squared_hinge(y_true, y_pred):
+    y_true = _maybe_convert_labels(y_true)
     return K.mean(K.square(K.maximum(1. - y_true * y_pred, 0.)), axis=-1)
 
 
 def hinge(y_true, y_pred):
+    y_true = _maybe_convert_labels(y_true)
     return K.mean(K.maximum(1. - y_true * y_pred, 0.), axis=-1)
 
 
@@ -720,6 +722,28 @@ def cosine_proximity(y_true, y_pred):
     y_true = K.l2_normalize(y_true, axis=-1)
     y_pred = K.l2_normalize(y_pred, axis=-1)
     return -K.sum(y_true * y_pred, axis=-1)
+
+
+def _maybe_convert_labels(y_true):
+    """Converts binary labels into -1/1."""
+    are_zeros = K.equal(y_true, 0)
+    are_ones = K.equal(y_true, 1)
+
+    are_zeros = K.expand_dims(are_zeros, 0)
+    are_ones = K.expand_dims(are_ones, 0)
+
+    are_different = K.concatenate([are_zeros, are_ones], axis=0)
+    are_different = K.any(are_different, axis=0)
+    is_binary = K.all(are_different)
+
+    def _convert_binary_labels():
+        # Convert the binary labels to -1 or 1.
+        return 2. * y_true - 1.
+
+    updated_y_true = K.switch(is_binary,
+                              _convert_binary_labels,
+                              lambda: y_true)
+    return updated_y_true
 
 
 # Aliases.
