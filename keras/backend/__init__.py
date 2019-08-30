@@ -12,6 +12,7 @@ from .load_backend import set_learning_phase
 from .load_backend import is_sparse
 from .load_backend import to_dense
 from .load_backend import variable
+from .load_backend import is_variable
 from .load_backend import constant
 from .load_backend import is_keras_tensor
 from .load_backend import is_tensor

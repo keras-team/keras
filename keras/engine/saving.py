@@ -63,7 +63,7 @@ def _uniquify(names):
     for name in names:
         if name in counts:
             counts[name] += 1
-            name = name + '_' + str(counts[name])
+            name = str(name) + '_' + str(counts[name])
         else:
             counts[name] = 1
         unique_names.append(name)

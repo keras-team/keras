@@ -7,6 +7,7 @@ from __future__ import print_function
 
 import copy
 from ..engine.base_layer import Layer
+from ..engine.base_layer import disable_tracking
 from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import object_list_uid
@@ -26,6 +27,7 @@ class Wrapper(Layer):
         layer: The layer to be wrapped.
     """
 
+    @disable_tracking
     def __init__(self, layer, **kwargs):
         self.layer = layer
         # Tracks mapping of Wrapper inputs to inner layer inputs. Useful when
@@ -358,6 +360,7 @@ class Bidirectional(Wrapper):
     ```
     """
 
+    @disable_tracking
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '

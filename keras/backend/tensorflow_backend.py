@@ -615,6 +615,10 @@ def variable(value, dtype=None, name=None, constraint=None):
     return v
 
 
+def is_variable(x):
+    return isinstance(x, tf.Variable)
+
+
 def constant(value, dtype=None, shape=None, name=None):
     """Creates a constant tensor.
 

@@ -154,6 +154,10 @@ def variable(value, dtype=None, name=None, constraint=None):
     return variable
 
 
+def is_variable(x):
+    return isinstance(x, (T.TensorVariable, T.TensorSharedVariable))
+
+
 def constant(value, dtype=None, shape=None, name=None):
     if dtype is None:
         dtype = floatx()

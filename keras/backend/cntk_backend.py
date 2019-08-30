@@ -194,6 +194,10 @@ def variable(value, dtype=None, name=None, constraint=None):
     return v
 
 
+def is_variable(x):
+    return isinstance(x, C.variables.Parameter)
+
+
 def bias_add(x, bias, data_format=None):
     data_format = normalize_data_format(data_format)
 
