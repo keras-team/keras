@@ -718,10 +718,10 @@ def poisson(y_true, y_pred):
     return K.mean(y_pred - y_true * K.log(y_pred + K.epsilon()), axis=-1)
 
 
-def cosine_proximity(y_true, y_pred):
-    y_true = K.l2_normalize(y_true, axis=-1)
-    y_pred = K.l2_normalize(y_pred, axis=-1)
-    return -K.sum(y_true * y_pred, axis=-1)
+def cosine_proximity(y_true, y_pred, axis=-1):
+    y_true = K.l2_normalize(y_true, axis=axis)
+    y_pred = K.l2_normalize(y_pred, axis=axis)
+    return - K.sum(y_true * y_pred, axis=axis)
 
 
 def _maybe_convert_labels(y_true):
@@ -753,7 +753,7 @@ mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 kld = KLD = kullback_leibler_divergence
-cosine = cosine_proximity
+cosine = cosine_similarity = cosine_proximity
 
 
 def is_categorical_crossentropy(loss):
