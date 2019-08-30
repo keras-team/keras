@@ -246,7 +246,7 @@ class TestAccuracy(object):
         assert acc_obj.name == 'my_acc'
         assert acc_obj.stateful
         assert len(acc_obj.weights) == 2
-        assert acc_obj.dtype, 'float32'
+        assert acc_obj.dtype == 'float32'
 
         # verify that correct value is returned
         result_t = acc_obj([[0, 0, 1], [0, 1, 0]],
@@ -260,6 +260,49 @@ class TestAccuracy(object):
                            [[0.5], [0.2]])
         result = K.eval(result_t)
         assert np.isclose(result, 2.5 / 2.7, atol=1e-3)  # 2.5/2.7
+
+    def test_sparse_categorical_accuracy(self):
+        acc_obj = metrics.SparseCategoricalAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([[2], [1]],
+                           [[0.1, 0.1, 0.8],
+                           [0.05, 0.95, 0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check with sample_weight
+        result_t = acc_obj([[2], [1]],
+                           [[0.1, 0.1, 0.8], [0.05, 0, 0.95]],
+                           [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 2.5 / 2.7, atol=1e-3)
+
+    def test_sparse_categorical_accuracy_mismatched_dims(self):
+        acc_obj = metrics.SparseCategoricalAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([2, 1], [[0.1, 0.1, 0.8], [0.05, 0.95, 0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check with sample_weight
+        result_t = acc_obj([2, 1], [[0.1, 0.1, 0.8], [0.05, 0, 0.95]],
+                           [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 2.5 / 2.7, atol=1e-3)
 
 
 class TestMeanSquaredErrorTest(object):
