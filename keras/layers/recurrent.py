@@ -14,6 +14,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine.base_layer import Layer
+from ..engine.base_layer import disable_tracking
 from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
@@ -45,6 +46,7 @@ class StackedRNNCells(Layer):
     ```
     """
 
+    @disable_tracking
     def __init__(self, cells, **kwargs):
         for cell in cells:
             if not hasattr(cell, 'call'):
@@ -389,6 +391,7 @@ class RNN(Layer):
     ```
     """
 
+    @disable_tracking
     def __init__(self, cell,
                  return_sequences=False,
                  return_state=False,

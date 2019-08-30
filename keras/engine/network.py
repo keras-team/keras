@@ -326,13 +326,6 @@ class Network(Layer):
     def layers(self):
         return self._layers
 
-    @property
-    def metrics(self):
-        metrics = self._metrics[:]
-        for l in self.layers:
-            metrics += l.metrics
-        return metrics
-
     def get_layer(self, name=None, index=None):
         """Retrieves a layer based on either its name (unique) or index.
 
@@ -482,18 +475,18 @@ class Network(Layer):
     def trainable_weights(self):
         if not self.trainable:
             return []
-        weights = []
+        weights = self._trainable_weights[:]
         for layer in self.layers:
             weights += layer.trainable_weights
         return weights
 
     @property
     def non_trainable_weights(self):
-        weights = []
+        weights = self._non_trainable_weights[:]
         for layer in self.layers:
             weights += layer.non_trainable_weights
         if not self.trainable:
-            trainable_weights = []
+            trainable_weights = self._trainable_weights[:]
             for layer in self.layers:
                 trainable_weights += layer.trainable_weights
             return trainable_weights + weights
@@ -505,7 +498,7 @@ class Network(Layer):
         # Returns
             A flat list of Numpy arrays.
         """
-        weights = []
+        weights = self._trainable_weights + self._non_trainable_weights
         for layer in self.layers:
             weights += layer.weights
         return K.batch_get_value(weights)
@@ -518,6 +511,13 @@ class Network(Layer):
                 the output of `model.get_weights()`.
         """
         tuples = []
+        own_weight_vars = self._trainable_weights + self._non_trainable_weights
+        num_param = len(own_weight_vars)
+        own_weights = weights[:num_param]
+        for sw, w in zip(own_weight_vars, own_weights):
+            tuples.append((sw, w))
+        weights = weights[num_param:]
+
         for layer in self.layers:
             num_param = len(layer.weights)
             layer_weights = weights[:num_param]
