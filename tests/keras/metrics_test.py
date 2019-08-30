@@ -177,6 +177,34 @@ class TestMean(object):
         assert K.eval(m.count) == 1
 
 
+class TestAccuracy(object):
+
+    def test_accuracy(self):
+        acc_obj = metrics.Accuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result = K.eval(acc_obj([[1], [2], [3], [4]], [[1], [2], [3], [4]]))
+        assert result == 1  # 2/2
+
+        # Check save and restore config
+        a2 = metrics.Accuracy.from_config(acc_obj.get_config())
+        assert a2.name == 'my_acc'
+        assert a2.stateful
+        assert len(a2.weights) == 2
+        assert a2.dtype, 'float32'
+
+        # check with sample_weight
+        result_t = acc_obj([[2], [1]], [[2], [0]], sample_weight=[[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 0.957, atol=1e-3)  # 4.5/4.7
+
+
 class TestMeanSquaredErrorTest(object):
 
     def test_config(self):

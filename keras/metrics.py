@@ -261,7 +261,7 @@ class Mean(Reduce):
     Usage:
 
     ```python
-    m = tf.keras.metrics.Mean()
+    m = keras.metrics.Mean()
     m.update_state([1, 3, 5, 7])
     m.result()
     ```
@@ -350,7 +350,45 @@ class MeanSquaredError(MeanMetricWrapper):
             mean_squared_error, name, dtype=dtype)
 
 
-def binary_accuracy(y_true, y_pred):
+class Accuracy(MeanMetricWrapper):
+    """Calculates how often predictions matches labels.
+
+    For example, if `y_true` is [1, 2, 3, 4] and `y_pred` is [0, 2, 3, 4]
+    then the accuracy is 3/4 or .75.  If the weights were specified as
+    [1, 1, 0, 0] then the accuracy would be 1/2 or .5.
+
+    This metric creates two local variables, `total` and `count` that are used to
+    compute the frequency with which `y_pred` matches `y_true`. This frequency is
+    ultimately returned as `binary accuracy`: an idempotent operation that simply
+    divides `total` by `count`.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    ```
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.Accuracy()])
+    ```
+    """
+
+    def __init__(self, name='accuracy', dtype=None):
+        super(Accuracy, self).__init__(accuracy, name, dtype=dtype)
+
+
+def accuracy(y_true, y_pred):
+    if not K.is_tensor(y_pred):
+        y_pred = K.constant(y_pred)
+    y_true = K.cast(y_true, y_pred.dtype)
+    return K.cast(K.equal(y_true, y_pred), K.floatx())
+
+
+def binary_accuracy(y_true, y_pred, threshold=0.5):
+    threshold = K.cast(threshold, y_pred.dtype)
+    y_pred = K.cast(y_pred > threshold, y_pred.dtype)
     return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
 
 
