@@ -23,8 +23,6 @@ from .losses import sparse_categorical_crossentropy
 from .losses import binary_crossentropy
 from .losses import kullback_leibler_divergence
 from .losses import poisson
-from .losses import cosine_proximity
-from .losses import cosine_similarity
 from .utils import losses_utils
 from .utils import metrics_utils
 from .utils.generic_utils import deserialize_keras_object
@@ -983,6 +981,12 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
                   K.floatx())
 
 
+def cosine_proximity(y_true, y_pred, axis=-1):
+    y_true = K.l2_normalize(y_true, axis=axis)
+    y_pred = K.l2_normalize(y_pred, axis=axis)
+    return K.sum(y_true * y_pred, axis=axis)
+
+
 def clone_metric(metric):
     """Returns a clone of the metric if stateful, otherwise returns it as is."""
     if isinstance(metric, Metric):
@@ -1005,7 +1009,7 @@ mse = MSE = mean_squared_error
 mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
-cosine = cosine_proximity
+cosine = cosine_similarity = cosine_proximity
 
 
 def serialize(metric):
