@@ -332,3 +332,86 @@ class TestMeanSquaredErrorTest(object):
         sample_weight = (1., 1.5, 2., 2.5)
         result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
         np.isclose(0.54285, K.eval(result), atol=1e-5)
+
+
+class TestTopKCategoricalAccuracy(object):
+
+    def test_config(self):
+        a_obj = metrics.TopKCategoricalAccuracy(name='topkca', dtype='int32')
+        assert a_obj.name == 'topkca'
+        assert a_obj.dtype == 'int32'
+
+        a_obj2 = metrics.TopKCategoricalAccuracy.from_config(a_obj.get_config())
+        assert a_obj2.name == 'topkca'
+        assert a_obj2.dtype == 'int32'
+
+    def test_correctness(self):
+        a_obj = metrics.TopKCategoricalAccuracy()
+        y_true = [[0, 0, 1], [0, 1, 0]]
+        y_pred = [[0.1, 0.9, 0.8], [0.05, 0.95, 0]]
+
+        result = a_obj(y_true, y_pred)
+        assert 1 == K.eval(result)  # both the samples match
+
+        # With `k` < 5.
+        a_obj = metrics.TopKCategoricalAccuracy(k=1)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only sample #2 matches
+
+        # With `k` > 5.
+        y_true = ([[0, 0, 1, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0]])
+        y_pred = [[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+                  [0.05, 0.95, 0, 0, 0, 0, 0]]
+        a_obj = metrics.TopKCategoricalAccuracy(k=6)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only 1 sample matches.
+
+    def test_weighted(self):
+        a_obj = metrics.TopKCategoricalAccuracy(k=2)
+        y_true = [[0, 1, 0], [1, 0, 0], [0, 0, 1]]
+        y_pred = [[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]]
+        sample_weight = (1.0, 0.0, 1.0)
+        result = a_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(1.0, K.eval(result), atol=1e-5)
+
+
+class TestSparseTopKCategoricalAccuracy(object):
+
+    def test_config(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy(
+            name='stopkca', dtype='int32')
+        assert a_obj.name == 'stopkca'
+        assert a_obj.dtype == 'int32'
+
+        a_obj2 = metrics.SparseTopKCategoricalAccuracy.from_config(
+            a_obj.get_config())
+        assert a_obj2.name == 'stopkca'
+        assert a_obj2.dtype == 'int32'
+
+    def test_correctness(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy()
+        y_true = [2, 1]
+        y_pred = [[0.1, 0.9, 0.8], [0.05, 0.95, 0]]
+
+        result = a_obj(y_true, y_pred)
+        assert 1 == K.eval(result)  # both the samples match
+
+        # With `k` < 5.
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=1)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only sample #2 matches
+
+        # With `k` > 5.
+        y_pred = [[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+                  [0.05, 0.95, 0, 0, 0, 0, 0]]
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=6)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only 1 sample matches.
+
+    def test_weighted(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=2)
+        y_true = [1, 0, 2]
+        y_pred = [[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]]
+        sample_weight = (1.0, 0.0, 1.0)
+        result = a_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(1.0, K.eval(result), atol=1e-5)
