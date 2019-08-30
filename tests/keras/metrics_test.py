@@ -177,6 +177,134 @@ class TestMean(object):
         assert K.eval(m.count) == 1
 
 
+class TestAccuracy(object):
+
+    def test_accuracy(self):
+        acc_obj = metrics.Accuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result = K.eval(acc_obj([[1], [2], [3], [4]], [[1], [2], [3], [4]]))
+        assert result == 1  # 2/2
+
+        # Check save and restore config
+        a2 = metrics.Accuracy.from_config(acc_obj.get_config())
+        assert a2.name == 'my_acc'
+        assert a2.stateful
+        assert len(a2.weights) == 2
+        assert a2.dtype, 'float32'
+
+        # check with sample_weight
+        result_t = acc_obj([[2], [1]], [[2], [0]], sample_weight=[[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 4.5 / 4.7, atol=1e-3)
+
+    def test_binary_accuracy(self):
+        acc_obj = metrics.BinaryAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([[1], [0]], [[1], [0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check y_pred squeeze
+        result_t = acc_obj([[1], [1]], [[[1]], [[0]]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 3. / 4., atol=1e-3)
+
+        # check y_true squeeze
+        result_t = acc_obj([[[1]], [[1]]], [[1], [0]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 4. / 6., atol=1e-3)
+
+        # check with sample_weight
+        result_t = acc_obj([[1], [1]], [[1], [0]], [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 4.5 / 6.7, atol=1e-3)
+
+    def test_binary_accuracy_threshold(self):
+        acc_obj = metrics.BinaryAccuracy(threshold=0.7)
+        result_t = acc_obj([[1], [1], [0], [0]], [[0.9], [0.6], [0.4], [0.8]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 0.5, atol=1e-3)
+
+    def test_categorical_accuracy(self):
+        acc_obj = metrics.CategoricalAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([[0, 0, 1], [0, 1, 0]],
+                           [[0.1, 0.1, 0.8], [0.05, 0.95, 0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check with sample_weight
+        result_t = acc_obj([[0, 0, 1], [0, 1, 0]],
+                           [[0.1, 0.1, 0.8], [0.05, 0, 0.95]],
+                           [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 2.5 / 2.7, atol=1e-3)  # 2.5/2.7
+
+    def test_sparse_categorical_accuracy(self):
+        acc_obj = metrics.SparseCategoricalAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([[2], [1]],
+                           [[0.1, 0.1, 0.8],
+                           [0.05, 0.95, 0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check with sample_weight
+        result_t = acc_obj([[2], [1]],
+                           [[0.1, 0.1, 0.8], [0.05, 0, 0.95]],
+                           [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 2.5 / 2.7, atol=1e-3)
+
+    def test_sparse_categorical_accuracy_mismatched_dims(self):
+        acc_obj = metrics.SparseCategoricalAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([2, 1], [[0.1, 0.1, 0.8], [0.05, 0.95, 0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check with sample_weight
+        result_t = acc_obj([2, 1], [[0.1, 0.1, 0.8], [0.05, 0, 0.95]],
+                           [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 2.5 / 2.7, atol=1e-3)
+
+
 class TestMeanSquaredErrorTest(object):
 
     def test_config(self):
@@ -308,3 +436,86 @@ class TestCategoricalHinge(object):
         sample_weight = K.constant((1., 1.5, 2., 2.5))
         result = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
         assert np.allclose(0.5, K.eval(result), atol=1e-5)
+
+
+class TestTopKCategoricalAccuracy(object):
+
+    def test_config(self):
+        a_obj = metrics.TopKCategoricalAccuracy(name='topkca', dtype='int32')
+        assert a_obj.name == 'topkca'
+        assert a_obj.dtype == 'int32'
+
+        a_obj2 = metrics.TopKCategoricalAccuracy.from_config(a_obj.get_config())
+        assert a_obj2.name == 'topkca'
+        assert a_obj2.dtype == 'int32'
+
+    def test_correctness(self):
+        a_obj = metrics.TopKCategoricalAccuracy()
+        y_true = [[0, 0, 1], [0, 1, 0]]
+        y_pred = [[0.1, 0.9, 0.8], [0.05, 0.95, 0]]
+
+        result = a_obj(y_true, y_pred)
+        assert 1 == K.eval(result)  # both the samples match
+
+        # With `k` < 5.
+        a_obj = metrics.TopKCategoricalAccuracy(k=1)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only sample #2 matches
+
+        # With `k` > 5.
+        y_true = ([[0, 0, 1, 0, 0, 0, 0], [0, 1, 0, 0, 0, 0, 0]])
+        y_pred = [[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+                  [0.05, 0.95, 0, 0, 0, 0, 0]]
+        a_obj = metrics.TopKCategoricalAccuracy(k=6)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only 1 sample matches.
+
+    def test_weighted(self):
+        a_obj = metrics.TopKCategoricalAccuracy(k=2)
+        y_true = [[0, 1, 0], [1, 0, 0], [0, 0, 1]]
+        y_pred = [[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]]
+        sample_weight = (1.0, 0.0, 1.0)
+        result = a_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(1.0, K.eval(result), atol=1e-5)
+
+
+class TestSparseTopKCategoricalAccuracy(object):
+
+    def test_config(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy(
+            name='stopkca', dtype='int32')
+        assert a_obj.name == 'stopkca'
+        assert a_obj.dtype == 'int32'
+
+        a_obj2 = metrics.SparseTopKCategoricalAccuracy.from_config(
+            a_obj.get_config())
+        assert a_obj2.name == 'stopkca'
+        assert a_obj2.dtype == 'int32'
+
+    def test_correctness(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy()
+        y_true = [2, 1]
+        y_pred = [[0.1, 0.9, 0.8], [0.05, 0.95, 0]]
+
+        result = a_obj(y_true, y_pred)
+        assert 1 == K.eval(result)  # both the samples match
+
+        # With `k` < 5.
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=1)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only sample #2 matches
+
+        # With `k` > 5.
+        y_pred = [[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+                  [0.05, 0.95, 0, 0, 0, 0, 0]]
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=6)
+        result = a_obj(y_true, y_pred)
+        assert 0.5 == K.eval(result)  # only 1 sample matches.
+
+    def test_weighted(self):
+        a_obj = metrics.SparseTopKCategoricalAccuracy(k=2)
+        y_true = [1, 0, 2]
+        y_pred = [[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]]
+        sample_weight = (1.0, 0.0, 1.0)
+        result = a_obj(y_true, y_pred, sample_weight=sample_weight)
+        assert np.allclose(1.0, K.eval(result), atol=1e-5)
