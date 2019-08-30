@@ -400,17 +400,15 @@ class BinaryAccuracy(MeanMetricWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', loss='mse', metrics=[keras.metrics.BinaryAccuracy()])
     ```
+
+    # Arguments
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+        threshold: (Optional) Float representing the threshold for deciding
+            whether prediction values are 1 or 0.
     """
 
     def __init__(self, name='binary_accuracy', dtype=None, threshold=0.5):
-        """Creates a `BinaryAccuracy` instance.
-
-        # Arguments
-            name: (Optional) string name of the metric instance.
-            dtype: (Optional) data type of the metric result.
-            threshold: (Optional) Float representing the threshold for deciding
-                whether prediction values are 1 or 0.
-        """
         super(BinaryAccuracy, self).__init__(
             binary_accuracy, name, dtype=dtype, threshold=threshold)
 
@@ -430,7 +428,7 @@ class CategoricalAccuracy(MeanMetricWrapper):
     simply divides `total` by `count`.
 
     `y_pred` and `y_true` should be passed in as vectors of probabilities, rather
-    than as labels. If necessary, use `tf.one_hot` to expand `y_true` as a vector.
+    than as labels. If necessary, use `K.one_hot` to expand `y_true` as a vector.
 
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
@@ -444,15 +442,13 @@ class CategoricalAccuracy(MeanMetricWrapper):
         loss='mse',
         metrics=[keras.metrics.CategoricalAccuracy()])
     ```
+
+    # Arguments
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
     """
 
     def __init__(self, name='categorical_accuracy', dtype=None):
-        """Creates a `CategoricalAccuracy` instance.
-
-        # Arguments
-            name: (Optional) string name of the metric instance.
-            dtype: (Optional) data type of the metric result.
-        """
         super(CategoricalAccuracy, self).__init__(
             categorical_accuracy, name, dtype=dtype)
 
@@ -499,17 +495,15 @@ class TopKCategoricalAccuracy(MeanMetricWrapper):
     model = keras.Model(inputs, outputs)
     model.compile('sgd', metrics=[keras.metrics.TopKCategoricalAccuracy()])
     ```
+
+    # Arguments
+        k: (Optional) Number of top elements to look at for computing accuracy.
+            Defaults to 5.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
     """
 
     def __init__(self, k=5, name='top_k_categorical_accuracy', dtype=None):
-        """Creates a `TopKCategoricalAccuracy` instance.
-
-        # Arguments
-            k: (Optional) Number of top elements to look at for computing accuracy.
-                Defaults to 5.
-            name: (Optional) string name of the metric instance.
-            dtype: (Optional) data type of the metric result.
-        """
         super(TopKCategoricalAccuracy, self).__init__(
             top_k_categorical_accuracy, name, dtype=dtype, k=k)
 
@@ -525,17 +519,15 @@ class SparseTopKCategoricalAccuracy(MeanMetricWrapper):
         'sgd',
         metrics=[keras.metrics.SparseTopKCategoricalAccuracy()])
     ```
+
+    # Arguments
+        k: (Optional) Number of top elements to look at for computing accuracy.
+            Defaults to 5.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
     """
 
     def __init__(self, k=5, name='sparse_top_k_categorical_accuracy', dtype=None):
-        """Creates a `SparseTopKCategoricalAccuracy` instance.
-
-        # Arguments
-            k: (Optional) Number of top elements to look at for computing accuracy.
-                Defaults to 5.
-            name: (Optional) string name of the metric instance.
-            dtype: (Optional) data type of the metric result.
-        """
         super(SparseTopKCategoricalAccuracy, self).__init__(
             sparse_top_k_categorical_accuracy, name, dtype=dtype, k=k)
 
@@ -548,8 +540,9 @@ def accuracy(y_true, y_pred):
 
 
 def binary_accuracy(y_true, y_pred, threshold=0.5):
-    threshold = K.cast(threshold, y_pred.dtype)
-    y_pred = K.cast(y_pred > threshold, y_pred.dtype)
+    if threshold != 0.5:
+        threshold = K.cast(threshold, y_pred.dtype)
+        y_pred = K.cast(y_pred > threshold, y_pred.dtype)
     return K.mean(K.equal(y_true, K.round(y_pred)), axis=-1)
 
 

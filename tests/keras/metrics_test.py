@@ -202,7 +202,7 @@ class TestAccuracy(object):
         # check with sample_weight
         result_t = acc_obj([[2], [1]], [[2], [0]], sample_weight=[[0.5], [0.2]])
         result = K.eval(result_t)
-        assert np.isclose(result, 0.957, atol=1e-3)  # 4.5/4.7
+        assert np.isclose(result, 4.5 / 4.7, atol=1e-3)
 
     def test_binary_accuracy(self):
         acc_obj = metrics.BinaryAccuracy(name='my_acc')
@@ -221,12 +221,12 @@ class TestAccuracy(object):
         # check y_pred squeeze
         result_t = acc_obj([[1], [1]], [[[1]], [[0]]])
         result = K.eval(result_t)
-        assert np.isclose(result, 3 / 4, atol=1e-3)
+        assert np.isclose(result, 3. / 4., atol=1e-3)
 
         # check y_true squeeze
         result_t = acc_obj([[[1]], [[1]]], [[1], [0]])
         result = K.eval(result_t)
-        assert np.isclose(result, 4 / 6, atol=1e-3)
+        assert np.isclose(result, 4. / 6., atol=1e-3)
 
         # check with sample_weight
         result_t = acc_obj([[1], [1]], [[1], [0]], [[0.5], [0.2]])
