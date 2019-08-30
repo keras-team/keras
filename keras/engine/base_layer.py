@@ -1213,13 +1213,13 @@ class Layer(object):
         if not _DISABLE_TRACKING.value:
             from .. import metrics as metrics_module
             if isinstance(value, metrics_module.Metric):
-                if not hasattr(self,  '_metrics'):
+                if not hasattr(self, '_metrics'):
                     self._metrics = []
                 self._metrics.append(value)
             else:
                 # Automatically track layers set as attributes.
                 if isinstance(value, Layer):
-                    if not hasattr(self,  '_layers'):
+                    if not hasattr(self, '_layers'):
                         self._layers = []
                     if value not in self._layers:
                         self._layers.append(value)
