@@ -519,3 +519,113 @@ class TestSparseTopKCategoricalAccuracy(object):
         sample_weight = (1.0, 0.0, 1.0)
         result = a_obj(y_true, y_pred, sample_weight=sample_weight)
         assert np.allclose(1.0, K.eval(result), atol=1e-5)
+
+
+class TestLogCoshError(object):
+
+    def setup(self):
+        self.y_pred = np.asarray([1, 9, 2, -5, -2, 6]).reshape((2, 3))
+        self.y_true = np.asarray([4, 8, 12, 8, 1, 3]).reshape((2, 3))
+        self.batch_size = 6
+        error = self.y_pred - self.y_true
+        self.expected_results = np.log((np.exp(error) + np.exp(-error)) / 2)
+
+    def test_config(self):
+        logcosh_obj = metrics.LogCoshError(name='logcosh', dtype='int32')
+        assert logcosh_obj.name == 'logcosh'
+        assert logcosh_obj.dtype == 'int32'
+
+    def test_unweighted(self):
+        self.setup()
+        logcosh_obj = metrics.LogCoshError()
+
+        result = logcosh_obj(self.y_true, self.y_pred)
+        expected_result = np.sum(self.expected_results) / self.batch_size
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted(self):
+        self.setup()
+        logcosh_obj = metrics.LogCoshError()
+        sample_weight = [[1.2], [3.4]]
+        result = logcosh_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+
+        sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
+        expected_result = np.multiply(self.expected_results, sample_weight)
+        expected_result = np.sum(expected_result) / np.sum(sample_weight)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+
+class TestPoisson(object):
+
+    def setup(self):
+        self.y_pred = np.asarray([1, 9, 2, 5, 2, 6]).reshape((2, 3))
+        self.y_true = np.asarray([4, 8, 12, 8, 1, 3]).reshape((2, 3))
+        self.batch_size = 6
+        self.expected_results = self.y_pred - np.multiply(
+            self.y_true, np.log(self.y_pred))
+
+    def test_config(self):
+        poisson_obj = metrics.Poisson(name='poisson', dtype='int32')
+        assert poisson_obj.name == 'poisson'
+        assert poisson_obj.dtype == 'int32'
+
+        poisson_obj2 = metrics.Poisson.from_config(poisson_obj.get_config())
+        assert poisson_obj2.name == 'poisson'
+        assert poisson_obj2.dtype == 'int32'
+
+    def test_unweighted(self):
+        self.setup()
+        poisson_obj = metrics.Poisson()
+
+        result = poisson_obj(self.y_true, self.y_pred)
+        expected_result = np.sum(self.expected_results) / self.batch_size
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted(self):
+        self.setup()
+        poisson_obj = metrics.Poisson()
+        sample_weight = [[1.2], [3.4]]
+
+        result = poisson_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+        sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
+        expected_result = np.multiply(self.expected_results, sample_weight)
+        expected_result = np.sum(expected_result) / np.sum(sample_weight)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+
+class TestKLDivergence(object):
+
+    def setup(self):
+        self.y_pred = np.asarray([.4, .9, .12, .36, .3, .4]).reshape((2, 3))
+        self.y_true = np.asarray([.5, .8, .12, .7, .43, .8]).reshape((2, 3))
+        self.batch_size = 2
+        self.expected_results = np.multiply(
+            self.y_true, np.log(self.y_true / self.y_pred))
+
+    def test_config(self):
+        k_obj = metrics.KLDivergence(name='kld', dtype='int32')
+        assert k_obj.name == 'kld'
+        assert k_obj.dtype == 'int32'
+
+        k_obj2 = metrics.KLDivergence.from_config(k_obj.get_config())
+        assert k_obj2.name == 'kld'
+        assert k_obj2.dtype == 'int32'
+
+    def test_unweighted(self):
+        self.setup()
+        k_obj = metrics.KLDivergence()
+
+        result = k_obj(self.y_true, self.y_pred)
+        expected_result = np.sum(self.expected_results) / self.batch_size
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted(self):
+        self.setup()
+        k_obj = metrics.KLDivergence()
+        sample_weight = [[1.2], [3.4]]
+        result = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
+
+        sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
+        expected_result = np.multiply(self.expected_results, sample_weight)
+        expected_result = np.sum(expected_result) / (1.2 + 3.4)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)

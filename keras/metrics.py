@@ -618,6 +618,58 @@ class SparseTopKCategoricalAccuracy(MeanMetricWrapper):
             sparse_top_k_categorical_accuracy, name, dtype=dtype, k=k)
 
 
+class LogCoshError(MeanMetricWrapper):
+    """Computes the logarithm of the hyperbolic cosine of the prediction error.
+
+    `metric = log((exp(x) + exp(-x))/2)`, where x is the error (y_pred - y_true)
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.LogCoshError()])
+    ```
+    """
+
+    def __init__(self, name='logcosh', dtype=None):
+        super(LogCoshError, self).__init__(logcosh, name, dtype=dtype)
+
+
+class Poisson(MeanMetricWrapper):
+    """Computes the Poisson metric between `y_true` and `y_pred`.
+
+    `metric = y_pred - y_true * log(y_pred)`
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.Poisson()])
+    ```
+    """
+
+    def __init__(self, name='poisson', dtype=None):
+        super(Poisson, self).__init__(poisson, name, dtype=dtype)
+
+
+class KLDivergence(MeanMetricWrapper):
+    """Computes Kullback-Leibler divergence metric between `y_true` and `y_pred`.
+
+    `metric = y_true * log(y_true / y_pred)`
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.KLDivergence()])
+    ```
+    """
+
+    def __init__(self, name='kullback_leibler_divergence', dtype=None):
+        super(KLDivergence, self).__init__(
+            kullback_leibler_divergence, name, dtype=dtype)
+
+
 def accuracy(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
