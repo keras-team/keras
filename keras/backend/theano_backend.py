@@ -155,7 +155,7 @@ def variable(value, dtype=None, name=None, constraint=None):
 
 
 def is_variable(x):
-    return isinstance(x, (T.TensorVariable, T.TensorSharedVariable))
+    return isinstance(x, theano.tensor.sharedvar.TensorSharedVariable)
 
 
 def constant(value, dtype=None, shape=None, name=None):
