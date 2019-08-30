@@ -204,6 +204,41 @@ class TestAccuracy(object):
         result = K.eval(result_t)
         assert np.isclose(result, 0.957, atol=1e-3)  # 4.5/4.7
 
+    def test_binary_accuracy(self):
+        acc_obj = metrics.BinaryAccuracy(name='my_acc')
+
+        # check config
+        assert acc_obj.name == 'my_acc'
+        assert acc_obj.stateful
+        assert len(acc_obj.weights) == 2
+        assert acc_obj.dtype == 'float32'
+
+        # verify that correct value is returned
+        result_t = acc_obj([[1], [0]], [[1], [0]])
+        result = K.eval(result_t)
+        assert result == 1  # 2/2
+
+        # check y_pred squeeze
+        result_t = acc_obj([[1], [1]], [[[1]], [[0]]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 3 / 4, atol=1e-3)
+
+        # check y_true squeeze
+        result_t = acc_obj([[[1]], [[1]]], [[1], [0]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 4 / 6, atol=1e-3)
+
+        # check with sample_weight
+        result_t = acc_obj([[1], [1]], [[1], [0]], [[0.5], [0.2]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 4.5 / 6.7, atol=1e-3)
+
+    def test_binary_accuracy_threshold(self):
+        acc_obj = metrics.BinaryAccuracy(threshold=0.7)
+        result_t = acc_obj([[1], [1], [0], [0]], [[0.9], [0.6], [0.4], [0.8]])
+        result = K.eval(result_t)
+        assert np.isclose(result, 0.5, atol=1e-3)
+
 
 class TestMeanSquaredErrorTest(object):
 

@@ -379,6 +379,42 @@ class Accuracy(MeanMetricWrapper):
         super(Accuracy, self).__init__(accuracy, name, dtype=dtype)
 
 
+class BinaryAccuracy(MeanMetricWrapper):
+    """Calculates how often predictions matches labels.
+
+    For example, if `y_true` is [1, 1, 0, 0] and `y_pred` is [0.98, 1, 0, 0.6]
+    then the binary accuracy is 3/4 or .75.  If the weights were specified as
+    [1, 0, 0, 1] then the binary accuracy would be 1/2 or .5.
+
+    This metric creates two local variables, `total` and `count` that are used to
+    compute the frequency with which `y_pred` matches `y_true`. This frequency is
+    ultimately returned as `binary accuracy`: an idempotent operation that simply
+    divides `total` by `count`.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.BinaryAccuracy()])
+    ```
+    """
+
+    def __init__(self, name='binary_accuracy', dtype=None, threshold=0.5):
+        """Creates a `BinaryAccuracy` instance.
+
+        Args:
+          name: (Optional) string name of the metric instance.
+          dtype: (Optional) data type of the metric result.
+          threshold: (Optional) Float representing the threshold for deciding
+          whether prediction values are 1 or 0.
+        """
+        super(BinaryAccuracy, self).__init__(
+            binary_accuracy, name, dtype=dtype, threshold=threshold)
+
+
 def accuracy(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
