@@ -618,6 +618,186 @@ class SparseTopKCategoricalAccuracy(MeanMetricWrapper):
             sparse_top_k_categorical_accuracy, name, dtype=dtype, k=k)
 
 
+class LogCoshError(MeanMetricWrapper):
+    """Computes the logarithm of the hyperbolic cosine of the prediction error.
+
+    `metric = log((exp(x) + exp(-x))/2)`, where x is the error (y_pred - y_true)
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.LogCoshError()])
+    ```
+    """
+
+    def __init__(self, name='logcosh', dtype=None):
+        super(LogCoshError, self).__init__(logcosh, name, dtype=dtype)
+
+
+class Poisson(MeanMetricWrapper):
+    """Computes the Poisson metric between `y_true` and `y_pred`.
+
+    `metric = y_pred - y_true * log(y_pred)`
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.Poisson()])
+    ```
+    """
+
+    def __init__(self, name='poisson', dtype=None):
+        super(Poisson, self).__init__(poisson, name, dtype=dtype)
+
+
+class KLDivergence(MeanMetricWrapper):
+    """Computes Kullback-Leibler divergence metric between `y_true` and `y_pred`.
+
+    `metric = y_true * log(y_true / y_pred)`
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', metrics=[keras.metrics.KLDivergence()])
+    ```
+    """
+
+    def __init__(self, name='kullback_leibler_divergence', dtype=None):
+        super(KLDivergence, self).__init__(
+            kullback_leibler_divergence, name, dtype=dtype)
+
+
+class BinaryCrossentropy(MeanMetricWrapper):
+    """Computes the crossentropy metric between the labels and predictions.
+
+    This is the crossentropy metric class to be used when there are only two
+    label classes (0 and 1).
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+      'sgd',
+      loss='mse',
+      metrics=[keras.metrics.BinaryCrossentropy()])
+    ```
+
+    # Arguments
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+        from_logits: (Optional )Whether output is expected to be a logits tensor.
+            By default, we consider that output encodes a probability distribution.
+        label_smoothing: (Optional) Float in [0, 1]. When > 0, label values are
+            smoothed, meaning the confidence on label values are relaxed.
+            e.g. `label_smoothing=0.2` means that we will use a value of `0.1` for
+            label `0` and `0.9` for label `1`"
+    """
+
+    def __init__(self,
+                 name='binary_crossentropy',
+                 dtype=None,
+                 from_logits=False,
+                 label_smoothing=0):
+        super(BinaryCrossentropy, self).__init__(
+            binary_crossentropy,
+            name,
+            dtype=dtype,
+            from_logits=from_logits,
+            label_smoothing=label_smoothing)
+
+
+class CategoricalCrossentropy(MeanMetricWrapper):
+    """Computes the crossentropy metric between the labels and predictions.
+
+    This is the crossentropy metric class to be used when there are multiple
+    label classes (2 or more). Here we assume that labels are given as a `one_hot`
+    representation. eg., When labels values are [2, 0, 1],
+    `y_true` = [[0, 0, 1], [1, 0, 0], [0, 1, 0]].
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+    'sgd',
+    loss='mse',
+    metrics=[keras.metrics.CategoricalCrossentropy()])
+    ```
+
+    # Arguments
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+        from_logits: (Optional ) Whether `y_pred` is expected to be a logits tensor.
+            By default, we assume that `y_pred` encodes a probability distribution.
+        label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
+            meaning the confidence on label values are relaxed. e.g.
+            `label_smoothing=0.2` means that we will use a value of `0.1` for label
+            `0` and `0.9` for label `1`"
+    """
+
+    def __init__(self,
+                 name='categorical_crossentropy',
+                 dtype=None,
+                 from_logits=False,
+                 label_smoothing=0):
+        super(CategoricalCrossentropy, self).__init__(
+            categorical_crossentropy,
+            name,
+            dtype=dtype,
+            from_logits=from_logits,
+            label_smoothing=label_smoothing)
+
+
+class SparseCategoricalCrossentropy(MeanMetricWrapper):
+    """Computes the crossentropy metric between the labels and predictions.
+
+    Use this crossentropy metric when there are two or more label classes.
+    We expect labels to be provided as integers. If you want to provide labels
+    using `one-hot` representation, please use `CategoricalCrossentropy` metric.
+    There should be `# classes` floating point values per feature for `y_pred`
+    and a single floating point value per feature for `y_true`.
+
+    In the snippet below, there is a single floating point value per example for
+    `y_true` and `# classes` floating pointing values per example for `y_pred`.
+    The shape of `y_true` is `[batch_size]` and the shape of `y_pred` is
+    `[batch_size, num_classes]`.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+    'sgd',
+    loss='mse',
+    metrics=[keras.metrics.SparseCategoricalCrossentropy()])
+    ```
+
+    # Arguments
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+        from_logits: (Optional ) Whether `y_pred` is expected to be a logits tensor.
+            By default, we assume that `y_pred` encodes a probability distribution.
+        axis: (Optional) Defaults to -1. The dimension along which the metric is
+            computed.
+    """
+
+    def __init__(self,
+                 name='sparse_categorical_crossentropy',
+                 dtype=None,
+                 from_logits=False,
+                 axis=-1):
+        super(SparseCategoricalCrossentropy, self).__init__(
+            sparse_categorical_crossentropy,
+            name,
+            dtype=dtype,
+            from_logits=from_logits,
+            axis=axis)
+
+
 def accuracy(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
