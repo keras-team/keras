@@ -941,6 +941,215 @@ class SparseCategoricalCrossentropy(MeanMetricWrapper):
             axis=axis)
 
 
+class _ConfusionMatrixConditionCount(Metric):
+    """Calculates the number of the given confusion matrix condition.
+
+    # Arguments
+        confusion_matrix_cond: One of `metrics_utils.ConfusionMatrix` conditions.
+        thresholds: (Optional) Defaults to 0.5. A float value or a python
+            list/tuple of float threshold values in [0, 1]. A threshold is compared
+            with prediction values to determine the truth value of predictions
+            (i.e., above the threshold is `true`, below is `false`). One metric
+            value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self,
+                 confusion_matrix_cond,
+                 thresholds=None,
+                 name=None,
+                 dtype=None):
+        super(_ConfusionMatrixConditionCount, self).__init__(name=name, dtype=dtype)
+        self._confusion_matrix_cond = confusion_matrix_cond
+        self.init_thresholds = thresholds
+        self.thresholds = metrics_utils.parse_init_thresholds(
+            thresholds, default_threshold=0.5)
+        self.accumulator = self.add_weight(
+            'accumulator',
+            shape=(len(self.thresholds),),
+            initializer='zeros')
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        return metrics_utils.update_confusion_matrix_variables(
+            {self._confusion_matrix_cond: self.accumulator},
+            y_true,
+            y_pred,
+            thresholds=self.thresholds,
+            sample_weight=sample_weight)
+
+    def result(self):
+        if len(self.thresholds) == 1:
+            return self.accumulator[0]
+        return self.accumulator
+
+    def reset_states(self):
+        num_thresholds = len(to_list(self.thresholds))
+        K.batch_set_value(
+            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+
+    def get_config(self):
+        config = {'thresholds': self.init_thresholds}
+        base_config = super(_ConfusionMatrixConditionCount, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class FalsePositives(_ConfusionMatrixConditionCount):
+    """Calculates the number of false positives.
+
+    For example, if `y_true` is [0, 1, 0, 0] and `y_pred` is [0, 0, 1, 1]
+    then the false positives value is 2.  If the weights were specified as
+    [0, 0, 1, 0] then the false positives value would be 1.
+
+    If `sample_weight` is given, calculates the sum of the weights of
+    false positives. This metric creates one local variable, `accumulator`
+    that is used to keep track of the number of false positives.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.FalsePositives()])
+    ```
+
+    # Arguments
+        thresholds: (Optional) Defaults to 0.5. A float value or a python
+            list/tuple of float threshold values in [0, 1]. A threshold is
+            compared with prediction values to determine the truth value of
+            predictions (i.e., above the threshold is `true`, below is `false`).
+            One metric value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self, thresholds=None, name=None, dtype=None):
+        super(FalsePositives, self).__init__(
+            confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_POSITIVES,
+            thresholds=thresholds,
+            name=name,
+            dtype=dtype)
+
+
+class TruePositives(_ConfusionMatrixConditionCount):
+    """Calculates the number of true positives.
+
+    For example, if `y_true` is [0, 1, 1, 1] and `y_pred` is [1, 0, 1, 1]
+    then the true positives value is 2.  If the weights were specified as
+    [0, 0, 1, 0] then the true positives value would be 1.
+
+    If `sample_weight` is given, calculates the sum of the weights of
+    true positives. This metric creates one local variable, `accumulator`
+    that is used to keep track of the number of true positives.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.TruePositives()])
+    ```
+
+    # Arguments
+        thresholds: (Optional) Defaults to 0.5. A float value or a python
+            list/tuple of float threshold values in [0, 1]. A threshold is compared
+            with prediction values to determine the truth value of predictions
+            (i.e., above the threshold is `true`, below is `false`). One metric
+            value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self, thresholds=None, name=None, dtype=None):
+        super(TruePositives, self).__init__(
+            confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_POSITIVES,
+            thresholds=thresholds,
+            name=name,
+            dtype=dtype)
+
+
+class TrueNegatives(_ConfusionMatrixConditionCount):
+    """Calculates the number of true negatives.
+
+    For example, if `y_true` is [0, 1, 0, 0] and `y_pred` is [1, 1, 0, 0]
+    then the true negatives value is 2.  If the weights were specified as
+    [0, 0, 1, 0] then the true negatives value would be 1.
+
+    If `sample_weight` is given, calculates the sum of the weights of
+    true negatives. This metric creates one local variable, `accumulator`
+    that is used to keep track of the number of true negatives.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.TrueNegatives()])
+    ```
+
+    # Arguments
+        thresholds: (Optional) Defaults to 0.5. A float value or a python
+            list/tuple of float threshold values in [0, 1]. A threshold is compared
+            with prediction values to determine the truth value of predictions
+            (i.e., above the threshold is `true`, below is `false`). One metric
+            value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self, thresholds=None, name=None, dtype=None):
+        super(TrueNegatives, self).__init__(
+            confusion_matrix_cond=metrics_utils.ConfusionMatrix.TRUE_NEGATIVES,
+            thresholds=thresholds,
+            name=name,
+            dtype=dtype)
+
+
+class FalseNegatives(_ConfusionMatrixConditionCount):
+    """Calculates the number of false negatives.
+
+    For example, if `y_true` is [0, 1, 1, 1] and `y_pred` is [0, 1, 0, 0]
+    then the false negatives value is 2.  If the weights were specified as
+    [0, 0, 1, 0] then the false negatives value would be 1.
+
+    If `sample_weight` is given, calculates the sum of the weights of
+    false negatives. This metric creates one local variable, `accumulator`
+    that is used to keep track of the number of false negatives.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.FalseNegatives()])
+    ```
+
+    # Arguments
+        thresholds: (Optional) Defaults to 0.5. A float value or a python
+            list/tuple of float threshold values in [0, 1]. A threshold is compared
+            with prediction values to determine the truth value of predictions
+            (i.e., above the threshold is `true`, below is `false`). One metric
+            value is generated for each threshold value.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self, thresholds=None, name=None, dtype=None):
+        super(FalseNegatives, self).__init__(
+            confusion_matrix_cond=metrics_utils.ConfusionMatrix.FALSE_NEGATIVES,
+            thresholds=thresholds,
+            name=name,
+            dtype=dtype)
+
+
 def accuracy(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
