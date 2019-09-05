@@ -4,6 +4,7 @@ import numpy as np
 
 from keras import metrics
 from keras import backend as K
+from keras.utils import metrics_utils
 
 if K.backend() != 'tensorflow':
     # Need TensorFlow to use metric.__call__
@@ -241,3 +242,285 @@ class TestFalseNegatives(object):
 
         result = fn_obj(y_true, y_pred, sample_weight=sample_weight)
         assert np.allclose([4., 16., 23.], K.eval(result))
+
+
+class TestSensitivityAtSpecificity(object):
+
+    def test_config(self):
+        s_obj = metrics.SensitivityAtSpecificity(
+            0.4, num_thresholds=100, name='sensitivity_at_specificity_1')
+        assert s_obj.name == 'sensitivity_at_specificity_1'
+        assert len(s_obj.weights) == 4
+        assert s_obj.specificity == 0.4
+        assert s_obj.num_thresholds == 100
+
+        # Check save and restore config
+        s_obj2 = metrics.SensitivityAtSpecificity.from_config(s_obj.get_config())
+        assert s_obj2.name == 'sensitivity_at_specificity_1'
+        assert len(s_obj2.weights) == 4
+        assert s_obj2.specificity == 0.4
+        assert s_obj2.num_thresholds == 100
+
+    def test_unweighted_all_correct(self):
+        s_obj = metrics.SensitivityAtSpecificity(0.7)
+        inputs = np.random.randint(0, 2, size=(100, 1))
+        y_pred = K.constant(inputs, dtype='float32')
+        y_true = K.constant(inputs)
+        result = s_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+
+    def test_unweighted_high_specificity(self):
+        s_obj = metrics.SensitivityAtSpecificity(0.8)
+        pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.1, 0.45, 0.5, 0.8, 0.9]
+        label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+
+        y_pred = K.constant(pred_values, dtype='float32')
+        y_true = K.constant(label_values)
+        result = s_obj(y_true, y_pred)
+        assert np.isclose(0.8, K.eval(result))
+
+    def test_unweighted_low_specificity(self):
+        s_obj = metrics.SensitivityAtSpecificity(0.4)
+        pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
+        label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+
+        y_pred = K.constant(pred_values, dtype='float32')
+        y_true = K.constant(label_values)
+        result = s_obj(y_true, y_pred)
+        assert np.isclose(0.6, K.eval(result))
+
+    def test_weighted(self):
+        s_obj = metrics.SensitivityAtSpecificity(0.4)
+        pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
+        label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        weight_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+        y_pred = K.constant(pred_values, dtype='float32')
+        y_true = K.constant(label_values, dtype='float32')
+        weights = K.constant(weight_values)
+        result = s_obj(y_true, y_pred, sample_weight=weights)
+        assert np.isclose(0.675, K.eval(result))
+
+    def test_invalid_specificity(self):
+        with pytest.raises(Exception):
+            metrics.SensitivityAtSpecificity(-1)
+
+    def test_invalid_num_thresholds(self):
+        with pytest.raises(Exception):
+            metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
+
+
+class TestAUC(object):
+
+    def setup(self):
+        self.num_thresholds = 3
+        self.y_pred = K.constant([0, 0.5, 0.3, 0.9], dtype='float32')
+        self.y_true = K.constant([0, 0, 1, 1])
+        self.sample_weight = [1, 2, 3, 4]
+
+        # threshold values are [0 - 1e-7, 0.5, 1 + 1e-7]
+        # y_pred when threshold = 0 - 1e-7  : [1, 1, 1, 1]
+        # y_pred when threshold = 0.5       : [0, 0, 0, 1]
+        # y_pred when threshold = 1 + 1e-7  : [0, 0, 0, 0]
+
+        # without sample_weight:
+        # tp = np.sum([[0, 0, 1, 1], [0, 0, 0, 1], [0, 0, 0, 0]], axis=1)
+        # fp = np.sum([[1, 1, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], axis=1)
+        # fn = np.sum([[0, 0, 0, 0], [0, 0, 1, 0], [0, 0, 1, 1]], axis=1)
+        # tn = np.sum([[0, 0, 0, 0], [1, 1, 0, 0], [1, 1, 0, 0]], axis=1)
+
+        # tp = [2, 1, 0], fp = [2, 0, 0], fn = [0, 1, 2], tn = [0, 2, 2]
+
+        # with sample_weight:
+        # tp = np.sum([[0, 0, 3, 4], [0, 0, 0, 4], [0, 0, 0, 0]], axis=1)
+        # fp = np.sum([[1, 2, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]], axis=1)
+        # fn = np.sum([[0, 0, 0, 0], [0, 0, 3, 0], [0, 0, 3, 4]], axis=1)
+        # tn = np.sum([[0, 0, 0, 0], [1, 2, 0, 0], [1, 2, 0, 0]], axis=1)
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+
+    def test_config(self):
+        auc_obj = metrics.AUC(
+            num_thresholds=100,
+            curve='PR',
+            summation_method='majoring',
+            name='auc_1')
+        assert auc_obj.name == 'auc_1'
+        assert len(auc_obj.weights) == 4
+        assert auc_obj.num_thresholds == 100
+        assert auc_obj.curve == metrics_utils.AUCCurve.PR
+        assert auc_obj.summation_method == metrics_utils.AUCSummationMethod.MAJORING
+
+        # Check save and restore config.
+        auc_obj2 = metrics.AUC.from_config(auc_obj.get_config())
+        assert auc_obj2.name == 'auc_1'
+        assert len(auc_obj2.weights) == 4
+        assert auc_obj2.num_thresholds == 100
+        assert auc_obj2.curve == metrics_utils.AUCCurve.PR
+        assert auc_obj2.summation_method == metrics_utils.AUCSummationMethod.MAJORING
+
+    def test_config_manual_thresholds(self):
+        auc_obj = metrics.AUC(
+            num_thresholds=None,
+            curve='PR',
+            summation_method='majoring',
+            name='auc_1',
+            thresholds=[0.3, 0.5])
+        assert auc_obj.name == 'auc_1'
+        assert len(auc_obj.weights) == 4
+        assert auc_obj.num_thresholds == 4
+        assert np.allclose(auc_obj.thresholds, [0.0, 0.3, 0.5, 1.0], atol=1e-3)
+        assert auc_obj.curve == metrics_utils.AUCCurve.PR
+        assert auc_obj.summation_method == metrics_utils.AUCSummationMethod.MAJORING
+
+        # Check save and restore config.
+        auc_obj2 = metrics.AUC.from_config(auc_obj.get_config())
+        assert auc_obj2.name == 'auc_1'
+        assert len(auc_obj2.weights) == 4
+        assert auc_obj2.num_thresholds == 4
+        assert auc_obj2.curve == metrics_utils.AUCCurve.PR
+        assert auc_obj2.summation_method == metrics_utils.AUCSummationMethod.MAJORING
+
+    def test_unweighted_all_correct(self):
+        self.setup()
+        auc_obj = metrics.AUC()
+        result = auc_obj(self.y_true, self.y_true)
+        assert K.eval(result) == 1
+
+    def test_unweighted(self):
+        self.setup()
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds)
+        result = auc_obj(self.y_true, self.y_pred)
+
+        # tp = [2, 1, 0], fp = [2, 0, 0], fn = [0, 1, 2], tn = [0, 2, 2]
+        # recall = [2/2, 1/(1+1), 0] = [1, 0.5, 0]
+        # fp_rate = [2/2, 0, 0] = [1, 0, 0]
+        # heights = [(1 + 0.5)/2, (0.5 + 0)/2] = [0.75, 0.25]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = (0.75 * 1 + 0.25 * 0)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_manual_thresholds(self):
+        self.setup()
+        # Verify that when specified, thresholds are used instead of num_thresholds.
+        auc_obj = metrics.AUC(num_thresholds=2, thresholds=[0.5])
+        assert auc_obj.num_thresholds == 3
+        assert np.allclose(auc_obj.thresholds, [0.0, 0.5, 1.0], atol=1e-3)
+        result = auc_obj(self.y_true, self.y_pred)
+
+        # tp = [2, 1, 0], fp = [2, 0, 0], fn = [0, 1, 2], tn = [0, 2, 2]
+        # recall = [2/2, 1/(1+1), 0] = [1, 0.5, 0]
+        # fp_rate = [2/2, 0, 0] = [1, 0, 0]
+        # heights = [(1 + 0.5)/2, (0.5 + 0)/2] = [0.75, 0.25]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = (0.75 * 1 + 0.25 * 0)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted_roc_interpolation(self):
+        self.setup()
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds)
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
+        # fp_rate = [3/3, 0, 0] = [1, 0, 0]
+        # heights = [(1 + 0.571)/2, (0.571 + 0)/2] = [0.7855, 0.2855]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = (0.7855 * 1 + 0.2855 * 0)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted_roc_majoring(self):
+        self.setup()
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds, summation_method='majoring')
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
+        # fp_rate = [3/3, 0, 0] = [1, 0, 0]
+        # heights = [max(1, 0.571), max(0.571, 0)] = [1, 0.571]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = (1 * 1 + 0.571 * 0)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted_roc_minoring(self):
+        self.setup()
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds, summation_method='minoring')
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
+        # fp_rate = [3/3, 0, 0] = [1, 0, 0]
+        # heights = [min(1, 0.571), min(0.571, 0)] = [0.571, 0]
+        # widths = [(1 - 0), (0 - 0)] = [1, 0]
+        expected_result = (0.571 * 1 + 0 * 0)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted_pr_majoring(self):
+        self.setup()
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds,
+            curve='PR',
+            summation_method='majoring')
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # precision = [7/(7+3), 4/4, 0] = [0.7, 1, 0]
+        # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
+        # heights = [max(0.7, 1), max(1, 0)] = [1, 1]
+        # widths = [(1 - 0.571), (0.571 - 0)] = [0.429, 0.571]
+        expected_result = (1 * 0.429 + 1 * 0.571)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted_pr_minoring(self):
+        self.setup()
+        auc_obj = metrics.AUC(
+            num_thresholds=self.num_thresholds,
+            curve='PR',
+            summation_method='minoring')
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # precision = [7/(7+3), 4/4, 0] = [0.7, 1, 0]
+        # recall = [7/7, 4/(4+3), 0] = [1, 0.571, 0]
+        # heights = [min(0.7, 1), min(1, 0)] = [0.7, 0]
+        # widths = [(1 - 0.571), (0.571 - 0)] = [0.429, 0.571]
+        expected_result = (0.7 * 0.429 + 0 * 0.571)
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted_pr_interpolation(self):
+        self.setup()
+        auc_obj = metrics.AUC(num_thresholds=self.num_thresholds, curve='PR')
+        result = auc_obj(self.y_true, self.y_pred, sample_weight=self.sample_weight)
+
+        # auc = (slope / Total Pos) * [dTP - intercept * log(Pb/Pa)]
+
+        # tp = [7, 4, 0], fp = [3, 0, 0], fn = [0, 3, 7], tn = [0, 3, 3]
+        # P = tp + fp = [10, 4, 0]
+        # dTP = [7-4, 4-0] = [3, 4]
+        # dP = [10-4, 4-0] = [6, 4]
+        # slope = dTP/dP = [0.5, 1]
+        # intercept = (TPa+(slope*Pa) = [(4 - 0.5*4), (0 - 1*0)] = [2, 0]
+        # (Pb/Pa) = (Pb/Pa) if Pb > 0 AND Pa > 0 else 1 = [10/4, 4/0] = [2.5, 1]
+        # auc * TotalPos = [(0.5 * (3 + 2 * log(2.5))), (1 * (4 + 0))]
+        #                = [2.416, 4]
+        # auc = [2.416, 4]/(tp[1:]+fn[1:])
+        # expected_result = (2.416 / 7 + 4 / 7)
+        expected_result = 0.345 + 0.571
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_invalid_num_thresholds(self):
+        with pytest.raises(Exception):
+            metrics.AUC(num_thresholds=-1)
+
+        with pytest.raises(Exception):
+            metrics.AUC(num_thresholds=1)
+
+    def test_invalid_curve(self):
+        with pytest.raises(Exception):
+            metrics.AUC(curve='Invalid')
+
+    def test_invalid_summation_method(self):
+        with pytest.raises(Exception):
+            metrics.AUC(summation_method='Invalid')
