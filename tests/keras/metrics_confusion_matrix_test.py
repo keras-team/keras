@@ -262,7 +262,7 @@ class TestSensitivityAtSpecificity(object):
         assert s_obj2.num_thresholds == 100
 
     def test_unweighted_all_correct(self):
-        s_obj = metrics.SensitivityAtSpecificity(0.7)
+        s_obj = metrics.SensitivityAtSpecificity(0.7, num_thresholds=1)
         inputs = np.random.randint(0, 2, size=(100, 1))
         y_pred = K.constant(inputs, dtype='float32')
         y_true = K.constant(inputs)
@@ -308,6 +308,72 @@ class TestSensitivityAtSpecificity(object):
     def test_invalid_num_thresholds(self):
         with pytest.raises(Exception):
             metrics.SensitivityAtSpecificity(0.4, num_thresholds=-1)
+
+
+class TestSpecificityAtSensitivity(object):
+
+    def test_config(self):
+        s_obj = metrics.SpecificityAtSensitivity(
+            0.4, num_thresholds=100, name='specificity_at_sensitivity_1')
+        assert s_obj.name == 'specificity_at_sensitivity_1'
+        assert len(s_obj.weights) == 4
+        assert s_obj.sensitivity == 0.4
+        assert s_obj.num_thresholds == 100
+
+        # Check save and restore config
+        s_obj2 = metrics.SpecificityAtSensitivity.from_config(s_obj.get_config())
+        assert s_obj2.name == 'specificity_at_sensitivity_1'
+        assert len(s_obj2.weights) == 4
+        assert s_obj2.sensitivity == 0.4
+        assert s_obj2.num_thresholds == 100
+
+    def test_unweighted_all_correct(self):
+        s_obj = metrics.SpecificityAtSensitivity(0.7, num_thresholds=1)
+        inputs = np.random.randint(0, 2, size=(100, 1))
+        y_pred = K.constant(inputs, dtype='float32')
+        y_true = K.constant(inputs)
+        result = s_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+
+    def test_unweighted_high_sensitivity(self):
+        s_obj = metrics.SpecificityAtSensitivity(0.8)
+        pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.1, 0.45, 0.5, 0.8, 0.9]
+        label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+
+        y_pred = K.constant(pred_values, dtype='float32')
+        y_true = K.constant(label_values)
+        result = s_obj(y_true, y_pred)
+        assert np.isclose(0.4, K.eval(result))
+
+    def test_unweighted_low_sensitivity(self):
+        s_obj = metrics.SpecificityAtSensitivity(0.4)
+        pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
+        label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+
+        y_pred = K.constant(pred_values, dtype='float32')
+        y_true = K.constant(label_values)
+        result = s_obj(y_true, y_pred)
+        assert np.isclose(0.6, K.eval(result))
+
+    def test_weighted(self):
+        s_obj = metrics.SpecificityAtSensitivity(0.4)
+        pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
+        label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
+        weight_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+        y_pred = K.constant(pred_values, dtype='float32')
+        y_true = K.constant(label_values, dtype='float32')
+        weights = K.constant(weight_values)
+        result = s_obj(y_true, y_pred, sample_weight=weights)
+        assert np.isclose(0.4, K.eval(result))
+
+    def test_invalid_sensitivity(self):
+        with pytest.raises(Exception):
+            metrics.SpecificityAtSensitivity(-1)
+
+    def test_invalid_num_thresholds(self):
+        with pytest.raises(Exception):
+            metrics.SpecificityAtSensitivity(0.4, num_thresholds=-1)
 
 
 class TestAUC(object):
