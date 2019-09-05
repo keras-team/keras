@@ -271,10 +271,6 @@ def update_confusion_matrix_variables(variables_to_update,
             y_pred, K.cast(sample_weight, dtype=K.floatx()))
         weights_tiled = K.tile(
             K.reshape(weights, [1, -1]), [num_thresholds, 1])
-
-        print('label_is_pos: ', label_is_pos)
-        print('pred_is_pos: ', pred_is_pos)
-        print('Sample_weight: ', weights_tiled)
     else:
         weights_tiled = None
 

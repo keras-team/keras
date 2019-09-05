@@ -1474,18 +1474,12 @@ class AUC(Metric):
 
         safe_p_ratio = K.switch(
             switch_condition,
-            K.switch(
-                K.greater(p[:self.num_thresholds - 1], 0),
-                (p[:self.num_thresholds - 1] / K.maximum(p[1:], 0)),
-                K.zeros_like(p[:self.num_thresholds - 1])),
+            p[:self.num_thresholds - 1] / K.maximum(p[1:], 0),
             K.ones_like(p[1:]))
 
         numer = prec_slope * (dtp + intercept * K.log(safe_p_ratio))
-        return K.sum(K.switch(
-            K.greater(numer, 0),
-            (numer / K.maximum(
-                self.true_positives[1:] + self.false_negatives[1:], 0)),
-            K.zeros_like(numer)))
+        denom = K.maximum(self.true_positives[1:] + self.false_negatives[1:], 0)
+        return K.sum((numer / denom))
 
     def result(self):
         if (self.curve == metrics_utils.AUCCurve.PR and

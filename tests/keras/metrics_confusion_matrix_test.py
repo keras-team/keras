@@ -506,7 +506,8 @@ class TestAUC(object):
         # auc * TotalPos = [(0.5 * (3 + 2 * log(2.5))), (1 * (4 + 0))]
         #                = [2.416, 4]
         # auc = [2.416, 4]/(tp[1:]+fn[1:])
-        expected_result = (2.416 / 7 + 4 / 7)
+        # expected_result = (2.416 / 7 + 4 / 7)
+        expected_result = 0.345 + 0.571
         assert np.allclose(K.eval(result), expected_result, atol=1e-3)
 
     def test_invalid_num_thresholds(self):
