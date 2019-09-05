@@ -1292,7 +1292,7 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
     `false_positives` and `false_negatives` that are used to compute the
     specificity at the given sensitivity. The threshold for the given sensitivity
     value is computed and used to evaluate the corresponding specificity.
-    
+
     If `sample_weight` is `None`, weights default to 1.
     Use `sample_weight` of 0 to mask values.
 
@@ -1326,7 +1326,6 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
 
     def result(self):
         # Calculate sensitivities at all the thresholds.
-        # return self.true_positives + self.false_positives + self.true_negatives + self.false_negatives
         sensitivities = K.switch(
             K.greater(self.true_positives + self.false_negatives, 0),
             (self.true_positives / (self.true_positives + self.false_negatives)),
