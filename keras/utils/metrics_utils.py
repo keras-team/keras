@@ -9,6 +9,9 @@ from .. import backend as K
 from . import losses_utils
 
 
+NEG_INF = -1e10
+
+
 class Reduction(object):
     """Types of metrics reduction.
 
@@ -94,7 +97,53 @@ class ConfusionMatrix(Enum):
     FALSE_NEGATIVES = 'fn'
 
 
+class AUCCurve(Enum):
+    """Type of AUC Curve (ROC or PR)."""
+    ROC = 'ROC'
+    PR = 'PR'
+
+    @staticmethod
+    def from_str(key):
+        if key in ('pr', 'PR'):
+            return AUCCurve.PR
+        elif key in ('roc', 'ROC'):
+            return AUCCurve.ROC
+        else:
+            raise ValueError('Invalid AUC curve value "%s".' % key)
+
+
+class AUCSummationMethod(Enum):
+    """Type of AUC summation method.
+
+    https://en.wikipedia.org/wiki/Riemann_sum)
+
+    Contains the following values:
+    * 'interpolation': Applies mid-point summation scheme for `ROC` curve. For
+    `PR` curve, interpolates (true/false) positives but not the ratio that is
+    precision (see Davis & Goadrich 2006 for details).
+    * 'minoring': Applies left summation for increasing intervals and right
+    summation for decreasing intervals.
+    * 'majoring': Applies right summation for increasing intervals and left
+    summation for decreasing intervals.
+    """
+    INTERPOLATION = 'interpolation'
+    MAJORING = 'majoring'
+    MINORING = 'minoring'
+
+    @staticmethod
+    def from_str(key):
+        if key in ('interpolation', 'Interpolation'):
+            return AUCSummationMethod.INTERPOLATION
+        elif key in ('majoring', 'Majoring'):
+            return AUCSummationMethod.MAJORING
+        elif key in ('minoring', 'Minoring'):
+            return AUCSummationMethod.MINORING
+        else:
+            raise ValueError('Invalid AUC summation method value "%s".' % key)
+
+
 def weighted_assign_add(label, pred, weights, var):
+    # Logical and
     label = K.expand_dims(label, 0)
     pred = K.expand_dims(pred, 0)
     are_different = K.concatenate([label, pred], axis=0)
@@ -222,10 +271,6 @@ def update_confusion_matrix_variables(variables_to_update,
             y_pred, K.cast(sample_weight, dtype=K.floatx()))
         weights_tiled = K.tile(
             K.reshape(weights, [1, -1]), [num_thresholds, 1])
-
-        print('label_is_pos: ', label_is_pos)
-        print('pred_is_pos: ', pred_is_pos)
-        print('Sample_weight: ', weights_tiled)
     else:
         weights_tiled = None
 
