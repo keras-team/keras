@@ -663,82 +663,82 @@ class TestPrecisionTest(object):
         expected_precision = weighted_tp / weighted_positives
         assert np.allclose([expected_precision, 0], K.eval(result), 1e-3)
 
-    def test_unweighted_top_k(self):
-        p_obj = metrics.Precision(top_k=3)
-        y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(1. / 3, K.eval(result))
+    # def test_unweighted_top_k(self):
+    #     p_obj = metrics.Precision(top_k=3)
+    #     y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(1. / 3, K.eval(result))
 
-    def test_weighted_top_k(self):
-        p_obj = metrics.Precision(top_k=3)
-        y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
-        y_true1 = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
-        K.eval(
-            p_obj(
-                y_true1,
-                y_pred1,
-                sample_weight=K.constant([[1, 4, 2, 3, 5]])))
+    # def test_weighted_top_k(self):
+    #     p_obj = metrics.Precision(top_k=3)
+    #     y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
+    #     y_true1 = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
+    #     K.eval(
+    #         p_obj(
+    #             y_true1,
+    #             y_pred1,
+    #             sample_weight=K.constant([[1, 4, 2, 3, 5]])))
 
-        y_pred2 = K.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
-        y_true2 = K.constant([1, 0, 1, 1, 1], shape=(1, 5))
-        result = p_obj(y_true2, y_pred2, sample_weight=K.constant(3))
+    #     y_pred2 = K.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
+    #     y_true2 = K.constant([1, 0, 1, 1, 1], shape=(1, 5))
+    #     result = p_obj(y_true2, y_pred2, sample_weight=K.constant(3))
 
-        tp = (2 + 5) + (3 + 3)
-        predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
-        expected_precision = tp / predicted_positives
-        assert np.isclose(expected_precision, K.eval(result))
+    #     tp = (2 + 5) + (3 + 3)
+    #     predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
+    #     expected_precision = tp / predicted_positives
+    #     assert np.isclose(expected_precision, K.eval(result))
 
-    def test_unweighted_class_id(self):
-        p_obj = metrics.Precision(class_id=2)
+    # def test_unweighted_class_id(self):
+    #     p_obj = metrics.Precision(class_id=2)
 
-        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(p_obj.true_positives))
-        assert np.isclose(0, K.eval(p_obj.false_positives))
+    #     y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(p_obj.true_positives))
+    #     assert np.isclose(0, K.eval(p_obj.false_positives))
 
-        y_pred = K.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(p_obj.true_positives))
-        assert np.isclose(0, K.eval(p_obj.false_positives))
+    #     y_pred = K.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(p_obj.true_positives))
+    #     assert np.isclose(0, K.eval(p_obj.false_positives))
 
-        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 0, 0, 0], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(0.5, K.eval(result))
-        assert np.isclose(1, K.eval(p_obj.true_positives))
-        assert np.isclose(1, K.eval(p_obj.false_positives))
+    #     y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 0, 0, 0], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(0.5, K.eval(result))
+    #     assert np.isclose(1, K.eval(p_obj.true_positives))
+    #     assert np.isclose(1, K.eval(p_obj.false_positives))
 
-    def test_unweighted_top_k_and_class_id(self):
-        p_obj = metrics.Precision(class_id=2, top_k=2)
+    # def test_unweighted_top_k_and_class_id(self):
+    #     p_obj = metrics.Precision(class_id=2, top_k=2)
 
-        y_pred = K.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(p_obj.true_positives))
-        assert np.isclose(0, K.eval(p_obj.false_positives))
+    #     y_pred = K.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(p_obj.true_positives))
+    #     assert np.isclose(0, K.eval(p_obj.false_positives))
 
-        y_pred = K.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(p_obj.true_positives))
-        assert np.isclose(0, K.eval(p_obj.false_positives))
+    #     y_pred = K.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(p_obj.true_positives))
+    #     assert np.isclose(0, K.eval(p_obj.false_positives))
 
-    def test_unweighted_top_k_and_threshold(self):
-        p_obj = metrics.Precision(thresholds=.7, top_k=2)
+    # def test_unweighted_top_k_and_threshold(self):
+    #     p_obj = metrics.Precision(thresholds=.7, top_k=2)
 
-        y_pred = K.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
-        result = p_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(p_obj.true_positives))
-        assert np.isclose(0, K.eval(p_obj.false_positives))
+    #     y_pred = K.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
+    #     result = p_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(p_obj.true_positives))
+    #     assert np.isclose(0, K.eval(p_obj.false_positives))
 
 
 class TestRecall(object):
@@ -812,79 +812,79 @@ class TestRecall(object):
         expected_recall = weighted_tp / weighted_positives
         assert np.allclose([expected_recall, 0], K.eval(result), 1e-3)
 
-    def test_unweighted_top_k(self):
-        r_obj = metrics.Recall(top_k=3)
-        y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(0.5, K.eval(result))
+    # def test_unweighted_top_k(self):
+    #     r_obj = metrics.Recall(top_k=3)
+    #     y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(0.5, K.eval(result))
 
-    def test_weighted_top_k(self):
-        r_obj = metrics.Recall(top_k=3)
-        y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
-        y_true1 = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
-        K.eval(
-            r_obj(
-                y_true1,
-                y_pred1,
-                sample_weight=K.constant([[1, 4, 2, 3, 5]])))
+    # def test_weighted_top_k(self):
+    #     r_obj = metrics.Recall(top_k=3)
+    #     y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
+    #     y_true1 = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
+    #     K.eval(
+    #         r_obj(
+    #             y_true1,
+    #             y_pred1,
+    #             sample_weight=K.constant([[1, 4, 2, 3, 5]])))
 
-        y_pred2 = K.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
-        y_true2 = K.constant([1, 0, 1, 1, 1], shape=(1, 5))
-        result = r_obj(y_true2, y_pred2, sample_weight=K.constant(3))
+    #     y_pred2 = K.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
+    #     y_true2 = K.constant([1, 0, 1, 1, 1], shape=(1, 5))
+    #     result = r_obj(y_true2, y_pred2, sample_weight=K.constant(3))
 
-        tp = (2 + 5) + (3 + 3)
-        positives = (4 + 2 + 5) + (3 + 3 + 3 + 3)
-        expected_recall = tp / positives
-        assert np.isclose(expected_recall, K.eval(result))
+    #     tp = (2 + 5) + (3 + 3)
+    #     positives = (4 + 2 + 5) + (3 + 3 + 3 + 3)
+    #     expected_recall = tp / positives
+    #     assert np.isclose(expected_recall, K.eval(result))
 
-    def test_unweighted_class_id(self):
-        r_obj = metrics.Recall(class_id=2)
+    # def test_unweighted_class_id(self):
+    #     r_obj = metrics.Recall(class_id=2)
 
-        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(r_obj.true_positives))
-        assert np.isclose(0, K.eval(r_obj.false_negatives))
+    #     y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(r_obj.true_positives))
+    #     assert np.isclose(0, K.eval(r_obj.false_negatives))
 
-        y_pred = K.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(0.5, K.eval(result))
-        assert np.isclose(1, K.eval(r_obj.true_positives))
-        assert np.isclose(1, K.eval(r_obj.false_negatives))
+    #     y_pred = K.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(0.5, K.eval(result))
+    #     assert np.isclose(1, K.eval(r_obj.true_positives))
+    #     assert np.isclose(1, K.eval(r_obj.false_negatives))
 
-        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 0, 0, 0], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(0.5, K.eval(result))
-        assert np.isclose(1, K.eval(r_obj.true_positives))
-        assert np.isclose(1, K.eval(r_obj.false_negatives))
+    #     y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 0, 0, 0], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(0.5, K.eval(result))
+    #     assert np.isclose(1, K.eval(r_obj.true_positives))
+    #     assert np.isclose(1, K.eval(r_obj.false_negatives))
 
-    def test_unweighted_top_k_and_class_id(self):
-        r_obj = metrics.Recall(class_id=2, top_k=2)
+    # def test_unweighted_top_k_and_class_id(self):
+    #     r_obj = metrics.Recall(class_id=2, top_k=2)
 
-        y_pred = K.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(1, K.eval(result))
-        assert np.isclose(1, K.eval(r_obj.true_positives))
-        assert np.isclose(0, K.eval(r_obj.false_negatives))
+    #     y_pred = K.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(1, K.eval(result))
+    #     assert np.isclose(1, K.eval(r_obj.true_positives))
+    #     assert np.isclose(0, K.eval(r_obj.false_negatives))
 
-        y_pred = K.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
-        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(0.5, K.eval(result))
-        assert np.isclose(1, K.eval(r_obj.true_positives))
-        assert np.isclose(1, K.eval(r_obj.false_negatives))
+    #     y_pred = K.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
+    #     y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(0.5, K.eval(result))
+    #     assert np.isclose(1, K.eval(r_obj.true_positives))
+    #     assert np.isclose(1, K.eval(r_obj.false_negatives))
 
-    def test_unweighted_top_k_and_threshold(self):
-        r_obj = metrics.Recall(thresholds=.7, top_k=2)
+    # def test_unweighted_top_k_and_threshold(self):
+    #     r_obj = metrics.Recall(thresholds=.7, top_k=2)
 
-        y_pred = K.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
-        y_true = K.constant([1, 1, 1, 0, 1], shape=(1, 5))
-        result = r_obj(y_true, y_pred)
-        assert np.isclose(0.25, K.eval(result))
-        assert np.isclose(1, K.eval(r_obj.true_positives))
-        assert np.isclose(3, K.eval(r_obj.false_negatives))
+    #     y_pred = K.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
+    #     y_true = K.constant([1, 1, 1, 0, 1], shape=(1, 5))
+    #     result = r_obj(y_true, y_pred)
+    #     assert np.isclose(0.25, K.eval(result))
+    #     assert np.isclose(1, K.eval(r_obj.true_positives))
+    #     assert np.isclose(3, K.eval(r_obj.false_negatives))
