@@ -1265,11 +1265,10 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
         min_index = K.cast(min_index, 'int32')
 
         # Compute sensitivity at that index.
+        denom = self.true_positives[min_index] + self.false_negatives[min_index]
         return K.switch(
-            K.greater((self.true_positives[min_index] +
-                       self.false_negatives[min_index]), 0),
-            (self.true_positives[min_index] /
-                (self.true_positives[min_index] + self.false_negatives[min_index])),
+            K.greater(denom, 0),
+            self.true_positives[min_index] / denom,
             K.zeros_like(self.true_positives[min_index]))
 
     def get_config(self):
@@ -1278,6 +1277,79 @@ class SensitivityAtSpecificity(SensitivitySpecificityBase):
             'specificity': self.specificity
         }
         base_config = super(SensitivityAtSpecificity, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class SpecificityAtSensitivity(SensitivitySpecificityBase):
+    """Computes the specificity at a given sensitivity.
+
+    `Sensitivity` measures the proportion of actual positives that are correctly
+    identified as such (tp / (tp + fn)).
+    `Specificity` measures the proportion of actual negatives that are correctly
+    identified as such (tn / (tn + fp)).
+
+    This metric creates four local variables, `true_positives`, `true_negatives`,
+    `false_positives` and `false_negatives` that are used to compute the
+    specificity at the given sensitivity. The threshold for the given sensitivity
+    value is computed and used to evaluate the corresponding specificity.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    For additional information about specificity and sensitivity, see the
+    following: https://en.wikipedia.org/wiki/Sensitivity_and_specificity
+
+    Usage with the compile API:
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+        'sgd',
+        loss='mse',
+        metrics=[keras.metrics.SpecificityAtSensitivity()])
+    ```
+
+    # Arguments
+        sensitivity: A scalar value in range `[0, 1]`.
+        num_thresholds: (Optional) Defaults to 200. The number of thresholds to
+            use for matching the given specificity.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self, sensitivity, num_thresholds=200, name=None, dtype=None):
+        if sensitivity < 0 or sensitivity > 1:
+            raise ValueError('`sensitivity` must be in the range [0, 1].')
+        self.sensitivity = sensitivity
+        self.num_thresholds = num_thresholds
+        super(SpecificityAtSensitivity, self).__init__(
+            sensitivity, num_thresholds=num_thresholds, name=name, dtype=dtype)
+
+    def result(self):
+        # Calculate sensitivities at all the thresholds.
+        sensitivities = K.switch(
+            K.greater(self.true_positives + self.false_negatives, 0),
+            (self.true_positives / (self.true_positives + self.false_negatives)),
+            K.zeros_like(self.thresholds))
+
+        # Find the index of the threshold where the sensitivity is closest to the
+        # given specificity.
+        min_index = K.argmin(
+            K.abs(sensitivities - self.value), axis=0)
+        min_index = K.cast(min_index, 'int32')
+
+        # Compute specificity at that index.
+        denom = (self.true_negatives[min_index] + self.false_positives[min_index])
+        return K.switch(
+            K.greater(denom, 0),
+            self.true_negatives[min_index] / denom,
+            K.zeros_like(self.true_negatives[min_index]))
+
+    def get_config(self):
+        config = {
+            'num_thresholds': self.num_thresholds,
+            'sensitivity': self.sensitivity
+        }
+        base_config = super(SpecificityAtSensitivity, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
