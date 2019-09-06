@@ -68,6 +68,22 @@ def result_wrapper(result_fn):
     return decorated
 
 
+def filter_top_k(x, k):
+    """Filters top-k values in the last dim of x and set the rest to NEG_INF.
+    Used for computing top-k prediction values in dense labels (which has the same
+    shape as predictions) for recall and precision top-k metrics.
+    # Arguments
+        x: tensor with any dimensions.
+        k: the number of values to keep.
+    # Returns
+        tensor with same shape and dtype as x.
+    """
+    _, top_k_idx = nn_ops.top_k(x, k, sorted=False)
+    top_k_mask = K.sum(
+        K.one_hot(top_k_idx, x.shape[-1], axis=-1), axis=-2)
+    return x * top_k_mask + NEG_INF * (1 - top_k_mask)
+
+
 def to_list(x):
     if isinstance(x, list):
         return x
@@ -237,7 +253,7 @@ def update_confusion_matrix_variables(variables_to_update,
                 y_pred, y_true=y_true, sample_weight=sample_weight))
 
     if top_k is not None:
-        y_pred = _filter_top_k(y_pred, top_k)
+        y_pred = filter_top_k(y_pred, top_k)
     if class_id is not None:
         y_true = y_true[..., class_id]
         y_pred = y_pred[..., class_id]
