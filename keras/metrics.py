@@ -1911,7 +1911,8 @@ mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_similarity = cosine_proximity
-MeanIoU = K.MeanIoU
+if K.backend() == 'tensorflow':
+    MeanIoU = K.MeanIoU
 
 
 def serialize(metric):
