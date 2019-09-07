@@ -1407,6 +1407,11 @@ class Precision(Metric):
                  dtype=None):
         super(Precision, self).__init__(name=name, dtype=dtype)
         self.init_thresholds = thresholds
+        if top_k is not None and K.backend() != 'tensorflow':
+            raise RuntimeError(
+                '`top_k` argument for `Precision` metric is currently supported only '
+                'with TensorFlow backend.')
+
         self.top_k = top_k
         self.class_id = class_id
 
@@ -1512,6 +1517,11 @@ class Recall(Metric):
                  dtype=None):
         super(Recall, self).__init__(name=name, dtype=dtype)
         self.init_thresholds = thresholds
+        if top_k is not None and K.backend() != 'tensorflow':
+            raise RuntimeError(
+                '`top_k` argument for `Recall` metric is currently supported only '
+                'with TensorFlow backend.')
+
         self.top_k = top_k
         self.class_id = class_id
 
@@ -1832,111 +1842,6 @@ class AUC(Metric):
         return dict(list(base_config.items()) + list(config.items()))
 
 
-class MeanIoU(Metric):
-    """Computes the mean Intersection-Over-Union metric.
-
-    Mean Intersection-Over-Union is a common evaluation metric for semantic image
-    segmentation, which first computes the IOU for each semantic class and then
-    computes the average over classes. IOU is defined as follows:
-    IOU = true_positive / (true_positive + false_positive + false_negative).
-
-    The predictions are accumulated in a confusion matrix, weighted by
-    `sample_weight` and the metric is then calculated from it.
-
-    If `sample_weight` is `None`, weights default to 1.
-    Use `sample_weight` of 0 to mask values.
-
-    Usage with the compile API:
-    ```python
-    model = keras.Model(inputs, outputs)
-    model.compile(
-        'sgd',
-        loss='mse',
-        metrics=[eras.metrics.MeanIoU(num_classes=2)])
-    ```
-
-    # Arguments
-        num_classes: The possible number of labels the prediction task can have.
-            This value must be provided, since a confusion matrix of dimension =
-            [num_classes, num_classes] will be allocated.
-        name: (Optional) string name of the metric instance.
-        dtype: (Optional) data type of the metric result.
-    """
-
-    def __init__(self, num_classes, name=None, dtype=None):
-        super(MeanIoU, self).__init__(name=name, dtype=dtype)
-        self.num_classes = num_classes
-
-        # Variable to accumulate the predictions in the confusion matrix. Setting
-        # the type to be `float64` as required by confusion_matrix_ops.
-        self.total_cm = self.add_weight(
-            'total_confusion_matrix',
-            shape=(num_classes, num_classes),
-            initializer='zeros',
-            dtype='float64')
-
-    def update_state(self, y_true, y_pred, sample_weight=None):
-        y_true = K.cast(y_true, self._dtype)
-        y_pred = K.cast(y_pred, self._dtype)
-
-        # Flatten the input if its rank > 1.
-        if y_pred.shape.ndims > 1:
-            y_pred = K.reshape(y_pred, [-1])
-
-        if y_true.shape.ndims > 1:
-            y_true = K.reshape(y_true, [-1])
-
-        if sample_weight is not None and sample_weight.shape.ndims > 1:
-            sample_weight = K.reshape(sample_weight, [-1])
-
-        # Accumulate the prediction to current confusion matrix.
-        current_cm = confusion_matrix.confusion_matrix(
-            y_true,
-            y_pred,
-            self.num_classes,
-            weights=sample_weight,
-            dtype=dtypes.float64)
-
-        return self.total_cm.assign_add(current_cm)
-
-    def result(self):
-        """Compute the mean intersection-over-union via the confusion matrix."""
-        sum_over_row = K.cast(
-            K.sum(self.total_cm, axis=0), dtype=self._dtype)
-        sum_over_col = K.cast(
-            K.sum(self.total_cm, axis=1), dtype=self._dtype)
-        true_positives = K.cast(
-            array_ops.diag_part(self.total_cm), dtype=self._dtype)
-
-        # sum_over_row + sum_over_col =
-        #     2 * true_positives + false_positives + false_negatives.
-        denominator = sum_over_row + sum_over_col - true_positives
-
-        # The mean is only computed over classes that appear in the
-        # label or prediction tensor. If the denominator is 0, we need to
-        # ignore the class.
-        num_valid_entries = K.sum(
-            K.cast(K.not_equal(denominator, 0), dtype=self._dtype))
-
-        denominator = K.maximum(denominator, 0)
-        iou = K.switch(
-            K.greater(denominator, 0),
-            true_positives / denominator,
-            K.zeros_like(true_positives))
-        return K.switch(
-            K.greater(num_valid_entries, 0),
-            K.sum(iou) / num_valid_entries,
-            K.zeros_like(K.sum(iou)))
-
-    def reset_states(self):
-        K.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
-
-    def get_config(self):
-        config = {'num_classes': self.num_classes}
-        base_config = super(MeanIoU, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
-
-
 def accuracy(y_true, y_pred):
     if not K.is_tensor(y_pred):
         y_pred = K.constant(y_pred)
@@ -2006,6 +1911,7 @@ mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_similarity = cosine_proximity
+MeanIoU = K.MeanIoU
 
 
 def serialize(metric):

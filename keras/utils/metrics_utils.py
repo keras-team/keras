@@ -72,15 +72,17 @@ def filter_top_k(x, k):
     """Filters top-k values in the last dim of x and set the rest to NEG_INF.
     Used for computing top-k prediction values in dense labels (which has the same
     shape as predictions) for recall and precision top-k metrics.
+
     # Arguments
         x: tensor with any dimensions.
         k: the number of values to keep.
+
     # Returns
         tensor with same shape and dtype as x.
     """
-    _, top_k_idx = nn_ops.top_k(x, k, sorted=False)
+    _, top_k_idx = K.top_k(x, k, sorted=False)
     top_k_mask = K.sum(
-        K.one_hot(top_k_idx, x.shape[-1], axis=-1), axis=-2)
+        K.one_hot(top_k_idx, x.shape[-1]), axis=-2)
     return x * top_k_mask + NEG_INF * (1 - top_k_mask)
 
 
@@ -174,7 +176,7 @@ def weighted_assign_add(label, pred, weights, var):
 def update_confusion_matrix_variables(variables_to_update,
                                       y_true,
                                       y_pred,
-                                      thresholds,
+                                      thresholds=0.5,
                                       top_k=None,
                                       class_id=None,
                                       sample_weight=None):
@@ -277,7 +279,6 @@ def update_confusion_matrix_variables(variables_to_update,
 
     # Compare predictions and threshold.
     pred_is_pos = K.greater(preds_tiled, thresh_tiled)
-    pred_is_neg = K.greater(thresh_tiled, preds_tiled)
 
     # Tile labels by number of thresholds
     label_is_pos = K.tile(labels_2d, [num_thresholds, 1])
@@ -299,6 +300,8 @@ def update_confusion_matrix_variables(variables_to_update,
     update_fn = ConfusionMatrix.FALSE_NEGATIVES in variables_to_update
 
     if update_fn or update_tn:
+        pred_is_neg = K.equal(
+            pred_is_pos, K.zeros_like(pred_is_pos, dtype=pred_is_pos.dtype))
         loop_vars[ConfusionMatrix.FALSE_NEGATIVES] = (label_is_pos, pred_is_neg)
 
     if update_fp or update_tn:
