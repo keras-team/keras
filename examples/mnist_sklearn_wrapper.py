@@ -73,8 +73,8 @@ def make_model(dense_layer_sizes, filters, kernel_size, pool_size):
     model.compile(loss='categorical_crossentropy',
                   optimizer='adadelta',
                   metrics=['accuracy'])
-
     return model
+
 
 dense_size_candidates = [[32], [64], [32, 32], [64, 64]]
 my_classifier = KerasClassifier(make_model, batch_size=32)
