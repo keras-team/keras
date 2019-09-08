@@ -211,7 +211,8 @@ def fit_generator(model,
 
                 outs = model.train_on_batch(x, y,
                                             sample_weight=sample_weight,
-                                            class_weight=class_weight)
+                                            class_weight=class_weight,
+                                            reset_metrics=False)
 
                 outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
@@ -371,7 +372,9 @@ def evaluate_generator(model, generator,
 
             batch_logs = {'batch': steps_done, 'size': batch_size}
             callbacks._call_batch_hook('test', 'begin', steps_done, batch_logs)
-            outs = model.test_on_batch(x, y, sample_weight=sample_weight)
+            outs = model.test_on_batch(x, y,
+                                       sample_weight=sample_weight,
+                                       reset_metrics=False)
             outs = to_list(outs)
             outs_per_batch.append(outs)
 
