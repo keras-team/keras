@@ -516,7 +516,10 @@ def train(run_name, start_epoch, stop_epoch, img_w):
         name='ctc')([y_pred, labels, input_length, label_length])
 
     # clipnorm seems to speeds up convergence
-    sgd = SGD(lr=0.02, decay=1e-6, momentum=0.9, nesterov=True, clipnorm=5)
+    sgd = SGD(learning_rate=0.02,
+              decay=1e-6,
+              momentum=0.9,
+              nesterov=True)
 
     model = Model(inputs=[input_data, labels, input_length, label_length],
                   outputs=loss_out)

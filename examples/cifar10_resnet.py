@@ -358,7 +358,7 @@ else:
     model = resnet_v1(input_shape=input_shape, depth=depth)
 
 model.compile(loss='categorical_crossentropy',
-              optimizer=Adam(lr=lr_schedule(0)),
+              optimizer=Adam(learning_rate=lr_schedule(0)),
               metrics=['accuracy'])
 model.summary()
 print(model_type)
