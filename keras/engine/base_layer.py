@@ -1089,6 +1089,7 @@ class Layer(object):
     def weights(self):
         return self.trainable_weights + self.non_trainable_weights
 
+    @K.eager
     def set_weights(self, weights):
         """Sets the weights of the layer, from Numpy arrays.
 
@@ -1126,6 +1127,7 @@ class Layer(object):
             weight_value_tuples.append((p, w))
         K.batch_set_value(weight_value_tuples)
 
+    @K.eager
     def get_weights(self):
         """Returns the current weights of the layer.
 
