@@ -2655,10 +2655,11 @@ def tile(x, n):
         n = tuple(n)
 
     shape = int_shape(x)
-    if len(n) < len(shape):  # Padding the axis
-        n = tuple([1 for _ in range(len(shape) - len(n))]) + n
-    elif len(n) != len(shape):
-        raise NotImplementedError
+    if not is_tensor(n):
+        if len(n) < len(shape):  # Padding the axis
+            n = tuple([1 for _ in range(len(shape) - len(n))]) + n
+        elif len(n) != len(shape):
+            raise NotImplementedError
 
     return tf.tile(x, n)
 
