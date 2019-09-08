@@ -71,7 +71,9 @@ def squeeze_or_expand_dimensions(y_pred, y_true=None, sample_weight=None):
     y_pred_rank = K.ndim(y_pred)
     weights_rank = K.ndim(sample_weight)
     if weights_rank != 0:
-        if weights_rank - y_pred_rank == 1:
+        if y_pred_rank == 0 and weights_rank == 1:
+            y_pred = K.expand_dims(y_pred, -1)
+        elif weights_rank - y_pred_rank == 1:
             sample_weight = K.squeeze(sample_weight, -1)
         elif y_pred_rank - weights_rank == 1:
             sample_weight = K.expand_dims(sample_weight, -1)

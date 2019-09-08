@@ -1025,7 +1025,7 @@ def call_metric_function(metric_fn,
             weights = mask
         else:
             # Update dimensions of weights to match with mask.
-            mask, _, weights = tf_losses_utils.squeeze_or_expand_dimensions(
+            mask, _, weights = losses_utils.squeeze_or_expand_dimensions(
                 mask, sample_weight=weights)
             weights *= mask
 
