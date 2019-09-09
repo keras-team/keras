@@ -45,6 +45,28 @@ class RandomSequence(Sequence):
         pass
 
 
+class IncreaseBatchSizeRandomSequence(Sequence):
+    def __init__(self, initial_batch_size, initial_sequence_length=12,
+                 batch_size_func=lambda x: x + 2):
+        self.batch_size = initial_batch_size
+        self.initial_sequence_length = initial_sequence_length
+        self.batch_size_func = batch_size_func
+        self.logs = []
+
+    def __len__(self):
+        return int(np.ceil(self.initial_sequence_length / float(self.batch_size)))
+
+    def __getitem__(self, idx):
+        self.logs.append(idx)
+        return ([np.random.random((self.batch_size, 3)),
+                 np.random.random((self.batch_size, 3))],
+                [np.random.random((self.batch_size, 4)),
+                 np.random.random((self.batch_size, 3))])
+
+    def on_epoch_end(self):
+        self.batch_size = self.batch_size_func(self.batch_size)
+
+
 class threadsafe_iter:
     """Takes an iterator/generator and makes it thread-safe by
     serializing call to the `next` method of given iterator/generator.
@@ -149,7 +171,12 @@ class TrackerCallback(Callback):
         # test starting from non-zero initial epoch
         self.trained_epochs = []
         self.trained_batches = []
+        self.steps_per_epoch_log = []
         super(TrackerCallback, self).__init__()
+
+    def set_params(self, params):
+        super(TrackerCallback, self).set_params(params)
+        self.steps_per_epoch_log.append(params['steps'])
 
     # define tracer callback
     def on_epoch_begin(self, epoch, logs):
@@ -604,6 +631,134 @@ def test_fit_generator():
     # Need range check here as filling
     # of the queue depends on sleep in the enqueuers
     assert 3 <= gen_counters[0] <= 12
+
+
+def test_fit_generator_dynamic_size_sequence_with_workers():
+    model = get_model(num_outputs=2)
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None)
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    train_seq = IncreaseBatchSizeRandomSequence(3, 20)
+    out = model.fit_generator(generator=train_seq,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=val_seq,
+                              validation_steps=3,
+                              max_queue_size=1,
+                              callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == [
+        0, 1, 2, 3, 4, 5, 6,  # 1st epoch -> ceil(20 / 3) = 7 batches
+        0, 1, 2, 3,           # 2nd epoch -> ceil(20 / 5) = 4 batches
+        0, 1, 2,              # 3d  epoch -> ceil(20 / 7) = 3 batches
+        0, 1, 2,              # 4th epoch -> ceil(20 / 9) = 3 batches
+        0, 1,                 # 5th epoch -> ceil(20 /11) = 2 batches
+    ]
+    assert tracker_cb.steps_per_epoch_log[0:5] == [7, 4, 3, 3, 2]
+
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    train_seq = IncreaseBatchSizeRandomSequence(3, 30)
+    out = model.fit_generator(generator=train_seq,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=val_seq,
+                              validation_steps=3,
+                              max_queue_size=1,
+                              callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,  # 1st epoch -> ceil(30 / 3) = 10 batches
+        0, 1, 2, 3, 4, 5,              # 2nd epoch -> ceil(30 / 5) =  6 batches
+        0, 1, 2, 3, 4,                 # 3d  epoch -> ceil(30 / 7) =  5 batches
+        0, 1, 2, 3,                    # 4th epoch -> ceil(30 / 9) =  4 batches
+        0, 1, 2,                       # 5th epoch -> ceil(30 /11) =  3 batches
+    ]
+    assert tracker_cb.steps_per_epoch_log[0:5] == [10, 6, 5, 4, 3]
+
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    train_seq = IncreaseBatchSizeRandomSequence(2, 404, lambda x: x * 2)
+    out = model.fit_generator(generator=train_seq,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=val_seq,
+                              validation_steps=3,
+                              max_queue_size=1,
+                              callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    # number of trained batches should match sum of steps per each epoch
+    assert len(tracker_cb.trained_batches) == 202 + 101 + 51 + 26 + 13
+    assert tracker_cb.steps_per_epoch_log[0:5] == [202, 101, 51, 26, 13]
+
+
+def test_fit_generator_dynamic_size_sequence_main_thread():
+    model = get_model(num_outputs=2)
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    loss_weights = [1., 0.5]
+
+    model.compile(optimizer, loss, metrics=[], loss_weights=loss_weights,
+                  sample_weight_mode=None)
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    train_seq = IncreaseBatchSizeRandomSequence(3, 20)
+    out = model.fit_generator(generator=train_seq,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=val_seq,
+                              validation_steps=3,
+                              workers=0,
+                              callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == [
+        0, 1, 2, 3, 4, 5, 6,  # 1st epoch -> ceil(20 / 3) = 7 batches
+        0, 1, 2, 3,           # 2nd epoch -> ceil(20 / 5) = 4 batches
+        0, 1, 2,              # 3d  epoch -> ceil(20 / 7) = 3 batches
+        0, 1, 2,              # 4th epoch -> ceil(20 / 9) = 3 batches
+        0, 1,                 # 5th epoch -> ceil(20 /11) = 2 batches
+    ]
+    assert tracker_cb.steps_per_epoch_log[0:5] == [7, 4, 3, 3, 2]
+
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    train_seq = IncreaseBatchSizeRandomSequence(3, 30)
+    out = model.fit_generator(generator=train_seq,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=val_seq,
+                              validation_steps=3,
+                              workers=0,
+                              callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    assert tracker_cb.trained_batches == [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9,  # 1st epoch -> ceil(30 / 3) = 10 batches
+        0, 1, 2, 3, 4, 5,              # 2nd epoch -> ceil(30 / 5) =  6 batches
+        0, 1, 2, 3, 4,                 # 3d  epoch -> ceil(30 / 7) =  5 batches
+        0, 1, 2, 3,                    # 4th epoch -> ceil(30 / 9) =  4 batches
+        0, 1, 2,                       # 5th epoch -> ceil(30 /11) =  3 batches
+    ]
+    assert tracker_cb.steps_per_epoch_log[0:5] == [10, 6, 5, 4, 3]
+
+    tracker_cb = TrackerCallback()
+    val_seq = RandomSequence(4)
+    train_seq = IncreaseBatchSizeRandomSequence(2, 404, lambda x: x * 2)
+    out = model.fit_generator(generator=train_seq,
+                              epochs=5,
+                              initial_epoch=0,
+                              validation_data=val_seq,
+                              validation_steps=3,
+                              workers=0,
+                              callbacks=[tracker_cb])
+    assert tracker_cb.trained_epochs == [0, 1, 2, 3, 4]
+    # number of trained batches should match sum of steps per each epoch
+    assert len(tracker_cb.trained_batches) == 202 + 101 + 51 + 26 + 13
+    assert tracker_cb.steps_per_epoch_log[0:5] == [202, 101, 51, 26, 13]
 
 
 def test_fit_generator_shape():
