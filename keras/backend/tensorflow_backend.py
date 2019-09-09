@@ -2687,7 +2687,9 @@ def batch_flatten(x):
     # Returns
         A tensor.
     """
-    x = tf.reshape(x, tf.stack([-1, prod(shape(x)[1:])]))
+    x = tf.reshape(
+        x, tf.stack([-1, prod(shape(x)[1:])],
+                    name='stack_' + str(np.random.randint(1e4))))
     return x
 
 

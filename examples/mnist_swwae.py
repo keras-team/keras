@@ -94,13 +94,6 @@ def getwhere(x):
     y_prepool, y_postpool = x
     return K.gradients(K.sum(y_postpool), y_prepool)
 
-if K.backend() == 'tensorflow':
-    raise RuntimeError('This example can only run with the '
-                       'Theano backend for the time being, '
-                       'because it requires taking the gradient '
-                       'of a gradient, which isn\'t '
-                       'supported for all TensorFlow ops.')
-
 # This example assume 'channels_first' data format.
 K.set_image_data_format('channels_first')
 

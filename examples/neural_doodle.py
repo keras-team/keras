@@ -90,6 +90,8 @@ num_colors = 3  # RGB
 ref_img = img_to_array(load_img(target_mask_path))
 img_nrows, img_ncols = ref_img.shape[:2]
 
+num_iterations = 50
+
 total_variation_weight = 50.
 style_weight = 1.
 content_weight = 0.1 if use_content_img else 0
@@ -267,8 +269,10 @@ def style_loss(style_image, target_image, style_masks, target_masks):
         else:
             style_mask = style_masks[:, :, i]
             target_mask = target_masks[:, :, i]
-        loss += region_style_loss(style_image,
-                                  target_image, style_mask, target_mask)
+        loss = loss + region_style_loss(style_image,
+                                        target_image,
+                                        style_mask,
+                                        target_mask)
     return loss
 
 
@@ -297,7 +301,7 @@ loss = K.variable(0)
 for layer in content_feature_layers:
     content_feat = image_features[layer][CONTENT, :, :, :]
     target_feat = image_features[layer][TARGET, :, :, :]
-    loss += content_weight * content_loss(content_feat, target_feat)
+    loss = loss + content_weight * content_loss(content_feat, target_feat)
 
 for layer in style_feature_layers:
     style_feat = image_features[layer][STYLE, :, :, :]
@@ -305,9 +309,9 @@ for layer in style_feature_layers:
     style_masks = mask_features[layer][STYLE, :, :, :]
     target_masks = mask_features[layer][TARGET, :, :, :]
     sl = style_loss(style_feat, target_feat, style_masks, target_masks)
-    loss += (style_weight / len(style_feature_layers)) * sl
+    loss = loss + (style_weight / len(style_feature_layers)) * sl
 
-loss += total_variation_weight * total_variation_loss(target_image)
+loss = loss + total_variation_weight * total_variation_loss(target_image)
 loss_grads = K.gradients(loss, target_image)
 
 # Evaluator class for computing efficiency
@@ -354,6 +358,7 @@ class Evaluator(object):
         self.grad_values = None
         return grad_values
 
+
 evaluator = Evaluator()
 
 # Generate images by iterative optimization
@@ -362,8 +367,8 @@ if K.image_data_format() == 'channels_first':
 else:
     x = np.random.uniform(0, 255, (1, img_nrows, img_ncols, 3)) - 128.
 
-for i in range(50):
-    print('Start of iteration', i)
+for i in range(num_iterations):
+    print('Start of iteration', i, '/', num_iterations)
     start_time = time.time()
     x, min_val, info = fmin_l_bfgs_b(evaluator.loss, x.flatten(),
                                      fprime=evaluator.grads, maxfun=20)
