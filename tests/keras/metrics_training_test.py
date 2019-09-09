@@ -76,7 +76,7 @@ def test_sensitivity_metrics():
 
 
 @pytest.mark.skipif(K.backend() != 'tensorflow', reason='requires tensorflow')
-def test_mean_iou(self):
+def test_mean_iou():
     model = Sequential([Dense(1, input_shape=(3,))])
     model.compile('rmsprop', 'mse', metrics=[metrics.MeanIoU(2)])
     x = np.random.random((10, 3))
