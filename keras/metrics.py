@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import numpy as np
 import six
 import types
 
@@ -984,9 +985,9 @@ class _ConfusionMatrixConditionCount(Metric):
         return self.accumulator
 
     def reset_states(self):
-        num_thresholds = len(to_list(self.thresholds))
+        num_thresholds = len(metrics_utils.to_list(self.thresholds))
         K.batch_set_value(
-            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
 
     def get_config(self):
         config = {'thresholds': self.init_thresholds}
@@ -1203,7 +1204,7 @@ class SensitivitySpecificityBase(Metric):
     def reset_states(self):
         num_thresholds = len(self.thresholds)
         K.batch_set_value(
-            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
 
 
 class SensitivityAtSpecificity(SensitivitySpecificityBase):
@@ -1409,8 +1410,8 @@ class Precision(Metric):
         self.init_thresholds = thresholds
         if top_k is not None and K.backend() != 'tensorflow':
             raise RuntimeError(
-                '`top_k` argument for `Precision` metric is currently supported only '
-                'with TensorFlow backend.')
+                '`top_k` argument for `Precision` metric is currently supported '
+                'only with TensorFlow backend.')
 
         self.top_k = top_k
         self.class_id = class_id
@@ -1450,9 +1451,9 @@ class Precision(Metric):
         return result[0] if len(self.thresholds) == 1 else result
 
     def reset_states(self):
-        num_thresholds = len(to_list(self.thresholds))
+        num_thresholds = len(metrics_utils.to_list(self.thresholds))
         K.batch_set_value(
-            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
 
     def get_config(self):
         config = {
@@ -1559,9 +1560,9 @@ class Recall(Metric):
         return result[0] if len(self.thresholds) == 1 else result
 
     def reset_states(self):
-        num_thresholds = len(to_list(self.thresholds))
+        num_thresholds = len(metrics_utils.to_list(self.thresholds))
         K.batch_set_value(
-            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
 
     def get_config(self):
         config = {
@@ -1826,7 +1827,7 @@ class AUC(Metric):
 
     def reset_states(self):
         K.batch_set_value(
-            [(v, np.zeros((self.num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((self.num_thresholds,))) for v in self.weights])
 
     def get_config(self):
         config = {
@@ -1840,6 +1841,51 @@ class AUC(Metric):
         }
         base_config = super(AUC, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+BaseMeanIoU = object
+if K.backend() == 'tensorflow':
+    import tensorflow as tf
+    if tf.__version__ >= '2.0.0':
+        BaseMeanIoU = tf.keras.metrics.MeanIoU
+
+
+class MeanIoU(BaseMeanIoU):
+    """Computes the mean Intersection-Over-Union metric.
+
+    Mean Intersection-Over-Union is a common evaluation metric for semantic image
+    segmentation, which first computes the IOU for each semantic class and then
+    computes the average over classes. IOU is defined as follows:
+    IOU = true_positive / (true_positive + false_positive + false_negative).
+    The predictions are accumulated in a confusion matrix, weighted by
+    `sample_weight` and the metric is then calculated from it.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+        'sgd',
+        loss='mse',
+        metrics=[keras.metrics.MeanIoU(num_classes=2)])
+    ```
+
+    # Arguments
+        num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+    def __init__(self, num_classes, name=None, dtype=None):
+        if K.backend() != 'tensorflow' or BaseMeanIoU is object:
+            raise RuntimeError(
+                '`MeanIoU` metric is currently supported only '
+                'with TensorFlow backend and TF version >= 2.0.0.')
+        super(MeanIoU, self).__init__(num_classes, name=name, dtype=dtype)
 
 
 def accuracy(y_true, y_pred):
@@ -1911,8 +1957,6 @@ mae = MAE = mean_absolute_error
 mape = MAPE = mean_absolute_percentage_error
 msle = MSLE = mean_squared_logarithmic_error
 cosine = cosine_similarity = cosine_proximity
-if K.backend() == 'tensorflow':
-    MeanIoU = K.MeanIoU
 
 
 def serialize(metric):
