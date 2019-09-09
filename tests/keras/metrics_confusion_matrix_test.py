@@ -688,7 +688,7 @@ class TestPrecisionTest(object):
 
         tp = (2 + 5) + (3 + 3)
         predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
-        expected_precision = tp / predicted_positives
+        expected_precision = float(tp) / predicted_positives
         assert np.isclose(expected_precision, K.eval(result))
 
     def test_unweighted_class_id(self):
@@ -837,7 +837,7 @@ class TestRecall(object):
 
         tp = (2 + 5) + (3 + 3)
         positives = (4 + 2 + 5) + (3 + 3 + 3 + 3)
-        expected_recall = tp / positives
+        expected_recall = float(tp) / positives
         assert np.isclose(expected_recall, K.eval(result))
 
     def test_unweighted_class_id(self):
