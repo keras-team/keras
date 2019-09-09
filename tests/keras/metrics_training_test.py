@@ -7,6 +7,11 @@ from keras import backend as K
 from keras.layers import Dense
 from keras.models import Sequential
 
+
+if K.backend() == 'cntk':
+    pytestmark = pytest.mark.skip
+
+
 METRICS = [
     metrics.Accuracy,
     metrics.MeanSquaredError,
