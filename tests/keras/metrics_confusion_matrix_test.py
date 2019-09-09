@@ -594,6 +594,8 @@ class TestAUC(object):
             metrics.AUC(summation_method='Invalid')
 
 
+@pytest.mark.skipif(not tf.__version__.startswith('2.'),
+                    reason='Requires TF 2')
 class TestPrecisionTest(object):
 
     def test_config(self):
@@ -743,6 +745,8 @@ class TestPrecisionTest(object):
         assert np.isclose(0, K.eval(p_obj.false_positives))
 
 
+@pytest.mark.skipif(not tf.__version__.startswith('2.'),
+                    reason='Requires TF 2')
 class TestRecall(object):
 
     def test_config(self):
