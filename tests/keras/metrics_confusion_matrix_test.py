@@ -590,3 +590,384 @@ class TestAUC(object):
     def test_invalid_summation_method(self):
         with pytest.raises(Exception):
             metrics.AUC(summation_method='Invalid')
+
+
+class TestPrecisionTest(object):
+
+    def test_config(self):
+        p_obj = metrics.Precision(
+            name='my_precision', thresholds=[0.4, 0.9], top_k=15, class_id=12)
+        assert p_obj.name == 'my_precision'
+        assert len(p_obj.weights) == 2
+        assert ([v.name for v in p_obj.weights] ==
+                ['true_positives:0', 'false_positives:0'])
+        assert p_obj.thresholds == [0.4, 0.9]
+        assert p_obj.top_k == 15
+        assert p_obj.class_id == 12
+
+        # Check save and restore config
+        p_obj2 = metrics.Precision.from_config(p_obj.get_config())
+        assert p_obj2.name == 'my_precision'
+        assert len(p_obj2.weights) == 2
+        assert p_obj2.thresholds == [0.4, 0.9]
+        assert p_obj2.top_k == 15
+        assert p_obj2.class_id == 12
+
+    def test_unweighted(self):
+        p_obj = metrics.Precision()
+        y_pred = K.constant([1, 0, 1, 0], shape=(1, 4))
+        y_true = K.constant([0, 1, 1, 0], shape=(1, 4))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+
+    def test_unweighted_all_incorrect(self):
+        p_obj = metrics.Precision(thresholds=[0.5])
+        inputs = np.random.randint(0, 2, size=(100, 1))
+        y_pred = K.constant(inputs)
+        y_true = K.constant(1 - inputs)
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(0, K.eval(result))
+
+    def test_weighted(self):
+        p_obj = metrics.Precision()
+        y_pred = K.constant([[1, 0, 1, 0], [1, 0, 1, 0]])
+        y_true = K.constant([[0, 1, 1, 0], [1, 0, 0, 1]])
+        result = p_obj(
+            y_true,
+            y_pred,
+            sample_weight=K.constant([[1, 2, 3, 4], [4, 3, 2, 1]]))
+        weighted_tp = 3.0 + 4.0
+        weighted_positives = (1.0 + 3.0) + (4.0 + 2.0)
+        expected_precision = weighted_tp / weighted_positives
+        assert np.isclose(expected_precision, K.eval(result))
+
+    def test_unweighted_with_threshold(self):
+        p_obj = metrics.Precision(thresholds=[0.5, 0.7])
+        y_pred = K.constant([1, 0, 0.6, 0], shape=(1, 4))
+        y_true = K.constant([0, 1, 1, 0], shape=(1, 4))
+        result = p_obj(y_true, y_pred)
+        assert np.allclose([0.5, 0.], K.eval(result), 0)
+
+    def test_weighted_with_threshold(self):
+        p_obj = metrics.Precision(thresholds=[0.5, 1.])
+        y_true = K.constant([[0, 1], [1, 0]], shape=(2, 2))
+        y_pred = K.constant([[1, 0], [0.6, 0]],
+                            shape=(2, 2),
+                            dtype='float32')
+        weights = K.constant([[4, 0], [3, 1]],
+                             shape=(2, 2),
+                             dtype='float32')
+        result = p_obj(y_true, y_pred, sample_weight=weights)
+        weighted_tp = 0 + 3.
+        weighted_positives = (0 + 3.) + (4. + 0.)
+        expected_precision = weighted_tp / weighted_positives
+        assert np.allclose([expected_precision, 0], K.eval(result), 1e-3)
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_unweighted_top_k(self):
+        p_obj = metrics.Precision(top_k=3)
+        y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(1. / 3, K.eval(result))
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_weighted_top_k(self):
+        p_obj = metrics.Precision(top_k=3)
+        y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
+        y_true1 = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
+        K.eval(
+            p_obj(
+                y_true1,
+                y_pred1,
+                sample_weight=K.constant([[1, 4, 2, 3, 5]])))
+
+        y_pred2 = K.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
+        y_true2 = K.constant([1, 0, 1, 1, 1], shape=(1, 5))
+        result = p_obj(y_true2, y_pred2, sample_weight=K.constant(3))
+
+        tp = (2 + 5) + (3 + 3)
+        predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
+        expected_precision = tp / predicted_positives
+        assert np.isclose(expected_precision, K.eval(result))
+
+    def test_unweighted_class_id(self):
+        p_obj = metrics.Precision(class_id=2)
+
+        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(p_obj.true_positives))
+        assert np.isclose(0, K.eval(p_obj.false_positives))
+
+        y_pred = K.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(p_obj.true_positives))
+        assert np.isclose(0, K.eval(p_obj.false_positives))
+
+        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 0, 0, 0], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+        assert np.isclose(1, K.eval(p_obj.true_positives))
+        assert np.isclose(1, K.eval(p_obj.false_positives))
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_unweighted_top_k_and_class_id(self):
+        p_obj = metrics.Precision(class_id=2, top_k=2)
+
+        y_pred = K.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(p_obj.true_positives))
+        assert np.isclose(0, K.eval(p_obj.false_positives))
+
+        y_pred = K.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(p_obj.true_positives))
+        assert np.isclose(0, K.eval(p_obj.false_positives))
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_unweighted_top_k_and_threshold(self):
+        p_obj = metrics.Precision(thresholds=.7, top_k=2)
+
+        y_pred = K.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
+        result = p_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(p_obj.true_positives))
+        assert np.isclose(0, K.eval(p_obj.false_positives))
+
+
+class TestRecall(object):
+
+    def test_config(self):
+        r_obj = metrics.Recall(
+            name='my_recall', thresholds=[0.4, 0.9], top_k=15, class_id=12)
+        assert r_obj.name == 'my_recall'
+        assert len(r_obj.weights) == 2
+        assert ([v.name for v in r_obj.weights] ==
+                ['true_positives:0', 'false_negatives:0'])
+        assert r_obj.thresholds == [0.4, 0.9]
+        assert r_obj.top_k == 15
+        assert r_obj.class_id == 12
+
+        # Check save and restore config
+        r_obj2 = metrics.Recall.from_config(r_obj.get_config())
+        assert r_obj2.name == 'my_recall'
+        assert len(r_obj2.weights) == 2
+        assert r_obj2.thresholds == [0.4, 0.9]
+        assert r_obj2.top_k == 15
+        assert r_obj2.class_id == 12
+
+    def test_unweighted(self):
+        r_obj = metrics.Recall()
+        y_pred = K.constant([1, 0, 1, 0], shape=(1, 4))
+        y_true = K.constant([0, 1, 1, 0], shape=(1, 4))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+
+    def test_unweighted_all_incorrect(self):
+        r_obj = metrics.Recall(thresholds=[0.5])
+        inputs = np.random.randint(0, 2, size=(100, 1))
+        y_pred = K.constant(inputs)
+        y_true = K.constant(1 - inputs)
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0, K.eval(result))
+
+    def test_weighted(self):
+        r_obj = metrics.Recall()
+        y_pred = K.constant([[1, 0, 1, 0], [0, 1, 0, 1]])
+        y_true = K.constant([[0, 1, 1, 0], [1, 0, 0, 1]])
+        result = r_obj(
+            y_true,
+            y_pred,
+            sample_weight=K.constant([[1, 2, 3, 4], [4, 3, 2, 1]]))
+        weighted_tp = 3.0 + 1.0
+        weighted_t = (2.0 + 3.0) + (4.0 + 1.0)
+        expected_recall = weighted_tp / weighted_t
+        assert np.isclose(expected_recall, K.eval(result))
+
+    def test_unweighted_with_threshold(self):
+        r_obj = metrics.Recall(thresholds=[0.5, 0.7])
+        y_pred = K.constant([1, 0, 0.6, 0], shape=(1, 4))
+        y_true = K.constant([0, 1, 1, 0], shape=(1, 4))
+        result = r_obj(y_true, y_pred)
+        assert np.allclose([0.5, 0.], K.eval(result), 0)
+
+    def test_weighted_with_threshold(self):
+        r_obj = metrics.Recall(thresholds=[0.5, 1.])
+        y_true = K.constant([[0, 1], [1, 0]], shape=(2, 2))
+        y_pred = K.constant([[1, 0], [0.6, 0]],
+                            shape=(2, 2),
+                            dtype='float32')
+        weights = K.constant([[1, 4], [3, 2]],
+                             shape=(2, 2),
+                             dtype='float32')
+        result = r_obj(y_true, y_pred, sample_weight=weights)
+        weighted_tp = 0 + 3.
+        weighted_positives = (0 + 3.) + (4. + 0.)
+        expected_recall = weighted_tp / weighted_positives
+        assert np.allclose([expected_recall, 0], K.eval(result), 1e-3)
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_unweighted_top_k(self):
+        r_obj = metrics.Recall(top_k=3)
+        y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_weighted_top_k(self):
+        r_obj = metrics.Recall(top_k=3)
+        y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
+        y_true1 = K.constant([0, 1, 1, 0, 1], shape=(1, 5))
+        K.eval(
+            r_obj(
+                y_true1,
+                y_pred1,
+                sample_weight=K.constant([[1, 4, 2, 3, 5]])))
+
+        y_pred2 = K.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
+        y_true2 = K.constant([1, 0, 1, 1, 1], shape=(1, 5))
+        result = r_obj(y_true2, y_pred2, sample_weight=K.constant(3))
+
+        tp = (2 + 5) + (3 + 3)
+        positives = (4 + 2 + 5) + (3 + 3 + 3 + 3)
+        expected_recall = tp / positives
+        assert np.isclose(expected_recall, K.eval(result))
+
+    def test_unweighted_class_id(self):
+        r_obj = metrics.Recall(class_id=2)
+
+        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(r_obj.true_positives))
+        assert np.isclose(0, K.eval(r_obj.false_negatives))
+
+        y_pred = K.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+        assert np.isclose(1, K.eval(r_obj.true_positives))
+        assert np.isclose(1, K.eval(r_obj.false_negatives))
+
+        y_pred = K.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 0, 0, 0], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+        assert np.isclose(1, K.eval(r_obj.true_positives))
+        assert np.isclose(1, K.eval(r_obj.false_negatives))
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_unweighted_top_k_and_class_id(self):
+        r_obj = metrics.Recall(class_id=2, top_k=2)
+
+        y_pred = K.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(1, K.eval(result))
+        assert np.isclose(1, K.eval(r_obj.true_positives))
+        assert np.isclose(0, K.eval(r_obj.false_negatives))
+
+        y_pred = K.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
+        y_true = K.constant([0, 1, 1, 0, 0], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0.5, K.eval(result))
+        assert np.isclose(1, K.eval(r_obj.true_positives))
+        assert np.isclose(1, K.eval(r_obj.false_negatives))
+
+    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+    def test_unweighted_top_k_and_threshold(self):
+        r_obj = metrics.Recall(thresholds=.7, top_k=2)
+
+        y_pred = K.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
+        y_true = K.constant([1, 1, 1, 0, 1], shape=(1, 5))
+        result = r_obj(y_true, y_pred)
+        assert np.isclose(0.25, K.eval(result))
+        assert np.isclose(1, K.eval(r_obj.true_positives))
+        assert np.isclose(3, K.eval(r_obj.false_negatives))
+
+
+@pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+class TestMeanIoU(object):
+
+    def test_config(self):
+        m_obj = metrics.MeanIoU(num_classes=2, name='mean_iou')
+        assert m_obj.name == 'mean_iou'
+        assert m_obj.num_classes == 2
+
+        m_obj2 = metrics.MeanIoU.from_config(m_obj.get_config())
+        assert m_obj2.name == 'mean_iou'
+        assert m_obj2.num_classes == 2
+
+    def test_unweighted(self):
+        y_pred = K.constant([0, 1, 0, 1], shape=(1, 4))
+        y_true = K.constant([0, 0, 1, 1], shape=(1, 4))
+
+        m_obj = metrics.MeanIoU(num_classes=2)
+        result = m_obj(y_true, y_pred)
+
+        # cm = [[1, 1],
+        #       [1, 1]]
+        # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_weighted(self):
+        y_pred = K.constant([0, 1, 0, 1], dtype='float32')
+        y_true = K.constant([0, 0, 1, 1])
+        sample_weight = K.constant([0.2, 0.3, 0.4, 0.1])
+
+        m_obj = metrics.MeanIoU(num_classes=2)
+        result = m_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        # cm = [[0.2, 0.3],
+        #       [0.4, 0.1]]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)) / 2
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_multi_dim_input(self):
+        y_pred = K.constant([[0, 1], [0, 1]], dtype='float32')
+        y_true = K.constant([[0, 0], [1, 1]])
+        sample_weight = K.constant([[0.2, 0.3], [0.4, 0.1]])
+
+        m_obj = metrics.MeanIoU(num_classes=2)
+        result = m_obj(y_true, y_pred, sample_weight=sample_weight)
+
+        # cm = [[0.2, 0.3],
+        #       [0.4, 0.1]]
+        # sum_row = [0.6, 0.4], sum_col = [0.5, 0.5], true_positives = [0.2, 0.1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (0.2 / (0.6 + 0.5 - 0.2) + 0.1 / (0.4 + 0.5 - 0.1)) / 2
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
+
+    def test_zero_valid_entries(self):
+        m_obj = metrics.MeanIoU(num_classes=2)
+        assert np.allclose(K.eval(m_obj.result()), 0, atol=1e-3)
+
+    def test_zero_and_non_zero_entries(self):
+        y_pred = K.constant([1], dtype='float32')
+        y_true = K.constant([1])
+
+        m_obj = metrics.MeanIoU(num_classes=2)
+        result = m_obj(y_true, y_pred)
+
+        # cm = [[0, 0],
+        #       [0, 1]]
+        # sum_row = [0, 1], sum_col = [0, 1], true_positives = [0, 1]
+        # iou = true_positives / (sum_row + sum_col - true_positives))
+        expected_result = (0 + 1 / (1 + 1 - 1)) / 1
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
