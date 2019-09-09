@@ -1091,17 +1091,18 @@ def tile(x, n):
     elif isinstance(n, list):
         n = tuple(n)
 
-    y = T.tile(x, n)
+    y = T.tile(x, n, ndim=x.ndim)
     shape = int_shape(x)
     if shape is None:
         return y
-    elif len(n) < len(shape):  # Padding the axis
+    elif isinstance(n, tuple) and len(n) < len(shape):  # Padding the axis
         n = tuple([1 for _ in range(len(shape) - len(n))]) + n
-    elif len(n) != len(shape):
+    elif isinstance(n, tuple) and len(n) != len(shape):
         raise NotImplementedError
 
-    y._keras_shape = tuple([None if a is None else a * b
-                            for (a, b) in zip(shape, n)])
+    if isinstance(n, tuple):
+        y._keras_shape = tuple([None if a is None else a * b
+                                for (a, b) in zip(shape, n)])
     return y
 
 
