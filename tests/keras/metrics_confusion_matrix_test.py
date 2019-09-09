@@ -10,6 +10,8 @@ if K.backend() != 'tensorflow':
     # Need TensorFlow to use metric.__call__
     pytestmark = pytest.mark.skip
 
+import tensorflow as tf
+
 
 class TestFalsePositives(object):
 
@@ -663,7 +665,6 @@ class TestPrecisionTest(object):
         expected_precision = weighted_tp / weighted_positives
         assert np.allclose([expected_precision, 0], K.eval(result), 1e-3)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_unweighted_top_k(self):
         p_obj = metrics.Precision(top_k=3)
         y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
@@ -671,7 +672,6 @@ class TestPrecisionTest(object):
         result = p_obj(y_true, y_pred)
         assert np.isclose(1. / 3, K.eval(result))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_weighted_top_k(self):
         p_obj = metrics.Precision(top_k=3)
         y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
@@ -715,7 +715,6 @@ class TestPrecisionTest(object):
         assert np.isclose(1, K.eval(p_obj.true_positives))
         assert np.isclose(1, K.eval(p_obj.false_positives))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_unweighted_top_k_and_class_id(self):
         p_obj = metrics.Precision(class_id=2, top_k=2)
 
@@ -733,7 +732,6 @@ class TestPrecisionTest(object):
         assert np.isclose(1, K.eval(p_obj.true_positives))
         assert np.isclose(0, K.eval(p_obj.false_positives))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_unweighted_top_k_and_threshold(self):
         p_obj = metrics.Precision(thresholds=.7, top_k=2)
 
@@ -816,7 +814,6 @@ class TestRecall(object):
         expected_recall = weighted_tp / weighted_positives
         assert np.allclose([expected_recall, 0], K.eval(result), 1e-3)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_unweighted_top_k(self):
         r_obj = metrics.Recall(top_k=3)
         y_pred = K.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
@@ -824,7 +821,6 @@ class TestRecall(object):
         result = r_obj(y_true, y_pred)
         assert np.isclose(0.5, K.eval(result))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_weighted_top_k(self):
         r_obj = metrics.Recall(top_k=3)
         y_pred1 = K.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
@@ -868,7 +864,6 @@ class TestRecall(object):
         assert np.isclose(1, K.eval(r_obj.true_positives))
         assert np.isclose(1, K.eval(r_obj.false_negatives))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_unweighted_top_k_and_class_id(self):
         r_obj = metrics.Recall(class_id=2, top_k=2)
 
@@ -886,7 +881,6 @@ class TestRecall(object):
         assert np.isclose(1, K.eval(r_obj.true_positives))
         assert np.isclose(1, K.eval(r_obj.false_negatives))
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
     def test_unweighted_top_k_and_threshold(self):
         r_obj = metrics.Recall(thresholds=.7, top_k=2)
 
@@ -898,7 +892,8 @@ class TestRecall(object):
         assert np.isclose(3, K.eval(r_obj.false_negatives))
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason="requires tensorflow")
+@pytest.mark.skipif(not tf.__version__.startswith('2.'),
+                    reason='Requires TF 2')
 class TestMeanIoU(object):
 
     def test_config(self):

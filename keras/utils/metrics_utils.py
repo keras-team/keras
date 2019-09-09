@@ -80,8 +80,8 @@ def filter_top_k(x, k):
     # Returns
         tensor with same shape and dtype as x.
     """
-    from tensorflow.nn import top_k
-    _, top_k_idx = top_k(x, k, sorted=False)
+    import tensorflow as tf
+    _, top_k_idx = tf.nn.top_k(x, k, sorted=False)
     top_k_mask = K.sum(
         K.one_hot(top_k_idx, x.shape[-1]), axis=-2)
     return x * top_k_mask + NEG_INF * (1 - top_k_mask)
@@ -171,7 +171,7 @@ def weighted_assign_add(label, pred, weights, var):
     label_and_pred = K.cast(label_and_pred, dtype=K.floatx())
     if weights is not None:
         label_and_pred *= weights
-    return var.assign_add(K.sum(label_and_pred, 1))
+    return K.update_add(var, K.sum(label_and_pred, 1))
 
 
 def update_confusion_matrix_variables(variables_to_update,
@@ -273,7 +273,11 @@ def update_confusion_matrix_variables(variables_to_update,
     # Tile the thresholds for every prediction.
     thresh_tiled = K.tile(
         K.expand_dims(K.constant(thresholds), 1),
-        K.stack([1, num_predictions]))
+        K.cast(
+            K.stack([1, num_predictions]),
+            dtype='int32',
+        )
+    )
 
     # Tile the predictions for every threshold.
     preds_tiled = K.tile(predictions_2d, [num_thresholds, 1])
