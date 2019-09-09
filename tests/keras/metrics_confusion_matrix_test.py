@@ -916,8 +916,8 @@ class TestMeanIoU(object):
         #       [1, 1]]
         # sum_row = [2, 2], sum_col = [2, 2], true_positives = [1, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
-        expected_result = (1 / (2 + 2 - 1) + 1 / (2 + 2 - 1)) / 2
-        assert np.allclose(K.eval(result), float(expected_result), atol=1e-3)
+        expected_result = (1. / (2 + 2 - 1) + 1. / (2 + 2 - 1)) / 2
+        assert np.allclose(K.eval(result), expected_result, atol=1e-3)
 
     def test_weighted(self):
         y_pred = K.constant([0, 1, 0, 1], dtype='float32')
@@ -964,5 +964,5 @@ class TestMeanIoU(object):
         #       [0, 1]]
         # sum_row = [0, 1], sum_col = [0, 1], true_positives = [0, 1]
         # iou = true_positives / (sum_row + sum_col - true_positives))
-        expected_result = (0 + 1 / (1 + 1 - 1)) / 1
+        expected_result = (0. + 1. / (1 + 1 - 1)) / 1
         assert np.allclose(K.eval(result), expected_result, atol=1e-3)
