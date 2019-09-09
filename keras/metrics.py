@@ -1412,12 +1412,6 @@ class Precision(Metric):
             raise RuntimeError(
                 '`top_k` argument for `Precision` metric is currently supported '
                 'only with TensorFlow backend.')
-            import tensorflow as tf
-            if not tf.__version__.startswith('2.'):
-                raise RuntimeError(
-                    '`top_k` argument for `Precision` metric is currently '
-                    'supported only with TensorFlow 2.0. Your version '
-                    'of TensorFlow is ' + str(tf.__version__))
 
         self.top_k = top_k
         self.class_id = class_id
@@ -1528,12 +1522,6 @@ class Recall(Metric):
             raise RuntimeError(
                 '`top_k` argument for `Recall` metric is currently supported only '
                 'with TensorFlow backend.')
-            import tensorflow as tf
-            if not tf.__version__.startswith('2.'):
-                raise RuntimeError(
-                    '`top_k` argument for `Precision` metric is currently '
-                    'supported only with TensorFlow 2.0. Your version '
-                    'of TensorFlow is ' + str(tf.__version__))
 
         self.top_k = top_k
         self.class_id = class_id
@@ -1897,12 +1885,6 @@ class MeanIoU(BaseMeanIoU):
             raise RuntimeError(
                 '`MeanIoU` metric is currently supported only '
                 'with TensorFlow backend and TF version >= 2.0.0.')
-            import tensorflow as tf
-            if not tf.__version__.startswith('2.'):
-                raise RuntimeError(
-                    '`top_k` argument for `Precision` metric is currently '
-                    'supported only with TensorFlow 2.0. Your version '
-                    'of TensorFlow is ' + str(tf.__version__))
         super(MeanIoU, self).__init__(num_classes, name=name, dtype=dtype)
 
 
