@@ -5,6 +5,7 @@ from __future__ import division
 from __future__ import print_function
 
 import abc
+import numpy as np
 import six
 import types
 
@@ -984,9 +985,9 @@ class _ConfusionMatrixConditionCount(Metric):
         return self.accumulator
 
     def reset_states(self):
-        num_thresholds = len(to_list(self.thresholds))
+        num_thresholds = len(metrics_utils.to_list(self.thresholds))
         K.batch_set_value(
-            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
 
     def get_config(self):
         config = {'thresholds': self.init_thresholds}
@@ -1203,7 +1204,7 @@ class SensitivitySpecificityBase(Metric):
     def reset_states(self):
         num_thresholds = len(self.thresholds)
         K.batch_set_value(
-            [(v, np.zeros((num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
 
 
 class SensitivityAtSpecificity(SensitivitySpecificityBase):
@@ -1350,6 +1351,226 @@ class SpecificityAtSensitivity(SensitivitySpecificityBase):
             'sensitivity': self.sensitivity
         }
         base_config = super(SpecificityAtSensitivity, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class Precision(Metric):
+    """Computes the precision of the predictions with respect to the labels.
+
+    For example, if `y_true` is [0, 1, 1, 1] and `y_pred` is [1, 0, 1, 1]
+    then the precision value is 2/(2+1) ie. 0.66. If the weights were specified as
+    [0, 0, 1, 0] then the precision value would be 1.
+
+    The metric creates two local variables, `true_positives` and `false_positives`
+    that are used to compute the precision. This value is ultimately returned as
+    `precision`, an idempotent operation that simply divides `true_positives`
+    by the sum of `true_positives` and `false_positives`.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `top_k` is set, we'll calculate precision as how often on average a class
+    among the top-k classes with the highest predicted values of a batch entry is
+    correct and can be found in the label for that entry.
+
+    If `class_id` is specified, we calculate precision by considering only the
+    entries in the batch for which `class_id` is above the threshold and/or in the
+    top-k highest predictions, and computing the fraction of them for which
+    `class_id` is indeed a correct label.
+
+    Usage with the compile API:
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.Precision()])
+    ```
+
+    # Arguments
+        thresholds: (Optional) A float value or a python list/tuple of float
+            threshold values in [0, 1]. A threshold is compared with prediction
+            values to determine the truth value of predictions (i.e., above the
+            threshold is `true`, below is `false`). One metric value is generated
+            for each threshold value. If neither thresholds nor top_k are set, the
+            default is to calculate precision with `thresholds=0.5`.
+        top_k: (Optional) Unset by default. An int value specifying the top-k
+            predictions to consider when calculating precision.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self,
+                 thresholds=None,
+                 top_k=None,
+                 class_id=None,
+                 name=None,
+                 dtype=None):
+        super(Precision, self).__init__(name=name, dtype=dtype)
+        self.init_thresholds = thresholds
+        if top_k is not None and K.backend() != 'tensorflow':
+            raise RuntimeError(
+                '`top_k` argument for `Precision` metric is currently supported '
+                'only with TensorFlow backend.')
+
+        self.top_k = top_k
+        self.class_id = class_id
+
+        default_threshold = 0.5 if top_k is None else metrics_utils.NEG_INF
+        self.thresholds = metrics_utils.parse_init_thresholds(
+            thresholds, default_threshold=default_threshold)
+        self.true_positives = self.add_weight(
+            'true_positives',
+            shape=(len(self.thresholds),),
+            initializer='zeros')
+        self.false_positives = self.add_weight(
+            'false_positives',
+            shape=(len(self.thresholds),),
+            initializer='zeros')
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        return metrics_utils.update_confusion_matrix_variables(
+            {
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
+                metrics_utils.ConfusionMatrix.FALSE_POSITIVES: self.false_positives
+            },
+            y_true,
+            y_pred,
+            thresholds=self.thresholds,
+            top_k=self.top_k,
+            class_id=self.class_id,
+            sample_weight=sample_weight)
+
+    def result(self):
+        denom = (self.true_positives + self.false_positives)
+        result = K.switch(
+            K.greater(denom, 0),
+            self.true_positives / denom,
+            K.zeros_like(self.true_positives))
+
+        return result[0] if len(self.thresholds) == 1 else result
+
+    def reset_states(self):
+        num_thresholds = len(metrics_utils.to_list(self.thresholds))
+        K.batch_set_value(
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
+
+    def get_config(self):
+        config = {
+            'thresholds': self.init_thresholds,
+            'top_k': self.top_k,
+            'class_id': self.class_id
+        }
+        base_config = super(Precision, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+
+class Recall(Metric):
+    """Computes the recall of the predictions with respect to the labels.
+
+    For example, if `y_true` is [0, 1, 1, 1] and `y_pred` is [1, 0, 1, 1]
+    then the recall value is 2/(2+1) ie. 0.66. If the weights were specified as
+    [0, 0, 1, 0] then the recall value would be 1.
+
+    This metric creates two local variables, `true_positives` and
+    `false_negatives`, that are used to compute the recall. This value is
+    ultimately returned as `recall`, an idempotent operation that simply divides
+    `true_positives` by the sum of `true_positives` and `false_negatives`.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    If `top_k` is set, recall will be computed as how often on average a class
+    among the labels of a batch entry is in the top-k predictions.
+
+    If `class_id` is specified, we calculate recall by considering only the
+    entries in the batch for which `class_id` is in the label, and computing the
+    fraction of them for which `class_id` is above the threshold and/or in the
+    top-k predictions.
+
+    Usage with the compile API:
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile('sgd', loss='mse', metrics=[keras.metrics.Recall()])
+    ```
+
+    # Arguments
+        thresholds: (Optional) A float value or a python list/tuple of float
+            threshold values in [0, 1]. A threshold is compared with prediction
+            values to determine the truth value of predictions (i.e., above the
+            threshold is `true`, below is `false`). One metric value is generated
+            for each threshold value. If neither thresholds nor top_k are set, the
+            default is to calculate recall with `thresholds=0.5`.
+        top_k: (Optional) Unset by default. An int value specifying the top-k
+            predictions to consider when calculating recall.
+        class_id: (Optional) Integer class ID for which we want binary metrics.
+            This must be in the half-open interval `[0, num_classes)`, where
+            `num_classes` is the last dimension of predictions.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+
+    def __init__(self,
+                 thresholds=None,
+                 top_k=None,
+                 class_id=None,
+                 name=None,
+                 dtype=None):
+        super(Recall, self).__init__(name=name, dtype=dtype)
+        self.init_thresholds = thresholds
+        if top_k is not None and K.backend() != 'tensorflow':
+            raise RuntimeError(
+                '`top_k` argument for `Recall` metric is currently supported only '
+                'with TensorFlow backend.')
+
+        self.top_k = top_k
+        self.class_id = class_id
+
+        default_threshold = 0.5 if top_k is None else metrics_utils.NEG_INF
+        self.thresholds = metrics_utils.parse_init_thresholds(
+            thresholds, default_threshold=default_threshold)
+        self.true_positives = self.add_weight(
+            'true_positives',
+            shape=(len(self.thresholds),),
+            initializer='zeros')
+        self.false_negatives = self.add_weight(
+            'false_negatives',
+            shape=(len(self.thresholds),),
+            initializer='zeros')
+
+    def update_state(self, y_true, y_pred, sample_weight=None):
+        return metrics_utils.update_confusion_matrix_variables(
+            {
+                metrics_utils.ConfusionMatrix.TRUE_POSITIVES: self.true_positives,
+                metrics_utils.ConfusionMatrix.FALSE_NEGATIVES: self.false_negatives
+            },
+            y_true,
+            y_pred,
+            thresholds=self.thresholds,
+            top_k=self.top_k,
+            class_id=self.class_id,
+            sample_weight=sample_weight)
+
+    def result(self):
+        denom = (self.true_positives + self.false_negatives)
+        result = K.switch(
+            K.greater(denom, 0),
+            self.true_positives / denom,
+            K.zeros_like(self.true_positives))
+        return result[0] if len(self.thresholds) == 1 else result
+
+    def reset_states(self):
+        num_thresholds = len(metrics_utils.to_list(self.thresholds))
+        K.batch_set_value(
+            [(v, np.zeros((num_thresholds,))) for v in self.weights])
+
+    def get_config(self):
+        config = {
+            'thresholds': self.init_thresholds,
+            'top_k': self.top_k,
+            'class_id': self.class_id
+        }
+        base_config = super(Recall, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -1535,7 +1756,11 @@ class AUC(Metric):
         p = self.true_positives + self.false_positives
         dp = p[:self.num_thresholds - 1] - p[1:]
 
-        prec_slope = dtp / K.maximum(dp, 0)
+        dp = K.maximum(dp, 0)
+        prec_slope = K.switch(
+            K.greater(dp, 0),
+            dtp / dp,
+            K.zeros_like(dtp))
         intercept = self.true_positives[1:] - (prec_slope * p[1:])
 
         # Logical and
@@ -1546,12 +1771,18 @@ class AUC(Metric):
 
         safe_p_ratio = K.switch(
             switch_condition,
-            p[:self.num_thresholds - 1] / K.maximum(p[1:], 0),
+            K.switch(
+                K.greater(p[1:], 0),
+                p[:self.num_thresholds - 1] / p[1:],
+                K.zeros_like(p[:self.num_thresholds - 1])),
             K.ones_like(p[1:]))
 
         numer = prec_slope * (dtp + intercept * K.log(safe_p_ratio))
         denom = K.maximum(self.true_positives[1:] + self.false_negatives[1:], 0)
-        return K.sum((numer / denom))
+        return K.sum(K.switch(
+            K.greater(denom, 0),
+            numer / denom,
+            K.zeros_like(numer)))
 
     def result(self):
         if (self.curve == metrics_utils.AUCCurve.PR and
@@ -1596,7 +1827,7 @@ class AUC(Metric):
 
     def reset_states(self):
         K.batch_set_value(
-            [(v, np.zeros((self.num_thresholds,))) for v in self.variables])
+            [(v, np.zeros((self.num_thresholds,))) for v in self.weights])
 
     def get_config(self):
         config = {
@@ -1610,6 +1841,51 @@ class AUC(Metric):
         }
         base_config = super(AUC, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
+
+
+BaseMeanIoU = object
+if K.backend() == 'tensorflow':
+    import tensorflow as tf
+    if tf.__version__ >= '2.0.0':
+        BaseMeanIoU = tf.keras.metrics.MeanIoU
+
+
+class MeanIoU(BaseMeanIoU):
+    """Computes the mean Intersection-Over-Union metric.
+
+    Mean Intersection-Over-Union is a common evaluation metric for semantic image
+    segmentation, which first computes the IOU for each semantic class and then
+    computes the average over classes. IOU is defined as follows:
+    IOU = true_positive / (true_positive + false_positive + false_negative).
+    The predictions are accumulated in a confusion matrix, weighted by
+    `sample_weight` and the metric is then calculated from it.
+
+    If `sample_weight` is `None`, weights default to 1.
+    Use `sample_weight` of 0 to mask values.
+
+    Usage with the compile API:
+
+    ```python
+    model = keras.Model(inputs, outputs)
+    model.compile(
+        'sgd',
+        loss='mse',
+        metrics=[keras.metrics.MeanIoU(num_classes=2)])
+    ```
+
+    # Arguments
+        num_classes: The possible number of labels the prediction task can have.
+            This value must be provided, since a confusion matrix of dimension =
+            [num_classes, num_classes] will be allocated.
+        name: (Optional) string name of the metric instance.
+        dtype: (Optional) data type of the metric result.
+    """
+    def __init__(self, num_classes, name=None, dtype=None):
+        if K.backend() != 'tensorflow' or BaseMeanIoU is object:
+            raise RuntimeError(
+                '`MeanIoU` metric is currently supported only '
+                'with TensorFlow backend and TF version >= 2.0.0.')
+        super(MeanIoU, self).__init__(num_classes, name=name, dtype=dtype)
 
 
 def accuracy(y_true, y_pred):
