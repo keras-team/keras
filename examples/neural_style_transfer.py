@@ -203,13 +203,14 @@ def total_variation_loss(x):
             x[:, :img_nrows - 1, :img_ncols - 1, :] - x[:, :img_nrows - 1, 1:, :])
     return K.sum(K.pow(a + b, 1.25))
 
+
 # combine these loss functions into a single scalar
 loss = K.variable(0.0)
 layer_features = outputs_dict['block5_conv2']
 base_image_features = layer_features[0, :, :, :]
 combination_features = layer_features[2, :, :, :]
-loss += content_weight * content_loss(base_image_features,
-                                      combination_features)
+loss = loss + content_weight * content_loss(base_image_features,
+                                            combination_features)
 
 feature_layers = ['block1_conv1', 'block2_conv1',
                   'block3_conv1', 'block4_conv1',
@@ -219,8 +220,8 @@ for layer_name in feature_layers:
     style_reference_features = layer_features[1, :, :, :]
     combination_features = layer_features[2, :, :, :]
     sl = style_loss(style_reference_features, combination_features)
-    loss += (style_weight / len(feature_layers)) * sl
-loss += total_variation_weight * total_variation_loss(combination_image)
+    loss = loss + (style_weight / len(feature_layers)) * sl
+loss = loss + total_variation_weight * total_variation_loss(combination_image)
 
 # get the gradients of the generated image wrt the loss
 grads = K.gradients(loss, combination_image)
@@ -274,6 +275,7 @@ class Evaluator(object):
         self.loss_value = None
         self.grad_values = None
         return grad_values
+
 
 evaluator = Evaluator()
 

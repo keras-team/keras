@@ -26,7 +26,14 @@ Epoch |   TF   |   TH
     20|  0.043 | 0.045
     25|  0.014 | 0.019
 
+# Additional dependencies
+
 This requires ```cairo``` and ```editdistance``` packages:
+
+First, install the Cairo library: https://cairographics.org/
+
+Then install Python dependencies:
+
 ```python
 pip install cairocffi
 pip install editdistance
