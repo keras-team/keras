@@ -80,7 +80,8 @@ def filter_top_k(x, k):
     # Returns
         tensor with same shape and dtype as x.
     """
-    _, top_k_idx = K.top_k(x, k, sorted=False)
+    from tensorflow.nn import top_k
+    _, top_k_idx = top_k(x, k, sorted=False)
     top_k_mask = K.sum(
         K.one_hot(top_k_idx, x.shape[-1]), axis=-2)
     return x * top_k_mask + NEG_INF * (1 - top_k_mask)

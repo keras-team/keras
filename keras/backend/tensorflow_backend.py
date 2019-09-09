@@ -28,8 +28,6 @@ py_any = any
 py_sum = sum
 py_slice = slice
 
-MeanIoU = tf.keras.metrics.MeanIoU
-
 # INTERNAL UTILS
 
 # This list holds the available devices.
@@ -3501,24 +3499,6 @@ def in_top_k(predictions, targets, k):
     return tf.nn.in_top_k(predictions=predictions,
                           targets=targets,
                           k=k)
-
-
-def top_k(input, k=1, sorted=True, name=None):
-    """Finds values and indices of the k largest entries for the last dimension.
-
-    # Arguments
-        input: 1-D or higher Tensor with last dimension at least k.
-        k: 0-D int32 Tensor. Number of top elements to look for along the last
-            dimension (along each row for matrices).
-        sorted: If true the resulting k elements will be sorted by the values
-            in descending order.
-        name: Optional name for the operation.
-
-    # Returns
-        values: The k largest elements along each last dimensional slice.
-        indices: The indices of values within the last dimension of input.
-    """
-    return tf.math.top_k(input, k=k, sorted=sorted, name=name)
 
 
 # CONVOLUTIONS
