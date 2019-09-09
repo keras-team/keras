@@ -23,6 +23,25 @@ load_img = image.load_img
 
 
 def array_to_img(x, data_format=None, scale=True, dtype=None):
+    """Converts a 3D Numpy array to a PIL Image instance.
+
+    # Arguments
+        x: Input Numpy array.
+        data_format: Image data format.
+            either "channels_first" or "channels_last".
+            If omitted (`None`), then `backend.image_data_format()` is used.
+        scale: Whether to rescale image values
+            to be within `[0, 255]`.
+        dtype: Dtype to use.
+            If omitted (`None`), then `backend.floatx()` or `float32` are used.
+
+    # Returns
+        A PIL Image instance.
+
+    # Raises
+        ImportError: if PIL is not available.
+        ValueError: if invalid `x` or `data_format` is passed.
+    """
     if data_format is None:
         data_format = backend.image_data_format()
     if dtype is None:
@@ -34,6 +53,21 @@ def array_to_img(x, data_format=None, scale=True, dtype=None):
 
 
 def img_to_array(img, data_format=None, dtype=None):
+    """Converts a PIL Image instance to a Numpy array.
+
+    # Arguments
+        img: PIL Image instance.
+        data_format: Image data format, either "channels_first" or "channels_last".
+            If omitted (`None`), then `backend.image_data_format()` is used.
+        dtype: Dtype to use for the returned array.
+            If omitted (`None`), then `backend.floatx()` or `float32` are used.
+
+    # Returns
+        A 3D Numpy array.
+
+    # Raises
+        ValueError: if invalid `img` or `data_format` is passed.
+    """
     if data_format is None:
         data_format = backend.image_data_format()
     if dtype is None:
@@ -46,6 +80,21 @@ def save_img(path,
              data_format=None,
              file_format=None,
              scale=True, **kwargs):
+    """Saves an image stored as a Numpy array to a path or file object.
+
+    # Arguments
+        path: Path or file object.
+        x: Numpy array.
+        data_format: Image data format,
+            either "channels_first" or "channels_last".
+            If omitted (`None`), then `backend.image_data_format()` is used.
+        file_format: Optional file format override. If omitted, the
+            format to use is determined from the filename extension.
+            If a file object was used instead of a filename, this
+            parameter should always be used.
+        scale: Whether to rescale image values to be within `[0, 255]`.
+        **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
+    """
     if data_format is None:
         data_format = backend.image_data_format()
     return image.save_img(path,

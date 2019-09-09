@@ -4,6 +4,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 from tensorflow.python.eager import context
+from tensorflow.python.framework import device as tfdev
 from tensorflow.python.framework import ops as tf_ops
 from tensorflow.python.ops import image_ops as tf_image_ops
 from tensorflow.python.ops import math_ops as tf_math_ops
@@ -437,11 +438,17 @@ class _TfDeviceCaptureOp(object):
     """Class for capturing the TF device scope."""
 
     def __init__(self):
+        # NOTE(robieta): This differs from tf.keras in that self.device is a
+        # DeviceSpec rather than a string. This is done for compatibility
+        # with a range of TensorFlow versions.
         self.device = None
 
     def _set_device(self, device):
         """This method captures TF's explicit device scope setting."""
         self.device = device
+
+    def _set_device_from_string(self, device_str):
+        self.device = tfdev.DeviceSpec.from_string(device_str)
 
 
 def _get_current_tf_device():
