@@ -13,7 +13,7 @@ from ..utils.generic_utils import to_list
 
 
 def _get_available_devices():
-    return K.tensorflow_backend._get_available_gpus()
+    return K.tensorflow_backend._get_available_gpus() + ['/cpu:0']
 
 
 def _normalize_device_name(name):
