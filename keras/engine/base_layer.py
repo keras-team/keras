@@ -1108,7 +1108,7 @@ class Layer(object):
         if len(params) != len(weights):
             raise ValueError('You called `set_weights(weights)` on layer "' +
                              self.name +
-                             '" with a  weight list of length ' +
+                             '" with a weight list of length ' +
                              str(len(weights)) +
                              ', but the layer was expecting ' +
                              str(len(params)) +
