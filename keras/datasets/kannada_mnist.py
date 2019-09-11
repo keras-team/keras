@@ -25,15 +25,15 @@ def load_data():
     # Download and Unpack
     basepath = splitpath(get_file(fname, baseurl + fname, cache_subdir=dirname, file_hash=fhash, extract=True))[0]
 
-    x_train = _read_kmnist(basepath + 'X_kannada_MNIST_train-idx3-ubyte', xory='x')
-    y_train = _read_kmnist(basepath + 'y_kannada_MNIST_train-idx1-ubyte', xory='y')
-    x_test = _read_kmnist(basepath + 'X_kannada_MNIST_test-idx3-ubyte', xory='x')
-    y_test = _read_kmnist(basepath + 'y_kannada_MNIST_test-idx1-ubyte', xory='y')
+    x_train = _read_kannada_mnist(basepath + 'X_kannada_MNIST_train-idx3-ubyte', xory='x')
+    y_train = _read_kannada_mnist(basepath + 'y_kannada_MNIST_train-idx1-ubyte', xory='y')
+    x_test = _read_kannada_mnist(basepath + 'X_kannada_MNIST_test-idx3-ubyte', xory='x')
+    y_test = _read_kannada_mnist(basepath + 'y_kannada_MNIST_test-idx1-ubyte', xory='y')
 
     return (x_train, y_train), (x_test, y_test)
 
-def _read_kmnist(filepath, xory='x'):
-    """Read and deserialize kmnist files containing raw binary tensors
+def _read_kannada_mnist(filepath, xory='x'):
+    """Read and deserialize kannada mnist files containing raw binary tensors
 
     # Returns
         Numpy tensors
