@@ -2332,6 +2332,8 @@ def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=1e-3):
 
     # Returns
         A tensor.
+
+    {{np_implementation}}
     """
     if ndim(x) == 4:
         # The CPU implementation of FusedBatchNorm only support NHWC
