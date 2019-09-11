@@ -1641,6 +1641,34 @@ class TestBackend(object):
         with pytest.raises(ValueError):
             K.bias_add(x, b, data_format='channels_middle')
 
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='Theano behaves differently '
+                               'because of the broadcast.')
+    @pytest.mark.parametrize('axis', [1, -1])
+    @pytest.mark.parametrize('x_shape', [(3, 2, 4, 5), (3, 2, 4)])
+    def test_batch_normalization(self, axis, x_shape):
+        other_shape = [1] * len(x_shape)
+        other_shape[axis] = x_shape[axis]
+        other_shape = tuple(other_shape)
+        x_np = np.random.random(x_shape)
+        mean_np = np.random.random(other_shape)
+        var_np = np.random.random(other_shape)
+        beta_np = np.random.random(other_shape)
+        gamma_np = np.random.random(other_shape)
+        output_tensors = []
+        output_arrays = []
+        for k in WITH_NP:
+            x = k.variable(x_np)
+            mean = k.variable(mean_np)
+            var = k.variable(var_np)
+            beta = k.variable(beta_np)
+            gamma = k.variable(gamma_np)
+            output = k.batch_normalization(x, mean, var, beta, gamma, axis=axis)
+            output_tensors.append(output)
+            output_arrays.append(k.eval(output))
+        assert_list_pairwise(output_arrays)
+        assert_list_keras_shape(output_tensors, output_arrays)
+
     @pytest.mark.skipif(K.backend() != 'theano',
                         reason='Specific to Theano.')
     @pytest.mark.parametrize('x_shape', [(1, 4, 2, 3), (1, 2, 3, 4)])

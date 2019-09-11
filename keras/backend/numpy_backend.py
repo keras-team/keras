@@ -528,6 +528,10 @@ def print_tensor(x, message=''):
     return x
 
 
+def batch_normalization(x, mean, var, beta, gamma, axis=-1, epsilon=0.001):
+    return ((x - mean) / sqrt(var + epsilon)) * gamma + beta
+
+
 def dot(x, y):
     return np.dot(x, y)
 
