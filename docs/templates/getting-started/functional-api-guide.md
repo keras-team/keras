@@ -85,6 +85,8 @@ The integers will be between 1 and 10,000 (a vocabulary of 10,000 words) and the
 ```python
 from keras.layers import Input, Embedding, LSTM, Dense
 from keras.models import Model
+import numpy as np
+np.random.seed(0)  # Set a random seed for reproducibility
 
 # Headline input: meant to receive sequences of 100 integers, between 1 and 10000.
 # Note that we can name any layer by passing it a "name" argument.
@@ -138,7 +140,11 @@ model.compile(optimizer='rmsprop', loss='binary_crossentropy',
 We can train the model by passing it lists of input arrays and target arrays:
 
 ```python
-model.fit([headline_data, additional_data], [labels, labels],
+headline_data = np.round(np.abs(np.random.rand(12, 100) * 100))
+additional_data = np.random.randn(12, 5)
+headline_labels = np.random.randn(12, 1)
+additional_labels = np.random.randn(12, 1)
+model.fit([headline_data, additional_data], [headline_labels, additional_labels],
           epochs=50, batch_size=32)
 ```
 
@@ -152,8 +158,17 @@ model.compile(optimizer='rmsprop',
 
 # And trained it via:
 model.fit({'main_input': headline_data, 'aux_input': additional_data},
-          {'main_output': labels, 'aux_output': labels},
+          {'main_output': headline_labels, 'aux_output': additional_labels},
           epochs=50, batch_size=32)
+```
+
+To use the model for inferencing, use
+```python
+model.predict({'main_input': headline_data, 'aux_input': additional_data})
+```
+or alternatively,
+```python
+pred = model.predict([headline_data, additional_data])
 ```
 
 -----
