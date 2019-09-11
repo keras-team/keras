@@ -11,24 +11,26 @@ from ..utils.data_utils import get_file
 import numpy as np
 
 
-def load_data():
+def load_data(path='kannada-mnist.tar.bz'):
     """Loads the Kannada-MNIST dataset.
 
     # Returns
         Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
     """
-    dirname = joinpath('datasets', 'kannada-mnist')
-    baseurl = 'https://unifyid-public-datasets.s3-us-west-2.amazonaws.com/kannada-mnist/'
-    fname = 'kannada-mnist.tar.bz'
-    fhash = 'c1cd9953366bb42c06f1205691d399b4'
-
     # Download and Unpack
-    basepath = splitpath(get_file(fname, baseurl + fname, cache_subdir=dirname, file_hash=fhash, extract=True))[0]
+    filepath = get_file(
+        path, 'https://unifyid-public-datasets.s3-us-west-2.amazonaws.com/kannada-mnist/kannada-mnist.tar.bz',
+        cache_subdir=joinpath('datasets', 'kannada-mnist'),
+        file_hash='c1cd9953366bb42c06f1205691d399b4',
+        extract=True,
+    )
 
-    x_train = _read_kannada_mnist(basepath + 'X_kannada_MNIST_train-idx3-ubyte', xory='x')
-    y_train = _read_kannada_mnist(basepath + 'y_kannada_MNIST_train-idx1-ubyte', xory='y')
-    x_test = _read_kannada_mnist(basepath + 'X_kannada_MNIST_test-idx3-ubyte', xory='x')
-    y_test = _read_kannada_mnist(basepath + 'y_kannada_MNIST_test-idx1-ubyte', xory='y')
+    basedir = splitpath(filepath)[0]
+
+    x_train = _read_kannada_mnist(joinpath(basedir, 'X_kannada_MNIST_train-idx3-ubyte'), xory='x')
+    y_train = _read_kannada_mnist(joinpath(basedir, 'y_kannada_MNIST_train-idx1-ubyte'), xory='y')
+    x_test = _read_kannada_mnist(joinpath(basedir, 'X_kannada_MNIST_test-idx3-ubyte'), xory='x')
+    y_test = _read_kannada_mnist(joinpath(basedir, 'y_kannada_MNIST_test-idx1-ubyte'), xory='y')
 
     return (x_train, y_train), (x_test, y_test)
 

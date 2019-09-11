@@ -6,6 +6,7 @@ import pytest
 from keras.datasets import boston_housing
 from keras.datasets import imdb
 from keras.datasets import reuters
+from keras.datasets import kannada_mnist
 
 
 @pytest.fixture
@@ -88,3 +89,10 @@ def test_reuters_load_does_not_affect_global_rng(fake_downloaded_reuters_path):
     after = np.random.randint(0, 100, size=10)
 
     assert np.array_equal(before, after)
+
+
+def test_kannada_mnist_load():
+    (x_train, y_train), (x_test, y_test) = kannada_mnist.load_data(path='fake-kannada-mnist.tar.bz')
+
+    assert x_train.shape[0] == y_train.shape[0] == 60000
+    assert y_test.shape[0] == y_test.shape[0] == 10000
