@@ -1759,10 +1759,10 @@ class DepthwiseConv2D(Conv2D):
 
     # Output shape
         4D tensor with shape:
-        `(batch, filters, new_rows, new_cols)`
+        `(batch, channels * depth_multiplier, new_rows, new_cols)`
         if `data_format` is `"channels_first"`
         or 4D tensor with shape:
-        `(batch, new_rows, new_cols, filters)`
+        `(batch, new_rows, new_cols,  channels * depth_multiplier)`
         if `data_format` is `"channels_last"`.
         `rows` and `cols` values might have changed due to padding.
     """
