@@ -134,7 +134,7 @@ class LossFunctionWrapper(Loss):
     def get_config(self):
         config = {}
         for k, v in six.iteritems(self._fn_kwargs):
-            config[k] = K.eval(v) if is_tensor_or_variable(v) else v
+            config[k] = K.eval(v) if K.is_tensor(v) or K.is_variable(v) else v
         base_config = super(LossFunctionWrapper, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
