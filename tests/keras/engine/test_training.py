@@ -2138,5 +2138,34 @@ def test_add_metric_in_layer_call():
     assert np.isclose(history.history['val_metric_1'][-1], 5, 0)
 
 
+def test_inputs_type():
+
+    class TestModel(Model):
+
+        def __init__(self, in_shape):
+            super(TestModel, self).__init__(name='test_model')
+            # we need to specify the output shape in the Lambda layer
+            # otherwise it won't respect the output type when trying to
+            # determine the output shape on its own
+            self.in_shape = in_shape
+            self.identity_layer = keras.layers.Lambda(
+                lambda x: x,
+                output_shape=in_shape,
+            )
+
+        def call(self, x):
+            return self.identity_layer(x)
+
+    dtypes_to_test = ['int', 'float32', 'float64', 'complex64']
+    in_shape = (10, 1)
+    for dtype in dtypes_to_test:
+        model = TestModel(in_shape=in_shape)
+        model.compile(loss='mse', optimizer='sgd')
+
+        x = np.ones(shape=in_shape, dtype=dtype)
+        model_output = model.predict_on_batch(x)
+        assert model_output.dtype == dtype
+
+
 if __name__ == '__main__':
     pytest.main([__file__])
