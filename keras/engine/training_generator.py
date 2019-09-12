@@ -50,6 +50,11 @@ def fit_generator(model,
                         ' and multiple workers may duplicate your data.'
                         ' Please consider using the `keras.utils.Sequence'
                         ' class.'))
+
+    # if generator is instance of Sequence and steps_per_epoch are not provided -
+    # recompute steps_per_epoch after each epoch
+    recompute_steps_per_epoch = use_sequence_api and steps_per_epoch is None
+
     if steps_per_epoch is None:
         if use_sequence_api:
             steps_per_epoch = len(generator)
@@ -80,12 +85,12 @@ def fit_generator(model,
     # prepare callbacks
     model.history = cbks.History()
     _callbacks = [cbks.BaseLogger(
-        stateful_metrics=model.stateful_metric_names)]
+        stateful_metrics=model.metrics_names[1:])]
     if verbose:
         _callbacks.append(
             cbks.ProgbarLogger(
                 count_mode='steps',
-                stateful_metrics=model.stateful_metric_names))
+                stateful_metrics=model.metrics_names[1:]))
     _callbacks += (callbacks or []) + [model.history]
     callbacks = cbks.CallbackList(_callbacks)
 
@@ -172,8 +177,7 @@ def fit_generator(model,
         # Construct epoch logs.
         epoch_logs = {}
         while epoch < epochs:
-            for m in model.stateful_metric_functions:
-                m.reset_states()
+            model.reset_metrics()
             callbacks.on_epoch_begin(epoch)
             steps_done = 0
             batch_index = 0
@@ -212,7 +216,8 @@ def fit_generator(model,
 
                 outs = model.train_on_batch(x, y,
                                             sample_weight=sample_weight,
-                                            class_weight=class_weight)
+                                            class_weight=class_weight,
+                                            reset_metrics=False)
 
                 outs = to_list(outs)
                 for l, o in zip(out_labels, outs):
@@ -257,6 +262,25 @@ def fit_generator(model,
             if callbacks.model.stop_training:
                 break
 
+            if use_sequence_api and workers == 0:
+                generator.on_epoch_end()
+
+            if recompute_steps_per_epoch:
+                if workers > 0:
+                    enqueuer.join_end_of_epoch()
+
+                # recomute steps per epochs in case if Sequence changes it's length
+                steps_per_epoch = len(generator)
+
+                # update callbacks to make sure params are valid each epoch
+                callbacks.set_params({
+                    'epochs': epochs,
+                    'steps': steps_per_epoch,
+                    'verbose': verbose,
+                    'do_validation': do_validation,
+                    'metrics': callback_metrics,
+                })
+
     finally:
         try:
             if enqueuer is not None:
@@ -278,15 +302,7 @@ def evaluate_generator(model, generator,
                        verbose=0):
     """See docstring for `Model.evaluate_generator`."""
     model._make_test_function()
-
-    if hasattr(model, 'metrics'):
-        for m in model.stateful_metric_functions:
-            m.reset_states()
-        stateful_metric_indices = [
-            i for i, name in enumerate(model.metrics_names)
-            if str(name) in model.stateful_metric_names]
-    else:
-        stateful_metric_indices = []
+    model.reset_metrics()
 
     steps_done = 0
     outs_per_batch = []
@@ -313,9 +329,7 @@ def evaluate_generator(model, generator,
         callbacks = cbks.CallbackList(callbacks)
         callback_model = model._get_callback_model()
         callbacks.set_model(callback_model)
-        callback_metrics = []
-        if hasattr(model, 'metrics_names'):
-            callback_metrics = list(model.metrics_names)
+        callback_metrics = list(model.metrics_names)
         callback_params = {
             'steps': steps,
             'verbose': verbose,
@@ -382,13 +396,14 @@ def evaluate_generator(model, generator,
 
             batch_logs = {'batch': steps_done, 'size': batch_size}
             callbacks._call_batch_hook('test', 'begin', steps_done, batch_logs)
-            outs = model.test_on_batch(x, y, sample_weight=sample_weight)
+            outs = model.test_on_batch(x, y,
+                                       sample_weight=sample_weight,
+                                       reset_metrics=False)
             outs = to_list(outs)
             outs_per_batch.append(outs)
 
-            if hasattr(model, 'metrics_names'):
-                for l, o in zip(model.metrics_names, outs):
-                    batch_logs[l] = o
+            for l, o in zip(model.metrics_names, outs):
+                batch_logs[l] = o
             callbacks._call_batch_hook('test', 'end', steps_done, batch_logs)
 
             steps_done += 1
@@ -402,13 +417,9 @@ def evaluate_generator(model, generator,
         if enqueuer is not None:
             enqueuer.stop()
 
-    averages = []
-    for i in range(len(outs)):
-        if i not in stateful_metric_indices:
-            averages.append(np.average([out[i] for out in outs_per_batch],
-                                       weights=batch_sizes))
-        else:
-            averages.append(np.float64(outs_per_batch[-1][i]))
+    averages = [float(outs_per_batch[-1][0])]  # index 0 = 'loss'
+    for i in range(1, len(outs)):
+        averages.append(np.float64(outs_per_batch[-1][i]))
     return unpack_singleton(averages)
 
 

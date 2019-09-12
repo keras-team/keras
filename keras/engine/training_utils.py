@@ -8,12 +8,16 @@ import inspect
 import collections
 import copy
 import numpy as np
+import six
 import warnings
+from collections import OrderedDict
 
 from .. import backend as K
 from .. import losses
+from .. import metrics as metrics_module
 from ..utils import Sequence
-from ..utils.generic_utils import to_list
+from ..utils import generic_utils
+from ..utils import losses_utils
 
 
 def standardize_single_array(x):
@@ -252,7 +256,8 @@ def check_array_length_consistency(inputs, targets, weights=None):
 def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
     """Does validation on the compatibility of targets and loss functions.
 
-    This helps prevent users from using loss functions incorrectly.
+    This helps prevent users from using loss functions incorrectly. This check
+    is purely for UX purposes.
 
     # Arguments
         targets: list of Numpy arrays of targets.
@@ -263,13 +268,16 @@ def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
         ValueError: if a loss function or target array
             is incompatible with an output.
     """
-    key_losses = {losses.mean_squared_error,
-                  losses.binary_crossentropy,
-                  losses.categorical_crossentropy}
+    key_loss_fns = {
+        losses.mean_squared_error, losses.binary_crossentropy,
+        losses.categorical_crossentropy
+    }
+    key_loss_classes = (losses.MeanSquaredError, losses.BinaryCrossentropy,
+                        losses.CategoricalCrossentropy)
     for y, loss, shape in zip(targets, loss_fns, output_shapes):
         if y is None or loss is None:
             continue
-        if loss is losses.categorical_crossentropy:
+        if losses.is_categorical_crossentropy(loss):
             if y.shape[-1] == 1:
                 raise ValueError(
                     'You are passing a target array of shape ' + str(y.shape) +
@@ -287,15 +295,20 @@ def check_loss_and_target_compatibility(targets, loss_fns, output_shapes):
                     'Alternatively, you can use the loss function '
                     '`sparse_categorical_crossentropy` instead, '
                     'which does expect integer targets.')
-        if loss in key_losses:
+        is_loss_wrapper = isinstance(loss, losses.LossFunctionWrapper)
+        if (isinstance(loss, key_loss_classes) or (is_loss_wrapper and
+                                                   (loss.fn in key_loss_fns))):
             for target_dim, out_dim in zip(y.shape[1:], shape[1:]):
                 if out_dim is not None and target_dim != out_dim:
+                    loss_name = loss.name
+                    if loss_name is None:
+                        loss_type = loss.fn if is_loss_wrapper else type(loss)
+                        loss_name = loss_type.__name__
                     raise ValueError(
                         'A target array with shape ' + str(y.shape) +
                         ' was passed for an output of shape ' + str(shape) +
-                        ' while using as loss `' + loss.__name__ + '`. '
-                        'This loss expects '
-                        'targets to have the same shape '
+                        ' while using as loss `' + loss_name + '`. '
+                        'This loss expects targets to have the same shape '
                         'as the output.')
 
 
@@ -313,47 +326,6 @@ def check_generator_arguments(y=None, sample_weight=None,
     if validation_split:
         raise ValueError('If your data is in the form of a Python generator, '
                          'you cannot use `validation_split`.')
-
-
-def collect_metrics(metrics, output_names):
-    """Maps metric functions to model outputs.
-
-    # Arguments
-        metrics: a list or dict of metric functions.
-        output_names: a list of the names (strings) of model outputs.
-
-    # Returns
-        A list (one entry per model output) of lists of metric functions.
-        For instance, if the model has 2 outputs, and for the first output
-        we want to compute "binary_accuracy" and "binary_crossentropy",
-        and just "binary_accuracy" for the second output,
-        the list would look like:
-            `[[binary_accuracy, binary_crossentropy], [binary_accuracy]]`
-
-    # Raises
-        TypeError: if an incorrect type is passed for the `metrics` argument.
-    """
-    if not metrics:
-        return [[] for _ in output_names]
-    if isinstance(metrics, list):
-        # we then apply all metrics to all outputs.
-        return [copy.copy(metrics) for _ in output_names]
-    elif isinstance(metrics, dict):
-        nested_metrics = []
-        if not set(metrics.keys()).issubset(set(output_names)):
-            unknown_output_names = list(set(metrics.keys()) - set(output_names))
-            warnings.warn('Invalid layer name for metric computations: '
-                          '{}. Available names are {}.'
-                          .format(unknown_output_names, output_names))
-        for name in output_names:
-            output_metrics = metrics.get(name, [])
-            output_metrics = to_list(output_metrics)
-            nested_metrics.append(output_metrics)
-        return nested_metrics
-    else:
-        raise TypeError('Type of `metrics` argument not understood. '
-                        'Expected a list or dictionary, found: ' +
-                        str(metrics))
 
 
 def batch_shuffle(index_array, batch_size):
@@ -713,3 +685,356 @@ def get_input_shape_and_dtype(layer):
     if hasattr(layer, '_batch_input_shape'):
         return layer._batch_input_shape, layer.dtype
     return None, None
+
+
+def get_loss_function(loss):
+    """Returns the loss corresponding to the loss input in `compile` API."""
+    if loss is None or isinstance(loss, losses.Loss):
+        return loss
+
+    # Deserialize loss configuration, if needed.
+    if isinstance(loss, collections.Mapping):
+        loss = losses.get(loss)
+
+    # Custom callable class.
+    if callable(loss) and not hasattr(loss, '__name__'):
+        return loss
+
+    # Wrap loss function with signature `(y_true, y_pred, **kwargs)`
+    # in `LossFunctionWrapper` class.
+    loss_fn = losses.get(loss)
+
+    # For losses which are given as strings/functions in the compile API,
+    # we always set the loss reduction type to be `SUM_OVER_BATCH_SIZE`..
+    return losses.LossFunctionWrapper(
+        loss_fn,
+        name=loss_fn.__name__,
+        reduction=losses_utils.Reduction.SUM_OVER_BATCH_SIZE)
+
+
+def get_output_sample_weight_and_mode(skip_target_weighing_indices,
+                                      sample_weight_mode, output_name,
+                                      output_index):
+    """Returns the sample weight and weight mode for a single output."""
+    if output_index in skip_target_weighing_indices:
+        return None, None
+
+    if sample_weight_mode == 'temporal':
+        shape = [None, None]
+        mode = 'temporal'
+    else:
+        shape = [None]
+        mode = None
+    weight = K.placeholder(
+        shape=shape,
+        name=output_name + '_sample_weights')
+    return weight, mode
+
+
+def prepare_sample_weights(output_names, sample_weight_mode,
+                           skip_target_weighing_indices):
+    """Prepares sample weights for the model.
+
+    # Arguments
+        output_names: List of model output names.
+        sample_weight_mode: sample weight mode user input passed from compile API.
+        skip_target_weighing_indices: Indices of output for which sample weights
+            should be skipped.
+
+    # Returns
+        A pair of list of sample weights and sample weight modes
+            (one for each output).
+
+    # Raises
+        ValueError: In case of invalid `sample_weight_mode` input.
+    """
+    sample_weights = []
+    sample_weight_modes = []
+    if isinstance(sample_weight_mode, dict):
+        unknown_output = set(sample_weight_mode.keys()) - set(output_names)
+        if unknown_output:
+            raise ValueError(
+                'Unknown entry in '
+                'sample_weight_mode dictionary: "' + str(unknown_output) +
+                '". Only expected the following keys: ' + str(output_names))
+        for i, name in enumerate(output_names):
+            if (i not in skip_target_weighing_indices and
+                    name not in sample_weight_mode):
+                raise ValueError(
+                    'Output missing from sample_weight_modes dictionary')
+            weight, mode = get_output_sample_weight_and_mode(
+                skip_target_weighing_indices,
+                sample_weight_mode.get(name),
+                name,
+                i)
+            sample_weights.append(weight)
+            sample_weight_modes.append(mode)
+    elif isinstance(sample_weight_mode, list):
+        if len(sample_weight_mode) != len(output_names):
+            raise ValueError('When passing a list as sample_weight_mode, '
+                             'it should have one entry per model output. '
+                             'The model has ' + str(len(output_names)) +
+                             ' outputs, but you passed ' +
+                             str(len(sample_weight_mode)) + 'sample_weight_modes')
+        for i, name in enumerate(output_names):
+            weight, mode = get_output_sample_weight_and_mode(
+                skip_target_weighing_indices, sample_weight_mode[i], name, i)
+            sample_weights.append(weight)
+            sample_weight_modes.append(mode)
+    else:
+        for i, name in enumerate(output_names):
+            weight, mode = get_output_sample_weight_and_mode(
+                skip_target_weighing_indices, sample_weight_mode, name, i)
+            sample_weights.append(weight)
+            sample_weight_modes.append(mode)
+    return sample_weights, sample_weight_modes
+
+
+def prepare_loss_functions(loss, output_names):
+    """Converts loss to a list of loss functions.
+
+    # Arguments
+        loss: String (name of objective function), objective function or
+            `Loss` instance. If the model has multiple outputs, you can use
+            a different loss on each output by passing a dictionary or a
+            list of losses. The loss value that will be minimized by the model
+            will then be the sum of all individual losses.
+        output_names: List of model output names.
+
+    # Returns
+        A list of loss objective functions.
+
+    # Raises:
+        ValueError: If loss is a dict with keys not in model output names,
+            or if loss is a list with len not equal to model outputs.
+    """
+    if isinstance(loss, collections.Mapping):
+        generic_utils.check_for_unexpected_keys('loss', loss, output_names)
+        loss_functions = []
+        for name in output_names:
+            if name not in loss:
+                warnings.warn(
+                    'Output {0} missing from loss dictionary. We assume '
+                    'this was done on purpose. The fit and evaluate APIs will not '
+                    'be expecting any data to be passed to {0}.'.format(name))
+            loss_functions.append(get_loss_function(loss.get(name, None)))
+    elif isinstance(loss, six.string_types):
+        loss_functions = [get_loss_function(loss) for _ in output_names]
+    elif isinstance(loss, collections.Sequence):
+        if len(loss) != len(output_names):
+            raise ValueError('When passing a list as loss, it should have one entry '
+                             'per model outputs. The model has {} outputs, but you '
+                             'passed loss={}'.format(len(output_names), loss))
+        loss_functions = [get_loss_function(l) for l in loss]
+    else:
+        loss_functions = [get_loss_function(loss) for _ in range(len(output_names))]
+
+    return loss_functions
+
+
+def prepare_loss_weights(output_names, loss_weights=None):
+    """Converts loss weights to a list of loss weights.
+
+    # Arguments
+        output_names: List of model output names.
+        loss_weights: Optional list or dictionary specifying scalar coefficients
+            (Python floats) to weight the loss contributions of different model
+            outputs. The loss value that will be minimized by the model will then be
+            the *weighted sum* of all individual losses, weighted by the
+            `loss_weights` coefficients. If a list, it is expected to have a 1:1
+            mapping to the model's outputs. If a dict, it is expected to map
+            output names (strings) to scalar coefficients.
+
+    # Returns
+        A list of loss weights of python floats.
+
+    # Raises
+        ValueError: If loss weight is a dict with key not in model output names,
+            or if loss is a list with len not equal to model outputs.
+    """
+    if loss_weights is None:
+        weights_list = [1.] * len(output_names)
+    elif isinstance(loss_weights, collections.Mapping):
+        generic_utils.check_for_unexpected_keys('loss_weights', loss_weights,
+                                                output_names)
+        weights_list = [loss_weights.get(name, 1.) for name in output_names]
+    elif isinstance(loss_weights, list):
+        if len(loss_weights) != len(output_names):
+            raise ValueError('When passing a list as loss_weights, '
+                             'it should have one entry per model output. '
+                             'The model has ' + str(len(output_names)) +
+                             ' outputs, but you passed loss_weights=' +
+                             str(loss_weights))
+        weights_list = loss_weights
+    else:
+        raise TypeError('Could not interpret loss_weights argument: ' +
+                        str(loss_weights) + ' - expected a list of dicts.')
+
+    return weights_list
+
+
+def collect_per_output_metric_info(metrics,
+                                   output_names,
+                                   output_shapes,
+                                   loss_fns,
+                                   is_weighted=False):
+    """Maps metric names and functions to model outputs.
+
+    # Arguments
+        metrics: a list or a list of lists or a dict of metric functions.
+        output_names: a list of the names (strings) of model outputs.
+        output_shapes: a list of the shapes (strings) of model outputs.
+        loss_fns: a list of the loss functions corresponding to the model outputs.
+        is_weighted: Boolean indicating whether the given metrics are weighted.
+
+    # Returns
+        A list (one entry per model output) of dicts.
+        For instance, if the model has 2 outputs, and for the first output
+        we want to compute "binary_accuracy" and "binary_crossentropy",
+        and just "binary_accuracy" for the second output,
+        the list would look like: `[{
+            'acc': binary_accuracy(),
+            'ce': binary_crossentropy(),
+        }, {
+            'acc': binary_accuracy(),
+        }]`
+
+    # Raises
+        TypeError: if an incorrect type is passed for the `metrics` argument.
+    """
+    if not metrics:
+        return [{} for _ in output_names]
+
+    if isinstance(metrics, list):
+        any_sub_list = any(isinstance(m, list) for m in metrics)
+        if any_sub_list:
+            if len(metrics) != len(output_names):
+                raise ValueError('When passing a list of lists as `metrics`, '
+                                 'it should have one entry per model output. '
+                                 'The model has ' + str(len(output_names)) +
+                                 ' outputs, but you passed metrics=' + str(metrics))
+            # User has provided a list of len = len(outputs).
+            nested_metrics = [generic_utils.to_list(m) for m in metrics]
+        else:
+            # If it is a single list we then apply all metrics to all outputs.
+            if len(output_names) > 1:
+                nested_metrics = []
+                for _ in output_names:
+                    nested_metrics.append(
+                        [metrics_module.clone_metric(m) for m in metrics])
+            else:
+                nested_metrics = [metrics]
+    elif isinstance(metrics, collections.Mapping):
+        generic_utils.check_for_unexpected_keys('metrics', metrics, output_names)
+        nested_metrics = []
+        for name in output_names:
+            output_metrics = generic_utils.to_list(metrics.get(name, []))
+            nested_metrics.append(output_metrics)
+    else:
+        raise TypeError('Type of `metrics` argument not understood. '
+                        'Expected a list or dictionary, found: ' + str(metrics))
+
+    per_output_metrics = []
+    for i, metrics in enumerate(nested_metrics):
+        metrics_dict = OrderedDict()
+        for metric in metrics:
+            metric_name = get_metric_name(metric, is_weighted)
+            metric_fn = get_metric_function(
+                metric, output_shape=output_shapes[i], loss_fn=loss_fns[i])
+
+            # If the metric function is not stateful, we create a stateful version.
+            if not isinstance(metric_fn, metrics_module.Metric):
+                metric_fn = metrics_module.MeanMetricWrapper(
+                    metric_fn, name=metric_name)
+            metrics_dict[metric_name] = metric_fn
+        per_output_metrics.append(metrics_dict)
+
+    return per_output_metrics
+
+
+def get_metric_name(metric, weighted=False):
+    """Returns the name corresponding to the given metric input.
+
+    # Arguments
+        metric: Metric function name or reference.
+        weighted: Boolean indicating if the given metric is weighted.
+
+    # Returns
+        The metric name.
+    """
+    # We keep the string that the user has set in compile as the metric name.
+    if isinstance(metric, six.string_types):
+        return metric
+
+    metric = metrics_module.get(metric)
+    return metric.name if hasattr(metric, 'name') else metric.__name__
+
+
+def get_metric_function(metric, output_shape=None, loss_fn=None):
+    """Returns the metric function corresponding to the given metric input.
+
+    # Arguments
+        metric: Metric function name or reference.
+        output_shape: The shape of the output that this metric will be calculated
+            for.
+        loss_fn: The loss function used.
+
+    # Returns
+        The metric function.
+    """
+    if metric not in ['accuracy', 'acc', 'crossentropy', 'ce']:
+        return metrics_module.get(metric)
+
+    is_sparse_categorical_crossentropy = (
+        isinstance(loss_fn, losses.SparseCategoricalCrossentropy) or
+        (isinstance(loss_fn, losses.LossFunctionWrapper) and
+         loss_fn.fn == losses.sparse_categorical_crossentropy))
+
+    is_binary_crossentropy = (
+        isinstance(loss_fn, losses.BinaryCrossentropy) or
+        (isinstance(loss_fn, losses.LossFunctionWrapper) and
+         loss_fn.fn == losses.binary_crossentropy))
+
+    if metric in ['accuracy', 'acc']:
+        if output_shape[-1] == 1 or is_binary_crossentropy:
+            return metrics_module.binary_accuracy
+        elif is_sparse_categorical_crossentropy:
+            return metrics_module.sparse_categorical_accuracy
+        # If the output_shape[-1] is not 1, then we know output is `categorical`.
+        # We assume it is sparse categorical only if loss is explicitly given
+        # as sparse categorical crossentropy loss.
+        return metrics_module.categorical_accuracy
+    else:
+        if output_shape[-1] == 1 or is_binary_crossentropy:
+            return metrics_module.binary_crossentropy
+        elif is_sparse_categorical_crossentropy:
+            return metrics_module.sparse_categorical_crossentropy
+        return metrics_module.categorical_crossentropy
+
+
+def call_metric_function(metric_fn,
+                         y_true,
+                         y_pred=None,
+                         weights=None,
+                         mask=None):
+    """Invokes metric function and returns the metric result tensor."""
+    if mask is not None:
+        mask = math_ops.cast(mask, y_pred.dtype)
+        if weights is None:
+            # Use mask as sample weight.
+            weights = mask
+        else:
+            # Update dimensions of weights to match with mask.
+            mask, _, weights = losses_utils.squeeze_or_expand_dimensions(
+                mask, sample_weight=weights)
+            weights *= mask
+
+    if y_pred is not None:
+        update_ops = metric_fn.update_state(y_true, y_pred, sample_weight=weights)
+        with K.control_dependencies(update_ops):  # For TF
+            metric_fn.result()
+    else:
+        # `Mean` metric only takes a single value.
+        update_ops = metric_fn.update_state(y_true, sample_weight=weights)
+        with K.control_dependencies(update_ops):  # For TF
+            metric_fn.result()

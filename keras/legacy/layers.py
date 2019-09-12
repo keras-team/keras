@@ -98,13 +98,13 @@ class MaxoutDense(Layer):
         self.input_spec = InputSpec(dtype=K.floatx(),
                                     shape=(None, input_dim))
 
-        self.W = self.add_weight((self.nb_feature, input_dim, self.output_dim),
+        self.W = self.add_weight(shape=(self.nb_feature, input_dim, self.output_dim),
                                  initializer=self.init,
                                  name='W',
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
         if self.bias:
-            self.b = self.add_weight((self.nb_feature, self.output_dim,),
+            self.b = self.add_weight(shape=(self.nb_feature, self.output_dim,),
                                      initializer='zero',
                                      name='b',
                                      regularizer=self.b_regularizer,
@@ -227,21 +227,21 @@ class Highway(Layer):
         self.input_spec = InputSpec(dtype=K.floatx(),
                                     shape=(None, input_dim))
 
-        self.W = self.add_weight((input_dim, input_dim),
+        self.W = self.add_weight(shape=(input_dim, input_dim),
                                  initializer=self.init,
                                  name='W',
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
-        self.W_carry = self.add_weight((input_dim, input_dim),
+        self.W_carry = self.add_weight(shape=(input_dim, input_dim),
                                        initializer=self.init,
                                        name='W_carry')
         if self.bias:
-            self.b = self.add_weight((input_dim,),
+            self.b = self.add_weight(shape=(input_dim,),
                                      initializer='zero',
                                      name='b',
                                      regularizer=self.b_regularizer,
                                      constraint=self.b_constraint)
-            self.b_carry = self.add_weight((input_dim,),
+            self.b_carry = self.add_weight(shape=(input_dim,),
                                            initializer='one',
                                            name='b_carry')
         else:

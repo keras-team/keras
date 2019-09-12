@@ -194,6 +194,10 @@ def variable(value, dtype=None, name=None, constraint=None):
     return v
 
 
+def is_variable(x):
+    return isinstance(x, C.variables.Parameter)
+
+
 def bias_add(x, bias, data_format=None):
     data_format = normalize_data_format(data_format)
 
@@ -348,7 +352,11 @@ def int_shape(x):
     if hasattr(x, '_keras_shape'):
         return x._keras_shape
 
-    shape = x.shape
+    if hasattr(x, 'shape'):
+        shape = x.shape
+    else:
+        shape = np.array(x).shape
+
     if hasattr(x, 'dynamic_axes'):
         dynamic_shape = [None for a in x.dynamic_axes]
         shape = tuple(dynamic_shape) + shape
@@ -557,6 +565,10 @@ def count_params(x):
 def cast(x, dtype):
     # cntk calculate everything in float, so don't need case from bool / int
     return x
+
+
+def size(x, name=None):
+    return sum(ones_like(x, name=name))
 
 
 def dot(x, y):
@@ -2338,6 +2350,10 @@ def stop_gradient(variables):
 
 
 def switch(condition, then_expression, else_expression):
+    if callable(then_expression):
+        then_expression = then_expression()
+    if callable(else_expression):
+        else_expression = else_expression()
     ndim_cond = ndim(condition)
     ndim_expr = ndim(then_expression)
     if ndim_cond > ndim_expr:
@@ -2895,3 +2911,11 @@ def foldr(fn, elems, initializer=None, name=None):
         accumulator.name = str(name)
 
     return reshape(accumulator, shape(initializer)[1:])
+
+
+def control_dependencies(control_inputs):
+    @contextmanager
+    def nullcontextmanager():
+        yield
+
+    return nullcontextmanager()

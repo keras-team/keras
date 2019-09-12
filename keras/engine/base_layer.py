@@ -6,6 +6,7 @@ from __future__ import division
 
 import re
 from six.moves import zip
+import threading
 
 from .. import backend as K
 from .. import initializers
@@ -16,6 +17,20 @@ from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
 from ..utils.generic_utils import is_all_none
 from ..legacy import interfaces
+
+_DISABLE_TRACKING = threading.local()
+_DISABLE_TRACKING.value = False
+
+
+def disable_tracking(func):
+    def wrapped_fn(*args, **kwargs):
+        global _DISABLE_TRACKING
+        prev_value = _DISABLE_TRACKING.value
+        _DISABLE_TRACKING.value = True
+        out = func(*args, **kwargs)
+        _DISABLE_TRACKING.value = prev_value
+        return out
+    return wrapped_fn
 
 
 class Layer(object):
@@ -105,6 +120,10 @@ class Layer(object):
         self._per_input_updates = {}
         self._built = False
 
+        # A list of metric instances corresponding to the metric tensors added using
+        # the `add_metric` API.
+        self._metrics = []
+
         # These lists will be filled via successive calls
         # to self._add_inbound_node().
         self._inbound_nodes = []
@@ -172,13 +191,19 @@ class Layer(object):
 
     @property
     def losses(self):
-        return self._losses
+        losses = self._losses[:]
+        for l in getattr(self, '_layers', []):
+            losses += l.losses
+        return losses
 
     @property
     def updates(self):
         if not self.trainable and not self.stateful:
             return []
-        return self._updates
+        updates = self._updates[:]
+        for l in getattr(self, '_layers', []):
+            updates += l.updates
+        return updates
 
     @property
     def built(self):
@@ -192,7 +217,10 @@ class Layer(object):
     def trainable_weights(self):
         trainable = getattr(self, 'trainable', True)
         if trainable:
-            return self._trainable_weights
+            trainable_weights = self._trainable_weights[:]
+            for l in getattr(self, '_layers', []):
+                trainable_weights += l.trainable_weights
+            return trainable_weights
         else:
             return []
 
@@ -203,19 +231,25 @@ class Layer(object):
     @property
     def non_trainable_weights(self):
         trainable = getattr(self, 'trainable', True)
-        if not trainable:
-            return self._trainable_weights + self._non_trainable_weights
+        if trainable:
+            weights = self._non_trainable_weights[:]
+            for l in getattr(self, '_layers', []):
+                weights += l.non_trainable_weights
+            return weights
+
         else:
-            return self._non_trainable_weights
+            weights = self._trainable_weights[:] + self._non_trainable_weights[:]
+            for l in getattr(self, '_layers', []):
+                weights += l.weights
+            return weights
 
     @non_trainable_weights.setter
     def non_trainable_weights(self, weights):
         self._non_trainable_weights = weights
 
-    @interfaces.legacy_add_weight_support
     def add_weight(self,
-                   name,
-                   shape,
+                   name=None,
+                   shape=None,
                    dtype=None,
                    initializer=None,
                    regularizer=None,
@@ -237,6 +271,8 @@ class Layer(object):
         # Returns
             The created weight variable.
         """
+        if shape is None:
+            shape = ()
         initializer = initializers.get(initializer)
         if dtype is None:
             dtype = self.dtype
@@ -251,6 +287,7 @@ class Layer(object):
             self._trainable_weights.append(weight)
         else:
             self._non_trainable_weights.append(weight)
+        weight._tracked = True
         return weight
 
     def assert_input_compatibility(self, inputs):
@@ -373,6 +410,7 @@ class Layer(object):
         """
         return inputs
 
+    @K.symbolic
     def __call__(self, inputs, **kwargs):
         """Wrapper around self.call(), for handling internal references.
 
@@ -457,7 +495,7 @@ class Layer(object):
             inputs_ls = to_list(inputs)
             output_ls_copy = []
             for x in output_ls:
-                if x in inputs_ls:
+                if id(x) in [id(i) for i in inputs_ls]:
                     x = K.identity(x)
                 output_ls_copy.append(x)
             output = unpack_singleton(output_ls_copy)
@@ -580,7 +618,7 @@ class Layer(object):
                 instead of an integer.
 
         # Returns
-            An input shape tuple.
+            An output shape tuple.
         """
         return input_shape
 
@@ -925,6 +963,32 @@ class Layer(object):
                                  'Use `get_output_shape_at(node_index)` '
                                  'instead.')
 
+    @property
+    def metrics(self):
+        metrics = self._metrics[:]
+        for l in getattr(self, '_layers', []):
+            metrics += l.metrics
+        return metrics
+
+    def add_metric(self, value, name=None):
+        """Adds metric tensor to the layer.
+
+        # Arguments
+            value: Metric tensor.
+            name: String metric name.
+        """
+        match = self._get_existing_metric(name)
+        if match:
+            return
+        if hasattr(value, '_metric_obj'):
+            # We track the instance using the metadata on the result tensor.
+            # Use case: model.add_metric(metrics.Mean(name='metric_2')(y))
+            self._metrics.append(value._metric_obj)
+        else:
+            # Use cases: model.add_metric(K.sum(y), name='metric_1')
+            metric_obj = _create_mean_metric(value, name)
+            self._metrics.append(metric_obj)
+
     def add_loss(self, losses, inputs=None):
         """Adds losses to the layer.
 
@@ -940,10 +1004,12 @@ class Layer(object):
                 (e.g. L2 weight regularization, which only depends
                 on the layer's weights variables, not on any inputs tensors).
         """
-        if losses is None or losses == []:
+        if losses is None:
             return
         # Update self.losses
         losses = to_list(losses)
+        if losses == []:
+            return
         if hasattr(self, '_losses'):
             self._losses += losses
         # Update self._per_input_updates
@@ -972,10 +1038,12 @@ class Layer(object):
                 the updates as conditional on these inputs.
                 If None is passed, the updates are assumed unconditional.
         """
-        if updates is None or updates == []:
+        if updates is None:
             return
         # Update self.updates
         updates = to_list(updates)
+        if updates == []:
+            return
         if hasattr(self, '_updates'):
             self._updates += updates
         # Update self._per_input_updates
@@ -998,23 +1066,30 @@ class Layer(object):
             inputs_hash = object_list_uid(inputs)
         else:
             inputs_hash = None
+        updates = []
         if inputs_hash in self._per_input_updates:
-            return self._per_input_updates[inputs_hash]
-        return []
+            updates += self._per_input_updates[inputs_hash]
+        for l in getattr(self, '_layers', []):
+            updates += l.get_updates_for(inputs)
+        return updates
 
     def get_losses_for(self, inputs):
         if inputs is not None:
             inputs_hash = object_list_uid(inputs)
         else:
             inputs_hash = None
+        losses = []
         if inputs_hash in self._per_input_losses:
-            return self._per_input_losses[inputs_hash]
-        return []
+            losses += self._per_input_losses[inputs_hash]
+        for l in getattr(self, '_layers', []):
+            losses += l.get_losses_for(inputs)
+        return losses
 
     @property
     def weights(self):
         return self.trainable_weights + self.non_trainable_weights
 
+    @K.eager
     def set_weights(self, weights):
         """Sets the weights of the layer, from Numpy arrays.
 
@@ -1033,7 +1108,7 @@ class Layer(object):
         if len(params) != len(weights):
             raise ValueError('You called `set_weights(weights)` on layer "' +
                              self.name +
-                             '" with a  weight list of length ' +
+                             '" with a weight list of length ' +
                              str(len(weights)) +
                              ', but the layer was expecting ' +
                              str(len(params)) +
@@ -1052,6 +1127,7 @@ class Layer(object):
             weight_value_tuples.append((p, w))
         K.batch_set_value(weight_value_tuples)
 
+    @K.eager
     def get_weights(self):
         """Returns the current weights of the layer.
 
@@ -1121,6 +1197,64 @@ class Layer(object):
                                    'You can build it manually via: `' +
                                    self.name + '.build(batch_input_shape)`.')
         return count_params(self.weights)
+
+    def _get_existing_metric(self, name=None):
+        match = [m for m in self._metrics if m.name == name]
+        if not match:
+            return
+        if len(match) > 1:
+            raise ValueError(
+                'Please provide different names for the metrics you have added. '
+                'We found {} metrics with the name: "{}"'.format(len(match), name))
+        return match[0]
+
+    def __setattr__(self, name, value):
+        # Keep track of metric instance created in subclassed model/layer.
+        # We do this so that we can maintain the correct order of metrics by adding
+        # the instance to the `metrics` list as soon as it is created.
+        if not _DISABLE_TRACKING.value:
+            from .. import metrics as metrics_module
+            if isinstance(value, metrics_module.Metric):
+                if not hasattr(self, '_metrics'):
+                    self._metrics = []
+                self._metrics.append(value)
+            else:
+                # Automatically track layers set as attributes.
+                if isinstance(value, Layer):
+                    if not hasattr(self, '_layers'):
+                        self._layers = []
+                    if value not in self._layers:
+                        self._layers.append(value)
+                if K.is_variable(value) and not getattr(value, '_tracked', False):
+                    # Automatically track variables set as attributes.
+                    trainable = getattr(value, 'trainable', False)
+                    if trainable:
+                        if not hasattr(self, '_trainable_weights'):
+                            self._trainable_weights = []
+                        if not any(v is value for v in self._trainable_weights):
+                            print('tracking', value, name)
+                            self._trainable_weights.append(value)
+                    else:
+                        if not hasattr(self, '_non_trainable_weights'):
+                            self._non_trainable_weights = []
+                        if not any(v is value for v in self._non_trainable_weights):
+                            self._non_trainable_weights.append(value)
+
+        super(Layer, self).__setattr__(name, value)
+
+
+def _create_mean_metric(value, name=None):
+    from .. import metrics
+    metric_obj = metrics.Mean(name=name)
+    _call_metric(metric_obj, value)
+    return metric_obj
+
+
+@K.symbolic
+def _call_metric(metric_obj, *args, **kwargs):
+    update_op = metric_obj.update_state(*args, **kwargs)
+    with K.control_dependencies(update_op):  # For TF
+        result_t = metric_obj.result()
 
 
 class InputSpec(object):

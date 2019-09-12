@@ -260,15 +260,6 @@ def test_Bidirectional():
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
-        # test with functional API
-        inputs = Input((timesteps, dim))
-        outputs = wrappers.Bidirectional(rnn(output_dim, dropout=dropout_rate,
-                                             recurrent_dropout=dropout_rate),
-                                         merge_mode=mode)(inputs)
-        model = Model(inputs, outputs)
-        model.compile(loss='mse', optimizer='sgd')
-        model.fit(x, y, epochs=1, batch_size=1)
-
         # Bidirectional and stateful
         inputs = Input(batch_shape=(1, timesteps, dim))
         outputs = wrappers.Bidirectional(rnn(output_dim, stateful=True),
@@ -327,9 +318,9 @@ def test_Bidirectional_merged_value(merge_mode):
     layer = wrappers.Bidirectional(rnn(units, return_sequences=True),
                                    merge_mode=merge_mode)
     f_merged = K.function([inputs], to_list(layer(inputs)))
-    f_forward = K.function([inputs], [layer.forward_layer.call(inputs)])
+    f_forward = K.function([inputs], [layer.forward_layer(inputs)])
     f_backward = K.function([inputs],
-                            [K.reverse(layer.backward_layer.call(inputs), 1)])
+                            [K.reverse(layer.backward_layer(inputs), 1)])
 
     y_merged = f_merged(X)
     y_expected = to_list(merge_func(f_forward(X)[0], f_backward(X)[0]))
@@ -342,8 +333,8 @@ def test_Bidirectional_merged_value(merge_mode):
     layer = wrappers.Bidirectional(rnn(units, return_state=True),
                                    merge_mode=merge_mode)
     f_merged = K.function([inputs], layer(inputs))
-    f_forward = K.function([inputs], layer.forward_layer.call(inputs))
-    f_backward = K.function([inputs], layer.backward_layer.call(inputs))
+    f_forward = K.function([inputs], layer.forward_layer(inputs))
+    f_backward = K.function([inputs], layer.backward_layer(inputs))
     n_states = len(layer.layer.states)
 
     y_merged = f_merged(X)

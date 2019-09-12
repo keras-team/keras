@@ -18,7 +18,13 @@ def count_params(weights):
     # Returns
         The total number of scalars composing the weights
     """
-    return int(np.sum([K.count_params(p) for p in set(weights)]))
+    weight_ids = set()
+    total = 0
+    for w in weights:
+        if id(w) not in weight_ids:
+            weight_ids.add(id(w))
+            total += int(K.count_params(w))
+    return total
 
 
 def print_summary(model, line_length=None, positions=None, print_fn=None):
@@ -278,6 +284,7 @@ def get_source_inputs(tensor, layer=None, node_index=None):
             return node.input_tensors
         else:
             source_tensors = []
+            source_tensors_ids = set()
             for i in range(len(node.inbound_layers)):
                 x = node.input_tensors[i]
                 layer = node.inbound_layers[i]
@@ -287,6 +294,7 @@ def get_source_inputs(tensor, layer=None, node_index=None):
                                                      node_index)
                 # Avoid input redundancy.
                 for x in previous_sources:
-                    if x not in source_tensors:
+                    if id(x) not in source_tensors_ids:
                         source_tensors.append(x)
+                        source_tensors_ids.add(id(x))
             return source_tensors

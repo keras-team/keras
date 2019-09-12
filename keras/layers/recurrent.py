@@ -14,6 +14,7 @@ from .. import initializers
 from .. import regularizers
 from .. import constraints
 from ..engine.base_layer import Layer
+from ..engine.base_layer import disable_tracking
 from ..engine.base_layer import InputSpec
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
@@ -45,6 +46,7 @@ class StackedRNNCells(Layer):
     ```
     """
 
+    @disable_tracking
     def __init__(self, cells, **kwargs):
         for cell in cells:
             if not hasattr(cell, 'call'):
@@ -389,6 +391,7 @@ class RNN(Layer):
     ```
     """
 
+    @disable_tracking
     def __init__(self, cell,
                  return_sequences=False,
                  return_state=False,
@@ -1246,7 +1249,7 @@ class GRUCell(Layer):
 
     def __init__(self, units,
                  activation='tanh',
-                 recurrent_activation='hard_sigmoid',
+                 recurrent_activation='sigmoid',
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
                  recurrent_initializer='orthogonal',
@@ -1259,7 +1262,7 @@ class GRUCell(Layer):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
-                 implementation=1,
+                 implementation=2,
                  reset_after=False,
                  **kwargs):
         super(GRUCell, self).__init__(**kwargs)
@@ -1613,7 +1616,7 @@ class GRU(RNN):
     @interfaces.legacy_recurrent_support
     def __init__(self, units,
                  activation='tanh',
-                 recurrent_activation='hard_sigmoid',
+                 recurrent_activation='sigmoid',
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
                  recurrent_initializer='orthogonal',
@@ -1627,7 +1630,7 @@ class GRU(RNN):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
-                 implementation=1,
+                 implementation=2,
                  return_sequences=False,
                  return_state=False,
                  go_backwards=False,
@@ -1850,7 +1853,7 @@ class LSTMCell(Layer):
 
     def __init__(self, units,
                  activation='tanh',
-                 recurrent_activation='hard_sigmoid',
+                 recurrent_activation='sigmoid',
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
                  recurrent_initializer='orthogonal',
@@ -1864,7 +1867,7 @@ class LSTMCell(Layer):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
-                 implementation=1,
+                 implementation=2,
                  **kwargs):
         super(LSTMCell, self).__init__(**kwargs)
         self.units = units
@@ -1918,6 +1921,7 @@ class LSTMCell(Layer):
 
         if self.use_bias:
             if self.unit_forget_bias:
+                @K.eager
                 def bias_initializer(_, *args, **kwargs):
                     return K.concatenate([
                         self.bias_initializer((self.units,), *args, **kwargs),
@@ -2168,7 +2172,7 @@ class LSTM(RNN):
     @interfaces.legacy_recurrent_support
     def __init__(self, units,
                  activation='tanh',
-                 recurrent_activation='hard_sigmoid',
+                 recurrent_activation='sigmoid',
                  use_bias=True,
                  kernel_initializer='glorot_uniform',
                  recurrent_initializer='orthogonal',
@@ -2183,7 +2187,7 @@ class LSTM(RNN):
                  bias_constraint=None,
                  dropout=0.,
                  recurrent_dropout=0.,
-                 implementation=1,
+                 implementation=2,
                  return_sequences=False,
                  return_state=False,
                  go_backwards=False,

@@ -142,5 +142,25 @@ def test_one(tensor_shape):
             target_mean=1., target_max=1.)
 
 
+@pytest.mark.parametrize('initializer',
+                         [initializers.orthogonal,
+                          initializers.uniform,
+                          initializers.normal,
+                          initializers.truncated_normal,
+                          initializers.VarianceScaling],
+                         ids=['orthogonal',
+                              'uniform',
+                              'normal',
+                              'truncated_normal',
+                              'variance_scaling'])
+def test_statefulness(initializer):
+    # Test that calling a same seeded random initializer
+    # in succession results in different values.
+    init = initializer(seed=1337)
+    samples = [init((2, 2)) for _ in range(2)]
+    samples = [K.get_value(K.variable(x)) for x in samples]
+    assert np.mean(np.abs(samples[0] - samples[1])) > 0.
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

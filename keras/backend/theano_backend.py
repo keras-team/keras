@@ -154,13 +154,22 @@ def variable(value, dtype=None, name=None, constraint=None):
     return variable
 
 
+def is_variable(x):
+    return isinstance(x, theano.tensor.sharedvar.TensorSharedVariable)
+
+
 def constant(value, dtype=None, shape=None, name=None):
     if dtype is None:
         dtype = floatx()
     if shape is None:
         shape = ()
-    np_value = value * np.ones(shape)
-    const = T.constant(np_value,
+    if not is_tensor(value):
+        value = np.array(value)
+        if len(value.shape) == 0:
+            value = value * np.ones(shape)
+        if shape and value.shape != shape:
+            value = np.reshape(value, shape)
+    const = T.constant(value,
                        dtype=dtype,
                        name=_prepare_name(name, 'constant'))
     const._keras_shape = shape
@@ -220,7 +229,8 @@ def is_keras_tensor(x):
 
 def is_tensor(x):
     return isinstance(x, (T.TensorVariable,
-                          T.sharedvar.TensorSharedVariable))
+                          T.sharedvar.TensorSharedVariable,
+                          T.TensorConstant))
 
 
 def placeholder(shape=None, ndim=None, dtype=None, sparse=False, name=None):
@@ -374,6 +384,18 @@ def count_params(x):
 
 def cast(x, dtype):
     return T.cast(x, dtype)
+
+
+def size(x, name=None):
+    """Returns the size of a tensor.
+    # Arguments
+        x: The input tensor.
+        name: A name for the operation (optional).
+    # Returns
+        Size of the tensor.
+    ```
+    """
+    return sum(ones_like(x, name=name))
 
 
 # UPDATES OPS
@@ -1069,17 +1091,18 @@ def tile(x, n):
     elif isinstance(n, list):
         n = tuple(n)
 
-    y = T.tile(x, n)
+    y = T.tile(x, n, ndim=x.ndim)
     shape = int_shape(x)
     if shape is None:
         return y
-    elif len(n) < len(shape):  # Padding the axis
+    elif isinstance(n, tuple) and len(n) < len(shape):  # Padding the axis
         n = tuple([1 for _ in range(len(shape) - len(n))]) + n
-    elif len(n) != len(shape):
+    elif isinstance(n, tuple) and len(n) != len(shape):
         raise NotImplementedError
 
-    y._keras_shape = tuple([None if a is None else a * b
-                            for (a, b) in zip(shape, n)])
+    if isinstance(n, tuple):
+        y._keras_shape = tuple([None if a is None else a * b
+                                for (a, b) in zip(shape, n)])
     return y
 
 
@@ -1374,8 +1397,7 @@ def get_variable_shape(x):
 
 
 def print_tensor(x, message=''):
-    """Print the message and the tensor when evaluated and return the same
-    tensor.
+    """Print the message & the tensor when evaluated & return the same tensor.
     """
     p_op = Print(message)
     return p_op(x)
@@ -1391,16 +1413,32 @@ class Function(object):
             if v not in unique_variables_to_update:
                 unique_variables_to_update[v] = nv
         updates = unique_variables_to_update.items()
+        self.outputs = outputs
         self.function = theano.function(inputs, outputs, updates=updates,
                                         allow_input_downcast=True,
                                         on_unused_input='ignore',
                                         name=name,
                                         **kwargs)
+        self._metrics = [x for x in outputs if hasattr(x, '_is_metric')]
+        self._metrics_function = theano.function(
+            [], self._metrics,
+            name=name + '_metrics' if name else None)
         self.name = name
 
     def __call__(self, inputs):
         assert isinstance(inputs, (list, tuple))
-        return self.function(*inputs)
+        outputs = self.function(*inputs)
+        if self._metrics:
+            metrics = self._metrics_function()
+        i = 0
+        j = 0
+        for x in self.outputs:
+            if hasattr(x, '_is_metric'):
+                v = metrics[j]
+                outputs[i] = v
+                j += 1
+            i += 1
+        return outputs
 
 
 def _raise_invalid_arg(key):
@@ -2946,3 +2984,11 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
 def ctc_decode(y_pred, input_length, greedy=True, beam_width=100, top_paths=1,
                merge_repeated=False):
     raise NotImplementedError
+
+
+def control_dependencies(control_inputs):
+    @contextmanager
+    def nullcontextmanager():
+        yield
+
+    return nullcontextmanager()

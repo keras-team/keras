@@ -134,6 +134,10 @@ class Network(Layer):
         self._per_input_losses = {}
         self._per_input_updates = {}
 
+        # A list of metric instances corresponding to the metric tensors added using
+        # the `add_metric` API.
+        self._metrics = []
+
         # All layers in order of horizontal graph traversal.
         # Entries are unique. Includes input and output layers.
         self._layers = []
@@ -150,7 +154,7 @@ class Network(Layer):
 
         # User-provided argument validation.
         # Check for redundancy in inputs.
-        if len(set(self.inputs)) != len(self.inputs):
+        if len(set(id(x) for x in self.inputs)) != len(self.inputs):
             raise ValueError('The list of inputs passed to the model '
                              'is redundant. '
                              'All inputs should only appear once.'
@@ -308,7 +312,7 @@ class Network(Layer):
     def __setattr__(self, name, value):
         # Automatically track layers set as Model
         # attributes for subclassed Models.
-        if isinstance(value, (Layer, Network)):
+        if isinstance(value, Layer):
             try:
                 is_graph_network = self._is_graph_network
             except AttributeError:
@@ -316,9 +320,6 @@ class Network(Layer):
                     'It looks like you are subclassing `Model` and you '
                     'forgot to call `super(YourClass, self).__init__()`.'
                     ' Always start with this line.')
-            if not is_graph_network:
-                if value not in self._layers:
-                    self._layers.append(value)
         super(Network, self).__setattr__(name, value)
 
     @property
@@ -427,8 +428,13 @@ class Network(Layer):
         # Add any potential unconditional model-level loss.
         losses += self.get_losses_for(None)
 
-        unique_tensors = list(
-            set(x for x in losses if not isinstance(x, (float, int))))
+        unique_tensors = []
+        unique_tensors_ids = set()
+        for x in losses:
+            if not isinstance(x, (float, int)):
+                if id(x) not in unique_tensors_ids:
+                    unique_tensors.append(x)
+                    unique_tensors_ids.add(id(x))
         non_tensors = [x for x in losses if isinstance(x, (float, int))]
         return unique_tensors + non_tensors
 
@@ -469,18 +475,18 @@ class Network(Layer):
     def trainable_weights(self):
         if not self.trainable:
             return []
-        weights = []
+        weights = self._trainable_weights[:]
         for layer in self.layers:
             weights += layer.trainable_weights
         return weights
 
     @property
     def non_trainable_weights(self):
-        weights = []
+        weights = self._non_trainable_weights[:]
         for layer in self.layers:
             weights += layer.non_trainable_weights
         if not self.trainable:
-            trainable_weights = []
+            trainable_weights = self._trainable_weights[:]
             for layer in self.layers:
                 trainable_weights += layer.trainable_weights
             return trainable_weights + weights
@@ -492,7 +498,7 @@ class Network(Layer):
         # Returns
             A flat list of Numpy arrays.
         """
-        weights = []
+        weights = self._trainable_weights + self._non_trainable_weights
         for layer in self.layers:
             weights += layer.weights
         return K.batch_get_value(weights)
@@ -505,6 +511,13 @@ class Network(Layer):
                 the output of `model.get_weights()`.
         """
         tuples = []
+        own_weight_vars = self._trainable_weights + self._non_trainable_weights
+        num_param = len(own_weight_vars)
+        own_weights = weights[:num_param]
+        for sw, w in zip(own_weight_vars, own_weights):
+            tuples.append((sw, w))
+        weights = weights[num_param:]
+
         for layer in self.layers:
             num_param = len(layer.weights)
             layer_weights = weights[:num_param]
@@ -1488,7 +1501,7 @@ def _map_graph_network(inputs, outputs):
             layer = node.outbound_layer
             if layer:
                 for x in node.input_tensors:
-                    if x not in computable_tensors:
+                    if id(x) not in [id(ct) for ct in computable_tensors]:
                         raise ValueError('Graph disconnected: '
                                          'cannot obtain value for tensor ' +
                                          str(x) + ' at layer "' +

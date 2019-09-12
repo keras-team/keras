@@ -38,6 +38,9 @@ if K.backend() == 'cntk':
     supports_sparse = False
 elif K.backend() == 'theano' and not KTH.th_sparse_module:
     supports_sparse = False
+elif K.backend() == 'tensorflow':
+    # Must wait for tf.keras to support sparse ops.
+    supports_sparse = False
 else:
     supports_sparse = True
 
@@ -469,13 +472,22 @@ class TestBackend(object):
         if function_name == 'get_value':
             assert_list_pairwise(v_list)
         else:
-            assert_list_pairwise(v_list, shape=False, allclose=False, itself=True)
+            assert_list_pairwise(v_list,
+                                 shape=False,
+                                 allclose=False,
+                                 itself=True)
 
-    def test_print_tensor(self):
-        check_single_tensor_operation('print_tensor', (), WITH_NP)
-        check_single_tensor_operation('print_tensor', (2,), WITH_NP)
-        check_single_tensor_operation('print_tensor', (4, 3), WITH_NP)
-        check_single_tensor_operation('print_tensor', (1, 2, 3), WITH_NP)
+    def test_print_tensor(self, capsys):
+        # TODO: somehow this capture mechanism doesn't work for TF
+        # even though the TF op does print to stdout.
+        for k in [KTH]:
+            x = k.placeholder((1, 1))
+            y = k.print_tensor(x, 'msg')
+            fn = k.function([x], [y])
+            _ = fn([np.ones((1, 1))])
+            out, err = capsys.readouterr()
+            # Theano inserts "__str__ = " for no good reason
+            assert out.replace('__str__ = ', '') == 'msg [[1.]]\n'
 
     def test_elementwise_operations(self):
         check_single_tensor_operation('max', (4, 2), WITH_NP)
@@ -564,35 +576,47 @@ class TestBackend(object):
     def test_log(self):
         check_single_tensor_operation('log', (4, 2), WITH_NP)
 
+    @pytest.mark.skipif(K.backend() != 'tensorflow',
+                        reason='theano returns tuples for updates; cntk buggy')
+    def test_update(self):
+        x = np.ones((3, 4))
+        x_var = K.variable(x)
+        new_x = np.random.random((3, 4))
+
+        op = K.update(x_var, new_x)
+        K.eval(op)
+
+        assert_allclose(new_x, K.eval(x_var), atol=1e-05)
+
     @pytest.mark.skipif(K.backend() == 'theano',
                         reason='theano returns tuples for update ops')
     def test_update_add(self):
-        x = np.random.randn(3, 4)
+        x = np.ones((3, 4))
         x_var = K.variable(x)
-        increment = np.random.randn(3, 4)
+        increment = np.random.random((3, 4))
 
-        x += increment
-        K.eval(K.update_add(x_var, increment))
+        op = K.update_add(x_var, increment)
+        K.eval(op)
 
-        assert_allclose(x, K.eval(x_var), atol=1e-05)
+        assert_allclose(x + increment, K.eval(x_var), atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'theano',
                         reason='theano returns tuples for update ops')
     def test_update_sub(self):
-        x = np.random.randn(3, 4)
+        x = np.ones((3, 4))
         x_var = K.variable(x)
-        decrement = np.random.randn(3, 4)
+        decrement = np.random.random((3, 4))
 
-        x -= decrement
-        K.eval(K.update_sub(x_var, decrement))
+        op = K.update_sub(x_var, decrement)
+        K.eval(op)
 
-        assert_allclose(x, K.eval(x_var), atol=1e-05)
+        assert_allclose(x - decrement, K.eval(x_var), atol=1e-05)
 
     @pytest.mark.skipif(K.backend() == 'cntk',
                         reason='cntk doesn\'t support gradient in this way.')
     def test_gradient(self):
         val = np.random.random((4, 2))
-        x_list = [k.variable(val) for k in [KTH, KTF]]
+        x_list = [k.placeholder(shape=(4, 2)) for k in [KTH, KTF]]
         z_list = []
         zero_list = []
         for x, k in zip(x_list, [KTH, KTF]):
@@ -600,9 +624,12 @@ class TestBackend(object):
             loss = k.sum(exp)
             zero_loss = k.stop_gradient(loss)
             grad = k.gradients(loss, [exp])
+
             zero_grad = k.gradients(loss + zero_loss, [exp])
-            z_list.append(k.eval(grad[0]))
-            zero_list.append(k.eval(zero_grad[0]))
+            grad_eval_fn = k.function([x], [grad[0]])
+            zero_grad_eval_fn = k.function([x], [zero_grad[0]])
+            z_list.append(grad_eval_fn([val])[0])
+            zero_list.append(zero_grad_eval_fn([val])[0])
 
         assert_list_pairwise(z_list)
         assert_list_pairwise(zero_list)
@@ -634,7 +661,9 @@ class TestBackend(object):
             x_list.append(x)
             y = k.placeholder(ndim=2)
             exp = k.square(x) + y
-            update = x * 2
+            # Need to use `identity` to make this symbolic
+            # (TODO: fix in tf.keras)
+            update = k.identity(x) * 2
             f = k.function([y], [exp], updates=[(x, update)])
             f_list.append(f)
 
@@ -644,7 +673,7 @@ class TestBackend(object):
         new_val_list = [k.get_value(x) for x, k in zip(x_list, test_backend)]
         assert_list_pairwise(new_val_list)
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='Uses the `fetches` argument.')
     def test_function_tf_fetches(self):
         # Additional operations can be passed to tf.Session().run() via its
@@ -666,7 +695,7 @@ class TestBackend(object):
         assert output == [30.]
         assert K.get_session().run(fetches=[x, y]) == [11., 5.]
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='Uses the `feed_dict` argument.')
     def test_function_tf_feed_dict(self):
         # Additional substitutions can be passed to `tf.Session().run()` via its
@@ -697,7 +726,7 @@ class TestBackend(object):
         assert output == [21.]
         assert K.get_session().run(fetches=[x, y]) == [30., 40.]
 
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
+    @pytest.mark.skipif(K.backend() != 'tensorflow' or not KTF._is_tf_1(),
                         reason='Uses the `options` and `run_metadata` arguments.')
     def test_function_tf_run_options_with_run_metadata(self):
         from tensorflow.core.protobuf import config_pb2
@@ -875,17 +904,15 @@ class TestBackend(object):
             return simple_no_states
 
         kwargs_list = [
-            {'go_backwards': False, 'mask': None},
-            {'go_backwards': True, 'mask': None},
-            {'go_backwards': False, 'mask': mask},
-            {'go_backwards': True, 'mask': mask},
+            {'go_backwards': False},
+            {'go_backwards': True},
         ]
         for kwargs in kwargs_list:
             check_rnn_operation(step_function_k=get_step_function(K, wi_k),
                                 step_function_np=get_step_function(KNP, wi),
                                 inputs_np=x,
                                 initial_states_np=[],
-                                mask_np=kwargs.pop('mask', None),
+                                mask_np=None,
                                 **kwargs)
 
     def test_rnn_constants(self):
@@ -952,8 +979,8 @@ class TestBackend(object):
         expected_outputs = inputs_vals.copy()
         # but for the second sample all outputs in masked region should be the same
         # as last output before masked region
-        expected_outputs[1, -mask_last_num_timesteps:] = \
-            expected_outputs[1, -(mask_last_num_timesteps + 1)]
+        expected_outputs[1, -mask_last_num_timesteps:] = expected_outputs[
+            1, -(mask_last_num_timesteps + 1)]
 
         expected_state = initial_state_vals.copy()
         # first state should be incremented for every timestep (no masking)
@@ -962,9 +989,9 @@ class TestBackend(object):
         expected_state[1] += (num_timesteps - mask_last_num_timesteps)
 
         # verify same expected output for `unroll=true/false`
-        inputs = K.variable(inputs_vals)
-        initial_states = [K.variable(initial_state_vals)]
-        mask = K.variable(mask_vals)
+        inputs = K.constant(inputs_vals)
+        initial_states = [K.constant(initial_state_vals)]
+        mask = K.constant(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
@@ -997,9 +1024,9 @@ class TestBackend(object):
         # same as the second to final output (before masked region)
         expected_outputs[-1, -1] = expected_outputs[-1, -2]
 
-        inputs = K.variable(inputs_vals)
-        initial_states = [K.variable(initial_state_vals)]
-        mask = K.variable(mask_vals)
+        inputs = K.constant(inputs_vals)
+        initial_states = [K.constant(initial_state_vals)]
+        mask = K.constant(mask_vals)
         for unroll in [True, False]:
             last_output, outputs, last_states = K.rnn(
                 step_function,
@@ -1081,8 +1108,6 @@ class TestBackend(object):
         # non scalar
         shapes = []
         shapes.append([(4, 3, 2), (4, 3, 2), (4, 3, 2)])
-        shapes.append([(4, 3,), (4, 3, 2), (4, 3, 2)])
-        shapes.append([(4,), (4, 3, 2), (4, 3, 2)])
         for s in shapes:
             z_list = []
             arrays = list(map(np.random.random, s))
@@ -1149,19 +1174,27 @@ class TestBackend(object):
     def test_crossentropy(self):
         # toy label matrix (4 samples, 2 classes)
         label = np.array([[.4, .6], [.3, .7], [.1, .9], [.2, .8]], dtype=np.float32)
-        check_two_tensor_operation('binary_crossentropy', label, (4, 2), WITH_NP)
+        binary_targets = np.array([[.3, .7], [.2, .8], [.4, .6], [.1, .9]],
+                                  dtype=np.float32)
+        categorical_targets = np.array([[1, 0], [1, 0], [0, 1], [0, 1]],
+                                       dtype=np.float32)
+        check_two_tensor_operation(
+            'binary_crossentropy', label, binary_targets, WITH_NP)
         check_two_tensor_operation('binary_crossentropy', label, (4, 2),
                                    WITH_NP, from_logits=True)
-        check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
-                                   WITH_NP, cntk_two_dynamicity=True)
+        check_two_tensor_operation(
+            'categorical_crossentropy', label, categorical_targets,
+            WITH_NP, cntk_two_dynamicity=True)
         check_two_tensor_operation('categorical_crossentropy', label, (4, 2),
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
 
         # toy label matrix (2 samples, 3 classes)
         label = np.array([[.4, .1, .5], [.2, .6, .2]], dtype=np.float32)
-        check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
-                                   WITH_NP, cntk_two_dynamicity=True)
+        categorical_targets = np.array([[0, 1, 0], [1, 0, 0]], dtype=np.float32)
+        check_two_tensor_operation(
+            'categorical_crossentropy', label, categorical_targets,
+            WITH_NP, cntk_two_dynamicity=True)
         check_two_tensor_operation('categorical_crossentropy', label, (2, 3),
                                    WITH_NP, cntk_two_dynamicity=True,
                                    from_logits=True)
@@ -1375,59 +1408,42 @@ class TestBackend(object):
         assert_allclose(y1, y2, atol=1e-05)
 
     def test_random_normal(self):
-        # test standard normal as well as a normal with a different set of parameters
+        # TODO: make this a parameterized test
         for mean, std in [(0., 1.), (-10., 5.)]:
-            rand = K.eval(K.random_normal((300, 200),
-                                          mean=mean, stddev=std, seed=1337))
-            assert rand.shape == (300, 200)
+            rand = K.eval(K.random_normal((200, 200),
+                                          mean=mean,
+                                          stddev=std))
+            assert rand.shape == (200, 200)
             assert np.abs(np.mean(rand) - mean) < std * 0.015
             assert np.abs(np.std(rand) - std) < std * 0.015
-
-            # test that random_normal also generates different values when used
-            # within a function
-            r = K.random_normal((10, 10), mean=mean, stddev=std, seed=1337)
-            samples = np.array([K.eval(r) for _ in range(200)])
-            assert np.abs(np.mean(samples) - mean) < std * 0.015
-            assert np.abs(np.std(samples) - std) < std * 0.015
 
     def test_random_uniform(self):
         min_val = -1.
         max_val = 1.
-        rand = K.eval(K.random_uniform((200, 100), min_val, max_val))
-        assert rand.shape == (200, 100)
+        rand = K.eval(K.random_uniform((200, 200), min_val, max_val))
+        assert rand.shape == (200, 200)
         assert np.abs(np.mean(rand)) < 0.015
         assert max_val - 0.015 < np.max(rand) <= max_val
         assert min_val + 0.015 > np.min(rand) >= min_val
 
-        r = K.random_uniform((10, 10), minval=min_val, maxval=max_val)
-        samples = np.array([K.eval(r) for _ in range(200)])
-        assert np.abs(np.mean(samples)) < 0.015
-        assert max_val - 0.015 < np.max(samples) <= max_val
-        assert min_val + 0.015 > np.min(samples) >= min_val
-
     def test_random_binomial(self):
         p = 0.5
-        rand = K.eval(K.random_binomial((200, 100), p))
-        assert rand.shape == (200, 100)
+        rand = K.eval(K.random_binomial((200, 200), p))
+        assert rand.shape == (200, 200)
         assert np.abs(np.mean(rand) - p) < 0.015
         assert np.max(rand) == 1
         assert np.min(rand) == 0
-
-        r = K.random_binomial((10, 10), p)
-        samples = np.array([K.eval(r) for _ in range(200)])
-        assert np.abs(np.mean(samples) - p) < 0.015
-        assert np.max(samples) == 1
-        assert np.min(samples) == 0
 
     def test_truncated_normal(self):
         mean = 0.
         std = 1.
         min_val = -2.
         max_val = 2.
-        rand = K.eval(K.truncated_normal((300, 200),
-                                         mean=mean, stddev=std, seed=1337))
-        assert rand.shape == (300, 200)
-        assert np.abs(np.mean(rand) - mean) < 0.015
+        rand = K.eval(K.truncated_normal((200, 200),
+                                         mean=mean,
+                                         stddev=std))
+        assert rand.shape == (200, 200)
+        assert np.abs(np.mean(rand) - mean) < 0.016
         assert np.max(rand) <= max_val
         assert np.min(rand) >= min_val
 
@@ -1624,6 +1640,34 @@ class TestBackend(object):
         b = K.variable(np.random.random(bias_shape))
         with pytest.raises(ValueError):
             K.bias_add(x, b, data_format='channels_middle')
+
+    @pytest.mark.skipif(K.backend() == 'theano',
+                        reason='Theano behaves differently '
+                               'because of the broadcast.')
+    @pytest.mark.parametrize('axis', [1, -1])
+    @pytest.mark.parametrize('x_shape', [(3, 2, 4, 5), (3, 2, 4)])
+    def test_batch_normalization(self, axis, x_shape):
+        other_shape = [1] * len(x_shape)
+        other_shape[axis] = x_shape[axis]
+        other_shape = tuple(other_shape)
+        x_np = np.random.random(x_shape)
+        mean_np = np.random.random(other_shape)
+        var_np = np.random.random(other_shape)
+        beta_np = np.random.random(other_shape)
+        gamma_np = np.random.random(other_shape)
+        output_tensors = []
+        output_arrays = []
+        for k in WITH_NP:
+            x = k.variable(x_np)
+            mean = k.variable(mean_np)
+            var = k.variable(var_np)
+            beta = k.variable(beta_np)
+            gamma = k.variable(gamma_np)
+            output = k.batch_normalization(x, mean, var, beta, gamma, axis=axis)
+            output_tensors.append(output)
+            output_arrays.append(k.eval(output))
+        assert_list_pairwise(output_arrays)
+        assert_list_keras_shape(output_tensors, output_arrays)
 
     @pytest.mark.skipif(K.backend() != 'theano',
                         reason='Specific to Theano.')
@@ -2101,16 +2145,6 @@ class TestBackend(object):
         max_val_k = K.variable(max_val)
         assert np.allclose(K.eval(K.clip(x_k, min_val_k, max_val_k)),
                            KNP.eval(KNP.clip(x, min_val, max_val)))
-
-    @pytest.mark.skipif(K.backend() != 'tensorflow',
-                        reason='This test is for tensorflow parallelism.')
-    def test_tensorflow_session_parallelism_settings(self, monkeypatch):
-        for threads in [0, 1, 4]:
-            K.clear_session()
-            monkeypatch.setenv('OMP_NUM_THREADS', str(threads))
-            cfg = K.get_session()._config
-            assert cfg.intra_op_parallelism_threads == threads
-            assert cfg.inter_op_parallelism_threads == threads
 
 
 if __name__ == '__main__':

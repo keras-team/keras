@@ -17,6 +17,7 @@ from functools import wraps
 import numpy as np
 
 from .. import backend as K
+from .. import losses
 from .. import optimizers
 from ..utils.io_utils import H5Dict
 from ..utils.io_utils import ask_to_proceed_with_overwrite
@@ -39,6 +40,34 @@ try:
     getargspec = inspect.getfullargspec
 except AttributeError:  # getargspec() is deprecated since Python 3.0
     getargspec = inspect.getargspec
+
+
+def _uniquify(names):
+    """Uniquify list of strings.
+
+    Custom layers and optimizers written by users
+    for TF 1.x might produce weights with same variable
+    names in TF 2. This method "uniquifies" a given list
+    of names.
+
+    e.g: `['a', 'b', 'b', 'c'] -> ['a', 'b', 'b_2', 'c']`
+
+    # Arguments
+        names: List of strings.
+
+    # Returns
+        List of unique strings.
+    """
+    counts = {}
+    unique_names = []
+    for name in names:
+        if name in counts:
+            counts[name] += 1
+            name = str(name) + '_' + str(counts[name])
+        else:
+            counts[name] = 1
+        unique_names.append(name)
+    return unique_names
 
 
 def _serialize_model(model, h5dict, include_optimizer=True):
@@ -126,6 +155,7 @@ def _serialize_model(model, h5dict, include_optimizer=True):
                     idx += 1
                 name = unique_name
             weight_names.append(name.encode('utf8'))
+        weight_names = _uniquify(weight_names)
         layer_group['weight_names'] = weight_names
         for name, val in zip(weight_names, weight_values):
             layer_group[name] = val
@@ -149,8 +179,8 @@ def _serialize_model(model, h5dict, include_optimizer=True):
                     'config': model.optimizer.get_config()
                 },
                 'loss': model.loss,
-                'metrics': model.metrics,
-                'weighted_metrics': model.weighted_metrics,
+                'metrics': model._compile_metrics,
+                'weighted_metrics': model._compile_weighted_metrics,
                 'sample_weight_mode': model.sample_weight_mode,
                 'loss_weights': model.loss_weights,
             }, default=get_json_type).encode('utf8')
@@ -184,6 +214,7 @@ def _serialize_model(model, h5dict, include_optimizer=True):
                             idx += 1
                         name = unique_name
                     weight_names.append(name.encode('utf8'))
+                weight_names = _uniquify(weight_names)
                 optimizer_weights_group['weight_names'] = weight_names
                 for name, val in zip(weight_names, weight_values):
                     optimizer_weights_group[name] = val
@@ -317,7 +348,10 @@ def _deserialize_model(h5dict, custom_objects=None, compile=True):
                                            custom_objects=custom_objects)
 
         # Recover loss functions and metrics.
-        loss = convert_custom_objects(training_config['loss'])
+        loss_config = training_config['loss']  # Deserialize loss class.
+        if isinstance(loss_config, dict) and 'class_name' in loss_config:
+            loss_config = losses.get(loss_config)
+        loss = convert_custom_objects(loss_config)
         metrics = convert_custom_objects(training_config['metrics'])
         # Earlier versions of keras didn't dump weighted_metrics properly. Use
         # a get to avoid failing if the key is missing
@@ -801,8 +835,9 @@ def preprocess_weights_for_loading(layer, weights,
 
         # non-trainable weights
         for sublayer in layer.layers:
+            ref_ids = [id(w) for w in sublayer.trainable_weights]
             num_weights = len([l for l in sublayer.weights
-                               if l not in sublayer.trainable_weights])
+                               if id(l) not in ref_ids])
             if num_weights > 0:
                 new_weights.extend(preprocess_weights_for_loading(
                     layer=sublayer,

@@ -3,11 +3,15 @@ import inspect
 import re
 import sys
 from itertools import compress
+from keras import backend as K
 
 import pytest
 
+if K.backend() != 'tensorflow':
+    pytestmark = pytest.mark.skip
+
 modules = ['keras.layers', 'keras.models', 'keras',
-           'keras.backend.tensorflow_backend', 'keras.engine',
+           'keras.backend', 'keras.engine',
            'keras.wrappers', 'keras.utils',
            'keras.callbacks', 'keras.activations',
            'keras.losses', 'keras.models', 'keras.optimizers']
@@ -15,7 +19,7 @@ accepted_name = ['from_config']
 accepted_module = ['keras.legacy.layers', 'keras.utils.generic_utils']
 
 # Functions or classes with less than 'MIN_CODE_SIZE' lines can be ignored
-MIN_CODE_SIZE = 10
+MIN_CODE_SIZE = 15
 
 
 def handle_class_init(name, member):
@@ -122,6 +126,9 @@ def member_too_small(member):
 
 
 def assert_args_presence(args, doc, member, name):
+    if not doc:
+        raise ValueError('{} needs a docstring.'.format(name),
+                         member.__module__)
     args_not_in_doc = [arg not in doc for arg in args]
     if any(args_not_in_doc):
         raise ValueError(

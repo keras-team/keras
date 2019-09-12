@@ -246,8 +246,17 @@ class ConvRNN2D(RNN):
         initial_state = K.sum(initial_state, axis=1)
         shape = list(self.cell.kernel_shape)
         shape[-1] = self.cell.filters
+
+        if K.backend() == 'tensorflow':
+            # We need to force this to be a tensor
+            # and not a variable, to avoid variable initialization
+            # issues.
+            import tensorflow as tf
+            kernel = tf.zeros(tuple(shape))
+        else:
+            kernel = K.zeros(tuple(shape))
         initial_state = self.cell.input_conv(initial_state,
-                                             K.zeros(tuple(shape)),
+                                             kernel,
                                              padding=self.cell.padding)
         # Fix for Theano because it needs
         # K.int_shape to work in call() with initial_state.
@@ -595,7 +604,6 @@ class ConvLSTM2DCell(Layer):
         self._recurrent_dropout_mask = None
 
     def build(self, input_shape):
-
         if self.data_format == 'channels_first':
             channel_axis = 1
         else:
@@ -621,6 +629,7 @@ class ConvLSTM2DCell(Layer):
             constraint=self.recurrent_constraint)
         if self.use_bias:
             if self.unit_forget_bias:
+                @K.eager
                 def bias_initializer(_, *args, **kwargs):
                     return K.concatenate([
                         self.bias_initializer((self.filters,), *args, **kwargs),

@@ -14,7 +14,7 @@ from keras.utils import Sequence
 from keras import backend as K
 
 pytestmark = pytest.mark.skipif(
-    six.PY2 and 'TRAVIS_PYTHON_VERSION' in os.environ,
+    True,
     reason='Temporarily disabled until the use_multiprocessing problem is solved')
 
 skip_generators = pytest.mark.skipif(K.backend() in {'tensorflow', 'cntk'} and

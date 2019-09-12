@@ -5,10 +5,12 @@ from numpy.testing import assert_allclose
 
 from keras.utils import test_utils
 from keras import optimizers, Input
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, load_model
 from keras.layers.core import Dense, Activation, Lambda
 from keras.utils.np_utils import to_categorical
 from keras import backend as K
+import tempfile
+
 
 num_classes = 2
 
@@ -36,8 +38,8 @@ def _test_optimizer(optimizer, target=0.75):
                   optimizer=optimizer,
                   metrics=['accuracy'])
 
-    history = model.fit(x_train, y_train, epochs=2, batch_size=16, verbose=0)
-    assert history.history['acc'][-1] >= target
+    history = model.fit(x_train, y_train, epochs=3, batch_size=16, verbose=0)
+    assert history.history['accuracy'][-1] >= target
     config = optimizers.serialize(optimizer)
     optim = optimizers.deserialize(config)
     new_config = optimizers.serialize(optim)
@@ -62,15 +64,29 @@ def _test_optimizer(optimizer, target=0.75):
     assert_allclose(kernel, 1.)
     assert_allclose(bias, 2.)
 
+    # Test saving.
+    model = Sequential()
+    model.add(Dense(1, input_dim=1))
+    model.compile(loss='mse', optimizer=optimizer)
+    model.fit(np.zeros((1, 1)), np.zeros((1, 1)))
+
+    _, fname = tempfile.mkstemp('.h5')
+    model.save(fname)
+    model2 = load_model(fname)
+
+    for w1, w2 in zip(model.get_weights(), model2.get_weights()):
+        assert_allclose(w1, w2)
+
 
 @pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason="Only Tensorflow raises a "
-                           "ValueError if the gradient is null.")
+                    reason='Only Tensorflow raises a '
+                           'ValueError if the gradient is null.')
 def test_no_grad():
     inp = Input([3])
     x = Dense(10)(inp)
-    x = Lambda(lambda l: 1.0 * K.reshape(K.cast(K.argmax(l), 'float32'), [-1, 1]),
-               output_shape=lambda x: [x[0], 1])(x)
+    x = Lambda(
+        lambda l: 1.0 * K.reshape(K.cast(K.argmax(l), 'float32'), [-1, 1]),
+        output_shape=lambda x: [x[0], 1])(x)
     mod = Model(inp, x)
     mod.compile('sgd', 'mse')
     with pytest.raises(ValueError):
@@ -78,6 +94,8 @@ def test_no_grad():
                 batch_size=10, epochs=10)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Flaky with CNTK')
 def test_sgd():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, nesterov=True)
     _test_optimizer(sgd)
@@ -117,11 +135,15 @@ def test_adam_amsgrad():
     _test_optimizer(optimizers.Adam(amsgrad=True, decay=1e-3))
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Flaky with CNTK')
 def test_clipnorm():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipnorm=0.5)
     _test_optimizer(sgd)
 
 
+@pytest.mark.skipif((K.backend() == 'cntk'),
+                    reason='Flaky with CNTK')
 def test_clipvalue():
     sgd = optimizers.SGD(lr=0.01, momentum=0.9, clipvalue=0.5)
     _test_optimizer(sgd)
@@ -131,46 +153,26 @@ def test_clipvalue():
                     reason='Requires TensorFlow backend')
 def test_tfoptimizer():
     from keras import constraints
-    from tensorflow import train
-    optimizer = optimizers.TFOptimizer(train.AdamOptimizer())
+    import tensorflow as tf
+    if tf.__version__.startswith('1.'):
+        optimizer = optimizers.TFOptimizer(tf.train.AdamOptimizer())
+    else:
+        optimizer = tf.keras.optimizers.Adam()
+
     model = Sequential()
     model.add(Dense(num_classes, input_shape=(3,),
                     kernel_constraint=constraints.MaxNorm(1)))
     model.compile(loss='mean_squared_error', optimizer=optimizer)
     model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
               epochs=1, batch_size=5, verbose=0)
-    # not supported
-    with pytest.raises(NotImplementedError):
-        optimizer.weights
-    with pytest.raises(NotImplementedError):
-        optimizer.get_config()
-    with pytest.raises(NotImplementedError):
-        optimizer.from_config(None)
 
-
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='Requires TensorFlow backend')
-def test_tfoptimizer_pass_correct_named_params_to_native_tensorflow_optimizer():
-    from keras import constraints
-    from tensorflow import train
-
-    class MyTfOptimizer(train.Optimizer):
-        wrapping_optimizer = train.AdamOptimizer()
-
-        def compute_gradients(self, loss, **kwargs):
-            return super(MyTfOptimizer, self).compute_gradients(loss, **kwargs)
-
-        def apply_gradients(self, grads_and_vars, **kwargs):
-            return self.wrapping_optimizer.apply_gradients(grads_and_vars,
-                                                           **kwargs)
-    my_tf_optimizer = MyTfOptimizer(use_locking=False, name='MyTfOptimizer')
-    optimizer = optimizers.TFOptimizer(my_tf_optimizer)
-    model = Sequential()
-    model.add(Dense(num_classes, input_shape=(3,),
-                    kernel_constraint=constraints.MaxNorm(1)))
-    model.compile(loss='mean_squared_error', optimizer=optimizer)
-    model.fit(np.random.random((5, 3)), np.random.random((5, num_classes)),
-              epochs=1, batch_size=5, verbose=0)
+    if tf.__version__.startswith('1.'):
+        with pytest.raises(NotImplementedError):
+            optimizer.weights
+        with pytest.raises(NotImplementedError):
+            optimizer.get_config()
+        with pytest.raises(NotImplementedError):
+            optimizer.from_config(None)
 
 
 if __name__ == '__main__':

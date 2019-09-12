@@ -12,6 +12,7 @@ from .common import cast_to_floatx
 from .common import image_data_format
 from .common import set_image_data_format
 from .common import normalize_data_format
+from .common import symbolic, eager
 
 # Set Keras base dir path given KERAS_HOME env variable, if applicable.
 # Otherwise either ~/.keras or /tmp.
@@ -109,8 +110,7 @@ else:
 
 
 def backend():
-    """Publicly accessible method
-    for determining the current backend.
+    """Returns the name of the current backend (e.g. "tensorflow").
 
     # Returns
         String, the name of the backend Keras is currently using.

@@ -220,8 +220,8 @@ def test_node_construction():
     test_layer = Dense(16, name='test_layer')
     a_test = test_layer(a)
     assert K.int_shape(test_layer.kernel) == (32, 16)
-    assert test_layer.input == a
-    assert test_layer.output == a_test
+    assert test_layer.input is a
+    assert test_layer.output is a_test
     assert test_layer.input_mask is None
     assert test_layer.output_mask is None
     assert test_layer.input_shape == (None, 32)
@@ -236,10 +236,10 @@ def test_node_construction():
     with pytest.raises(AttributeError):
         dense.output_mask
 
-    assert dense.get_input_at(0) == a
-    assert dense.get_input_at(1) == b
-    assert dense.get_output_at(0) == a_2
-    assert dense.get_output_at(1) == b_2
+    assert dense.get_input_at(0) is a
+    assert dense.get_input_at(1)is b
+    assert dense.get_output_at(0) is a_2
+    assert dense.get_output_at(1) is b_2
     assert dense.get_input_shape_at(0) == (None, 32)
     assert dense.get_input_shape_at(1) == (None, 32)
     assert dense.get_output_shape_at(0) == (None, 16)
@@ -298,7 +298,9 @@ def test_multi_input_layer():
     assert [x.shape for x in fn_outputs] == [(10, 64), (10, 5)]
 
     # test get_source_inputs
-    assert get_source_inputs(c) == [a, b]
+    source_inputs = get_source_inputs(c)
+    assert source_inputs[0] is a
+    assert source_inputs[1] is b
 
     # serialization / deserialization
     json_config = model.to_json()
@@ -468,29 +470,28 @@ def test_recursion():
         Model([j, k], [m, n, 0])
 
     ####################################################
-    # test calling layers/models on TF tensors
+    # test calling layers/models on placeholders
+    j = Input(shape=(32,), name='input_j')
+    k = Input(shape=(32,), name='input_k')
+    m, n = model([j, k])
+    outer_model = Model([j, k], [m, n])
 
-    if K.backend() == 'tensorflow':
-        import tensorflow as tf
-        j = Input(shape=(32,), name='input_j')
-        k = Input(shape=(32,), name='input_k')
-        m, n = model([j, k])
-        tf_model = Model([j, k], [m, n])
+    j_tf = K.placeholder(shape=(None, 32), dtype=K.floatx())
+    k_tf = K.placeholder(shape=(None, 32), dtype=K.floatx())
+    m_tf, n_tf = outer_model([j_tf, k_tf])
+    assert K.int_shape(m_tf) == (None, 64)
+    assert K.int_shape(n_tf) == (None, 5)
 
-        j_tf = tf.placeholder(dtype=K.floatx())
-        k_tf = tf.placeholder(dtype=K.floatx())
-        m_tf, n_tf = tf_model([j_tf, k_tf])
+    # test merge
+    layers.concatenate([j_tf, k_tf], axis=1)
+    layers.add([j_tf, k_tf])
 
-        # test merge
-        layers.concatenate([j_tf, k_tf], axis=1)
-        layers.add([j_tf, k_tf])
+    # test tensor input
+    x = K.placeholder(shape=(None, 2), dtype=K.floatx())
+    InputLayer(input_tensor=x)
 
-        # test tensor input
-        x = tf.placeholder(shape=(None, 2), dtype=K.floatx())
-        InputLayer(input_tensor=x)
-
-        x = Input(tensor=x)
-        Dense(2)(x)
+    x = Input(tensor=x)
+    Dense(2)(x)
 
 
 def test_load_layers():

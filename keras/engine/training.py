@@ -4,23 +4,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import collections
 import warnings
 import copy
 import numpy as np
 
 from .network import Network
 from .base_layer import Layer
-from .training_utils import collect_metrics
-from .training_utils import check_array_length_consistency
-from .training_utils import check_loss_and_target_compatibility
-from .training_utils import check_generator_arguments
-from .training_utils import standardize_class_weights
-from .training_utils import standardize_input_data
-from .training_utils import standardize_sample_weights
-from .training_utils import standardize_weights
-from .training_utils import weighted_masked_objective
-from .training_utils import get_static_batch_size
-from .training_utils import is_generator_or_sequence
+from . import training_utils
 from . import training_arrays
 from . import training_generator
 from .. import backend as K
@@ -30,6 +21,7 @@ from .. import metrics as metrics_module
 from ..utils.generic_utils import slice_arrays
 from ..utils.generic_utils import to_list
 from ..utils.generic_utils import unpack_singleton
+from ..utils import losses_utils
 from ..legacy import interfaces
 
 
@@ -37,6 +29,7 @@ class Model(Network):
     """The `Model` class adds training & evaluation routines to a `Network`.
     """
 
+    @K.symbolic
     def compile(self, optimizer,
                 loss=None,
                 metrics=None,
@@ -50,18 +43,21 @@ class Model(Network):
         # Arguments
             optimizer: String (name of optimizer) or optimizer instance.
                 See [optimizers](/optimizers).
-            loss: String (name of objective function) or objective function.
-                See [losses](/losses).
+            loss: String (name of objective function) or objective function or
+                `Loss` instance. See [losses](/losses).
                 If the model has multiple outputs, you can use a different loss
                 on each output by passing a dictionary or a list of losses.
                 The loss value that will be minimized by the model
                 will then be the sum of all individual losses.
             metrics: List of metrics to be evaluated by the model
-                during training and testing.
-                Typically you will use `metrics=['accuracy']`.
-                To specify different metrics for different outputs of a
-                multi-output model, you could also pass a dictionary,
-                such as `metrics={'output_a': 'accuracy'}`.
+                during training and testing. Typically you will use
+                `metrics=['accuracy']`. To specify different metrics for different
+                outputs of a multi-output model, you could also pass a dictionary,
+                such as
+                `metrics={'output_a': 'accuracy', 'output_b': ['accuracy', 'mse']}`.
+                You can also pass a list (len = len(outputs)) of lists of metrics
+                such as `metrics=[['accuracy'], ['accuracy', 'mse']]` or
+                `metrics=['accuracy', ['accuracy', 'mse']]`.
             loss_weights: Optional list or dictionary specifying scalar
                 coefficients (Python floats) to weight the loss contributions
                 of different model outputs.
@@ -97,11 +93,17 @@ class Model(Network):
                 `optimizer`, `loss`, `metrics` or `sample_weight_mode`.
         """
         self.optimizer = optimizers.get(optimizer)
-        self.loss = loss or []
-        self.metrics = metrics or []
+        self.loss = loss or {}
+        self._compile_metrics = metrics or []
         self.loss_weights = loss_weights
         self.sample_weight_mode = sample_weight_mode
-        self.weighted_metrics = weighted_metrics
+        self._compile_weighted_metrics = weighted_metrics
+
+        # List of stateful metric functions. Used for resetting metric state during
+        # training/eval.
+        self._compile_metric_functions = []
+        # List of metric wrappers on output losses.
+        self._output_loss_metrics = None
 
         if not self.built:
             # Model is not compilable because
@@ -112,47 +114,22 @@ class Model(Network):
             return
         self._is_compiled = True
 
-        # Prepare loss functions.
-        if isinstance(loss, dict):
-            for name in loss:
-                if name not in self.output_names:
-                    raise ValueError('Unknown entry in loss '
-                                     'dictionary: "' + name + '". '
-                                     'Only expected the following keys: ' +
-                                     str(self.output_names))
-            loss_functions = []
-            for name in self.output_names:
-                if name not in loss:
-                    warnings.warn('Output "' + name +
-                                  '" missing from loss dictionary. '
-                                  'We assume this was done on purpose, '
-                                  'and we will not be expecting '
-                                  'any data to be passed to "' + name +
-                                  '" during training.', stacklevel=2)
-                loss_functions.append(losses.get(loss.get(name)))
-        elif isinstance(loss, list):
-            if len(loss) != len(self.outputs):
-                raise ValueError('When passing a list as loss, '
-                                 'it should have one entry per model outputs. '
-                                 'The model has ' + str(len(self.outputs)) +
-                                 ' outputs, but you passed loss=' +
-                                 str(loss))
-            loss_functions = [losses.get(l) for l in loss]
-        else:
-            loss_function = losses.get(loss)
-            loss_functions = [loss_function for _ in range(len(self.outputs))]
-        self.loss_functions = loss_functions
-        weighted_losses = [
-            weighted_masked_objective(fn) for fn in loss_functions]
-        skip_target_indices = []
-        skip_target_weighing_indices = []
+        # Prepare list of loss functions, same size as model outputs.
+        self.loss_functions = training_utils.prepare_loss_functions(
+            self.loss, self.output_names)
+
         self._feed_outputs = []
         self._feed_output_names = []
         self._feed_output_shapes = []
         self._feed_loss_fns = []
-        for i in range(len(weighted_losses)):
-            if weighted_losses[i] is None:
-                skip_target_indices.append(i)
+
+        # if loss function is None, then this output will be skipped during total
+        # loss calculation and feed targets preparation.
+        self.skip_target_indices = []
+        skip_target_weighing_indices = []
+        for i, loss_function in enumerate(self.loss_functions):
+            if loss_function is None:
+                self.skip_target_indices.append(i)
                 skip_target_weighing_indices.append(i)
 
         # Prepare output masks.
@@ -161,31 +138,9 @@ class Model(Network):
             masks = [None for _ in self.outputs]
         masks = to_list(masks)
 
-        # Prepare loss weights.
-        if loss_weights is None:
-            loss_weights_list = [1. for _ in range(len(self.outputs))]
-        elif isinstance(loss_weights, dict):
-            for name in loss_weights:
-                if name not in self.output_names:
-                    raise ValueError('Unknown entry in loss_weights '
-                                     'dictionary: "' + name + '". '
-                                     'Only expected the following keys: ' +
-                                     str(self.output_names))
-            loss_weights_list = []
-            for name in self.output_names:
-                loss_weights_list.append(loss_weights.get(name, 1.))
-        elif isinstance(loss_weights, list):
-            if len(loss_weights) != len(self.outputs):
-                raise ValueError('When passing a list as loss_weights, '
-                                 'it should have one entry per model output. '
-                                 'The model has ' + str(len(self.outputs)) +
-                                 ' outputs, but you passed loss_weights=' +
-                                 str(loss_weights))
-            loss_weights_list = loss_weights
-        else:
-            raise TypeError('Could not interpret loss_weights argument: ' +
-                            str(loss_weights) +
-                            ' - expected a list of dicts.')
+        # Prepare list loss weights, same size of model outputs.
+        self.loss_weights_list = training_utils.prepare_loss_weights(
+            self.output_names, loss_weights)
 
         # Prepare targets of model.
         self.targets = []
@@ -223,7 +178,7 @@ class Model(Network):
                                 target_tensors)
 
         for i in range(len(self.outputs)):
-            if i in skip_target_indices:
+            if i in self.skip_target_indices:
                 self.targets.append(None)
             else:
                 shape = K.int_shape(self.outputs[i])
@@ -249,218 +204,29 @@ class Model(Network):
                 self.targets.append(target)
 
         # Prepare sample weights.
-        sample_weights = []
-        sample_weight_modes = []
-        if isinstance(sample_weight_mode, dict):
-            for name in sample_weight_mode:
-                if name not in self.output_names:
-                    raise ValueError('Unknown entry in '
-                                     'sample_weight_mode dictionary: "' +
-                                     name + '". '
-                                     'Only expected the following keys: ' +
-                                     str(self.output_names))
-            for i, name in enumerate(self.output_names):
-                if i in skip_target_weighing_indices:
-                    weight = None
-                    sample_weight_modes.append(None)
-                else:
-                    if name not in sample_weight_mode:
-                        raise ValueError('Output "' + name +
-                                         '" missing from sample_weight_modes '
-                                         'dictionary')
-                    if sample_weight_mode.get(name) == 'temporal':
-                        weight = K.placeholder(ndim=2,
-                                               name=name + '_sample_weights')
-                        sample_weight_modes.append('temporal')
-                    else:
-                        weight = K.placeholder(ndim=1,
-                                               name=name + '_sample_weights')
-                        sample_weight_modes.append(None)
-                sample_weights.append(weight)
-        elif isinstance(sample_weight_mode, list):
-            if len(sample_weight_mode) != len(self.outputs):
-                raise ValueError('When passing a list as sample_weight_mode, '
-                                 'it should have one entry per model output. '
-                                 'The model has ' + str(len(self.outputs)) +
-                                 ' outputs, but you passed '
-                                 'sample_weight_mode=' +
-                                 str(sample_weight_mode))
-            for i in range(len(self.output_names)):
-                if i in skip_target_weighing_indices:
-                    weight = None
-                    sample_weight_modes.append(None)
-                else:
-                    mode = sample_weight_mode[i]
-                    name = self.output_names[i]
-                    if mode == 'temporal':
-                        weight = K.placeholder(ndim=2,
-                                               name=name + '_sample_weights')
-                        sample_weight_modes.append('temporal')
-                    else:
-                        weight = K.placeholder(ndim=1,
-                                               name=name + '_sample_weights')
-                        sample_weight_modes.append(None)
-                sample_weights.append(weight)
-        else:
-            for i, name in enumerate(self.output_names):
-                if i in skip_target_weighing_indices:
-                    sample_weight_modes.append(None)
-                    sample_weights.append(None)
-                else:
-                    if sample_weight_mode == 'temporal':
-                        sample_weights.append(
-                            K.placeholder(ndim=2,
-                                          name=name + '_sample_weights'))
-                        sample_weight_modes.append('temporal')
-                    else:
-                        sample_weights.append(
-                            K.placeholder(ndim=1,
-                                          name=name + '_sample_weights'))
-                        sample_weight_modes.append(None)
-        self.sample_weight_modes = sample_weight_modes
-        self._feed_sample_weight_modes = []
-        for i in range(len(self.outputs)):
-            if i not in skip_target_weighing_indices:
-                self._feed_sample_weight_modes.append(
-                    self.sample_weight_modes[i])
+        self._set_sample_weight_attributes(
+            sample_weight_mode, skip_target_weighing_indices)
 
-        # Prepare metrics.
-        self.metrics_names = ['loss']
-        self.metrics_tensors = []
+        # Save all metric attributes per output of the model.
+        self._cache_output_metric_attributes(metrics, weighted_metrics)
+
+        # Set metric attributes on model.
+        self._set_metric_attributes()
+
+        # Invoke metric functions (unweighted) for all the outputs.
+        self._handle_metrics(
+            self.outputs,
+            targets=self.targets,
+            skip_target_masks=[l is None for l in self.loss_functions],
+            sample_weights=self.sample_weights,
+            masks=masks)
 
         # Compute total loss.
-        total_loss = None
-        with K.name_scope('loss'):
-            for i in range(len(self.outputs)):
-                if i in skip_target_indices:
-                    continue
-                y_true = self.targets[i]
-                y_pred = self.outputs[i]
-                weighted_loss = weighted_losses[i]
-                sample_weight = sample_weights[i]
-                mask = masks[i]
-                loss_weight = loss_weights_list[i]
-                with K.name_scope(self.output_names[i] + '_loss'):
-                    output_loss = weighted_loss(y_true, y_pred,
-                                                sample_weight, mask)
-                if len(self.outputs) > 1:
-                    self.metrics_tensors.append(output_loss)
-                    self.metrics_names.append(self.output_names[i] + '_loss')
-                if total_loss is None:
-                    total_loss = loss_weight * output_loss
-                else:
-                    total_loss += loss_weight * output_loss
-            if total_loss is None:
-                if not self.losses:
-                    raise ValueError('The model cannot be compiled '
-                                     'because it has no loss to optimize.')
-                else:
-                    total_loss = 0.
-
-            # Add regularization penalties
-            # and other layer-specific losses.
-            for loss_tensor in self.losses:
-                total_loss += loss_tensor
-
-        # List of same size as output_names.
-        # contains tuples (metrics for output, names of metrics).
-        nested_metrics = collect_metrics(metrics, self.output_names)
-        nested_weighted_metrics = collect_metrics(weighted_metrics,
-                                                  self.output_names)
-        self.metrics_updates = []
-        self.stateful_metric_names = []
-        self.stateful_metric_functions = []
-
-        def handle_metrics(metrics, weights=None):
-            metric_name_prefix = 'weighted_' if weights is not None else ''
-
-            for metric in metrics:
-                if metric in ('accuracy', 'acc', 'crossentropy', 'ce'):
-                    # custom handling of accuracy/crossentropy
-                    # (because of class mode duality)
-                    output_shape = K.int_shape(self.outputs[i])
-                    if (output_shape[-1] == 1 or
-                       self.loss_functions[i] == losses.binary_crossentropy):
-                        # case: binary accuracy/crossentropy
-                        if metric in ('accuracy', 'acc'):
-                            metric_fn = metrics_module.binary_accuracy
-                        elif metric in ('crossentropy', 'ce'):
-                            metric_fn = metrics_module.binary_crossentropy
-                    elif (self.loss_functions[i] ==
-                          losses.sparse_categorical_crossentropy):
-                        # case: categorical accuracy/crossentropy
-                        # with sparse targets
-                        if metric in ('accuracy', 'acc'):
-                            metric_fn = metrics_module.sparse_categorical_accuracy
-                        elif metric in ('crossentropy', 'ce'):
-                            metric_fn = (
-                                metrics_module.sparse_categorical_crossentropy)
-                    else:
-                        # case: categorical accuracy/crossentropy
-                        if metric in ('accuracy', 'acc'):
-                            metric_fn = metrics_module.categorical_accuracy
-                        elif metric in ('crossentropy', 'ce'):
-                            metric_fn = metrics_module.categorical_crossentropy
-                    if metric in ('accuracy', 'acc'):
-                            suffix = 'acc'
-                    elif metric in ('crossentropy', 'ce'):
-                            suffix = 'ce'
-                    weighted_metric_fn = weighted_masked_objective(metric_fn)
-                    metric_name = metric_name_prefix + suffix
-                else:
-                    metric_fn = metrics_module.get(metric)
-                    weighted_metric_fn = weighted_masked_objective(metric_fn)
-                    # Get metric name as string
-                    if hasattr(metric_fn, 'name'):
-                        metric_name = metric_fn.name
-                    else:
-                        metric_name = metric_fn.__name__
-                    metric_name = metric_name_prefix + metric_name
-
-                with K.name_scope(metric_name):
-                    metric_result = weighted_metric_fn(y_true, y_pred,
-                                                       weights=weights,
-                                                       mask=masks[i])
-
-                # Append to self.metrics_names, self.metric_tensors,
-                # self.stateful_metric_names
-                if len(self.output_names) > 1:
-                    metric_name = self.output_names[i] + '_' + metric_name
-                # Dedupe name
-                j = 1
-                base_metric_name = metric_name
-                while metric_name in self.metrics_names:
-                    metric_name = base_metric_name + '_' + str(j)
-                    j += 1
-                self.metrics_names.append(metric_name)
-                self.metrics_tensors.append(metric_result)
-
-                # Keep track of state updates created by
-                # stateful metrics (i.e. metrics layers).
-                if isinstance(metric_fn, Layer) and metric_fn.stateful:
-                    self.stateful_metric_names.append(metric_name)
-                    self.stateful_metric_functions.append(metric_fn)
-                    self.metrics_updates += metric_fn.updates
-        with K.name_scope('metrics'):
-            for i in range(len(self.outputs)):
-                if i in skip_target_indices:
-                    continue
-
-                y_true = self.targets[i]
-                y_pred = self.outputs[i]
-                weights = sample_weights[i]
-                output_metrics = nested_metrics[i]
-                output_weighted_metrics = nested_weighted_metrics[i]
-                handle_metrics(output_metrics)
-                handle_metrics(output_weighted_metrics, weights=weights)
-
-        # Prepare gradient updates and state updates.
-        self.total_loss = total_loss
-        self.sample_weights = sample_weights
-        self._feed_sample_weights = []
-        for i in range(len(self.sample_weights)):
-            if i not in skip_target_weighing_indices:
-                self._feed_sample_weights.append(sample_weights[i])
+        # Used to keep track of the total loss value (stateless).
+        # eg., total_loss = loss_weight_1 * output_1_loss_fn(...) +
+        #                   loss_weight_2 * output_2_loss_fn(...) +
+        #                   layer losses.
+        self.total_loss = self._prepare_total_loss(masks)
 
         # Functions for train, test and predict will
         # be compiled lazily when required.
@@ -474,6 +240,44 @@ class Model(Network):
         # Collected trainable weights, sorted in topological order.
         trainable_weights = self.trainable_weights
         self._collected_trainable_weights = trainable_weights
+
+    @property
+    def metrics(self):
+        """Returns the model's metrics added using `compile`, `add_metric` APIs."""
+        metrics = []
+        if self._is_compiled:
+            metrics += self._compile_metric_functions
+        metrics.extend(self._metrics)
+        metrics.extend(_get_metrics_from_layers(self._layers))
+        return metrics
+
+    @property
+    def metrics_names(self):
+        """Returns the model's display labels for all outputs."""
+        metrics_names = ['loss']
+        if self._is_compiled:
+            # Add output loss metric names to the metric names list.
+            if len(self.outputs) > 1:
+                metrics_names.extend([
+                    self.output_names[i] + '_loss'
+                    for i in range(len(self.outputs))
+                    if i not in self.skip_target_indices
+                ])
+
+            # Add compile metrics/weighted metrics' names to the metric names list.
+            metrics_names.extend([m.name for m in self._compile_metric_functions])
+
+        # Add metric names from layers.
+        for layer in self.layers:
+            metrics_names += [m.name for m in layer._metrics]
+        metrics_names += [m.name for m in self._metrics]
+        return metrics_names
+
+    def reset_metrics(self):
+        """Resets the state of metrics."""
+        metrics = self._get_training_eval_metrics()
+        for m in metrics:
+            m.reset_states()
 
     def _check_trainable_weights_consistency(self):
         """Check trainable weights count consistency.
@@ -510,14 +314,21 @@ class Model(Network):
                     training_updates = self.optimizer.get_updates(
                         params=self._collected_trainable_weights,
                         loss=self.total_loss)
-                updates = (self.updates +
-                           training_updates +
-                           self.metrics_updates)
+                updates = self.updates + training_updates
+
+                metrics = self._get_training_eval_metrics()
+                metrics_tensors = [
+                    m._call_result for m in metrics if hasattr(m, '_call_result')
+                ]
+                metrics_updates = []
+                for m in metrics:
+                    metrics_updates.extend(m.updates)
+
                 # Gets loss and metrics. Updates weights at each call.
                 self.train_function = K.function(
                     inputs,
-                    [self.total_loss] + self.metrics_tensors,
-                    updates=updates,
+                    [self.total_loss] + metrics_tensors,
+                    updates=updates + metrics_updates,
                     name='train_function',
                     **self._function_kwargs)
 
@@ -530,12 +341,22 @@ class Model(Network):
                       self._feed_sample_weights)
             if self._uses_dynamic_learning_phase():
                 inputs += [K.learning_phase()]
+
+            metrics = self._get_training_eval_metrics()
+            metrics_tensors = [
+                m._call_result for m in metrics if hasattr(m, '_call_result')
+            ]
+
+            metrics_updates = []
+            for m in metrics:
+                metrics_updates.extend(m.updates)
+
             # Return loss and metrics, no gradient updates.
             # Does update the network states.
             self.test_function = K.function(
                 inputs,
-                [self.total_loss] + self.metrics_tensors,
-                updates=self.state_updates + self.metrics_updates,
+                [self.total_loss] + metrics_tensors,
+                updates=self.state_updates + metrics_updates,
                 name='test_function',
                 **self._function_kwargs)
 
@@ -723,7 +544,8 @@ class Model(Network):
                     target_tensors = None
                 self.compile(optimizer=self.optimizer,
                              loss=self.loss,
-                             metrics=self.metrics,
+                             metrics=self._compile_metrics,
+                             weighted_metrics=self._compile_weighted_metrics,
                              loss_weights=self.loss_weights,
                              target_tensors=target_tensors)
 
@@ -749,7 +571,7 @@ class Model(Network):
             feed_input_shapes = self._feed_input_shapes
 
         # Standardize the inputs.
-        x = standardize_input_data(
+        x = training_utils.standardize_input_data(
             x,
             feed_input_names,
             feed_input_shapes,
@@ -769,25 +591,29 @@ class Model(Network):
                 feed_output_shapes = []
                 for output_shape, loss_fn in zip(self._feed_output_shapes,
                                                  self._feed_loss_fns):
-                    if loss_fn is losses.sparse_categorical_crossentropy:
+                    if ((isinstance(loss_fn, losses.LossFunctionWrapper) and
+                         loss_fn.fn == losses.sparse_categorical_crossentropy)) or (
+                            isinstance(
+                                loss_fn, losses.SparseCategoricalCrossentropy)):
                         if K.image_data_format() == 'channels_first' and len(
                                 output_shape) in [4, 5]:
                             feed_output_shapes.append(
                                 (output_shape[0], 1) + output_shape[2:])
                         else:
                             feed_output_shapes.append(output_shape[:-1] + (1,))
-                    elif (not hasattr(loss_fn, '__name__') or
-                            getattr(losses, loss_fn.__name__, None) is None):
-                        # If `loss_fn` is not a function (e.g. callable class)
-                        # or if it not in the `losses` module, then
-                        # it is a user-defined loss and we make no assumptions
-                        # about it.
+                    elif (not isinstance(loss_fn, losses.Loss) or
+                            (isinstance(loss_fn, losses.LossFunctionWrapper) and
+                             (getattr(losses, loss_fn.fn.__name__, None) is None))):
+                        # If the given loss is not an instance of the `Loss` class
+                        # (custom class) or if the loss function that is wrapped is
+                        # not in the `losses` module, then it is a user-defined loss
+                        # and we make no assumptions about it.
                         feed_output_shapes.append(None)
                     else:
                         feed_output_shapes.append(output_shape)
 
             # Standardize the outputs.
-            y = standardize_input_data(
+            y = training_utils.standardize_input_data(
                 y,
                 feed_output_names,
                 feed_output_shapes,
@@ -796,23 +622,23 @@ class Model(Network):
 
             # Generate sample-wise weight values given the `sample_weight` and
             # `class_weight` arguments.
-            sample_weights = standardize_sample_weights(
+            sample_weights = training_utils.standardize_sample_weights(
                 sample_weight, feed_output_names)
-            class_weights = standardize_class_weights(
+            class_weights = training_utils.standardize_class_weights(
                 class_weight, feed_output_names)
             sample_weights = [
-                standardize_weights(ref, sw, cw, mode)
+                training_utils.standardize_weights(ref, sw, cw, mode)
                 for (ref, sw, cw, mode) in
                 zip(y, sample_weights, class_weights,
                     feed_sample_weight_modes)
             ]
             # Check that all arrays have the same length.
             if check_array_lengths:
-                check_array_length_consistency(x, y, sample_weights)
+                training_utils.check_array_length_consistency(x, y, sample_weights)
             if self._is_graph_network:
                 # Additional checks to avoid users mistakenly
                 # using improper loss fns.
-                check_loss_and_target_compatibility(
+                training_utils.check_loss_and_target_compatibility(
                     y, self._feed_loss_fns, feed_output_shapes)
         else:
             y = []
@@ -828,6 +654,227 @@ class Model(Network):
                                  'divided by the batch size. Found: ' +
                                  str(x[0].shape[0]) + ' samples')
         return x, y, sample_weights
+
+    def _prepare_total_loss(self, masks=None):
+        """Computes total loss from loss functions.
+
+        # Arguments
+            skip_target_indices: A list of indices of model outputs where loss
+                function is None.
+            masks: List of mask values corresponding to each model output.
+
+        # Returns
+            A list of loss weights of python floats.
+        """
+        total_loss = None
+        with K.name_scope('loss'):
+            zipped_inputs = zip(self.targets, self.outputs, self.loss_functions,
+                                self.sample_weights, masks, self.loss_weights_list)
+            for i, (y_true, y_pred, loss_fn, sample_weight, mask,
+                    loss_weight) in enumerate(zipped_inputs):
+                if i in self.skip_target_indices:
+                    continue
+                loss_name = self.output_names[i] + '_loss'
+                with K.name_scope(loss_name):
+                    if mask is not None:
+                        mask = K.cast(mask, y_pred.dtype)
+                        # Update weights with mask.
+                        if sample_weight is None:
+                            sample_weight = mask
+                        else:
+                            # Update dimensions of weights to match with mask.
+                            mask, _, sample_weight = (
+                                losses_utils.squeeze_or_expand_dimensions(
+                                    mask, None, sample_weight))
+                            sample_weight *= mask
+
+                    output_loss = loss_fn(
+                        y_true, y_pred, sample_weight=sample_weight)
+
+                if len(self.outputs) > 1:
+                    update_ops = self._output_loss_metrics[i].update_state(
+                        output_loss)
+                    with K.control_dependencies(update_ops):  # For TF
+                        self._output_loss_metrics[i].result()
+                if total_loss is None:
+                    total_loss = loss_weight * output_loss
+                else:
+                    total_loss += loss_weight * output_loss
+
+            if total_loss is None:
+                if not self.losses:
+                    raise ValueError('The model cannot be compiled '
+                                     'because it has no loss to optimize.')
+                else:
+                    total_loss = 0.
+
+            # Add regularization penalties and other layer-specific losses.
+            for loss_tensor in self.losses:
+                total_loss += loss_tensor
+
+        return K.mean(total_loss)
+
+    def _get_training_eval_metrics(self):
+        """Returns all the metrics that are to be reported.
+
+        This includes the output loss metrics, compile metrics/weighted metrics.
+        """
+        metrics = []
+        if getattr(self, '_output_loss_metrics', None) is not None:
+            metrics.extend(self._output_loss_metrics)
+        if hasattr(self, 'metrics'):
+            metrics.extend(self.metrics)
+        return metrics
+
+    def _cache_output_metric_attributes(self, metrics, weighted_metrics):
+        """Caches metric name and function attributes for every model output."""
+        output_shapes = []
+        for output in self.outputs:
+            if output is None:
+                output_shapes.append(None)
+            else:
+                output_shapes.append(list(output.shape))
+        self._per_output_metrics = training_utils.collect_per_output_metric_info(
+            metrics, self.output_names, output_shapes, self.loss_functions)
+        self._per_output_weighted_metrics = (
+            training_utils.collect_per_output_metric_info(
+                weighted_metrics,
+                self.output_names,
+                output_shapes,
+                self.loss_functions,
+                is_weighted=True))
+
+    def _add_unique_metric_name(self, metric_name, output_index):
+        """Makes the metric name unique and adds it to the model's metric name list.
+
+        If there are multiple outputs for which the metrics are calculated, the
+        metric names have to be made unique by appending an integer.
+
+        # Arguments
+            metric_name: Metric name that corresponds to the metric specified by the
+                user. For example: 'acc'.
+            output_index: The index of the model output for which the metric name is
+                being added.
+
+        # Returns
+            string, name of the model's unique metric name
+        """
+        if len(self.output_names) > 1:
+            metric_name = '%s_%s' % (self.output_names[output_index], metric_name)
+
+        j = 1
+        base_metric_name = metric_name
+        while metric_name in self.metrics_names:
+            metric_name = '%s_%d' % (base_metric_name, j)
+            j += 1
+        return metric_name
+
+    def _set_per_output_metric_attributes(self, metrics_dict, output_index):
+        """Sets the metric attributes on the model for the given output.
+
+        # Arguments
+            metrics_dict: A dict with metric names as keys and metric fns as values.
+            output_index: The index of the model output for which the metric
+                attributes are added.
+
+        # Returns
+            Metrics dict updated with unique metric names as keys.
+        """
+        updated_metrics_dict = collections.OrderedDict()
+        for metric_name, metric_fn in metrics_dict.items():
+            metric_name = self._add_unique_metric_name(metric_name, output_index)
+
+            # Update the name on the metric class to be the unique generated name.
+            metric_fn.name = metric_name
+            updated_metrics_dict[metric_name] = metric_fn
+            # Keep track of metric function.
+            self._compile_metric_functions.append(metric_fn)
+        return updated_metrics_dict
+
+    def _set_metric_attributes(self):
+        """Sets the metric attributes on the model for all the model outputs."""
+        updated_per_output_metrics = []
+        updated_per_output_weighted_metrics = []
+        for i in range(len(self.outputs)):
+            if i in self.skip_target_indices:
+                updated_per_output_metrics.append(self._per_output_metrics[i])
+                updated_per_output_weighted_metrics.append(
+                    self._per_output_weighted_metrics[i])
+                continue
+            updated_per_output_metrics.append(
+                self._set_per_output_metric_attributes(
+                    self._per_output_metrics[i], i))
+            updated_per_output_weighted_metrics.append(
+                self._set_per_output_metric_attributes(
+                    self._per_output_weighted_metrics[i], i))
+
+        # Create a metric wrapper for each output loss. This computes mean of an
+        # output loss across mini-batches (irrespective of how we reduce within a
+        # batch).
+        if len(self.outputs) > 1:
+            self._output_loss_metrics = [
+                metrics_module.Mean(name=self.output_names[i] + '_loss')
+                for i in range(len(self.loss_functions))
+            ]
+
+        self._per_output_metrics = updated_per_output_metrics
+        self._per_output_weighted_metrics = updated_per_output_weighted_metrics
+
+    def _handle_per_output_metrics(self,
+                                   metrics_dict,
+                                   y_true,
+                                   y_pred,
+                                   mask,
+                                   weights=None):
+        """Calls metric functions for a single output.
+
+        # Arguments
+            metrics_dict: A dict with metric names as keys and metric fns as values.
+            y_true: Target output.
+            y_pred: Predicted output.
+            mask: Computed mask value for the current output.
+            weights: Weights to be applied on the current output.
+        """
+
+        for metric_name, metric_fn in metrics_dict.items():
+            with K.name_scope(metric_name):
+                training_utils.call_metric_function(
+                    metric_fn, y_true, y_pred, weights=weights, mask=mask)
+
+    def _handle_metrics(self,
+                        outputs,
+                        targets=None,
+                        skip_target_masks=None,
+                        sample_weights=None,
+                        masks=None):
+        """Handles calling metric functions.
+
+        # Arguments
+            outputs: List of outputs (predictions).
+            targets: List of targets.
+            skip_target_masks: Optional. List of boolean for whether the
+                corresponding target should be ignored or not.
+            sample_weights: Optional list of sample weight arrays.
+            masks: List of computed output mask values.
+        """
+        skip_target_masks = skip_target_masks or [False] * len(outputs)
+        with K.name_scope('metrics'):
+            # Invoke all metrics added using `compile`.
+            for i in range(len(outputs)):
+                if skip_target_masks[i]:
+                    continue
+                output = outputs[i] if outputs else None
+                target = targets[i] if targets else None
+                output_mask = masks[i] if masks else None
+
+                self._handle_per_output_metrics(
+                    self._per_output_metrics[i], target, output, output_mask)
+                self._handle_per_output_metrics(
+                    self._per_output_weighted_metrics[i],
+                    target,
+                    output,
+                    output_mask,
+                    weights=sample_weights[i] if sample_weights else None)
 
     def _get_callback_model(self):
         """Returns the Callback Model for this Model."""
@@ -861,14 +908,14 @@ class Model(Network):
                 is passed, or if the specified batch size does not match the
                 exepected size defined in the Input Layer.
         """
-        if batch_size is not None and is_generator_or_sequence(x):
+        if batch_size is not None and training_utils.is_generator_or_sequence(x):
             raise ValueError('The `batch_size` argument must not be specified when'
                              ' using a generator or Sequence as an input.')
 
         layers = super(Model, self).layers  # Avoids the override in Sequential.
         if layers:
             first_layer = layers[0]
-            static_batch_size = get_static_batch_size(first_layer)
+            static_batch_size = training_utils.get_static_batch_size(first_layer)
             if static_batch_size is not None:
 
                 # Check `batch_size` argument is consistent with InputLayer.
@@ -886,6 +933,24 @@ class Model(Network):
             # Backwards compatibility
             batch_size = 32
         return batch_size
+
+    def _set_sample_weight_attributes(self, sample_weight_mode,
+                                      skip_target_weighing_indices):
+        """Sets sample weight related attributes on the model."""
+        sample_weights, sample_weight_modes = training_utils.prepare_sample_weights(
+            self.output_names, sample_weight_mode, skip_target_weighing_indices)
+        self.sample_weights = sample_weights
+        self.sample_weight_modes = sample_weight_modes
+        self._feed_sample_weight_modes = [
+            sample_weight_modes[i]
+            for i in range(len(self.outputs))
+            if i not in skip_target_weighing_indices
+        ]
+        self._feed_sample_weights = [
+            sample_weights[i]
+            for i in range(len(sample_weights))
+            if i not in skip_target_weighing_indices
+        ]
 
     def fit(self,
             x=None,
@@ -1062,8 +1127,8 @@ class Model(Network):
 
         # Case 1: generator-like. Input is Python generator,
         # or Sequence object, or iterator.
-        if is_generator_or_sequence(x):
-            check_generator_arguments(
+        if training_utils.is_generator_or_sequence(x):
+            training_utils.check_generator_arguments(
                 y, sample_weight, validation_split=validation_split)
             return self.fit_generator(
                 x,
@@ -1109,7 +1174,7 @@ class Model(Network):
                 sample_weight=val_sample_weight,
                 batch_size=batch_size)
             if self._uses_dynamic_learning_phase():
-                val_inputs = val_x + val_y + val_sample_weights + [0.]
+                val_inputs = val_x + val_y + val_sample_weights + [0]
             else:
                 val_inputs = val_x + val_y + val_sample_weights
 
@@ -1131,18 +1196,18 @@ class Model(Network):
                 slice_arrays(sample_weights, 0, split_at),
                 slice_arrays(sample_weights, split_at))
             if self._uses_dynamic_learning_phase():
-                val_inputs = val_x + val_y + val_sample_weights + [0.]
+                val_inputs = val_x + val_y + val_sample_weights + [0]
             else:
                 val_inputs = val_x + val_y + val_sample_weights
 
         elif validation_steps:
             do_validation = True
             if self._uses_dynamic_learning_phase():
-                val_inputs = [0.]
+                val_inputs = [0]
 
         # Prepare input arrays and training function.
         if self._uses_dynamic_learning_phase():
-            fit_inputs = x + y + sample_weights + [1.]
+            fit_inputs = x + y + sample_weights + [1]
         else:
             fit_inputs = x + y + sample_weights
         self._make_train_function()
@@ -1154,10 +1219,7 @@ class Model(Network):
         if do_validation:
             self._make_test_function()
             val_function = self.test_function
-            callback_metrics = copy.copy(out_labels) + [
-                'val_' + n for n in out_labels]
         else:
-            callback_metrics = copy.copy(out_labels)
             val_function = None
             val_inputs = []
 
@@ -1171,7 +1233,6 @@ class Model(Network):
                                         val_function=val_function,
                                         val_inputs=val_inputs,
                                         shuffle=shuffle,
-                                        callback_metrics=callback_metrics,
                                         initial_epoch=initial_epoch,
                                         steps_per_epoch=steps_per_epoch,
                                         validation_steps=validation_steps,
@@ -1265,8 +1326,8 @@ class Model(Network):
         batch_size = self._validate_or_infer_batch_size(batch_size, steps, x)
 
         # Case 1: generator-like. Input is Python generator, or Sequence object.
-        if is_generator_or_sequence(x):
-            check_generator_arguments(y, sample_weight)
+        if training_utils.is_generator_or_sequence(x):
+            training_utils.check_generator_arguments(y, sample_weight)
             return self.evaluate_generator(
                 x,
                 steps=steps,
@@ -1288,7 +1349,7 @@ class Model(Network):
             batch_size=batch_size)
         # Prepare inputs, delegate logic to `test_loop`.
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [0.]
+            ins = x + y + sample_weights + [0]
         else:
             ins = x + y + sample_weights
         self._make_test_function()
@@ -1361,7 +1422,7 @@ class Model(Network):
         batch_size = self._validate_or_infer_batch_size(batch_size, steps, x)
 
         # Case 1: generator-like. Input is Python generator, or Sequence object.
-        if is_generator_or_sequence(x):
+        if training_utils.is_generator_or_sequence(x):
             return self.predict_generator(
                 x,
                 steps=steps,
@@ -1389,7 +1450,7 @@ class Model(Network):
 
         # Prepare inputs, delegate logic to `predict_loop`.
         if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
+            ins = x + [0]
         else:
             ins = x
         self._make_predict_function()
@@ -1402,7 +1463,8 @@ class Model(Network):
 
     def train_on_batch(self, x, y,
                        sample_weight=None,
-                       class_weight=None):
+                       class_weight=None,
+                       reset_metrics=True):
         """Runs a single gradient update on a single batch of data.
 
         # Arguments
@@ -1429,6 +1491,9 @@ class Model(Network):
                 from this class during training.
                 This can be useful to tell the model to "pay more attention" to
                 samples from an under-represented class.
+            reset_metrics: If `True`, the metrics returned will be only for this
+                batch. If `False`, the metrics will be statefully accumulated across
+                batches.
 
         # Returns
             Scalar training loss
@@ -1442,14 +1507,17 @@ class Model(Network):
             sample_weight=sample_weight,
             class_weight=class_weight)
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [1.]
+            ins = x + y + sample_weights + [1]
         else:
             ins = x + y + sample_weights
         self._make_train_function()
         outputs = self.train_function(ins)
+
+        if reset_metrics:
+            self.reset_metrics()
         return unpack_singleton(outputs)
 
-    def test_on_batch(self, x, y, sample_weight=None):
+    def test_on_batch(self, x, y, sample_weight=None, reset_metrics=True):
         """Test the model on a single batch of samples.
 
         # Arguments
@@ -1470,6 +1538,9 @@ class Model(Network):
                 to apply a different weight to every timestep of every sample.
                 In this case you should make sure to specify
                 sample_weight_mode="temporal" in compile().
+            reset_metrics: If `True`, the metrics returned will be only for this
+                batch. If `False`, the metrics will be statefully accumulated across
+                batches.
 
         # Returns
             Scalar test loss (if the model has a single output and no metrics)
@@ -1481,11 +1552,14 @@ class Model(Network):
             x, y,
             sample_weight=sample_weight)
         if self._uses_dynamic_learning_phase():
-            ins = x + y + sample_weights + [0.]
+            ins = x + y + sample_weights + [0]
         else:
             ins = x + y + sample_weights
         self._make_test_function()
         outputs = self.test_function(ins)
+
+        if reset_metrics:
+            self.reset_metrics()
         return unpack_singleton(outputs)
 
     def predict_on_batch(self, x):
@@ -1499,7 +1573,7 @@ class Model(Network):
         """
         x, _, _ = self._standardize_user_data(x)
         if self._uses_dynamic_learning_phase():
-            ins = x + [0.]
+            ins = x + [0]
         else:
             ins = x
         self._make_predict_function()
@@ -1770,3 +1844,25 @@ class Model(Network):
             workers=workers,
             use_multiprocessing=use_multiprocessing,
             verbose=verbose)
+
+
+def _get_metrics_from_layers(layers):
+    """Returns list of metrics from the given layers.
+    This will not include the `compile` metrics of a model layer.
+
+    # Arguments
+        layers: List of layers.
+
+    # Returns
+        List of metrics.
+    """
+    metrics = []
+    for layer in layers:
+        if isinstance(layer, Model):
+            # We cannot call 'metrics' on the model because we do not want to
+            # include the metrics that were added in compile API of a nested model.
+            metrics.extend(layer._metrics)
+            metrics.extend(_get_metrics_from_layers(layer.layers))
+        else:
+            metrics.extend(layer.metrics)
+    return metrics
