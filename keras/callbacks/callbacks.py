@@ -739,8 +739,12 @@ class EarlyStopping(Callback):
             to qualify as an improvement, i.e. an absolute
             change of less than min_delta, will count as no
             improvement.
-        patience: number of epochs with no improvement
-            after which training will be stopped.
+        patience: number of epochs that produced the monitored
+            quantity with no improvement after which training will
+            be stopped.
+            Validation quantities may not be produced for every
+            epoch, if the validation frequency
+            (`model.fit(validation_freq=5)`) is greater than one.
         verbose: verbosity mode.
         mode: one of {auto, min, max}. In `min` mode,
             training will stop when the quantity
@@ -959,8 +963,12 @@ class ReduceLROnPlateau(Callback):
         monitor: quantity to be monitored.
         factor: factor by which the learning rate will
             be reduced. new_lr = lr * factor
-        patience: number of epochs with no improvement
-            after which learning rate will be reduced.
+        patience: number of epochs that produced the monitored
+            quantity with no improvement after which training will
+            be stopped.
+            Validation quantities may not be produced for every
+            epoch, if the validation frequency
+            (`model.fit(validation_freq=5)`) is greater than one.
         verbose: int. 0: quiet, 1: update messages.
         mode: one of {auto, min, max}. In `min` mode,
             lr will be reduced when the quantity
