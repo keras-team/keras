@@ -1,6 +1,9 @@
 <!--
 Please make sure you've read and understood our contributing guidelines;
 https://github.com/keras-team/keras/blob/master/CONTRIBUTING.md
+
+Note:
+We are no longer adding new features to multi-backend Keras (we only fix bugs), as we are refocusing development efforts on tf.keras. If you are still interested in submitting a feature pull request, please direct it to tf.keras in the TensorFlow repository instead.
 -->
 
 ### Summary
