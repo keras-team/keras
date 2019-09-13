@@ -30,7 +30,7 @@ The next release will be 2.3.0, which makes significant API changes and add supp
 
 At this time, we recommend that Keras users who use multi-backend Keras with the TensorFlow backend switch to tf.keras in TensorFlow 2.0. tf.keras is better maintained and has better integration with TensorFlow features (eager execution, distribution support and other).
 
-Bugs present in multi-backend Keras will only be fixed for the next 6 months.
+Bugs present in multi-backend Keras will only be fixed until April 2020.
 
 For more information about the future of Keras, see [the Keras meeting notes](http://bit.ly/keras-meeting-notes).
 
