@@ -364,16 +364,18 @@ def test_ordered_enqueuer_timeout_threads():
 
     old = signal.signal(signal.SIGALRM, handler)
     signal.setitimer(signal.ITIMER_REAL, 40)
-
-    enqueuer.start(5, 10)
-    gen_output = enqueuer.get()
-    for epoch_num in range(2):
-        acc = []
-        for i in range(10):
-            acc.append(next(gen_output)[0, 0, 0, 0])
-        assert acc == list(range(10)), ('Order was not keep in GeneratorEnqueuer '
-                                        'with processes')
-    enqueuer.stop()
+    with pytest.warns(UserWarning) as record:
+        enqueuer.start(5, 10)
+        gen_output = enqueuer.get()
+        for epoch_num in range(2):
+            acc = []
+            for i in range(10):
+                acc.append(next(gen_output)[0, 0, 0, 0])
+            assert acc == list(range(10)), 'Order was not keep in OrderedEnqueuer with threads'
+        enqueuer.stop()
+    assert len(record) == 1
+    assert str(record[0].message) == 'The input 0 could not be retrieved. ' \
+                                     'It could be because a worker has died.'
     signal.setitimer(signal.ITIMER_REAL, 0)
     signal.signal(signal.SIGALRM, old)
 
