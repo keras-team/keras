@@ -608,7 +608,6 @@ class OrderedEnqueuer(SequenceEnqueuer):
                 try:
                     future = self.queue.get(block=True)
                     inputs = future.get(timeout=30)
-                    self.queue.task_done()
                 except mp.TimeoutError:
                     idx = future.idx
                     warnings.warn(
@@ -616,6 +615,9 @@ class OrderedEnqueuer(SequenceEnqueuer):
                         ' It could be because a worker has died.'.format(idx),
                         UserWarning)
                     inputs = self.sequence[idx]
+                finally:
+                    self.queue.task_done()
+
                 if inputs is not None:
                     yield inputs
         except Exception:

@@ -5,6 +5,7 @@ import time
 import sys
 import tarfile
 import threading
+import signal
 import shutil
 import zipfile
 from itertools import cycle
@@ -211,6 +212,25 @@ class FaultSequence(Sequence):
         pass
 
 
+class SlowSequence(Sequence):
+    def __init__(self, shape, value=1.0):
+        self.shape = shape
+        self.inner = value
+        self.wait = True
+
+    def __getitem__(self, item):
+        if self.wait:
+            self.wait = False
+            time.sleep(40)
+        return np.ones(self.shape, dtype=np.uint32) * item * self.inner
+
+    def __len__(self):
+        return 10
+
+    def on_epoch_end(self):
+        pass
+
+
 @threadsafe_generator
 def create_generator_from_sequence_threads(ds):
     for i in cycle(range(len(ds))):
@@ -333,6 +353,32 @@ def test_ordered_enqueuer_fail_threads():
     gen_output = enqueuer.get()
     with pytest.raises(IndexError):
         next(gen_output)
+
+
+def test_ordered_enqueuer_timeout_threads():
+    enqueuer = OrderedEnqueuer(SlowSequence([3, 10, 10, 3]),
+                               use_multiprocessing=False)
+
+    def handler(signum, frame):
+        raise TimeoutError('Sequence deadlocked')
+
+    old = signal.signal(signal.SIGALRM, handler)
+    signal.setitimer(signal.ITIMER_REAL, 60)
+    with pytest.warns(UserWarning) as record:
+        enqueuer.start(5, 10)
+        gen_output = enqueuer.get()
+        for epoch_num in range(2):
+            acc = []
+            for i in range(10):
+                acc.append(next(gen_output)[0, 0, 0, 0])
+            assert acc == list(range(10)), 'Order was not keep in ' \
+                                           'OrderedEnqueuer with threads'
+        enqueuer.stop()
+    assert len(record) == 1
+    assert str(record[0].message) == 'The input 0 could not be retrieved. ' \
+                                     'It could be because a worker has died.'
+    signal.setitimer(signal.ITIMER_REAL, 0)
+    signal.signal(signal.SIGALRM, old)
 
 
 @use_spawn
