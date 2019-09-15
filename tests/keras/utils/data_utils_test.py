@@ -363,7 +363,7 @@ def test_ordered_enqueuer_timeout_threads():
         raise TimeoutError('Sequence deadlocked')
 
     old = signal.signal(signal.SIGALRM, handler)
-    signal.setitimer(signal.ITIMER_REAL, 40)
+    signal.setitimer(signal.ITIMER_REAL, 60)
     with pytest.warns(UserWarning) as record:
         enqueuer.start(5, 10)
         gen_output = enqueuer.get()
