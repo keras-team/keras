@@ -371,7 +371,8 @@ def test_ordered_enqueuer_timeout_threads():
             acc = []
             for i in range(10):
                 acc.append(next(gen_output)[0, 0, 0, 0])
-            assert acc == list(range(10)), 'Order was not keep in OrderedEnqueuer with threads'
+            assert acc == list(range(10)), 'Order was not keep in ' \
+                                           'OrderedEnqueuer with threads'
         enqueuer.stop()
     assert len(record) == 1
     assert str(record[0].message) == 'The input 0 could not be retrieved. ' \
