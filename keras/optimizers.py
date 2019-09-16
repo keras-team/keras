@@ -853,7 +853,11 @@ def get(identifier):
     if K.backend() == 'tensorflow':
         # Wrap TF optimizer instances
         if tf.__version__.startswith('1.'):
-            if isinstance(identifier, tf.train.Optimizer):
+            try:
+                TFOpt = tf.compat.v1.train.Optimizer
+            except AttributeError:
+                TFOpt = tf.train.Optimizer
+            if isinstance(identifier, TFOpt):
                 return TFOptimizer(identifier)
         elif isinstance(identifier, tf.keras.optimizers.Optimizer):
             return TFOptimizer(identifier)
