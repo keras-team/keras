@@ -14,7 +14,7 @@ from keras.engine.saving import preprocess_weights_for_loading
 from keras.models import Model, Sequential
 from keras.layers import Dense, Lambda, RepeatVector, TimeDistributed
 from keras.layers import Bidirectional, GRU, LSTM, CuDNNGRU, CuDNNLSTM
-from keras.layers import Conv2D, Flatten
+from keras.layers import Conv2D, Flatten, Add
 from keras.layers import Input, InputLayer
 from keras.initializers import Constant
 from keras import optimizers
@@ -23,7 +23,7 @@ from keras import metrics
 from keras.models import save_model, load_model
 from keras.utils.test_utils import tf_file_io_proxy
 try:
-    from unittest.mock import patch
+    from minimal.mock import patch
 except:
     from mock import patch
 
@@ -986,6 +986,31 @@ def test_model_saving_with_rnn_initial_state_and_args():
     y2 = model2.predict(x)
     assert_allclose(y1, y2, atol=1e-5)
     os.remove(fname)
+
+
+def test_non_placeholder_inputs():
+    """Test saving a model with input layers that are not placeholders"""
+
+    # Make a simple addition model
+    c = K.constant((1,), dtype='int32')
+    x = Input(shape=(1,), name='x', dtype='int32')
+    b = Input(tensor=c, name='b')
+    o = Add()([x, b])
+    model = Model([x, b], o)
+
+    # Make sure it gives the correct result
+    assert model.predict_on_batch([[1]]) == [[2]]
+
+    # Save and reload
+    with temp_filename('h5') as fname:
+        with h5py.File(fname, mode='w') as h5file:
+            save_model(model, h5file)
+        # Load the data binary, and make sure the model is intact.
+        with open(fname, 'rb') as raw_file:
+            loaded_model = load_model(raw_file)
+
+    # Make sure it gives the same result
+    assert loaded_model.predict_on_batch([[1]]) == [[2]]
 
 
 if __name__ == '__main__':
