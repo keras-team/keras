@@ -24,15 +24,16 @@ Keras is compatible with: __Python 2.7-3.6__.
 
 ## Multi-backend Keras and tf.keras:
 
-Keras 2.2.5 is the last release of Keras that implements the 2.2.* API. It is the last release to only support TensorFlow 1 (as well as Theano and CNTK).
+**At this time, we recommend that Keras users who use multi-backend Keras with the TensorFlow backend switch to `tf.keras` in TensorFlow 2.0**. `tf.keras` is better maintained and has better integration with TensorFlow features (eager execution, distribution support and other).
 
-The next release will be 2.3.0, which makes significant API changes and add support for TensorFlow 2.0. The 2.3.0 release will be the last major release of multi-backend Keras. Multi-backend Keras is superseded by tf.keras.
+Keras 2.2.5 was the last release of Keras implementing the 2.2.* API. It was the last release to only support TensorFlow 1 (as well as Theano and CNTK).
 
-At this time, we recommend that Keras users who use multi-backend Keras with the TensorFlow backend switch to tf.keras in TensorFlow 2.0. tf.keras is better maintained and has better integration with TensorFlow features (eager execution, distribution support and other).
+The current release is Keras 2.3.0, which makes significant API changes and add support for TensorFlow 2.0. The 2.3.0 release will be the last major release of multi-backend Keras. Multi-backend Keras is superseded by `tf.keras`.
 
-Bugs present in multi-backend Keras will only be fixed until April 2020.
+Bugs present in multi-backend Keras will only be fixed until April 2020 (as part of minor releases).
 
 For more information about the future of Keras, see [the Keras meeting notes](http://bit.ly/keras-meeting-notes).
+
 
 ------------------
 
