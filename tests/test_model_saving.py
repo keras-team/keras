@@ -23,7 +23,7 @@ from keras import metrics
 from keras.models import save_model, load_model
 from keras.utils.test_utils import tf_file_io_proxy
 try:
-    from minimal.mock import patch
+    from unittest.mock import patch
 except:
     from mock import patch
 
