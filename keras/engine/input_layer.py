@@ -123,7 +123,7 @@ class InputLayer(Layer):
         if not self.is_placeholder:
             # TODO (wardlt): Would it be better to store using add_weights?
             config['user_provided_weights'] = \
-                K.get_value(self._predefined_input_tensor).tolist()
+                K.eval(self._predefined_input_tensor).tolist()
         return config
 
     @classmethod
