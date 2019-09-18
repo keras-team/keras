@@ -92,12 +92,6 @@ class InputLayer(Layer):
             self.is_placeholder = False
             input_tensor._keras_shape = batch_input_shape
 
-            # Track the weights of this tensor, and whether it is trainable
-            #  TODO (wardlt): Store "variables" as weights? That way, we could train them?
-            #   I do not believe we currently train input_tensor weights, so I only store
-            #   whether the input_tensor is "trainable" for completeness not functionality
-            self.trainable = K.is_variable(input_tensor)
-
         # Store a reference to the input tensor
         #  Used when getting the model configuration
         self._input_tensor = input_tensor
@@ -122,29 +116,28 @@ class InputLayer(Layer):
                   'dtype': self.dtype,
                   'sparse': self.sparse,
                   'name': self.name,
-                  'is_placeholder': self.is_placeholder,
-                  'trainable': self.trainable}
+                  'is_placeholder': self.is_placeholder}
 
         # If the input layer is not a placeholder,
         #  store the value of the layer assigned by the users
         if not self.is_placeholder:
-            # TODO (wardlt): Would it be better to add these as weights? Are inputs with weights OK?
-            config['user_provided_weights'] = K.get_value(self._input_tensor).tolist()
+            # TODO (wardlt): Would it be better to store using add_weights?
+            config['user_provided_weights'] = \
+                K.get_value(self._input_tensor).tolist()
         return config
 
     @classmethod
     def from_config(cls, config):
-        # Remove `is_placeholder` and `is_traiable` from the configuration
+        # Remove `is_placeholder` and from the configuration
         #  as they are not part of the constructor
         config = dict(config)
-        trainable = config.pop('trainable', False)
-        is_placeholder = config.pop('is_placeholder', True)  # Assuming it is for compatibility
+        is_placeholder = config.pop('is_placeholder', True)
 
         # If the layer is a not placeholder (i.e., it is a user-provided tensor)
         if not is_placeholder:
             value = np.array(config.pop('user_provided_weights'))
-            config['input_tensor'] = K.variable(value, dtype=config['dtype'], name=config['name']) \
-                if trainable else K.constant(value, dtype=config['dtype'], name=config['name'])
+            config['input_tensor'] = K.constant(value, dtype=config['dtype'],
+                                                name=config['name'])
 
         return cls(**config)
 
