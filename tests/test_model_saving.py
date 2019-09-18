@@ -992,8 +992,8 @@ def test_non_placeholder_inputs():
     """Test saving a model with input layers that are not placeholders"""
 
     # Make a simple addition model
-    c = K.constant((1,), dtype='int32')
-    x = Input(shape=(1,), name='x', dtype='int32')
+    c = K.constant((1,), dtype='int16')
+    x = Input(shape=(1,), name='x', dtype='int16')
     b = Input(tensor=c, batch_shape=(1,), name='b')
     o = Add()([x, b])
     model = Model([x, b], o)

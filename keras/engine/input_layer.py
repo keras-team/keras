@@ -92,9 +92,9 @@ class InputLayer(Layer):
             self.is_placeholder = False
             input_tensor._keras_shape = batch_input_shape
 
-        # Store a reference to the input tensor
-        #  Used when getting the model configuration
-        self._input_tensor = input_tensor
+            # Store a reference to the input tensor
+            #  Used when getting the model configuration
+            self._predefined_input_tensor = input_tensor
 
         # Create an input node to add to self.outbound_node
         # and set output_tensors' _keras_history.
@@ -123,7 +123,7 @@ class InputLayer(Layer):
         if not self.is_placeholder:
             # TODO (wardlt): Would it be better to store using add_weights?
             config['user_provided_weights'] = \
-                K.get_value(self._input_tensor).tolist()
+                K.get_value(self._predefined_input_tensor).tolist()
         return config
 
     @classmethod
