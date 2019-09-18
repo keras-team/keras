@@ -266,9 +266,9 @@ class TensorBoard(Callback):
             if epoch % self.histogram_freq == 0:
 
                 val_data = self.validation_data
-                tensors = (self.model.inputs +
-                           self.model.targets +
-                           self.model.sample_weights)
+                tensors = ([t for t in self.model.inputs if t is not None] +
+                           [t for t in self.model.targets if t is not None] +
+                           [t for t in self.model.sample_weights if t is not None])
 
                 if self.model.uses_learning_phase:
                     tensors += [K.learning_phase()]
