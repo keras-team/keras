@@ -1212,6 +1212,8 @@ class Layer(object):
         # Keep track of metric instance created in subclassed model/layer.
         # We do this so that we can maintain the correct order of metrics by adding
         # the instance to the `metrics` list as soon as it is created.
+        if not hasattr(_DISABLE_TRACKING, 'value'):
+            _DISABLE_TRACKING.value = False
         if not _DISABLE_TRACKING.value:
             from .. import metrics as metrics_module
             if isinstance(value, metrics_module.Metric):
