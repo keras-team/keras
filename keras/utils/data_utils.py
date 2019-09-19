@@ -33,7 +33,7 @@ from ..utils.generic_utils import Progbar
 
 if sys.version_info[0] == 2:
     def urlretrieve(url, filename, reporthook=None, data=None):
-        """Replacement for `urlretrive` for Python 2.
+        """Replacement for `urlretrieve` for Python 2.
 
         Under Python 2, `urlretrieve` relies on `FancyURLopener` from legacy
         `urllib` module, known to have issues with proxy management.
