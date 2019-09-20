@@ -1019,7 +1019,7 @@ def call_metric_function(metric_fn,
                          mask=None):
     """Invokes metric function and returns the metric result tensor."""
     if mask is not None:
-        mask = math_ops.cast(mask, y_pred.dtype)
+        mask = K.cast(mask, y_pred.dtype)
         if weights is None:
             # Use mask as sample weight.
             weights = mask
