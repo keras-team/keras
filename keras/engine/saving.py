@@ -639,7 +639,10 @@ def model_from_yaml(yaml_string, custom_objects=None):
     # Returns
         A Keras model instance (uncompiled).
     """
-    config = yaml.load(yaml_string, Loader=yaml.FullLoader)
+    if hasattr(yaml, 'FullLoader'):
+        config = yaml.load(yaml_string, Loader=yaml.FullLoader)
+    else:
+        config = yaml.load(yaml_string)
     from ..layers import deserialize
     return deserialize(config, custom_objects=custom_objects)
 
