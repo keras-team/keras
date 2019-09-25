@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from ..engine.base_layer import Layer, InputSpec, disable_tracking
+from ..engine.base_layer import Layer, InputSpec
 from .. import initializers
 from .. import regularizers
 from .. import constraints

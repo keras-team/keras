@@ -46,7 +46,6 @@ class StackedRNNCells(Layer):
     ```
     """
 
-    @disable_tracking
     def __init__(self, cells, **kwargs):
         for cell in cells:
             if not hasattr(cell, 'call'):
@@ -391,7 +390,6 @@ class RNN(Layer):
     ```
     """
 
-    @disable_tracking
     def __init__(self, cell,
                  return_sequences=False,
                  return_state=False,
@@ -410,7 +408,7 @@ class RNN(Layer):
                              '(tuple of integers, '
                              'one integer per RNN state).')
         super(RNN, self).__init__(**kwargs)
-        self.cell = cell
+        self._set_cell(cell)
         self.return_sequences = return_sequences
         self.return_state = return_state
         self.go_backwards = go_backwards
@@ -423,6 +421,13 @@ class RNN(Layer):
         self._states = None
         self.constants_spec = None
         self._num_constants = None
+
+    @disable_tracking
+    def _set_cell(self, cell):
+        # This is isolated in its own method in order to use
+        # the disable_tracking decorator without altering the
+        # visible signature of __init__.
+        self.cell = cell
 
     @property
     def states(self):

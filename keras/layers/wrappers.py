@@ -360,18 +360,12 @@ class Bidirectional(Wrapper):
     ```
     """
 
-    @disable_tracking
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '
                              'Merge mode should be one of '
                              '{"sum", "mul", "ave", "concat", None}')
-        self.forward_layer = copy.copy(layer)
-        config = layer.get_config()
-        config['go_backwards'] = not config['go_backwards']
-        self.backward_layer = layer.__class__.from_config(config)
-        self.forward_layer.name = 'forward_' + self.forward_layer.name
-        self.backward_layer.name = 'backward_' + self.backward_layer.name
+        self._set_sublayers(layer)
         self.merge_mode = merge_mode
         if weights:
             nw = len(weights)
@@ -385,6 +379,18 @@ class Bidirectional(Wrapper):
         super(Bidirectional, self).__init__(layer, **kwargs)
         self.input_spec = layer.input_spec
         self._num_constants = None
+
+    @disable_tracking
+    def _set_sublayers(self, layer):
+        # This is isolated in its own method in order to use
+        # the disable_tracking decorator without altering the
+        # visible signature of __init__.
+        self.forward_layer = copy.copy(layer)
+        config = layer.get_config()
+        config['go_backwards'] = not config['go_backwards']
+        self.backward_layer = layer.__class__.from_config(config)
+        self.forward_layer.name = 'forward_' + self.forward_layer.name
+        self.backward_layer.name = 'backward_' + self.backward_layer.name
 
     @property
     def trainable(self):
