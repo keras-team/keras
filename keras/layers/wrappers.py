@@ -359,8 +359,7 @@ class Bidirectional(Wrapper):
         model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
     ```
     """
-
-    @disable_tracking
+    
     def __init__(self, layer, merge_mode='concat', weights=None, **kwargs):
         if merge_mode not in ['sum', 'mul', 'ave', 'concat', None]:
             raise ValueError('Invalid merge mode. '
