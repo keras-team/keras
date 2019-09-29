@@ -43,8 +43,8 @@ class LocallyConnected1D(Layer):
             specifying the length of the 1D convolution window.
         strides: An integer or tuple/list of a single integer,
             specifying the stride length of the convolution.
-            Specifying any stride value != 1 is incompatible with specifying
-            any `dilation_rate` value != 1.
+            Specifying any `strides!=1` is incompatible with specifying
+            any `dilation_rate!=1`.
         padding: Currently only supports `"valid"` (case-insensitive).
             `"same"` may be supported in the future.
         data_format: String, one of `channels_first`, `channels_last`.
