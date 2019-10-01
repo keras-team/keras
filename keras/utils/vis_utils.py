@@ -245,8 +245,9 @@ def plot_model(model,
         extension = extension[1:]
     dot.write(to_file, format=extension)
     # Return the image as a Jupyter Image object, to be displayed in-line.
-    try:
-        from IPython import display
-        return display.Image(filename=to_file)
-    except ImportError:
-        pass
+    if extension != 'pdf':
+        try:
+            from IPython import display
+            return display.Image(filename=to_file)
+        except ImportError:
+            pass
