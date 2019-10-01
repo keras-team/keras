@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import unicode_literals
-
 import re
 import inspect
 import shutil
@@ -55,7 +52,6 @@ def add_np_implementation(function, docstring):
     else:
         section = template_hidden_np_implementation.replace('{{code}}', code)
     return docstring.replace('{{np_implementation}}', section)
-
 
 
 def preprocess_docstring(docstring, function, signature):
