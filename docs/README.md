@@ -6,6 +6,7 @@ Our documentation uses extended Markdown, as implemented by [MkDocs](http://mkdo
 ## Building the documentation
 
 - Install MkDocs: `pip install mkdocs`
+- Install keras-autodoc: `pip install git+https://github.com/gabrieldemarmiesse/keras-autodoc.git`
 - `pip install -e .` to make sure that Python will import your modified version of Keras.
 - From the root directory, `cd` into the `docs/` folder and run:
     - `KERAS_BACKEND=tensorflow python autogen.py`

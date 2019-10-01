@@ -75,6 +75,7 @@ install:
 
   # install mkdocs
   - pip install mkdocs --progress-bar off
+  - pip install git+https://github.com/gabrieldemarmiesse/keras-autodoc.git
 
   # install pyux
   - pip install pyux
