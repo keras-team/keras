@@ -1154,7 +1154,7 @@ class CSVLogger(Callback):
     def on_train_end(self, logs=None):
         self.csv_file.close()
         self.writer = None
-    
+
     def __del__(self):
         if hasattr(self, 'csv_file') and not self.csv_file.closed:
             self.csv_file.close()
