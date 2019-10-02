@@ -514,7 +514,7 @@ def unpack_singleton(x):
 
 def object_list_uid(object_list):
     object_list = to_list(object_list)
-    return ', '.join([str(abs(id(x))) for x in object_list])
+    return ', '.join((str(abs(id(x))) for x in object_list))
 
 
 def is_all_none(iterable_or_element):

@@ -725,9 +725,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             while self.queue.qsize() > 0:
                 last_ones.append(self.queue.get(block=True))
             # Wait for them to complete
-            list(map(lambda f: f.wait(), last_ones))
+            [f.wait() for f in last_ones]
             # Keep the good ones
-            last_ones = [future.get() for future in last_ones if future.successful()]
+            last_ones = (future.get() for future in last_ones if future.successful())
             for inputs in last_ones:
                 if inputs is not None:
                     yield inputs
