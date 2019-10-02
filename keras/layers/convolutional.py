@@ -64,8 +64,7 @@ class _Conv(Layer):
             incompatible with specifying any `strides` value != 1.
         activation: Activation function to use
             (see [activations](../activations.md)).
-            If you don't specify anything, no activation is applied
-            (ie. "linear" activation: `a(x) = x`).
+            If you don't specify anything, tanh activation is applied
         use_bias: Boolean, whether the layer uses a bias vector.
         kernel_initializer: Initializer for the `kernel` weights matrix
             (see [initializers](../initializers.md)).
