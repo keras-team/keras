@@ -32,19 +32,19 @@ def normalize_tuple(value, n, name):
         try:
             value_tuple = tuple(value)
         except TypeError:
-            raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                             str(n) + ' integers. Received: ' + str(value))
+            raise ValueError('The `{}` argument must be a tuple of {} '
+                             'integers. Received: {}'.format(name, n, value))
         if len(value_tuple) != n:
-            raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                             str(n) + ' integers. Received: ' + str(value))
+            raise ValueError('The `{}` argument must be a tuple of {} '
+                             'integers. Received: {}'.format(name, n, value))
         for single_value in value_tuple:
             try:
                 int(single_value)
             except ValueError:
-                raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                                 str(n) + ' integers. Received: ' + str(value) + ' '
-                                 'including element ' + str(single_value) + ' of '
-                                 'type ' + str(type(single_value)))
+                raise ValueError('The `{}` argument must be a tuple of {} '
+                                 'integers. Received: {} including element {} '
+                                 'of type {}'.format(name, n, value, single_value,
+                                                     type(single_value)))
     return value_tuple
 
 
@@ -55,7 +55,7 @@ def normalize_padding(value):
         allowed.add('full')
     if padding not in allowed:
         raise ValueError('The `padding` argument must be one of "valid", "same" '
-                         '(or "causal" for Conv1D). Received: ' + str(padding))
+                         '(or "causal" for Conv1D). Received: {}'.format(padding))
     return padding
 
 
