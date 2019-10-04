@@ -1155,6 +1155,10 @@ class CSVLogger(Callback):
         self.csv_file.close()
         self.writer = None
 
+    def __del__(self):
+        if hasattr(self, 'csv_file') and not self.csv_file.closed:
+            self.csv_file.close()
+
 
 class LambdaCallback(Callback):
     r"""Callback for creating simple, custom callbacks on-the-fly.
