@@ -1276,7 +1276,7 @@ class Model(Network):
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` is your data is in the
+                Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, generators, or
                 `keras.utils.Sequence` instances (since they generate batches).
             verbose: 0 or 1. Verbosity mode.
@@ -1385,7 +1385,7 @@ class Model(Network):
             batch_size: Integer or `None`.
                 Number of samples per gradient update.
                 If unspecified, `batch_size` will default to 32.
-                Do not specify the `batch_size` is your data is in the
+                Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, generators, or
                 `keras.utils.Sequence` instances (since they generate batches).
             verbose: Verbosity mode, 0 or 1.
