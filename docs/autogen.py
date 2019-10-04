@@ -1,18 +1,15 @@
 # -*- coding: utf-8 -*-
-import re
 import inspect
-import shutil
-import pathlib
-
 import keras_autodoc
-
-from keras.backend import numpy_backend
+import pathlib
+import re
+import shutil
 
 from docs.structure import EXCLUDE
 from docs.structure import PAGES
-from docs.structure import template_np_implementation
 from docs.structure import template_hidden_np_implementation
-
+from docs.structure import template_np_implementation
+from keras.backend import numpy_backend
 
 keras_dir = pathlib.Path(__file__).resolve().parents[1]
 
