@@ -5,6 +5,9 @@
 [mnist_mlp.py](mnist_mlp.py)
 Trains a simple deep multi-layer perceptron on the MNIST dataset.
 
+[mnist_mlp_low_resource.py](mnist_mlp_low_resource.py)
+Trains a simple deep multi-layer perceptron on the MNIST dataset using low resource consumption by adding normalization.
+
 [mnist_cnn.py](mnist_cnn.py)
 Trains a simple convnet on the MNIST dataset.
 
