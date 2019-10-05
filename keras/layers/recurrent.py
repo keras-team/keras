@@ -1206,7 +1206,7 @@ class GRUCell(Layer):
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
-            Default: hard sigmoid (`hard_sigmoid`).
+            Default: sigmoid (`sigmoid`).
             If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
@@ -1543,7 +1543,7 @@ class GRU(RNN):
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
-            Default: hard sigmoid (`hard_sigmoid`).
+            Default: sigmoid (`sigmoid`).
             If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
@@ -1808,7 +1808,7 @@ class LSTMCell(Layer):
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
-            Default: hard sigmoid (`hard_sigmoid`).
+            Default: sigmoid (`sigmoid`).
             If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).x
         use_bias: Boolean, whether the layer uses a bias vector.
@@ -2096,7 +2096,7 @@ class LSTM(RNN):
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
-            Default: hard sigmoid (`hard_sigmoid`).
+            Default: sigmoid (`sigmoid`).
             If you pass `None`, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
         use_bias: Boolean, whether the layer uses a bias vector.
