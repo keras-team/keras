@@ -67,8 +67,8 @@ if sys.version_info[0] == 2:
                     break
 
         with closing(urlopen(url, data)) as response, open(filename, 'wb') as fd:
-                for chunk in chunk_read(response, reporthook=reporthook):
-                    fd.write(chunk)
+            for chunk in chunk_read(response, reporthook=reporthook):
+                fd.write(chunk)
 else:
     from six.moves.urllib.request import urlretrieve
 
@@ -195,10 +195,10 @@ def get_file(fname,
         # File found; verify integrity if a hash was provided.
         if file_hash is not None:
             if not validate_file(fpath, file_hash, algorithm=hash_algorithm):
-                print('A local file was found, but it seems to be '
-                      'incomplete or outdated because the ' + hash_algorithm +
-                      ' file hash does not match the original value of ' +
-                      file_hash + ' so we will re-download the data.')
+                print('A local file was found, but it seems to be incomplete'
+                      ' or outdated because the {} file hash does not match '
+                      'the original value of {} so we will re-download the '
+                      'data.'.format(hash_algorithm, file_hash))
                 download = True
     else:
         download = True
@@ -725,9 +725,9 @@ class GeneratorEnqueuer(SequenceEnqueuer):
             while self.queue.qsize() > 0:
                 last_ones.append(self.queue.get(block=True))
             # Wait for them to complete
-            list(map(lambda f: f.wait(), last_ones))
+            [f.wait() for f in last_ones]
             # Keep the good ones
-            last_ones = [future.get() for future in last_ones if future.successful()]
+            last_ones = (future.get() for future in last_ones if future.successful())
             for inputs in last_ones:
                 if inputs is not None:
                     yield inputs

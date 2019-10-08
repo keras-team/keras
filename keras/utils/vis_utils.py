@@ -149,7 +149,7 @@ def model_to_dot(model,
                 inputlabels = str(layer.input_shape)
             elif hasattr(layer, 'input_shapes'):
                 inputlabels = ', '.join(
-                    [str(ishape) for ishape in layer.input_shapes])
+                    (str(ishape) for ishape in layer.input_shapes))
             else:
                 inputlabels = 'multiple'
             label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
