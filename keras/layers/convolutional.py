@@ -62,7 +62,7 @@ class _Conv(Layer):
             the dilation rate to use for dilated convolution.
             Currently, specifying any `dilation_rate` value != 1 is
             incompatible with specifying any `strides` value != 1.
-        activation: Activation function to use 
+        activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
             (ie. "linear" activation: `a(x) = x`).
