@@ -149,7 +149,7 @@ def model_to_dot(model,
                 inputlabels = str(layer.input_shape)
             elif hasattr(layer, 'input_shapes'):
                 inputlabels = ', '.join(
-                    [str(ishape) for ishape in layer.input_shapes])
+                    (str(ishape) for ishape in layer.input_shapes))
             else:
                 inputlabels = 'multiple'
             label = '%s\n|{input:|output:}|{{%s}|{%s}}' % (label,
@@ -245,8 +245,9 @@ def plot_model(model,
         extension = extension[1:]
     dot.write(to_file, format=extension)
     # Return the image as a Jupyter Image object, to be displayed in-line.
-    try:
-        from IPython import display
-        return display.Image(filename=to_file)
-    except ImportError:
-        pass
+    if extension != 'pdf':
+        try:
+            from IPython import display
+            return display.Image(filename=to_file)
+        except ImportError:
+            pass

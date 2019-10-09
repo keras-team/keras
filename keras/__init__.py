@@ -23,4 +23,4 @@ from .layers import Input
 from .models import Model
 from .models import Sequential
 
-__version__ = '2.3.0'
+__version__ = '2.3.1'

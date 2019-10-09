@@ -824,6 +824,7 @@ class ConvLSTM2D(ConvRNN2D):
             incompatible with specifying any `strides` value != 1.
         activation: Activation function to use
             (see [activations](../activations.md)).
+            tanh is applied by default.
         recurrent_activation: Activation function to use
             for the recurrent step
             (see [activations](../activations.md)).
