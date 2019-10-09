@@ -253,7 +253,7 @@ class Layer(object):
                    dtype=None,
                    initializer=None,
                    regularizer=None,
-                   trainable=True,
+                   trainable=None,
                    constraint=None):
         """Adds a weight variable to the layer.
 
@@ -271,6 +271,8 @@ class Layer(object):
         # Returns
             The created weight variable.
         """
+        if trainable is None:
+            trainable = getattr(self, 'trainable', True)
         if shape is None:
             shape = ()
         initializer = initializers.get(initializer)
