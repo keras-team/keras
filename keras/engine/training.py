@@ -1274,7 +1274,7 @@ class Model(Network):
                 `y` should not be specified (since targets will be obtained
                 from `x`).
             batch_size: Integer or `None`.
-                Number of samples per gradient update.
+                Number of samples per evaluation step.
                 If unspecified, `batch_size` will default to 32.
                 Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, generators, or
@@ -1383,7 +1383,7 @@ class Model(Network):
                 - None (default) if feeding from framework-native
                   tensors (e.g. TensorFlow data tensors).
             batch_size: Integer or `None`.
-                Number of samples per gradient update.
+                Number of samples to be predicted at once.
                 If unspecified, `batch_size` will default to 32.
                 Do not specify the `batch_size` if your data is in the
                 form of symbolic tensors, generators, or
@@ -1755,7 +1755,7 @@ class Model(Network):
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             callbacks: List of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                List of callbacks to apply during evaluation.
                 See [callbacks](/callbacks).
             max_queue_size: maximum size for the generator queue
             workers: Integer. Maximum number of processes to spin up
@@ -1813,7 +1813,7 @@ class Model(Network):
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             callbacks: List of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                List of callbacks to apply during prediction.
                 See [callbacks](/callbacks).
             max_queue_size: Maximum size for the generator queue.
             workers: Integer. Maximum number of processes to spin up
