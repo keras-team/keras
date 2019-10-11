@@ -1755,7 +1755,7 @@ class Model(Network):
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             callbacks: List of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                List of callbacks to apply during evaluation.
                 See [callbacks](/callbacks).
             max_queue_size: maximum size for the generator queue
             workers: Integer. Maximum number of processes to spin up
@@ -1813,7 +1813,7 @@ class Model(Network):
                 Optional for `Sequence`: if unspecified, will use
                 the `len(generator)` as a number of steps.
             callbacks: List of `keras.callbacks.Callback` instances.
-                List of callbacks to apply during training.
+                List of callbacks to apply during prediction.
                 See [callbacks](/callbacks).
             max_queue_size: Maximum size for the generator queue.
             workers: Integer. Maximum number of processes to spin up
