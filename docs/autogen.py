@@ -84,6 +84,8 @@ def post_process_signature(signature):
             signature = 'keras.utils.' + '.'.join(parts[3:])
         if parts[1] == 'backend':
             signature = 'keras.backend.' + '.'.join(parts[3:])
+        if parts[1] == 'callbacks':
+            signature = 'keras.callbacks.' + '.'.join(parts[3:])
     return signature
 
 
