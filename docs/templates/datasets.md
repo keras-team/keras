@@ -194,8 +194,8 @@ targets ar the median values of the houses at a location (in k$), and 102 test d
 from keras.datasets import boston_housing
 
 (x_train, y_train), (x_test, y_test) = boston_housing.load_data(path="boston_housing.npz",
-                                                        	test_split=0.2,
-					seed=113)
+                                                        		 test_split=0.2,
+                                                        		 seed=113)
 ```
 
 - __Arguments:__
