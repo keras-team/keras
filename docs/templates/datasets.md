@@ -2,7 +2,7 @@
 
 ## CIFAR10 small image classification
 
-Dataset of 50,000 32x32 color training images, labeled over 10 categories, and 10,000 test images.
+Dataset of 50,000 32x32x3(color) training images, labeled over 10 categories, and 10,000 test images.
 
 ### Usage:
 
@@ -22,7 +22,7 @@ from keras.datasets import cifar10
 
 ## CIFAR100 small image classification
 
-Dataset of 50,000 32x32 color training images, labeled over 100 categories, and 10,000 test images.
+Dataset of 50,000 32x32x3(color) training images, labeled over 100 categories, and 10,000 test images.
 
 ### Usage:
 
@@ -126,7 +126,7 @@ word_index = reuters.get_word_index(path="reuters_word_index.json")
 
 ## MNIST database of handwritten digits
 
-Dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set of 10,000 images.
+Dataset of 60,000 28x28(grayscale) training images, labeled over 10 digits(categories), and 10,000 test images. 
 
 ### Usage:
 
@@ -150,7 +150,7 @@ from keras.datasets import mnist
 
 ## Fashion-MNIST database of fashion articles
 
-Dataset of 60,000 28x28 grayscale images of 10 fashion categories, along with a test set of 10,000 images. This dataset can be used as a drop-in replacement for MNIST. The class labels are:
+Dataset of 60,000 28x28(grayscale) training images, labeled over 10 (fashion) categories, and 10,000 test images. This dataset can be used as a drop-in replacement for MNIST. The class labels are:
 
 | Label | Description |
 | --- | --- |
@@ -206,4 +206,4 @@ from keras.datasets import boston_housing
     - __test_split__: fraction of the data to reserve as test set.
 
 - __Returns:__
-    Tuple of Numpy arrays: `(x_train, y_train), (x_test, y_test)`.
+    Tuple of NumPy arrays: `(x_train, y_train), (x_test, y_test)`.
