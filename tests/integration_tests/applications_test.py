@@ -24,7 +24,13 @@ MODEL_LIST = [
     (applications.DenseNet169, 1664),
     (applications.DenseNet201, 1920),
     # Note that NASNetLarge is too heavy to test on Travis.
-    (applications.NASNetMobile, 1056)
+    (applications.NASNetMobile, 1056),
+    (applications.EfficientNetB0, 1280),
+    (applications.EfficientNetB1, 1280),
+    (applications.EfficientNetB2, 1408),
+    (applications.EfficientNetB3, 1536),
+    (applications.EfficientNetB4, 1792),
+    (applications.EfficientNetB5, 2048),
 ]
 
 
