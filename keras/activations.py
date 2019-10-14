@@ -171,6 +171,19 @@ def hard_sigmoid(x):
     """
     return K.hard_sigmoid(x)
 
+def mish(x):
+    """Mish: A Self Regularized Non-Monotonic Neural Activation Function (https://arxiv.org/abs/1908.08681v2)
+
+    Overperforms than both ReLU and Swish.
+
+    # Arguments
+        x: Input tensor.
+
+    # Returns
+        x * tanh(softplus(x))
+
+    """
+    return x*K.tanh(K.softplus(x))
 
 def exponential(x):
     """Exponential (base e) activation function.
