@@ -24,7 +24,7 @@ else:
 
 
 class HDF5Matrix(object):
-    """Representation of HDF5 dataset to be used instead of a Numpy array.
+    """Representation of HDF5 dataset to be used instead of a NumPy array.
 
     # Example
 
