@@ -48,9 +48,9 @@ def EfficientNetB7(*args, **kwargs):
 
 @keras_modules_injection
 def decode_predictions(*args, **kwargs):
-    return densenet.decode_predictions(*args, **kwargs)
+    return efficientnet.decode_predictions(*args, **kwargs)
 
 
 @keras_modules_injection
 def preprocess_input(*args, **kwargs):
-    return densenet.preprocess_input(*args, **kwargs)
+    return efficientnet.preprocess_input(*args, **kwargs)
