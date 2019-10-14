@@ -183,12 +183,10 @@ from keras.datasets import fashion_mnist
 
 ## Boston housing price regression dataset
 
+This dataset taken from the StatLib library which is maintained at Carnegie Mellon University.  
 
-Dataset taken from the StatLib library which is maintained at Carnegie Mellon University. 
-
-Samples contain 13 attributes of houses at different locations around the Boston suburbs in the late 1970s.
-Targets are the median values of the houses at a location (in k$).
-
+Dataset 404 with 13 attributes of houses at different locations around the Boston suburbs in the late 1970s training data,
+targets ar the median values of the houses at a location (in k$), and 102 test data.
 
 ### Usage:
 
