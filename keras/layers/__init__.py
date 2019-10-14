@@ -122,6 +122,7 @@ from .advanced_activations import ReLU
 from .wrappers import Bidirectional
 from .wrappers import TimeDistributed
 
+from .convolutional_recurrent import ConvRNN2D
 from .convolutional_recurrent import ConvLSTM2D
 from .convolutional_recurrent import ConvLSTM2DCell
 
