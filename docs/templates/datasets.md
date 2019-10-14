@@ -133,7 +133,7 @@ Dataset of 60,000 28x28(grayscale) training images, labeled over 10 digits(categ
 ```python
 from keras.datasets import mnist
 
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+(x_train, y_train), (x_test, y_test) = mnist.load_data(path="mnist.npz")
 ```
 
 - __Returns:__
@@ -183,7 +183,7 @@ from keras.datasets import fashion_mnist
 
 ## Boston housing price regression dataset
 
-This dataset taken from the StatLib library which is maintained at Carnegie Mellon University.  
+This dataset is taken from the StatLib library which is maintained at Carnegie Mellon University.  
 
 Dataset 404 with 13 attributes of houses at different locations around the Boston suburbs in the late 1970s training data,
 targets ar the median values of the houses at a location (in k$), and 102 test data.
@@ -193,15 +193,17 @@ targets ar the median values of the houses at a location (in k$), and 102 test d
 ```python
 from keras.datasets import boston_housing
 
-(x_train, y_train), (x_test, y_test) = boston_housing.load_data()
+(x_train, y_train), (x_test, y_test) = boston_housing.load_data(path="boston_housing.npz",
+                                                        	test_split=0.2,
+					seed=113)
 ```
 
 - __Arguments:__
     - __path__: path where to cache the dataset locally
         (relative to ~/.keras/datasets).
+    - __test_split__: fraction of the data to reserve as test set.
     - __seed__: Random seed for shuffling the data
         before computing the test split.
-    - __test_split__: fraction of the data to reserve as test set.
 
 - __Returns:__
     Tuple of NumPy arrays: `(x_train, y_train), (x_test, y_test)`.
