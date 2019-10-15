@@ -139,7 +139,7 @@ class Optimizer(object):
         """Returns the current value of the weights of the optimizer.
 
         # Returns
-            A list of numpy arrays.
+            A list of NumPy arrays.
         """
         return K.batch_get_value(self.weights)
 
