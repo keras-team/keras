@@ -133,11 +133,8 @@ class ConvRNN2D(RNN):
                  return_state=False,
                  go_backwards=False,
                  stateful=False,
-                 unroll=False,
                  **kwargs):
-        if unroll:
-            raise TypeError('Unrolling isn\'t possible with '
-                            'convolutional RNNs.')
+        # Unrolling is not possible with Convolutional RNNs
         if isinstance(cell, (list, tuple)):
             # The StackedConvRNN2DCells isn't implemented yet.
             raise TypeError('It is not possible at the moment to'
@@ -147,7 +144,6 @@ class ConvRNN2D(RNN):
                                         return_state,
                                         go_backwards,
                                         stateful,
-                                        unroll,
                                         **kwargs)
         self.input_spec = [InputSpec(ndim=5)]
 
