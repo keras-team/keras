@@ -6,7 +6,7 @@ Found a bug? Have a new feature to suggest? Want to contribute changes to the co
 
 Your code doesn't work, and you have determined that the issue lies with Keras? Follow these steps to report a bug.
 
-1. Your bug may already be fixed. Make sure to update to the current Keras master branch, as well as the latest Theano/TensorFlow/CNTK master branch.
+1. Your bug may already be fixed. Please make sure to update to the current Keras master branch, as well as the latest Theano/TensorFlow/CNTK master branch.
 To easily update Theano: `pip install git+git://github.com/Theano/Theano.git --upgrade`
 
 2. Search for similar issues. Make sure to delete `is:open` on the issue search to find solved tickets as well. It's possible somebody has encountered this bug already. Also remember to check out Keras' [FAQ](http://keras.io/faq/). Still having a problem? Open an issue on Github to let us know.
@@ -19,7 +19,7 @@ To easily update Theano: `pip install git+git://github.com/Theano/Theano.git --u
 
 The more information you provide, the easier it is for us to validate that there is a bug and the faster we'll be able to take action. If you want your issue to be resolved quickly, following the steps above is crucial.
 
----
+-----
 
 ## Requesting a Feature
 
@@ -45,7 +45,7 @@ You can also use [Tensorflow Github issues](https://github.com/tensorflow/tensor
 
 **Where should I submit my pull request?**
 
-#### Note:
+####  Note:
 
 We are no longer adding new features to multi-backend Keras (we only fix bugs), as we are refocusing development efforts on tf.keras. If you are still interested in submitting a feature pull request, please direct it to tf.keras in the TensorFlow repository instead.
 
