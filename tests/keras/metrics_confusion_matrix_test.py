@@ -432,7 +432,7 @@ class TestPrecisionAtRecall(object):
         y_true = K.constant(label_values, dtype='float32')
         weights = K.constant(weight_values)
         result = s_obj(y_true, y_pred, sample_weight=weights)
-        assert np.isclose(2./3., K.eval(result))
+        assert np.isclose(2. / 3., K.eval(result))
 
     def test_invalid_sensitivity(self):
         with pytest.raises(Exception):
