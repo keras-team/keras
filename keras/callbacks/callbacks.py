@@ -855,8 +855,8 @@ class RemoteMonitor(Callback):
     Events are sent to `root + '/publish/epoch/end/'` by default. Calls are
     HTTP POST, with a `data` argument which is a
     JSON-encoded dictionary of event data.
-    If send_as_json is set to True, the content type of the request will be
-    application/json. Otherwise the serialized JSON will be send within a form
+    If `send_as_json=True`, the content type of the request will be
+    `application/json`. Otherwise the serialized JSON will be send within a form
 
     # Arguments
         root: String; root url of the target server.
