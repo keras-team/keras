@@ -645,7 +645,7 @@ class ModelCheckpoint(Callback):
         filepath: string, path to save the model file.
         monitor: quantity to monitor.
         verbose: verbosity mode, 0 or 1.
-        save_best_only: if `save_best_only=True`,
+        save_best_only: if `True`,
             the latest best model according to
             the quantity monitored will not be overwritten.
         save_weights_only: if True, then only the model's weights will be
@@ -655,9 +655,9 @@ class ModelCheckpoint(Callback):
             If `save_best_only=True`, the decision
             to overwrite the current save file is made
             based on either the maximization or the
-            minimization of the monitored quantity. For `val_acc`,
-            this should be `max`, for `val_loss` this should
-            be `min`, etc. In `auto` mode, the direction is
+            minimization of the monitored quantity. For `__monitor__=val_acc`,
+            it should be `__mode__=max`, for `__monitor__=val_loss` this should
+            be `__mode__=min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
         period: Interval (number of epochs) between checkpoints.
     """
