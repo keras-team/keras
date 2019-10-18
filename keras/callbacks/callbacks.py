@@ -713,10 +713,7 @@ class ModelCheckpoint(Callback):
                                   % (epoch + 1, self.monitor, self.best,
                                      current, filepath))
                         self.best = current
-                        if self.save_weights_only:
-                            self.model.save_weights(filepath, overwrite=True)
-                        else:
-                            self.model.save(filepath, overwrite=True)
+                        self.save(filepath)
                     else:
                         if self.verbose > 0:
                             print('\nEpoch %05d: %s did not improve from %0.5f' %
@@ -724,10 +721,13 @@ class ModelCheckpoint(Callback):
             else:
                 if self.verbose > 0:
                     print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
-                if self.save_weights_only:
-                    self.model.save_weights(filepath, overwrite=True)
-                else:
-                    self.model.save(filepath, overwrite=True)
+                self.save(filepath)
+
+    def save(self, filepath):
+        if self.save_weights_only:
+            self.model.save_weights(filepath, overwrite=True)
+        else:
+            self.model.save(filepath, overwrite=True)
 
 
 class EarlyStopping(Callback):
