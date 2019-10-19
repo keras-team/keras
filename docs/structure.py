@@ -140,7 +140,6 @@ PAGES = [
             layers.Activation,
             layers.Dropout,
             layers.Flatten,
-            layers.Input,
             layers.Reshape,
             layers.Permute,
             layers.RepeatVector,
@@ -151,6 +150,7 @@ PAGES = [
             layers.SpatialDropout2D,
             layers.SpatialDropout3D,
         ],
+        'functions': [layers.Input]
     },
     {
         'page': 'layers/convolutional.md',

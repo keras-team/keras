@@ -23,15 +23,9 @@ def post_process_signature(signature):
             signature = 'keras.utils.' + '.'.join(parts[3:])
         if parts[1] == 'backend':
             signature = 'keras.backend.' + '.'.join(parts[3:])
+    signature = signature.replace('keras_applications', 'keras.applications')
+    signature = signature.replace('keras_preprocessing', 'keras.preprocessing')
     return signature
-
-
-def clean_module_name(name):
-    if name.startswith('keras_applications'):
-        name = name.replace('keras_applications', 'keras.applications')
-    if name.startswith('keras_preprocessing'):
-        name = name.replace('keras_preprocessing', 'keras.preprocessing')
-    return name
 
 
 def add_np_implementation(function, docstring):
@@ -56,6 +50,14 @@ def preprocess_docstring(docstring, function, signature):
         docstring = add_np_implementation(function, docstring)
     return docstring
 
+keras_team_url = 'https://github.com/keras-team'
+
+project_url = {
+        'keras': f'{keras_team_url}/keras/blob/master',
+        'keras_applications': f'{keras_team_url}/keras-applications/blob/master',
+        'keras_preprocessing': f'{keras_team_url}/keras-preprocessing/blob/master',
+    }
+
 
 def generate(dest_dir):
     template_dir = keras_dir / 'docs' / 'templates'
@@ -63,10 +65,9 @@ def generate(dest_dir):
         dest_dir,
         template_dir,
         PAGES,
-        'https://github.com/keras-team/keras/blob/master',
+        project_url,
         keras_dir / 'examples',
         EXCLUDE,
-        clean_module_name=clean_module_name,
         post_process_signature=post_process_signature,
         preprocess_docstring=preprocess_docstring,
     )
