@@ -31,7 +31,7 @@ class LocallyConnected1D(Layer):
         model = Sequential()
         model.add(LocallyConnected1D(64, 3, input_shape=(10, 32)))
         # now model.output_shape == (None, 8, 64)
-        # add a new conv1d on top
+        # add a new conv1D on top
         model.add(LocallyConnected1D(32, 3))
         # now model.output_shape == (None, 6, 32)
     ```
@@ -47,7 +47,7 @@ class LocallyConnected1D(Layer):
             any `dilation_rate!=1`.
         padding: Currently only supports `"valid"` (case-insensitive).
             `"same"` may be supported in the future.
-        data_format: String, one of `channels_first`, `channels_last`.
+        data_format: String, one of `"channels_first"`, `"channels_last"`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -217,15 +217,15 @@ class LocallyConnected2D(Layer):
         padding: Currently only support `"valid"` (case-insensitive).
             `"same"` will be supported in future.
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -256,9 +256,9 @@ class LocallyConnected2D(Layer):
 
     # Output shape
         4D tensor with shape:
-        `(samples, filters, new_rows, new_cols)` if data_format='channels_first'
+        `(samples, filters, new_rows, new_cols)` if `data_format='channels_first'`
         or 4D tensor with shape:
-        `(samples, new_rows, new_cols, filters)` if data_format='channels_last'.
+        `(samples, new_rows, new_cols, filters)` if `data_format='channels_last'`.
         `rows` and `cols` values might have changed due to padding.
     """
 
