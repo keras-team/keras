@@ -390,7 +390,8 @@ class MaxPooling3D(_Pooling3D):
         pool_size: Integer or tuple of 3 integers,
             factors by which to downscale (dim1, dim2, dim3).
             (2, 2, 2) will halve the size of the 3D input in each dimension.
-        strides: tuple of 3 integers, or None. Strides values.
+        strides: Integer, tuple of 3 integers, or None. Strides values.
+                If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
@@ -437,10 +438,11 @@ class AveragePooling3D(_Pooling3D):
     """Average pooling operation for 3D data (spatial or spatio-temporal).
 
     # Arguments
-        pool_size: tuple of 3 integers,
+        pool_size: Integer or tuple of 3 integers,
             factors by which to downscale (dim1, dim2, dim3).
             (2, 2, 2) will halve the size of the 3D input in each dimension.
-        strides: tuple of 3 integers, or None. Strides values.
+        strides: Integer, tuple of 3 integers, or None. Strides values.
+            If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
             one of `channels_last` (default) or `channels_first`.
