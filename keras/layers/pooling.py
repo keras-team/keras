@@ -273,7 +273,7 @@ class AveragePooling2D(_Pooling2D):
     """Average pooling operation for spatial data.
 
     # Arguments
-        pool_size: integer or tuple of 2 integers,
+        pool_size: Integer or tuple of 2 integers,
             factors by which to downscale (vertical, horizontal).
             (2, 2) will halve the input in both spatial dimension.
             If only one integer is specified, the same window length
@@ -387,7 +387,7 @@ class MaxPooling3D(_Pooling3D):
     """Max pooling operation for 3D data (spatial or spatio-temporal).
 
     # Arguments
-        pool_size: tuple of 3 integers,
+        pool_size: Integer or tuple of 3 integers,
             factors by which to downscale (dim1, dim2, dim3).
             (2, 2, 2) will halve the size of the 3D input in each dimension.
         strides: tuple of 3 integers, or None. Strides values.
