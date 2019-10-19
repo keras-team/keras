@@ -56,12 +56,11 @@ def add_np_implementation(function, docstring):
 
 
 keras_team_url = 'https://github.com/keras-team'
-
 project_url = {
-        'keras': f'{keras_team_url}/keras/blob/master',
-        'keras_applications': f'{keras_team_url}/keras-applications/blob/master',
-        'keras_preprocessing': f'{keras_team_url}/keras-preprocessing/blob/master',
-    }
+    'keras': f'{keras_team_url}/keras/blob/master',
+    'keras_applications': f'{keras_team_url}/keras-applications/blob/master',
+    'keras_preprocessing': f'{keras_team_url}/keras-preprocessing/blob/master',
+}
 
 
 def generate(dest_dir):
