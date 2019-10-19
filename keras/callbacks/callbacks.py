@@ -655,8 +655,8 @@ class ModelCheckpoint(Callback):
             If `save_best_only=True`, the decision
             to overwrite the current save file is made
             based on either the maximization or the
-            minimization of the monitored quantity. For `__monitor__=val_acc`,
-            it should be `__mode__=max`, for `__monitor__=val_loss` this should
+            minimization of the monitored quantity. For `monitor=val_acc`
+            it should be `mode=max`, for `monitor=val_loss` it should
             be `__mode__=min`, etc. In `auto` mode, the direction is
             automatically inferred from the name of the monitored quantity.
         period: Interval (number of epochs) between checkpoints.
