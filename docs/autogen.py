@@ -31,6 +31,8 @@ class KerasDocumentationGenerator(DocumentationGenerator):
                 signature = 'keras.utils.' + '.'.join(parts[3:])
             if parts[1] == 'backend':
                 signature = 'keras.backend.' + '.'.join(parts[3:])
+            if parts[1] == 'callbacks':
+                signature = 'keras.callbacks.' + '.'.join(parts[3:])
         signature = signature.replace('keras_applications', 'keras.applications')
         signature = signature.replace('keras_preprocessing', 'keras.preprocessing')
         return super().process_signature(signature)

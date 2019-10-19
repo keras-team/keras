@@ -60,7 +60,7 @@ install:
 
   # install TensorFlow (CPU version).
   - if [[ "$MODE" == "TF2" ]]; then
-    pip install tf-nightly-2.0-preview --progress-bar off;
+    pip install tensorflow==2.0.0 --progress-bar off;
     else
     pip install tensorflow==1.14.0 --progress-bar off;
     fi
