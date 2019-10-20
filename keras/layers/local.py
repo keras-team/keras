@@ -47,7 +47,7 @@ class LocallyConnected1D(Layer):
             any `dilation_rate!=1`.
         padding: Currently only supports `"valid"` (case-insensitive).
             `"same"` may be supported in the future.
-        data_format: String, one of `"channels_first"`, `"channels_last"`.
+        data_format: String, one of `'channels_first'`, `'channels_last'`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
@@ -191,7 +191,7 @@ class LocallyConnected2D(Layer):
     # Examples
     ```python
         # apply a 3x3 unshared weights convolution with 64 output filters
-        # on a 32x32 image with `data_format="channels_last"`:
+        # on a 32x32 image with `data_format='channels_last'`:
         model = Sequential()
         model.add(LocallyConnected2D(64, (3, 3), input_shape=(32, 32, 3)))
         # now model.output_shape == (None, 30, 30, 64)
@@ -217,15 +217,15 @@ class LocallyConnected2D(Layer):
         padding: Currently only support `"valid"` (case-insensitive).
             `"same"` will be supported in future.
         data_format: A string,
-            one of `"channels_last"` (default) or `"channels_first"`.
+            one of `'channels_last'` (default) or `'channels_first'`.
             The ordering of the dimensions in the inputs.
-            `"channels_last"` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `"channels_first"`
+            `'channels_last'` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `'channels_first'`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be `"channels_last"`.
+            If you never set it, then it will be `'channels_last'`.
         activation: Activation function to use
             (see [activations](../activations.md)).
             If you don't specify anything, no activation is applied
