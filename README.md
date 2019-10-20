@@ -71,7 +71,7 @@ from keras.layers import Dense
 model.add(Dense(units=64, activation='relu', input_dim=100))
 model.add(Dense(units=10, activation='softmax'))
 ```
-
+If you require saving the module, it is advised to give the attribute stateful=true
 Once your model looks good, configure its learning process with `.compile()`:
 
 ```python

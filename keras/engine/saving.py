@@ -493,6 +493,50 @@ def allow_read_from_gcs(load_function):
 
     return load_wrapper
 
+@allow_read_from_gcs
+def load_model(filepath, custom_objects=None, compile=True):
+    """Loads a model saved via `save_model`.
+
+    # Arguments
+        filepath: one of the following:
+            - string, path to the saved model
+            - h5py.File or h5py.Group object from which to load the model
+            - any file-like object implementing the method `read` that returns
+            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+        compile: Boolean, whether to compile the model
+            after loading.
+
+    # Returns
+        A Keras model instance. If an optimizer was found
+        as part of the saved model, the model is already
+        compiled. Otherwise, the model is uncompiled and
+        a warning will be displayed. When `compile` is set
+        to False, the compilation is omitted without any
+        warning.
+
+    # Raises
+        ImportError: if h5py is not available.
+        ValueError: In case of an invalid savefile.
+    """
+    if h5py is None:
+        raise ImportError('`load_model` requires h5py.')
+
+    if H5Dict.is_supported_type(filepath):
+        with H5Dict(filepath, mode='r') as h5dict:
+            model = _deserialize_model(h5dict, custom_objects, compile)
+    elif hasattr(filepath, 'write') and callable(filepath.write):
+        def load_function(h5file):
+            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
+        model = load_from_binary_h5py(load_function, filepath)
+    else:
+        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
+
+    return model
+
+
 
 @allow_write_to_gcs
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
@@ -548,48 +592,7 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
         raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
 
 
-@allow_read_from_gcs
-def load_model(filepath, custom_objects=None, compile=True):
-    """Loads a model saved via `save_model`.
 
-    # Arguments
-        filepath: one of the following:
-            - string, path to the saved model
-            - h5py.File or h5py.Group object from which to load the model
-            - any file-like object implementing the method `read` that returns
-            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
-        custom_objects: Optional dictionary mapping names
-            (strings) to custom classes or functions to be
-            considered during deserialization.
-        compile: Boolean, whether to compile the model
-            after loading.
-
-    # Returns
-        A Keras model instance. If an optimizer was found
-        as part of the saved model, the model is already
-        compiled. Otherwise, the model is uncompiled and
-        a warning will be displayed. When `compile` is set
-        to False, the compilation is omitted without any
-        warning.
-
-    # Raises
-        ImportError: if h5py is not available.
-        ValueError: In case of an invalid savefile.
-    """
-    if h5py is None:
-        raise ImportError('`load_model` requires h5py.')
-
-    if H5Dict.is_supported_type(filepath):
-        with H5Dict(filepath, mode='r') as h5dict:
-            model = _deserialize_model(h5dict, custom_objects, compile)
-    elif hasattr(filepath, 'write') and callable(filepath.write):
-        def load_function(h5file):
-            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
-        model = load_from_binary_h5py(load_function, filepath)
-    else:
-        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
-
-    return model
 
 
 def pickle_model(model):
