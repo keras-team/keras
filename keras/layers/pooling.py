@@ -76,10 +76,10 @@ class MaxPooling1D(_Pooling1D):
             If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, steps, features)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, steps, features)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, features, steps)`.
 
@@ -124,10 +124,10 @@ class AveragePooling1D(_Pooling1D):
             If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, steps, features)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, steps, features)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, features, steps)`.
 
@@ -228,15 +228,15 @@ class MaxPooling2D(_Pooling2D):
             If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -273,7 +273,7 @@ class AveragePooling2D(_Pooling2D):
     """Average pooling operation for spatial data.
 
     # Arguments
-        pool_size: integer or tuple of 2 integers,
+        pool_size: Integer or tuple of 2 integers,
             factors by which to downscale (vertical, horizontal).
             (2, 2) will halve the input in both spatial dimension.
             If only one integer is specified, the same window length
@@ -283,15 +283,15 @@ class AveragePooling2D(_Pooling2D):
             If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -387,21 +387,22 @@ class MaxPooling3D(_Pooling3D):
     """Max pooling operation for 3D data (spatial or spatio-temporal).
 
     # Arguments
-        pool_size: tuple of 3 integers,
+        pool_size: Integer or tuple of 3 integers,
             factors by which to downscale (dim1, dim2, dim3).
             (2, 2, 2) will halve the size of the 3D input in each dimension.
-        strides: tuple of 3 integers, or None. Strides values.
+        strides: Integer, tuple of 3 integers, or None. Strides values.
+                If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
-            while `channels_first` corresponds to inputs with shape
+            while `"channels_first"` corresponds to inputs with shape
             `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -437,21 +438,22 @@ class AveragePooling3D(_Pooling3D):
     """Average pooling operation for 3D data (spatial or spatio-temporal).
 
     # Arguments
-        pool_size: tuple of 3 integers,
+        pool_size: Integer or tuple of 3 integers,
             factors by which to downscale (dim1, dim2, dim3).
             (2, 2, 2) will halve the size of the 3D input in each dimension.
-        strides: tuple of 3 integers, or None. Strides values.
+        strides: Integer, tuple of 3 integers, or None. Strides values.
+            If None, it will default to `pool_size`.
         padding: One of `"valid"` or `"same"` (case-insensitive).
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
-            while `channels_first` corresponds to inputs with shape
+            while `"channels_first"` corresponds to inputs with shape
             `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -513,10 +515,10 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, steps, features)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, steps, features)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, features, steps)`.
 
@@ -559,10 +561,10 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, steps, features)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, steps, features)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, features, steps)`.
 
@@ -614,15 +616,15 @@ class GlobalAveragePooling2D(_GlobalPooling2D):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -649,15 +651,15 @@ class GlobalMaxPooling2D(_GlobalPooling2D):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
-            `(batch, height, width, channels)` while `channels_first`
+            `"channels_last"` corresponds to inputs with shape
+            `(batch, height, width, channels)` while `"channels_first"`
             corresponds to inputs with shape
             `(batch, channels, height, width)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -709,15 +711,15 @@ class GlobalAveragePooling3D(_GlobalPooling3D):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
-            while `channels_first` corresponds to inputs with shape
+            while `"channels_first"` corresponds to inputs with shape
             `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
@@ -744,15 +746,15 @@ class GlobalMaxPooling3D(_GlobalPooling3D):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `"channels_last"` (default) or `"channels_first"`.
             The ordering of the dimensions in the inputs.
-            `channels_last` corresponds to inputs with shape
+            `"channels_last"` corresponds to inputs with shape
             `(batch, spatial_dim1, spatial_dim2, spatial_dim3, channels)`
-            while `channels_first` corresponds to inputs with shape
+            while `"channels_first"` corresponds to inputs with shape
             `(batch, channels, spatial_dim1, spatial_dim2, spatial_dim3)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `"channels_last"`.
 
     # Input shape
         - If `data_format='channels_last'`:
