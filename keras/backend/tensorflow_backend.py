@@ -374,10 +374,6 @@ def get_session():
         RuntimeError: if no session is available
             (e.g. when using TensorFlow 2.0).
     """
-    if not _is_tf_1():
-        raise RuntimeError(
-            '`get_session` is not available '
-            'when using TensorFlow 2.0.')
     if tf.executing_eagerly():
         raise RuntimeError(
             '`get_session` is not available when '
@@ -2921,10 +2917,10 @@ def get_value(x):
     # Returns
         A Numpy array.
     """
-    if _is_tf_1():
-        return x.eval(session=get_session())
-    else:
+    if tf.executing_eagerly():
         return x.numpy()
+    else:
+        return x.eval(session=get_session())
 
 
 def batch_get_value(ops):
