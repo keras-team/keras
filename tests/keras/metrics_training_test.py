@@ -87,7 +87,7 @@ def test_mean_iou():
         return
 
     model = Sequential([Dense(1, input_shape=(3,))])
-    model.compile('rmsprop', 'mse', metrics=[metrics.MeanIoU(2)])
+    model.compile('rmsprop', 'mse',  metrics=[metrics.MeanIoU(2)])
     x = np.random.random((10, 3))
     y = np.random.random((10,))
     model.fit(x, y)
