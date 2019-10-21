@@ -708,7 +708,7 @@ def test_saving_constant_initializer_with_numpy():
     os.remove(fname)
 
 
-def test_saving_group_naming_h5py():
+def test_saving_group_naming_h5py(tmpdir):
     """Test saving model with layer which name is prefix to a previous layer
     name
     """
@@ -718,10 +718,9 @@ def test_saving_group_naming_h5py():
     x = Activation('relu', name='conv1')(x)
 
     model = Model(inputs=input_layer, outputs=x)
-    _, fname = tempfile.mkstemp('.h5')
-    model.save_weights(fname)
-    model.load_weights(fname)
-    os.remove(fname)
+    p = tmpdir.mkdir("test").join("test.h5")
+    model.save_weights(p)
+    model.load_weights(p)
 
 
 def test_save_load_weights_gcs():
