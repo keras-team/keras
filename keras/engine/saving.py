@@ -744,7 +744,13 @@ def save_weights_to_hdf5_group(group, layers):
     group.attrs['backend'] = K.backend().encode('utf8')
     group.attrs['keras_version'] = str(keras_version).encode('utf8')
 
-    for layer in layers:
+    # Sort model layers by layer name to ensure that group names are strictly
+    # growing to avoid prefix issues.
+    sorted_layers = [(layers[i].name, i) for i in range(len(layers))]
+    sorted_layers.sort()
+
+    for layer_name, original_layer_index in sorted_layers:
+        layer = layers[original_layer_index]
         g = group.create_group(layer.name)
         symbolic_weights = layer.weights
         weight_values = K.batch_get_value(symbolic_weights)
