@@ -21,8 +21,10 @@ class BatchNormalization(Layer):
     close to 0 and the activation standard deviation close to 1.
 
     # Arguments
-        axis: Integer, the axis that should be normalized
-            (typically the features axis).
+        axis: Integer, the axis that should be comparable on the same 
+            scale (typically the features axis), i.e. preserve the 
+            dimensions, and normalize with respect to the mean and 
+            standard deviation over every other axis.
             For instance, after a `Conv2D` layer with
             `data_format="channels_first"`,
             set `axis=1` in `BatchNormalization`.
