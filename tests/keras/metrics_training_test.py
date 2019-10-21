@@ -86,8 +86,8 @@ def test_mean_iou():
     if not tf.__version__.startswith('2.'):
         return
 
-    model = Sequential([Dense(1, input_shape=(3,))])
-    model.compile('rmsprop', 'mse',  metrics=[metrics.MeanIoU(2)])
+    model = Sequential([Dense(1, activation='relu', input_shape=(3,))])
+    model.compile('rmsprop', 'mse', metrics=[metrics.MeanIoU(2)])
     x = np.random.random((10, 3))
     y = np.random.random((10,))
     model.fit(x, y)
