@@ -188,19 +188,19 @@ class SpatialDropout2D(Dropout):
 
     # Arguments
         rate: float between 0 and 1. Fraction of the input units to drop.
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension
+        data_format: `'channels_first'` or `'channels_last'`.
+            In `'channels_first'` mode, the channels dimension
             (the depth) is at index 1,
-            in 'channels_last' mode is it at index 3.
+            in `'channels_last'` mode is it at index 3.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `'channels_last'`.
 
     # Input shape
         4D tensor with shape:
-        `(samples, channels, rows, cols)` if data_format='channels_first'
+        `(samples, channels, rows, cols)` if `data_format='channels_first'`
         or 4D tensor with shape:
-        `(samples, rows, cols, channels)` if data_format='channels_last'.
+        `(samples, rows, cols, channels)` if `data_format='channels_last'`.
 
     # Output shape
         Same as input
@@ -238,18 +238,18 @@ class SpatialDropout3D(Dropout):
 
     # Arguments
         rate: float between 0 and 1. Fraction of the input units to drop.
-        data_format: 'channels_first' or 'channels_last'.
-            In 'channels_first' mode, the channels dimension (the depth)
-            is at index 1, in 'channels_last' mode is it at index 4.
+        data_format: `'channels_first'` or `'channels_last'`.
+            In `'channels_first'` mode, the channels dimension (the depth)
+            is at index 1, in `'channels_last'` mode is it at index 4.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `'channels_last'`.
 
     # Input shape
         5D tensor with shape:
-        `(samples, channels, dim1, dim2, dim3)` if data_format='channels_first'
+        `(samples, channels, dim1, dim2, dim3)` if `data_format='channels_first'`
         or 5D tensor with shape:
-        `(samples, dim1, dim2, dim3, channels)` if data_format='channels_last'.
+        `(samples, dim1, dim2, dim3, channels)` if `data_format='channels_last'`.
 
     # Output shape
         Same as input
@@ -464,17 +464,17 @@ class Flatten(Layer):
 
     # Arguments
         data_format: A string,
-            one of `channels_last` (default) or `channels_first`.
+            one of `'channels_last'` (default) or `'channels_first'`.
             The ordering of the dimensions in the inputs.
             The purpose of this argument is to preserve weight
             ordering when switching a model from one data format
             to another.
-            `channels_last` corresponds to inputs with shape
-            `(batch, ..., channels)` while `channels_first` corresponds to
+            `'channels_last'` corresponds to inputs with shape
+            `(batch, ..., channels)` while `'channels_first'` corresponds to
             inputs with shape `(batch, channels, ...)`.
             It defaults to the `image_data_format` value found in your
             Keras config file at `~/.keras/keras.json`.
-            If you never set it, then it will be "channels_last".
+            If you never set it, then it will be `'channels_last'`.
 
     # Example
 
