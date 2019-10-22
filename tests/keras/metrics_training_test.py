@@ -80,7 +80,7 @@ def test_sensitivity_metrics():
     model.evaluate(x, y)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='requires tensorflow')
+@pytest.mark.skipif(True, reason='It is a flaky test, see #13477 for more context.')
 def test_mean_iou():
     import tensorflow as tf
     if not tf.__version__.startswith('2.'):
