@@ -493,6 +493,49 @@ def allow_read_from_gcs(load_function):
 
     return load_wrapper
 
+@allow_read_from_gcs
+def load_model(filepath, custom_objects=None, compile=True):
+    """Loads a model saved via `save_model`.
+
+    # Arguments
+        filepath: one of the following:
+            - string, path to the saved model
+            - h5py.File or h5py.Group object from which to load the model
+            - any file-like object implementing the method `read` that returns
+            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+        compile: Boolean, whether to compile the model
+            after loading.
+
+    # Returns
+        A Keras model instance. If an optimizer was found
+        as part of the saved model, the model is already
+        compiled. Otherwise, the model is uncompiled and
+        a warning will be displayed. When `compile` is set
+        to False, the compilation is omitted without any
+        warning.
+
+    # Raises
+        ImportError: if h5py is not available.
+        ValueError: In case of an invalid savefile.
+    """
+    if h5py is None:
+        raise ImportError('`load_model` requires h5py.')
+
+    if H5Dict.is_supported_type(filepath):
+        with H5Dict(filepath, mode='r') as h5dict:
+            model = _deserialize_model(h5dict, custom_objects, compile)
+    elif hasattr(filepath, 'write') and callable(filepath.write):
+        def load_function(h5file):
+            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
+        model = load_from_binary_h5py(load_function, filepath)
+    else:
+        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
+
+    return model
+
 
 @allow_write_to_gcs
 def save_model(model, filepath, overwrite=True, include_optimizer=True):
@@ -547,49 +590,77 @@ def save_model(model, filepath, overwrite=True, include_optimizer=True):
     else:
         raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
 
+def saveMODEL(obj, export_dir, signatures=None, options=None):
+  
+  if ops.inside_function():
+    raise AssertionError(
+        "tf.saved_model.save is not supported inside a traced "
+        "@tf.function. Move the call to the outer eagerly-executed "
+        "context.")
+  # pylint: enable=line-too-long
+  if not isinstance(obj, base.Trackable):
+    raise ValueError(
+        "Expected a Trackable object for export, got {}.".format(obj))
+  options = options or save_options.SaveOptions()
 
-@allow_read_from_gcs
-def load_model(filepath, custom_objects=None, compile=True):
-    """Loads a model saved via `save_model`.
+  checkpoint_graph_view = _AugmentedGraphView(obj)
+  if signatures is None:
+    signatures = signature_serialization.find_function_to_export(
+        checkpoint_graph_view)
 
-    # Arguments
-        filepath: one of the following:
-            - string, path to the saved model
-            - h5py.File or h5py.Group object from which to load the model
-            - any file-like object implementing the method `read` that returns
-            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
-        custom_objects: Optional dictionary mapping names
-            (strings) to custom classes or functions to be
-            considered during deserialization.
-        compile: Boolean, whether to compile the model
-            after loading.
+  signatures = signature_serialization.canonicalize_signatures(signatures)
+  signature_serialization.validate_saveable_view(checkpoint_graph_view)
+  signature_map = signature_serialization.create_signature_map(signatures)
+  checkpoint_graph_view.add_object(
+      parent_node=checkpoint_graph_view.root,
+      name_in_parent=signature_serialization.SIGNATURE_ATTRIBUTE_NAME,
+      subgraph_root=signature_map)
 
-    # Returns
-        A Keras model instance. If an optimizer was found
-        as part of the saved model, the model is already
-        compiled. Otherwise, the model is uncompiled and
-        a warning will be displayed. When `compile` is set
-        to False, the compilation is omitted without any
-        warning.
+  # Use _SaveableView to provide a frozen listing of properties and functions.
+  # Note we run this twice since, while constructing the view the first time
+  # there can be side effects of creating variables.
+  _ = _SaveableView(checkpoint_graph_view)
+  saveable_view = _SaveableView(checkpoint_graph_view)
 
-    # Raises
-        ImportError: if h5py is not available.
-        ValueError: In case of an invalid savefile.
-    """
-    if h5py is None:
-        raise ImportError('`load_model` requires h5py.')
+  # TODO(allenl): Factor out some subset of SavedModelBuilder which is 2.x
+  # compatible (no sessions) and share it with this export API rather than
+  # making a SavedModel proto and writing it directly.
+  saved_model = saved_model_pb2.SavedModel()
+  meta_graph_def = saved_model.meta_graphs.add()
+  object_saver = util.TrackableSaver(checkpoint_graph_view)
+  asset_info, exported_graph = _fill_meta_graph_def(
+      meta_graph_def, saveable_view, signatures, options.namespace_whitelist)
+  saved_model.saved_model_schema_version = (
+      constants.SAVED_MODEL_SCHEMA_VERSION)
+  # So far we've just been generating protocol buffers with no I/O. Now we write
+  # the checkpoint, copy assets into the assets directory, and write out the
+  # SavedModel proto itself.
+  utils_impl.get_or_create_variables_dir(export_dir)
+  object_saver.save(utils_impl.get_variables_path(export_dir))
+  builder_impl.copy_assets_to_destination_dir(asset_info.asset_filename_map,
+                                              export_dir)
+  path = os.path.join(
+      compat.as_str(export_dir),
+      compat.as_str(constants.SAVED_MODEL_FILENAME_PB))
+  object_graph_proto = _serialize_object_graph(
+      saveable_view, asset_info.asset_index)
+  meta_graph_def.object_graph_def.CopyFrom(object_graph_proto)
+  file_io.atomic_write_string_to_file(path, saved_model.SerializeToString())
 
-    if H5Dict.is_supported_type(filepath):
-        with H5Dict(filepath, mode='r') as h5dict:
-            model = _deserialize_model(h5dict, custom_objects, compile)
-    elif hasattr(filepath, 'write') and callable(filepath.write):
-        def load_function(h5file):
-            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
-        model = load_from_binary_h5py(load_function, filepath)
-    else:
-        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
+  # Save debug info, if requested.
+  if options.save_debug_info:
+    graph_debug_info = _export_debug_info(exported_graph)
+    file_io.atomic_write_string_to_file(
+        os.path.join(
+            utils_impl.get_or_create_debug_dir(export_dir),
+            constants.DEBUG_INFO_FILENAME_PB),
+        graph_debug_info.SerializeToString())
 
-    return model
+  # Clean reference cycles so repeated export()s don't make work for the garbage
+  # collector. Before this point we need to keep references to captured
+  # constants in the saved graph.
+  ops.dismantle_graph(exported_graph)
+
 
 
 def pickle_model(model):
