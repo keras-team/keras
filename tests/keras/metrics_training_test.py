@@ -1,7 +1,6 @@
 """Tests for metric objects training and evaluation."""
 import pytest
 import numpy as np
-from flaky import flaky
 
 from keras import metrics
 from keras import backend as K
@@ -81,8 +80,7 @@ def test_sensitivity_metrics():
     model.evaluate(x, y)
 
 
-@pytest.mark.skipif(K.backend() != 'tensorflow', reason='requires tensorflow')
-@flaky(rerun_filter=lambda err, *args: issubclass(err[0], InvalidArgumentError))
+@pytest.mark.skipif(True, reason='It is a flaky test, see #13477 for more context.')
 def test_mean_iou():
     import tensorflow as tf
     if not tf.__version__.startswith('2.'):
