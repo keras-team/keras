@@ -56,10 +56,10 @@ def to_categorical(y, num_classes=None, dtype='float32'):
 
 
 def normalize(x, axis=-1, order=2):
-    """Normalizes a Numpy array.
+    """Normalizes a NumPy array.
 
     # Arguments
-        x: Numpy array to normalize.
+        x: NumPy array to normalize.
         axis: axis along which to normalize.
         order: Normalization order (e.g. 2 for L2 norm).
 
