@@ -17,8 +17,8 @@ keras_dir = pathlib.Path(__file__).resolve().parents[1]
 class KerasDocumentationGenerator(DocumentationGenerator):
 
     def process_function_docstring(self, docstring, function):
-        if ("keras.backend." in function.__module__
-                and "{{np_implementation}}" in docstring):
+        if ('keras.backend.' in function.__module__
+                and '{{np_implementation}}' in docstring):
             docstring = add_np_implementation(function, docstring)
         return super().process_function_docstring(docstring, function)
 
