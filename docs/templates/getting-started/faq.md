@@ -505,14 +505,8 @@ from keras.applications.densenet import DenseNet169
 from keras.applications.densenet import DenseNet201
 from keras.applications.nasnet import NASNetLarge
 from keras.applications.nasnet import NASNetMobile
-from keras.applications.efficientnet import EfficientNetB0
-from keras.applications.efficientnet import EfficientNetB1
-from keras.applications.efficientnet import EfficientNetB2
-from keras.applications.efficientnet import EfficientNetB3
-from keras.applications.efficientnet import EfficientNetB4
-from keras.applications.efficientnet import EfficientNetB5
-from keras.applications.efficientnet import EfficientNetB6
-from keras.applications.efficientnet import EfficientNetB7
+from keras.applications.efficientnet import EfficientNetSmall
+from keras.applications.efficientnet import EfficientNetLarge
 
 model = VGG16(weights='imagenet', include_top=True)
 ```

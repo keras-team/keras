@@ -10,43 +10,13 @@ from . import keras_modules_injection
 
 
 @keras_modules_injection
-def EfficientNetB0(*args, **kwargs):
-    return efficientnet.EfficientNetB0(*args, **kwargs)
+def EfficientNetSmall(*args, **kwargs):
+    return efficientnet.EfficientNetSmall(*args, **kwargs)
 
 
 @keras_modules_injection
-def EfficientNetB1(*args, **kwargs):
-    return efficientnet.EfficientNetB1(*args, **kwargs)
-
-
-@keras_modules_injection
-def EfficientNetB2(*args, **kwargs):
-    return efficientnet.EfficientNetB2(*args, **kwargs)
-
-
-@keras_modules_injection
-def EfficientNetB3(*args, **kwargs):
-    return efficientnet.EfficientNetB3(*args, **kwargs)
-
-
-@keras_modules_injection
-def EfficientNetB4(*args, **kwargs):
-    return efficientnet.EfficientNetB4(*args, **kwargs)
-
-
-@keras_modules_injection
-def EfficientNetB5(*args, **kwargs):
-    return efficientnet.EfficientNetB5(*args, **kwargs)
-
-
-@keras_modules_injection
-def EfficientNetB6(*args, **kwargs):
-    return efficientnet.EfficientNetB6(*args, **kwargs)
-
-
-@keras_modules_injection
-def EfficientNetB7(*args, **kwargs):
-    return efficientnet.EfficientNetB7(*args, **kwargs)
+def EfficientNetLarge(*args, **kwargs):
+    return efficientnet.EfficientNetLarge(*args, **kwargs)
 
 
 @keras_modules_injection

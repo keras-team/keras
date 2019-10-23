@@ -191,14 +191,8 @@ model = InceptionV3(input_tensor=input_tensor, weights='imagenet', include_top=T
 | [DenseNet201](#densenet) | 80 MB | 0.773 | 0.936 | 20,242,984 | 201 |
 | [NASNetMobile](#nasnet) | 23 MB | 0.744 | 0.919 | 5,326,716 | - |
 | [NASNetLarge](#nasnet) | 343 MB | 0.825 | 0.960 | 88,949,818 | - |
-| [EfficientNetB0](#efficientnet) | 21 MB | 0.772 | 0.935 | 5,330,564 | - |
-| [EfficientNetB1](#efficientnet) | 31 MB | 0.791 | 0.944 | 7,856,232 | - |
-| [EfficientNetB2](#efficientnet) | 36 MB | 0.802 | 0.949 | 9,177,562 | - |
-| [EfficientNetB3](#efficientnet) | 48 MB | 0.816 | 0.957 | 12,320,528 | - |
-| [EfficientNetB4](#efficientnet) | 75 MB | 0.830 | 0.963 | 19,466,816 | - |
-| [EfficientNetB5](#efficientnet) | 118 MB | 0.837 | 0.967 | 30,562,520 | - |
-| [EfficientNetB6](#efficientnet) | 166 MB | 0.841 | 0.969 | 43,265,136 | - |
-| [EfficientNetB7](#efficientnet) | 256 MB | 0.844 | 0.968 | 66,658,680 | - |
+| [EfficientNetSmall](#efficientnet) | 21 MB | 0.772 | 0.935 | 5,330,564 | - |
+| [EfficientNetLarge](#efficientnet) | 118 MB | 0.837 | 0.967 | 30,562,520 | - |
 
 The top-1 and top-5 accuracy refers to the model's performance on the ImageNet validation dataset.
 
@@ -822,29 +816,16 @@ These weights are released under [the Apache License](https://github.com/tensorf
 
 
 ```python
-keras.applications.efficientnet.EfficientNetB0(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB1(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB2(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB3(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB4(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB5(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB6(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
-keras.applications.efficientnet.EfficientNetB7(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
+keras.applications.efficientnet.EfficientNetSmall(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
+keras.applications.efficientnet.EfficientNetLarge(include_top=True, weights='imagenet', input_tensor=None, input_shape=None, pooling=None, classes=1000)
 ```
 
 EfficientNet models, with weights pre-trained on ImageNet.
 
 These models and can be built both with `'channels_first'` data format (channels, height, width) or `'channels_last'` data format (height, width, channels).
 
-The default input sizes of these models are:
-- 224x224 for EfficientNetB0,
-- 240x240 for EfficientNetB1,
-- 260x260 for EfficientNetB2,
-- 300x300 for EfficientNetB3,
-- 380x380 for EfficientNetB4,
-- 456x456 for EfficientNetB5,
-- 528x528 for EfficientNetB6,
-- 600x600 for EfficientNetB7.
+The default input size for the EfficientNetLarge model is 456x456 and
+for the EfficientNetSmall model is 224x224.
 
 ### Arguments
 
