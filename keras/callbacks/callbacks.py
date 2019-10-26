@@ -52,7 +52,8 @@ class CallbackList(object):
 
     def _reset_batch_timing(self):
         self._delta_t_batch = 0.
-        self._delta_ts = defaultdict(lambda: deque([], maxlen=self.queue_length))
+        self._delta_ts = defaultdict(
+            lambda: deque([], maxlen=self.queue_length))
 
     def append(self, callback):
         self.callbacks.append(callback)
@@ -87,8 +88,8 @@ class CallbackList(object):
 
         delta_t_median = np.median(self._delta_ts[hook_name])
         if (self._delta_t_batch > 0. and
-           delta_t_median > 0.95 * self._delta_t_batch and
-           delta_t_median > 0.1):
+            delta_t_median > 0.95 * self._delta_t_batch and
+                delta_t_median > 0.1):
             warnings.warn(
                 'Method (%s) is slow compared '
                 'to the batch update (%f). Check your callbacks.'
@@ -723,7 +724,8 @@ class ModelCheckpoint(Callback):
                                   (epoch + 1, self.monitor, self.best))
             else:
                 if self.verbose > 0:
-                    print('\nEpoch %05d: saving model to %s' % (epoch + 1, filepath))
+                    print('\nEpoch %05d: saving model to %s' %
+                          (epoch + 1, filepath))
                 if self.save_weights_only:
                     self.model.save_weights(filepath, overwrite=True)
                 else:
@@ -849,7 +851,7 @@ class EarlyStopping(Callback):
 
 
 class AdvancedEarlyStopping(Callback):
-    
+
     def __init__(self, mode, verbose=0, **kwargs):
         """Arguments:
             mode: '1' -- Generalization Loss
@@ -857,13 +859,13 @@ class AdvancedEarlyStopping(Callback):
                   '3' -- UP
                   '4' -- GL + UP
                   '5' -- GL + PQ + UP
-                    
+
             kwargs: alpha -- Threshold for GL
                     kpq -- Stride for PQ
                     sup -- Patience for UP
         """
         self.mode = mode
-        
+
         if mode == '1':
             assert 'alpha' in kwargs, "Must provide alpha for mode 1."
             self.alpha = kwargs['alpha']
@@ -908,7 +910,7 @@ class AdvancedEarlyStopping(Callback):
         super(Callback, self).__init__()
 
     def on_epoch_end(self, epoch, logs={}):
-        
+
         tr_loss_cur = logs['loss']
         val_loss_cur = logs['val_loss']
 
@@ -917,9 +919,11 @@ class AdvancedEarlyStopping(Callback):
                 self.val_loss_opt = val_loss_cur
             gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
             if self.verbose > 0:
-                print("Epoch {0} Generalization Loss: {1}".format(epoch + 1, gl))
+                print("Epoch {0} Generalization Loss: {1}".format(
+                    epoch + 1, gl))
                 if gl > self.alpha:
-                    print("Epoch %05d: GL early stopping Threshold" % (epoch + 1))
+                    print("Epoch %05d: GL early stopping Threshold" %
+                          (epoch + 1))
                     self.model.stop_training = True
 
         if self.mode == '2':
@@ -933,19 +937,23 @@ class AdvancedEarlyStopping(Callback):
                 pk = 1000. * (sigma / (self.kpq * tf_loss_min) - 1)
                 pq = gl / pk
                 if self.verbose > 0:
-                    print("Epoch {0} Progress Quotient: {1}".format(epoch + 1, pq))
+                    print("Epoch {0} Progress Quotient: {1}".format(
+                        epoch + 1, pq))
                     if pq > self.alpha:
-                        print("Epoch %05d: PQ early stopping Threshold" % (epoch + 1))
+                        print("Epoch %05d: PQ early stopping Threshold" %
+                              (epoch + 1))
                         self.model.stop_training = True
 
         if self.mode == '3':
             if val_loss_cur > self.val_loss_pre:
                 self.count += 1
                 if self.verbose > 0:
-                    print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
+                    print("Epoch {0} val_error increased: {1} times.".format(
+                        epoch + 1, self.count))
                 if self.count >= self.sup:
-                        print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
-                        self.model.stop_training = True
+                    print("Epoch %05d: UP early stopping Threshold" %
+                          (epoch + 1))
+                    self.model.stop_training = True
             else:
                 self.val_loss_pre = val_loss_cur
                 self.count = 0
@@ -955,17 +963,21 @@ class AdvancedEarlyStopping(Callback):
                 self.val_loss_opt = val_loss_cur
             gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
             if self.verbose > 0:
-                print("Epoch {0} Generalization Loss: {1}".format(epoch + 1, gl))
+                print("Epoch {0} Generalization Loss: {1}".format(
+                    epoch + 1, gl))
                 if gl > self.alpha:
-                    print("Epoch %05d: GL early stopping Threshold" % (epoch + 1))
+                    print("Epoch %05d: GL early stopping Threshold" %
+                          (epoch + 1))
                     self.model.stop_training = True
             if val_loss_cur >= self.val_loss_pre:
                 self.count += 1
                 if self.verbose > 0:
-                    print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
+                    print("Epoch {0} val_error increased: {1} times.".format(
+                        epoch + 1, self.count))
                 if self.count >= self.sup:
-                        print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
-                        self.model.stop_training = True
+                    print("Epoch %05d: UP early stopping Threshold" %
+                          (epoch + 1))
+                    self.model.stop_training = True
             else:
                 self.val_loss_pre = val_loss_cur
                 self.count = 0
@@ -981,18 +993,22 @@ class AdvancedEarlyStopping(Callback):
                 pk = 1000. * (sigma / (self.kpq * tf_loss_min) - 1)
                 pq = gl / pk
                 if self.verbose > 0:
-                    print("Epoch {0} Progress Quotient: {1}".format(epoch + 1, pq))
+                    print("Epoch {0} Progress Quotient: {1}".format(
+                        epoch + 1, pq))
                     if pq > self.alpha:
-                        print("Epoch %05d: PQ early stopping Threshold" % (epoch + 1))
+                        print("Epoch %05d: PQ early stopping Threshold" %
+                              (epoch + 1))
                         self.model.stop_training = True
             if val_loss_cur >= self.val_loss_pre:
                 self.count += 1
                 if self.verbose > 0:
-                    print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
+                    print("Epoch {0} val_error increased: {1} times.".format(
+                        epoch + 1, self.count))
 
                 if self.count >= self.sup:
-                        print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
-                        self.model.stop_training = True
+                    print("Epoch %05d: UP early stopping Threshold" %
+                          (epoch + 1))
+                    self.model.stop_training = True
             else:
                 self.val_loss_pre = val_loss_cur
                 self.count = 0
@@ -1047,7 +1063,8 @@ class RemoteMonitor(Callback):
                 send[k] = v
         try:
             if self.send_as_json:
-                requests.post(self.root + self.path, json=send, headers=self.headers)
+                requests.post(self.root + self.path,
+                              json=send, headers=self.headers)
             else:
                 requests.post(self.root + self.path,
                               {self.field: json.dumps(send)},
@@ -1169,7 +1186,7 @@ class ReduceLROnPlateau(Callback):
                           RuntimeWarning)
             self.mode = 'auto'
         if (self.mode == 'min' or
-           (self.mode == 'auto' and 'acc' not in self.monitor)):
+                (self.mode == 'auto' and 'acc' not in self.monitor)):
             self.monitor_op = lambda a, b: np.less(a, b - self.min_delta)
             self.best = np.Inf
         else:
@@ -1282,7 +1299,8 @@ class CSVLogger(Callback):
 
         if self.model.stop_training:
             # We set NA so that csv parsers do not fail for this last epoch.
-            logs = dict([(k, logs[k] if k in logs else 'NA') for k in self.keys])
+            logs = dict([(k, logs[k] if k in logs else 'NA')
+                         for k in self.keys])
 
         if not self.writer:
             class CustomDialect(csv.excel):
