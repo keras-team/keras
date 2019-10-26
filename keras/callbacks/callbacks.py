@@ -848,6 +848,171 @@ class EarlyStopping(Callback):
         return monitor_value
 
 
+class AdvancedEarlyStopping(Callback):
+    
+    def __init__(self, mode, verbose=0, **kwargs):
+        """Arguments:
+            mode: '1' -- Generalization Loss
+                  '2' -- Progress Quotient
+                  '3' -- UP
+                  '4' -- GL + UP
+                  '5' -- GL + PQ + UP
+                    
+            kwargs: alpha -- Threshold for GL
+                    kpq -- Stride for PQ
+                    sup -- Patience for UP
+                    
+        """
+
+        self.mode = mode
+        
+        if mode == '1':
+            assert 'alpha' in kwargs, "Must provide alpha for mode 1."
+            self.alpha = kwargs['alpha']
+            self.val_loss_opt = np.inf
+
+        if mode == '2':
+            assert 'alpha' in kwargs, "Must provide alpha for mode 2."
+            assert 'kpq' in kwargs, "Must provide kpq for mode 2."
+            self.alpha = kwargs['alpha']
+            self.kpq = kwargs['kpq']
+            self.val_loss_opt = np.inf
+            self.tr_queue = deque(maxlen=self.kpq)
+
+        if mode == '3':
+            assert 'sup' in kwargs, "Must provide sup for mode 3."
+            self.sup = kwargs['sup']
+            self.count = 0
+            self.val_loss_pre = np.inf
+
+        if mode == '4':
+            assert 'alpha' in kwargs, "Must provide alpha for mode 4."
+            assert 'sup' in kwargs, "Must provide sup for mode 4."
+            self.alpha = kwargs['alpha']
+            self.sup = kwargs['sup']
+            self.val_loss_opt = np.inf
+            self.count = 0
+            self.val_loss_pre = np.inf
+
+        if mode == '5':
+            assert 'alpha' in kwargs, "Must provide alpha for mode 5."
+            assert 'kpq' in kwargs, "Must provide kpq for mode 5."
+            assert 'sup' in kwargs, "Must provide sup for mode 5."
+            self.alpha = kwargs['alpha']
+            self.kpq = kwargs['kpq']
+            self.sup = kwargs['sup']
+            self.val_loss_opt = np.inf
+            self.tr_queue = deque(maxlen=self.kpq)
+            self.count = 0
+            self.val_loss_pre = np.inf
+
+        self.verbose = verbose
+        super(Callback, self).__init__()
+
+
+    def on_epoch_end(self, epoch, logs={}):
+        
+        tr_loss_cur = logs['loss']
+        val_loss_cur = logs['val_loss']
+
+        if self.mode == '1':
+            if val_loss_cur < self.val_loss_opt:
+                self.val_loss_opt = val_loss_cur
+            gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
+
+            if self.verbose > 0:
+                print("Epoch {0} Generalization Loss: {1}".format(epoch + 1, gl))
+                if gl > self.alpha:
+                    print("Epoch %05d: GL early stopping Threshold" % (epoch + 1))
+                    self.model.stop_training = True
+
+
+        if self.mode == '2':
+            if val_loss_cur < self.val_loss_opt:
+                self.val_loss_opt = val_loss_cur
+            gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
+
+            self.tr_queue.append(tr_loss_cur)
+            if len(self.tr_queue) == self.tr_queue.maxlen:
+                sigma = np.sum(self.tr_queue)
+                tf_loss_min = np.min(self.tr_queue)
+                pk = 1000. * (sigma / (self.kpq * tf_loss_min) - 1)
+                pq = gl / pk
+                if self.verbose > 0:
+                    print("Epoch {0} Progress Quotient: {1}".format(epoch + 1, pq))
+                    if pq > self.alpha:
+                        print("Epoch %05d: PQ early stopping Threshold" % (epoch + 1))
+                        self.model.stop_training = True
+
+            
+        if self.mode == '3':
+            if val_loss_cur > self.val_loss_pre:
+                self.count += 1
+                if self.verbose > 0:
+                    print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
+
+                if self.count >= self.sup:
+                        print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
+                        self.model.stop_training = True
+            else:
+                self.val_loss_pre = val_loss_cur
+                self.count = 0
+
+        
+        if self.mode == '4':
+            if val_loss_cur < self.val_loss_opt:
+                self.val_loss_opt = val_loss_cur
+            gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
+
+            if self.verbose > 0:
+                print("Epoch {0} Generalization Loss: {1}".format(epoch + 1, gl))
+                if gl > self.alpha:
+                    print("Epoch %05d: GL early stopping Threshold" % (epoch + 1))
+                    self.model.stop_training = True
+
+            if val_loss_cur >= self.val_loss_pre:
+                self.count += 1
+                if self.verbose > 0:
+                    print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
+
+                if self.count >= self.sup:
+                        print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
+                        self.model.stop_training = True
+            else:
+                self.val_loss_pre = val_loss_cur
+                self.count = 0
+
+
+        if self.mode == '5':
+            if val_loss_cur < self.val_loss_opt:
+                self.val_loss_opt = val_loss_cur
+            gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
+
+            self.tr_queue.append(tr_loss_cur)
+            if len(self.tr_queue) == self.tr_queue.maxlen:
+                sigma = np.sum(self.tr_queue)
+                tf_loss_min = np.min(self.tr_queue)
+                pk = 1000. * (sigma / (self.kpq * tf_loss_min) - 1)
+                pq = gl / pk
+                if self.verbose > 0:
+                    print("Epoch {0} Progress Quotient: {1}".format(epoch + 1, pq))
+                    if pq > self.alpha:
+                        print("Epoch %05d: PQ early stopping Threshold" % (epoch + 1))
+                        self.model.stop_training = True
+
+            if val_loss_cur >= self.val_loss_pre:
+                self.count += 1
+                if self.verbose > 0:
+                    print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
+
+                if self.count >= self.sup:
+                        print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
+                        self.model.stop_training = True
+            else:
+                self.val_loss_pre = val_loss_cur
+                self.count = 0
+
+
 class RemoteMonitor(Callback):
     """Callback used to stream events to a server.
 
