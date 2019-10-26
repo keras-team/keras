@@ -861,9 +861,7 @@ class AdvancedEarlyStopping(Callback):
             kwargs: alpha -- Threshold for GL
                     kpq -- Stride for PQ
                     sup -- Patience for UP
-                    
         """
-
         self.mode = mode
         
         if mode == '1':
@@ -909,7 +907,6 @@ class AdvancedEarlyStopping(Callback):
         self.verbose = verbose
         super(Callback, self).__init__()
 
-
     def on_epoch_end(self, epoch, logs={}):
         
         tr_loss_cur = logs['loss']
@@ -919,19 +916,16 @@ class AdvancedEarlyStopping(Callback):
             if val_loss_cur < self.val_loss_opt:
                 self.val_loss_opt = val_loss_cur
             gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
-
             if self.verbose > 0:
                 print("Epoch {0} Generalization Loss: {1}".format(epoch + 1, gl))
                 if gl > self.alpha:
                     print("Epoch %05d: GL early stopping Threshold" % (epoch + 1))
                     self.model.stop_training = True
-
 
         if self.mode == '2':
             if val_loss_cur < self.val_loss_opt:
                 self.val_loss_opt = val_loss_cur
             gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
-
             self.tr_queue.append(tr_loss_cur)
             if len(self.tr_queue) == self.tr_queue.maxlen:
                 sigma = np.sum(self.tr_queue)
@@ -944,13 +938,11 @@ class AdvancedEarlyStopping(Callback):
                         print("Epoch %05d: PQ early stopping Threshold" % (epoch + 1))
                         self.model.stop_training = True
 
-            
         if self.mode == '3':
             if val_loss_cur > self.val_loss_pre:
                 self.count += 1
                 if self.verbose > 0:
                     print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
-
                 if self.count >= self.sup:
                         print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
                         self.model.stop_training = True
@@ -958,23 +950,19 @@ class AdvancedEarlyStopping(Callback):
                 self.val_loss_pre = val_loss_cur
                 self.count = 0
 
-        
         if self.mode == '4':
             if val_loss_cur < self.val_loss_opt:
                 self.val_loss_opt = val_loss_cur
             gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
-
             if self.verbose > 0:
                 print("Epoch {0} Generalization Loss: {1}".format(epoch + 1, gl))
                 if gl > self.alpha:
                     print("Epoch %05d: GL early stopping Threshold" % (epoch + 1))
                     self.model.stop_training = True
-
             if val_loss_cur >= self.val_loss_pre:
                 self.count += 1
                 if self.verbose > 0:
                     print("Epoch {0} val_error increased: {1} times.".format(epoch + 1, self.count))
-
                 if self.count >= self.sup:
                         print("Epoch %05d: UP early stopping Threshold" % (epoch + 1))
                         self.model.stop_training = True
@@ -982,12 +970,10 @@ class AdvancedEarlyStopping(Callback):
                 self.val_loss_pre = val_loss_cur
                 self.count = 0
 
-
         if self.mode == '5':
             if val_loss_cur < self.val_loss_opt:
                 self.val_loss_opt = val_loss_cur
             gl = 100. * (val_loss_cur / self.val_loss_opt - 1)
-
             self.tr_queue.append(tr_loss_cur)
             if len(self.tr_queue) == self.tr_queue.maxlen:
                 sigma = np.sum(self.tr_queue)
@@ -999,7 +985,6 @@ class AdvancedEarlyStopping(Callback):
                     if pq > self.alpha:
                         print("Epoch %05d: PQ early stopping Threshold" % (epoch + 1))
                         self.model.stop_training = True
-
             if val_loss_cur >= self.val_loss_pre:
                 self.count += 1
                 if self.verbose > 0:
