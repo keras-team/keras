@@ -39,7 +39,7 @@ from keras.datasets import cifar100
 
 - __Arguments:__
 
-    - __label_mode__: "fine" or "coarse".
+    - __label_mode__: '`fine`' or `'coarse`'.
 
 
 ---
@@ -55,7 +55,7 @@ As a convention, "0" does not stand for a specific word, but instead is used to 
 ```python
 from keras.datasets import imdb
 
-(x_train, y_train), (x_test, y_test) = imdb.load_data(path="imdb.npz",
+(x_train, y_train), (x_test, y_test) = imdb.load_data(path='imdb.npz',
                                                       num_words=None,
                                                       skip_top=0,
                                                       maxlen=None,
@@ -94,7 +94,7 @@ Dataset of 11,228 newswires from Reuters, labeled over 46 topics. As with the IM
 ```python
 from keras.datasets import reuters
 
-(x_train, y_train), (x_test, y_test) = reuters.load_data(path="reuters.npz",
+(x_train, y_train), (x_test, y_test) = reuters.load_data(path='reuters.npz',
                                                          num_words=None,
                                                          skip_top=0,
                                                          maxlen=None,
@@ -112,10 +112,10 @@ The specifications are the same as that of the IMDB dataset, with the addition o
 This dataset also makes available the word index used for encoding the sequences:
 
 ```python
-word_index = reuters.get_word_index(path="reuters_word_index.json")
+word_index = reuters.get_word_index(path='reuters_word_index.json')
 ```
 
-- __Returns:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index["giraffe"]` might return `1234`. 
+- __Returns:__ A dictionary where key are words (str) and values are indexes (integer). eg. `word_index['giraffe']` might return `1234`. 
 
 - __Arguments:__
 
@@ -133,7 +133,7 @@ Dataset of 60,000 28x28(grayscale) training images, labeled over 10 digits(categ
 ```python
 from keras.datasets import mnist
 
-(x_train, y_train), (x_test, y_test) = mnist.load_data(path="mnist.npz")
+(x_train, y_train), (x_test, y_test) = mnist.load_data(path='mnist.npz')
 ```
 
 - __Returns:__
@@ -192,7 +192,7 @@ Dataset 404 with 13 attributes of houses at different locations around the Bosto
 ```python
 from keras.datasets import boston_housing
 
-(x_train, y_train), (x_test, y_test) = boston_housing.load_data(path="boston_housing.npz",
+(x_train, y_train), (x_test, y_test) = boston_housing.load_data(path='boston_housing.npz',
                                                         	test_split=0.2,
                                                         	seed=113)
 ```
