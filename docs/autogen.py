@@ -5,7 +5,6 @@ import pathlib
 import re
 import shutil
 
-from docs.structure import EXCLUDE
 from docs.structure import PAGES
 from docs.structure import template_hidden_np_implementation
 from docs.structure import template_np_implementation
@@ -29,10 +28,6 @@ class KerasDocumentationGenerator(DocumentationGenerator):
                 signature = 'keras.layers.' + '.'.join(parts[3:])
             if parts[1] == 'utils':
                 signature = 'keras.utils.' + '.'.join(parts[3:])
-            if parts[1] == 'backend':
-                signature = 'keras.backend.' + '.'.join(parts[3:])
-            if parts[1] == 'callbacks':
-                signature = 'keras.callbacks.' + '.'.join(parts[3:])
         signature = signature.replace('keras_applications', 'keras.applications')
         signature = signature.replace('keras_preprocessing', 'keras.preprocessing')
         return super().process_signature(signature)
@@ -41,14 +36,8 @@ class KerasDocumentationGenerator(DocumentationGenerator):
 def add_np_implementation(function, docstring):
     np_implementation = getattr(numpy_backend, function.__name__)
     code = inspect.getsource(np_implementation)
-    code_lines = code.split('\n')
-    for i in range(len(code_lines)):
-        if code_lines[i]:
-            # if there is something on the line, add 8 spaces.
-            code_lines[i] = '        ' + code_lines[i]
-    code = '\n'.join(code_lines[:-1])
-
-    if len(code_lines) < 10:
+    code = code[:-1]  # remove the last empty line.
+    if code.count('\n') < 10:
         section = template_np_implementation.replace('{{code}}', code)
     else:
         section = template_hidden_np_implementation.replace('{{code}}', code)
@@ -69,8 +58,7 @@ def generate(dest_dir):
     doc_generator = KerasDocumentationGenerator(PAGES,
                                                 project_url,
                                                 template_dir,
-                                                keras_dir / 'examples',
-                                                EXCLUDE)
+                                                keras_dir / 'examples')
     doc_generator.generate(dest_dir)
 
     readme = (keras_dir / 'README.md').read_text()
