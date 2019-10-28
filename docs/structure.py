@@ -78,7 +78,6 @@ from keras.preprocessing.image import ImageDataGenerator
 
 from keras_autodoc import get_classes, get_methods, get_functions
 
-
 save_funcs = {'serialize', 'deserialize'}
 
 # For each class to document, it is possible to:
@@ -210,8 +209,8 @@ PAGES = {
         preprocessing.sequence.make_sampling_table,
         preprocessing.sequence.TimeseriesGenerator,
     ],
-    'preprocessing/image.md': [ImageDataGenerator]
-                              + get_methods(ImageDataGenerator),
+    'preprocessing/image.md': ([ImageDataGenerator]
+                               + get_methods(ImageDataGenerator)),
 
     'preprocessing/text.md': [
         preprocessing.text.hashing_trick,
@@ -222,8 +221,8 @@ PAGES = {
     'layers/wrappers.md': get_classes(wrappers, exclude=['Wrapper']),
     'metrics.md': get_functions(metrics),
     'losses.md': get_functions(losses, exclude=save_funcs),
-    'initializers.md': get_functions(initializers, exclude=save_funcs)
-                       + get_classes(initializers),
+    'initializers.md': (get_functions(initializers, exclude=save_funcs)
+                        + get_classes(initializers)),
     'optimizers.md': get_classes(optimizers),
     'callbacks.md': get_classes(callbacks, exclude=['CallbackList']),
     'activations.md': get_functions(activations),
