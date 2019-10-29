@@ -10,7 +10,7 @@ model = Sequential()
 model.add(Dense(64, kernel_initializer='uniform', input_shape=(10,)))
 model.add(Activation('softmax'))
 
-sgd = optimizers.SGD(learning_rate=0.01, momentum=0.9, nesterov=True)
+sgd = optimizers.SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 model.compile(loss='mean_squared_error', optimizer=sgd)
 ```
 
@@ -32,7 +32,7 @@ from keras import optimizers
 
 # All parameter gradients will be clipped to
 # a maximum norm of 1.
-sgd = optimizers.SGD(learning_rate=0.01, clipnorm=1.)
+sgd = optimizers.SGD(lr=0.01, clipnorm=1.)
 ```
 
 ```python
@@ -41,7 +41,7 @@ from keras import optimizers
 # All parameter gradients will be clipped to
 # a maximum value of 0.5 and
 # a minimum value of -0.5.
-sgd = optimizers.SGD(learning_rate=0.01, clipvalue=0.5)
+sgd = optimizers.SGD(lr=0.01, clipvalue=0.5)
 ```
 
 ---
