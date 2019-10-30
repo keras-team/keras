@@ -389,12 +389,8 @@ def set_session(session):
 
     # Raises
         RuntimeError: if no session is available
-            (e.g. when using TensorFlow 2.0).
+            (e.g. when using TensorFlow eagerly).
     """
-    if not _is_tf_1():
-        raise RuntimeError(
-            '`set_session` is not available '
-            'when using TensorFlow 2.0.')
     if tf.executing_eagerly():
         raise RuntimeError(
             '`set_session` is not available when '
