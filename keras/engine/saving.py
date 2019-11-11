@@ -576,6 +576,38 @@ def load_model(filepath, custom_objects=None, compile=True):
         ImportError: if h5py is not available.
         ValueError: In case of an invalid savefile.
     """
+    """Save a model to a HDF5 file.
+
+    Note: Please also see
+    [How can I install HDF5 or h5py to save my models in Keras?](
+        /getting-started/faq/
+        #how-can-i-install-HDF5-or-h5py-to-save-my-models-in-Keras)
+    in the FAQ for instructions on how to install `h5py`.
+
+    The saved model contains:
+        - the model's configuration (topology)
+        - the model's weights
+        - the model's optimizer's state (if any)
+
+    Thus the saved model can be reinstantiated in
+    the exact same state, without any of the code
+    used for model definition or training.
+
+    # Arguments
+        model: Keras model instance to be saved.
+        filepath: one of the following:
+            - string, path to the file to save the model to
+            - h5py.File or h5py.Group object where to save the model
+            - any file-like object implementing the method `write` that accepts
+                `bytes` data (e.g. `io.BytesIO`).
+        overwrite: Whether we should overwrite any existing
+            model at the target location, or instead
+            ask the user with a manual prompt.
+        include_optimizer: If True, save optimizer's state together.
+
+    # Raises
+        ImportError: if h5py is not available.
+    """
     from ..backend import manual_variable_initialization
     manual_variable_initialization = True
 
@@ -594,48 +626,6 @@ def load_model(filepath, custom_objects=None, compile=True):
 
     return model
 
-@allow_read_from_gcs
-def load_model2(filepath, custom_objects=None, compile=True):
-    """Loads a model saved via `save_model`.
-
-    # Arguments
-        filepath: one of the following:
-            - string, path to the saved model
-            - h5py.File or h5py.Group object from which to load the model
-            - any file-like object implementing the method `read` that returns
-            `bytes` data (e.g. `io.BytesIO`) that represents a valid h5py file image.
-        custom_objects: Optional dictionary mapping names
-            (strings) to custom classes or functions to be
-            considered during deserialization.
-        compile: Boolean, whether to compile the model
-            after loading.
-
-    # Returns
-        A Keras model instance. If an optimizer was found
-        as part of the saved model, the model is already
-        compiled. Otherwise, the model is uncompiled and
-        a warning will be displayed. When `compile` is set
-        to False, the compilation is omitted without any
-        warning.
-
-    # Raises
-        ImportError: if h5py is not available.
-        ValueError: In case of an invalid savefile.
-    """
-    if h5py is None:
-        raise ImportError('`load_model` requires h5py.')
-
-    if H5Dict.is_supported_type(filepath):
-        with H5Dict(filepath, mode='r') as h5dict:
-            model = _deserialize_model(h5dict, custom_objects, compile)
-    elif hasattr(filepath, 'write') and callable(filepath.write):
-        def load_function(h5file):
-            return _deserialize_model(H5Dict(h5file), custom_objects, compile)
-        model = load_from_binary_h5py(load_function, filepath)
-    else:
-        raise ValueError('unexpected type {} for `filepath`'.format(type(filepath)))
-
-    return model
 
 def pickle_model(model):
     d = {}
