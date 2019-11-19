@@ -466,8 +466,9 @@ def allow_read_from_gcs(load_function):
     """
     def extract_named_arg(f, name, args, kwargs):
         if name in kwargs:
-            arg = kwargs.pop(name)
-            return arg, args, kwargs
+            _kwargs = kwargs.copy()
+            arg = _kwargs.pop(name)
+            return arg, args, _kwargs
         argnames = getargspec(f)[0]
         for i, (argname, arg) in enumerate(zip(argnames, args)):
             if argname == name:
