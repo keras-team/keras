@@ -1234,7 +1234,6 @@ class Layer(object):
                         if not hasattr(self, '_trainable_weights'):
                             self._trainable_weights = []
                         if not any(v is value for v in self._trainable_weights):
-                            print('tracking', value, name)
                             self._trainable_weights.append(value)
                     else:
                         if not hasattr(self, '_non_trainable_weights'):
