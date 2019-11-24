@@ -485,7 +485,7 @@ class Adam(Optimizer):
     """
 
     def __init__(self, learning_rate=0.001, beta_1=0.9, beta_2=0.999,
-                 amsgrad=False, **kwargs):
+                 amsgrad=False, bias_correction=True, **kwargs):
         self.initial_decay = kwargs.pop('decay', 0.0)
         self.epsilon = kwargs.pop('epsilon', K.epsilon())
         learning_rate = kwargs.pop('lr', learning_rate)
@@ -496,6 +496,7 @@ class Adam(Optimizer):
             self.beta_1 = K.variable(beta_1, name='beta_1')
             self.beta_2 = K.variable(beta_2, name='beta_2')
             self.decay = K.variable(self.initial_decay, name='decay')
+        self.bias_correction = bias_correction
         self.amsgrad = amsgrad
 
     @interfaces.legacy_get_updates_support
@@ -509,9 +510,12 @@ class Adam(Optimizer):
             lr = lr * (1. / (1. + self.decay * K.cast(self.iterations,
                                                       K.dtype(self.decay))))
 
-        t = K.cast(self.iterations, K.floatx()) + 1
-        lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
-                     (1. - K.pow(self.beta_1, t)))
+        if self.bias_correction:
+            t = K.cast(self.iterations, K.floatx()) + 1
+            lr_t = lr * (K.sqrt(1. - K.pow(self.beta_2, t)) /
+                         (1. - K.pow(self.beta_1, t)))
+        else:
+            lr_t = lr
 
         ms = [K.zeros(K.int_shape(p),
               dtype=K.dtype(p),
