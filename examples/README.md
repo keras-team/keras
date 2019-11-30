@@ -41,6 +41,9 @@ Transfer learning toy example on the MNIST dataset.
 [mnist_denoising_autoencoder.py](mnist_denoising_autoencoder.py)
 Trains a denoising autoencoder on the MNIST dataset.
 
+[street signs classifier.py](street_signs_classifier.py)
+Trains a DCNN to classify street signs on roads in 40 different classes.
+
 ----
 
 ## Text & sequences examples
