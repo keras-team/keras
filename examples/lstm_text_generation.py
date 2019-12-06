@@ -46,22 +46,22 @@ for i in range(0, len(text) - maxlen, step):
 print('nb sequences:', len(sentences))
 
 print('Vectorization...')
-x = np.zeros((len(sentences), maxlen, len(chars)), dtype=np.bool)
-y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
+x = np.zeros((len(sentences), maxlen), dtype=np.int32)
+y = np.zeros((len(sentences)), dtype=np.int32)
 for i, sentence in enumerate(sentences):
-    for t, char in enumerate(sentence):
-        x[i, t, char_indices[char]] = 1
-    y[i, char_indices[next_chars[i]]] = 1
+    x[i] = [char_indices[char] for char in sentence]
+    y[i] = char_indices[next_chars[i]]
 
+x = x.reshape(x.shape[0], x.shape[1], 1)
 
 # build the model: a single LSTM
 print('Build model...')
 model = Sequential()
-model.add(LSTM(128, input_shape=(maxlen, len(chars))))
+model.add(LSTM(128, input_shape=(maxlen, 1)))
 model.add(Dense(len(chars), activation='softmax'))
 
 optimizer = RMSprop(learning_rate=0.01)
-model.compile(loss='categorical_crossentropy', optimizer=optimizer)
+model.compile(loss='sparse_categorical_crossentropy', optimizer=optimizer)
 
 
 def sample(preds, temperature=1.0):
@@ -90,9 +90,9 @@ def on_epoch_end(epoch, _):
         sys.stdout.write(generated)
 
         for i in range(400):
-            x_pred = np.zeros((1, maxlen, len(chars)))
-            for t, char in enumerate(sentence):
-                x_pred[0, t, char_indices[char]] = 1.
+            x_pred = np.zeros((1, maxlen))
+            x_pred[0] = [char_indices[char] for char in sentence]
+            x_pred = x_pred.reshape(x_pred.shape[0], x_pred.shape[1], 1)
 
             preds = model.predict(x_pred, verbose=0)[0]
             next_index = sample(preds, diversity)
