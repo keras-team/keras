@@ -339,7 +339,8 @@ class Progbar(object):
 
         self._dynamic_display = ((hasattr(sys.stdout, 'isatty') and
                                   sys.stdout.isatty()) or
-                                 'ipykernel' in sys.modules)
+                                 'ipykernel' in sys.modules or
+                                 'PYCHARM_HOSTED' in os.environ)
         self._total_width = 0
         self._seen_so_far = 0
         self._values = collections.OrderedDict()
