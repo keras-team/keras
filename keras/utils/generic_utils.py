@@ -6,6 +6,7 @@ from __future__ import print_function
 import binascii
 import numpy as np
 
+import os
 import time
 import sys
 import six
