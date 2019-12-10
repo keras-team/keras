@@ -3,10 +3,9 @@
 
 It achieves an 80% validation accuracy in ~16-20 epochs.
 
-Mobile GTX1050: 20s/epoch
+Total params: 280,640
 
-60% in 2 Epoch, 70% in 5 Epoch, 75% in 9 Epoch 
-
+20s/Epoch on Mobile GTX1050
 '''
 
 from __future__ import print_function
@@ -43,7 +42,7 @@ def caps_batch_dot(x, y):
     return K.squeeze(o, 2)
 
 class Capsule(Layer):
-    """A Capsule Implement with Pure Keras
+    """ A Capsule Implement with Pure Keras
     There are two vesions of Capsule.
     One is like dense layer (for the fixed-shape input),
     and the other is like timedistributed dense (for various length input).
@@ -184,6 +183,8 @@ model = Model(inputs=input_image, outputs=output)
 model.compile(loss=margin_loss,
               optimizer='adam',
               metrics=['accuracy'])
+
+print(model.summary())
 
 if not data_augmentation:
     print('Not using data augmentation.')
