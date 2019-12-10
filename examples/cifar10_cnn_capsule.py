@@ -1,47 +1,46 @@
+'''
+#Train a Capsule CNN on the CIFAR10 small images dataset.
+
+It achieves an 80% validation accuracy in ~16-20 epochs.
+
+Mobile GTX1050: 20s/epoch
+
+60% in 2 Epoch, 70% in 5 Epoch, 75% in 9 Epoch 
+
+'''
+
 from __future__ import print_function
+import keras
 from keras import backend as K
-from keras.layers import Layer
+from keras.layers import Layer, Input, Conv2D, AveragePooling2D
+from keras.layers import Lambda, Reshape
 from keras import activations
-from keras import utils
 from keras.datasets import cifar10
 from keras.models import Model
-from keras.layers import *
 from keras.preprocessing.image import ImageDataGenerator
 import tensorflow as tf
+import os
 
-
-# the squashing function.
-# we use 0.5 in stead of 1 in hinton's paper.
-# if 1, the norm of vector will be zoomed out.
-# if 0.5, the norm will be zoomed in while original norm is less than 0.5
-# and be zoomed out while original norm is greater than 0.5.
 def squash(x, axis=-1):
     s_squared_norm = K.sum(K.square(x), axis, keepdims=True) + K.epsilon()
     scale = K.sqrt(s_squared_norm) / (0.5 + s_squared_norm)
     return scale * x
 
-
-# define our own softmax function instead of K.softmax
-# because K.softmax can not specify axis.
 def softmax(x, axis=-1):
     ex = K.exp(x - K.max(x, axis=axis, keepdims=True))
     return ex / K.sum(ex, axis=axis, keepdims=True)
 
-
-# define the margin loss like hinge loss
 def margin_loss(y_true, y_pred):
     lamb, margin = 0.5, 0.1
     return K.sum(y_true * K.square(K.relu(1 - margin - y_pred)) + lamb * (
         1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
 
-# capsule compatible batch_dot
 def caps_batch_dot(x, y):
     x = K.expand_dims(x, 2)
     if K.int_shape(x)[3] is not None:
         y = K.permute_dimensions(y, (0,1,3,2))
     o = tf.matmul(x, y)
     return K.squeeze(o, 2)
-
 
 class Capsule(Layer):
     """A Capsule Implement with Pure Keras
@@ -61,7 +60,6 @@ class Capsule(Layer):
     Capsule Implement is from https://github.com/bojone/Capsule/
     Capsule Paper: https://arxiv.org/abs/1710.09829
     """
-
     def __init__(self,
                  num_capsule,
                  dim_capsule,
@@ -136,18 +134,30 @@ class Capsule(Layer):
     def compute_output_shape(self, input_shape):
         return (None, self.num_capsule, self.dim_capsule)
 
-
-batch_size = 128
+batch_size = 64
 num_classes = 10
 epochs = 100
-(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+data_augmentation = True
+num_predictions = 20
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+model_name = 'keras_cifar10_trained_model.h5'
 
+# The data, split between train and test sets:
+(x_train, y_train), (x_test, y_test) = cifar10.load_data()
+print('x_train shape:', x_train.shape)
+print(x_train.shape[0], 'train samples')
+print(x_test.shape[0], 'test samples')
+
+# Scale Train set
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
 x_train /= 255
 x_test /= 255
-y_train = utils.to_categorical(y_train, num_classes)
-y_test = utils.to_categorical(y_test, num_classes)
+
+# Convert class vectors to binary class matrices.
+y_train = keras.utils.to_categorical(y_train, num_classes)
+y_test = keras.utils.to_categorical(y_test, num_classes)
+
 
 # A common Conv2D model
 input_image = Input(shape=(None, None, 3))
@@ -157,7 +167,6 @@ x = AveragePooling2D((2, 2))(x)
 x = Conv2D(128, (3, 3), activation='relu')(x)
 x = Conv2D(128, (3, 3), activation='relu')(x)
 
-
 """now we reshape it as (batch_size, input_num_capsule, input_dim_capsule)
 then connect a Capsule layer.
 
@@ -166,41 +175,38 @@ the output of final model is the lengths of 10 Capsule, whose dim=16.
 the length of Capsule is the proba,
 so the problem becomes a 10 two-classification problem.
 """
-
 x = Reshape((-1, 128))(x)
 capsule = Capsule(10, 16, 3, True)(x)
 output = Lambda(lambda z: K.sqrt(K.sum(K.square(z), 2)))(capsule)
 model = Model(inputs=input_image, outputs=output)
 
-# we use a margin loss
-model.compile(loss=margin_loss, optimizer='adam', metrics=['accuracy'])
-model.summary()
-
-# we can compare the performance with or without data augmentation
-data_augmentation = True
+# Let's train the model using RMSprop
+model.compile(loss=margin_loss,
+              optimizer='adam',
+              metrics=['accuracy'])
 
 if not data_augmentation:
     print('Not using data augmentation.')
-    model.fit(
-        x_train,
-        y_train,
-        batch_size=batch_size,
-        epochs=epochs,
-        validation_data=(x_test, y_test),
-        shuffle=True)
+    model.fit(x_train, y_train,
+              batch_size=batch_size,
+              epochs=epochs,
+              validation_data=(x_test, y_test),
+              shuffle=True)
 else:
     print('Using real-time data augmentation.')
     # This will do preprocessing and realtime data augmentation:
     datagen = ImageDataGenerator(
         featurewise_center=False,  # set input mean to 0 over the dataset
         samplewise_center=False,  # set each sample mean to 0
-        featurewise_std_normalization=False,  # divide inputs by dataset std
+        featurewise_std_normalization=False,  # divide inputs by std of the dataset
         samplewise_std_normalization=False,  # divide each input by its std
         zca_whitening=False,  # apply ZCA whitening
         zca_epsilon=1e-06,  # epsilon for ZCA whitening
-        rotation_range=0,  # randomly rotate images in 0 to 180 degrees
-        width_shift_range=0.1,  # randomly shift images horizontally
-        height_shift_range=0.1,  # randomly shift images vertically
+        rotation_range=0,  # randomly rotate images in the range (degrees, 0 to 180)
+        # randomly shift images horizontally (fraction of total width)
+        width_shift_range=0.1,
+        # randomly shift images vertically (fraction of total height)
+        height_shift_range=0.1,
         shear_range=0.,  # set range for random shear
         zoom_range=0.,  # set range for random zoom
         channel_shift_range=0.,  # set range for random channel shifts
@@ -223,8 +229,20 @@ else:
     datagen.fit(x_train)
 
     # Fit the model on the batches generated by datagen.flow().
-    model.fit_generator(
-        datagen.flow(x_train, y_train, batch_size=batch_size),
-        epochs=epochs,
-        validation_data=(x_test, y_test),
-        workers=4)
+    model.fit_generator(datagen.flow(x_train, y_train,
+                                     batch_size=batch_size),
+                        epochs=epochs,
+                        validation_data=(x_test, y_test),
+                        workers=4)
+
+# Save model and weights
+if not os.path.isdir(save_dir):
+    os.makedirs(save_dir)
+model_path = os.path.join(save_dir, model_name)
+model.save(model_path)
+print('Saved trained model at %s ' % model_path)
+
+# Score trained model.
+scores = model.evaluate(x_test, y_test, verbose=1)
+print('Test loss:', scores[0])
+print('Test accuracy:', scores[1])
