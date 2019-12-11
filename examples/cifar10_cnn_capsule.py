@@ -20,26 +20,31 @@ from keras.preprocessing.image import ImageDataGenerator
 import tensorflow as tf
 import os
 
+
 def squash(x, axis=-1):
     s_squared_norm = K.sum(K.square(x), axis, keepdims=True) + K.epsilon()
     scale = K.sqrt(s_squared_norm) / (0.5 + s_squared_norm)
     return scale * x
 
+
 def softmax(x, axis=-1):
     ex = K.exp(x - K.max(x, axis=axis, keepdims=True))
     return ex / K.sum(ex, axis=axis, keepdims=True)
+
 
 def margin_loss(y_true, y_pred):
     lamb, margin = 0.5, 0.1
     return K.sum(y_true * K.square(K.relu(1 - margin - y_pred)) + lamb * (
         1 - y_true) * K.square(K.relu(y_pred - margin)), axis=-1)
 
+
 def caps_batch_dot(x, y):
     x = K.expand_dims(x, 2)
     if K.int_shape(x)[3] is not None:
-        y = K.permute_dimensions(y, (0,1,3,2))
+        y = K.permute_dimensions(y, (0, 1, 3, 2))
     o = tf.matmul(x, y)
     return K.squeeze(o, 2)
+
 
 class Capsule(Layer):
     """ A Capsule Implement with Pure Keras
