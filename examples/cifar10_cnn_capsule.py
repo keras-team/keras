@@ -138,6 +138,15 @@ class Capsule(Layer):
     def compute_output_shape(self, input_shape):
         return (None, self.num_capsule, self.dim_capsule)
 
+    def get_config(self):
+        config = {
+            'num_capsule': self.num_capsule,
+            'dim_capsule': self.dim_capsule,
+            'routings': self.routings
+        }
+        base_config = super(Capsule, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
 batch_size = 64
 num_classes = 10
 epochs = 100
@@ -164,7 +173,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 
 
 # A common Conv2D model
-input_image = Input(shape=(None, None, 3))
+input_image = Input(shape=x_train[0].shape)
 x = Conv2D(64, (3, 3), activation='relu')(input_image)
 x = Conv2D(64, (3, 3), activation='relu')(x)
 x = AveragePooling2D((2, 2))(x)
