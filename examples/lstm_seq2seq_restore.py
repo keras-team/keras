@@ -71,6 +71,7 @@ encoder_input_data = np.zeros(
 for i, input_text in enumerate(input_texts):
     for t, char in enumerate(input_text):
         encoder_input_data[i, t, input_token_index[char]] = 1.
+    encoder_input_data[i, t + 1:, input_token_index[' ']] = 1.
 
 # Restore the model and construct the encoder and decoder.
 model = load_model('s2s.h5')
