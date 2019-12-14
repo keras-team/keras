@@ -133,7 +133,7 @@ Dataset of 60,000 28x28 grayscale images of the 10 digits, along with a test set
 ```python
 from keras.datasets import mnist
 
-(x_train, y_train), (x_test, y_test) = mnist.load_data()
+(x_train, x_test), (y_train, y_test) = mnist.load_data()
 ```
 
 - __Returns:__
