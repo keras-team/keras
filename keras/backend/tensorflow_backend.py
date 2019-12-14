@@ -1667,7 +1667,7 @@ def min(x, axis=None, keepdims=False):
             the reduced dimension is retained with length 1.
 
     # Returns
-        A tensor with miminum values of `x`.
+        A tensor with minimum values of `x`.
 
     {{np_implementation}}
     """
