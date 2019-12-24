@@ -14,10 +14,7 @@ import json
 import warnings
 import io
 
-from collections import deque
-from collections import OrderedDict
-from collections import Iterable
-from collections import defaultdict
+import collections
 from ..utils.generic_utils import Progbar
 from .. import backend as K
 from ..engine.training_utils import standardize_input_data
@@ -52,7 +49,7 @@ class CallbackList(object):
 
     def _reset_batch_timing(self):
         self._delta_t_batch = 0.
-        self._delta_ts = defaultdict(lambda: deque([], maxlen=self.queue_length))
+        self._delta_ts = collections.defaultdict(lambda: collections.deque([], maxlen=self.queue_length))
 
     def append(self, callback):
         self.callbacks.append(callback)
@@ -1122,7 +1119,7 @@ class CSVLogger(Callback):
             is_zero_dim_ndarray = isinstance(k, np.ndarray) and k.ndim == 0
             if isinstance(k, six.string_types):
                 return k
-            elif isinstance(k, Iterable) and not is_zero_dim_ndarray:
+            elif isinstance(k, collections.Iterable) and not is_zero_dim_ndarray:
                 return '"[%s]"' % (', '.join(map(str, k)))
             else:
                 return k
@@ -1146,7 +1143,7 @@ class CSVLogger(Callback):
             if self.append_header:
                 self.writer.writeheader()
 
-        row_dict = OrderedDict({'epoch': epoch})
+        row_dict = collections.OrderedDict({'epoch': epoch})
         row_dict.update((key, handle_value(logs[key])) for key in self.keys)
         self.writer.writerow(row_dict)
         self.csv_file.flush()
