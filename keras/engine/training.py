@@ -1068,7 +1068,7 @@ class Model(Network):
                 TensorFlow data tensors, the default `None` is equal to
                 the number of samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined.
-            validation_steps: Required if `validation_data` is provided and is a tuple 
+            validation_steps: Required if `validation_data` is provided
                 and model is being trained by step wise training(`steps_per_epoch` 
                 is specified). Total number of steps (batches of samples) to 
                 validate before stopping.
