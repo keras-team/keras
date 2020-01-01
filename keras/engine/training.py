@@ -1069,8 +1069,8 @@ class Model(Network):
                 the number of samples in your dataset divided by
                 the batch size, or 1 if that cannot be determined.
             validation_steps: Required if `validation_data` is provided
-                and model is being trained by step wise training(`steps_per_epoch` 
-                is specified). Total number of steps (batches of samples) to 
+                and model is being trained by step wise training(`steps_per_epoch`
+                is specified). Total number of steps (batches of samples) to
                 validate before stopping.
             validation_steps: Only relevant if `validation_data` is provided
                 and is a generator. Total number of steps (batches of samples)
