@@ -278,7 +278,7 @@ class TextImageGenerator(keras.callbacks.Callback):
         else:
             X_data = np.ones([size, self.img_w, self.img_h, 1])
 
-        labels = np.ones([size, self.absolute_max_string_len])
+        labels = np.ones([size, self.absolute_max_string_len]) * -1
         input_length = np.zeros([size, 1])
         label_length = np.zeros([size, 1])
         source_str = []
