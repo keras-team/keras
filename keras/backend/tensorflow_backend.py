@@ -1823,7 +1823,7 @@ def any(x, axis=None, keepdims=False):
         keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
-        A uint8 tensor (0s and 1s).
+        A bool type tensor (True and False).
     {{np_implementation}}
     """
     x = tf.cast(x, tf.bool)
@@ -1841,7 +1841,7 @@ def all(x, axis=None, keepdims=False):
         keepdims: whether the drop or broadcast the reduction axes.
 
     # Returns
-        A uint8 tensor (0s and 1s).
+        A bool type tensor (True and False).
     {{np_implementation}}
     """
     x = tf.cast(x, tf.bool)
