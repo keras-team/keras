@@ -114,7 +114,7 @@ class Embedding(Layer):
 
     def compute_mask(self, inputs, mask=None):
         if not self.mask_zero:
-            return None
+            return mask
         output_mask = K.not_equal(inputs, 0)
         return output_mask
 
