@@ -32,7 +32,7 @@ from keras.models import Sequential
 from keras import layers
 import numpy as np
 from six.moves import range
-
+import matplotlib.pyplot as plt
 
 class CharacterTable(object):
     """Given a set of characters:
@@ -183,10 +183,13 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 model.summary()
 
-# Store val_loss for early stopping
+# Store val_loss and accuracy for visulization and early stopping
+train_loss=[]
 val_loss=[]
+train_acc=[]
+val_acc=[]
 patience=3
-min_delta=0.01
+min_delta=0.001
 val_loss_increase=0
 
 # Train the model each generation and show predictions against the validation
@@ -200,7 +203,10 @@ for iteration in range(1, 200):
                             epochs=1,
                             validation_data=(x_val, y_val))
     # Terminate the iteration if val_loss stop's decresing
+    train_loss.append(train_history.history['loss'][0])
     val_loss.append(train_history.history['val_loss'][0])
+    train_acc.append(train_history.history['accuracy'][0])
+    val_acc.append(train_history.history['val_accuracy'][0])
     if iteration>1 :
         if val_loss[iteration-2]-val_loss[iteration-1]<min_delta:
             val_loss_increase+=1
@@ -228,3 +234,10 @@ for iteration in range(1, 200):
         else:
             print(colors.fail + '☒' + colors.close, end=' ')
         print(guess)
+
+plt.plot(train_loss)
+plt.plot(val_loss)
+plt.plot(train_acc)
+plt.plot(val_acc)
+plt.legend(['train_loss', 'val_loss','train_acc','val_acc'])
+plt.show()
