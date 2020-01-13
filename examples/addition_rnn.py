@@ -183,16 +183,35 @@ model.compile(loss='categorical_crossentropy',
               metrics=['accuracy'])
 model.summary()
 
+# Store val_loss for early stopping
+val_loss=[]
+patience=3
+min_delta=0.01
+val_loss_increase=0
+
 # Train the model each generation and show predictions against the validation
 # dataset.
 for iteration in range(1, 200):
     print()
     print('-' * 50)
     print('Iteration', iteration)
-    model.fit(x_train, y_train,
-              batch_size=BATCH_SIZE,
-              epochs=1,
-              validation_data=(x_val, y_val))
+    train_history=model.fit(x_train, y_train,
+                            batch_size=BATCH_SIZE,
+                            epochs=1,
+                            validation_data=(x_val, y_val))
+    # Terminate the iteration if val_loss stop's decresing
+    val_loss.append(train_history.history['val_loss'][0])
+    if iteration>1 :
+        if val_loss[iteration-2]-val_loss[iteration-1]<min_delta:
+            val_loss_increase+=1
+            print("Validation_loss increased")
+            if val_loss_increase>=patience: 
+                print("Stoping because validation loss did not decrease")
+                break
+        else : 
+            print("Validation_loss decreased")
+            val_loss_increase=0
+    
     # Select 10 samples from the validation set at random so we can visualize
     # errors.
     for i in range(10):
