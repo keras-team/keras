@@ -963,9 +963,8 @@ class ReduceLROnPlateau(Callback):
         monitor: quantity to be monitored.
         factor: factor by which the learning rate will
             be reduced. new_lr = lr * factor
-        patience: number of epochs that produced the monitored
-            quantity with no improvement after which training will
-            be stopped.
+        patience: number of epochs with no improvement
+            after which learning rate will be reduced.
             Validation quantities may not be produced for every
             epoch, if the validation frequency
             (`model.fit(validation_freq=5)`) is greater than one.
