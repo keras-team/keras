@@ -4067,13 +4067,13 @@ def pool2d(x, pool_size, strides=(1, 1),
         pool_size = (1, 1) + pool_size
 
     if pool_mode == 'max':
-        x = tf.nn.max_pool(x, pool_size, strides,
-                           padding=padding,
-                           data_format=tf_data_format)
+        x = tf.nn.max_pool2d(x, pool_size, strides,
+                             padding=padding,
+                             data_format=tf_data_format)
     elif pool_mode == 'avg':
-        x = tf.nn.avg_pool(x, pool_size, strides,
-                           padding=padding,
-                           data_format=tf_data_format)
+        x = tf.nn.avg_pool2d(x, pool_size, strides,
+                             padding=padding,
+                             data_format=tf_data_format)
     else:
         raise ValueError('Invalid pool_mode: ' + str(pool_mode))
 
