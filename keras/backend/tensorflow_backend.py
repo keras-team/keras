@@ -503,7 +503,8 @@ def _get_available_gpus():
             devices = get_session().list_devices()
             _LOCAL_DEVICES = [x.name for x in devices]
         else:
-            _LOCAL_DEVICES = tf.config.experimental_list_devices()
+            devices = tf.config.list_logical_devices()
+            _LOCAL_DEVICES = [x.name for x in devices]
     return [x for x in _LOCAL_DEVICES if 'device:gpu' in x.lower()]
 
 
