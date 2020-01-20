@@ -501,7 +501,7 @@ def _get_available_gpus():
         if _is_tf_1():
             devices = get_session().list_devices()
             _LOCAL_DEVICES = [x.name for x in devices]
-        elif int(tf.__version__.split('.')[1])>1:
+        elif int(tf.__version__.split('.')[1]) > 1:
             devices = tf.config.list_logical_devices()
             _LOCAL_DEVICES = [x.name for x in devices]
         else:
