@@ -493,7 +493,6 @@ def _is_current_explicit_device(device_type):
 
 def _get_available_gpus():
     """Get a list of available gpu devices (formatted as strings).
-
     # Returns
         A list of available GPU devices.
     """
@@ -502,9 +501,11 @@ def _get_available_gpus():
         if _is_tf_1():
             devices = get_session().list_devices()
             _LOCAL_DEVICES = [x.name for x in devices]
-        else:
+        elif int(tf.__version__.split('.')[1])>1:
             devices = tf.config.list_logical_devices()
             _LOCAL_DEVICES = [x.name for x in devices]
+        else:
+            _LOCAL_DEVICES = tf.config.experimental_list_devices()
     return [x for x in _LOCAL_DEVICES if 'device:gpu' in x.lower()]
 
 
