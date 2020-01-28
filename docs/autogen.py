@@ -50,11 +50,22 @@ def get_function_signature(function, method=True):
 
     for a in args:
         st += str(a) + ', '
+    if args and kwargs:
+        st += '\n'
+
+    not_first_line = bool(args)
     for a, v in kwargs:
         if isinstance(v, str):
             v = '\'' + v.encode('unicode_escape').decode('utf8') + '\''
-        st += str(a) + '=' + str(v) + ', '
-    if kwargs or args:
+        if not_first_line:
+            st += '    '
+        else:
+            not_first_line = True
+        st += str(a) + '=' + str(v) + ', \n'
+
+    if kwargs:
+        signature = st[:-3] + ')'
+    elif args:
         signature = st[:-2] + ')'
     else:
         signature = st + ')'
