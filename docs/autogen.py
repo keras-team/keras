@@ -52,7 +52,7 @@ def get_function_signature(function, method=True):
         st += str(a) + ', '
     for a, v in kwargs:
         if isinstance(v, str):
-            v = '\'' + v + '\''
+            v = '\'' + v.encode('unicode_escape').decode('utf8') + '\''
         st += str(a) + '=' + str(v) + ', '
     if kwargs or args:
         signature = st[:-2] + ')'
@@ -109,7 +109,7 @@ def class_to_source_link(cls):
 
 def code_snippet(snippet):
     result = '```python\n'
-    result += snippet.encode('unicode_escape').decode('utf8') + '\n'
+    result += snippet + '\n'
     result += '```\n'
     return result
 
