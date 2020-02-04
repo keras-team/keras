@@ -130,7 +130,7 @@ sudo python setup.py install
 
 You can also install Keras from PyPI:
 ```
-sudo pip install keras
+pip install --user keras
 ```
 
 ------------------
