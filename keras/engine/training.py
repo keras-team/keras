@@ -1714,7 +1714,11 @@ class Model(Network):
         model.fit_generator(generate_arrays_from_file('/my_file.txt'),
                             steps_per_epoch=10000, epochs=10)
         ```
+        model.fit_generator:
+        used for training a model on a huge dataset.
+        It accepts a batch of the datasets, then perform backpropagation on it.
         """
+        
         return training_generator.fit_generator(
             self, generator,
             steps_per_epoch=steps_per_epoch,
