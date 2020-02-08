@@ -14,7 +14,7 @@ from ..utils.np_utils import to_categorical
 from ..utils.generic_utils import has_arg
 from ..utils.generic_utils import to_list
 from ..models import Sequential
-
+from sklearn.base import ClassifierMixin, RegressorMixin
 
 class BaseWrapper(object):
     """Base class for the Keras scikit-learn wrapper.
@@ -172,7 +172,7 @@ class BaseWrapper(object):
         return res
 
 
-class KerasClassifier(BaseWrapper):
+class KerasClassifier(BaseWrapper, ClassifierMixin):
     """Implementation of the scikit-learn classifier API for Keras.
     """
 
@@ -300,7 +300,7 @@ class KerasClassifier(BaseWrapper):
                          'the `model.compile()` method.')
 
 
-class KerasRegressor(BaseWrapper):
+class KerasRegressor(BaseWrapper, RegressorMixin):
     """Implementation of the scikit-learn regressor API for Keras.
     """
 
