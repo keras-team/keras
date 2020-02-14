@@ -806,7 +806,7 @@ class Conv2DTranspose(Conv2D):
         self.built = True
 
     def call(self, inputs):
-        input_shape = K.shape(inputs)
+        input_shape = K.int_shape(inputs)
         batch_size = input_shape[0]
         if self.data_format == 'channels_first':
             h_axis, w_axis = 2, 3
