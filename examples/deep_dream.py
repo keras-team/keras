@@ -95,7 +95,7 @@ for layer_name in settings['features']:
     else:
         loss = loss + coeff * K.sum(K.square(x[:, 2: -2, 2: -2, :])) / scaling
 
-# Compute the gradients of the dream wrt the loss.
+# Compute the gradients of the loss wrt the dream(input image).
 grads = K.gradients(loss, dream)[0]
 # Normalize gradients.
 grads /= K.maximum(K.mean(K.abs(grads)), K.epsilon())
