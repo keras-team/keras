@@ -330,7 +330,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
     cce = keras.losses.CategoricalCrossentropy()
     loss = cce(
         [[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
-        [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]])
+        [[.9, .05, .05], [.05, .89, .06], [.05, .01, .94]])
     ```
 
     Usage with the `compile` API:
