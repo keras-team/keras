@@ -146,7 +146,7 @@ Note: These installation steps assume that you are on a Linux or Mac environment
 If you are on Windows, you will need to remove `sudo` to run the commands below.
 
 ```sh
-sudo pip install keras
+pip install keras --user
 ```
 
 If you are using a virtualenv, you may want to avoid using sudo:
