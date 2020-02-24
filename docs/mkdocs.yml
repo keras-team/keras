@@ -74,6 +74,8 @@ nav:
   - Baby MemNN: examples/babi_memnn.md
   - CIFAR-10 CNN: examples/cifar10_cnn.md
   - CIFAR-10 ResNet: examples/cifar10_resnet.md
+  - Class Activation Maps: examples/class_activation_maps.md
+  - CNN seq2seq: examples/cnn_seq2seq.md
   - Convolution filter visualization: examples/conv_filter_visualization.md
   - Convolutional LSTM: examples/conv_lstm.md
   - Deep Dream: examples/deep_dream.md
@@ -88,3 +90,20 @@ nav:
   - Stateful LSTM: examples/lstm_stateful.md
   - LSTM for text generation: examples/lstm_text_generation.md
   - Auxiliary Classifier GAN: examples/mnist_acgan.md
+  - MNIST CNN: examples/mnist_cnn.md
+  - MNIST denoising Autoencoder: examples/mnist_denoising_autoencoder.md
+  - MNIST Hierarchical RNN: examples/mnist_hierarchical_rnn.md
+  - MNIST IRNN: examples/mnist_irnn.md
+  - MNIST MLP: examples/mnist_mlp.md
+  - MNIST Net to Net: examples/mnist_net2net.md
+  - MNIST Siamese: examples/mnist_siamese.md
+  - MNIST Sklearn Wrapper : examples/mnist_sklearn_wrapper.md
+  - MNIST SWWAE: examples/mnist_swwae.md
+  - MNIST Transfer CNN: examples/mnist_transfer_cnn.md
+  - Neural Doodle: examples/neural_doodle.md
+  - Neural Style Transfer: examples/neural_stle_transfer.md
+  - Pretrained Word Embeddings: examples/pretrained_word_embeddings.md
+  - Reuters MLP: examples/reuters_mlp.md
+  - Reuters MLP RELU vs SELU: examples/reuters_mlp_relu_vs_selu.md
+  - Variation Encoder: examples/variation_encoder.md
+  - Variation Encoder DeConvolutional: examples/variational_encoder_deconv.md
