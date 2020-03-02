@@ -1,1 +1,0 @@
-{% extends "base.html" %}
