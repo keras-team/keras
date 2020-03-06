@@ -494,6 +494,7 @@ class _GlobalPooling1D(Layer):
         super(_GlobalPooling1D, self).__init__(**kwargs)
         self.input_spec = InputSpec(ndim=3)
         self.data_format = K.normalize_data_format(data_format)
+        self.supports_masking = True
 
     def compute_output_shape(self, input_shape):
         if self.data_format == 'channels_first':
@@ -503,6 +504,9 @@ class _GlobalPooling1D(Layer):
 
     def call(self, inputs):
         raise NotImplementedError
+
+    def compute_mask(self, inputs, mask=None):
+        return None
 
     def get_config(self):
         config = {'data_format': self.data_format}
@@ -535,25 +539,15 @@ class GlobalAveragePooling1D(_GlobalPooling1D):
         `(batch_size, features)`
     """
 
-    def __init__(self, data_format='channels_last', **kwargs):
-        super(GlobalAveragePooling1D, self).__init__(data_format,
-                                                     **kwargs)
-        self.supports_masking = True
-
     def call(self, inputs, mask=None):
         steps_axis = 1 if self.data_format == 'channels_last' else 2
         if mask is not None:
             mask = K.cast(mask, K.floatx())
-            input_shape = K.int_shape(inputs)
-            broadcast_shape = [-1, input_shape[steps_axis], 1]
-            mask = K.reshape(mask, broadcast_shape)
+            mask = K.expand_dims(mask, 3 - steps_axis)
             inputs *= mask
             return K.sum(inputs, axis=steps_axis) / K.sum(mask, axis=steps_axis)
         else:
             return K.mean(inputs, axis=steps_axis)
-
-    def compute_mask(self, inputs, mask=None):
-        return None
 
 
 class GlobalMaxPooling1D(_GlobalPooling1D):
@@ -581,8 +575,12 @@ class GlobalMaxPooling1D(_GlobalPooling1D):
         `(batch_size, features)`
     """
 
-    def call(self, inputs):
+    def call(self, inputs, mask=None):
         steps_axis = 1 if self.data_format == 'channels_last' else 2
+        if mask is not None:
+            mask = K.cast(mask, K.floatx())
+            mask = K.expand_dims(mask, 3 - steps_axis)
+            inputs -= (1 - mask) * 1e12
         return K.max(inputs, axis=steps_axis)
 
 
