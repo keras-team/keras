@@ -93,7 +93,7 @@ class TensorBoard(Callback):
         global tf, projector
         try:
             import tensorflow as tf
-            from tensorflow.contrib.tensorboard.plugins import projector
+            from tensorflow.compat.v1.tensorboard.plugins import projector
         except ImportError:
             raise ImportError('You need the TensorFlow (v1) module installed to '
                               'use TensorBoard.')
