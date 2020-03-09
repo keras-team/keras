@@ -130,7 +130,7 @@ model = Model(inputs=[main_input, auxiliary_input], outputs=[main_output, auxili
 
 We compile the model and assign a weight of 0.2 to the auxiliary loss.
 To specify different `loss_weights` or `loss` for each different output, you can use a list or a dictionary.
-Here we pass a single loss as the `loss` argument, so the same loss will be used on all outputs.
+Here we pass a list as the `loss_weights` argument, so the loss will be specified for each output.
 
 ```python
 model.compile(optimizer='rmsprop', loss='binary_crossentropy',
