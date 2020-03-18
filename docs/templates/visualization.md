@@ -34,9 +34,12 @@ import matplotlib.pyplot as plt
 
 history = model.fit(x, y, validation_split=0.25, epochs=50, batch_size=16, verbose=1)
 
+# In this example, history.history.keys() would return the following metrics:
+# ['accuracy', 'loss', 'val_accuracy', 'val_loss']
+
 # Plot training & validation accuracy values
-plt.plot(history.history['acc'])
-plt.plot(history.history['val_acc'])
+plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
 plt.title('Model accuracy')
 plt.ylabel('Accuracy')
 plt.xlabel('Epoch')
