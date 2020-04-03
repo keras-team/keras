@@ -7,28 +7,28 @@ import os
 from ..models import Model
 from ..layers.wrappers import Wrapper
 
-# `pydot` is an optional dependency,
+# `pydotplus` is an optional dependency,
 # see `extras_require` in `setup.py`.
 try:
-    import pydot
+    import pydotplus
 except ImportError:
-    pydot = None
+    pydotplus = None
 
 
-def _check_pydot():
-    """Raise errors if `pydot` or GraphViz unavailable."""
-    if pydot is None:
+def _check_pydotplus():
+    """Raise errors if `pydotplus` or GraphViz unavailable."""
+    if pydotplus is None:
         raise ImportError(
-            'Failed to import `pydot`. '
-            'Please install `pydot`. '
-            'For example with `pip install pydot`.')
+            'Failed to import `pydotplus`. '
+            'Please install `pydotplus`. '
+            'For example with `pip install pydotplus`.')
     try:
         # Attempt to create an image of a blank graph
-        # to check the pydot/graphviz installation.
-        pydot.Dot.create(pydot.Dot())
+        # to check the pydotplus/graphviz installation.
+        pydotplus.Dot.create(pydotplus.Dot())
     except OSError:
         raise OSError(
-            '`pydot` failed to call GraphViz.'
+            '`pydotplus` failed to call GraphViz.'
             'Please install GraphViz (https://www.graphviz.org/) '
             'and ensure that its executables are in the $PATH.')
 
@@ -43,7 +43,7 @@ def is_wrapped_model(layer):
 
 def add_edge(dot, src, dst):
     if not dot.get_edge(src, dst):
-        dot.add_edge(pydot.Edge(src, dst))
+        dot.add_edge(pydotplus.Edge(src, dst))
 
 
 def model_to_dot(model,
@@ -59,30 +59,30 @@ def model_to_dot(model,
         model: A Keras model instance.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
-        rankdir: `rankdir` argument passed to PyDot,
+        rankdir: `rankdir` argument passed to pydotplus,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
         expand_nested: whether to expand nested models into clusters.
         dpi: dot DPI.
-        subgraph: whether to return a pydot.Cluster instance.
+        subgraph: whether to return a pydotplus.Cluster instance.
 
     # Returns
-        A `pydot.Dot` instance representing the Keras model or
-        a `pydot.Cluster` instance representing nested model if
+        A `pydotplus.Dot` instance representing the Keras model or
+        a `pydotplus.Cluster` instance representing nested model if
         `subgraph=True`.
     """
     from ..layers.wrappers import Wrapper
     from ..models import Model
     from ..models import Sequential
 
-    _check_pydot()
+    _check_pydotplus()
     if subgraph:
-        dot = pydot.Cluster(style='dashed', graph_name=model.name)
+        dot = pydotplus.Cluster(style='dashed', graph_name=model.name)
         dot.set('label', model.name)
         dot.set('labeljust', 'l')
     else:
-        dot = pydot.Dot()
+        dot = pydotplus.Dot()
         dot.set('rankdir', rankdir)
         dot.set('concentrate', True)
         dot.set('dpi', dpi)
@@ -157,7 +157,7 @@ def model_to_dot(model,
                                                            outputlabels)
 
         if not expand_nested or not isinstance(layer, Model):
-            node = pydot.Node(layer_id, label=label)
+            node = pydotplus.Node(layer_id, label=label)
             dot.add_node(node)
 
     # Connect nodes with edges.
@@ -171,7 +171,7 @@ def model_to_dot(model,
                     if not expand_nested:
                         assert dot.get_node(inbound_layer_id)
                         assert dot.get_node(layer_id)
-                        dot.add_edge(pydot.Edge(inbound_layer_id, layer_id))
+                        dot.add_edge(pydotplus.Edge(inbound_layer_id, layer_id))
                     else:
                         # if inbound_layer is not Model or wrapped Model
                         if not is_model(inbound_layer) and (
@@ -181,7 +181,7 @@ def model_to_dot(model,
                                     not is_wrapped_model(layer)):
                                 assert dot.get_node(inbound_layer_id)
                                 assert dot.get_node(layer_id)
-                                dot.add_edge(pydot.Edge(inbound_layer_id,
+                                dot.add_edge(pydotplus.Edge(inbound_layer_id,
                                                         layer_id))
                             # if current layer is Model
                             elif is_model(layer):
@@ -189,10 +189,10 @@ def model_to_dot(model,
                                          sub_n_first_node[layer.name].get_name())
                             # if current layer is wrapped Model
                             elif is_wrapped_model(layer):
-                                dot.add_edge(pydot.Edge(inbound_layer_id,
+                                dot.add_edge(pydotplus.Edge(inbound_layer_id,
                                                         layer_id))
                                 name = sub_w_first_node[layer.layer.name].get_name()
-                                dot.add_edge(pydot.Edge(layer_id,
+                                dot.add_edge(pydotplus.Edge(layer_id,
                                                         name))
                         # if inbound_layer is Model
                         elif is_model(inbound_layer):
@@ -225,7 +225,7 @@ def plot_model(model,
         to_file: File name of the plot image.
         show_shapes: whether to display shape information.
         show_layer_names: whether to display layer names.
-        rankdir: `rankdir` argument passed to PyDot,
+        rankdir: `rankdir` argument passed to pydotplus,
             a string specifying the format of the plot:
             'TB' creates a vertical plot;
             'LR' creates a horizontal plot.
