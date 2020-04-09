@@ -15,7 +15,9 @@ from ..utils.generic_utils import to_list
 
 class Embedding(Layer):
     """Turns positive integers (indexes) into dense vectors of fixed size.
-    eg. [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]]
+    For example: [[4], [20]] -> [[0.25, 0.1], [0.6, -0.2]], if 
+    embedding([4]) = [0.25, 0.1] and embedding([20]) = [0.6,-0.2]. 
+    Non-int32 inputs are casted to int32.
 
     This layer can only be used as the first layer in a model.
 
