@@ -3,6 +3,8 @@
 
 [More documentation about the Keras LSTM model](/layers/recurrent/#lstm)
 
+In this example, we train an LSTM to learn the moving average function.
+
 The models are trained on an input/output pair, where
 the input is a generated uniformly distributed
 random sequence of length = `input_len`,
@@ -35,6 +37,16 @@ this capability, and hence is limited by its `lahead` parameter,
 which is not sufficient to see the n-point average.
 
 When `lahead >= tsteps`, both the stateful and stateless LSTM converge.
+Recommended values for tests:
+lahead = 1, tsteps = 2 (stateless model does not converge)
+lahead = 2, tsteps = 2 (stateless model converges)
+lahead = 2, tsteps = 5 (stateless model does not converge)
+lahead = 5, tsteps = 5 (stateless model converges)
+
+This convergence can be seen by comparing the output values of the two sequences.
+When the stateless LSTM does not converge, we see a larger error compared to the
+stateful LSTM, and the values do not track the testing values well.
+
 '''
 from __future__ import print_function
 import numpy as np
@@ -43,10 +55,11 @@ import pandas as pd
 from keras.models import Sequential
 from keras.layers import Dense, LSTM
 
-# ----------------------------------------------------------
+# ---------------------------------------------
 # EDITABLE PARAMETERS
-# Read the documentation in the script head for more details
-# ----------------------------------------------------------
+# Read the documentation above for more details
+# https://keras.io/examples/lstm_stateful/
+# ---------------------------------------------
 
 # length of input
 input_len = 1000
@@ -136,8 +149,8 @@ print(expected_output.tail())
 print('Plotting input and expected output')
 plt.plot(data_input[0][:10], '.')
 plt.plot(expected_output[0][:10], '-')
-plt.legend(['Input', 'Expected output'])
-plt.title('Input')
+plt.legend(['Input', 'Expected Output'])
+plt.title('Input and Expected Output')
 plt.show()
 
 
@@ -150,6 +163,7 @@ def create_model(stateful):
     model.add(Dense(1))
     model.compile(loss='mse', optimizer='adam')
     return model
+
 
 print('Creating Stateful Model...')
 model_stateful = create_model(stateful=True)
@@ -226,18 +240,72 @@ model_stateless.fit(x_train,
 print('Predicting')
 predicted_stateless = model_stateless.predict(x_test, batch_size=batch_size)
 
-# ----------------------------
 
-print('Plotting Results')
-plt.subplot(3, 1, 1)
+# ---------------------------------
+# PLOTTING PREDICTIONS ON TEST DATA
+# ---------------------------------
+# Scale the y axis uniformly for all three plots.
+# Find the largest value in all the prediction arrays,
+# and scale that by 10%.
+max_y = max(abs(np.concatenate([y_test, predicted_stateful,
+                               predicted_stateless]))) * 1.1
+min_y = max_y * -1
+
+# Scale the x axis uniformly for all three plots using the length
+# of the y_test array.
+min_x = 0
+max_x = len(y_test)
+
+# Plot the expected and predicted values
+plt.figure(figsize=(10, 10))
+print('Plotting Expected and Predicted Values')
+expected_plot = plt.subplot(3, 1, 1)
 plt.plot(y_test)
-plt.title('Expected')
-plt.subplot(3, 1, 2)
-# drop the first "tsteps-1" because it is not possible to predict them
-# since the "previous" timesteps to use do not exist
-plt.plot((y_test - predicted_stateful).flatten()[tsteps - 1:])
-plt.title('Stateful: Expected - Predicted')
-plt.subplot(3, 1, 3)
-plt.plot((y_test - predicted_stateless).flatten())
-plt.title('Stateless: Expected - Predicted')
+plt.title('Y_Test (Moving Average)')
+expected_plot.set_ylim([min_y, max_y])
+expected_plot.set_xlim([min_x, max_x])
+stateful_plot = plt.subplot(3, 1, 2)
+# Note that the first "tsteps-1" in predicted_stateful are errors
+# because it is not possible to predict them ((predicted_stateful).flatten()[:tsteps]).
+plt.plot((predicted_stateful).flatten())
+plt.title('Predicted: Stateful')
+stateful_plot.set_ylim([min_y, max_y])
+stateful_plot.set_xlim([min_x, max_x])
+stateless_plot = plt.subplot(3, 1, 3)
+plt.plot((predicted_stateless).flatten())
+plt.title('Predicted: Stateless')
+stateless_plot.set_ylim([min_y, max_y])
+stateless_plot.set_xlim([min_x, max_x])
+plt.show()
+
+# Plot the errors between the expected and predicted values
+
+# Calculate errors
+y_test_err = y_test - y_test
+predicted_stateful_err = y_test - predicted_stateful
+predicted_stateless_err = y_test - predicted_stateless
+
+# Calculate limits for y axis
+max_err = max(abs(np.concatenate([y_test_err, predicted_stateful_err,
+                                  predicted_stateless_err])))*1.1
+min_err = max_err * -1
+
+# Plot errors
+plt.figure(figsize=(10, 10))
+print('Plotting Errors between Y_Test and Predicted Values')
+expected_err = plt.subplot(3, 1, 1)
+plt.plot(y_test_err)
+expected_err.set_ylim([min_err, max_err])
+expected_err.set_xlim([min_x, max_x])
+plt.title('Absolute Error in Y_Test: Y_Test - Y_Test')
+stateful_err = plt.subplot(3, 1, 2)
+plt.plot(predicted_stateful_err.flatten())
+stateful_err.set_ylim([min_err, max_err])
+stateful_err.set_xlim([min_x, max_x])
+plt.title('Error in Stateful Predictions: Y_Test - predicted_stateless')
+stateless_err = plt.subplot(3, 1, 3)
+plt.plot((predicted_stateless_err).flatten())
+stateless_err.set_ylim([min_err, max_err])
+stateless_err.set_xlim([min_x, max_x])
+plt.title('Error in Stateless Predictions: Y_Test - predicted_stateless')
 plt.show()
