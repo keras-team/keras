@@ -526,7 +526,8 @@ def train(run_name, start_epoch, stop_epoch, img_w):
     sgd = SGD(learning_rate=0.02,
               decay=1e-6,
               momentum=0.9,
-              nesterov=True)
+              nesterov=True,
+              clipnorm=5)
 
     model = Model(inputs=[input_data, labels, input_length, label_length],
                   outputs=loss_out)
