@@ -837,12 +837,12 @@ def prepare_loss_weights(output_names, loss_weights=None):
 
     # Arguments
         output_names: List of model output names.
-        loss_weights: Optional list or dictionary specifying scalar coefficients
-            (Python floats) to weight the loss contributions of different model
-            outputs. The loss value that will be minimized by the model will then be
-            the *weighted sum* of all individual losses, weighted by the
-            `loss_weights` coefficients. If a list, it is expected to have a 1:1
-            mapping to the model's outputs. If a dict, it is expected to map
+        loss_weights: Optional Python list or dictionary specifying scalar
+            coefficients (Python floats) to weight the loss contributions of
+            different model outputs. The loss value that will be minimized by the
+            model will then be the *weighted sum* of all individual losses, weighted
+            by the `loss_weights` coefficients. If a list, it is expected to have a
+            1:1 mapping to the model's outputs. If a dict, it is expected to map
             output names (strings) to scalar coefficients.
 
     # Returns
@@ -868,7 +868,7 @@ def prepare_loss_weights(output_names, loss_weights=None):
         weights_list = loss_weights
     else:
         raise TypeError('Could not interpret loss_weights argument: ' +
-                        str(loss_weights) + ' - expected a list of dicts.')
+                        str(loss_weights) + ' - expected a Python list or dict.')
 
     return weights_list
 
