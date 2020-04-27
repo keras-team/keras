@@ -160,7 +160,7 @@ model.save('s2s.h5')
 # Here's the drill:
 # 1) encode input and retrieve initial decoder state
 # 2) run one step of decoder with this initial state
-# and a "start of sequence" token as target.
+# and a "start of sequence" token as input.
 # Output will be the next target token
 # 3) Repeat with the current target token and current states
 
