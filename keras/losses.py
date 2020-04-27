@@ -680,7 +680,7 @@ def categorical_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=
     y_pred = K.constant(y_pred) if not K.is_tensor(y_pred) else y_pred
     y_true = K.cast(y_true, y_pred.dtype)
 
-    if label_smoothing is not 0:
+    if label_smoothing != 0:
         smoothing = K.cast_to_floatx(label_smoothing)
 
         def _smooth_labels():
@@ -699,7 +699,7 @@ def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
 def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
     y_pred = K.constant(y_pred) if not K.is_tensor(y_pred) else y_pred
     y_true = K.cast(y_true, y_pred.dtype)
-    if label_smoothing is not 0:
+    if label_smoothing != 0:
         smoothing = K.cast_to_floatx(label_smoothing)
         y_true = K.switch(K.greater(smoothing, 0),
                           lambda: y_true * (1.0 - smoothing) + 0.5 * smoothing,
