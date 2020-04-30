@@ -96,10 +96,12 @@ from .recurrent import RNN
 from .recurrent import SimpleRNN
 from .recurrent import GRU
 from .recurrent import LSTM
+from .recurrent import DGLSTM
 from .recurrent import SimpleRNNCell
 from .recurrent import GRUCell
 from .recurrent import LSTMCell
 from .recurrent import StackedRNNCells
+from .recurrent import DGLSTMCell
 
 from .cudnn_recurrent import CuDNNGRU
 from .cudnn_recurrent import CuDNNLSTM
