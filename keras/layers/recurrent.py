@@ -3043,8 +3043,7 @@ def _standardize_args(inputs, initial_state, constants, num_constants):
             smaller dot products and additions, whereas mode 2 will
             batch them into fewer, larger operations. These modes will
             have different performance profiles on different hardware and
-            for different applications.
-    """
+            for different applications."""
 
     def __init__(self, units,
                  activation='tanh',
