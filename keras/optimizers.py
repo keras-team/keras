@@ -540,7 +540,7 @@ class Adam(Optimizer):
                 p_t = p - lr_t * m_t / (K.sqrt(vhat_t) + self.epsilon)
                 self.updates.append(K.update(vhat, vhat_t))
             else:
-                p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon)
+                p_t = p - lr_t * m_t / (K.sqrt(v_t) + self.epsilon * (K.sqrt(1. - K.pow(self.beta_2, t)))
 
             self.updates.append(K.update(m, m_t))
             self.updates.append(K.update(v, v_t))
