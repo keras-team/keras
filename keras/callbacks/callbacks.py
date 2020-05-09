@@ -16,8 +16,8 @@ import io
 
 from collections import deque
 from collections import OrderedDict
-from collections import Iterable
 from collections import defaultdict
+from six.moves.collections_abc import Iterable
 from ..utils.generic_utils import Progbar
 from .. import backend as K
 from ..engine.training_utils import standardize_input_data
