@@ -1056,5 +1056,53 @@ def test_inconsistent_output_state_size():
     assert model.output_shape == (None, input_size)
 
 
+@pytest.mark.parametrize('pass_as_list', [True, False])
+def test_shared_rnn_layer_with_dropout(pass_as_list):
+    batch = 32
+    input_size = 6
+    output_size = 3
+    time_step = 4
+
+    encoder_inputs = keras.Input((time_step, input_size))
+    decoder_inputs = keras.Input((None, input_size))
+
+    cell = recurrent.LSTMCell(3)
+    cells = [cell] if pass_as_list else cell
+    encoder = recurrent.RNN(cells, return_state=True)
+    _, h, c = encoder(encoder_inputs)
+
+    cell = recurrent.LSTMCell(3, dropout=0.1, recurrent_dropout=0.1)
+    cells = [cell] if pass_as_list else cell
+    decoder = recurrent.RNN(cells)
+    out = decoder(decoder_inputs, initial_state=[h, c])
+
+    model = keras.Model([encoder_inputs, decoder_inputs], out)
+    encoder_model = keras.Model(encoder_inputs, [h, c])
+
+    h_input = keras.Input((3,))
+    c_input = keras.Input((3,))
+    out = decoder(decoder_inputs, initial_state=[h_input, c_input])
+    decoder_model = keras.Model([decoder_inputs, h_input, c_input], out)
+
+    model.compile(optimizer='rmsprop', loss='mse')
+    model.train_on_batch(
+        [
+            np.zeros((batch, time_step, input_size)),
+            np.zeros((batch, time_step, input_size)),
+        ],
+        np.zeros((batch, output_size))
+    )
+
+    h_out, c_out = encoder_model.predict(
+        np.zeros((batch, time_step, input_size))
+    )
+    pred = decoder_model.predict([
+        np.zeros((batch, time_step, input_size)),
+        h_out,
+        c_out
+    ])
+    assert np.all(np.isfinite(pred))
+
+
 if __name__ == '__main__':
     pytest.main([__file__])

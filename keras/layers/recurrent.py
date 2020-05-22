@@ -593,6 +593,13 @@ class RNN(Layer):
              training=None,
              initial_state=None,
              constants=None):
+        cells = [self.cell]
+        if isinstance(self.cell, StackedRNNCells):
+            cells = self.cell.cells
+        for cell in cells:
+            cell._dropout_mask = None
+            cell._recurrent_dropout_mask = None
+
         if not isinstance(initial_state, (list, tuple, type(None))):
             initial_state = [initial_state]
         if not isinstance(constants, (list, tuple, type(None))):
