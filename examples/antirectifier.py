@@ -12,11 +12,20 @@ backend (`K`), our code can run both on TensorFlow and Theano.
 '''
 
 from __future__ import print_function
-import keras
+'''
+We are commenting below import statement because the mentioned example do not use total keras functions. 
+So importing total keras will consume more memory. Functionality of below import statement is only to use utils 
+(refer line number 90 and 91). We can explactily import only utils for this work. This will save memory usage.
+'''
+# import keras
 from keras.models import Sequential
 from keras import layers
 from keras.datasets import mnist
 from keras import backend as K
+'''
+Explacitly importing utils as required at line number 90 and 91.
+'''
+from keras import utils as U
 
 
 class Antirectifier(layers.Layer):
@@ -78,8 +87,8 @@ print(x_train.shape[0], 'train samples')
 print(x_test.shape[0], 'test samples')
 
 # convert class vectors to binary class matrices
-y_train = keras.utils.to_categorical(y_train, num_classes)
-y_test = keras.utils.to_categorical(y_test, num_classes)
+y_train = U.to_categorical(y_train, num_classes)
+y_test = U.to_categorical(y_test, num_classes)
 
 # build the model
 model = Sequential()
