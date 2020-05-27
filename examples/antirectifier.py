@@ -12,11 +12,7 @@ backend (`K`), our code can run both on TensorFlow and Theano.
 '''
 
 from __future__ import print_function
-'''
-We are commenting below import statement because the mentioned example do not use total keras functions. 
-So importing total keras will consume more memory. Functionality of below import statement is only to use utils 
-(refer line number 90 and 91). We can explactily import only utils for this work. This will save memory usage.
-'''
+
 # import keras
 from keras.models import Sequential
 from keras import layers
