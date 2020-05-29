@@ -113,7 +113,7 @@ def relu(x, alpha=0., max_value=None, threshold=0.):
 
     Otherwise, it follows:
     `f(x) = max_value` for `x >= max_value`,
-    `f(x) = x` for `threshold <= x < max_value`,
+    `f(x) = x` for `threshold < x < max_value`,
     `f(x) = alpha * (x - threshold)` otherwise.
 
     # Arguments
