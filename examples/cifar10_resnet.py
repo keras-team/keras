@@ -239,7 +239,7 @@ def resnet_v1(input_shape, depth, num_classes=10):
                                  strides=strides,
                                  activation=None,
                                  batch_normalization=False)
-            x = keras.layers.add([x, y])
+            x = keras.layers.Add([x, y])
             x = Activation('relu')(x)
         num_filters *= 2
 
@@ -333,7 +333,7 @@ def resnet_v2(input_shape, depth, num_classes=10):
                                  strides=strides,
                                  activation=None,
                                  batch_normalization=False)
-            x = keras.layers.add([x, y])
+            x = keras.layers.Add([x, y])
 
         num_filters_in = num_filters_out
 
