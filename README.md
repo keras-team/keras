@@ -11,7 +11,7 @@ Keras is a high-level neural networks API, written in Python and capable of runn
 
 Use Keras if you need a deep learning library that:
 
-- Allows for easy and fast prototyping (through user friendliness, modularity, and extensibility).
+- Allows for easy and fast prototyping (through user-friendliness, modularity, and extensibility).
 - Supports both convolutional networks and recurrent networks, as well as combinations of the two.
 - Runs seamlessly on CPU and GPU.
 
@@ -28,7 +28,7 @@ Keras is compatible with: __Python 2.7-3.6__.
 
 Keras 2.2.5 was the last release of Keras implementing the 2.2.* API. It was the last release to only support TensorFlow 1 (as well as Theano and CNTK).
 
-The current release is Keras 2.3.0, which makes significant API changes and add support for TensorFlow 2.0. The 2.3.0 release will be the last major release of multi-backend Keras. Multi-backend Keras is superseded by `tf.keras`.
+The current release is Keras 2.3.0, which makes significant API changes and adds support for TensorFlow 2.0. The 2.3.0 release will be the last major release of multi-backend Keras. Multi-backend Keras is superseded by `tf.keras`.
 
 Bugs present in multi-backend Keras will only be fixed until April 2020 (as part of minor releases).
 
@@ -41,7 +41,7 @@ For more information about the future of Keras, see [the Keras meeting notes](ht
 
 - __User friendliness.__ Keras is an API designed for human beings, not machines. It puts user experience front and center. Keras follows best practices for reducing cognitive load: it offers consistent & simple APIs, it minimizes the number of user actions required for common use cases, and it provides clear and actionable feedback upon user error.
 
-- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully configurable modules that can be plugged together with as few restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and regularization schemes are all standalone modules that you can combine to create new models.
+- __Modularity.__ A model is understood as a sequence or a graph of standalone, fully-configurable modules that can be plugged together with as few restrictions as possible. In particular, neural layers, cost functions, optimizers, initialization schemes, activation functions and regularization schemes are all standalone modules that you can combine to create new models.
 
 - __Easy extensibility.__ New modules are simple to add (as new classes and functions), and existing modules provide ample examples. To be able to easily create new modules allows for total expressiveness, making Keras suitable for advanced research.
 
