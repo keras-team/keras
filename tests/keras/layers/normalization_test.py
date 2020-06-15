@@ -170,7 +170,6 @@ def test_shared_batchnorm():
 
     x = np.random.normal(loc=5.0, scale=10.0, size=(2, 10))
     model = Model(x2, y2)
-    assert len(model.updates) == 2
     model.compile('sgd', 'mse')
     model.train_on_batch(x, x)
 
@@ -178,7 +177,6 @@ def test_shared_batchnorm():
     x3 = Input(shape=(10,))
     y3 = model(x3)
     new_model = Model(x3, y3)
-    assert len(model.updates) == 2
     new_model.compile('sgd', 'mse')
     new_model.train_on_batch(x, x)
 
@@ -233,10 +231,9 @@ def test_batchnorm_trainable():
                            np.array([bn_mean]), np.array([bn_std ** 2])])
         return model
     # Simulates training-mode with trainable layer. Should use mini-batch statistics.
-    K.set_learning_phase(1)
     model = get_model(bn_mean, bn_std)
     model.compile(loss='mse', optimizer='rmsprop')
-    out = model.predict(input_4)
+    out = model(input_4, training=True).numpy()
     assert_allclose((input_4 - np.mean(input_4)) / np.std(input_4), out, atol=1e-3)
 
 

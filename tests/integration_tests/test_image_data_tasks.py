@@ -34,10 +34,10 @@ def test_image_classification():
                   optimizer='rmsprop',
                   metrics=['accuracy'])
     model.summary()
-    history = model.fit(x_train, y_train, epochs=12, batch_size=16,
+    history = model.fit(x_train, y_train, epochs=15, batch_size=16,
                         validation_data=(x_test, y_test),
                         verbose=0)
-    assert history.history['val_accuracy'][-1] > 0.75
+    assert history.history['val_accuracy'][-1] > 0.7
     config = model.get_config()
     model = Sequential.from_config(config)
 

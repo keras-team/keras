@@ -16,11 +16,6 @@ def test_normalize_tuple():
         conv_utils.normalize_tuple(['str', 'impossible'], 2, 'kernel_size')
 
 
-def test_invalid_data_format():
-    with pytest.raises(ValueError):
-        K.normalize_data_format('channels_middle')
-
-
 def test_invalid_padding():
     with pytest.raises(ValueError):
         conv_utils.normalize_padding('diagonal')

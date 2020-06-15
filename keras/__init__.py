@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-
 from . import utils
 from . import activations
 from . import applications
@@ -23,4 +21,4 @@ from .layers import Input
 from .models import Model
 from .models import Sequential
 
-__version__ = '2.3.1'
+from tensorflow.keras import __version__

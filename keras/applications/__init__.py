@@ -1,27 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-from .. import backend
-from .. import layers
-from .. import models
-from .. import utils
-
-import keras_applications
-
-
-def keras_modules_injection(base_fun):
-
-    def wrapper(*args, **kwargs):
-        kwargs['backend'] = backend
-        kwargs['layers'] = layers
-        kwargs['models'] = models
-        kwargs['utils'] = utils
-        return base_fun(*args, **kwargs)
-
-    return wrapper
-
-
 from .vgg16 import VGG16
 from .vgg19 import VGG19
 from .resnet50 import ResNet50
