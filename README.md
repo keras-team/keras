@@ -20,4 +20,3 @@ Read the documentation at [Keras.io](https://keras.io).
 Keras 2.2.5 was the last release of Keras implementing the 2.2.* API. It was the last release to only support TensorFlow 1 (as well as Theano and CNTK).
 
 The current release is Keras 2.4.0, which simply redirects to `tf.keras`.
-
