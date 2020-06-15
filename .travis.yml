@@ -2,9 +2,9 @@ dist: trusty
 language: python
 matrix:
     include:
-        - python: 3.7
+        - python: 3.6
           env: KERAS_BACKEND=tensorflow MODE=INTEGRATION_TESTS PIL=Pillow
-        - python: 3.7
+        - python: 3.6
           env: KERAS_BACKEND=tensorflow
 install:
   # code below is taken from http://conda.pydata.org/docs/travis.html
