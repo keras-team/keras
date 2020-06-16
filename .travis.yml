@@ -6,11 +6,6 @@ sudo: false
 python:
   - 3.6
 
-env:
-  global:
-    # List package dependencies for conda
-    - CONDA_DEPS="tensorflow numpy scipy h5py pytest pandas"
-
 before_install:
 # Here we download miniconda and install the dependencies
 - export MINICONDA=$HOME/miniconda
@@ -21,9 +16,10 @@ before_install:
 - conda config --set always_yes yes
 - conda update conda
 - conda info -a
-- conda create -n testenv python=$TRAVIS_PYTHON_VERSION
+- travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
 - source activate testenv
-- conda install $CONDA_DEPS
+- travis_retry pip install tensorflow numpy scipy h5py pytest pandas --progress-bar off
+
 
 install:
 - python setup.py install
