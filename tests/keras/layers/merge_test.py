@@ -285,7 +285,7 @@ def test_masking_concatenate():
     x1 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input1)
     x2 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input2)
     x = layers.concatenate([x1, x2])
-    x = layers.wrappers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
+    x = layers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
     models.Model(inputs=[input1, input2], outputs=[x])
 
 
