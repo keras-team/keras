@@ -3,7 +3,7 @@ language: python
 matrix:
     include:
         - python: 3.6
-          env: KERAS_BACKEND=tensorflow MODE=INTEGRATION_TESTS PIL=Pillow
+          env: KERAS_BACKEND=tensorflow MODE=INTEGRATION_TESTS
         - python: 3.6
           env: KERAS_BACKEND=tensorflow
 install:
@@ -23,13 +23,12 @@ install:
   - source activate test-environment
 
   - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py pytest pytest-pep8 pandas --progress-bar off
-  - pip install keras_applications keras_preprocessing --progress-bar off
 
   # set library path
   - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
 
     # install pydot for visualization tests
-  - travis_retry conda install -q $MKL pydot graphviz $PIL
+  - travis_retry conda install -q $MKL pydot graphviz Pillow
 
   - pip install -e .[tests] --progress-bar off
 
@@ -39,10 +38,6 @@ install:
 # command to run tests
 script:
   - export MKL_THREADING_LAYER="GNU"
-  # run keras backend init to initialize backend config
-  - python -c "import keras.backend"
-  # create dataset directory to avoid concurrent directory creation at runtime
-  - mkdir ~/.keras/datasets
   - if [[ "$MODE" == "INTEGRATION_TESTS" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     else
