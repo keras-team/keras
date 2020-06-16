@@ -37,7 +37,6 @@ install:
 
 # command to run tests
 script:
-  - export MKL_THREADING_LAYER="GNU"
   - if [[ "$MODE" == "INTEGRATION_TESTS" ]]; then
       PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
     else
