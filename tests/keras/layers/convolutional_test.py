@@ -6,7 +6,6 @@ from keras.utils.test_utils import layer_test
 from keras import backend as K
 from keras.layers import convolutional
 from keras.models import Sequential
-from keras.backend import load_backend
 
 
 # TensorFlow does not support full convolution.
@@ -16,8 +15,6 @@ else:
     _convolution_paddings = ['valid', 'same']
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only support dilated conv on GPU')
 @pytest.mark.parametrize(
     'layer_kwargs,input_length,expected_output',
     [
@@ -76,8 +73,6 @@ def test_conv_1d(padding, strides):
                input_shape=(batch_size, steps, input_dim))
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only support dilated conv on GPU')
 def test_conv_1d_dilation():
     batch_size = 2
     steps = 8
@@ -156,8 +151,6 @@ def test_convolution_2d_channels_last():
                input_shape=(num_samples, num_row, num_col, stack_size))
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only supports dilated conv on GPU')
 def test_convolution_2d_dilation():
     num_samples = 2
     filters = 2
@@ -213,8 +206,6 @@ def test_conv2d_transpose(padding, out_padding, strides):
                fixed_batch_size=True)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only supports dilated conv transpose on GPU')
 def test_conv2d_transpose_dilation():
 
     layer_test(convolutional.Conv2DTranspose,
@@ -877,8 +868,6 @@ def test_upsampling_2d(data_format):
             assert_allclose(np_output, expected_out)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='cntk does not support it yet')
 @pytest.mark.parametrize('data_format',
                          ['channels_first', 'channels_last'])
 def test_upsampling_2d_bilinear(data_format):
@@ -917,8 +906,6 @@ def test_upsampling_2d_bilinear(data_format):
                 assert np_output.shape[2] == length_col * input_num_col
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support it yet")
 @pytest.mark.parametrize('data_format',
                          ['channels_first', 'channels_last'])
 def test_upsampling_3d(data_format):
@@ -973,8 +960,6 @@ def test_upsampling_3d(data_format):
                 assert_allclose(np_output, expected_out)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support slice to 0 dimension")
 def test_cropping_1d():
     num_samples = 2
     time_length = 4
@@ -1117,8 +1102,6 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=lambda x: x)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='CNTK does not support float64')
 @pytest.mark.parametrize(
     'input_shape,conv_class',
     [((2, 4, 2), convolutional.Conv1D),

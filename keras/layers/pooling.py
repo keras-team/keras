@@ -1,9 +1,5 @@
 """Pooling layers."""
 
-from tensorflow.keras.layers import Pooling1D
-from tensorflow.keras.layers import Pooling2D
-from tensorflow.keras.layers import Pooling3D
-
 from tensorflow.keras.layers import MaxPooling1D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.layers import MaxPooling3D
@@ -11,10 +7,6 @@ from tensorflow.keras.layers import MaxPooling3D
 from tensorflow.keras.layers import AveragePooling1D
 from tensorflow.keras.layers import AveragePooling2D
 from tensorflow.keras.layers import AveragePooling3D
-
-from tensorflow.keras.layers import GlobalPooling1D
-from tensorflow.keras.layers import GlobalPooling2D
-from tensorflow.keras.layers import GlobalPooling3D
 
 from tensorflow.keras.layers import GlobalAveragePooling1D
 from tensorflow.keras.layers import GlobalAveragePooling2D
