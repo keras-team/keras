@@ -16,7 +16,7 @@ before_install:
 - conda config --set always_yes yes
 - conda update conda
 - conda info -a
-- travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
+- travis_retry conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION
 - source activate testenv
 - travis_retry pip install tensorflow numpy scipy h5py pytest pandas --progress-bar off
 
