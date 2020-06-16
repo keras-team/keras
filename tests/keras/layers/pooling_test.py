@@ -2,9 +2,7 @@ import numpy as np
 import pytest
 
 from keras.utils.test_utils import layer_test
-from keras.layers import pooling
-from keras.layers import Masking
-from keras.layers import convolutional
+from keras import layers
 from keras.models import Sequential
 
 
@@ -16,7 +14,7 @@ from keras.models import Sequential
      for data_format in ['channels_first', 'channels_last']]
 )
 def test_maxpooling_1d(padding, stride, data_format):
-    layer_test(convolutional.MaxPooling1D,
+    layer_test(layers.MaxPooling1D,
                kwargs={'strides': stride,
                        'padding': padding,
                        'data_format': data_format},
@@ -29,7 +27,7 @@ def test_maxpooling_1d(padding, stride, data_format):
 )
 def test_maxpooling_2d(strides):
     pool_size = (3, 3)
-    layer_test(convolutional.MaxPooling2D,
+    layer_test(layers.MaxPooling2D,
                kwargs={'strides': strides,
                        'padding': 'valid',
                        'pool_size': pool_size},
@@ -43,7 +41,7 @@ def test_maxpooling_2d(strides):
 )
 def test_maxpooling_3d(strides, data_format, input_shape):
     pool_size = (3, 3, 3)
-    layer_test(convolutional.MaxPooling3D,
+    layer_test(layers.MaxPooling3D,
                kwargs={'strides': strides,
                        'padding': 'valid',
                        'data_format': data_format,
@@ -59,7 +57,7 @@ def test_maxpooling_3d(strides, data_format, input_shape):
      for data_format in ['channels_first', 'channels_last']]
 )
 def test_averagepooling_1d(padding, stride, data_format):
-    layer_test(convolutional.AveragePooling1D,
+    layer_test(layers.AveragePooling1D,
                kwargs={'strides': stride,
                        'padding': padding,
                        'data_format': data_format},
@@ -69,11 +67,10 @@ def test_averagepooling_1d(padding, stride, data_format):
 @pytest.mark.parametrize(
     'strides,padding,data_format,input_shape',
     [((2, 2), 'same', None, (3, 5, 6, 4)),
-     ((2, 2), 'valid', None, (3, 5, 6, 4)),
-     ((1, 1), 'valid', 'channels_first', (3, 4, 5, 6))]
+     ((2, 2), 'valid', None, (3, 5, 6, 4))]
 )
 def test_averagepooling_2d(strides, padding, data_format, input_shape):
-    layer_test(convolutional.AveragePooling2D,
+    layer_test(layers.AveragePooling2D,
                kwargs={'strides': strides,
                        'padding': padding,
                        'pool_size': (2, 2),
@@ -89,7 +86,7 @@ def test_averagepooling_2d(strides, padding, data_format, input_shape):
 def test_averagepooling_3d(strides, data_format, input_shape):
     pool_size = (3, 3, 3)
 
-    layer_test(convolutional.AveragePooling3D,
+    layer_test(layers.AveragePooling3D,
                kwargs={'strides': strides,
                        'padding': 'valid',
                        'data_format': data_format,
@@ -101,8 +98,8 @@ def test_averagepooling_3d(strides, data_format, input_shape):
     'data_format,pooling_class',
     [(data_format, pooling_class)
      for data_format in ['channels_first', 'channels_last']
-     for pooling_class in [pooling.GlobalMaxPooling1D,
-                           pooling.GlobalAveragePooling1D]]
+     for pooling_class in [layers.GlobalMaxPooling1D,
+                           layers.GlobalAveragePooling1D]]
 )
 def test_globalpooling_1d(data_format, pooling_class):
     layer_test(pooling_class,
@@ -113,8 +110,8 @@ def test_globalpooling_1d(data_format, pooling_class):
 def test_globalpooling_1d_supports_masking():
     # Test GlobalAveragePooling1D supports masking
     model = Sequential()
-    model.add(Masking(mask_value=0., input_shape=(3, 4)))
-    model.add(pooling.GlobalAveragePooling1D())
+    model.add(layers.Masking(mask_value=0., input_shape=(3, 4)))
+    model.add(layers.GlobalAveragePooling1D())
     model.compile(loss='mae', optimizer='adam')
 
     model_input = np.random.randint(low=1, high=5, size=(2, 3, 4))
@@ -127,8 +124,8 @@ def test_globalpooling_1d_supports_masking():
     'data_format,pooling_class',
     [(data_format, pooling_class)
      for data_format in ['channels_first', 'channels_last']
-     for pooling_class in [pooling.GlobalMaxPooling2D,
-                           pooling.GlobalAveragePooling2D]]
+     for pooling_class in [layers.GlobalMaxPooling2D,
+                           layers.GlobalAveragePooling2D]]
 )
 def test_globalpooling_2d(data_format, pooling_class):
     layer_test(pooling_class,
@@ -140,8 +137,8 @@ def test_globalpooling_2d(data_format, pooling_class):
     'data_format,pooling_class',
     [(data_format, pooling_class)
      for data_format in ['channels_first', 'channels_last']
-     for pooling_class in [pooling.GlobalMaxPooling3D,
-                           pooling.GlobalAveragePooling3D]]
+     for pooling_class in [layers.GlobalMaxPooling3D,
+                           layers.GlobalAveragePooling3D]]
 )
 def test_globalpooling_3d(data_format, pooling_class):
     layer_test(pooling_class,
