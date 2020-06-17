@@ -26,4 +26,4 @@ install:
 - python setup.py install
 
 script:
-- pytest tests/ --ignore=tests/integration_tests --ignore=tests/docs --ignore=tests/keras/legacy/layers_test.py --ignore=tests/test_api.py
+- pytest tests/ --ignore=tests/docs --ignore=tests/keras/legacy/layers_test.py --ignore=tests/test_api.py
