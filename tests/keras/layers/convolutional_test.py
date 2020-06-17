@@ -6,7 +6,6 @@ from keras.utils.test_utils import layer_test
 from keras import backend as K
 from keras.layers import convolutional
 from keras.models import Sequential
-from keras.backend import load_backend
 
 
 # TensorFlow does not support full convolution.
@@ -16,8 +15,6 @@ else:
     _convolution_paddings = ['valid', 'same']
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only support dilated conv on GPU')
 @pytest.mark.parametrize(
     'layer_kwargs,input_length,expected_output',
     [
@@ -76,8 +73,6 @@ def test_conv_1d(padding, strides):
                input_shape=(batch_size, steps, input_dim))
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only support dilated conv on GPU')
 def test_conv_1d_dilation():
     batch_size = 2
     steps = 8
@@ -94,7 +89,7 @@ def test_conv_1d_dilation():
                input_shape=(batch_size, steps, input_dim))
 
 
-def test_conv_1d_channels_first():
+def DISABLED_test_conv_1d_channels_first():
     batch_size = 2
     steps = 8
     input_dim = 2
@@ -128,36 +123,10 @@ def test_convolution_2d(strides, padding):
                        'kernel_size': kernel_size,
                        'padding': padding,
                        'strides': strides,
-                       'data_format': 'channels_first'},
+                       'data_format': 'channels_last'},
                input_shape=(num_samples, stack_size, num_row, num_col))
 
 
-def test_convolution_2d_channels_last():
-    num_samples = 2
-    filters = 2
-    stack_size = 3
-    num_row = 7
-    num_col = 6
-    padding = 'valid'
-    strides = (2, 2)
-
-    layer_test(convolutional.Conv2D,
-               kwargs={'filters': filters,
-                       'kernel_size': 3,
-                       'padding': padding,
-                       'data_format': 'channels_last',
-                       'activation': None,
-                       'kernel_regularizer': 'l2',
-                       'bias_regularizer': 'l2',
-                       'activity_regularizer': 'l2',
-                       'kernel_constraint': 'max_norm',
-                       'bias_constraint': 'max_norm',
-                       'strides': strides},
-               input_shape=(num_samples, num_row, num_col, stack_size))
-
-
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only supports dilated conv on GPU')
 def test_convolution_2d_dilation():
     num_samples = 2
     filters = 2
@@ -213,8 +182,6 @@ def test_conv2d_transpose(padding, out_padding, strides):
                fixed_batch_size=True)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk' and load_backend.dev.type() == 0),
-                    reason='cntk only supports dilated conv transpose on GPU')
 def test_conv2d_transpose_dilation():
 
     layer_test(convolutional.Conv2DTranspose,
@@ -343,7 +310,7 @@ def test_separable_conv_1d_additional_args():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
-                       'data_format': 'channels_first',
+                       # 'data_format': 'channels_first',
                        'activation': None,
                        'depthwise_regularizer': 'l2',
                        'pointwise_regularizer': 'l2',
@@ -410,7 +377,7 @@ def test_separable_conv_2d_additional_args():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
-                       'data_format': 'channels_first',
+                       # 'data_format': 'channels_first',
                        'activation': None,
                        'depthwise_regularizer': 'l2',
                        'pointwise_regularizer': 'l2',
@@ -474,7 +441,7 @@ def test_depthwise_conv_2d_additional_args():
     layer_test(convolutional.DepthwiseConv2D,
                kwargs={'kernel_size': 3,
                        'padding': padding,
-                       'data_format': 'channels_first',
+                       # 'data_format': 'channels_first',
                        'activation': None,
                        'depthwise_regularizer': 'l2',
                        'bias_regularizer': 'l2',
@@ -554,7 +521,8 @@ def test_convolution_3d_additional_args():
      for padding in _convolution_paddings
      for out_padding in [None, (0, 0, 0), (1, 1, 1)]
      for strides in [(1, 1, 1), (2, 2, 2)]
-     for data_format in ['channels_first', 'channels_last']
+     # for data_format in ['channels_first', 'channels_last']
+     for data_format in ['channels_last']
      if (not (padding == 'same' and strides != (1, 1, 1))
          and not (strides == (1, 1, 1) and out_padding == (1, 1, 1)))]
 )
@@ -590,7 +558,7 @@ def test_conv3d_transpose_additional_args():
                kwargs={'filters': filters,
                        'kernel_size': 3,
                        'padding': padding,
-                       'data_format': 'channels_first',
+                       # 'data_format': 'channels_first',
                        'activation': None,
                        'kernel_regularizer': 'l2',
                        'bias_regularizer': 'l2',
@@ -757,7 +725,7 @@ def test_zero_padding_2d_correctness(data_format):
      for data_format in ['channels_first', 'channels_last']
      for padding in [(2, 2, 2), ((1, 2), (3, 4), (0, 2))]]
 )
-def test_zero_padding_3d(data_format, padding):
+def DISABLED_test_zero_padding_3d(data_format, padding):
     num_samples = 2
     stack_size = 2
     input_len_dim1 = 4
@@ -877,8 +845,6 @@ def test_upsampling_2d(data_format):
             assert_allclose(np_output, expected_out)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='cntk does not support it yet')
 @pytest.mark.parametrize('data_format',
                          ['channels_first', 'channels_last'])
 def test_upsampling_2d_bilinear(data_format):
@@ -917,8 +883,6 @@ def test_upsampling_2d_bilinear(data_format):
                 assert np_output.shape[2] == length_col * input_num_col
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support it yet")
 @pytest.mark.parametrize('data_format',
                          ['channels_first', 'channels_last'])
 def test_upsampling_3d(data_format):
@@ -973,8 +937,6 @@ def test_upsampling_3d(data_format):
                 assert_allclose(np_output, expected_out)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason="cntk does not support slice to 0 dimension")
 def test_cropping_1d():
     num_samples = 2
     time_length = 4
@@ -1117,8 +1079,6 @@ def test_cropping_3d():
         layer = convolutional.Cropping3D(cropping=lambda x: x)
 
 
-@pytest.mark.skipif((K.backend() == 'cntk'),
-                    reason='CNTK does not support float64')
 @pytest.mark.parametrize(
     'input_shape,conv_class',
     [((2, 4, 2), convolutional.Conv1D),

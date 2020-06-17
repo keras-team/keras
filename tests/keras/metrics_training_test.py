@@ -49,10 +49,10 @@ SPARSE_METRICS = [
 
 @pytest.mark.parametrize('metric_cls', METRICS)
 def test_training_and_eval(metric_cls):
-    model = Sequential([Dense(2, input_shape=(3,))])
+    model = Sequential([Dense(2, activation='sigmoid', input_shape=(3,))])
     model.compile('rmsprop', 'mse', metrics=[metric_cls()])
-    x = np.random.random((10, 3))
-    y = np.random.random((10, 2))
+    x = np.random.uniform(0, 1, size=(10, 3))
+    y = np.random.uniform(0, 1, size=(10, 2))
     model.fit(x, y)
     model.evaluate(x, y)
 
@@ -61,8 +61,8 @@ def test_training_and_eval(metric_cls):
 def test_sparse_metrics(metric_cls):
     model = Sequential([Dense(1, input_shape=(3,))])
     model.compile('rmsprop', 'mse', metrics=[metric_cls()])
-    x = np.random.random((10, 3))
-    y = np.random.random((10,))
+    x = np.random.uniform(0, 1, size=(10, 3))
+    y = np.random.uniform(0, 1, size=(10,))
     model.fit(x, y)
     model.evaluate(x, y)
 
@@ -72,10 +72,10 @@ def test_sensitivity_metrics():
         metrics.SensitivityAtSpecificity(0.5),
         metrics.SpecificityAtSensitivity(0.5),
     ]
-    model = Sequential([Dense(2, input_shape=(3,))])
+    model = Sequential([Dense(2, activation='sigmoid', input_shape=(3,))])
     model.compile('rmsprop', 'mse', metrics=metrics_list)
-    x = np.random.random((10, 3))
-    y = np.random.random((10, 2))
+    x = np.random.uniform(0, 1, size=(10, 3))
+    y = np.random.uniform(0, 1, size=(10, 2))
     model.fit(x, y)
     model.evaluate(x, y)
 
@@ -86,9 +86,9 @@ def test_mean_iou():
     if not tf.__version__.startswith('2.'):
         return
 
-    model = Sequential([Dense(1, input_shape=(3,))])
+    model = Sequential([Dense(1, activation='sigmoid', input_shape=(3,))])
     model.compile('rmsprop', 'mse', metrics=[metrics.MeanIoU(2)])
-    x = np.random.random((10, 3))
-    y = np.random.random((10,))
+    x = np.random.uniform(0, 1, size=(10, 3))
+    y = np.random.uniform(0, 1, size=(10,))
     model.fit(x, y)
     model.evaluate(x, y)

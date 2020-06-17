@@ -19,8 +19,6 @@ all_metrics = [
     metrics.categorical_crossentropy,
     metrics.binary_crossentropy,
     metrics.poisson,
-    metrics.cosine_proximity,
-    metrics.logcosh,
 ]
 
 all_sparse_metrics = [

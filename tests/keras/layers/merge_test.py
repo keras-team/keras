@@ -13,7 +13,7 @@ def test_merge_add():
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
     o = layers.add([i1, i2, i3])
-    assert o._keras_shape == (None, 4, 5)
+    assert K.int_shape(o) == (None, 4, 5)
     model = models.Model([i1, i2, i3], o)
 
     add_layer = layers.Add()
@@ -46,7 +46,7 @@ def test_merge_subtract():
     i3 = layers.Input(shape=(4, 5))
     i4 = layers.Input(shape=(3, 5))
     o = layers.subtract([i1, i2])
-    assert o._keras_shape == (None, 4, 5)
+    assert K.int_shape(o) == (None, 4, 5)
     model = models.Model([i1, i2], o)
 
     subtract_layer = layers.Subtract()
@@ -79,7 +79,7 @@ def test_merge_multiply():
     i2 = layers.Input(shape=(4, 5))
     i3 = layers.Input(shape=(4, 5))
     o = layers.multiply([i1, i2, i3])
-    assert o._keras_shape == (None, 4, 5)
+    assert K.int_shape(o) == (None, 4, 5)
     model = models.Model([i1, i2, i3], o)
 
     mul_layer = layers.Multiply()
@@ -98,7 +98,7 @@ def test_merge_average():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.average([i1, i2])
-    assert o._keras_shape == (None, 4, 5)
+    assert K.int_shape(o) == (None, 4, 5)
     model = models.Model([i1, i2], o)
 
     avg_layer = layers.Average()
@@ -116,7 +116,7 @@ def test_merge_maximum():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.maximum([i1, i2])
-    assert o._keras_shape == (None, 4, 5)
+    assert K.int_shape(o) == (None, 4, 5)
     model = models.Model([i1, i2], o)
 
     max_layer = layers.Maximum()
@@ -134,7 +134,7 @@ def test_merge_minimum():
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.minimum([i1, i2])
-    assert o._keras_shape == (None, 4, 5)
+    assert K.int_shape(o) == (None, 4, 5)
     model = models.Model([i1, i2], o)
 
     max_layer = layers.Minimum()
@@ -152,13 +152,13 @@ def test_merge_concatenate():
     i1 = layers.Input(shape=(None, 5))
     i2 = layers.Input(shape=(None, 5))
     o = layers.concatenate([i1, i2], axis=1)
-    assert o._keras_shape == (None, None, 5)
+    assert K.int_shape(o) == (None, None, 5)
     model = models.Model([i1, i2], o)
 
     i1 = layers.Input(shape=(4, 5))
     i2 = layers.Input(shape=(4, 5))
     o = layers.concatenate([i1, i2], axis=1)
-    assert o._keras_shape == (None, 8, 5)
+    assert K.int_shape(o) == (None, 8, 5)
     model = models.Model([i1, i2], o)
 
     concat_layer = layers.Concatenate(axis=1)
@@ -190,6 +190,7 @@ def test_merge_concatenate():
         [i1, i2], [K.variable(x1), K.variable(x2)])).reshape(-1))
 
     # Test invalid use case
+    concat_layer = layers.Concatenate(axis=1)
     with pytest.raises(ValueError):
         concat_layer.compute_mask([i1, i2], x1)
     with pytest.raises(ValueError):
@@ -204,7 +205,7 @@ def test_merge_dot():
     i1 = layers.Input(shape=(4,))
     i2 = layers.Input(shape=(4,))
     o = layers.dot([i1, i2], axes=1)
-    assert o._keras_shape == (None, 1)
+    assert K.int_shape(o) == (None, 1)
     model = models.Model([i1, i2], o)
 
     dot_layer = layers.Dot(axes=1)
@@ -222,7 +223,7 @@ def test_merge_dot():
 
     # Test with negative tuple of axes.
     o = layers.dot([i1, i2], axes=(-1, -1))
-    assert o._keras_shape == (None, 1)
+    assert K.int_shape(o) == (None, 1)
     model = models.Model([i1, i2], o)
     out = model.predict([x1, x2])
     assert out.shape == (2, 1)
@@ -236,7 +237,7 @@ def test_merge_broadcast():
     ops = [layers.add, layers.maximum]
     for op in ops:
         o = op([i1, i2])
-        assert o._keras_shape == (None, 4, 5)
+        assert K.int_shape(o) == (None, 4, 5)
         model = models.Model([i1, i2], o)
 
         x1 = np.random.random((2, 4, 5))
@@ -250,7 +251,7 @@ def test_merge_broadcast():
     ops = [layers.add, layers.maximum]
     for op in ops:
         o = op([i1, i2])
-        assert o._keras_shape == (None, None, None)
+        assert K.int_shape(o) == (None, None, None)
         model = models.Model([i1, i2], o)
 
         x1 = np.random.random((2, 4, 5))
@@ -268,7 +269,7 @@ def test_merge_broadcast():
         ops = [layers.add, layers.maximum]
         for op in ops:
             o = op([i1, i2])
-            assert o._keras_shape == (None, None, None)
+            assert K.int_shape(o) == (None, None, None)
             model = models.Model([i1, i2], o)
 
             x1 = np.random.random((2, 4, 5))
@@ -284,7 +285,7 @@ def test_masking_concatenate():
     x1 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input1)
     x2 = layers.Embedding(10, 5, input_length=6, mask_zero=True)(input2)
     x = layers.concatenate([x1, x2])
-    x = layers.wrappers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
+    x = layers.TimeDistributed(layers.Dense(3, activation='softmax'))(x)
     models.Model(inputs=[input1, input2], outputs=[x])
 
 
