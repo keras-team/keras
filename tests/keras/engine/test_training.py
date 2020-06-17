@@ -496,7 +496,7 @@ def test_model_methods():
 
 # TODO: resolve flakyness issue. Tracked with #11560
 @flaky(rerun_filter=lambda err, *args: issubclass(err[0], AssertionError))
-def test_fit_generator():
+def DISABLED_test_fit_generator():
     model = get_model(num_outputs=2)
     optimizer = 'rmsprop'
     loss = 'mse'
