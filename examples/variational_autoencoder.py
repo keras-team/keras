@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import keras
 from keras.layers import Lambda, Input, Dense
 from keras.models import Model
 from keras.datasets import mnist
@@ -186,10 +187,6 @@ if __name__ == '__main__':
     vae_loss = K.mean(reconstruction_loss + kl_loss)
     vae.add_loss(vae_loss)
     vae.compile(optimizer='adam')
-    vae.summary()
-    plot_model(vae,
-               to_file='vae_mlp.png',
-               show_shapes=True)
 
     if args.weights:
         vae.load_weights(args.weights)

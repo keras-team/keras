@@ -57,7 +57,7 @@ def fake_downloaded_reuters_path(monkeypatch):
         yield f.name
 
 
-def test_boston_load_does_not_affect_global_rng(fake_downloaded_boston_path):
+def DISABLED_test_boston_load_does_not_affect_global_rng(fake_downloaded_boston_path):
     np.random.seed(1337)
     before = np.random.randint(0, 100, size=10)
 
@@ -68,7 +68,7 @@ def test_boston_load_does_not_affect_global_rng(fake_downloaded_boston_path):
     assert np.array_equal(before, after)
 
 
-def test_imdb_load_does_not_affect_global_rng(fake_downloaded_imdb_path):
+def DISABLED_test_imdb_load_does_not_affect_global_rng(fake_downloaded_imdb_path):
     np.random.seed(1337)
     before = np.random.randint(0, 100, size=10)
 
@@ -79,7 +79,7 @@ def test_imdb_load_does_not_affect_global_rng(fake_downloaded_imdb_path):
     assert np.array_equal(before, after)
 
 
-def test_reuters_load_does_not_affect_global_rng(fake_downloaded_reuters_path):
+def DISABLED_test_reuters_load_does_not_affect_global_rng(fake_downloaded_reuters_path):
     np.random.seed(1337)
     before = np.random.randint(0, 100, size=10)
 

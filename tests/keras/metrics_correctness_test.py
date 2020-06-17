@@ -188,7 +188,7 @@ class TestMetricsCorrectnessMultiIO(object):
         for key, value in self.expected_fit_result_with_weights_output_2.items():
             np.allclose(history.history[key], value, 1e-3)
 
-    def test_fit_with_class_weight(self):
+    def DISABLED_test_fit_with_class_weight(self):
         self.setUp()
         model = self._get_compiled_multi_io_model()
         history = model.fit([self.x, self.x], [self.y1, self.y2],
@@ -268,7 +268,7 @@ class TestMetricsCorrectnessMultiIO(object):
                                           'output_2': self.sample_weight_2})
         np.allclose(result, self.expected_batch_result_with_weights_output_2, 1e-3)
 
-    def test_train_on_batch_with_class_weight(self):
+    def DISABLED_test_train_on_batch_with_class_weight(self):
         self.setUp()
         model = self._get_compiled_multi_io_model()
         result = model.train_on_batch([self.x, self.x], [self.y1, self.y2],
@@ -314,7 +314,7 @@ class TestMetricsCorrectnessMultiIO(object):
         for key, value in self.expected_fit_result.items():
             np.allclose(history.history[key], value, 1e-3)
 
-    def test_fit_generator_with_sample_weight(self):
+    def DISABLED_test_fit_generator_with_sample_weight(self):
         self.setUp()
         model = self._get_compiled_multi_io_model()
         history = model.fit_generator(
@@ -333,7 +333,7 @@ class TestMetricsCorrectnessMultiIO(object):
         for key, value in self.expected_fit_result_with_weights_output_2.items():
             np.allclose(history.history[key], value, 1e-3)
 
-    def test_fit_generator_with_class_weight(self):
+    def DISABLED_test_fit_generator_with_class_weight(self):
         self.setUp()
         model = self._get_compiled_multi_io_model()
         history = model.fit_generator(
@@ -362,7 +362,7 @@ class TestMetricsCorrectnessMultiIO(object):
         eval_result = model.evaluate_generator(custom_generator_multi_io(), steps=2)
         np.allclose(eval_result, self.expected_batch_result, 1e-3)
 
-    def test_eval_generator_with_sample_weight(self):
+    def DISABLED_test_eval_generator_with_sample_weight(self):
         self.setUp()
         model = self._get_compiled_multi_io_model()
         eval_result = model.evaluate_generator(

@@ -37,17 +37,17 @@ def test_get_fn():
     a = activations.get(None)
     assert a == activations.linear
 
-    # 2. Passing in a layer raises a warning
-    layer = Dense(32)
-    with pytest.warns(UserWarning):
-        a = activations.get(layer)
+    # # 2. Passing in a layer raises a warning
+    # layer = Dense(32)
+    # with pytest.warns(UserWarning):
+    #     a = activations.get(layer)
 
-    # 3. Callables return themselves for some reason
+    # 3. Callables return themselves
     a = activations.get(lambda x: 5)
     assert a(None) == 5
 
     # 4. Anything else is not a valid argument
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         a = activations.get(6)
 
 

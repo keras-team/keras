@@ -1,12 +1,6 @@
-"""Utilities used in convolutional layers.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Utilities used in convolutional layers."""
 
-from six.moves import range
 import numpy as np
-from .. import backend as K
 
 
 def normalize_tuple(value, n, name):
@@ -51,8 +45,6 @@ def normalize_tuple(value, n, name):
 def normalize_padding(value):
     padding = value.lower()
     allowed = {'valid', 'same', 'causal'}
-    if K.backend() == 'theano':
-        allowed.add('full')
     if padding not in allowed:
         raise ValueError('The `padding` argument must be one of "valid", "same" '
                          '(or "causal" for Conv1D). Received: {}'.format(padding))

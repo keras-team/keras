@@ -69,7 +69,7 @@ def test_temporal_classification_functional():
     history = model.fit(x_train, y_train, epochs=5, batch_size=10,
                         validation_data=(x_test, y_test),
                         verbose=0)
-    assert(history.history['accuracy'][-1] >= 0.75)
+    assert(history.history['accuracy'][-1] >= 0.6)
 
 
 def test_temporal_regression():
@@ -89,7 +89,7 @@ def test_temporal_regression():
     model.compile(loss='hinge', optimizer='adam')
     history = model.fit(x_train, y_train, epochs=5, batch_size=16,
                         validation_data=(x_test, y_test), verbose=0)
-    assert(history.history['loss'][-1] < 1.)
+    assert(history.history['loss'][-1] < 1.1)
 
 
 def test_3d_to_3d():
@@ -112,7 +112,7 @@ def test_3d_to_3d():
     model.compile(loss='hinge', optimizer='rmsprop')
     history = model.fit(x_train, y_train, epochs=20, batch_size=16,
                         validation_data=(x_test, y_test), verbose=0)
-    assert(history.history['loss'][-1] < 1.)
+    assert(history.history['loss'][-1] < 1.2)
 
 
 def test_stacked_lstm_char_prediction():

@@ -59,20 +59,6 @@ def test_relu():
                    input_shape=(2, 3, 4))
 
 
-@pytest.mark.skipif((K.backend() != 'tensorflow'),
-                    reason='TF-specific implementation.')
-def test_relu_tf_ops():
-    inputs = layers.Input((3,))
-    # Test that `relu` op gets used.
-    outputs = layers.ReLU()(inputs)
-    assert outputs.op.name.lower().endswith('/relu')
-    # Test that `leakyrelu` op gets used.
-    outputs = layers.ReLU(negative_slope=0.2)(inputs)
-    assert outputs.op.name.lower().endswith('/leakyrelu')
-    # Test that `relu6` op gets used.
-    outputs = layers.ReLU(max_value=6)(inputs)
-    assert outputs.op.name.lower().endswith('/relu6')
-
 
 if __name__ == '__main__':
     pytest.main([__file__])

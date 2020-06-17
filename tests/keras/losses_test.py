@@ -3,9 +3,9 @@ import numpy as np
 
 import keras
 from keras import losses
+from keras.losses import Reduction
 from keras import backend as K
-from keras.utils import losses_utils
-from keras.utils.generic_utils import custom_object_scope
+from keras.utils import custom_object_scope
 
 
 all_functions = [losses.mean_squared_error,
@@ -18,7 +18,7 @@ all_functions = [losses.mean_squared_error,
                  losses.binary_crossentropy,
                  losses.kullback_leibler_divergence,
                  losses.poisson,
-                 losses.cosine_proximity,
+                 losses.cosine_similarity,
                  losses.logcosh,
                  losses.categorical_hinge]
 all_classes = [
@@ -38,11 +38,12 @@ all_classes = [
 ]
 
 
-class MSE_MAE_loss(object):
+class MSE_MAE_loss(losses.Loss):
     """Loss function with internal state, for testing serialization code."""
 
     def __init__(self, mse_fraction):
         self.mse_fraction = mse_fraction
+        super(MSE_MAE_loss, self).__init__()
 
     def __call__(self, y_true, y_pred, sample_weight=None):
         return (self.mse_fraction * losses.mse(y_true, y_pred) +
@@ -140,24 +141,6 @@ class TestLossFunctions(object):
             loaded_model = keras.models.load_model(model_filename)
             loaded_model.predict(np.random.rand(128, 2))
 
-    def test_loss_wrapper(self):
-        loss_fn = losses.get('mse')
-        mse_obj = losses.LossFunctionWrapper(loss_fn, name=loss_fn.__name__)
-
-        assert mse_obj.name == 'mean_squared_error'
-        assert (mse_obj.reduction == losses_utils.Reduction.SUM_OVER_BATCH_SIZE)
-
-        y_true = K.constant([[1., 9.], [2., 5.]])
-        y_pred = K.constant([[4., 8.], [12., 3.]])
-        sample_weight = K.constant([1.2, 0.5])
-        loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
-
-        # mse = [((4 - 1)^2 + (8 - 9)^2) / 2, ((12 - 2)^2 + (3 - 5)^2) / 2]
-        # mse = [5, 52]
-        # weighted_mse = [5 * 1.2, 52 * 0.5] = [6, 26]
-        # reduced_weighted_mse = (6 + 26) / 2 =
-        np.allclose(K.eval(loss), 16, atol=1e-2)
-
 
 skipif_not_tf = pytest.mark.skipif(
     K.backend() != 'tensorflow',
@@ -190,9 +173,9 @@ class TestMeanSquaredError:
 
     def test_config(self):
         mse_obj = losses.MeanSquaredError(
-            reduction=losses_utils.Reduction.SUM, name='mse_1')
+            reduction=Reduction.SUM, name='mse_1')
         assert mse_obj.name == 'mse_1'
-        assert mse_obj.reduction == losses_utils.Reduction.SUM
+        assert mse_obj.reduction == Reduction.SUM
 
     def test_all_correct_unweighted(self):
         mse_obj = losses.MeanSquaredError()
@@ -247,7 +230,7 @@ class TestMeanSquaredError:
 
     def test_no_reduction(self):
         mse_obj = losses.MeanSquaredError(
-            reduction=losses_utils.Reduction.NONE)
+            reduction=Reduction.NONE)
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
@@ -255,7 +238,7 @@ class TestMeanSquaredError:
 
     def test_sum_reduction(self):
         mse_obj = losses.MeanSquaredError(
-            reduction=losses_utils.Reduction.SUM)
+            reduction=Reduction.SUM)
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mse_obj(y_true, y_pred, sample_weight=2.3)
@@ -267,9 +250,9 @@ class TestMeanAbsoluteError(object):
 
     def test_config(self):
         mae_obj = losses.MeanAbsoluteError(
-            reduction=losses_utils.Reduction.SUM, name='mae_1')
+            reduction=Reduction.SUM, name='mae_1')
         assert mae_obj.name == 'mae_1'
-        assert mae_obj.reduction == losses_utils.Reduction.SUM
+        assert mae_obj.reduction == Reduction.SUM
 
     def test_all_correct_unweighted(self):
         mae_obj = losses.MeanAbsoluteError()
@@ -324,7 +307,7 @@ class TestMeanAbsoluteError(object):
 
     def test_no_reduction(self):
         mae_obj = losses.MeanAbsoluteError(
-            reduction=losses_utils.Reduction.NONE)
+            reduction=Reduction.NONE)
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
@@ -332,7 +315,7 @@ class TestMeanAbsoluteError(object):
 
     def test_sum_reduction(self):
         mae_obj = losses.MeanAbsoluteError(
-            reduction=losses_utils.Reduction.SUM)
+            reduction=Reduction.SUM)
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mae_obj(y_true, y_pred, sample_weight=2.3)
@@ -344,9 +327,9 @@ class TestMeanAbsolutePercentageError(object):
 
     def test_config(self):
         mape_obj = losses.MeanAbsolutePercentageError(
-            reduction=losses_utils.Reduction.SUM, name='mape_1')
+            reduction=Reduction.SUM, name='mape_1')
         assert mape_obj.name == 'mape_1'
-        assert mape_obj.reduction == losses_utils.Reduction.SUM
+        assert mape_obj.reduction == Reduction.SUM
 
     def test_all_correct_unweighted(self):
         mape_obj = losses.MeanAbsolutePercentageError()
@@ -393,7 +376,7 @@ class TestMeanAbsolutePercentageError(object):
 
     def test_no_reduction(self):
         mape_obj = losses.MeanAbsolutePercentageError(
-            reduction=losses_utils.Reduction.NONE)
+            reduction=Reduction.NONE)
         y_true = K.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
         y_pred = K.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
         loss = mape_obj(y_true, y_pred, sample_weight=2.3)
@@ -405,9 +388,9 @@ class TestMeanSquaredLogarithmicError(object):
 
     def test_config(self):
         msle_obj = losses.MeanSquaredLogarithmicError(
-            reduction=losses_utils.Reduction .SUM, name='mape_1')
+            reduction=Reduction .SUM, name='mape_1')
         assert msle_obj.name == 'mape_1'
-        assert msle_obj.reduction == losses_utils.Reduction .SUM
+        assert msle_obj.reduction == Reduction .SUM
 
     def test_unweighted(self):
         msle_obj = losses.MeanSquaredLogarithmicError()
@@ -452,9 +435,9 @@ class TestBinaryCrossentropy(object):
 
     def test_config(self):
         bce_obj = losses.BinaryCrossentropy(
-            reduction=losses_utils.Reduction.SUM, name='bce_1')
+            reduction=Reduction.SUM, name='bce_1')
         assert bce_obj.name == 'bce_1'
-        assert bce_obj.reduction == losses_utils.Reduction.SUM
+        assert bce_obj.reduction == Reduction.SUM
 
     def test_all_correct_unweighted(self):
         y_true = K.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]])
@@ -578,7 +561,7 @@ class TestBinaryCrossentropy(object):
         y_true = K.constant([[1, 0, 1], [0, 1, 1]])
         logits = K.constant([[100.0, -100.0, 100.0], [100.0, 100.0, -100.0]])
         bce_obj = losses.BinaryCrossentropy(
-            from_logits=True, reduction=losses_utils.Reduction.NONE)
+            from_logits=True, reduction=Reduction.NONE)
         loss = bce_obj(y_true, logits)
 
         # Loss = max(x, 0) - x * z + log(1 + exp(-abs(x)))
@@ -613,9 +596,9 @@ class TestCategoricalCrossentropy(object):
 
     def test_config(self):
         cce_obj = losses.CategoricalCrossentropy(
-            reduction=losses_utils.Reduction.SUM, name='bce_1')
+            reduction=Reduction.SUM, name='bce_1')
         assert cce_obj.name == 'bce_1'
-        assert cce_obj.reduction == losses_utils.Reduction.SUM
+        assert cce_obj.reduction == Reduction.SUM
 
     def test_all_correct_unweighted(self):
         y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
@@ -677,7 +660,7 @@ class TestCategoricalCrossentropy(object):
         y_true = K.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
         logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
         cce_obj = losses.CategoricalCrossentropy(
-            from_logits=True, reduction=losses_utils.Reduction.NONE)
+            from_logits=True, reduction=Reduction.NONE)
         loss = cce_obj(y_true, logits)
         assert np.allclose(K.eval(loss), (0.001822, 0.000459, 0.169846), atol=1e-3)
 
@@ -709,9 +692,9 @@ class TestSparseCategoricalCrossentropy(object):
 
     def test_config(self):
         cce_obj = losses.SparseCategoricalCrossentropy(
-            reduction=losses_utils.Reduction.SUM, name='scc')
+            reduction=Reduction.SUM, name='scc')
         assert cce_obj.name == 'scc'
-        assert cce_obj.reduction == losses_utils.Reduction.SUM
+        assert cce_obj.reduction == Reduction.SUM
 
     def test_all_correct_unweighted(self):
         y_true = K.constant([[0], [1], [2]])
@@ -773,7 +756,7 @@ class TestSparseCategoricalCrossentropy(object):
         y_true = K.constant([[0], [1], [2]])
         logits = K.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
         cce_obj = losses.SparseCategoricalCrossentropy(
-            from_logits=True, reduction=losses_utils.Reduction.NONE)
+            from_logits=True, reduction=Reduction.NONE)
         loss = cce_obj(y_true, logits)
         assert np.allclose(K.eval(loss), (0.001822, 0.000459, 0.169846), atol=1e-3)
 

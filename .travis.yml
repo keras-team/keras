@@ -1,102 +1,29 @@
-dist: trusty
 language: python
-cache:
-  directories:
-    - $HOME/.theano
-matrix:
-    include:
-        - python: 3.6
-          env: KERAS_BACKEND=tensorflow MODE=INTEGRATION_TESTS PIL=Pillow
-        - python: 3.6
-          env: KERAS_BACKEND=tensorflow MODE=PEP8_DOC PIL=Pillow
-        - python: 3.6
-          env: KERAS_BACKEND=tensorflow MODE=API
-        - python: 2.7
-          env: KERAS_BACKEND=tensorflow MODE=TF1
-        - python: 3.6
-          env: KERAS_BACKEND=tensorflow MODE=TF1
-        - python: 2.7
-          env: KERAS_BACKEND=tensorflow MODE=TF2
-        - python: 3.6
-          env: KERAS_BACKEND=tensorflow MODE=TF2
-        - python: 2.7
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service" RUN_ONLY_BACKEND_TESTS=1
-        - python: 3.6
-          env: KERAS_BACKEND=theano THEANO_FLAGS=optimizer=fast_compile MKL="mkl mkl-service"
-        - python: 2.7
-          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore RUN_ONLY_BACKEND_TESTS=1
-        - python: 3.6
-          env: KERAS_BACKEND=cntk PYTHONWARNINGS=ignore
+
+# sudo false implies containerized builds
+sudo: false
+
+python:
+  - 3.6
+
+before_install:
+# Here we download miniconda and install the dependencies
+- export MINICONDA=$HOME/miniconda
+- export PATH="$MINICONDA/bin:$PATH"
+- hash -r
+- wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
+- bash miniconda.sh -b -f -p $MINICONDA
+- conda config --set always_yes yes
+- conda update conda
+- conda info -a
+- travis_retry conda create -q -n testenv python=$TRAVIS_PYTHON_VERSION
+- source activate testenv
+- travis_retry pip install tf-nightly numpy scipy h5py pytest flaky pandas --progress-bar off
+- travis_retry conda install -q pydot graphviz Pillow
+
+
 install:
-  # code below is taken from http://conda.pydata.org/docs/travis.html
-  # We do this conditionally because it saves us some downloading if the
-  # version is the same.
-  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
-      wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
-    else
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-    fi
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  # Useful for debugging any issues with conda
-  - conda info -a
+- python setup.py install
 
-  - travis_retry conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION
-  - source activate test-environment
-
-  - travis_retry pip install --only-binary=numpy,scipy,pandas numpy nose scipy h5py theano pytest pytest-pep8 pandas --progress-bar off
-  - pip install keras_applications keras_preprocessing --progress-bar off
-
-  # set library path
-  - export LD_LIBRARY_PATH=$HOME/miniconda/envs/test-environment/lib/:$LD_LIBRARY_PATH
-
-    # install pydot for visualization tests
-  - travis_retry conda install -q $MKL pydot graphviz $PIL
-
-  - pip install -e .[tests] --progress-bar off
-
-  # install TensorFlow (CPU version).
-  - if [[ "$MODE" == "TF2" ]]; then
-    pip install tensorflow==2.0.0 --progress-bar off;
-    else
-    pip install tensorflow==1.14.0 --progress-bar off;
-    fi
-
-  # install cntk
-  - if [[ "$KERAS_BACKEND" == "cntk" ]] || [[ "$MODE" == "PEP8_DOC" ]] || [[ "$MODE" == "API" ]]; then
-      ./.travis/install_cntk.sh;
-    fi
-
-  # Remove the current backend from the coverage exclusion.
-  - sed -i "\/keras\/backend\/${KERAS_BACKEND}_backend.py/d" .coveragerc
-
-  # install mkdocs
-  - pip install mkdocs --progress-bar off
-
-  # install pyux
-  - pip install pyux
-
-# command to run tests
 script:
-  - export MKL_THREADING_LAYER="GNU"
-  # run keras backend init to initialize backend config
-  - python -c "import keras.backend"
-  # create dataset directory to avoid concurrent directory creation at runtime
-  - mkdir ~/.keras/datasets
-  # set up keras backend
-  - sed -i -e 's/"backend":[[:space:]]*"[^"]*/"backend":\ "'$KERAS_BACKEND'/g' ~/.keras/keras.json;
-  - echo -e "Running tests with the following config:\n$(cat ~/.keras/keras.json)"
-  - if [[ "$MODE" == "INTEGRATION_TESTS" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/integration_tests;
-    elif [[ "$MODE" == "PEP8_DOC" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test --pep8 -m pep8 -n0 && py.test tests/docs;
-    elif [[ "$MODE" == "API" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH pip install git+git://www.github.com/keras-team/keras.git && python update_api.py && pip install -e .[tests] --progress-bar off && py.test tests/test_api.py;
-    elif [[ "$RUN_ONLY_BACKEND_TESTS" == "1" ]]; then
-      PYTHONPATH=$PWD:$PYTHONPATH py.test  tests/keras/backend/;
-    else
-      PYTHONPATH=$PWD:$PYTHONPATH py.test tests/ --ignore=tests/integration_tests --ignore=tests/docs --ignore=tests/keras/legacy/layers_test.py --ignore=tests/test_api.py --cov-config .coveragerc --cov=keras tests/;
-    fi
+- pytest tests/ --ignore=tests/docs --ignore=tests/keras/legacy/layers_test.py --ignore=tests/test_api.py
