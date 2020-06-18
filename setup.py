@@ -19,20 +19,20 @@ Read the documentation at: https://keras.io/
 For a detailed overview of what makes Keras special, see:
 https://keras.io/why-use-keras/
 
-Keras is compatible with Python 2.7-3.6
+Keras is compatible with Python 3.6+
 and is distributed under the MIT license.
 '''
 
 setup(name='Keras',
-      version='2.4.0',
+      version='2.4.1',
       description='Deep Learning for humans',
       long_description=long_description,
       author='Francois Chollet',
       author_email='francois.chollet@gmail.com',
       url='https://github.com/keras-team/keras',
-      download_url='https://github.com/keras-team/keras/tarball/2.3.0',
+      download_url='https://github.com/keras-team/keras/tarball/2.4.1',
       license='MIT',
-      install_requires=['tensorflow>=2.2.0',
+      install_requires=['tensorflow',
                         'numpy>=1.9.1',
                         'scipy>=0.14',
                         'pyyaml',
@@ -54,10 +54,8 @@ setup(name='Keras',
           'Intended Audience :: Education',
           'Intended Audience :: Science/Research',
           'License :: OSI Approved :: MIT License',
-          'Programming Language :: Python :: 2',
-          'Programming Language :: Python :: 2.7',
           'Programming Language :: Python :: 3',
-          'Programming Language :: Python :: 3.6',
+          'Programming Language :: Python :: 3.7',
           'Topic :: Software Development :: Libraries',
           'Topic :: Software Development :: Libraries :: Python Modules'
       ],
