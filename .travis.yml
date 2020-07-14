@@ -1,7 +1,8 @@
-language: python
+os: linux
 
-# sudo false implies containerized builds
-sudo: false
+dist: xenial
+
+language: python
 
 python:
   - 3.6
