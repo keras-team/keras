@@ -11,9 +11,6 @@ Trains a simple convnet on the MNIST dataset.
 [cifar10_cnn.py](cifar10_cnn.py)
 Trains a simple deep CNN on the CIFAR10 small images dataset.
 
-[cifar10_cnn_capsule.py](cifar10_cnn_capsule.py)
-Trains a simple CNN-Capsule Network on the CIFAR10 small images dataset.
-
 [cifar10_resnet.py](cifar10_resnet.py)
 Trains a ResNet on the CIFAR10 small images dataset.
 
