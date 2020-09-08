@@ -11,9 +11,6 @@ Trains a simple convnet on the MNIST dataset.
 [cifar10_cnn.py](cifar10_cnn.py)
 Trains a simple deep CNN on the CIFAR10 small images dataset.
 
-[cifar10_cnn_capsule.py](cifar10_cnn_capsule.py)
-Trains a simple CNN-Capsule Network on the CIFAR10 small images dataset.
-
 [cifar10_resnet.py](cifar10_resnet.py)
 Trains a ResNet on the CIFAR10 small images dataset.
 
@@ -128,14 +125,3 @@ Reproduction of the Net2Net experiment with MNIST in "Net2Net: Accelerating Lear
 [reuters_mlp_relu_vs_selu.py](reuters_mlp_relu_vs_selu.py)
 Compares self-normalizing MLPs with regular MLPs.
 
-[mnist_tfrecord.py](mnist_tfrecord.py)
-MNIST dataset with TFRecords, the standard TensorFlow data format.
-
-[mnist_dataset_api.py](mnist_dataset_api.py)
-MNIST dataset with TensorFlow's Dataset API.
-
-[cifar10_cnn_tfaugment2d.py](cifar10_cnn_tfaugment2d.py)
-Trains a simple deep CNN on the CIFAR10 small images dataset using Tensorflow internal augmentation APIs.
-
-[tensorboard_embeddings_mnist.py](tensorboard_embeddings_mnist.py)
-Trains a simple convnet on the MNIST dataset and embeds test data which can be later visualized using TensorBoard's Embedding Projector.
