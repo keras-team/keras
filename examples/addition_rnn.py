@@ -4,7 +4,7 @@
 
 Input: "535+61"
 Output: "596"
-Padding is handled by using a repeated sentinel character (space)
+Padding is handled using a repeated sentinel character (space)
 
 Input may optionally be reversed, shown to increase performance in many tasks in:
 "Learning to Execute"
