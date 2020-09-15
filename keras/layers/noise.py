@@ -3,3 +3,4 @@
 from tensorflow.keras.layers import GaussianNoise
 from tensorflow.keras.layers import GaussianDropout
 from tensorflow.keras.layers import AlphaDropout
+from tensorflow.keras.layers import NoisyDense 
