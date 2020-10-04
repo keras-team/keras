@@ -68,7 +68,7 @@ processed_sequences = TimeDistributed(model)(input_sequences)
 
 ## Multi-input and multi-output models
 
-Here's a good use case for the functional API: models with multiple inputs and outputs. The functional API makes it easy to manipulate a large number of intertwined datastreams.
+Here's a good use case for the functional API: models with multiple inputs and outputs. The functional API makes it easy to manipulate a large number of intertwined data streams.
 
 Let's consider the following model. We seek to predict how many retweets and likes a news headline will receive on Twitter. The main input to the model will be the headline itself, as a sequence of words, but to spice things up, our model will also have an auxiliary input, receiving extra data such as the time of day when the headline was posted, etc.
 The model will also be supervised via two loss functions. Using the main loss function earlier in a model is a good regularization mechanism for deep models.
@@ -156,9 +156,7 @@ model.compile(optimizer='rmsprop',
               loss={'main_output': 'binary_crossentropy', 'aux_output': 'binary_crossentropy'},
               loss_weights={'main_output': 1., 'aux_output': 0.2})
 
-# And trained it via:
-model.fit({'main_input': headline_data, 'aux_input': additional_data},
-          {'main_output': headline_labels, 'aux_output': additional_labels},
+
           epochs=50, batch_size=32)
 ```
 
@@ -179,7 +177,7 @@ Another good use for the functional API are models that use shared layers. Let's
 
 Let's consider a dataset of tweets. We want to build a model that can tell whether two tweets are from the same person or not (this can allow us to compare users by the similarity of their tweets, for instance).
 
-One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and then adds a logistic regression; this outputs a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
+One way to achieve this is to build a model that encodes two tweets into two vectors, concatenates the vectors and then adds a logistic regression; these outputs a probability that the two tweets share the same author. The model would then be trained on positive tweet pairs and negative tweet pairs.
 
 Because the problem is symmetric, the mechanism that encodes the first tweet should be reused (weights and all) to encode the second tweet. Here we use a shared LSTM layer to encode the tweets.
 
