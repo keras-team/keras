@@ -16,8 +16,8 @@ theme:
   collapse_navigation: true
 
 docs_dir: sources
-repo_url: http://github.com/keras-team/keras
-site_url: http://keras.io/
+repo_url: https://github.com/keras-team/keras
+site_url: https://keras.io/
 site_description: 'Documentation for Keras, the Python Deep Learning library.'
 
 dev_addr: '0.0.0.0:8000'

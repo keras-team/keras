@@ -297,7 +297,7 @@ Code examples are still the best way to get started, so here are a few more.
 
 ### Inception module
 
-For more information about the Inception architecture, see [Going Deeper with Convolutions](http://arxiv.org/abs/1409.4842).
+For more information about the Inception architecture, see [Going Deeper with Convolutions](https://arxiv.org/abs/1409.4842).
 
 ```python
 from keras.layers import Conv2D, MaxPooling2D, Input
@@ -318,7 +318,7 @@ output = keras.layers.concatenate([tower_1, tower_2, tower_3], axis=1)
 
 ### Residual connection on a convolution layer
 
-For more information about residual networks, see [Deep Residual Learning for Image Recognition](http://arxiv.org/abs/1512.03385).
+For more information about residual networks, see [Deep Residual Learning for Image Recognition](https://arxiv.org/abs/1512.03385).
 
 ```python
 from keras.layers import Conv2D, Input

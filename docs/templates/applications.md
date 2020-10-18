@@ -305,7 +305,7 @@ A Keras `Model` instance.
 
 ### License
 
-These weights are ported from the ones [released by VGG at Oxford](http://www.robots.ox.ac.uk/~vgg/research/very_deep/) under the [Creative Commons Attribution License](https://creativecommons.org/licenses/by/4.0/).
+These weights are ported from the ones [released by VGG at Oxford](https://www.robots.ox.ac.uk/~vgg/research/very_deep/) under the [Creative Commons Attribution License](https://creativecommons.org/licenses/by/4.0/).
 
 -----
 
@@ -361,7 +361,7 @@ A Keras `Model` instance.
 
 ### License
 
-These weights are ported from the ones [released by VGG at Oxford](http://www.robots.ox.ac.uk/~vgg/research/very_deep/) under the [Creative Commons Attribution License](https://creativecommons.org/licenses/by/4.0/).
+These weights are ported from the ones [released by VGG at Oxford](https://www.robots.ox.ac.uk/~vgg/research/very_deep/) under the [Creative Commons Attribution License](https://creativecommons.org/licenses/by/4.0/).
 
 -----
 
@@ -477,7 +477,7 @@ A Keras `Model` instance.
 
 ### References
 
-- [Rethinking the Inception Architecture for Computer Vision](http://arxiv.org/abs/1512.00567)
+- [Rethinking the Inception Architecture for Computer Vision](https://arxiv.org/abs/1512.00567)
 
 ### License
 

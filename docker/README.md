@@ -1,7 +1,7 @@
 # Using Keras via Docker
 
 This directory contains `Dockerfile` to make it easy to get up and running with
-Keras via [Docker](http://www.docker.com/).
+Keras via [Docker](https://www.docker.com/).
 
 ## Installing Docker
 

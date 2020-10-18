@@ -510,7 +510,7 @@ model = VGG16(weights='imagenet', include_top=True)
 
 For a few simple usage examples, see [the documentation for the Applications module](/applications).
 
-For a detailed example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](http://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
+For a detailed example of how to use such a pre-trained model for feature extraction or for fine-tuning, see [this blog post](https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html).
 
 The VGG16 model is also the basis for several Keras example scripts:
 
@@ -655,4 +655,4 @@ import h5py
 ```
 
 If it imports without error it is installed, otherwise you can find detailed
-installation instructions here: http://docs.h5py.org/en/latest/build.html
+installation instructions here: https://docs.h5py.org/en/latest/build.html

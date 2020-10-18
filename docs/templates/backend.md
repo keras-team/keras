@@ -6,7 +6,7 @@ Keras is a model-level library, providing high-level building blocks for develop
 
 At this time, Keras has three backend implementations available: the **TensorFlow** backend, the **Theano** backend, and the **CNTK** backend.
 
-- [TensorFlow](http://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google.
+- [TensorFlow](https://www.tensorflow.org/) is an open-source symbolic tensor manipulation framework developed by Google.
 - [Theano](http://deeplearning.net/software/theano/) is an open-source symbolic tensor manipulation framework developed by LISA Lab at Université de Montréal.
 - [CNTK](https://www.microsoft.com/en-us/cognitive-toolkit/) is an open-source toolkit for deep learning developed by Microsoft.
 
