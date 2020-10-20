@@ -1,3 +1,0 @@
-from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2
-from tensorflow.keras.applications.mobilenet_v2 import decode_predictions
-from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
