@@ -157,14 +157,15 @@ def visualize_layer(model,
                 if loss_value <= K.epsilon():
                     return None
 
-            # Calulate upscaled dimension
+            # Calculate upscaled dimension
             intermediate_dim = tuple(
                 int(x / (upscaling_factor ** up)) for x in output_dim)
             # Upscale
             img = deprocess_image(input_img_data[0])
             img = np.array(pil_image.fromarray(img).resize(intermediate_dim,
                                                            pil_image.BICUBIC))
-            input_img_data = [process_image(img, input_img_data[0])]
+            input_img_data = np.expand_dims(
+                process_image(img, input_img_data[0]), 0)
 
         # decode the resulting input image
         img = deprocess_image(input_img_data[0])

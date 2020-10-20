@@ -17,8 +17,13 @@ def test_tf_optimizer():
     output_dim = 2
     input_dim = 10
     target = 0.8
-    optimizer = tf.train.AdadeltaOptimizer(
-        learning_rate=1., rho=0.95, epsilon=1e-08)
+
+    if tf.__version__.startswith('1.'):
+        optimizer = tf.train.AdadeltaOptimizer(
+            learning_rate=1., rho=0.95, epsilon=1e-08)
+    else:
+        optimizer = tf.keras.optimizers.Adadelta(
+            learning_rate=1., rho=0.95, epsilon=1e-08)
 
     (x_train, y_train), (x_test, y_test) = get_test_data(
         num_train=1000, num_test=200,
@@ -36,7 +41,7 @@ def test_tf_optimizer():
                   metrics=['accuracy'])
     history = model.fit(x_train, y_train, epochs=8, batch_size=16,
                         validation_data=(x_test, y_test), verbose=2)
-    assert history.history['val_acc'][-1] >= target
+    assert history.history['val_accuracy'][-1] >= target
 
     # Test saving.
     _, fname = tempfile.mkstemp('.h5')

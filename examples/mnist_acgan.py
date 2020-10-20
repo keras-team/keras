@@ -125,8 +125,8 @@ def build_discriminator():
 
     return Model(image, [fake, aux])
 
-if __name__ == '__main__':
 
+if __name__ == '__main__':
     # batch and latent size taken from the paper
     epochs = 100
     batch_size = 100
@@ -140,7 +140,7 @@ if __name__ == '__main__':
     print('Discriminator model:')
     discriminator = build_discriminator()
     discriminator.compile(
-        optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
+        optimizer=Adam(learning_rate=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
     discriminator.summary()
@@ -161,7 +161,7 @@ if __name__ == '__main__':
 
     print('Combined model:')
     combined.compile(
-        optimizer=Adam(lr=adam_lr, beta_1=adam_beta_1),
+        optimizer=Adam(learning_rate=adam_lr, beta_1=adam_beta_1),
         loss=['binary_crossentropy', 'sparse_categorical_crossentropy']
     )
     combined.summary()

@@ -8,6 +8,11 @@ from keras import backend as K
 
 MODEL_LIST = [
     (applications.ResNet50, 2048),
+    (applications.ResNet101, 2048),
+    (applications.ResNet152, 2048),
+    (applications.ResNet50V2, 2048),
+    (applications.ResNet101V2, 2048),
+    (applications.ResNet152V2, 2048),
     (applications.VGG16, 512),
     (applications.VGG19, 512),
     (applications.Xception, 2048),
@@ -60,13 +65,6 @@ def _test_application_notop(app, last_dim):
         lambda: app(weights=None, include_top=False))
     assert len(output_shape) == 4
     assert output_shape[-1] == last_dim
-
-
-def test_mobilenet_v2_legacy_import():
-    from keras.applications import mobilenetv2
-    assert hasattr(mobilenetv2, 'MobileNetV2')
-    from keras.applications import mobilenet_v2
-    assert hasattr(mobilenet_v2, 'MobileNetV2')
 
 
 def test_applications():

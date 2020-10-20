@@ -1,4 +1,10 @@
-from __future__ import absolute_import
+
+try:
+    from tensorflow.keras.layers.experimental.preprocessing import RandomRotation
+except ImportError:
+    raise ImportError(
+        'Keras requires TensorFlow 2.2 or higher. '
+        'Install TensorFlow via `pip install tensorflow`')
 
 from . import utils
 from . import activations
@@ -23,4 +29,4 @@ from .layers import Input
 from .models import Model
 from .models import Sequential
 
-__version__ = '2.2.4'
+__version__ = '2.4.3'

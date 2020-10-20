@@ -108,7 +108,7 @@ form .search-query {
 
 /*
  * Account for wide tables which go off the side.
- * Override borders to avoid wierdness on narrow tables.
+ * Override borders to avoid weirdness on narrow tables.
  *
  * https://github.com/mkdocs/mkdocs/issues/834
  * https://github.com/mkdocs/mkdocs/pull/1034

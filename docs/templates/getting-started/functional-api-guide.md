@@ -24,9 +24,9 @@ from keras.models import Model
 inputs = Input(shape=(784,))
 
 # a layer instance is callable on a tensor, and returns a tensor
-x = Dense(64, activation='relu')(inputs)
-x = Dense(64, activation='relu')(x)
-predictions = Dense(10, activation='softmax')(x)
+output_1 = Dense(64, activation='relu')(inputs)
+output_2 = Dense(64, activation='relu')(output_1)
+predictions = Dense(10, activation='softmax')(output_2)
 
 # This creates a model that includes
 # the Input layer and three Dense layers
@@ -85,6 +85,8 @@ The integers will be between 1 and 10,000 (a vocabulary of 10,000 words) and the
 ```python
 from keras.layers import Input, Embedding, LSTM, Dense
 from keras.models import Model
+import numpy as np
+np.random.seed(0)  # Set a random seed for reproducibility
 
 # Headline input: meant to receive sequences of 100 integers, between 1 and 10000.
 # Note that we can name any layer by passing it a "name" argument.
@@ -138,7 +140,11 @@ model.compile(optimizer='rmsprop', loss='binary_crossentropy',
 We can train the model by passing it lists of input arrays and target arrays:
 
 ```python
-model.fit([headline_data, additional_data], [labels, labels],
+headline_data = np.round(np.abs(np.random.rand(12, 100) * 100))
+additional_data = np.random.randn(12, 5)
+headline_labels = np.random.randn(12, 1)
+additional_labels = np.random.randn(12, 1)
+model.fit([headline_data, additional_data], [headline_labels, additional_labels],
           epochs=50, batch_size=32)
 ```
 
@@ -152,8 +158,17 @@ model.compile(optimizer='rmsprop',
 
 # And trained it via:
 model.fit({'main_input': headline_data, 'aux_input': additional_data},
-          {'main_output': labels, 'aux_output': labels},
+          {'main_output': headline_labels, 'aux_output': additional_labels},
           epochs=50, batch_size=32)
+```
+
+To use the model for inferencing, use
+```python
+model.predict({'main_input': headline_data, 'aux_input': additional_data})
+```
+or alternatively,
+```python
+pred = model.predict([headline_data, additional_data])
 ```
 
 -----
@@ -378,7 +393,7 @@ image_input = Input(shape=(224, 224, 3))
 encoded_image = vision_model(image_input)
 
 # Next, let's define a language model to encode the question into a vector.
-# Each question will be at most 100 word long,
+# Each question will be at most 100 words long,
 # and we will index words as integers from 1 to 9999.
 question_input = Input(shape=(100,), dtype='int32')
 embedded_question = Embedding(input_dim=10000, output_dim=256, input_length=100)(question_input)

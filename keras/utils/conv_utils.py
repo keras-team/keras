@@ -1,12 +1,6 @@
-"""Utilities used in convolutional layers.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Utilities used in convolutional layers."""
 
-from six.moves import range
 import numpy as np
-from .. import backend as K
 
 
 def normalize_tuple(value, n, name):
@@ -32,30 +26,28 @@ def normalize_tuple(value, n, name):
         try:
             value_tuple = tuple(value)
         except TypeError:
-            raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                             str(n) + ' integers. Received: ' + str(value))
+            raise ValueError('The `{}` argument must be a tuple of {} '
+                             'integers. Received: {}'.format(name, n, value))
         if len(value_tuple) != n:
-            raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                             str(n) + ' integers. Received: ' + str(value))
+            raise ValueError('The `{}` argument must be a tuple of {} '
+                             'integers. Received: {}'.format(name, n, value))
         for single_value in value_tuple:
             try:
                 int(single_value)
             except ValueError:
-                raise ValueError('The `' + name + '` argument must be a tuple of ' +
-                                 str(n) + ' integers. Received: ' + str(value) + ' '
-                                 'including element ' + str(single_value) + ' of '
-                                 'type ' + str(type(single_value)))
+                raise ValueError('The `{}` argument must be a tuple of {} '
+                                 'integers. Received: {} including element {} '
+                                 'of type {}'.format(name, n, value, single_value,
+                                                     type(single_value)))
     return value_tuple
 
 
 def normalize_padding(value):
     padding = value.lower()
     allowed = {'valid', 'same', 'causal'}
-    if K.backend() == 'theano':
-        allowed.add('full')
     if padding not in allowed:
         raise ValueError('The `padding` argument must be one of "valid", "same" '
-                         '(or "causal" for Conv1D). Received: ' + str(padding))
+                         '(or "causal" for Conv1D). Received: {}'.format(padding))
     return padding
 
 
@@ -99,7 +91,7 @@ def conv_output_length(input_length, filter_size,
     if input_length is None:
         return None
     assert padding in {'same', 'valid', 'full', 'causal'}
-    dilated_filter_size = filter_size + (filter_size - 1) * (dilation - 1)
+    dilated_filter_size = (filter_size - 1) * dilation + 1
     if padding == 'same':
         output_length = input_length
     elif padding == 'valid':
@@ -157,7 +149,7 @@ def deconv_length(dim_size, stride_size, kernel_size, padding,
         return None
 
     # Get the dilated kernel size
-    kernel_size = kernel_size + (kernel_size - 1) * (dilation - 1)
+    kernel_size = (kernel_size - 1) * dilation + 1
 
     # Infer length if output padding is None, else compute the exact length
     if output_padding is None:
