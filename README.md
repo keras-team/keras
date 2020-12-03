@@ -1,22 +1,27 @@
-﻿# Keras: Deep Learning for humans
+﻿# Keras: Deep Learning for Python
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
-[![Build Status](https://travis-ci.org/keras-team/keras.svg?branch=master)](https://travis-ci.org/keras-team/keras)
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/keras-team/keras/blob/master/LICENSE)
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/fchollet/keras/blob/master/LICENSE)
 
+## You have just found Keras.
 
-Keras is a deep learning API written in Python, running on top of the machine learning platform TensorFlow.
+Keras is a high-level neural networks API, written in Python and capable of running on top of [TensorFlow](https://github.com/tensorflow/tensorflow), [CNTK](https://github.com/Microsoft/cntk), or [Theano](https://github.com/Theano/Theano). It was developed with a focus on enabling fast experimentation. *Being able to go from idea to result with the least possible delay is key to doing good research.*
+
+Use Keras if you need a deep learning library that:
+
+- Allows for easy and fast prototyping (through user friendliness, modularity, and extensibility).
+- Supports both convolutional networks and recurrent networks, as well as combinations of the two.
+- Runs seamlessly on CPU and GPU.
 
 Read the documentation at [Keras.io](https://keras.io).
+
+Keras is compatible with: __Python 2.7-3.6__.
 
 
 ------------------
 
-## Multi-backend Keras and tf.keras
+## Under Construction
 
-**Multi-backend Keras has been discontinued. At this time, we recommend that Keras users who use multi-backend Keras with the TensorFlow backend switch to `tf.keras` in TensorFlow 2.0**.
-
-Keras 2.2.5 was the last release of Keras implementing the 2.2.* API. It was the last release to only support TensorFlow 1 (as well as Theano and CNTK).
-
-The current release is Keras 2.4.0, which simply redirects to `tf.keras`.
+We are repurpose this package to be the new home for tensorflow.keras code. In
+the meantime, please use keras via Tensorflow.
