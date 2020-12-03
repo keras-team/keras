@@ -1,0 +1,10 @@
+absl-py ~= 0.10
+h5py ~= 2.10.0
+keras_preprocessing ~= 1.1.2
+numpy ~= 1.19.2
+pandas
+pydot
+scipy ~= 1.5.2
+six ~= 1.15.0
+tf-nightly
+pyyaml
