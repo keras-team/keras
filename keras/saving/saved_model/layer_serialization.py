@@ -34,7 +34,7 @@ class LayerSavedModelSaver(base_serialization.SavedModelSaver):
 
   @property
   def object_identifier(self):
-    return '_tf_keras_layer'
+    return constants.LAYER_IDENTIFIER
 
   @property
   def python_properties(self):
@@ -128,7 +128,7 @@ class InputLayerSavedModelSaver(base_serialization.SavedModelSaver):
 
   @property
   def object_identifier(self):
-    return '_tf_keras_input_layer'
+    return constants.INPUT_LAYER_IDENTIFIER
 
   @property
   def python_properties(self):
@@ -154,7 +154,7 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
 
   @property
   def object_identifier(self):
-    return '_tf_keras_rnn_layer'
+    return constants.RNN_LAYER_IDENTIFIER
 
   def _get_serialized_attributes_internal(self, serialization_cache):
     objects, functions = (
