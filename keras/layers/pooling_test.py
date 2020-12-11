@@ -32,16 +32,18 @@ from keras import testing_utils
 class GlobalPoolingTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_globalpooling_1d(self):
-    testing_utils.layer_test(keras.layers.pooling.GlobalMaxPooling1D,
-                             input_shape=(3, 4, 5))
-    testing_utils.layer_test(keras.layers.pooling.GlobalMaxPooling1D,
-                             kwargs={'data_format': 'channels_first'},
-                             input_shape=(3, 4, 5))
+    testing_utils.layer_test(
+        keras.layers.pooling.GlobalMaxPooling1D, input_shape=(3, 4, 5))
+    testing_utils.layer_test(
+        keras.layers.pooling.GlobalMaxPooling1D,
+        kwargs={'data_format': 'channels_first'},
+        input_shape=(3, 4, 5))
     testing_utils.layer_test(
         keras.layers.pooling.GlobalAveragePooling1D, input_shape=(3, 4, 5))
-    testing_utils.layer_test(keras.layers.pooling.GlobalAveragePooling1D,
-                             kwargs={'data_format': 'channels_first'},
-                             input_shape=(3, 4, 5))
+    testing_utils.layer_test(
+        keras.layers.pooling.GlobalAveragePooling1D,
+        kwargs={'data_format': 'channels_first'},
+        input_shape=(3, 4, 5))
 
   def test_globalpooling_1d_masking_support(self):
     model = keras.Sequential()
@@ -55,9 +57,9 @@ class GlobalPoolingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(output[0], model_input[0, 0, :])
 
   def test_globalpooling_1d_with_ragged(self):
-    ragged_data = tf.ragged.constant([
-        [[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]],
-        [[1.0, 1.0], [2.0, 2.0]]], ragged_rank=1)
+    ragged_data = tf.ragged.constant(
+        [[[1.0, 1.0], [2.0, 2.0], [3.0, 3.0]], [[1.0, 1.0], [2.0, 2.0]]],
+        ragged_rank=1)
     dense_data = ragged_data.to_tensor()
 
     inputs = keras.Input(shape=(None, 2), dtype='float32', ragged=True)
@@ -74,9 +76,10 @@ class GlobalPoolingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(output_ragged, output_dense)
 
   def test_globalpooling_2d_with_ragged(self):
-    ragged_data = tf.ragged.constant([
-        [[[1.0], [1.0]], [[2.0], [2.0]], [[3.0], [3.0]]],
-        [[[1.0], [1.0]], [[2.0], [2.0]]]], ragged_rank=1)
+    ragged_data = tf.ragged.constant(
+        [[[[1.0], [1.0]], [[2.0], [2.0]], [[3.0], [3.0]]],
+         [[[1.0], [1.0]], [[2.0], [2.0]]]],
+        ragged_rank=1)
     dense_data = ragged_data.to_tensor()
 
     inputs = keras.Input(shape=(None, 2, 1), dtype='float32', ragged=True)
@@ -92,9 +95,10 @@ class GlobalPoolingTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(output_ragged, output_dense)
 
   def test_globalpooling_3d_with_ragged(self):
-    ragged_data = tf.ragged.constant([
-        [[[[1.0]], [[1.0]]], [[[2.0]], [[2.0]]], [[[3.0]], [[3.0]]]],
-        [[[[1.0]], [[1.0]]], [[[2.0]], [[2.0]]]]], ragged_rank=1)
+    ragged_data = tf.ragged.constant(
+        [[[[[1.0]], [[1.0]]], [[[2.0]], [[2.0]]], [[[3.0]], [[3.0]]]],
+         [[[[1.0]], [[1.0]]], [[[2.0]], [[2.0]]]]],
+        ragged_rank=1)
 
     inputs = keras.Input(shape=(None, 2, 1, 1), dtype='float32', ragged=True)
     out = keras.layers.GlobalAveragePooling3D()(inputs)
@@ -160,15 +164,19 @@ class Pooling2DTest(tf.test.TestCase, parameterized.TestCase):
   def test_averagepooling_2d(self):
     testing_utils.layer_test(
         keras.layers.AveragePooling2D,
-        kwargs={'strides': (2, 2),
-                'padding': 'same',
-                'pool_size': (2, 2)},
+        kwargs={
+            'strides': (2, 2),
+            'padding': 'same',
+            'pool_size': (2, 2)
+        },
         input_shape=(3, 5, 6, 4))
     testing_utils.layer_test(
         keras.layers.AveragePooling2D,
-        kwargs={'strides': (2, 2),
-                'padding': 'valid',
-                'pool_size': (3, 3)},
+        kwargs={
+            'strides': (2, 2),
+            'padding': 'valid',
+            'pool_size': (3, 3)
+        },
         input_shape=(3, 5, 6, 4))
 
     # This part of the test can only run on GPU but doesn't appear
@@ -192,14 +200,14 @@ class Pooling2DTest(tf.test.TestCase, parameterized.TestCase):
 class Pooling3DTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_maxpooling_3d(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Pooling with 3D tensors is not supported in ROCm')
     pool_size = (3, 3, 3)
     testing_utils.layer_test(
         keras.layers.MaxPooling3D,
-        kwargs={'strides': 2,
-                'padding': 'valid',
-                'pool_size': pool_size},
+        kwargs={
+            'strides': 2,
+            'padding': 'valid',
+            'pool_size': pool_size
+        },
         input_shape=(3, 11, 12, 10, 4))
     testing_utils.layer_test(
         keras.layers.MaxPooling3D,
@@ -212,14 +220,14 @@ class Pooling3DTest(tf.test.TestCase, parameterized.TestCase):
         input_shape=(3, 4, 11, 12, 10))
 
   def test_averagepooling_3d(self):
-    if tf.test.is_built_with_rocm():
-      self.skipTest('Pooling with 3D tensors is not supported in ROCm')
     pool_size = (3, 3, 3)
     testing_utils.layer_test(
         keras.layers.AveragePooling3D,
-        kwargs={'strides': 2,
-                'padding': 'valid',
-                'pool_size': pool_size},
+        kwargs={
+            'strides': 2,
+            'padding': 'valid',
+            'pool_size': pool_size
+        },
         input_shape=(3, 11, 12, 10, 4))
     testing_utils.layer_test(
         keras.layers.AveragePooling3D,
@@ -240,8 +248,10 @@ class Pooling1DTest(tf.test.TestCase, parameterized.TestCase):
       for stride in [1, 2]:
         testing_utils.layer_test(
             keras.layers.MaxPooling1D,
-            kwargs={'strides': stride,
-                    'padding': padding},
+            kwargs={
+                'strides': stride,
+                'padding': padding
+            },
             input_shape=(3, 5, 4))
     testing_utils.layer_test(
         keras.layers.MaxPooling1D,
@@ -253,8 +263,10 @@ class Pooling1DTest(tf.test.TestCase, parameterized.TestCase):
       for stride in [1, 2]:
         testing_utils.layer_test(
             keras.layers.AveragePooling1D,
-            kwargs={'strides': stride,
-                    'padding': padding},
+            kwargs={
+                'strides': stride,
+                'padding': padding
+            },
             input_shape=(3, 5, 4))
 
     testing_utils.layer_test(

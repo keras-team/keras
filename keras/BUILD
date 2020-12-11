@@ -203,6 +203,7 @@ py_library(
     ],
     srcs_version = "PY2AND3",
     deps = [
+        ":activations",
         ":backend",
         ":losses",
         "//:expect_numpy_installed",
