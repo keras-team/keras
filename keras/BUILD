@@ -488,7 +488,7 @@ tf_py_test(
     size = "medium",
     srcs = ["models_test.py"],
     python_version = "PY3",
-    shard_count = 8,
+    shard_count = 10,
     tags = [
         "no_rocm",
         "notsan",  # b/67509773
