@@ -55,6 +55,18 @@ py_library(
     ],
 )
 
+# Note that this dependency is for testing only.
+py_library(
+    name = "expect_portpicker_installed",
+    # This is a dummy rule used as a pandas dependency in open-source.
+    # We expect portpicker to already be installed on the system, e.g. via
+    # `pip install portpicker'
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("portpicker"),
+    ],
+)
+
 py_library(
     name = "expect_pydot_installed",
     # This is a dummy rule used as a pydot dependency in open-source.

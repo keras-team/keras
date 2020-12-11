@@ -162,6 +162,7 @@ cuda_py_test(
     xla_enable_strict_auto_jit = True,
     deps = [
         "//:expect_absl_installed",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras:testing_utils",
         "//keras/engine",
@@ -184,6 +185,7 @@ distribute_py_test(
     deps = [
         ":optimizer_combinations",
         ":strategy_combinations",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -201,6 +203,7 @@ distribute_py_test(
     deps = [
         ":strategy_combinations",
         "//:expect_absl_installed",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras:metrics",
     ],
@@ -223,6 +226,7 @@ distribute_py_test(
     deps = [
         ":strategy_combinations",
         "//:expect_absl_installed",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -274,6 +278,7 @@ distribute_py_test(
     deps = [
         ":distribute_strategy_test_lib",
         ":keras_correctness_test_lib",
+        "//:expect_portpicker_installed",
     ],
 )
 
@@ -292,7 +297,6 @@ distribute_py_test(
         "noasan",  # TODO(b/170902997)
         "noguitar",  # TODO(b/172354344)
         "nomultivm",  # TODO(b/170502145)
-        "notap",  # TODO(b/170902997)
         "notsan",
     ],
     tpu_tags = [
@@ -301,6 +305,7 @@ distribute_py_test(
     deps = [
         ":distribute_strategy_test_lib",
         ":optimizer_combinations",
+        "//:expect_portpicker_installed",
     ],
 )
 
@@ -362,6 +367,7 @@ distribute_py_test(
     ],
     deps = [
         ":keras_correctness_test_lib",
+        "//:expect_portpicker_installed",
     ],
 )
 
@@ -384,6 +390,7 @@ distribute_py_test(
     ],
     deps = [
         ":keras_correctness_test_lib",
+        "//:expect_portpicker_installed",
     ],
 )
 
@@ -406,6 +413,7 @@ distribute_py_test(
     xla_enable_strict_auto_jit = False,  # Tensorflow also fails.
     deps = [
         ":keras_correctness_test_lib",
+        "//:expect_portpicker_installed",
     ],
 )
 
@@ -460,6 +468,7 @@ distribute_py_test(
     ],
     deps = [
         ":keras_correctness_test_lib",
+        "//:expect_portpicker_installed",
     ],
 )
 
@@ -519,6 +528,7 @@ distribute_py_test(
         ":distribute_strategy_test_lib",
         ":keras_test_lib",
         ":optimizer_combinations",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -613,6 +623,7 @@ cuda_py_test(
     deps = [
         ":multi_worker_testing_utils",
         "//:expect_absl_installed",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",
@@ -630,6 +641,7 @@ tf_py_test(
     shard_count = 5,
     deps = [
         ":distributed_file_utils",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras/distribute:multi_worker_testing_utils",
     ],
@@ -700,6 +712,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 1,
     deps = [
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
     ],
