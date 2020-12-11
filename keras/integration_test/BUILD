@@ -112,6 +112,7 @@ tf_py_test(
     ],
     deps = [
         "//:expect_absl_installed",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
     ],
 )

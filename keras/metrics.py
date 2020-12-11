@@ -31,6 +31,7 @@ import six
 from tensorflow.python.autograph.core import ag_ctx
 from tensorflow.python.autograph.impl import api as autograph
 from tensorflow.python.eager import def_function
+from keras import activations
 from keras import backend as K
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
@@ -1828,7 +1829,17 @@ class RecallAtPrecision(SensitivitySpecificityBase):
 
 @keras_export('keras.metrics.AUC')
 class AUC(Metric):
-  """Computes the approximate AUC (Area under the curve) via a Riemann sum.
+  """Approximates the AUC (Area under the curve) of the ROC or PR curves.
+
+  The AUC (Area under the curve) of the ROC (Receiver operating
+  characteristic; default) or PR (Precision Recall) curves are quality measures
+  of binary classifiers. Unlike the accuracy, and like cross-entropy
+  losses, ROC-AUC and PR-AUC evaluate all the operational points of a model.
+
+  This classes approximates AUCs using a Riemann sum: During the metric
+  accumulation phrase, predictions are accumulated within predefined buckets
+  by value. The AUC is then computed by interpolating per-bucket averages. These
+  buckets define the evaluated operational points.
 
   This metric creates four local variables, `true_positives`, `true_negatives`,
   `false_positives` and `false_negatives` that are used to compute the AUC.
@@ -1846,11 +1857,11 @@ class AUC(Metric):
   dramatically depending on `num_thresholds`. The `thresholds` parameter can be
   used to manually specify thresholds which split the predictions more evenly.
 
-  For best results, `predictions` should be distributed approximately uniformly
-  in the range [0, 1] and not peaked around 0 or 1. The quality of the AUC
-  approximation may be poor if this is not the case. Setting `summation_method`
-  to 'minoring' or 'majoring' can help quantify the error in the approximation
-  by providing lower or upper bound estimate of the AUC.
+  For a best approximation of the real AUC, `predictions` should be distributed
+  approximately uniformly in the range [0, 1] (if `from_logits=False`). The
+  quality of the AUC approximation may be poor if this is not the case. Setting
+  `summation_method` to 'minoring' or 'majoring' can help quantify the error in
+  the approximation by providing lower or upper bound estimate of the AUC.
 
   If `sample_weight` is `None`, weights default to 1.
   Use `sample_weight` of 0 to mask values.
@@ -1896,6 +1907,10 @@ class AUC(Metric):
       label, whereas label_weights depends only on the index of that label
       before flattening; therefore `label_weights` should not be used for
       multi-class data.
+    from_logits: boolean indicating whether the predictions (`y_pred` in
+      `update_state`) are probabilities or sigmoid logits. As a rule of thumb,
+      when using a keras loss, the `from_logits` constructor argument of the
+      loss should match the AUC `from_logits` constructor argument.
 
   Standalone usage:
 
@@ -1917,7 +1932,15 @@ class AUC(Metric):
   Usage with `compile()` API:
 
   ```python
-  model.compile(optimizer='sgd', loss='mse', metrics=[tf.keras.metrics.AUC()])
+  # Reports the AUC of a model outputing a probability.
+  model.compile(optimizer='sgd',
+                loss=tf.keras.losses.BinaryCrossentropy(),
+                metrics=[tf.keras.metrics.AUC()])
+
+  # Reports the AUC of a model outputing a logit.
+  model.compile(optimizer='sgd',
+                loss=tf.keras.losses.BinaryCrossentropy(from_logits=True),
+                metrics=[tf.keras.metrics.AUC(from_logits=True)])
   ```
   """
 
@@ -1930,7 +1953,8 @@ class AUC(Metric):
                thresholds=None,
                multi_label=False,
                num_labels=None,
-               label_weights=None):
+               label_weights=None,
+               from_logits=False):
     # Validate configurations.
     if isinstance(curve, metrics_utils.AUCCurve) and curve not in list(
         metrics_utils.AUCCurve):
@@ -1989,6 +2013,8 @@ class AUC(Metric):
 
     else:
       self.label_weights = None
+
+    self._from_logits = from_logits
 
     self._built = False
     if self.multi_label:
@@ -2089,6 +2115,10 @@ class AUC(Metric):
     # multi_label is False. Otherwise the averaging of individual label AUCs is
     # handled in AUC.result
     label_weights = None if self.multi_label else self.label_weights
+
+    if self._from_logits:
+      y_pred = activations.sigmoid(y_pred)
+
     with tf.control_dependencies(deps):
       return metrics_utils.update_confusion_matrix_variables(
           {

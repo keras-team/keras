@@ -18,6 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
 from tensorflow.python.training.tracking import data_structures
@@ -28,7 +29,7 @@ class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
 
   @property
   def object_identifier(self):
-    return '_tf_keras_metric'
+    return constants.METRIC_IDENTIFIER
 
   def _python_properties_internal(self):
     metadata = dict(

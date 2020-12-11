@@ -7,4 +7,5 @@ pydot
 scipy ~= 1.5.2
 six ~= 1.15.0
 tf-nightly
+portpicker
 pyyaml
