@@ -1,32 +1,40 @@
+# Copyright 2015 The TensorFlow Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+# ==============================================================================
+"""Implementation of the Keras API meant to be a high-level API for TensorFlow.
 
-try:
-    from tensorflow.keras.layers.experimental.preprocessing import RandomRotation
-except ImportError:
-    raise ImportError(
-        'Keras requires TensorFlow 2.2 or higher. '
-        'Install TensorFlow via `pip install tensorflow`')
+Detailed documentation and user guides are available at
+[tensorflow.org](https://www.tensorflow.org/guide/keras).
+"""
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
-from . import utils
-from . import activations
-from . import applications
-from . import backend
-from . import datasets
-from . import engine
-from . import layers
-from . import preprocessing
-from . import wrappers
-from . import callbacks
-from . import constraints
-from . import initializers
-from . import metrics
-from . import models
-from . import losses
-from . import optimizers
-from . import regularizers
+# pylint: disable=unused-import
+from tensorflow.python import tf2
+from keras import distribute
 
-# Also importable from root
-from .layers import Input
-from .models import Model
-from .models import Sequential
+# See b/110718070#comment18 for more details about this import.
+from keras import models
 
-__version__ = '2.4.3'
+
+from keras.engine.input_layer import Input
+from keras.engine.sequential import Sequential
+from keras.engine.training import Model
+
+from tensorflow.python.util.tf_export import keras_export
+
+__version__ = '2.5.0'
+
+keras_export('keras.__version__').export_constant(__name__, '__version__')
