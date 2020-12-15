@@ -28,6 +28,7 @@ import time
 from absl.testing import parameterized
 import numpy as np
 from tensorflow.core.protobuf import rewriter_config_pb2
+from tensorflow.python.framework import test_util as tf_test_util
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
@@ -781,6 +782,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
       outputs_trimmed = lstm(inputs[:, :masksteps])
     self.assertAllClose(outputs_masked[:, -masksteps:], outputs_trimmed)
 
+  @tf_test_util.enable_output_all_intermediates
   def test_v1_session_behavior(self):
     with tf.compat.v1.get_default_graph().as_default():
       # See b/139132348 for more details.
