@@ -26,6 +26,7 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
+from tensorflow.python.framework import test_util as tf_test_util
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
@@ -33,8 +34,6 @@ from keras.engine import base_layer_utils
 from keras.layers import core
 from keras.layers.rnn_cell_wrapper_v2 import ResidualWrapper
 from keras.utils import generic_utils
-from tensorflow.python.eager import context
-from tensorflow.python.framework import test_util as tf_test_util
 from tensorflow.python.ops.ragged import ragged_tensor
 from tensorflow.python.training.tracking import util as trackable_util
 
@@ -653,7 +652,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
-    if context.executing_eagerly():
+    if tf.executing_eagerly():
       run_test()
     else:
       tf_test_util.enable_output_all_intermediates(run_test)()

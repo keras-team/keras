@@ -27,8 +27,8 @@ import shutil
 from absl.testing import parameterized
 import numpy as np
 from tensorflow.core.protobuf import rewriter_config_pb2
-from tensorflow.python.framework import test_util as tf_test_util
 import keras
+from tensorflow.python.framework import test_util as tf_test_util
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils

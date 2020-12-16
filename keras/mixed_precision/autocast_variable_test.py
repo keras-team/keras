@@ -26,7 +26,14 @@ from absl.testing import parameterized
 import numpy as np
 from tensorflow.python.distribute import test_util
 from keras.mixed_precision import autocast_variable
+from keras.optimizer_v2 import adadelta
+from keras.optimizer_v2 import adagrad
+from keras.optimizer_v2 import adam
+from keras.optimizer_v2 import adamax
+from keras.optimizer_v2 import ftrl
 from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
+from keras.optimizer_v2 import nadam
+from keras.optimizer_v2 import rmsprop
 
 maybe_distribute = tf.__internal__.test.combinations.combine(distribution=[
     tf.__internal__.distribute.combinations.default_strategy,
@@ -335,10 +342,27 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose(5., self.evaluate(run_assign()))
 
   @tf.__internal__.distribute.combinations.generate(maybe_distribute)
-  def test_assign_op(self, distribution):
+  def test_op_attribute(self, distribution):
     with distribution.scope():
       x = get_var(0., tf.float32)
       x = autocast_variable.create_autocast_variable(x)
+
+      # Variable.op raises an AttributeError in Eager mode and is an op in graph
+      # mode. Variable.assign(...).op is None in Eager mode and an op in Graph
+      # mode or a tf.function. We test this is also true of AutoCastVariable.
+      if tf.executing_eagerly():
+        with self.assertRaisesRegex(
+            AttributeError,
+            'Tensor.op is meaningless when eager execution is enabled'):
+          x.op  # pylint: disable=pointless-statement
+        self.assertIsNone(x.assign(1.0).op)
+        self.assertIsNone(x.assign_add(1.0).op)
+        self.assertIsNone(x.assign_sub(1.0).op)
+      else:
+        self.assertIsNotNone(x.op)
+        self.assertIsNotNone(x.assign(1.0).op)
+        self.assertIsNotNone(x.assign_add(1.0).op)
+        self.assertIsNotNone(x.assign_sub(1.0).op)
 
       @tf.function
       def func():
@@ -486,25 +510,51 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
             'dtype_to_cast_to=float32 '
             'inner_variable=MirroredVariable.*>')
 
-  @parameterized.named_parameters(
-      ('v1', tf.compat.v1.train.GradientDescentOptimizer),
-      ('v2', gradient_descent_v2.SGD))
-  def test_optimizer(self, optimizer_class):
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(
+      optimizer_class=[
+          adadelta.Adadelta,
+          adagrad.Adagrad,
+          adam.Adam,
+          adamax.Adamax,
+          ftrl.Ftrl,
+          gradient_descent_v2.SGD,
+          nadam.Nadam,
+          rmsprop.RMSprop,
+          tf.compat.v1.train.GradientDescentOptimizer
+      ],
+      use_tf_function=[False, True]))
+  def test_optimizer(self, optimizer_class, use_tf_function):
+    if use_tf_function and not tf.executing_eagerly():
+      self.skipTest('Test does not support graph mode with tf.function')
     x = get_var(1., tf.float32)
     x = autocast_variable.create_autocast_variable(x)
-    opt = optimizer_class(1.)
+    y = get_var(1., tf.float32)
+    opt = optimizer_class(learning_rate=1.)
 
-    @tf.function
     def f():
-      opt.minimize(lambda: x + 1., var_list=[x])
+      # Minimize both the AutoCastVariable and the normal tf.Variable. Both
+      # variables should be updated to the same value.
+      op = opt.minimize(lambda: x + y, var_list=[x, y])
+      return None if tf.compat.v1.executing_eagerly_outside_functions() else op
+
+    if use_tf_function:
+      f = tf.function(f)
 
     if tf.executing_eagerly():
       f()
     else:
-      op = f()  # pylint: disable=assignment-from-no-return
+      op = f()
       self.evaluate(tf.compat.v1.global_variables_initializer())
       self.evaluate(op)
-    self.assertEqual(self.evaluate(x), 0)
+    # Assert the AutoCastVariable has changed from its initial value
+    self.assertNotEqual(self.evaluate(x), 1.)
+    # Assert AutoCastVariable is updated correctly by comparing it to the normal
+    # variable
+    self.assertAlmostEqual(self.evaluate(x), self.evaluate(y))
+    if optimizer_class in (gradient_descent_v2.SGD,
+                           tf.compat.v1.train.GradientDescentOptimizer):
+      # With SGD, the variables decreases by exactly 1
+      self.assertEqual(self.evaluate(x), 0)
 
 
 if __name__ == '__main__':
