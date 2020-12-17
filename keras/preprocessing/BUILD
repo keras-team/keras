@@ -39,6 +39,7 @@ py_library(
     ],
     deps = [
         "//:expect_keras_preprocessing_installed",
+        "//:expect_pillow_installed",
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -54,6 +55,7 @@ py_library(
     ],
     deps = [
         "//:expect_keras_preprocessing_installed",
+        "//:expect_pillow_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:data_utils",
     ],
@@ -79,6 +81,7 @@ py_library(
     ],
     deps = [
         "//:expect_keras_preprocessing_installed",
+        "//:expect_pillow_installed",
         "//:expect_tensorflow_installed",
     ],
 )
