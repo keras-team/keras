@@ -290,6 +290,7 @@ tf_py_test(
         ":combinations",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
+        "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
         "//keras/layers",
         "//keras/layers:advanced_activations",
