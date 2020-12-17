@@ -9,3 +9,4 @@ six ~= 1.15.0
 tf-nightly
 portpicker
 pyyaml
+Pillow
