@@ -23,11 +23,8 @@ import tensorflow as tf
 import functools
 import numpy as np
 import six
+from keras.benchmarks import benchmark_util
 from keras.benchmarks.layer_benchmarks import layer_benchmarks_test_base
-
-
-def _get_benchmark_name(name):
-  return name.split("__")[-1].split("_")
 
 
 def _get_metadata(name):
@@ -47,16 +44,6 @@ def _get_input_data(inputs):
                      "for the benchmark test")
 
 
-def _generate_benchmark_params(*params_list):
-  benchmark_params = []
-  for params in params_list:
-    benchmark_params.extend(
-        [((param[0] + "_CPU",) + param[1:]) for param in params])
-    benchmark_params.extend(
-        [((param[0] + "_GPU",) + param[1:]) for param in params])
-  return benchmark_params
-
-
 def _layer_call_backward(layer, x):
   with tf.GradientTape() as tape:
     y = layer(x)
@@ -73,23 +60,45 @@ class KerasLayerBenchmarks(six.with_metaclass(
   # the benchmark name. It must follow the convention of
   # "{layer_name}_{small|normal|large}_shape" to make it compatible with
   # `self.report_benchmark()` method.
-  _benchmark_parameters = _generate_benchmark_params([
-      ("Conv2D_small_shape", tf.keras.layers.Conv2D,
-       {"filters": 1, "kernel_size": 1, "activation": "relu"},
-       {"input_shape": (1, 1, 1, 1)}, 10),
-      ("Conv2D_normal_shape", tf.keras.layers.Conv2D,
-       {"filters": 1, "kernel_size": 1, "activation": "relu"},
-       {"input_shape": (64, 28, 28, 3)}, 10),
-      ("LSTM_small_shape", tf.keras.layers.LSTM,
-       {"units": 1}, {"input_shape": (1, 1, 1)}, 10),
-      ("LSTM_normal_shape", tf.keras.layers.LSTM,
-       {"units": 4}, {"input_shape": (32, 10, 8)}, 10),
-      ("Embedding_small_shape", tf.keras.layers.Embedding,
-       {"input_dim": 1, "output_dim": 1, "input_length": 1},
-       {"input": np.random.randint(1, size=(1, 1))}, 10),
-      ("Embedding_normal_shape", tf.keras.layers.Embedding,
-       {"input_dim": 1000, "output_dim": 64, "input_length": 10},
-       {"input": np.random.randint(1000, size=(32, 10))}, 10),
+  _benchmark_parameters = benchmark_util.generate_benchmark_params_cpu_gpu([
+      ("Conv2D_small_shape", tf.keras.layers.Conv2D, {
+          "filters": 1,
+          "kernel_size": 1,
+          "activation": "relu"
+      }, {
+          "input_shape": (1, 1, 1, 1)
+      }, 10),
+      ("Conv2D_normal_shape", tf.keras.layers.Conv2D, {
+          "filters": 1,
+          "kernel_size": 1,
+          "activation": "relu"
+      }, {
+          "input_shape": (64, 28, 28, 3)
+      }, 10),
+      ("LSTM_small_shape", tf.keras.layers.LSTM, {
+          "units": 1
+      }, {
+          "input_shape": (1, 1, 1)
+      }, 10),
+      ("LSTM_normal_shape", tf.keras.layers.LSTM, {
+          "units": 4
+      }, {
+          "input_shape": (32, 10, 8)
+      }, 10),
+      ("Embedding_small_shape", tf.keras.layers.Embedding, {
+          "input_dim": 1,
+          "output_dim": 1,
+          "input_length": 1
+      }, {
+          "input": np.random.randint(1, size=(1, 1))
+      }, 10),
+      ("Embedding_normal_shape", tf.keras.layers.Embedding, {
+          "input_dim": 1000,
+          "output_dim": 64,
+          "input_length": 10
+      }, {
+          "input": np.random.randint(1000, size=(32, 10))
+      }, 10),
   ])
 
   def benchmark_layer_call(self, layer_cls, layer_args, inputs, num_iters):
@@ -97,7 +106,7 @@ class KerasLayerBenchmarks(six.with_metaclass(
     x = _get_input_data(inputs)
 
     fn = functools.partial(layer, x)
-    name = _get_benchmark_name(self._get_name())
+    name = benchmark_util.get_benchmark_name(self._get_name())
     metadata = {"implementation": name[0] + ".layer.call"}
     metadata.update(_get_metadata(name))
     self.run_report(fn, num_iters, metadata)
@@ -109,14 +118,14 @@ class KerasLayerBenchmarks(six.with_metaclass(
     layer.call = tf.function(layer.call)
 
     fn = functools.partial(layer, x)
-    name = _get_benchmark_name(self._get_name())
+    name = benchmark_util.get_benchmark_name(self._get_name())
     metadata = {"implementation": name[0] + ".layer.call.function"}
     metadata.update(_get_metadata(name))
     self.run_report(fn, num_iters, metadata)
 
   def benchmark_layer_call_with_xla(
       self, layer_cls, layer_args, inputs, num_iters):
-    name = _get_benchmark_name(self._get_name())
+    name = benchmark_util.get_benchmark_name(self._get_name())
     # TODO(b/173461426)
     if layer_cls is tf.keras.layers.Embedding and name[-1] == "GPU":
       return
@@ -136,7 +145,7 @@ class KerasLayerBenchmarks(six.with_metaclass(
     x = _get_input_data(inputs)
 
     fn = functools.partial(_layer_call_backward, layer, x)
-    name = _get_benchmark_name(self._get_name())
+    name = benchmark_util.get_benchmark_name(self._get_name())
     metadata = {"implementation": name[0] + ".layer.call.backward"}
     metadata.update(_get_metadata(name))
     self.run_report(fn, num_iters, metadata)
@@ -148,7 +157,7 @@ class KerasLayerBenchmarks(six.with_metaclass(
     layer.call = tf.function(layer.call)
 
     fn = functools.partial(_layer_call_backward, layer, x)
-    name = _get_benchmark_name(self._get_name())
+    name = benchmark_util.get_benchmark_name(self._get_name())
     metadata = {"implementation": name[0] + ".layer.call.backward.function"}
     metadata.update(_get_metadata(name))
     self.run_report(fn, num_iters, metadata)
@@ -158,29 +167,45 @@ class KerasLayerBenchmarksBackwardXLA(six.with_metaclass(
     tf.__internal__.test.ParameterizedBenchmark,
     layer_benchmarks_test_base.LayerBenchmarksBase)):
 
-  _benchmark_parameters = _generate_benchmark_params([
-      ("Conv2D_small_shape", tf.keras.layers.Conv2D,
-       {"filters": 1, "kernel_size": 1, "activation": "relu"},
-       {"input_shape": (1, 1, 1, 1)}, 10000),
-      ("Conv2D_normal_shape", tf.keras.layers.Conv2D,
-       {"filters": 1, "kernel_size": 1, "activation": "relu"},
-       {"input_shape": (64, 28, 28, 3)}, 10000),
+  _benchmark_parameters = benchmark_util.generate_benchmark_params_cpu_gpu([
+      ("Conv2D_small_shape", tf.keras.layers.Conv2D, {
+          "filters": 1,
+          "kernel_size": 1,
+          "activation": "relu"
+      }, {
+          "input_shape": (1, 1, 1, 1)
+      }, 10000),
+      ("Conv2D_normal_shape", tf.keras.layers.Conv2D, {
+          "filters": 1,
+          "kernel_size": 1,
+          "activation": "relu"
+      }, {
+          "input_shape": (64, 28, 28, 3)
+      }, 10000),
       # TODO(b/153480400)
       # ("LSTM_small_shape", tf.keras.layers.LSTM,
       #  {"units": 1}, {"input_shape": (1, 1, 1)}, 10000),
       # ("LSTM_normal_shape", tf.keras.layers.LSTM,
       #  {"units": 4}, {"input_shape": (32, 10, 8)}, 10000),
-      ("Embedding_small_shape", tf.keras.layers.Embedding,
-       {"input_dim": 1, "output_dim": 1, "input_length": 1},
-       {"input": np.random.randint(1, size=(1, 1))}, 10),
-      ("Embedding_normal_shape", tf.keras.layers.Embedding,
-       {"input_dim": 1000, "output_dim": 64, "input_length": 10},
-       {"input": np.random.randint(1000, size=(32, 10))}, 10),
+      ("Embedding_small_shape", tf.keras.layers.Embedding, {
+          "input_dim": 1,
+          "output_dim": 1,
+          "input_length": 1
+      }, {
+          "input": np.random.randint(1, size=(1, 1))
+      }, 10),
+      ("Embedding_normal_shape", tf.keras.layers.Embedding, {
+          "input_dim": 1000,
+          "output_dim": 64,
+          "input_length": 10
+      }, {
+          "input": np.random.randint(1000, size=(32, 10))
+      }, 10),
   ])
 
   def benchmark_layer_call_backward_with_xla(
       self, layer_cls, layer_args, inputs, num_iters):
-    name = _get_benchmark_name(self._get_name())
+    name = benchmark_util.get_benchmark_name(self._get_name())
     # TODO(b/173461426)
     if layer_cls is tf.keras.layers.Embedding and name[-1] == "GPU":
       return
