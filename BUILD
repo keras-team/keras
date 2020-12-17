@@ -55,6 +55,17 @@ py_library(
     ],
 )
 
+py_library(
+    name = "expect_pillow_installed",
+    # This is a dummy rule used as a pillow dependency in open-source.
+    # We expect pillow to already be installed on the system, e.g. via
+    # `pip install Pillow'
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("Pillow"),
+    ],
+)
+
 # Note that this dependency is for testing only.
 py_library(
     name = "expect_portpicker_installed",
