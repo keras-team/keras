@@ -100,6 +100,17 @@ py_library(
     ],
 )
 
+py_test(
+    name = "benchmark_util_test",
+    srcs = ["benchmark_util_test.py"],
+    python_version = "PY3",
+    tags = COMMON_TAGS,
+    deps = [
+        ":benchmark_util",
+        "//:expect_tensorflow_installed",
+    ],
+)
+
 cuda_py_test(
     name = "bidirectional_lstm_benchmark_test",
     srcs = ["keras_examples_benchmarks/bidirectional_lstm_benchmark_test.py"],
@@ -210,8 +221,25 @@ py_library(
     ],
 )
 
+py_test(
+    name = "optimizer_benchmarks_test",
+    srcs = ["optimizer_benchmarks_test.py"],
+    python_version = "PY3",
+    tags = COMMON_TAGS + [
+        "no_oss_py38",  # TODO(b/162044699)
+    ],
+    deps = [
+        ":benchmark_util",
+        ":profiler_lib",
+        "//:expect_tensorflow_installed",
+        "//keras/optimizer_v2",
+        "//third_party/tensorflow/compiler/jit:xla_cpu_jit",
+        "//third_party/tensorflow/compiler/jit:xla_gpu_jit",
+    ],
+)
+
 # Run memory profiler on Keras model.
-# Please make sure `meomry_profiler` is installed.
+# Please make sure `memory_profiler` is installed.
 # To run the memory profiler:
 # With CPU:
 #   bazel run -c opt model_memory_profile -- --model=YOUR_MODEL_NAME
