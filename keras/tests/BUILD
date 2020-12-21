@@ -230,6 +230,7 @@ tf_py_test(
     size = "small",
     srcs = ["saved_model_test.py"],
     tags = [
+        "no_oss",  # TODO(b/170766453)
         "notap",  # TODO(b/170766453)
     ],
     deps = [
