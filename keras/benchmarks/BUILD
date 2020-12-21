@@ -233,8 +233,6 @@ py_test(
         ":profiler_lib",
         "//:expect_tensorflow_installed",
         "//keras/optimizer_v2",
-        "//third_party/tensorflow/compiler/jit:xla_cpu_jit",
-        "//third_party/tensorflow/compiler/jit:xla_gpu_jit",
     ],
 )
 
