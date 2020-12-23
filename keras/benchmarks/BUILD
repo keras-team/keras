@@ -130,6 +130,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -141,6 +142,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -152,6 +154,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
@@ -164,6 +167,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -175,6 +179,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -186,6 +191,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
     ],
@@ -198,6 +204,7 @@ cuda_py_test(
     tags = COMMON_TAGS,
     deps = [
         ":benchmark_util",
+        ":profiler_lib",
         "//:expect_tensorflow_installed",
     ],
 )
@@ -208,7 +215,9 @@ cuda_py_test(
     python_version = "PY3",
     tags = COMMON_TAGS,
     deps = [
+        ":benchmark_util",
         ":distribution_util",
+        ":profiler_lib",
         "//:expect_tensorflow_installed",
     ],
 )

@@ -155,7 +155,7 @@ class Sequential(functional.Functional):
   def add(self, layer):
     """Adds a layer instance on top of the layer stack.
 
-    Arguments:
+    Args:
         layer: layer instance.
 
     Raises:
@@ -417,7 +417,7 @@ class Sequential(functional.Functional):
 
     The input samples are processed batch by batch.
 
-    Arguments:
+    Args:
         x: input data, as a Numpy array or list of Numpy arrays
             (if the model has multiple inputs).
         batch_size: integer.
@@ -442,7 +442,7 @@ class Sequential(functional.Functional):
 
     The input samples are processed batch by batch.
 
-    Arguments:
+    Args:
         x: input data, as a Numpy array or list of Numpy arrays
             (if the model has multiple inputs).
         batch_size: integer.

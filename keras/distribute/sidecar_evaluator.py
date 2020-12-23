@@ -20,11 +20,33 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+
+import re
 from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.platform import tf_logging as logging
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
 _ITERATIONS_UNINITIALIZED = -1
+
+
+def list_checkpoint_attributes(ckpt_dir_or_file):
+  """Lists all the attributes in a checkpoint.
+
+  Checkpoint keys are paths in a checkpoint graph, and attribute is the first
+  element in the path. e.g. with a checkpoint key
+  "optimizer/iter/.ATTRIBUTES/VARIABLE_VALUE", optimizer is the attribute. The
+  attribute is also used to save/restore a variable in a checkpoint,
+  e.g. tf.train.Checkpoint(optimizer=optimizer, model=model).
+
+  Args:
+    ckpt_dir_or_file: Directory with checkpoints file or path to checkpoint.
+
+  Returns:
+    Set of attributes in a checkpoint.
+  """
+  reader = tf.train.load_checkpoint(ckpt_dir_or_file)
+  variable_map = reader.get_variable_to_shape_map()
+  return {name.split('/')[0] for name in variable_map.keys()}
 
 
 class SidecarEvaluator(object):
@@ -143,6 +165,21 @@ class SidecarEvaluator(object):
         # `expect_partial` because the checkpoint can have other `Trackable`s
         # such as `optimizer`.
         checkpoint.restore(latest_checkpoint).expect_partial()
+        checkpoint_attributes = list_checkpoint_attributes(latest_checkpoint)
+        # The checkpoint should contain model and optimizer for SidecarEvaluator
+        # to work. But the model weights saved by ModelCheckpoint callback does
+        # not contain model as an attribute. To make SidecarEvaluator compatibly
+        # work in this case, if model attribute is not found but
+        # layer_with_weights attribute is found, use model.load_weights to load
+        # the model's weights, while self._iterations is still restored by
+        # checkpoint variable.
+        if 'model' not in checkpoint_attributes:
+          for attribute in checkpoint_attributes:
+            # check whether the checkpoint has the required attributes for
+            # model.load_weights to work.
+            if re.match(r'^layer_with_weights-[\d+]', attribute) is not None:
+              self.model.load_weights(latest_checkpoint)
+              break
       except (tf.errors.OpError,) as e:
         # A couple errors can happen here with the coordinator racing to write
         # checkpoint:

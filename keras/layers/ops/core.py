@@ -24,7 +24,7 @@ import tensorflow as tf
 def dense(inputs, kernel, bias=None, activation=None, dtype=None):
   """Densely connected NN layer op.
 
-  Arguments:
+  Args:
     inputs: `tf.Tensor` or `tf.SparseTensor`. Inputs to operation.
     kernel: `tf.Variable`. Matrix kernel.
     bias: (Optional) `tf.Variable`. Bias to add to outputs.

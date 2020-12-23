@@ -41,7 +41,7 @@ def _eager_loss_fn(outputs, targets, loss_fn, output_name):
 def _eager_metrics_fn(model, outputs, targets, sample_weights=None, masks=None):
   """Calculates the metrics for each output of the given model.
 
-  Arguments:
+  Args:
       model: The model on which metrics are being calculated.
       outputs: The outputs of the given model.
       targets: The predictions or targets of the given model.
@@ -89,7 +89,7 @@ def _model_loss(model,
                 training=False):
   """Calculates the loss for a given model.
 
-  Arguments:
+  Args:
       model: The model on which metrics are being calculated.
       inputs: Either a dictionary of inputs to the model or a list of input
         arrays.
@@ -230,7 +230,7 @@ def _process_single_batch(model,
 
      The model weights are updated if training is set to True.
 
-  Arguments:
+  Args:
       model: Model whose loss has to be calculated.
       inputs: List of input arrays.
       targets: List of target arrays.
@@ -290,7 +290,7 @@ def train_on_batch(model,
                    output_loss_metrics=None):
   """Calculates the loss and gradient updates for one input batch.
 
-  Arguments:
+  Args:
       model: Model whose loss has to be calculated.
       inputs: Input batch data.
       targets: Target batch data.
@@ -331,7 +331,7 @@ def test_on_batch(model,
                   output_loss_metrics=None):
   """Calculates the loss for one input batch.
 
-  Arguments:
+  Args:
       model: Model whose loss has to be calculated.
       inputs: Input batch data.
       targets: Target batch data.

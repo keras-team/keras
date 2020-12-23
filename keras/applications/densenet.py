@@ -58,7 +58,7 @@ layers = VersionAwareLayers()
 def dense_block(x, blocks, name):
   """A dense block.
 
-  Arguments:
+  Args:
     x: input tensor.
     blocks: integer, the number of building blocks.
     name: string, block label.
@@ -74,7 +74,7 @@ def dense_block(x, blocks, name):
 def transition_block(x, reduction, name):
   """A transition block.
 
-  Arguments:
+  Args:
     x: input tensor.
     reduction: float, compression rate at transition layers.
     name: string, block label.
@@ -100,7 +100,7 @@ def transition_block(x, reduction, name):
 def conv_block(x, growth_rate, name):
   """A building block for a dense block.
 
-  Arguments:
+  Args:
     x: input tensor.
     growth_rate: float, growth rate at dense layers.
     name: string, block label.
@@ -150,7 +150,7 @@ def DenseNet(
   For DenseNet, call `tf.keras.applications.densenet.preprocess_input` on your
   inputs before passing them to the model.
 
-  Arguments:
+  Args:
     blocks: numbers of building blocks for the four dense layers.
     include_top: whether to include the fully-connected
       layer at the top of the network.
@@ -389,7 +389,7 @@ DOC = """
   For DenseNet, call `tf.keras.applications.densenet.preprocess_input` on your
   inputs before passing them to the model.
 
-  Arguments:
+  Args:
     include_top: whether to include the fully-connected
       layer at the top of the network.
     weights: one of `None` (random initialization),

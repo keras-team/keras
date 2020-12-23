@@ -25,6 +25,7 @@ py_library(
         "//keras:initializers",
         "//keras/engine:input_spec",
         "//keras/legacy_tf_layers:layers_base",
+        "//keras/saving",
         "//keras/utils:tf_utils",
     ],
 )

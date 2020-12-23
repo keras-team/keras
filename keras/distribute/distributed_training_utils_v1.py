@@ -596,7 +596,7 @@ def _get_input_from_iterator(iterator, model):
 def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
   """Prepare feed values to the model execution function.
 
-  Arguments:
+  Args:
     model: Model to prepare feed values for.
     inputs: List or dict of model inputs.
     targets: Optional list of model targets.
@@ -1082,7 +1082,7 @@ def is_current_worker_chief():
 def filter_distributed_callbacks(callbacks_list, model):
   """Filter Callbacks based on the worker context when running multi-worker.
 
-  Arguments:
+  Args:
     callbacks_list: A list of `Callback` instances.
     model: Keras model instance.
 
