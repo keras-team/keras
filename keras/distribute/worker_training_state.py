@@ -83,7 +83,7 @@ class WorkerTrainingState(object):
   def back_up(self, epoch):
     """Back up the current state of training into a checkpoint file.
 
-    Arguments:
+    Args:
       epoch: The current epoch information to be saved.
     """
     K.set_value(self._ckpt_saved_epoch, epoch)
@@ -120,7 +120,7 @@ class WorkerTrainingState(object):
     infer `initial_epoch` from `self._ckpt_saved_epoch` to continue previous
     unfinished training from certain epoch.
 
-    Arguments:
+    Args:
       initial_epoch: The original initial_epoch user passes in in `fit()`.
       mode: The mode for running `model.fit()`.
 

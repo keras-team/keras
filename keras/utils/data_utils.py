@@ -70,7 +70,7 @@ if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.  # p
     Under Python 2, `urlretrieve` relies on `FancyURLopener` from legacy
     `urllib` module, known to have issues with proxy management.
 
-    Arguments:
+    Args:
         url: url to retrieve.
         filename: where to store the retrieved data locally.
         reporthook: a hook function that will be called once on establishment of
@@ -115,7 +115,7 @@ def is_generator_or_sequence(x):
 def _extract_archive(file_path, path='.', archive_format='auto'):
   """Extracts an archive if it matches tar, tar.gz, tar.bz, or zip formats.
 
-  Arguments:
+  Args:
       file_path: path to the archive file
       path: path to extract the archive file
       archive_format: Archive format to try for extracting the file.
@@ -192,7 +192,7 @@ def get_file(fname,
       untar=True)
   ```
 
-  Arguments:
+  Args:
       fname: Name of the file. If an absolute path `/path/to/file.txt` is
           specified the file will be saved at that location.
       origin: Original URL of the file.
@@ -315,7 +315,7 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
   ```
 
-  Arguments:
+  Args:
       fpath: path to the file being validated
       algorithm: hash algorithm, one of `'auto'`, `'sha256'`, or `'md5'`.
           The default `'auto'` detects the hash algorithm in use.
@@ -339,7 +339,7 @@ def _hash_file(fpath, algorithm='sha256', chunk_size=65535):
 def validate_file(fpath, file_hash, algorithm='auto', chunk_size=65535):
   """Validates a file against a sha256 or md5 hash.
 
-  Arguments:
+  Args:
       fpath: path to the file being validated
       file_hash:  The expected hash string of the file.
           The sha256 and md5 hash algorithms are both supported.
@@ -455,7 +455,7 @@ class Sequence(object):
   def __getitem__(self, index):
     """Gets batch at position `index`.
 
-    Arguments:
+    Args:
         index: position of the batch in the Sequence.
 
     Returns:
@@ -486,7 +486,7 @@ class Sequence(object):
 def iter_sequence_infinite(seq):
   """Iterates indefinitely over a Sequence.
 
-  Arguments:
+  Args:
     seq: `Sequence` instance.
 
   Yields:
@@ -556,7 +556,7 @@ def get_index(uid, i):
   get a specific one. A single Sequence would cause the validation to
   overwrite the training Sequence.
 
-  Arguments:
+  Args:
       uid: int, Sequence identifier
       i: index
 
@@ -624,7 +624,7 @@ class SequenceEnqueuer(object):
   def start(self, workers=1, max_queue_size=10):
     """Starts the handler's workers.
 
-    Arguments:
+    Args:
         workers: Number of workers.
         max_queue_size: queue size
             (when full, workers could block on `put()`)
@@ -651,7 +651,7 @@ class SequenceEnqueuer(object):
 
     Should be called by the same thread which called `start()`.
 
-    Arguments:
+    Args:
         timeout: maximum time to wait on `thread.join()`
     """
     self.stop_signal.set()
@@ -675,7 +675,7 @@ class SequenceEnqueuer(object):
   def _get_executor_init(self, workers):
     """Gets the Pool initializer for multiprocessing.
 
-    Arguments:
+    Args:
         workers: Number of workers.
 
     Returns:
@@ -701,7 +701,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
 
   Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
-  Arguments:
+  Args:
       sequence: A `tf.keras.utils.data_utils.Sequence` object.
       use_multiprocessing: use multiprocessing if True, otherwise threading
       shuffle: whether to shuffle the data at the beginning of each epoch
@@ -714,7 +714,7 @@ class OrderedEnqueuer(SequenceEnqueuer):
   def _get_executor_init(self, workers):
     """Gets the Pool initializer for multiprocessing.
 
-    Arguments:
+    Args:
         workers: Number of workers.
 
     Returns:
@@ -821,7 +821,7 @@ def next_sample(uid):
   get a specific one. A single generator would cause the validation to
   overwrite the training generator.
 
-  Arguments:
+  Args:
       uid: int, generator identifier
 
   Returns:
@@ -839,7 +839,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
 
   Used in `fit_generator`, `evaluate_generator`, `predict_generator`.
 
-  Arguments:
+  Args:
       generator: a generator function which yields data
       use_multiprocessing: use multiprocessing if True, otherwise threading
       wait_time: time to sleep in-between calls to `put()`
@@ -856,7 +856,7 @@ class GeneratorEnqueuer(SequenceEnqueuer):
   def _get_executor_init(self, workers):
     """Gets the Pool initializer for multiprocessing.
 
-    Arguments:
+    Args:
       workers: Number of works.
 
     Returns:

@@ -51,7 +51,7 @@ def serialize(optimizer):
 def deserialize(config, custom_objects=None):
   """Inverse of the `serialize` function.
 
-  Arguments:
+  Args:
       config: Optimizer configuration dictionary.
       custom_objects: Optional dictionary mapping names (strings) to custom
         objects (classes and functions) to be considered during deserialization.
@@ -92,7 +92,7 @@ def deserialize(config, custom_objects=None):
 def get(identifier):
   """Retrieves a Keras Optimizer instance.
 
-  Arguments:
+  Args:
       identifier: Optimizer identifier, one of
           - String: name of an optimizer
           - Dictionary: configuration dictionary. - Keras Optimizer instance (it

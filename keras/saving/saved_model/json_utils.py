@@ -82,7 +82,7 @@ def _decode_helper(obj):
 def get_json_type(obj):
   """Serializes any object to a JSON-serializable structure.
 
-  Arguments:
+  Args:
       obj: the object to serialize
 
   Returns:
@@ -140,4 +140,3 @@ def get_json_type(obj):
                        .format(obj, type(obj)))
 
   raise TypeError('Not JSON Serializable:', obj)
-

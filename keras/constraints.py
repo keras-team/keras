@@ -48,7 +48,7 @@ class MaxNorm(Constraint):
 
   Also available via the shortcut function `tf.keras.constraints.max_norm`.
 
-  Arguments:
+  Args:
     max_value: the maximum norm value for the incoming weights.
     axis: integer, axis along which to calculate weight norms.
       For instance, in a `Dense` layer the weight matrix
@@ -97,7 +97,7 @@ class UnitNorm(Constraint):
 
   Also available via the shortcut function `tf.keras.constraints.unit_norm`.
 
-  Arguments:
+  Args:
     axis: integer, axis along which to calculate weight norms.
       For instance, in a `Dense` layer the weight matrix
       has shape `(input_dim, output_dim)`,
@@ -135,7 +135,7 @@ class MinMaxNorm(Constraint):
 
   Also available via the shortcut function `tf.keras.constraints.min_max_norm`.
 
-  Arguments:
+  Args:
     min_value: the minimum norm for the incoming weights.
     max_value: the maximum norm for the incoming weights.
     rate: rate for enforcing the constraint: weights will be

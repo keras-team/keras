@@ -166,7 +166,7 @@ tf_py_test(
         "no_oss",  # TODO(b/175911576)
         "no_rocm",
         "no_windows",
-        "notap",  # TODO(b/161198218): flaky timeout
+        "notap",  # TODO(b/175911576)
     ],
     deps = [
         "//:expect_absl_installed",

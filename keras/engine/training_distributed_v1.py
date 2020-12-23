@@ -55,7 +55,7 @@ def _build_model(strategy, model, mode, inputs, targets=None):
 def _make_train_step_fn(model, mode, strategy, output_labels):
   """Create step fn.
 
-  Arguments:
+  Args:
     model: a Keras Model instance.
     mode: One of ModeKeys.TRAIN/ModeKeys.TEST/ModeKeys.PREDICT.
     strategy: a `tf.distribute.Strategy` instance.
@@ -127,7 +127,7 @@ def experimental_tpu_fit_loop(model,
                               validation_freq=1):
   """Fit loop for training with TPU tf.distribute.Strategy.
 
-  Arguments:
+  Args:
       model: Keras Model instance.
       dataset: Dataset that returns inputs and targets
       epochs: Number of times to iterate over the data
@@ -292,7 +292,7 @@ def experimental_tpu_test_loop(model,
                                callbacks=None):
   """Test loop for evaluating with TPU tf.distribute.Strategy.
 
-  Arguments:
+  Args:
       model: Keras Model instance.
       dataset: Dataset for input data.
       verbose: Integer, Verbosity mode 0 or 1.
@@ -423,7 +423,7 @@ def experimental_tpu_predict_loop(model,
                                   callbacks=None):
   """Predict loop for predicting with TPU tf.distribute.Strategy.
 
-  Arguments:
+  Args:
       model: Keras Model instance.
       dataset: Dataset for input data.
       verbose: Integer, Verbosity mode 0 or 1.

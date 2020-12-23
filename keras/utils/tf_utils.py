@@ -96,7 +96,7 @@ def get_reachable_from_inputs(inputs, targets=None):
 def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
   """Maps the atomic elements of a nested structure.
 
-  Arguments:
+  Args:
     is_atomic_fn: A function that determines if an element of `nested` is
       atomic.
     map_fn: The function to apply to atomic elements of `nested`.
@@ -150,7 +150,7 @@ def convert_shapes(input_shape, to_tuples=True):
   - ints
   - None
 
-  Arguments:
+  Args:
     input_shape: A nested structure of objects to be converted to TensorShapes.
     to_tuples: If `True`, converts all TensorShape to tuples. Otherwise converts
       all tuples representing shapes to TensorShapes.
@@ -200,7 +200,7 @@ class ListWrapper(object):
 def convert_inner_node_data(nested, wrap=False):
   """Either wraps or unwraps innermost node data lists in `ListWrapper` objects.
 
-  Arguments:
+  Args:
     nested: A nested data structure.
     wrap: If `True`, wrap innermost lists in `ListWrapper` objects. If `False`,
       unwraps `ListWrapper` objects into lists.
@@ -247,7 +247,7 @@ def shape_type_conversion(fn):
 
   Used in `compute_output_shape` and `build`.
 
-  Arguments:
+  Args:
     fn: function to wrap.
 
   Returns:
@@ -283,7 +283,7 @@ def is_extension_type(tensor):
   but this will be changed to use an appropriate extensiontype protocol
   check once ExtensionType is made public.
 
-  Arguments:
+  Args:
     tensor: An object to test
 
   Returns:
@@ -298,7 +298,7 @@ def is_symbolic_tensor(tensor):
   A Variable can be seen as either: it is considered symbolic
   when we are in a graph scope, and eager when we are in an eager scope.
 
-  Arguments:
+  Args:
     tensor: A tensor instance to test.
 
   Returns:
@@ -350,7 +350,7 @@ def register_symbolic_tensor_type(cls):
   layer = tf.keras.layers.Lambda(lambda input_: Foo(input_))
   ```
 
-  Arguments:
+  Args:
     cls: A `class` type which shall be regarded as a symbolic `Tensor`.
   """
   global _user_convertible_tensor_types
@@ -412,7 +412,7 @@ def assert_no_legacy_layers(layers):
 def maybe_init_scope(layer):
   """Open an `init_scope` if in V2 mode and using the keras graph.
 
-  Arguments:
+  Args:
     layer: The Layer/Model that is currently active.
 
   Yields:

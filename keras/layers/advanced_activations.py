@@ -63,7 +63,7 @@ class LeakyReLU(Layer):
   Output shape:
     Same shape as the input.
 
-  Arguments:
+  Args:
     alpha: Float >= 0. Negative slope coefficient. Default to 0.3.
 
   """
@@ -107,7 +107,7 @@ class PReLU(Layer):
   Output shape:
     Same shape as the input.
 
-  Arguments:
+  Args:
     alpha_initializer: Initializer function for the weights.
     alpha_regularizer: Regularizer for the weights.
     alpha_constraint: Constraint for the weights.
@@ -199,7 +199,7 @@ class ELU(Layer):
   Output shape:
     Same shape as the input.
 
-  Arguments:
+  Args:
     alpha: Scale for the negative factor.
   """
 
@@ -240,7 +240,7 @@ class ThresholdedReLU(Layer):
   Output shape:
     Same shape as the input.
 
-  Arguments:
+  Args:
     theta: Float >= 0. Threshold location of activation.
   """
 
@@ -302,7 +302,7 @@ class Softmax(Layer):
   Output shape:
     Same shape as the input.
 
-  Arguments:
+  Args:
     axis: Integer, or list of Integers, axis along which the softmax
       normalization is applied.
   Call arguments:
@@ -388,7 +388,7 @@ class ReLU(Layer):
   Output shape:
     Same shape as the input.
 
-  Arguments:
+  Args:
     max_value: Float >= 0. Maximum activation value. Default to None, which
       means unlimited.
     negative_slope: Float >= 0. Negative slope coefficient. Default to 0.
