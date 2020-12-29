@@ -118,7 +118,7 @@ py_library(
     # `pip install tensorflow` or `pip install tensorflow_gpu`
     visibility = ["//visibility:public"],
     deps = [
-        requirement("tf-nightly"),
+        requirement("tf-nightly-gpu"),
     ],
 )
 
