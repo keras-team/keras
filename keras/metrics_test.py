@@ -2240,6 +2240,21 @@ class ResetStatesTest(keras_parameterized.TestCase):
       self.assertEqual(self.evaluate(s_obj.false_negatives), 25.)
       self.assertEqual(self.evaluate(s_obj.true_negatives), 25.)
 
+  def test_reset_states_recall_at_fp_rate(self):
+    s_obj = metrics.RecallAtFPRate(fp_rate=0.5, num_thresholds=1)
+    model = _get_model([s_obj])
+    x = np.concatenate((np.ones((25, 4)), np.zeros((25, 4)), np.zeros(
+        (25, 4)), np.ones((25, 4))))
+    y = np.concatenate((np.ones((25, 1)), np.zeros((25, 1)), np.ones(
+        (25, 1)), np.zeros((25, 1))))
+
+    for _ in range(2):
+      model.evaluate(x, y)
+      self.assertEqual(self.evaluate(s_obj.true_positives), 25.)
+      self.assertEqual(self.evaluate(s_obj.false_positives), 25.)
+      self.assertEqual(self.evaluate(s_obj.false_negatives), 25.)
+      self.assertEqual(self.evaluate(s_obj.true_negatives), 25.)
+
   def test_reset_states_auc(self):
     auc_obj = metrics.AUC(num_thresholds=3)
     model = _get_model([auc_obj])
