@@ -113,7 +113,7 @@ class Initializer(object):
 
 
 @keras_export('keras.initializers.Zeros', 'keras.initializers.zeros', v1=[])
-class Zeros(tf.zeros_initializer, Initializer):
+class Zeros(Initializer):
   """Initializer that generates tensors initialized to 0.
 
   Also available via the shortcut function `tf.keras.initializers.zeros`.
@@ -140,11 +140,17 @@ class Zeros(tf.zeros_initializer, Initializer):
        (via `tf.keras.backend.set_floatx(float_dtype)`).
       **kwargs: Additional keyword arguments.
     """
-    return super(Zeros, self).__call__(shape, dtype=_get_dtype(dtype), **kwargs)
+    _validate_kwargs(self.__class__.__name__, kwargs)
+    dtype = _get_dtype(dtype)
+    if not dtype.is_numpy_compatible or dtype == tf.string:
+      raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
+    if _PARTITION_SHAPE in kwargs:
+      shape = kwargs[_PARTITION_SHAPE]
+    return tf.zeros(shape, dtype)
 
 
 @keras_export('keras.initializers.Ones', 'keras.initializers.ones', v1=[])
-class Ones(tf.ones_initializer, Initializer):
+class Ones(Initializer):
   """Initializer that generates tensors initialized to 1.
 
   Also available via the shortcut function `tf.keras.initializers.ones`.
@@ -171,7 +177,13 @@ class Ones(tf.ones_initializer, Initializer):
        (via `tf.keras.backend.set_floatx(float_dtype)`).
       **kwargs: Additional keyword arguments.
     """
-    return super(Ones, self).__call__(shape, dtype=_get_dtype(dtype), **kwargs)
+    _validate_kwargs(self.__class__.__name__, kwargs)
+    dtype = _get_dtype(dtype)
+    if not dtype.is_numpy_compatible or dtype == tf.string:
+      raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
+    if _PARTITION_SHAPE in kwargs:
+      shape = kwargs[_PARTITION_SHAPE]
+    return tf.ones(shape, dtype)
 
 
 @keras_export('keras.initializers.Constant',
@@ -225,7 +237,7 @@ class Constant(Initializer):
 @keras_export('keras.initializers.RandomUniform',
               'keras.initializers.random_uniform',
               v1=[])
-class RandomUniform(tf.random_uniform_initializer, Initializer):
+class RandomUniform(Initializer):
   """Initializer that generates tensors with a uniform distribution.
 
   Also available via the shortcut function
@@ -250,6 +262,12 @@ class RandomUniform(tf.random_uniform_initializer, Initializer):
       always produce the same random tensor for a given shape and dtype.
   """
 
+  def __init__(self, minval=-0.05, maxval=0.05, seed=None):
+    self.minval = minval
+    self.maxval = maxval
+    self.seed = seed
+    self._random_generator = _RandomGenerator(seed)
+
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized as specified by the initializer.
 
@@ -262,14 +280,27 @@ class RandomUniform(tf.random_uniform_initializer, Initializer):
        (via `tf.keras.backend.set_floatx(float_dtype)`).
       **kwargs: Additional keyword arguments.
     """
-    return super(RandomUniform, self).__call__(
-        shape, dtype=_get_dtype(dtype), **kwargs)
+    _validate_kwargs(self.__class__.__name__, kwargs)
+    dtype = _get_dtype(dtype)
+    if not dtype.is_floating and not dtype.is_integer:
+      raise ValueError('Expected float or integer dtype, got %s.' % dtype)
+    if _PARTITION_SHAPE in kwargs:
+      shape = kwargs[_PARTITION_SHAPE]
+    return self._random_generator.random_uniform(shape, self.minval,
+                                                 self.maxval, dtype)
+
+  def get_config(self):
+    return {
+        'minval': self.minval,
+        'maxval': self.maxval,
+        'seed': self.seed
+    }
 
 
 @keras_export('keras.initializers.RandomNormal',
               'keras.initializers.random_normal',
               v1=[])
-class RandomNormal(tf.random_normal_initializer, Initializer):
+class RandomNormal(Initializer):
   """Initializer that generates tensors with a normal distribution.
 
   Also available via the shortcut function
@@ -294,6 +325,12 @@ class RandomNormal(tf.random_normal_initializer, Initializer):
       always produce the same random tensor for a given shape and dtype.
   """
 
+  def __init__(self, mean=0.0, stddev=0.05, seed=None):
+    self.mean = mean
+    self.stddev = stddev
+    self.seed = seed
+    self._random_generator = _RandomGenerator(seed)
+
   def __call__(self, shape, dtype=None, **kwargs):
     """Returns a tensor object initialized to random normal values.
 
@@ -305,8 +342,19 @@ class RandomNormal(tf.random_normal_initializer, Initializer):
         `tf.keras.backend.set_floatx(float_dtype)`)
       **kwargs: Additional keyword arguments.
     """
-    return super(RandomNormal, self).__call__(
-        shape, dtype=_get_dtype(dtype), **kwargs)
+    _validate_kwargs(self.__class__.__name__, kwargs)
+    dtype = _assert_float_dtype(_get_dtype(dtype))
+    if _PARTITION_SHAPE in kwargs:
+      shape = kwargs[_PARTITION_SHAPE]
+    return self._random_generator.random_normal(shape, self.mean, self.stddev,
+                                                dtype)
+
+  def get_config(self):
+    return {
+        'mean': self.mean,
+        'stddev': self.stddev,
+        'seed': self.seed
+    }
 
 
 @keras_export('keras.initializers.TruncatedNormal',
