@@ -107,6 +107,11 @@ def swap_class(cls, v2_cls, v1_cls, use_v2):
   new_bases = []
   for base in cls.__bases__:
     if ((use_v2 and issubclass(base, v1_cls)
+         # `v1_cls` often extends `v2_cls`, so it may still call `swap_class`
+         # even if it doesn't need to. That being said, it may be the safest
+         # not to over optimize this logic for the sake of correctness,
+         # especially if we swap v1 & v2 classes that don't extend each other,
+         # or when the inheritance order is different.
          or (not use_v2 and issubclass(base, v2_cls)))):
       new_base = swap_class(base, v2_cls, v1_cls, use_v2)
     else:
