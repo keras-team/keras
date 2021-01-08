@@ -58,11 +58,13 @@ def remove_squeezable_dimensions(
     Tuple of `labels` and `predictions`, possibly with last dim squeezed.
   """
   with K.name_scope(name or 'remove_squeezable_dimensions'):
-    predictions = tf.convert_to_tensor(predictions)
-    labels = tf.convert_to_tensor(labels)
-    predictions_shape = predictions.get_shape()
+    if not isinstance(predictions, tf.RaggedTensor):
+      predictions = tf.convert_to_tensor(predictions)
+    if not isinstance(labels, tf.RaggedTensor):
+      labels = tf.convert_to_tensor(labels)
+    predictions_shape = predictions.shape
     predictions_rank = predictions_shape.ndims
-    labels_shape = labels.get_shape()
+    labels_shape = labels.shape
     labels_rank = labels_shape.ndims
     if (labels_rank is not None) and (predictions_rank is not None):
       # Use static rank.
