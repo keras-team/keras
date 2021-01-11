@@ -45,7 +45,6 @@ from six.moves.urllib.request import urlopen
 from keras.utils import tf_inspect
 from keras.utils.generic_utils import Progbar
 from keras.utils.io_utils import path_to_string
-from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -529,10 +528,6 @@ def get_pool_class(use_multiprocessing):
   global _FORCE_THREADPOOL
   if not use_multiprocessing or _FORCE_THREADPOOL:
     return multiprocessing.dummy.Pool  # ThreadPool
-  logging.warning(
-      'multiprocessing can interact badly with TensorFlow, causing '
-      'nondeterministic deadlocks. For high performance data pipelines tf.data '
-      'is recommended.')
   return multiprocessing.Pool
 
 
