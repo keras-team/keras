@@ -51,7 +51,6 @@ from keras.utils import tf_utils
 # A module that only depends on `keras.layers` import these from here.
 from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-import
 from keras.utils.tf_utils import is_tensor_or_tensor_list  # pylint: disable=unused-import
-from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.training.tracking import data_structures
@@ -2226,11 +2225,7 @@ class Layer(base_layer.Layer):
     # TODO(b/125122625): This won't pick up on any variables added to a
     # list/dict after creation.
     for val in tf.nest.flatten(value):
-      # TODO(b/126450014): Remove `_UnreadVariable` check here when assign ops
-      # no longer return True for isinstance Variable checks.
       if not isinstance(val, tf.Variable):
-        continue
-      if isinstance(val, resource_variable_ops._UnreadVariable):  # pylint: disable=protected-access
         continue
 
       # Users may add extra weights/variables
