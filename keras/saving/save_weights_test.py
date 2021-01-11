@@ -34,7 +34,6 @@ from keras import optimizer_v1
 from keras import testing_utils
 from keras.engine import training
 from keras.saving import hdf5_format
-from tensorflow.python.platform import tf_logging as logging
 
 try:
   import h5py  # pylint:disable=g-import-not-at-top
@@ -392,21 +391,6 @@ class SubclassedModel(training.Model):
 
 
 class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCase):
-
-  def test_keras_optimizer_warning(self):
-    graph = tf.Graph()
-    with graph.as_default(), self.session(graph):
-      model = keras.models.Sequential()
-      model.add(keras.layers.Dense(2, input_shape=(3,)))
-      model.add(keras.layers.Dense(3))
-      model.compile(loss='mse', optimizer=optimizer_v1.Adam(), metrics=['acc'])
-      if not tf.compat.v1.executing_eagerly_outside_functions():
-        model._make_train_function()
-      temp_dir = self.get_temp_dir()
-      prefix = os.path.join(temp_dir, 'ckpt')
-      with tf.compat.v1.test.mock.patch.object(logging, 'warning') as mock_log:
-        model.save_weights(prefix)
-        self.assertRegex(str(mock_log.call_args), 'Keras optimizer')
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_tensorflow_format_overwrite(self):

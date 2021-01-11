@@ -23,6 +23,7 @@ import tensorflow as tf
 import numpy as np
 from keras.layers.preprocessing import image_preprocessing
 from keras.preprocessing import dataset_utils
+from keras.preprocessing import image as keras_image_ops
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -42,7 +43,8 @@ def image_dataset_from_directory(directory,
                                  validation_split=None,
                                  subset=None,
                                  interpolation='bilinear',
-                                 follow_links=False):
+                                 follow_links=False,
+                                 smart_resize=False):
   """Generates a `tf.data.Dataset` from image files in a directory.
 
   If your directory structure is:
@@ -111,6 +113,11 @@ def image_dataset_from_directory(directory,
       `area`, `lanczos3`, `lanczos5`, `gaussian`, `mitchellcubic`.
     follow_links: Whether to visits subdirectories pointed to by symlinks.
         Defaults to False.
+    smart_resize: If True, the resizing function used will be
+      `tf.keras.preprocessing.image.smart_resize`, which preserves the aspect
+      ratio of the original image by using a mixture of resizing and cropping.
+      If False (default), the resizing function is `tf.image.resize`, which
+      does not preserve aspect ratio.
 
   Returns:
     A `tf.data.Dataset` object.
@@ -200,7 +207,8 @@ def image_dataset_from_directory(directory,
       labels=labels,
       label_mode=label_mode,
       num_classes=len(class_names),
-      interpolation=interpolation)
+      interpolation=interpolation,
+      smart_resize=smart_resize)
   if shuffle:
     # Shuffle locally at each iteration
     dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
@@ -218,22 +226,30 @@ def paths_and_labels_to_dataset(image_paths,
                                 labels,
                                 label_mode,
                                 num_classes,
-                                interpolation):
+                                interpolation,
+                                smart_resize=False):
   """Constructs a dataset of images and labels."""
   # TODO(fchollet): consider making num_parallel_calls settable
   path_ds = tf.data.Dataset.from_tensor_slices(image_paths)
+  args = (image_size, num_channels, interpolation, smart_resize)
   img_ds = path_ds.map(
-      lambda x: path_to_image(x, image_size, num_channels, interpolation))
+      lambda x: load_image(x, *args))
   if label_mode:
     label_ds = dataset_utils.labels_to_dataset(labels, label_mode, num_classes)
     img_ds = tf.data.Dataset.zip((img_ds, label_ds))
   return img_ds
 
 
-def path_to_image(path, image_size, num_channels, interpolation):
+def load_image(path, image_size, num_channels, interpolation,
+               smart_resize=False):
+  """Load an image from a path and resize it."""
   img = tf.io.read_file(path)
   img = tf.image.decode_image(
       img, channels=num_channels, expand_animations=False)
-  img = tf.image.resize(img, image_size, method=interpolation)
+  if smart_resize:
+    img = keras_image_ops.smart_resize(img, image_size,
+                                       interpolation=interpolation)
+  else:
+    img = tf.image.resize(img, image_size, method=interpolation)
   img.set_shape((image_size[0], image_size[1], num_channels))
   return img
