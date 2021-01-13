@@ -40,8 +40,8 @@ from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
 from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.utils import losses_utils
 from keras.utils import np_utils
-from tensorflow.python.ops.losses import loss_reduction
 
 _RANDOM_SEED = 1337
 _TRAIN_SIZE = 200
@@ -2036,9 +2036,9 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
           ],
           mode=['graph', 'eager'],
           reduction=[
-              loss_reduction.ReductionV2.AUTO,
-              loss_reduction.ReductionV2.SUM_OVER_BATCH_SIZE,
-              loss_reduction.ReductionV2.SUM
+              losses_utils.ReductionV2.AUTO,
+              losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+              losses_utils.ReductionV2.SUM
           ]))
   def test_distribution_strategy_with_loss_reduction_types(
       self, distribution, reduction):
@@ -2541,7 +2541,7 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
           optimizer=keras.optimizers.adam_v2.Adam(1e-4),
           loss=keras.losses.SparseCategoricalCrossentropy(
               from_logits=True,
-              reduction=loss_reduction.ReductionV2.SUM_OVER_BATCH_SIZE),
+              reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
           metrics=[
               keras.metrics.SparseCategoricalAccuracy(),
               keras.metrics.SparseCategoricalCrossentropy(from_logits=True),
