@@ -30,7 +30,7 @@ from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras.layers.preprocessing import string_lookup
 from keras.optimizer_v2 import rmsprop
-from tensorflow.python.ops.losses import loss_reduction
+from keras.utils import losses_utils
 from tensorflow.python.training.server_lib import ClusterSpec
 
 
@@ -155,7 +155,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
           pred = model(batch_data, training=True)
           loss = tf.nn.compute_average_loss(
               keras.losses.BinaryCrossentropy(
-                  reduction=loss_reduction.ReductionV2.NONE)(labels, pred))
+                  reduction=losses_utils.ReductionV2.NONE)(labels, pred))
           gradients = tape.gradient(loss, model.trainable_variables)
 
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
