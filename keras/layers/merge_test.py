@@ -28,7 +28,6 @@ from keras import backend as K
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
-from tensorflow.python.ops.ragged import ragged_tensor
 
 
 @keras_parameterized.run_all_keras_modes
@@ -242,8 +241,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     out = keras.layers.Add()([input1, input2])
     model = keras.models.Model(inputs=[input1, input2], outputs=out)
     out_ragged = model.predict([ragged_data, ragged_data], steps=1)
-    out_ragged = ragged_tensor.convert_to_tensor_or_ragged_tensor(
-        out_ragged).to_tensor()
+    out_ragged = convert_ragged_tensor_value(out_ragged).to_tensor()
 
     input1 = keras.Input(shape=(None,))
     input2 = keras.Input(shape=(None,))
@@ -402,6 +400,16 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     self.assertLen(concat2.inbound_nodes[0].input_tensors, 3)
 
     keras.Model(a, c)  # Ensure model can be built.
+
+
+def convert_ragged_tensor_value(inputs):
+  if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
+    flat_values = tf.convert_to_tensor(
+        value=inputs.flat_values,
+        name='flat_values')
+    return tf.RaggedTensor.from_nested_row_splits(
+        flat_values, inputs.nested_row_splits, validate=False)
+  return inputs
 
 
 if __name__ == '__main__':

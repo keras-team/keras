@@ -24,7 +24,6 @@ import os
 import numpy as np
 from keras import backend as K
 from keras.utils import tf_utils
-from tensorflow.python.ops.ragged import ragged_tensor
 
 
 class TableHandler(object):
@@ -124,14 +123,18 @@ class TableHandler(object):
         inputs, (tf.SparseTensor, tf.compat.v1.SparseTensorValue)):
       return self._sparse_lookup(inputs)
 
-    # Try to convert lists/arrays to tensors or RaggedTensors.
-    inputs = ragged_tensor.convert_to_tensor_or_ragged_tensor(inputs)
-
-    # Run the lookup operation on the converted tensor.
     if tf_utils.is_ragged(inputs):
+      if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
+        flat_values = tf.convert_to_tensor(
+            value=inputs.flat_values,
+            name="flat_values")
+        inputs = tf.RaggedTensor.from_nested_row_splits(
+            flat_values, inputs.nested_row_splits, validate=False)
       return self._ragged_lookup(inputs)
-    else:
-      return self._tensor_lookup(inputs)
+
+    # For normal tensor inputs
+    inputs = tf.convert_to_tensor(inputs)
+    return self._tensor_lookup(inputs)
 
   def _eval(self, tensor):
     if self.use_v1_apis:
