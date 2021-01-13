@@ -29,7 +29,6 @@ from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import to_list
 from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.ops.ragged import ragged_util
 from tensorflow.python.tpu import tpu
 
 NEG_INF = -1e10
@@ -503,11 +502,11 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
     # tf.TensorShape `assert_is_compatible_with`
     # check if both dynamic dimensions are equal and then use the flat_values.
     nested_row_split_list = [rt.nested_row_splits for rt in values]
-    assertion_list = ragged_util.assert_splits_match(nested_row_split_list)
+    assertion_list = _assert_splits_match(nested_row_split_list)
 
     # if both are ragged sample_weights also should be ragged with same dims.
     if isinstance(mask, tf.RaggedTensor):
-      assertion_list_for_mask = ragged_util.assert_splits_match(
+      assertion_list_for_mask = _assert_splits_match(
           [nested_row_split_list[0], mask.nested_row_splits])
       tmp = control_flow_ops.with_dependencies(assertion_list_for_mask,
                                                mask.flat_values)
@@ -529,3 +528,31 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
     raise TypeError('Ragged mask is not allowed with non-ragged inputs.')
 
   return values, mask
+
+
+def _assert_splits_match(nested_splits_lists):
+  """Checks that the given splits lists are identical.
+
+  Performs static tests to ensure that the given splits lists are identical,
+  and returns a list of control dependency op tensors that check that they are
+  fully identical.
+
+  Args:
+    nested_splits_lists: A list of nested_splits_lists, where each split_list is
+      a list of `splits` tensors from a `RaggedTensor`, ordered from outermost
+      ragged dimension to innermost ragged dimension.
+
+  Returns:
+    A list of control dependency op tensors.
+  Raises:
+    ValueError: If the splits are not identical.
+  """
+  error_msg = 'Inputs must have identical ragged splits'
+  for splits_list in nested_splits_lists:
+    if len(splits_list) != len(nested_splits_lists[0]):
+      raise ValueError(error_msg)
+  return [
+      tf.compat.v1.assert_equal(s1, s2, message=error_msg)  # pylint: disable=g-complex-comprehension
+      for splits_list in nested_splits_lists[1:]
+      for (s1, s2) in zip(nested_splits_lists[0], splits_list)
+  ]
