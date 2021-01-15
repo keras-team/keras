@@ -82,7 +82,6 @@ py_library(
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
-        "//keras/utils:tf_utils",
     ],
 )
 

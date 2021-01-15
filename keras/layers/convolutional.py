@@ -41,7 +41,6 @@ from keras.layers.pooling import MaxPooling3D
 # pylint: enable=unused-import
 from keras.utils import conv_utils
 from keras.utils import tf_utils
-from tensorflow.python.ops import nn_ops
 from tensorflow.python.util.tf_export import keras_export
 # pylint: disable=g-classes-have-attributes
 
@@ -257,7 +256,7 @@ class Conv(Layer):
           def _apply_fn(o):
             return tf.nn.bias_add(o, self.bias, data_format=self._tf_data_format)
 
-          outputs = nn_ops.squeeze_batch_dims(
+          outputs = conv_utils.squeeze_batch_dims(
               outputs, _apply_fn, inner_rank=self.rank + 1)
         else:
           outputs = tf.nn.bias_add(
