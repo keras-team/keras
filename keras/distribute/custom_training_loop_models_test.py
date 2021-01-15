@@ -27,6 +27,8 @@ import numpy as np
 
 import keras
 from keras.distribute import strategy_combinations
+from keras.layers import core
+from keras.optimizer_v2 import gradient_descent
 
 
 class CustomModel(tf.Module):
@@ -403,6 +405,38 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
     loss = train_step(input_iterator)
     loss = distribution.reduce(tf.distribute.ReduceOp.MEAN, loss, axis=0)
+
+  def test_variable_run_argument(self, distribution):
+    # Test that variables passed to run() remain variables. Previous behavior
+    # in TPUStrategy was to cast to Tensor.
+
+    with distribution.scope():
+      optimizer = gradient_descent.SGD(0.1)
+      net = core.Dense(1, trainable=True)
+    dataset = tf.data.Dataset.from_tensors([[1.]])
+    dataset = dataset.repeat()
+    dataset = dataset.batch(2, drop_remainder=True)
+
+    def replica_step(trainable_variables, features):
+
+      with tf.GradientTape() as tape:
+        net_out = net(features[0], training=True)
+        loss = (net_out - 1.0) * (net_out - 1.0)
+      gradients = tape.gradient(loss, trainable_variables)
+      optimizer.apply_gradients(zip(gradients, trainable_variables))
+      return loss
+
+    @tf.function
+    def step(features):
+      per_replica_losses = distribution.run(
+          replica_step,
+          (net.trainable_variables, features),
+      )
+      loss = distribution.reduce(
+          tf.distribute.ReduceOp.SUM, per_replica_losses, axis=None)
+      return loss
+
+    step(next(iter(dataset)))
 
 
 class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
