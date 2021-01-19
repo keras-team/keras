@@ -21,6 +21,7 @@ py_library(
     srcs = [
         "__init__.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":image",
         ":sequence",
@@ -37,6 +38,7 @@ py_library(
         "image.py",
         "image_dataset.py",
     ],
+    srcs_version = "PY3",
     deps = [
         "//:expect_keras_preprocessing_installed",
         "//:expect_pillow_installed",
@@ -53,6 +55,7 @@ py_library(
     srcs = [
         "sequence.py",
     ],
+    srcs_version = "PY3",
     deps = [
         "//:expect_keras_preprocessing_installed",
         "//:expect_pillow_installed",
@@ -66,6 +69,7 @@ py_library(
     srcs = [
         "timeseries.py",
     ],
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -79,6 +83,7 @@ py_library(
         "text.py",
         "text_dataset.py",
     ],
+    srcs_version = "PY3",
     deps = [
         "//:expect_keras_preprocessing_installed",
         "//:expect_pillow_installed",

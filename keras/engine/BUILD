@@ -42,7 +42,7 @@ py_library(
         "training_utils_v1.py",
         "training_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer",
         ":base_preprocessing_layer",
@@ -80,7 +80,7 @@ py_library(
 py_library(
     name = "base_layer_utils",
     srcs = ["base_layer_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -95,7 +95,7 @@ py_library(
         "base_layer.py",
         "base_layer_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer_utils",
         ":input_spec",
@@ -124,7 +124,7 @@ py_library(
 py_library(
     name = "data_adapter",
     srcs = ["data_adapter.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/utils:engine_utils",
@@ -135,7 +135,7 @@ py_library(
 py_library(
     name = "input_spec",
     srcs = ["input_spec.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_six_installed",
         "//:expect_tensorflow_installed",
@@ -146,7 +146,7 @@ py_library(
 py_library(
     name = "keras_tensor",
     srcs = ["keras_tensor.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_six_installed",
         "//:expect_tensorflow_installed",
@@ -160,7 +160,7 @@ py_library(
         "base_preprocessing_layer.py",
         "base_preprocessing_layer_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer",
         "//:expect_tensorflow_installed",
@@ -171,7 +171,7 @@ py_library(
 py_library(
     name = "node",
     srcs = ["node.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer_utils",
         "//:expect_numpy_installed",
