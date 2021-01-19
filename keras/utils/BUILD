@@ -24,6 +24,7 @@ py_library(
     srcs = [
         "__init__.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":all_utils",
     ],
@@ -34,6 +35,7 @@ py_library(
     srcs = [
         "all_utils.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":control_flow_util",
         ":engine_utils",
@@ -48,14 +50,14 @@ py_library(
 py_library(
     name = "control_flow_util",
     srcs = ["control_flow_util.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [],
 )
 
 py_library(
     name = "data_utils",
     srcs = ["data_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":generic_utils",
         ":io_utils",
@@ -69,7 +71,7 @@ py_library(
         "conv_utils.py",
         "losses_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":data_utils",
         ":io_utils",
@@ -80,7 +82,7 @@ py_library(
 py_library(
     name = "io_utils",
     srcs = ["io_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_six_installed",
     ],
@@ -89,7 +91,7 @@ py_library(
 py_library(
     name = "tf_utils",
     srcs = ["tf_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":object_identity",
         "//:expect_six_installed",
@@ -102,7 +104,7 @@ py_library(
     srcs = [
         "generic_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":tf_contextlib",
         ":tf_inspect",
@@ -116,7 +118,7 @@ py_library(
     srcs = [
         "mode_keys.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -128,7 +130,7 @@ py_library(
         "kernelized_utils.py",
         "layer_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":engine_utils",
         "//:expect_numpy_installed",
@@ -142,7 +144,7 @@ py_library(
     srcs = [
         "metrics_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":generic_utils",
         ":tf_utils",
@@ -155,7 +157,7 @@ py_library(
     srcs = [
         "version_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -166,7 +168,7 @@ py_library(
     srcs = [
         "multi_gpu_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -179,7 +181,7 @@ py_library(
     srcs = [
         "np_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -189,14 +191,14 @@ py_library(
 py_library(
     name = "object_identity",
     srcs = ["object_identity.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [],
 )
 
 py_library(
     name = "tf_contextlib",
     srcs = ["tf_contextlib.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -205,7 +207,7 @@ py_library(
 py_library(
     name = "tf_inspect",
     srcs = ["tf_inspect.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -216,7 +218,7 @@ py_library(
     srcs = [
         "vis_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],

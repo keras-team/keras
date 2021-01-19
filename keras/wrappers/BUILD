@@ -20,7 +20,7 @@ py_library(
         "__init__.py",
         "scikit_learn.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",

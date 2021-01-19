@@ -24,7 +24,7 @@ py_library(
         "__init__.py",
         "base.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -36,6 +36,7 @@ py_library(
 py_library(
     name = "convolutional",
     srcs = ["convolutional.py"],
+    srcs_version = "PY3",
     deps = [
         ":layers_base",
         "//:expect_tensorflow_installed",
@@ -46,6 +47,7 @@ py_library(
 py_library(
     name = "core",
     srcs = ["core.py"],
+    srcs_version = "PY3",
     deps = [
         ":layers_base",
         "//:expect_tensorflow_installed",
@@ -56,6 +58,7 @@ py_library(
 py_library(
     name = "normalization",
     srcs = ["normalization.py"],
+    srcs_version = "PY3",
     deps = [
         ":layers_base",
         "//:expect_tensorflow_installed",
@@ -66,6 +69,7 @@ py_library(
 py_library(
     name = "pooling",
     srcs = ["pooling.py"],
+    srcs_version = "PY3",
     deps = [
         ":layers_base",
         "//:expect_tensorflow_installed",
