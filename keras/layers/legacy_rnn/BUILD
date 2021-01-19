@@ -18,6 +18,7 @@ filegroup(
 py_library(
     name = "rnn_cell_impl",
     srcs = ["rnn_cell_impl.py"],
+    srcs_version = "PY3",
     deps = [
         ":rnn_cell_wrapper_impl",
         "//:expect_tensorflow_installed",
@@ -33,6 +34,7 @@ py_library(
 py_library(
     name = "rnn_cell_wrapper_impl",
     srcs = ["rnn_cell_wrapper_impl.py"],
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/utils:generic_utils",

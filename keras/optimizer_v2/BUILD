@@ -34,7 +34,7 @@ py_library(
         "rmsprop.py",
         "utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":learning_rate_schedule",
         "//:expect_tensorflow_installed",
@@ -52,7 +52,7 @@ py_library(
     srcs = [
         "learning_rate_schedule.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/utils:generic_utils",
@@ -62,7 +62,7 @@ py_library(
 py_library(
     name = "legacy_learning_rate_decay",
     srcs = ["legacy_learning_rate_decay.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":learning_rate_schedule",
         "//:expect_tensorflow_installed",

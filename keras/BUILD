@@ -27,7 +27,7 @@ py_library(
         "estimator/__init__.py",
         "keras_parameterized.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         ":engine",
@@ -58,7 +58,7 @@ py_library(
 py_library(
     name = "backend",
     srcs = ["backend.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend_config",
         "//:expect_numpy_installed",
@@ -74,7 +74,7 @@ py_library(
 py_library(
     name = "backend_config",
     srcs = ["backend_config.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -87,7 +87,7 @@ py_library(
         ":metrics",
         ":models",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//keras/engine",
     ],
@@ -98,7 +98,7 @@ py_library(
     srcs = [
         "activations.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//keras/layers:advanced_activations",
@@ -110,7 +110,7 @@ py_library(
 py_library(
     name = "base_layer",
     srcs = [],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//keras/engine:base_layer",
     ],
@@ -121,7 +121,7 @@ py_library(
     srcs = [
         "callbacks.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//:expect_tensorflow_installed",
@@ -138,6 +138,7 @@ py_library(
     srcs = [
         "combinations.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":testing_utils",
         "//:expect_tensorflow_installed",
@@ -149,7 +150,7 @@ py_library(
     srcs = [
         "callbacks_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//:expect_tensorflow_installed",
@@ -162,7 +163,7 @@ py_library(
     srcs = [
         "constraints.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//keras/utils:engine_utils",
@@ -176,7 +177,7 @@ py_library(
         "initializers/initializers_v1.py",
         "initializers/initializers_v2.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//:expect_tensorflow_installed",
@@ -190,7 +191,7 @@ py_library(
     srcs = [
         "losses.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//keras/utils:engine_utils",
@@ -202,7 +203,7 @@ py_library(
     srcs = [
         "metrics.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":activations",
         ":backend",
@@ -224,7 +225,7 @@ py_library(
     srcs = [
         "models.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         ":metrics",
@@ -244,7 +245,7 @@ py_library(
         "optimizer_v1.py",
         "optimizers.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//keras/optimizer_v2",
@@ -257,7 +258,7 @@ py_library(
     srcs = [
         "regularizers.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":backend",
         "//keras/utils:engine_utils",
@@ -269,6 +270,7 @@ py_library(
     srcs = [
         "testing_utils.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":backend",
         ":models",
