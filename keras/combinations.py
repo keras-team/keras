@@ -59,10 +59,6 @@ def keras_model_type_combinations():
   return tf.__internal__.test.combinations.combine(model_type=KERAS_MODEL_TYPES)
 
 
-def keras_tensor_combinations():
-  return tf.__internal__.test.combinations.combine(use_keras_tensors=['True', 'False'])
-
-
 class KerasModeCombination(tf.__internal__.test.combinations.TestCombination):
   """Combination for Keras test mode.
 
@@ -102,32 +98,11 @@ class KerasModelTypeCombination(tf.__internal__.test.combinations.TestCombinatio
     return [tf.__internal__.test.combinations.OptionalParameter('model_type')]
 
 
-class KerasTensorCombination(tf.__internal__.test.combinations.TestCombination):
-  """Combination for whether KerasTensors are being used or not.
-
-  It by default includes `True` and `False`:
-  running Keras's functional API with KerasTensors
-  as the inputs, and without.
-  """
-
-  def context_managers(self, kwargs):
-    use_keras_tensors = kwargs.pop('use_keras_tensors', None)
-
-    if use_keras_tensors is not None:
-      return [testing_utils.use_keras_tensors_scope(use_keras_tensors)]
-    else:
-      return []
-
-  def parameter_modifiers(self):
-    return [tf.__internal__.test.combinations.OptionalParameter('use_keras_tensors')]
-
-
 _defaults = tf.__internal__.test.combinations.generate.keywords['test_combinations']
 generate = functools.partial(
     tf.__internal__.test.combinations.generate,
     test_combinations=_defaults +
-    (KerasModeCombination(), KerasModelTypeCombination(),
-     KerasTensorCombination()))
+    (KerasModeCombination(), KerasModelTypeCombination()))
 combine = tf.__internal__.test.combinations.combine
 times = tf.__internal__.test.combinations.times
 NamedObject = tf.__internal__.test.combinations.NamedObject
