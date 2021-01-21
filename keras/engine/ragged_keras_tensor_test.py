@@ -23,7 +23,6 @@ import tensorflow as tf
 from absl.testing import parameterized
 from keras import keras_parameterized
 from keras import layers
-from keras import testing_utils
 from keras.engine import training
 
 
@@ -44,14 +43,13 @@ class RaggedKerasTensorTest(keras_parameterized.TestCase):
       {'batch_size': 12, 'shape': (2, 3, None, 4, 5, None), 'ragged_rank': 6},
   )
   def test_to_placeholder(self, shape, batch_size, ragged_rank):
-    with testing_utils.use_keras_tensors_scope(True):
-      inp = layers.Input(shape=shape, batch_size=batch_size, ragged=True)
-      self.assertEqual(inp.ragged_rank, ragged_rank)
-      self.assertAllEqual(inp.shape, [batch_size] + list(shape))
-      with tf.__internal__.FuncGraph('test').as_default():
-        placeholder = inp._to_placeholder()
-        self.assertEqual(placeholder.ragged_rank, ragged_rank)
-        self.assertAllEqual(placeholder.shape, [batch_size] + list(shape))
+    inp = layers.Input(shape=shape, batch_size=batch_size, ragged=True)
+    self.assertEqual(inp.ragged_rank, ragged_rank)
+    self.assertAllEqual(inp.shape, [batch_size] + list(shape))
+    with tf.__internal__.FuncGraph('test').as_default():
+      placeholder = inp._to_placeholder()
+      self.assertEqual(placeholder.ragged_rank, ragged_rank)
+      self.assertAllEqual(placeholder.shape, [batch_size] + list(shape))
 
   def test_add(self):
     inp = layers.Input(shape=[None], ragged=True)

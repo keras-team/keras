@@ -12,7 +12,7 @@ filegroup(
 py_library(
     name = "types",
     srcs = ["types.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_six_installed",
     ],
