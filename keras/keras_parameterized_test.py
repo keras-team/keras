@@ -27,7 +27,6 @@ from absl.testing import parameterized
 import keras
 from keras import keras_parameterized
 from keras import testing_utils
-from keras.engine import keras_tensor
 
 
 class KerasParameterizedTest(keras_parameterized.TestCase):
@@ -206,7 +205,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
       def runTest(self):
         pass
 
-      @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+      @keras_parameterized.run_all_keras_modes()
       def testBody(self):
         mode = "eager" if tf.executing_eagerly() else "graph"
         should_run_eagerly = testing_utils.should_run_eagerly()
@@ -242,54 +241,6 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
       ts.run(res)
       self.assertLen(l, 4)
 
-  def test_run_all_keras_modes_include_keras_tensors(self):
-    l = []
-
-    class ExampleTest(keras_parameterized.TestCase):
-
-      def runTest(self):
-        pass
-
-      @keras_parameterized.run_all_keras_modes()
-      def testBody(self):
-        mode = "eager" if tf.executing_eagerly() else "graph"
-        should_run_eagerly = testing_utils.should_run_eagerly()
-        l.append((mode, should_run_eagerly,
-                  keras_tensor.keras_tensors_enabled()))
-
-    e = ExampleTest()
-    if not tf.__internal__.tf2.enabled():
-      e.testBody_v1_session()
-    e.testBody_v2_eager()
-    e.testBody_v2_function()
-    e.testBody_v2_function_use_keras_tensors()
-
-    if not tf.__internal__.tf2.enabled():
-      self.assertLen(l, 4)
-      self.assertAllEqual(l, [
-          ("graph", False, False),
-          ("eager", True, keras_tensor._KERAS_TENSORS_ENABLED),
-          ("eager", False, keras_tensor._KERAS_TENSORS_ENABLED),
-          ("eager", False, True),
-      ])
-
-      ts = unittest.makeSuite(ExampleTest)
-      res = unittest.TestResult()
-      ts.run(res)
-      self.assertLen(l, 8)
-    else:
-      self.assertLen(l, 3)
-      self.assertAllEqual(l, [
-          ("eager", True, keras_tensor._KERAS_TENSORS_ENABLED),
-          ("eager", False, keras_tensor._KERAS_TENSORS_ENABLED),
-          ("eager", False, True),
-      ])
-
-      ts = unittest.makeSuite(ExampleTest)
-      res = unittest.TestResult()
-      ts.run(res)
-      self.assertLen(l, 6)
-
   def test_run_all_keras_modes_extra_params(self):
     l = []
 
@@ -298,7 +249,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
       def runTest(self):
         pass
 
-      @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+      @keras_parameterized.run_all_keras_modes()
       @parameterized.named_parameters(
           [dict(testcase_name="_0", with_brackets=True),
            dict(testcase_name="_1", with_brackets=False)])
@@ -348,8 +299,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
       def runTest(self):
         pass
 
-      @keras_parameterized.run_all_keras_modes(always_skip_v1=True,
-                                               skip_keras_tensors=True)
+      @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
       def testBody(self):
         mode = "eager" if tf.executing_eagerly() else "graph"
         should_run_eagerly = testing_utils.should_run_eagerly()
@@ -379,7 +329,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
         pass
 
       @keras_parameterized.run_with_all_model_types
-      @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+      @keras_parameterized.run_all_keras_modes
       def testBody(self):
         mode = "eager" if tf.executing_eagerly() else "graph"
         should_run_eagerly = testing_utils.should_run_eagerly()
@@ -431,7 +381,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
       def runTest(self):
         pass
 
-      @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+      @keras_parameterized.run_all_keras_modes
       @keras_parameterized.run_with_all_model_types
       def testBody(self):
         mode = "eager" if tf.executing_eagerly() else "graph"
@@ -480,7 +430,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
     l = []
 
     @keras_parameterized.run_with_all_model_types
-    @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+    @keras_parameterized.run_all_keras_modes
     class ExampleTest(keras_parameterized.TestCase):
 
       def runTest(self):
@@ -540,7 +490,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
       def runTest(self):
         pass
 
-      @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+      @keras_parameterized.run_all_keras_modes
       @parameterized.named_parameters(dict(testcase_name="_arg",
                                            arg=True))
       def testBody(self, arg):
@@ -586,7 +536,7 @@ class KerasParameterizedTest(keras_parameterized.TestCase):
 
     self.assertLen(l, len(expected_combinations) * 2)
 
-  @keras_parameterized.run_all_keras_modes(skip_keras_tensors=True)
+  @keras_parameterized.run_all_keras_modes
   @parameterized.named_parameters(dict(testcase_name="argument",
                                        arg=True))
   def test_run_all_keras_modes_extra_params_2(self, arg):

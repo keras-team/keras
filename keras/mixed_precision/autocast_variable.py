@@ -23,7 +23,6 @@ import threading
 
 from tensorflow.python.distribute import ps_values as ps_distribute_values
 from tensorflow.python.distribute import values as distribute_values
-from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.types import core
 
 
@@ -233,7 +232,7 @@ class AutoCastVariable(tf.Variable, core.Tensor):
 
     # Fallback to wrapping the returned variable in graph mode if possible
     assign_var = update_fn(value, use_locking, name, read_value)
-    if read_value and resource_variable_ops.is_resource_variable(assign_var):
+    if read_value and tf.__internal__.ops.is_resource_variable(assign_var):
       return create_autocast_variable(assign_var)
     return assign_var
 
@@ -243,7 +242,7 @@ class AutoCastVariable(tf.Variable, core.Tensor):
       return self
 
     # Fallback to wrapping the returned variable in graph mode if possible
-    if resource_variable_ops.is_resource_variable(update_var):
+    if tf.__internal__.ops.is_resource_variable(update_var):
       return create_autocast_variable(update_var)
     return update_var
 
