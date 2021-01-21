@@ -651,6 +651,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         grads_and_vars = self._aggregate_gradients(grads_and_vars)
       grads_and_vars = self._transform_gradients(grads_and_vars)
 
+      # TODO(wxinyi)
       return tf.distribute.get_replica_context().merge_call(
           functools.partial(self._distributed_apply, apply_state=apply_state),
           args=(grads_and_vars,),
