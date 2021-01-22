@@ -30,32 +30,28 @@ DOCLINES = __doc__.split('\n')
 # This version string is semver compatible, but incompatible with pip.
 # For pip, we will remove all '-' characters from this string, and use the
 # result for pip.
-_VERSION = '1.12.0'
+_VERSION = '2.5.0'
 
 REQUIRED_PACKAGES = [
-    'absl-py >= 0.1.6',
-    'numpy >= 1.16.0',
-    # Depends on TensorFlow. Not declared here to avoid circular dependency.
+    # We depend on TensorFlow's declared pip dependencies.
+    # Add a new dep there if one is needed.
 ]
 
-project_name = 'tensorflow_keras'
+project_name = 'keras'
 if '--project_name' in sys.argv:
   project_name_idx = sys.argv.index('--project_name')
   project_name = sys.argv[project_name_idx + 1]
   sys.argv.remove('--project_name')
   sys.argv.pop(project_name_idx)
 
-if sys.version_info.major == 2:
-  # mock comes with unittest.mock for python3, need to install for python2
-  REQUIRED_PACKAGES.append('mock >= 2.0.0')
 
 setuptools.setup(
     name=project_name,
     version=_VERSION.replace('-', ''),
     description=DOCLINES[0],
     long_description='\n'.join(DOCLINES[2:]),
-    url='https://www.tensorflow.org/',
-    download_url='https://github.com/tensorflow/keras/tags',
+    url='https://keras.io/',
+    download_url='https://github.com/keras-team/keras/tags',
     author='Google Inc.',
     author_email='packages@tensorflow.org',
     packages=setuptools.find_packages(),
@@ -67,12 +63,10 @@ setuptools.setup(
         'Intended Audience :: Education',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: Apache Software License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Mathematics',
         'Topic :: Scientific/Engineering :: Artificial Intelligence',
