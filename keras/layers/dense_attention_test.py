@@ -25,8 +25,10 @@ import numpy as np
 
 import keras
 from keras import combinations
+from keras import testing_utils
 from keras.layers import core
 from keras.layers import dense_attention
+from keras.mixed_precision import policy
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -755,6 +757,17 @@ class AdditiveAttentionTest(tf.test.TestCase, parameterized.TestCase):
     config = layer.get_config()
     new_layer = dense_attention.AdditiveAttention.from_config(config)
     self.assertEqual(new_layer.use_scale, True)
+
+  @testing_utils.enable_v2_dtype_behavior
+  def test_mixed_float16_policy(self):
+    # Test case for GitHub issue:
+    # https://github.com/tensorflow/tensorflow/issues/46064
+    with policy.policy_scope('mixed_float16'):
+      q = tf.cast(tf.random.uniform((2, 3, 4), seed=1), 'float16')
+      v = tf.cast(tf.random.uniform((2, 3, 4), seed=2), 'float16')
+      k = tf.cast(tf.random.uniform((2, 3, 4), seed=3), 'float16')
+      layer = dense_attention.AdditiveAttention(causal=True)
+      _ = layer([q, v, k])
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))

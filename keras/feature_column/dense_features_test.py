@@ -23,7 +23,6 @@ import tensorflow as tf
 from absl.testing import parameterized
 import numpy as np
 from tensorflow.python.eager import backprop
-from tensorflow.python.feature_column import feature_column_v2 as fc
 from tensorflow.python.framework import test_util
 from keras import combinations
 from keras import keras_parameterized
@@ -1048,7 +1047,9 @@ class DenseFeaturesSerializationTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(new_layer._feature_columns[0].name, 'a')
     self.assertEqual(new_layer._feature_columns[1].initializer.mean, 0.0)
     self.assertEqual(new_layer._feature_columns[1].categorical_column.name, 'b')
-    self.assertIsInstance(new_layer._feature_columns[2], fc.IndicatorColumn)
+    self.assertIsInstance(new_layer._feature_columns[0], cols[0].__class__)
+    self.assertIsInstance(new_layer._feature_columns[1], cols[1].__class__)
+    self.assertIsInstance(new_layer._feature_columns[2], cols[2].__class__)
 
   def test_crossed_column(self):
     a = tf.feature_column.categorical_column_with_vocabulary_list(

@@ -120,7 +120,11 @@ class BaseDenseAttention(Layer):
     if scores_mask is not None:
       padding_mask = tf.logical_not(scores_mask)
       # Bias so padding positions do not contribute to attention distribution.
-      scores -= 1.e9 * tf.cast(padding_mask, dtype=K.floatx())
+      # Note 65504. is the max float16 value.
+      if scores.dtype is tf.float16:
+        scores -= 65504. * tf.cast(padding_mask, dtype=scores.dtype)
+      else:
+        scores -= 1.e9 * tf.cast(padding_mask, dtype=scores.dtype)
     if training is None:
       training = K.learning_phase()
     weights = tf.compat.v1.math.softmax(scores)

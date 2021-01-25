@@ -1235,7 +1235,7 @@ class ModelCheckpoint(Callback):
           options, tf.train.CheckpointOptions):
         self._options = options or tf.train.CheckpointOptions()
       else:
-        raise TypeError('If save_weights_only is True, then `options` must be'
+        raise TypeError('If save_weights_only is True, then `options` must be '
                         'either None or a tf.train.CheckpointOptions')
     else:
       if options is None or isinstance(options, tf.saved_model.SaveOptions):
