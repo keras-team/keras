@@ -24,6 +24,7 @@ import os
 
 from absl.testing import parameterized
 import numpy as np
+from keras import backend
 from keras.distribute import model_combinations
 
 _RANDOM_SEED = 1337
@@ -57,13 +58,8 @@ strategies = [
 ]
 
 
-def is_tpu_strategy(distribution):
-  return (distribution is not None and
-          distribution.__class__.__name__.startswith('TPUStrategy'))
-
-
 def get_tolerance(save_distribution, restore_distribution):
-  if is_tpu_strategy(save_distribution) or is_tpu_strategy(
+  if backend.is_tpu_strategy(save_distribution) or backend.is_tpu_strategy(
       restore_distribution):
     return _TPU_TOLERANCE
   return _TOLERANCE
