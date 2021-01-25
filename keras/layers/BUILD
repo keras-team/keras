@@ -12,6 +12,7 @@ package(
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
+        "//third_party/tensorflow_models/official/vision/beta/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -732,6 +733,7 @@ cuda_py_test(
     srcs = ["gru_v2_test.py"],
     python_version = "PY3",
     shard_count = 12,
+    tags = ["no_rocm"],
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",

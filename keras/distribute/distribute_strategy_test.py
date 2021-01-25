@@ -28,6 +28,7 @@ import keras
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute import values as ds_values_lib
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
+from keras import backend
 from keras import testing_utils
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
@@ -137,7 +138,7 @@ def batch_wrapper(dataset, batch_size, distribution, repeat=None):
     dataset = dataset.repeat(repeat)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
-  if _is_tpu_strategy(distribution):
+  if backend.is_tpu_strategy(distribution):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)
@@ -478,7 +479,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
                    tf.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('b/152097775')
-    if _is_tpu_strategy(distribution):
+    if backend.is_tpu_strategy(distribution):
       policy_name = 'mixed_bfloat16'
     else:
       policy_name = 'mixed_float16'
@@ -531,7 +532,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('b/152097775')
 
-    if _is_tpu_strategy(distribution):
+    if backend.is_tpu_strategy(distribution):
       policy_name = 'mixed_bfloat16'
     else:
       policy_name = 'mixed_float16'
@@ -975,7 +976,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
   def test_fit_with_dictionary_in_the_dataset_b135161171(
       self, distribution):
 
-    if _is_tpu_strategy(distribution):
+    if backend.is_tpu_strategy(distribution):
       self.skipTest('b/142805125')
 
     def custom_loss(predict, label, weight):
@@ -1058,7 +1059,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
   def test_predict_on_dataset_with_unknown_cardinality_without_steps(
       self, distribution, mode):
 
-    if mode == 'graph' and _is_tpu_strategy(distribution):
+    if mode == 'graph' and backend.is_tpu_strategy(distribution):
       self.skipTest('partial batch not supported with TPU in graph mode.')
 
     with self.cached_session():
@@ -1091,10 +1092,10 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       self, distribution, mode):
     # TODO(b/155867206): Investigate why this test occasionally segfaults on TPU
     # in eager mode.
-    if mode == 'eager' and _is_tpu_strategy(distribution):
+    if mode == 'eager' and backend.is_tpu_strategy(distribution):
       self.skipTest('caused segfault with TPU in eager mode.')
 
-    if mode == 'graph' and _is_tpu_strategy(distribution):
+    if mode == 'graph' and backend.is_tpu_strategy(distribution):
       self.skipTest('partial batch not supported with TPU in graph mode.')
 
     with self.cached_session():
@@ -1566,13 +1567,6 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       ds = tf.data.Dataset.from_tensor_slices((inputs, targets)).batch(2)
       result = model.evaluate(ds, verbose=1)
       self.assertAllClose(result, 13.5)
-
-
-def _is_tpu_strategy(strategy):
-  if isinstance(strategy,
-                (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
-    return True
-  return False
 
 
 class TestDistributionStrategyWithDatasetsFile(tf.test.TestCase,

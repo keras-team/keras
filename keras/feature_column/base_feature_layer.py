@@ -27,7 +27,6 @@ import tensorflow as tf
 from tensorflow.python.feature_column import feature_column_v2
 from keras.engine.base_layer import Layer
 from keras.utils import generic_utils
-from tensorflow.python.ops import variable_scope
 
 
 class _BaseFeaturesLayer(Layer):
@@ -73,10 +72,9 @@ class _BaseFeaturesLayer(Layer):
 
   def build(self, _):
     for column in self._feature_columns:
-      with variable_scope._pure_variable_scope(  # pylint: disable=protected-access
-          self.name,
-          partitioner=self._partitioner):
-        with variable_scope._pure_variable_scope(  # pylint: disable=protected-access
+      with tf.compat.v1.variable_scope(
+          self.name, partitioner=self._partitioner):
+        with tf.compat.v1.variable_scope(
             feature_column_v2._sanitize_column_name_for_variable_scope(  # pylint: disable=protected-access
                 column.name)):
           column.create_state(self._state_manager)

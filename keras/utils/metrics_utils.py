@@ -25,11 +25,11 @@ import functools
 import weakref
 
 from enum import Enum
+from keras import backend
 from keras.utils import losses_utils
 from keras.utils import tf_utils
 from keras.utils.generic_utils import to_list
 from tensorflow.python.ops import control_flow_ops
-from tensorflow.python.tpu import tpu
 
 NEG_INF = -1e10
 
@@ -67,7 +67,7 @@ def update_state_wrapper(update_state_fn):
     # replica.
 
     for weight in metric_obj.weights:
-      if (tpu.is_tpu_strategy(strategy) and
+      if (backend.is_tpu_strategy(strategy) and
           not strategy.extended.variable_created_in_scope(weight)
           and not tf.distribute.in_cross_replica_context()):
         raise ValueError(

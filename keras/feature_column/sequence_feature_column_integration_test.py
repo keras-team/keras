@@ -25,10 +25,11 @@ from google.protobuf import text_format
 
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
-from tensorflow.python.feature_column import sequence_feature_column as sfc
 from tensorflow.python.framework import test_util
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
+from keras.layers import core
+from keras.layers import merge
 from keras.layers import recurrent
 
 
@@ -88,13 +89,14 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
 
     # Tile the context features across the sequence features
     sequence_input_layer = ksfc.SequenceFeatures(seq_cols)
-    seq_layer, _ = sequence_input_layer(features)
-    input_layer = dense_features.DenseFeatures(ctx_cols)
-    ctx_layer = input_layer(features)
-    input_layer = sfc.concatenate_context_input(ctx_layer, seq_layer)
+    seq_input, _ = sequence_input_layer(features)
+    dense_input_layer = dense_features.DenseFeatures(ctx_cols)
+    ctx_input = dense_input_layer(features)
+    ctx_input = core.RepeatVector(tf.compat.v1.shape(seq_input)[1])(ctx_input)
+    concatenated_input = merge.concatenate([seq_input, ctx_input])
 
     rnn_layer = recurrent.RNN(recurrent.SimpleRNNCell(10))
-    output = rnn_layer(input_layer)
+    output = rnn_layer(concatenated_input)
 
     with self.cached_session() as sess:
       sess.run(tf.compat.v1.global_variables_initializer())
