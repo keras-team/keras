@@ -26,7 +26,6 @@ from keras.engine import base_preprocessing_layer
 from keras.engine.base_preprocessing_layer import PreprocessingLayer
 from keras.engine.input_spec import InputSpec
 from keras.utils import control_flow_util
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
@@ -224,14 +223,14 @@ class RandomCrop(PreprocessingLayer):
       check = tf.Assert(
           tf.reduce_all(input_shape >= crop_size),
           [self.height, self.width])
-      input_shape = control_flow_ops.with_dependencies([check], input_shape)
-      limit = input_shape - crop_size + 1
-      offset = stateless_random_ops.stateless_random_uniform(
-          tf.compat.v1.shape(input_shape),
-          dtype=crop_size.dtype,
-          maxval=crop_size.dtype.max,
-          seed=self._rng.make_seeds()[:, 0]) % limit
-      return tf.slice(inputs, offset, crop_size)
+      with tf.control_dependencies([check]):
+        limit = input_shape - crop_size + 1
+        offset = stateless_random_ops.stateless_random_uniform(
+            tf.compat.v1.shape(input_shape),
+            dtype=crop_size.dtype,
+            maxval=crop_size.dtype.max,
+            seed=self._rng.make_seeds()[:, 0]) % limit
+        return tf.slice(inputs, offset, crop_size)
 
     # TODO(b/143885775): Share logic with Resize and CenterCrop.
     def resize_and_center_cropped_inputs():

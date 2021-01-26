@@ -22,7 +22,6 @@ from __future__ import print_function
 import tensorflow as tf
 
 import re
-from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.platform import tf_logging as logging
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
@@ -212,10 +211,9 @@ class SidecarEvaluator(object):
       ])
 
       if self._summary_writer:
-        with summary_ops_v2.always_record_summaries(
-        ), self._summary_writer.as_default():
+        with tf.summary.record_if(True), self._summary_writer.as_default():
           for metric in self.model.compiled_metrics.metrics:
-            summary_ops_v2.scalar(
+            tf.summary.scalar(
                 metric.name,
                 metric.result(),
                 step=self._iterations.read_value())
