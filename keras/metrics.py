@@ -57,7 +57,6 @@ from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.generic_utils import to_list
 from keras.utils.tf_utils import is_tensor_or_variable
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -2006,8 +2005,8 @@ class AUC(Metric):
               label_weights,
               message='All values of `label_weights` must be non-negative.')
       ]
-      self.label_weights = control_flow_ops.with_dependencies(
-          checks, label_weights)
+      with tf.control_dependencies(checks):
+        self.label_weights = label_weights
 
     else:
       self.label_weights = None

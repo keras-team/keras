@@ -2379,7 +2379,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if self.write_steps_per_second:
       batch_run_time = time.time() - self._batch_start_time
       self._train_accumulated_time += batch_run_time
-      summary_ops_v2.scalar('batch_steps_per_second', 1. / batch_run_time)
+      tf.summary.scalar('batch_steps_per_second', 1. / batch_run_time)
     if not self._should_trace:
       return
 
@@ -2451,12 +2451,12 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       if train_logs:
         with self._train_writer.as_default():
           for name, value in train_logs.items():
-            summary_ops_v2.scalar('epoch_' + name, value, step=epoch)
+            tf.summary.scalar('epoch_' + name, value, step=epoch)
       if val_logs:
         with self._val_writer.as_default():
           for name, value in val_logs.items():
             name = name[4:]  # Remove 'val_' prefix.
-            summary_ops_v2.scalar('epoch_' + name, value, step=epoch)
+            tf.summary.scalar('epoch_' + name, value, step=epoch)
 
   def _log_weights(self, epoch):
     """Logs the weights of the Model to TensorBoard."""
@@ -2465,7 +2465,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
         for layer in self.model.layers:
           for weight in layer.weights:
             weight_name = weight.name.replace(':', '_')
-            summary_ops_v2.histogram(weight_name, weight, step=epoch)
+            tf.summary.histogram(weight_name, weight, step=epoch)
             if self.write_images:
               self._log_weight_as_image(weight, weight_name, epoch)
         self._train_writer.flush()
@@ -2492,7 +2492,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     shape = K.int_shape(w_img)
     # Not possible to handle 3D convnets etc.
     if len(shape) == 4 and shape[-1] in [1, 3, 4]:
-      summary_ops_v2.image(weight_name, w_img, step=epoch)
+      tf.summary.image(weight_name, w_img, step=epoch)
 
   def _log_embeddings(self, epoch):
     embeddings_ckpt = os.path.join(self._log_write_dir, 'train',
