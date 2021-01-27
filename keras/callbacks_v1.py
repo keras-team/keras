@@ -26,7 +26,6 @@ import os
 import numpy as np
 from keras import backend as K
 from keras import callbacks
-from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -324,7 +323,7 @@ class TensorBoard(callbacks.TensorBoard):
         for name, value in logs.items():
           if isinstance(value, np.ndarray):
             value = value.item()
-          summary_ops_v2.scalar(name, value, step=step)
+          tf.summary.scalar(name, value, step=step)
     else:
       # use FileWriter from v1 summary
       for name, value in logs.items():

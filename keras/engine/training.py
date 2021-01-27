@@ -53,7 +53,6 @@ from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from keras.utils.io_utils import path_to_string
 from keras.utils.mode_keys import ModeKeys
-from tensorflow.python.ops import summary_ops_v2
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import checkpoint_management
 from tensorflow.python.training.tracking import base as trackable
@@ -2749,24 +2748,19 @@ def _collective_all_reduce_multi_worker(strategy):
 # for all strategies
 def _multi_worker_concat(v, strategy):
   """Order PerReplica objects for CollectiveAllReduceStrategy and concat."""
-  replicas = strategy.gather(v, axis=0)  # pylint: disable=protected-access
-  # TODO(b/170435030): We now need to make sure these run after the iterator
-  # GetNext, so that we don't trigger aborting collective ops in the case of
-  # EOF. Remove after the issue is fixed.
-  with tf.control_dependencies([replicas]):
-    # v might not have the same shape on different replicas
-    if isinstance(v, ds_values.PerReplica):
-      shapes = tf.concat([
-          tf.expand_dims(tf.compat.v1.shape(single_value)[0], axis=0)
-          for single_value in v.values
-      ],
-                                axis=0)
-      all_shapes = strategy.gather(shapes, axis=0)
-    else:
-      # v is a tensor. This may happen when, say, we have 2x1 multi-worker.
-      all_shapes = strategy.gather(
-          tf.expand_dims(tf.compat.v1.shape(v)[0], axis=0),
-          axis=0)
+  replicas = strategy.gather(v, axis=0)
+  # v might not have the same shape on different replicas
+  if isinstance(v, ds_values.PerReplica):
+    shapes = tf.concat([
+        tf.expand_dims(tf.compat.v1.shape(single_value)[0], axis=0)
+        for single_value in v.values
+    ],
+                              axis=0)
+    all_shapes = strategy.gather(shapes, axis=0)
+  else:
+    # v is a tensor. This may happen when, say, we have 2x1 multi-worker.
+    all_shapes = strategy.gather(
+        tf.expand_dims(tf.compat.v1.shape(v)[0], axis=0), axis=0)
 
   replicas = tf.split(
       replicas,
@@ -2786,7 +2780,7 @@ def _is_scalar(x):
 def write_scalar_summaries(logs, step):
   for name, value in logs.items():
     if _is_scalar(value):
-      summary_ops_v2.scalar('batch_' + name, value, step=step)
+      tf.summary.scalar('batch_' + name, value, step=step)
 
 
 def _minimum_control_deps(outputs):

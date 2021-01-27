@@ -39,7 +39,6 @@ from keras.engine import training as training_lib
 from keras.legacy_tf_layers import core as legacy_core
 from keras.optimizer_v2 import rmsprop
 from keras.utils import control_flow_util
-from tensorflow.python.ops import summary_ops_v2
 
 
 class DynamicLayer(base_layer.Layer):
@@ -66,12 +65,14 @@ class InvalidLayer(base_layer.Layer):
 
 class BaseLayerTest(keras_parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @combinations.generate(combinations.keras_mode_combinations())
   def test_layer_instrumentation(self):
     layer = layers.Add()
     self.assertTrue(layer._instrumented_keras_api)
     self.assertTrue(layer._instrumented_keras_layer_class)
     self.assertFalse(layer._instrumented_keras_model_class)
+    self.assertTrue(base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add'))
+    base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add').set(False)
 
   @combinations.generate(combinations.keras_model_type_combinations())
   def test_dynamic_layer(self):
@@ -947,12 +948,12 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     class MyLayer(base_layer.Layer):
 
       def call(self, inputs):
-        summary_ops_v2.scalar('mean', tf.reduce_mean(inputs))
+        tf.summary.scalar('mean', tf.reduce_mean(inputs))
         return inputs
 
     tmp_dir = self.get_temp_dir()
     writer = tf.summary.create_file_writer(tmp_dir)
-    with writer.as_default(), tf.summary.record_if(True):
+    with writer.as_default(step=1), tf.summary.record_if(True):
       my_layer = MyLayer()
       x = tf.ones((10, 10))
 
