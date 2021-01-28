@@ -224,6 +224,30 @@ py_library(
     ],
 )
 
+py_library(
+    name = "dataset_creator",
+    srcs = [
+        "dataset_creator.py",
+    ],
+    srcs_version = "PY3",
+    visibility = ["//third_party/tensorflow/tools/pip_package:__pkg__"],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
+)
+
+tf_py_test(
+    name = "dataset_creator_test",
+    srcs = ["dataset_creator_test.py"],
+    python_version = "PY3",
+    deps = [
+        ":dataset_creator",
+        "//:expect_tensorflow_installed",
+        "//keras/engine",
+        "//keras/layers:core",
+    ],
+)
+
 tf_py_test(
     name = "data_utils_test",
     size = "medium",
@@ -402,6 +426,18 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:combinations",
+    ],
+)
+
+tf_py_test(
+    name = "losses_utils_test",
+    size = "small",
+    srcs = ["losses_utils_test.py"],
+    python_version = "PY3",
+    deps = [
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:combinations",
