@@ -20,6 +20,8 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+
+import enum
 from keras.saving.saved_model import json_utils
 
 
@@ -61,6 +63,14 @@ class JsonUtilsTest(tf.test.TestCase):
     with self.assertRaisesRegexp(ValueError, 'No TypeSpec has been registered'):
       loaded = json_utils.decode(string)
 
+  def test_encode_decode_enum(self):
+    class Enum(enum.Enum):
+      CLASS_A = 'a'
+      CLASS_B = 'b'
+    config = {'key': Enum.CLASS_A, 'key2': Enum.CLASS_B}
+    string = json_utils.Encoder().encode(config)
+    loaded = json_utils.decode(string)
+    self.assertAllEqual({'key': 'a', 'key2': 'b'}, loaded)
 
 if __name__ == '__main__':
   tf.test.main()

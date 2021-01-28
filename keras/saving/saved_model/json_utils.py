@@ -28,6 +28,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 import collections.abc as collections_abc
+import enum
 import json
 import numpy as np
 import wrapt
@@ -138,5 +139,8 @@ def get_json_type(obj):
       raise ValueError('Unable to serialize {} to JSON, because the TypeSpec '
                        'class {} has not been registered.'
                        .format(obj, type(obj)))
+
+  if isinstance(obj, enum.Enum):
+    return obj.value
 
   raise TypeError('Not JSON Serializable:', obj)

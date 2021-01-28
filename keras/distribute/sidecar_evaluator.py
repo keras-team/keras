@@ -205,14 +205,16 @@ class SidecarEvaluator(object):
       # TODO(rchao): Support arbitrary callback for extensibility.
       self.model.evaluate(self.data, steps=self.steps)
 
-      logging.info('End of evaluation. Accuracy: %r', [
-          metric.result().numpy()
-          for metric in self.model.compiled_metrics.metrics
-      ])
+      logging.info(
+          'End of evaluation. Metrics: %s', ' '.join([
+              '{}={}'.format(metric.name,
+                             metric.result().numpy())
+              for metric in self.model.metrics
+          ]))
 
       if self._summary_writer:
         with tf.summary.record_if(True), self._summary_writer.as_default():
-          for metric in self.model.compiled_metrics.metrics:
+          for metric in self.model.metrics:
             tf.summary.scalar(
                 metric.name,
                 metric.result(),
