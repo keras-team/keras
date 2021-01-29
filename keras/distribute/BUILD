@@ -369,6 +369,7 @@ distribute_py_test(
         "no_oss",  # TODO(b/173021094)
         "no_rocm",  # times out on ROCm
         "no_windows_gpu",
+        "noasan",  # TODO(b/178803051)
         "nogpu",  # TODO(b/170905292)
         "nomultivm",  # TODO(b/170502145)
         "notsan",
