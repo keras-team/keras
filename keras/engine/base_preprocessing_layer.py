@@ -30,6 +30,7 @@ from keras import backend as K
 from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
+from tensorflow.python.tools import monitoring  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 

@@ -37,6 +37,7 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.saved_model import revived_types
+from tensorflow.python.tools import monitoring  # pylint: disable=g-direct-tensorflow-import
 from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
