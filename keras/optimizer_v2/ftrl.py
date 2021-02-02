@@ -46,7 +46,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
   $$\sigma_{t,i} = (\sqrt{n_{t,i}} - \sqrt{n_{t-1,i}}) / \alpha$$
   $$z_{t,i} = z_{t-1,i} + g_{t,i} - \sigma_{t,i} * w_{t,i}$$
   $$w_{t,i} = - ((\beta+\sqrt{n_{t,i}}) / \alpha + 2 * \lambda_{2})^{-1} *
-              (z_{i} - sgn(z_{i}) * \lambda_{1}) if \abs{z_{i}} > \lambda_{i}
+              (z_{i} - sgn(z_{i}) * \lambda_{1}) if \abs(z_{i}) > \lambda_{i}
                                                  else 0$$
 
   Check the documentation for the l2_shrinkage_regularization_strength
