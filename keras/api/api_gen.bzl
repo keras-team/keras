@@ -89,7 +89,7 @@ def gen_api_init_files(
         compat_init_template_flags += (
             " --compat_init_template=$(location %s)" % compat_init_template
         )
-    packages_to_ignore = ""
+    packages_to_ignore = "third_party.tensorflow.python.keras"
     native.genrule(
         name = name,
         outs = all_output_files,
