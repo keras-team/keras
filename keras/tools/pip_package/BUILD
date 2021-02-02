@@ -17,6 +17,7 @@ COMMON_PIP_DEPS = [
     "//keras/layers/legacy_rnn:rnn_cell_wrapper_impl",
     "//keras/optimizer_v2:legacy_learning_rate_decay",
     "//keras/type:types",
+    "//keras/utils:dataset_creator",
 ]
 
 sh_binary(
