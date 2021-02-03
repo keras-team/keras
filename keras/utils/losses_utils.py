@@ -294,7 +294,8 @@ def compute_weighted_loss(losses,
     # to multiple replicas. Used only for estimator + v1 optimizer flow.
     tf.compat.v1.get_default_graph()._last_loss_reduction = reduction  # pylint: disable=protected-access
 
-    if not isinstance(losses, keras_tensor.KerasTensor):
+    if not isinstance(losses,
+                      (keras_tensor.KerasTensor, tf.RaggedTensor)):
       losses = tf.convert_to_tensor(losses)
     input_dtype = losses.dtype
 
