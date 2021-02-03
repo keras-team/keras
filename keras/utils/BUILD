@@ -230,7 +230,7 @@ py_library(
         "dataset_creator.py",
     ],
     srcs_version = "PY3",
-    visibility = ["//third_party/tensorflow/tools/pip_package:__pkg__"],
+    visibility = ["//keras:__subpackages__"],
     deps = [
         "//:expect_tensorflow_installed",
     ],
