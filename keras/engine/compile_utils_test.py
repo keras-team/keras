@@ -354,15 +354,15 @@ class LossesContainerTest(keras_parameterized.TestCase):
     """ Ensure that ragged tensors can be passed as targets and predictions."""
 
     def custom_loss_fn(y_true, y_pred):
-      losses = tf.ragged.map_flat_values(losses_mod.mse, y_true,
-                                                     y_pred)
-      return tf.reduce_mean(losses)
+      """ MSE supports RaggedTensors directly."""
+      return losses_mod.mse(y_true, y_pred)
 
-    class CustomLossClass(object):
+    class CustomLossClass(losses_mod.Loss):
+      """ User defined loss function must implement RaggedTensor support."""
 
-      def __call__(self, y_true, y_pred):
-        losses = tf.ragged.map_flat_values(losses_mod.mse, y_true,
-                                                       y_pred)
+      def call(self, y_true, y_pred):
+        losses = tf.ragged.map_flat_values(
+            tf.math.squared_difference, y_true, y_pred)
         return tf.reduce_mean(losses)
 
     loss_container = compile_utils.LossesContainer(
