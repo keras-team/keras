@@ -113,6 +113,7 @@ py_library(
         ":table_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras:backend",
         "//keras/engine",
     ],
 )

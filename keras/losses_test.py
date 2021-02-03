@@ -339,6 +339,20 @@ class MeanSquaredErrorTest(tf.test.TestCase):
     loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 767.8 / 6, 3)
 
+  def test_ragged_tensors(self):
+    mse_obj = losses.MeanSquaredError()
+
+    y_true = tf.ragged.constant([[1., 1., 9.], [2., 5.]])
+    y_pred = tf.ragged.constant([[4., 1., 8.], [12., 3.]])
+    sample_weight = tf.constant([1.2, 0.5])
+    loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
+
+    # mse = [((4 - 1)^2 + (8 - 9)^2) / 3, ((12 - 2)^2 + (3 - 5)^2) / 2]
+    # mse = [3.(3), 52]
+    # weighted_mse = [3.(3) * 1.2, 52 * 0.5] = [4, 26]
+    # reduced_weighted_mse = (4 + 26) / 2 =
+    self.assertAllClose(self.evaluate(loss), 15, 1e-2)
+
   def test_timestep_weighted(self):
     mse_obj = losses.MeanSquaredError()
     y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))

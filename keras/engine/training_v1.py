@@ -51,7 +51,6 @@ from keras.utils import tf_utils
 from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.types import core
 
 try:
   from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
@@ -3144,20 +3143,20 @@ def _convert_scipy_sparse_tensor(value, expected_input):
     The possibly-converted 'value'.
   """
   if issparse is not None and issparse(value):
-    if isinstance(expected_input, core.Tensor):
-      if tf.compat.v1.executing_eagerly_outside_functions():
-        # In TF2 we do not silently densify sparse matrices.
-        raise ValueError('A SciPy sparse matrix was passed to a model '
-                         'that expects dense inputs. Please densify your '
-                         'inputs first, such as by calling `x.toarray().')
-      return value.toarray()
-    else:
+    if K.is_sparse(expected_input):
       sparse_coo = value.tocoo()
       row, col = sparse_coo.row, sparse_coo.col
       data, shape = sparse_coo.data, sparse_coo.shape
       indices = np.concatenate((np.expand_dims(row, 1), np.expand_dims(col, 1)),
                                1)
       return tf.SparseTensor(indices, data, shape)
+    else:
+      if tf.compat.v1.executing_eagerly_outside_functions():
+        # In TF2 we do not silently densify sparse matrices.
+        raise ValueError('A SciPy sparse matrix was passed to a model '
+                         'that expects dense inputs. Please densify your '
+                         'inputs first, such as by calling `x.toarray().')
+      return value.toarray()
   else:
     return value
 
