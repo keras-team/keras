@@ -48,6 +48,25 @@ except ImportError:
 
 class NetworkConstructionTest(keras_parameterized.TestCase):
 
+  def test_last_1_dim_squeeze_behavior(self):
+    inputs = input_layer_lib.Input(shape=(3, 1))
+    outputs = layers.Dense(2)(inputs)
+    model = training_lib.Model(inputs=inputs, outputs=outputs)
+    x = np.zeros((4, 3))  # Missing last "1" dimension
+    self.assertEqual(list(model(x).shape), [4, 3, 2]) # Works
+    with self.assertRaisesRegex(ValueError, 'incompatible with layer'):
+      x = np.zeros((4, 5))  # Missing last "1" dimension, but bad shape
+      model(x)
+
+    inputs = input_layer_lib.Input(shape=(3,))
+    outputs = layers.Dense(2)(inputs)
+    model = training_lib.Model(inputs=inputs, outputs=outputs)
+    x = np.zeros((4, 3, 1))  # Added last "1" dimension
+    self.assertEqual(list(model(x).shape), [4, 2]) # Works
+    with self.assertRaisesRegex(ValueError, 'incompatible with layer'):
+      x = np.zeros((4, 5, 1))  # Added last "1" dimension, but bad shape
+      model(x)
+
   def test_default_model_name(self):
     inputs = input_layer_lib.Input(shape=(1,))
     outputs = layers.Dense(1, activation='relu')(inputs)
