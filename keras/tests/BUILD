@@ -8,6 +8,7 @@ load("@org_keras//keras:keras.bzl", "tpu_py_test")
 
 package(
     default_visibility = [
+        "//keras:__subpackages__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],  # Apache 2.0
