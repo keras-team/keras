@@ -18,6 +18,17 @@ COMMON_PIP_DEPS = [
     "//keras/optimizer_v2:legacy_learning_rate_decay",
     "//keras/type:types",
     "//keras/utils:dataset_creator",
+    # Need to include testing libraries in pip package so our pip
+    # release tests can run. (see py_test rule in keras.bzl for more context).
+    # Essentially, everything needed to run the test (except the test file itself)
+    # must be contained in the pip package since we strip away all deps.
+    "//keras:combinations",
+    "//keras/benchmarks:keras_benchmark_lib_pip",
+    "//keras/distribute:distribute_test_lib_pip",
+    "//keras/layers/preprocessing:preprocessing_test_utils",
+    "//keras/mixed_precision:test_util",
+    "//keras/tests:model_architectures",
+    "//keras/tests:model_subclassing_test_util",
 ]
 
 sh_binary(
