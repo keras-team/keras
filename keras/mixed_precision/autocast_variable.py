@@ -21,8 +21,8 @@ import tensorflow as tf
 
 import threading
 
+from tensorflow.python.distribute import distribute_utils
 from tensorflow.python.distribute import ps_values as ps_distribute_values
-from tensorflow.python.distribute import values as distribute_values
 from tensorflow.python.types import core
 
 
@@ -510,8 +510,8 @@ def create_autocast_variable(variable):
   Returns:
     An AutoCastVariable that wraps the variable.
   """
-  if not isinstance(variable, (distribute_values.DistributedVariable,
-                               ps_distribute_values.AggregatingVariable)):
+  if (not distribute_utils.is_distributed_variable(variable) and
+      not isinstance(variable, ps_distribute_values.AggregatingVariable)):
     return AutoCastVariable(variable)
 
   class AutoCastDistributedVariable(AutoCastVariable, variable.__class__):
