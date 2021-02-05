@@ -617,17 +617,11 @@ class Functional(training_lib.Model):
         # Should squeeze last dimension.
         # True if tensor is (BATCH, ..., 1) and reference is (BATCH, ...).
         if (t_rank == ref_rank + 1 and t_shape[-1] == 1):
-          if t_rank >= 2 and (
-              t_shape[-2] is None or ref_shape[-1] is None or
-              t_shape[-2] == ref_shape[-1]):
-            tensor = tf.squeeze(tensor, axis=-1)
+          tensor = tf.squeeze(tensor, axis=-1)
         # Should expand last_dimension.
         # True if tensor is (BATCH, ...) and reference is (BATCH, ..., 1).
         elif (t_rank == ref_rank - 1 and ref_shape[-1] == 1):
-          if ref_rank >= 2 and (
-              ref_shape[-2] is None or t_shape[-1] is None or
-              ref_shape[-2] == t_shape[-1]):
-            tensor = tf.expand_dims(tensor, axis=-1)
+          tensor = tf.expand_dims(tensor, axis=-1)
       if keras_history is not None:  # Restore keras history.
         tensor._keras_history = keras_history
 
