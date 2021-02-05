@@ -25,8 +25,8 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
+from tensorflow.python.distribute import distribute_utils
 from tensorflow.python.distribute import multi_worker_test_base
-from tensorflow.python.distribute import values as ds_values_lib
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras import backend
 from keras import testing_utils
@@ -2665,16 +2665,16 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
       model = create_model()
       model.load_weights(temp_dir)
       self.assertNotEmpty(model.optimizer.weights)
-      self.assertIsInstance(model.optimizer.weights[0],
-                            ds_values_lib.DistributedVariable)
+      self.assertTrue(
+          distribute_utils.is_distributed_variable(model.optimizer.weights[0]))
 
     with distribution.scope():
       model = create_model()
     # create/restore slot variables outside of scope is fine.
     model.load_weights(temp_dir)
     self.assertNotEmpty(model.optimizer.weights)
-    self.assertIsInstance(model.optimizer.weights[0],
-                          ds_values_lib.DistributedVariable)
+    self.assertTrue(
+        distribute_utils.is_distributed_variable(model.optimizer.weights[0]))
 
 
 if __name__ == '__main__':
