@@ -22,9 +22,6 @@ import tensorflow as tf
 import abc
 
 import six
-
-from tensorflow.python.autograph.core import ag_ctx
-from tensorflow.python.autograph.impl import api as autograph
 from tensorflow.python.framework import smart_cond
 from keras import backend as K
 from keras.utils import losses_utils
@@ -143,7 +140,7 @@ class Loss(object):
       if tf.executing_eagerly():
         call_fn = self.call
       else:
-        call_fn = autograph.tf_convert(self.call, ag_ctx.control_status_ctx())
+        call_fn = tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
       losses = call_fn(y_true, y_pred)
       return losses_utils.compute_weighted_loss(
           losses, sample_weight, reduction=self._get_reduction())
@@ -247,7 +244,7 @@ class LossFunctionWrapper(Loss):
     if tf.is_tensor(y_pred) and tf.is_tensor(y_true):
       y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(y_pred, y_true)
 
-    ag_fn = autograph.tf_convert(self.fn, ag_ctx.control_status_ctx())
+    ag_fn = tf.__internal__.autograph.tf_convert(self.fn, tf.__internal__.autograph.control_status_ctx())
     return ag_fn(y_true, y_pred, **self._fn_kwargs)
 
   def get_config(self):

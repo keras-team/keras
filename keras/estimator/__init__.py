@@ -18,14 +18,15 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from tensorflow.python.eager import monitoring
+import tensorflow as tf
+
 from tensorflow.python.util.tf_export import keras_export
 
 # Keras has undeclared dependency on tensorflow/estimator:estimator_py.
 # As long as you depend //third_party/py/tensorflow:tensorflow target
 # everything will work as normal.
 
-_model_to_estimator_usage_gauge = monitoring.BoolGauge(
+_model_to_estimator_usage_gauge = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/model_to_estimator',
     'Whether tf.keras.estimator.model_to_estimator() is called.', 'version')
 

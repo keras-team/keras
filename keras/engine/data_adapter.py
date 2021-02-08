@@ -30,7 +30,6 @@ import random
 import numpy as np
 import six
 from tensorflow.python.eager import context
-from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras.engine import training_utils
@@ -39,7 +38,7 @@ from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
-keras_data_adapter_gauge = monitoring.BoolGauge(
+keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/data_adapters", "keras data adapter usage", "method")
 
 try:
