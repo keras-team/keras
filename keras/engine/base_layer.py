@@ -33,10 +33,7 @@ import six
 from six.moves import zip  # pylint: disable=redefined-builtin
 
 from google.protobuf import json_format
-from tensorflow.python.autograph.core import ag_ctx
-from tensorflow.python.autograph.impl import api as autograph
 from tensorflow.python.eager import execute
-from tensorflow.python.eager import monitoring
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -79,13 +76,13 @@ _TF_OP_LAYER_NAME_PREFIX = 'tf_op_layer_'
 _AUTOCAST_TYPES = (tf.Tensor, tf.SparseTensor,
                    tf.RaggedTensor)
 
-keras_layers_gauge = monitoring.BoolGauge('/tensorflow/api/oss-keras/layers',
+keras_layers_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras/layers',
                                           'keras layers usage', 'method')
-keras_models_gauge = monitoring.BoolGauge(
+keras_models_gauge = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/models', 'keras model usage', 'method')
-keras_api_gauge = monitoring.BoolGauge('/tensorflow/api/oss-keras',
+keras_api_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras',
                                        'keras api usage', 'method')
-keras_premade_model_gauge = monitoring.BoolGauge(
+keras_premade_model_gauge = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/premade_models', 'premade keras model usage', 'type')
 
 
@@ -831,7 +828,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      call_fn = autograph.tf_convert(self.call, ag_ctx.control_status_ctx())
+      call_fn = tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
 
     # We enter a scratch graph and build placeholder inputs inside of it that
     # match the input args.
@@ -955,7 +952,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     # Accept NumPy and scalar inputs by converting to Tensors.
     if any(isinstance(x, (
-        tf.experimental.numpy.ndarray, np.ndarray, float, int)) for x in input_list):
+        tf.Tensor, np.ndarray, float, int)) for x in input_list):
       inputs = tf.nest.map_structure(_convert_numpy_or_python_types, inputs)
       input_list = tf.nest.flatten(inputs)
 
@@ -1024,12 +1021,12 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     # Accept NumPy and scalar inputs by converting to Tensors.
     if any(isinstance(x, (
-        tf.experimental.numpy.ndarray, np.ndarray, float, int)) for x in input_list):
+        tf.Tensor, np.ndarray, float, int)) for x in input_list):
 
       def _convert_non_tensor(x):
         # Don't call `ops.convert_to_tensor` on all `inputs` because
         # `SparseTensors` can't be converted to `Tensor`.
-        if isinstance(x, (tf.experimental.numpy.ndarray, np.ndarray, float, int)):
+        if isinstance(x, (tf.Tensor, np.ndarray, float, int)):
           return tf.convert_to_tensor(x)
         return x
 
@@ -1134,8 +1131,8 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
           # enclosing tf.function, if any.
           if (base_layer_utils.is_subclassed(self) and
               not base_layer_utils.from_saved_model(self)):
-            call_fn = autograph.tf_convert(self.call,
-                                           ag_ctx.control_status_ctx())
+            call_fn = tf.__internal__.autograph.tf_convert(self.call,
+                                           tf.__internal__.autograph.control_status_ctx())
           else:
             call_fn = self.call
 
@@ -1234,7 +1231,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      return autograph.tf_convert(self.call, ag_ctx.control_status_ctx())
+      return tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
     else:
       return self.call
 
@@ -3313,7 +3310,7 @@ def _in_functional_construction_mode(layer, inputs, args, kwargs, input_list):  
 
 
 def _convert_numpy_or_python_types(x):
-  if isinstance(x, (tf.experimental.numpy.ndarray, np.ndarray, float, int)):
+  if isinstance(x, (tf.Tensor, np.ndarray, float, int)):
     return tf.convert_to_tensor(x)
   return x
 

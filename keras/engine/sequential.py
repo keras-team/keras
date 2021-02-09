@@ -359,7 +359,7 @@ class Sequential(functional.Functional):
     # If applicable, update the static input shape of the model.
     if not self._has_explicit_input_shape:
       if not tf.is_tensor(inputs) and not isinstance(
-          inputs, tf.experimental.numpy.ndarray):
+          inputs, tf.Tensor):
         # This is a Sequential with mutiple inputs. This is technically an
         # invalid use case of Sequential, but we tolerate it for backwards
         # compatibility.

@@ -23,7 +23,6 @@ import threading
 
 from tensorflow.python.distribute import distribute_utils
 from tensorflow.python.distribute import ps_values as ps_distribute_values
-from tensorflow.python.types import core
 
 
 # _autocast_dtype.dtype is the dtype AutoCastVariables should be cast to, or
@@ -44,7 +43,7 @@ def numpy_text(tensor, is_repr=False):
   return text
 
 
-class AutoCastVariable(tf.Variable, core.Tensor):
+class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
   """Variable that will cast itself to a different dtype in applicable contexts.
 
   This class wraps a floating-point `tf.Variable`. It emulates the variable

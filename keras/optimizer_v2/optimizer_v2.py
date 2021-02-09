@@ -27,7 +27,6 @@ import functools
 
 import six
 from tensorflow.python.distribute import values as ds_values
-from tensorflow.python.eager import monitoring
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
@@ -42,7 +41,7 @@ from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
-keras_optimizers_gauge = monitoring.BoolGauge(
+keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/optimizers", "keras optimizer usage", "method")
 
 _DEFAULT_VALID_DTYPES = frozenset([

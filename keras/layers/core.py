@@ -29,7 +29,6 @@ import types as python_types
 import warnings
 
 import numpy as np
-from tensorflow.python.eager import monitoring
 from keras import activations
 from keras import backend as K
 from keras import constraints
@@ -52,7 +51,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 # TODO(b/168039935): track dropout rate to decide whether/how to make a
 # dropout rate fastpath.
-keras_temporary_dropout_rate = monitoring.BoolGauge(
+keras_temporary_dropout_rate = tf.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/dropout/temp_rate_is_zero',
     'Temporarily record if Keras dropout layer was created w/'
     'constant rate = 0')
