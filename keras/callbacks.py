@@ -1735,6 +1735,8 @@ class EarlyStopping(Callback):
       else:
         self.monitor_op = np.less
 
+    self.best = np.Inf if self.monitor_op == np.less else -np.Inf
+
     if self.monitor_op == np.greater:
       self.min_delta *= 1
     else:
