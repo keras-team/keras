@@ -38,7 +38,6 @@ from tensorflow.core.protobuf import config_pb2
 from tensorflow.python.distribute import distribute_coordinator as dc
 from tensorflow.python.distribute import distribute_coordinator_context as dc_context
 from tensorflow.python.eager import function as eager_function
-from tensorflow.python.eager import lift_to_graph
 from tensorflow.python.eager.context import get_config
 from tensorflow.python.framework import config
 from tensorflow.python.framework import ops
@@ -4090,7 +4089,7 @@ def eval_in_eager_or_function(outputs):
 
     if source_graph is global_graph and exec_graph is not global_graph:
       init_tensors = outputs
-      lifted_map = lift_to_graph.lift_to_graph(
+      lifted_map = tf.__internal__.lift_to_graph(
           tensors=init_tensors,
           graph=exec_graph,
           sources=[],

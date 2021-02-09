@@ -29,9 +29,6 @@ import warnings
 import numpy as np
 import six
 from six.moves import zip  # pylint: disable=redefined-builtin
-
-from tensorflow.python.autograph.core import ag_ctx
-from tensorflow.python.autograph.impl import api as autograph
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -758,8 +755,8 @@ class Layer(base_layer.Layer):
           # enclosing tf.function, if any.
           if (base_layer_utils.is_subclassed(self) and
               not base_layer_utils.from_saved_model(self)):
-            call_fn = autograph.tf_convert(
-                self.call, ag_ctx.control_status_ctx())
+            call_fn = tf.__internal__.autograph.tf_convert(
+                self.call, tf.__internal__.autograph.control_status_ctx())
           else:
             call_fn = self.call
 
