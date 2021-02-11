@@ -59,6 +59,7 @@ tpu_py_test(
     python_version = "PY3",
     tags = ["no_oss"],
     deps = [
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:distribute_strategy_test_lib",

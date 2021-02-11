@@ -6,8 +6,8 @@ load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_F
 
 package(
     default_visibility = [
-        "//:expect_tensorflow_installed",
         "//keras",
+        "//third_party/py/tensorflow",
     ],
     licenses = ["notice"],  # Apache 2.0 License
 )
