@@ -21,9 +21,13 @@ from __future__ import print_function
 import tensorflow as tf
 
 import numpy as np
+
+import keras
 from tensorflow.python.eager import backprop
 from keras.engine import training as keras_training
 from keras.layers import core as keras_core
+from keras.optimizer_v2 import rmsprop
+from keras.utils import kpl_test_utils
 from tensorflow.python.training import optimizer as optimizer_lib
 
 
@@ -76,6 +80,51 @@ class MirroredStrategyDefunTest(tf.test.TestCase):
       # All variables start at 1.0 and get two updates of 0.25.
       self.assertAllEqual(0.5 * np.ones([10, 1]), updated_var_values[0])
       self.assertAllEqual([0.5], updated_var_values[1])
+
+  def testTrainAndServeWithKPL(self, distribution):
+    use_adapt = False
+    test_utils_obj = kpl_test_utils.DistributeKplTestUtils()
+    with distribution.scope():
+      feature_mapper, label_mapper = test_utils_obj.define_kpls_for_training(
+          use_adapt)
+      model = test_utils_obj.define_model()
+      optimizer = rmsprop.RMSprop(learning_rate=0.1)
+      accuracy = keras.metrics.Accuracy()
+
+      def dataset_fn(_):
+        return test_utils_obj.dataset_fn(feature_mapper, label_mapper)
+
+      @tf.function
+      def train_step(iterator):
+        """The step function for one training step."""
+
+        def step_fn(inputs):
+          """The computation to run on each TPU device."""
+          features, labels = inputs
+          with tf.GradientTape() as tape:
+            pred = model(features, training=True)
+            loss = keras.losses.binary_crossentropy(labels, pred)
+            loss = tf.nn.compute_average_loss(loss)
+          grads = tape.gradient(loss, model.trainable_variables)
+          optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
+
+          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+          accuracy.update_state(labels, actual_pred)
+
+        distribution.run(step_fn, args=(next(iterator),))
+
+      distributed_dataset = distribution.distribute_datasets_from_function(
+          dataset_fn)
+      distributed_iterator = iter(distributed_dataset)
+      num_epochs = 4
+      num_steps = 7
+      for _ in range(num_epochs):
+        accuracy.reset_states()
+        for _ in range(num_steps):
+          train_step(distributed_iterator)
+
+      self.assertGreater(accuracy.result().numpy(), 0.5)
+      self.assertEqual(optimizer.iterations.numpy(), num_epochs * num_steps)
 
 
 if __name__ == "__main__":

@@ -599,12 +599,14 @@ cuda_py_test(
     python_version = "PY3",
     tags = [
         "multi_and_single_gpu",
+        "no_tfrt",  # TODO(b/179839466): Reenable TFRT after the issue is resolved.
         "no_windows_gpu",  # TODO(b/130551176)
     ],
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/engine",
         "//keras/layers:core",
+        "//keras/utils:kpl_test_utils",
     ],
 )
 
