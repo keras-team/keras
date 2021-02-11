@@ -756,6 +756,7 @@ py_library(
     srcs = ["sidecar_evaluator.py"],
     srcs_version = "PY3",
     deps = [
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
     ],
 )

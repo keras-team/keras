@@ -130,6 +130,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras/distribute:distributed_file_utils",
         "//keras/distribute:worker_training_state",
@@ -159,6 +160,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:engine_utils",
     ],
