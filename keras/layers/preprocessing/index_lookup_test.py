@@ -696,6 +696,15 @@ class CategoricalEncodingAdaptTest(
 class IndexLookupOutputTest(keras_parameterized.TestCase,
                             preprocessing_test_utils.PreprocessingLayerTest):
 
+  def _write_to_temp_file(self, file_name, vocab_list):
+    vocab_path = os.path.join(self.get_temp_dir(), file_name + ".txt")
+    with tf.io.gfile.GFile(vocab_path, "w") as writer:
+      for vocab in vocab_list:
+        writer.write(vocab + "\n")
+      writer.flush()
+      writer.close()
+    return vocab_path
+
   def test_int_output(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
@@ -951,7 +960,60 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     layer_output = layer(input_data)
     self.assertAllEqual(layer_output.shape.as_list(), [16, 2])
 
+  def test_int_output_file_vocab(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_array = np.array([["earth", "wind", "and", "fire"],
+                            ["fire", "", "earth", "michigan"]])
+    expected_output = [[2, 3, 4, 5], [5, 0, 2, 1]]
 
+    vocab_file = self._write_to_temp_file("temp", vocab_data)
+    vocabulary_initializer = tf.lookup.TextFileInitializer(
+        filename=vocab_file,
+        key_dtype=tf.string,
+        key_index=tf.lookup.TextFileIndex.WHOLE_LINE,
+        value_dtype=tf.int64,
+        value_index=tf.lookup.TextFileIndex.LINE_NUMBER,
+        value_index_offset=2)
+
+    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    layer = get_layer_class()(
+        vocabulary=vocabulary_initializer,
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_dataset = model.predict(input_array)
+    self.assertAllEqual(expected_output, output_dataset)
+
+  def test_int_output_int_file_vocab(self):
+    vocab_data = ["10", "20", "30", "40"]
+    input_array = np.array([[10, 20, 30, 40], [40, 0, 10, 42]])
+    expected_output = [[2, 3, 4, 5], [5, 0, 2, 1]]
+
+    vocab_file = self._write_to_temp_file("temp", vocab_data)
+    vocabulary_initializer = tf.lookup.TextFileInitializer(
+        filename=vocab_file,
+        key_dtype=tf.int64,
+        key_index=tf.lookup.TextFileIndex.WHOLE_LINE,
+        value_dtype=tf.int64,
+        value_index=tf.lookup.TextFileIndex.LINE_NUMBER,
+        value_index_offset=2)
+
+    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    layer = get_layer_class()(
+        vocabulary=vocabulary_initializer,
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token=0,
+        oov_token=-1,
+        dtype=tf.int64)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_dataset = model.predict(input_array)
+    self.assertAllEqual(expected_output, output_dataset)
 @keras_parameterized.run_all_keras_modes
 class IndexLookupVocabularyTest(keras_parameterized.TestCase,
                                 preprocessing_test_utils.PreprocessingLayerTest

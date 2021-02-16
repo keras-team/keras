@@ -398,7 +398,7 @@ class BNTest(tf.test.TestCase):
       training = tf.compat.v1.placeholder(dtype='bool')
       outputs = bn.apply(inputs, training=training)
 
-      with self.session(use_gpu=True) as sess:
+      with self.session() as sess:
         # Test training with placeholder learning phase.
         self.evaluate(tf.compat.v1.global_variables_initializer())
         np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
@@ -889,7 +889,7 @@ class BNTest(tf.test.TestCase):
     moving_stddev = 1.
     renorm_mean = 0.
     renorm_stddev = 1.
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)
@@ -939,7 +939,7 @@ class BNTest(tf.test.TestCase):
     moving_stddev = 1.
     renorm_mean = 0.
     renorm_stddev = 1.
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for step in range(6):
         x = np.random.random(shape)
@@ -993,7 +993,7 @@ class BNTest(tf.test.TestCase):
 
     moving_mean = 0.
     moving_variance = 1.
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)
@@ -1046,7 +1046,7 @@ class BNTest(tf.test.TestCase):
     moving_stddev = 1.
     renorm_mean = 0.
     renorm_stddev = 1.
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)
@@ -1092,7 +1092,7 @@ class BNTest(tf.test.TestCase):
     self.assertListEqual(
         out1.shape.as_list(), out2.shape.as_list())
 
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
 
       x = np.random.random(shape)
@@ -1114,7 +1114,7 @@ class BNTest(tf.test.TestCase):
     out = normalization_layers.batch_normalization(
         inp, virtual_batch_size=2)
 
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
 
       x = np.random.random(np_shape)
@@ -1145,7 +1145,7 @@ class BNTest(tf.test.TestCase):
                     shape[0] // virtual_batch_size,
                     shape[1]])
 
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)
@@ -1198,7 +1198,7 @@ class BNTest(tf.test.TestCase):
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)
@@ -1252,7 +1252,7 @@ class BNTest(tf.test.TestCase):
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)
@@ -1404,7 +1404,7 @@ class BNTest(tf.test.TestCase):
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
-    with self.session(use_gpu=True) as sess:
+    with self.session() as sess:
       self.evaluate(tf.compat.v1.global_variables_initializer())
       for _ in range(5):
         x = np.random.random(shape)

@@ -137,6 +137,9 @@ tf_py_test(
     size = "medium",
     srcs = ["autocast_variable_test.py"],
     python_version = "PY3",
+    tags = [
+        "no_tfrt",  # TODO(b/179863362)
+    ],
     deps = [
         ":autocast_variable",
         "//:expect_absl_installed",
@@ -251,7 +254,10 @@ cuda_py_test(
     srcs = ["layer_correctness_test.py"],
     python_version = "PY3",
     shard_count = 10,
-    tags = ["no_rocm"],
+    tags = [
+        "no_rocm",
+        "no_tfrt",  # TODO(b/179863362)
+    ],
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
