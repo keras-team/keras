@@ -20,6 +20,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 import abc
+import functools
 
 import six
 from tensorflow.python.framework import smart_cond
@@ -1220,7 +1221,31 @@ def _ragged_tensor_apply_loss(loss_fn, y_true, y_pred):
     (per-batch loss value); a ragged tensor otherwise.
   """
 
+  def rt_is_equiv_dense(rt):
+    """Returns true if this RaggedTensor has the same row_lenghts across
+
+       all ragged dimensions and thus can be converted to a dense tensor
+       without loss of information.
+
+    Args:
+      rt: RaggedTensor
+    """
+    return tf.reduce_all([
+        tf.equal(
+            tf.math.reduce_variance(tf.cast(row_lens, K.floatx())),
+            tf.constant([0.])) for row_lens in rt.nested_row_lengths()
+    ])
+
+  def _convert_to_dense(inputs):
+    return tuple(rt.to_tensor() for rt in inputs)
+
   def _wrapper(inputs):
+    _, y_pred = inputs
+    if isinstance(y_pred, tf.RaggedTensor):
+      return tf.compat.v1.cond(
+          rt_is_equiv_dense(y_pred),
+          lambda: loss_fn(*_convert_to_dense(inputs)), lambda: loss_fn(*inputs))
+
     return loss_fn(*inputs)
 
   lshape = y_pred.shape.as_list()[1:-1]
@@ -1591,6 +1616,31 @@ def categorical_crossentropy(y_true,
   y_true = smart_cond.smart_cond(label_smoothing, _smooth_labels,
                                  lambda: y_true)
   return K.categorical_crossentropy(y_true, y_pred, from_logits=from_logits)
+
+
+@dispatch.dispatch_for_types(categorical_crossentropy,
+                             tf.RaggedTensor)
+def _ragged_tensor_categorical_crossentropy(y_true,
+                                            y_pred,
+                                            from_logits=False,
+                                            label_smoothing=0):
+  """ Implements support for handling RaggedTensors.
+
+      Expected shape: (batch, sequence_len, n_classes) with sequence_len
+      being variable per batch.
+      Return shape: (batch, sequence_len).
+
+      When used by CategoricalCrossentropy() with the default reduction
+      (SUM_OVER_BATCH_SIZE), the reduction averages the loss over the
+      number of elements independent of the batch. E.g. if the RaggedTensor
+      has 2 batches with [2, 1] values respectivly the resulting loss is
+      the sum of the individual loss values divided by 3.
+  """
+  fn = functools.partial(
+      categorical_crossentropy,
+      from_logits=from_logits,
+      label_smoothing=label_smoothing)
+  return _ragged_tensor_apply_loss(fn, y_true, y_pred)
 
 
 @keras_export('keras.metrics.sparse_categorical_crossentropy',

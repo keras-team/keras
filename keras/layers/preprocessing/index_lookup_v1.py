@@ -18,6 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 
 from keras.engine import base_preprocessing_layer_v1
 from keras.layers.preprocessing import index_lookup
@@ -58,3 +60,6 @@ class IndexLookup(index_lookup.IndexLookup,
 
   def _use_v1_apis(self):
     return True
+
+  def _static_table_class(self):
+    return tf.compat.v1.lookup.StaticHashTable

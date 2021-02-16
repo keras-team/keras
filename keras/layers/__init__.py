@@ -46,9 +46,6 @@ from keras.layers.preprocessing.image_preprocessing import Rescaling
 
 # Preprocessing layers.
 if tf.__internal__.tf2.enabled():
-  from keras.layers.preprocessing.category_encoding import CategoryEncoding
-  from keras.layers.preprocessing.category_encoding_v1 import CategoryEncoding as CategoryEncodingV1
-  CategoryEncodingV2 = CategoryEncoding
   from keras.layers.preprocessing.integer_lookup import IntegerLookup
   from keras.layers.preprocessing.integer_lookup_v1 import IntegerLookup as IntegerLookupV1
   IntegerLookupV2 = IntegerLookup
@@ -65,9 +62,6 @@ else:
   from keras.layers.preprocessing.integer_lookup_v1 import IntegerLookup
   from keras.layers.preprocessing.integer_lookup import IntegerLookup as IntegerLookupV2
   IntegerLookupV1 = IntegerLookup
-  from keras.layers.preprocessing.category_encoding_v1 import CategoryEncoding
-  from keras.layers.preprocessing.category_encoding import CategoryEncoding as CategoryEncodingV2
-  CategoryEncodingV1 = CategoryEncoding
   from keras.layers.preprocessing.normalization_v1 import Normalization
   from keras.layers.preprocessing.normalization import Normalization as NormalizationV2
   NormalizationV1 = Normalization
@@ -78,6 +72,7 @@ else:
   from keras.layers.preprocessing.text_vectorization import TextVectorization as TextVectorizationV2
   TextVectorizationV1 = TextVectorization
 from keras.layers.preprocessing.category_crossing import CategoryCrossing
+from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
 from keras.layers.preprocessing.hashing import Hashing
 
