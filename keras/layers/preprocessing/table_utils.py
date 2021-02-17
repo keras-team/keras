@@ -79,9 +79,9 @@ class TableHandler(object):
       raise RuntimeError("Size mismatch between values and key arrays. "
                          "Keys had size %s, values had size %s." %
                          (len(keys), len(values)))
-    keys = tf.convert_to_tensor(
+    keys = tf.compat.v2.convert_to_tensor(
         keys, dtype=self.table._key_dtype)  # pylint: disable=protected-access
-    values = tf.convert_to_tensor(
+    values = tf.compat.v2.convert_to_tensor(
         values, dtype=self.table._value_dtype)  # pylint: disable=protected-access
     if values.shape.ndims != 1:
       raise ValueError("`values` must be 1-dimensional, got an input with "
@@ -172,7 +172,7 @@ class TableHandler(object):
 
     if tf_utils.is_ragged(inputs):
       if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
-        flat_values = tf.convert_to_tensor(
+        flat_values = tf.compat.v2.convert_to_tensor(
             value=inputs.flat_values,
             name="flat_values")
         inputs = tf.RaggedTensor.from_nested_row_splits(
@@ -180,7 +180,7 @@ class TableHandler(object):
       return self._ragged_lookup(inputs)
 
     # For normal tensor inputs
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = tf.compat.v2.convert_to_tensor(inputs)
     return self._tensor_lookup(inputs)
 
   def _eval(self, tensor):

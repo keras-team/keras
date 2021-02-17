@@ -33,7 +33,7 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return discretization.Discretization
   else:
     return discretization_v1.Discretization

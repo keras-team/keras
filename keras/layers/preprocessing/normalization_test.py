@@ -34,7 +34,7 @@ from keras.utils.generic_utils import CustomObjectScope
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return normalization.Normalization
   else:
     return normalization_v1.Normalization
@@ -184,8 +184,8 @@ class NormalizationTest(keras_parameterized.TestCase,
     cls = get_layer_class()
     layer = cls(
         axis=-1,
-        mean=tf.constant([1.0]),
-        variance=tf.constant([2.0]))
+        mean=tf.compat.v2.constant([1.0]),
+        variance=tf.compat.v2.constant([2.0]))
     layer.build((None, 2))
     weights = layer.get_weights()
     self.assertAllClose([1.0, 1.0], weights[0])
@@ -196,8 +196,8 @@ class NormalizationTest(keras_parameterized.TestCase,
     with self.assertRaisesRegex(ValueError, "passing a Variable"):
       _ = cls(
           axis=-1,
-          mean=tf.Variable([1.0]),
-          variance=tf.Variable([2.0]))
+          mean=tf.compat.v2.Variable([1.0]),
+          variance=tf.compat.v2.Variable([2.0]))
 
   def test_1d_data(self):
     data = [0, 2, 0, 2]
@@ -206,11 +206,11 @@ class NormalizationTest(keras_parameterized.TestCase,
     layer.adapt(data)
     output = layer(data)
     self.assertListEqual(output.shape.as_list(), [4, 1])
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(output.numpy(), [[-1], [1], [-1], [1]])
 
   def test_0d_data(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest("Only supported in TF2.")
 
     data = [0, 2, 0, 2]
@@ -276,7 +276,7 @@ class NormalizationTest(keras_parameterized.TestCase,
     model.summary()
 
   def test_merge_state(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest("`merge_state` only supported in TF2")
 
     cls = get_layer_class()

@@ -31,14 +31,14 @@ from keras.layers.preprocessing import text_vectorization_v1
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return text_vectorization.TextVectorization
   else:
     return text_vectorization_v1.TextVectorization
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=all_strategies,
         mode=["eager", "graph"]))
 class TextVectorizationDistributionTest(

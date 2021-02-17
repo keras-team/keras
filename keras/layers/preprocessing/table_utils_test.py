@@ -37,7 +37,7 @@ def get_table(dtype=tf.string, oov_tokens=None):
       default_value=-7,
       name="index_table")
   return table_utils.TableHandler(
-      table, oov_tokens, use_v1_apis=(not tf.executing_eagerly()))
+      table, oov_tokens, use_v1_apis=(not tf.compat.v2.executing_eagerly()))
 
 
 def get_static_table(tmpdir,
@@ -63,8 +63,8 @@ def get_static_table(tmpdir,
       tf.int64,
       tf.lookup.TextFileIndex.LINE_NUMBER,
       value_index_offset=offset)
-  if tf.executing_eagerly():
-    table = tf.lookup.StaticHashTable(init, default_value=-7)
+  if tf.compat.v2.executing_eagerly():
+    table = tf.compat.v2.lookup.StaticHashTable(init, default_value=-7)
   else:
     table = tf.compat.v1.lookup.StaticHashTable(init, default_value=-7)
 
@@ -72,7 +72,7 @@ def get_static_table(tmpdir,
       table,
       oov_tokens,
       mask_token=mask_token,
-      use_v1_apis=(not tf.executing_eagerly()))
+      use_v1_apis=(not tf.compat.v2.executing_eagerly()))
 
 
 @keras_parameterized.run_all_keras_modes

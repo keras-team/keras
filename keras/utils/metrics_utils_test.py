@@ -47,8 +47,8 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
       },
   ])
   def test_passing_dense_tensors(self, x_list, y_list):
-    x = tf.constant(x_list)
-    y = tf.constant(y_list)
+    x = tf.compat.v2.constant(x_list)
+    y = tf.compat.v2.constant(y_list)
     [x,
      y], _ = metrics_utils.ragged_assert_compatible_and_get_flat_values([x, y])
     x.shape.assert_is_compatible_with(y.shape)
@@ -68,7 +68,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
       },
   ])
   def test_passing_one_dense_tensor(self, x_list):
-    x = tf.constant(x_list)
+    x = tf.compat.v2.constant(x_list)
     [x], _ = metrics_utils.ragged_assert_compatible_and_get_flat_values([x])
 
   @parameterized.parameters([
@@ -235,7 +235,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
   # dimension shapes and sizes are identical due to adding too much performance
   # overheads to the overall use cases.
   def test_failing_different_ragged_ranks(self):
-    dt = tf.constant([[[1, 2]]])
+    dt = tf.compat.v2.constant([[[1, 2]]])
     # adding a ragged dimension
     x = tf.RaggedTensor.from_row_splits(dt, row_splits=[0, 1])
     y = tf.ragged.constant([[[[1, 2]]]])
@@ -248,7 +248,7 @@ class RaggedSizeOpTest(tf.test.TestCase, parameterized.TestCase):
 class FilterTopKTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_one_dimensional(self):
-    x = tf.constant([.3, .1, .2, -.5, 42.])
+    x = tf.compat.v2.constant([.3, .1, .2, -.5, 42.])
     top_1 = self.evaluate(metrics_utils._filter_top_k(x=x, k=1))
     top_2 = self.evaluate(metrics_utils._filter_top_k(x=x, k=2))
     top_3 = self.evaluate(metrics_utils._filter_top_k(x=x, k=3))
@@ -265,7 +265,7 @@ class FilterTopKTest(tf.test.TestCase, parameterized.TestCase):
         top_3, [.3, metrics_utils.NEG_INF, .2, metrics_utils.NEG_INF, 42.])
 
   def test_three_dimensional(self):
-    x = tf.constant([[[.3, .1, .2], [-.3, -.2, -.1]],
+    x = tf.compat.v2.constant([[[.3, .1, .2], [-.3, -.2, -.1]],
                               [[5., .2, 42.], [-.3, -.6, -.99]]])
     top_2 = self.evaluate(metrics_utils._filter_top_k(x=x, k=2))
 
@@ -286,7 +286,7 @@ class FilterTopKTest(tf.test.TestCase, parameterized.TestCase):
 
       return metrics_utils._filter_top_k(x=x, k=2)
 
-    x = tf.constant([.3, .1, .2, -.5, 42.])
+    x = tf.compat.v2.constant([.3, .1, .2, -.5, 42.])
     top_2 = self.evaluate(_filter_top_k(x))
     self.assertAllClose(top_2, [
         .3, metrics_utils.NEG_INF, metrics_utils.NEG_INF, metrics_utils.NEG_INF,

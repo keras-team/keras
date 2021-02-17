@@ -162,7 +162,7 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
 
   def _preprocess_single_input(self, inp):
     if isinstance(inp, (list, tuple, np.ndarray)):
-      inp = tf.convert_to_tensor(inp)
+      inp = tf.compat.v2.convert_to_tensor(inp)
     return inp
 
   def _preprocess_inputs(self, inputs):

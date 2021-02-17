@@ -38,7 +38,7 @@ class LayerWithLosses(keras.layers.Layer):
         regularizer=keras.regularizers.l1(100))
 
   def call(self, inputs):
-    self.add_loss(tf.reduce_sum(inputs))
+    self.add_loss(tf.compat.v2.reduce_sum(inputs))
     return self.v * inputs
 
 
@@ -49,7 +49,7 @@ class LayerWithMetrics(keras.layers.Layer):
 
   def call(self, inputs):
     self.add_metric(
-        tf.reduce_mean(inputs), name='mean_tensor', aggregation='mean')
+        tf.compat.v2.reduce_mean(inputs), name='mean_tensor', aggregation='mean')
     self.add_metric(self.mean(inputs))
     return inputs
 
@@ -73,7 +73,7 @@ def add_loss_step(defun):
     with tf.GradientTape() as tape:
       model(x)
       assert len(model.losses) == 2
-      loss = tf.reduce_sum(model.losses)
+      loss = tf.compat.v2.reduce_sum(model.losses)
     gradients = tape.gradient(loss, model.trainable_weights)
     optimizer.apply_gradients(zip(gradients, model.trainable_weights))
     return loss

@@ -84,7 +84,7 @@ def disable_multi_worker(method):
           method.__name__))
     return method(self, *args, **kwargs)
 
-  return tf.__internal__.decorator.make_decorator(
+  return tf.compat.v2.__internal__.decorator.make_decorator(
       target=method, decorator_func=_method_wrapper)
 
 
@@ -302,10 +302,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
   def _init_batch_counters(self):
     # Untracked Variables, used to keep track of mini-batches seen in `fit`,
     # `evaluate`, and `predict`.
-    agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
-    self._train_counter = tf.Variable(0, dtype='int64', aggregation=agg)
-    self._test_counter = tf.Variable(0, dtype='int64', aggregation=agg)
-    self._predict_counter = tf.Variable(
+    agg = tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA
+    self._train_counter = tf.compat.v2.Variable(0, dtype='int64', aggregation=agg)
+    self._test_counter = tf.compat.v2.Variable(0, dtype='int64', aggregation=agg)
+    self._predict_counter = tf.compat.v2.Variable(
         0, dtype='int64', aggregation=agg)
 
   def __setattr__(self, name, value):
@@ -375,8 +375,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       # in a Graph. Since tf.Variable is compatible with both eager execution
       # and graph building, the variables created after building the model in
       # a Graph are still valid when executing eagerly.
-      if tf.executing_eagerly():
-        graph = tf.__internal__.FuncGraph('build_graph')
+      if tf.compat.v2.executing_eagerly():
+        graph = tf.compat.v2.__internal__.FuncGraph('build_graph')
       else:
         graph = backend.get_graph()
       with graph.as_default():
@@ -595,10 +595,10 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
   @trackable.no_automatic_dependency_tracking
   def _configure_steps_per_execution(self, steps_per_execution):
-    self._steps_per_execution = tf.Variable(
+    self._steps_per_execution = tf.compat.v2.Variable(
         steps_per_execution,
         dtype='int64',
-        aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
+        aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
 
   @property
   def _should_compute_mask(self):
@@ -1102,7 +1102,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         callbacks.on_epoch_begin(epoch)
         with data_handler.catch_stop_iteration():
           for step in data_handler.steps():
-            with tf.profiler.experimental.Trace(
+            with tf.compat.v2.profiler.experimental.Trace(
                 'train',
                 epoch_num=epoch,
                 step_num=step,
@@ -1396,7 +1396,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         self.reset_metrics()
         with data_handler.catch_stop_iteration():
           for step in data_handler.steps():
-            with tf.profiler.experimental.Trace('test', step_num=step, _r=1):
+            with tf.compat.v2.profiler.experimental.Trace('test', step_num=step, _r=1):
               callbacks.on_test_batch_begin(step)
               tmp_logs = self.test_function(iterator)
               if data_handler.should_sync:
@@ -1593,7 +1593,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     outputs = None
     with self.distribute_strategy.scope():
       # Creates a `tf.data.Dataset` and handles batch and epoch iteration.
-      dataset_types = (tf.compat.v1.data.Dataset, tf.data.Dataset)
+      dataset_types = (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)
       if (self._in_multi_worker_mode() or _is_tpu_multi_host(
           self.distribute_strategy)) and isinstance(x, dataset_types):
         try:
@@ -1646,7 +1646,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               outputs = tf.nest.map_structure(lambda batch_output: [batch_output],
                                            batch_outputs)
             else:
-              tf.__internal__.nest.map_structure_up_to(
+              tf.compat.v2.__internal__.nest.map_structure_up_to(
                   batch_outputs,
                   lambda output, batch_output: output.append(batch_output),
                   outputs, batch_outputs)
@@ -1655,7 +1655,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       if batch_outputs is None:
         raise ValueError('Expect x to be a non-empty array or dataset.')
       callbacks.on_predict_end()
-    all_outputs = tf.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
+    all_outputs = tf.compat.v2.__internal__.nest.map_structure_up_to(batch_outputs, concat, outputs)
     return tf_utils.to_numpy_or_python_type(all_outputs)
 
   def reset_metrics(self):
@@ -2133,7 +2133,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       with h5py.File(filepath, 'w') as f:
         hdf5_format.save_weights_to_hdf5_group(f, self.layers)
     else:
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         session = None
       else:
         session = backend.get_session()
@@ -2216,7 +2216,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             'Weights may only be loaded based on topology into Models when '
             'loading TensorFlow-formatted weights (got by_name=True to '
             'load_weights).')
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         session = backend.get_session()
         # Restore existing variables (if any) immediately, and set up a
         # streaming restore for any variables created in the future.
@@ -2715,7 +2715,7 @@ def reduce_per_replica(values, strategy, reduction='first'):
 def concat(tensors, axis=0):
   """Concats `tensor`s along `axis`."""
   if isinstance(tensors[0], tf.SparseTensor):
-    return tf.sparse.concat(axis=axis, sp_inputs=tensors)
+    return tf.compat.v2.sparse.concat(axis=axis, sp_inputs=tensors)
   return tf.concat(tensors, axis=axis)
 
 
@@ -2741,7 +2741,7 @@ def _tpu_multi_host_concat(v, strategy):
 
 def _collective_all_reduce_multi_worker(strategy):
   return (isinstance(strategy,
-                     tf.distribute.MultiWorkerMirroredStrategy)
+                     tf.compat.v2.distribute.MultiWorkerMirroredStrategy)
          ) and strategy.extended._in_multi_worker_mode()  # pylint: disable=protected-access
 
 
@@ -2753,7 +2753,7 @@ def _multi_worker_concat(v, strategy):
   # v might not have the same shape on different replicas
   if isinstance(v, ds_values.PerReplica):
     shapes = tf.concat([
-        tf.expand_dims(tf.compat.v1.shape(single_value)[0], axis=0)
+        tf.compat.v2.expand_dims(tf.compat.v1.shape(single_value)[0], axis=0)
         for single_value in v.values
     ],
                               axis=0)
@@ -2761,7 +2761,7 @@ def _multi_worker_concat(v, strategy):
   else:
     # v is a tensor. This may happen when, say, we have 2x1 multi-worker.
     all_shapes = strategy.gather(
-        tf.expand_dims(tf.compat.v1.shape(v)[0], axis=0), axis=0)
+        tf.compat.v2.expand_dims(tf.compat.v1.shape(v)[0], axis=0), axis=0)
 
   replicas = tf.split(
       replicas,
@@ -2775,29 +2775,29 @@ def _multi_worker_concat(v, strategy):
 
 
 def _is_scalar(x):
-  return isinstance(x, (tf.Tensor, tf.Variable)) and x.shape.rank == 0
+  return isinstance(x, (tf.Tensor, tf.compat.v2.Variable)) and x.shape.rank == 0
 
 
 def write_scalar_summaries(logs, step):
   for name, value in logs.items():
     if _is_scalar(value):
-      tf.summary.scalar('batch_' + name, value, step=step)
+      tf.compat.v2.summary.scalar('batch_' + name, value, step=step)
 
 
 def _minimum_control_deps(outputs):
   """Returns the minimum control dependencies to ensure step succeeded."""
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return []  # Control dependencies not needed.
   outputs = tf.nest.flatten(outputs, expand_composites=True)
   for out in outputs:
     # Variables can't be control dependencies.
-    if not isinstance(out, tf.Variable):
+    if not isinstance(out, tf.compat.v2.Variable):
       return [out]  # Return first Tensor or Op from outputs.
   return []  # No viable Tensor or Op to use for control deps.
 
 
 def _disallow_inside_tf_function(method_name):
-  if tf.inside_function():
+  if tf.compat.v2.inside_function():
     error_msg = (
         'Detected a call to `Model.{method_name}` inside a `tf.function`. '
         '`Model.{method_name} is a high-level endpoint that manages its own '
@@ -2820,7 +2820,7 @@ def _detect_save_format(filepath):
   # Prioritize checkpoint over SavedModel.
   if _is_readable_tf_checkpoint(filepath):
     save_format = 'tf'
-  elif tf.saved_model.contains_saved_model(filepath):
+  elif tf.compat.v2.saved_model.contains_saved_model(filepath):
     ckpt_path = os.path.join(filepath, tf.saved_model.VARIABLES_DIRECTORY,
                              tf.saved_model.VARIABLES_FILENAME)
     if _is_readable_tf_checkpoint(ckpt_path):

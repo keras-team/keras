@@ -45,7 +45,7 @@ from keras.mixed_precision import policy
 def create_mirrored_strategy():
   # The test creates two virtual CPUs, and we use both of them to test with
   # multiple devices.
-  return tf.distribute.MirroredStrategy(['cpu:0', 'cpu:1'])
+  return tf.compat.v2.distribute.MirroredStrategy(['cpu:0', 'cpu:1'])
 
 
 class LayerCorrectnessTest(keras_parameterized.TestCase):

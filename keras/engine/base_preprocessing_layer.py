@@ -34,7 +34,7 @@ from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
-keras_kpl_gauge = tf.__internal__.monitoring.BoolGauge(
+keras_kpl_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/layers/preprocessing',
     'keras preprocessing layers usage', 'method')
 
@@ -235,10 +235,10 @@ class PreprocessingLayer(Layer):
 
   @trackable.no_automatic_dependency_tracking
   def _configure_steps_per_execution(self, steps_per_execution):
-    self._steps_per_execution = tf.Variable(
+    self._steps_per_execution = tf.compat.v2.Variable(
         steps_per_execution,
         dtype='int64',
-        aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
+        aggregation=tf.compat.v2.VariableAggregation.ONLY_FIRST_REPLICA)
 
   # TODO(omalleyt): Unify this logic with `Layer._maybe_build`.
   def _adapt_maybe_build(self, data):
@@ -401,7 +401,7 @@ def convert_to_list(values, sparse_default_value=None):
     # TODO(momernick): Get Keras to recognize composite tensors as Tensors
     # and then replace this with a call to K.get_value.
     if (isinstance(values, tf.RaggedTensor) and
-        not tf.executing_eagerly()):
+        not tf.compat.v2.executing_eagerly()):
       values = K.get_session(values).run(values)
     values = values.to_list()
 
@@ -555,7 +555,7 @@ class Combiner(object):
 
 def _disallow_inside_tf_function(method_name):
   """Disallow calling a method inside a `tf.function`."""
-  if tf.inside_function():
+  if tf.compat.v2.inside_function():
     error_msg = (
         'Detected a call to `PreprocessingLayer.{method_name}` inside a '
         '`tf.function`. `PreprocessingLayer.{method_name} is a high-level '

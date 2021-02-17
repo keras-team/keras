@@ -337,7 +337,7 @@ class Softmax(Layer):
       inputs += adder
     if isinstance(self.axis, (tuple, list)):
       if len(self.axis) > 1:
-        return tf.exp(inputs - tf.reduce_logsumexp(
+        return tf.exp(inputs - tf.compat.v2.reduce_logsumexp(
             inputs, axis=self.axis, keepdims=True))
       else:
         return K.softmax(inputs, axis=self.axis[0])

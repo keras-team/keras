@@ -562,7 +562,7 @@ class RNNTest(keras_parameterized.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
   def test_stacked_rnn_attributes(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('reduce_sum is not available in eager mode.')
 
     cells = [keras.layers.LSTMCell(1),
@@ -578,8 +578,8 @@ class RNNTest(keras_parameterized.TestCase):
 
     # Test `get_losses_for` and `losses`
     x = keras.Input((None, 1))
-    loss_1 = tf.reduce_sum(x)
-    loss_2 = tf.reduce_sum(cells[0].kernel)
+    loss_1 = tf.compat.v2.reduce_sum(x)
+    loss_2 = tf.compat.v2.reduce_sum(cells[0].kernel)
     cells[0].add_loss(loss_1, inputs=x)
     cells[0].add_loss(loss_2)
     self.assertEqual(len(layer.losses), 2)
@@ -812,16 +812,16 @@ class RNNTest(keras_parameterized.TestCase):
         unroll=True)
 
     def verify(rnn_layer):
-      inputs = tf.constant(1.0, shape=(6, 2, 5))
+      inputs = tf.compat.v2.constant(1.0, shape=(6, 2, 5))
       out = rnn_layer(inputs, training=True)
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.global_variables_initializer())
       batch_1 = self.evaluate(out)
       batch_1_t0, batch_1_t1 = batch_1[:, 0, :], batch_1[:, 1, :]
       self.assertAllClose(batch_1_t0, batch_1_t1)
 
       # This simulate the layer called with multiple batches in eager mode
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         out2 = rnn_layer(inputs, training=True)
       else:
         out2 = out
@@ -938,7 +938,7 @@ class RNNTest(keras_parameterized.TestCase):
 
     self.assertEqual(cell.state_size.as_list(), [unit_a, unit_b])
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       init_state = layer.get_initial_state(x)
       self.assertEqual(len(init_state), 1)
       self.assertEqual(init_state[0].shape.as_list(), [None, unit_a, unit_b])
@@ -1019,7 +1019,7 @@ class RNNTest(keras_parameterized.TestCase):
     y = layer(x)
 
     self.assertEqual(cell.state_size, state_size)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       init_state = layer.get_initial_state(x)
       self.assertEqual(len(init_state), 1)
       self.assertEqual(init_state[0].shape.as_list(), [None, state_size])
@@ -1040,7 +1040,7 @@ class RNNTest(keras_parameterized.TestCase):
                                 'batch_size and dtype cannot be None'):
       cell.get_initial_state(None, None, None)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       inputs = keras.Input((None, 10))
       initial_state = cell.get_initial_state(inputs, None, None)
       self.assertEqual(initial_state.shape.as_list(), [None, 5])
@@ -1256,7 +1256,7 @@ class RNNTest(keras_parameterized.TestCase):
           inputs=inputs, batch_size=4, dtype=tf.float32)
       inputs, _ = cell(inputs, initial_state)
       output = inputs
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.global_variables_initializer())
         output = self.evaluate(output)
       return output

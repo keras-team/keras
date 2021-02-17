@@ -45,13 +45,13 @@ def populate_deserializable_objects():
     LOCAL.ALL_OBJECTS = {}
     LOCAL.GENERATED_WITH_V2 = None
 
-  if LOCAL.ALL_OBJECTS and LOCAL.GENERATED_WITH_V2 == tf.__internal__.tf2.enabled():
+  if LOCAL.ALL_OBJECTS and LOCAL.GENERATED_WITH_V2 == tf.compat.v2.__internal__.tf2.enabled():
     # Objects dict is already generated for the proper TF version:
     # do nothing.
     return
 
   LOCAL.ALL_OBJECTS = {}
-  LOCAL.GENERATED_WITH_V2 = tf.__internal__.tf2.enabled()
+  LOCAL.GENERATED_WITH_V2 = tf.compat.v2.__internal__.tf2.enabled()
 
   # Compatibility aliases (need to exist in both V1 and V2).
   LOCAL.ALL_OBJECTS['ConstantV2'] = initializers_v2.Constant
@@ -79,7 +79,7 @@ def populate_deserializable_objects():
   LOCAL.ALL_OBJECTS['lecun_normalV2'] = initializers_v2.LecunNormal
   LOCAL.ALL_OBJECTS['lecun_uniformV2'] = initializers_v2.LecunUniform
 
-  if tf.__internal__.tf2.enabled():
+  if tf.compat.v2.__internal__.tf2.enabled():
     # For V2, entries are generated automatically based on the content of
     # initializers_v2.py.
     v2_objs = {}

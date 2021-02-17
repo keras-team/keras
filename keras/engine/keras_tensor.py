@@ -466,7 +466,7 @@ class RaggedKerasTensor(KerasTensor):
         result = tf.RaggedTensor.from_row_splits(
             result, splits, validate=False)
       else:
-        rowlen = tf.constant(axis_size, ragged_spec.row_splits_dtype)
+        rowlen = tf.compat.v2.constant(axis_size, ragged_spec.row_splits_dtype)
         result = tf.RaggedTensor.from_uniform_row_length(
             result, rowlen, validate=False)
     return result

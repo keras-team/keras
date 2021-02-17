@@ -42,9 +42,9 @@ class HasList(training.Model):
     self.layer_list.append(core.Dense(4))
     self.layer_list.extend(
         [core.Dense(5),
-         core.Dense(6, kernel_regularizer=tf.reduce_sum)])
+         core.Dense(6, kernel_regularizer=tf.compat.v2.reduce_sum)])
     self.layer_list += [
-        core.Dense(7, bias_regularizer=tf.reduce_sum),
+        core.Dense(7, bias_regularizer=tf.compat.v2.reduce_sum),
         core.Dense(8)
     ]
     self.layer_list += (
@@ -60,7 +60,7 @@ class HasList(training.Model):
     aggregation = 0.
     for l in self.layer_list:
       x = l(x)
-      aggregation += tf.reduce_sum(x)
+      aggregation += tf.compat.v2.reduce_sum(x)
     bn, = self.layers_with_updates
     return bn(x) / aggregation
 
@@ -96,7 +96,7 @@ class ListTests(keras_parameterized.TestCase):
       model.load_weights(save_path)
       self.assertAllEqual([[1., 2., 3.], [4., 5., 6.]],
                           self.evaluate(model.variables[0]))
-      v = tf.Variable(1.)
+      v = tf.compat.v2.Variable(1.)
       model.var_list = [v]
     self.assertTrue(any(v is t for t in model.variables))
     self.assertTrue(any(v is t for t in model.trainable_variables))
@@ -106,7 +106,7 @@ class ListTests(keras_parameterized.TestCase):
 
   def testSubModelTracking(self):
     model = training.Model()
-    model.v = tf.Variable(1.)
+    model.v = tf.compat.v2.Variable(1.)
     self.assertIn(model.v, model.trainable_weights)
     model2 = training.Model()
     model2.m = [model]
@@ -174,7 +174,7 @@ class ListTests(keras_parameterized.TestCase):
     model = HasList()
     model_input = tf.ones([32, 2])
     model(model_input)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(0, len(model.updates))
     else:
       self.assertGreater(len(model.layers_with_updates[0].updates), 0)
@@ -214,7 +214,7 @@ class ListTests(keras_parameterized.TestCase):
 
     self.assertAllEqual(
         [1., 2., 3.],
-        self.evaluate(tf.constant(ListToTensor().l)))
+        self.evaluate(tf.compat.v2.constant(ListToTensor().l)))
 
     self.assertAllEqual(
         [1., 2., 3.],
@@ -240,7 +240,7 @@ class HasMapping(training.Model):
     self.layer_dict["dense"] = data_structures.List()
     self.layer_dict["dense"].extend(
         [core.Dense(5),
-         core.Dense(6, kernel_regularizer=tf.reduce_sum)])
+         core.Dense(6, kernel_regularizer=tf.compat.v2.reduce_sum)])
     self.layer_dict["norm"].append(
         normalization.BatchNormalization())
     self.layer_dict["norm"].append(
@@ -250,7 +250,7 @@ class HasMapping(training.Model):
     aggregation = 0.
     for norm, dense in zip(self.layer_dict["norm"], self.layer_dict["dense"]):
       x = norm(dense(x))
-      aggregation += tf.reduce_sum(x)
+      aggregation += tf.compat.v2.reduce_sum(x)
     return self.layer_dict["output"](x) / aggregation
 
 
@@ -392,14 +392,14 @@ class HasTuple(training.Model):
     super(HasTuple, self).__init__()
     self.layer_list = (
         core.Dense(3), core.Dense(4),
-        core.Dense(5, kernel_regularizer=tf.reduce_sum))
+        core.Dense(5, kernel_regularizer=tf.compat.v2.reduce_sum))
     self.layers_with_updates = (normalization.BatchNormalization(),)
 
   def call(self, x):
     aggregation = 0.
     for l in self.layer_list:
       x = l(x)
-      aggregation += tf.reduce_sum(x)
+      aggregation += tf.compat.v2.reduce_sum(x)
     bn, = self.layers_with_updates
     return bn(x) / aggregation
 
@@ -435,7 +435,7 @@ class TupleTests(keras_parameterized.TestCase):
       model.load_weights(save_path)
       self.assertAllEqual([[1., 2., 3.], [4., 5., 6.]],
                           self.evaluate(model.variables[0]))
-      v = tf.Variable(1.)
+      v = tf.compat.v2.Variable(1.)
       model.var_list = (v,)
       self.assertIn(id(v), [id(obj) for obj in model.variables])
       self.assertIn(id(v), [id(obj) for obj in model.trainable_variables])
@@ -450,7 +450,7 @@ class TupleTests(keras_parameterized.TestCase):
   )
   def testSubModelTracking(self, module_subclass):
     model = module_subclass()
-    model.v = tf.Variable(1.)
+    model.v = tf.compat.v2.Variable(1.)
     self.assertIn(model.v, model.trainable_variables)
     model2 = module_subclass()
     model2.m = (model,)
@@ -528,7 +528,7 @@ class TupleTests(keras_parameterized.TestCase):
 
     self.assertAllEqual(
         (1., 2., 3.),
-        self.evaluate(tf.constant(TupleToTensor().l)))
+        self.evaluate(tf.compat.v2.constant(TupleToTensor().l)))
 
     self.assertAllEqual(
         (1., 2., 3.),
@@ -578,7 +578,7 @@ class InterfaceTests(keras_parameterized.TestCase):
     self.assertEqual([b, c], a.layers)
     self.assertEqual([b, c], a.attribute.layers)
     self.assertEqual([c], a.attribute["c"].layers)
-    checkpoint = tf.train.Checkpoint(a=a)
+    checkpoint = tf.compat.v2.train.Checkpoint(a=a)
     save_path = checkpoint.save(os.path.join(self.get_temp_dir(), "ckpt"))
     with self.cached_session():
       checkpoint.restore(save_path).assert_consumed().initialize_or_restore()
@@ -589,7 +589,7 @@ class InterfaceTests(keras_parameterized.TestCase):
     a.l1 = data_structures.NoDependency([])
     a.l1.insert(1, 0)
     self.assertIsInstance(a.l1, list)
-    checkpoint = tf.train.Checkpoint(a=a)
+    checkpoint = tf.compat.v2.train.Checkpoint(a=a)
     checkpoint.save(os.path.join(self.get_temp_dir(), "ckpt"))
     a.l2 = []
     a.l2.insert(1, tf.Module())

@@ -96,14 +96,14 @@ class CombinerPreprocessingLayer(
     else:
       accumulator = self._combiner.restore(self._restore_updates())
     if isinstance(data, (list, tuple)):
-      data = tf.convert_to_tensor(data)
-    if not isinstance(data, (tf.data.Dataset, np.ndarray, tf.Tensor,
+      data = tf.compat.v2.convert_to_tensor(data)
+    if not isinstance(data, (tf.compat.v2.data.Dataset, np.ndarray, tf.Tensor,
                              tf.RaggedTensor)):
       raise ValueError('`adapt()` requires a batched Dataset, a Tensor, '
                        'or a Numpy array as input, '
                        'got {}'.format(type(data)))
 
-    if isinstance(data, tf.data.Dataset):
+    if isinstance(data, tf.compat.v2.data.Dataset):
       # Validate that the dataset only contains single-tensor elements.
       if not isinstance(data.element_spec, tf.TypeSpec):
         raise TypeError(

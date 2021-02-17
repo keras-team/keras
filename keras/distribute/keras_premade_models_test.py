@@ -30,16 +30,16 @@ from keras.premade import wide_deep
 
 
 def strategy_combinations_eager_data_fn():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       distribution=[
-          tf.__internal__.distribute.combinations.default_strategy,
-          tf.__internal__.distribute.combinations.one_device_strategy,
-          tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-          tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-          tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
+          tf.compat.v2.__internal__.distribute.combinations.default_strategy,
+          tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+          tf.compat.v2.__internal__.distribute.combinations.one_device_strategy_gpu,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+          tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
+          tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+          tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
           # NOTE: TPUStrategy not tested because the models in this test are
           # sparse and do not work with TPUs.
       ],
@@ -62,7 +62,7 @@ def get_dataset():
 
 class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(strategy_combinations_eager_data_fn())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(strategy_combinations_eager_data_fn())
   def test_linear_model(self, distribution, data_fn):
     with distribution.scope():
       model = linear.LinearModel()
@@ -75,7 +75,7 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
         hist = model.fit(get_dataset(), epochs=5)
       self.assertLess(hist.history['loss'][4], 0.2)
 
-  @tf.__internal__.distribute.combinations.generate(strategy_combinations_eager_data_fn())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(strategy_combinations_eager_data_fn())
   def test_wide_deep_model(self, distribution, data_fn):
     with distribution.scope():
       linear_model = linear.LinearModel(units=1)
@@ -95,4 +95,4 @@ class KerasPremadeModelsTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

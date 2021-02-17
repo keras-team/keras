@@ -33,14 +33,14 @@ def _mimic_two_cpus():
   ])
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+            tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
             ds_combinations.NamedDistribution(
                 "Collective2CPUs",
                 # pylint: disable=g-long-lambda
-                lambda: tf.distribute.
+                lambda: tf.compat.v2.distribute.
                 MultiWorkerMirroredStrategy._from_local_devices((
                     "/device:CPU:0", "/device:CPU:1")),
                 required_gpus=0)

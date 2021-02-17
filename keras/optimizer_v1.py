@@ -737,7 +737,7 @@ class Nadam(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-class TFOptimizer(Optimizer, tf.__internal__.tracking.Trackable):
+class TFOptimizer(Optimizer, tf.compat.v2.__internal__.tracking.Trackable):
   """Wrapper class for native TensorFlow optimizers."""
 
   def __init__(self, optimizer, iterations=None):  # pylint: disable=super-init-not-called

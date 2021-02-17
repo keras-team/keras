@@ -276,7 +276,7 @@ class GRULayerGenericTest(tf.test.TestCase):
 
     x = keras.backend.variable(np.ones((2, 3, 2)))
     layer(x)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(len(layer.losses), 4)
     else:
       self.assertEqual(len(layer.get_losses_for(x)), 1)

@@ -75,7 +75,7 @@ class _CuDNNRNN(RNN):
     self.constants_spec = None
     self._states = None
     self._num_constants = 0
-    self._vector_shape = tf.constant([-1])
+    self._vector_shape = tf.compat.v2.constant([-1])
 
   def call(self, inputs, mask=None, training=None, initial_state=None):
     if isinstance(mask, list):

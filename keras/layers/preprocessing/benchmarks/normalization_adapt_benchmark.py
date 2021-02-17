@@ -37,10 +37,10 @@ def reduce_fn(state, values):
   # value and calculate mean and variance with respect to that.
   k = tf.compat.v1.cond(tf.equal(n, 0), lambda: values[0], lambda: k)
 
-  sum_v = tf.reduce_sum(values, axis=0)
-  sum_v2 = tf.reduce_sum(tf.square(values), axis=0)
+  sum_v = tf.compat.v2.reduce_sum(values, axis=0)
+  sum_v2 = tf.compat.v2.reduce_sum(tf.square(values), axis=0)
   ones = tf.compat.v1.ones_like(values, dtype=tf.int32)
-  batch_size = tf.reduce_sum(ones, axis=0)
+  batch_size = tf.compat.v2.reduce_sum(ones, axis=0)
   batch_size_f = tf.cast(batch_size, tf.float32)
 
   ex = 0 + sum_v - tf.multiply(batch_size_f, k)

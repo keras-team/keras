@@ -42,7 +42,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
                                ):
 
   def test_dense_input_sparse_output(self):
-    input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
+    input_array = tf.compat.v2.constant([[1, 2, 3], [3, 3, 0]])
 
     # The expected output should be (X for missing value):
     # [[X, 1, 1, 1]
@@ -241,7 +241,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
         output_dataset)
 
   def test_sparse_output_and_dense_layer(self):
-    input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
+    input_array = tf.compat.v2.constant([[1, 2, 3], [3, 3, 0]])
 
     num_tokens = 4
 
@@ -256,7 +256,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     _ = model.predict(input_array, steps=1)
 
   def test_dense_oov_input(self):
-    input_array = tf.constant([[0, 1, 2], [2, 3, 1]])
+    input_array = tf.compat.v2.constant([[0, 1, 2], [2, 3, 1]])
     num_tokens = 3
     expected_output_shape = [None, num_tokens]
     encoder_layer = get_layer_class()(num_tokens)
@@ -270,7 +270,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
       _ = model.predict(input_array, steps=1)
 
   def test_dense_negative(self):
-    input_array = tf.constant([[1, 2, 0], [2, 2, -1]])
+    input_array = tf.compat.v2.constant([[1, 2, 0], [2, 2, -1]])
     num_tokens = 3
     expected_output_shape = [None, num_tokens]
     encoder_layer = get_layer_class()(num_tokens)

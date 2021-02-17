@@ -27,7 +27,7 @@ from keras.layers import core
 from keras.optimizer_v2 import adam
 
 
-class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
+class _ModelWithOptimizerUsingDefun(tf.compat.v2.train.Checkpoint):
 
   def __init__(self):
     self.dense = core.Dense(1)
@@ -39,7 +39,7 @@ class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
   )
   def call(self, x, y):
     with tf.GradientTape() as tape:
-      loss = tf.reduce_mean((self.dense(x) - y) ** 2.)
+      loss = tf.compat.v2.reduce_mean((self.dense(x) - y) ** 2.)
     trainable_variables = self.dense.trainable_variables
     gradients = tape.gradient(loss, trainable_variables)
     self.optimizer.apply_gradients(zip(gradients, trainable_variables))
@@ -54,8 +54,8 @@ class MemoryTests(tf.test.TestCase):
 
   @test_util.assert_no_garbage_created
   def test_no_reference_cycles(self):
-    x = tf.constant([[3., 4.]])
-    y = tf.constant([2.])
+    x = tf.compat.v2.constant([[3., 4.]])
+    y = tf.compat.v2.constant([2.])
     self._model.call(x, y)
     if sys.version_info[0] < 3:
       # TODO(allenl): debug reference cycles in Python 2.x

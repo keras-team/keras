@@ -227,7 +227,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     model = MyModel()
 
     for _ in range(10):
-      x = tf.constant(0.5, shape=[1, 1])
+      x = tf.compat.v2.constant(0.5, shape=[1, 1])
       model(x, training=True)
 
     # Make sure the moving mean and variance have been updated
@@ -239,7 +239,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     # Bessel's correction is currently only used in the fused case. In the
     # future, it may be used in the nonfused case as well.
 
-    x = tf.constant([0., 2.], shape=[2, 1, 1, 1])
+    x = tf.compat.v2.constant([0., 2.], shape=[2, 1, 1, 1])
     layer = normalization_v2.BatchNormalization(
         momentum=0.5, moving_variance_initializer='zeros')
     layer(x, training=True)
@@ -249,7 +249,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
     # 2 * 0.5 == 1.
     self.assertAllEqual(self.evaluate(layer.moving_variance), [1.])
 
-    x = tf.constant([0., 2.], shape=[2, 1, 1, 1, 1])
+    x = tf.compat.v2.constant([0., 2.], shape=[2, 1, 1, 1, 1])
     layer = normalization_v2.BatchNormalization(
         momentum=0.5, moving_variance_initializer='zeros')
     layer(x, training=True)
@@ -763,7 +763,7 @@ class LayerNormalizationNumericsTest(keras_parameterized.TestCase):
             with tf.compat.v1.test.mock.patch.object(norm, 'gamma', gamma):
               return norm(x)
         # pylint: enable=cell-var-from-loop
-        results = tf.test.compute_gradient(
+        results = tf.compat.v2.test.compute_gradient(
             forward_fn, [keras.backend.cast(x, dtype), norm.beta, norm.gamma])
         ([x_grad_t, beta_grad_t, gamma_grad_t],
          [x_grad_n, beta_grad_n, gamma_grad_n]) = results

@@ -35,14 +35,14 @@ def batch_wrapper(dataset, batch_size, distribution, repeat=None):
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
   if isinstance(distribution,
-                (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
+                (tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         # Investigate why crossing is not supported with TPU.
         distribution=all_strategies,
         mode=['eager', 'graph']))
@@ -53,7 +53,7 @@ class CategoryCrossingDistributionTest(
   def test_distribution(self, distribution):
     input_array_1 = np.array([['a', 'b'], ['c', 'd']])
     input_array_2 = np.array([['e', 'f'], ['g', 'h']])
-    inp_dataset = tf.data.Dataset.from_tensor_slices(
+    inp_dataset = tf.compat.v2.data.Dataset.from_tensor_slices(
         {'input_1': input_array_1, 'input_2': input_array_2})
     inp_dataset = batch_wrapper(inp_dataset, 2, distribution)
 

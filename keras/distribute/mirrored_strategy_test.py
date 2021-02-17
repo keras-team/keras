@@ -47,10 +47,10 @@ class MiniModel(keras_training.Model):
     return self.fc(inputs)
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+            tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
         ],
         mode=["eager"]))
 class MirroredStrategyDefunTest(tf.test.TestCase):
@@ -72,7 +72,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase):
       optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.25)
       update_ops = optimizer._distributed_apply(distribution, grads_and_vars)  # pylint: disable=protected-access
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.global_variables_initializer())
         self.evaluate(update_ops)
 

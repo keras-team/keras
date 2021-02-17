@@ -58,13 +58,13 @@ class CheckpointingTests(xla_test.XLATestCase):
       with self.test_scope():
         model = Subclassed()
         optimizer = adam.Adam(0.001)
-        root = tf.train.Checkpoint(
+        root = tf.compat.v2.train.Checkpoint(
             optimizer=optimizer, model=model)
         manager = tf.train.CheckpointManager(
             root, checkpoint_directory, max_to_keep=2)
         root.restore(manager.latest_checkpoint)
         for _ in range(num_training_steps):
-          input_value = tf.constant([[3.]])
+          input_value = tf.compat.v2.constant([[3.]])
           with tf.GradientTape() as tape:
             loss = model(input_value)
           variables = model.trainable_variables

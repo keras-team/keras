@@ -29,8 +29,8 @@ from keras.layers.preprocessing import hashing
 from keras.layers.preprocessing import preprocessing_test_utils
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=all_strategies,
         mode=["eager", "graph"]))
 class HashingDistributionTest(keras_parameterized.TestCase,

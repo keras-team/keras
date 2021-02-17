@@ -162,7 +162,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
     apply_state[(var_device, var_dtype)].update(
         dict(
             neg_lr_t=-apply_state[(var_device, var_dtype)]["lr_t"],
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             rho=rho,
             momentum=tf.identity(self._get_hyper("momentum", var_dtype)),

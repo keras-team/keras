@@ -36,7 +36,7 @@ def cycle(obj, cycles, signatures=None):
     device = "/device:GPU:0" if tf.test.is_gpu_available() else "/device:CPU:0"
     with tf.device(device):
       tf.saved_model.save(to_save, path, signatures)
-      loaded = tf.saved_model.load(path)
+      loaded = tf.compat.v2.saved_model.load(path)
     to_save = loaded
   return loaded
 

@@ -117,7 +117,7 @@ class Adamax(optimizer_v2.OptimizerV2):
     apply_state[(var_device, var_dtype)].update(
         dict(
             neg_scaled_lr=-lr_t / (1 - beta_1_power),
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             beta_1_t=beta_1_t,
             beta_1_power=beta_1_power,

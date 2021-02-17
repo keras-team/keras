@@ -75,8 +75,8 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     def _parse_example(example):
       ctx, seq = tf.io.parse_single_sequence_example(
           example,
-          context_features=tf.feature_column.make_parse_example_spec(ctx_cols),
-          sequence_features=tf.feature_column.make_parse_example_spec(seq_cols))
+          context_features=tf.compat.v2.feature_column.make_parse_example_spec(ctx_cols),
+          sequence_features=tf.compat.v2.feature_column.make_parse_example_spec(seq_cols))
       ctx.update(seq)
       return ctx
 
@@ -112,11 +112,11 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
                                                   num_buckets=10)
     seq = tf.feature_column.sequence_categorical_column_with_identity('seq',
                                                         num_buckets=10)
-    shared_non_seq, shared_seq = tf.feature_column.shared_embeddings(
+    shared_non_seq, shared_seq = tf.compat.v2.feature_column.shared_embeddings(
         [non_seq, seq],
         dimension=4,
         combiner='sum',
-        initializer=tf.ones_initializer(),
+        initializer=tf.compat.v2.ones_initializer(),
         shared_embedding_collection_name='shared')
 
     seq = tf.SparseTensor(

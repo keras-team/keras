@@ -211,11 +211,11 @@ class KerasComponentsBenchmarks(tf.test.Benchmark):
       self._benchmark_keras_model_fit(model)
 
   def benchmark_keras_model_functional_fit_graph_mode_with_profiler(self):
-    tf.profiler.experimental.start("")
+    tf.compat.v2.profiler.experimental.start("")
     with context.graph_mode():
       model = make_keras_model(initializer="glorot_uniform")
       self._benchmark_keras_model_fit(model)
-    tf.profiler.experimental.stop(save=False)
+    tf.compat.v2.profiler.experimental.stop(save=False)
 
   def benchmark_keras_model_functional_fit_run_model_eagerly(self):
     model = make_keras_model(initializer="glorot_uniform")
@@ -223,10 +223,10 @@ class KerasComponentsBenchmarks(tf.test.Benchmark):
 
   def benchmark_keras_model_functional_fit_run_model_eagerly_with_profiler(
       self):
-    tf.profiler.experimental.start("")
+    tf.compat.v2.profiler.experimental.start("")
     model = make_keras_model(initializer="glorot_uniform")
     self._benchmark_keras_model_fit(model, run_eagerly=True)
-    tf.profiler.experimental.stop(save=False)
+    tf.compat.v2.profiler.experimental.stop(save=False)
 
   def benchmark_keras_model_sequential_fit(self):
     model = make_sequential_keras_model(initializer="glorot_uniform")

@@ -85,15 +85,15 @@ class LinearModelTest(keras_parameterized.TestCase):
     model.fit([input_a_np, input_b_np], output_np, epochs=5)
 
   def test_linear_model_with_sparse_input(self):
-    indices = tf.constant([[0, 0], [0, 2], [1, 0], [1, 1]],
+    indices = tf.compat.v2.constant([[0, 0], [0, 2], [1, 0], [1, 1]],
                                    dtype=tf.int64)
-    values = tf.constant([.4, .6, .8, .5])
-    shape = tf.constant([2, 3], dtype=tf.int64)
+    values = tf.compat.v2.constant([.4, .6, .8, .5])
+    shape = tf.compat.v2.constant([2, 3], dtype=tf.int64)
     model = linear.LinearModel()
     inp = tf.SparseTensor(indices, values, shape)
     output = model(inp)
     self.evaluate(tf.compat.v1.global_variables_initializer())
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       weights = model.get_weights()
       weights[0] = np.ones((3, 1))
       model.set_weights(weights)
@@ -128,7 +128,7 @@ class LinearModelTest(keras_parameterized.TestCase):
 
     indices = np.asarray(indices)
     values = np.asarray(values)
-    shape = tf.constant([batch_size, 2], dtype=tf.int64)
+    shape = tf.compat.v2.constant([batch_size, 2], dtype=tf.int64)
     inp = tf.SparseTensor(indices, values, shape)
     model = linear.LinearModel(use_bias=False)
     opt = gradient_descent.SGD()

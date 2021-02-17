@@ -240,7 +240,7 @@ class Layer(base_layer.Layer):
                   'will be removed in a future version. '
                   'Please stop using this property because tf.layers layers no '
                   'longer track their graph.')
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       raise RuntimeError('Layer.graph not supported when executing eagerly.')
     return None
 
@@ -281,7 +281,7 @@ class Layer(base_layer.Layer):
     previous_losses_length = len(self._losses)
     previous_callable_losses_length = len(self._callable_losses)
     super(Layer, self).add_loss(losses, inputs=inputs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # TODO(fchollet): deprecate collection below.
       new_losses = self._losses[previous_losses_length:]
       new_callable_losses = self._callable_losses[
@@ -413,7 +413,7 @@ class Layer(base_layer.Layer):
         return variable not in existing_variable_set
 
     init_graph = None
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       default_graph = tf.compat.v1.get_default_graph()
       if default_graph.building_function:
         with tf.init_scope():
@@ -421,7 +421,7 @@ class Layer(base_layer.Layer):
           # will be lifted; if initialization ops will be lifted into
           # the eager context, then there is nothing to retrieve, since variable
           # collections are not supported when eager execution is enabled.
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             init_graph = tf.compat.v1.get_default_graph()
             existing_variables = set(tf.compat.v1.global_variables())
       else:
@@ -553,7 +553,7 @@ class Layer(base_layer.Layer):
       # Actually call layer
       outputs = super(Layer, self).__call__(inputs, *args, **kwargs)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Update global default collections.
       _add_elements_to_collection(self.updates, tf.compat.v1.GraphKeys.UPDATE_OPS)
     return outputs
@@ -577,7 +577,7 @@ class Layer(base_layer.Layer):
 
   def __setattr__(self, value, name):
     # By-pass the automatic dependency tracking performed by the parent Layer.
-    super(tf.__internal__.tracking.Trackable, self).__setattr__(value, name)
+    super(tf.compat.v2.__internal__.tracking.Trackable, self).__setattr__(value, name)
 
   @property
   def _is_legacy_layer(self):
@@ -586,7 +586,7 @@ class Layer(base_layer.Layer):
 
 
 def _add_elements_to_collection(elements, collection_list):
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     raise RuntimeError('Using collections from Layers not supported in Eager '
                        'mode. Tried to add %s to %s' % (elements,
                                                         collection_list))
@@ -628,5 +628,5 @@ def fn_args(fn):
 
 
 def is_bound_method(fn):
-  _, fn = tf.__internal__.decorator.unwrap(fn)
+  _, fn = tf.compat.v2.__internal__.decorator.unwrap(fn)
   return tf_inspect.ismethod(fn) and (fn.__self__ is not None)

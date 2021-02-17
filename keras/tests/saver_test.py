@@ -53,11 +53,11 @@ class MyModel(training.Model):
 class TrackableCompatibilityTests(tf.test.TestCase):
 
   def _initialized_model(self):
-    input_value = tf.constant([[3.]])
+    input_value = tf.compat.v2.constant([[3.]])
     model = MyModel()
     optimizer = tf.compat.v1.train.AdamOptimizer(0.001)
     optimizer_step = tf.compat.v1.train.get_or_create_global_step()
-    root_trackable = tf.train.Checkpoint(
+    root_trackable = tf.compat.v2.train.Checkpoint(
         optimizer=optimizer, model=model, optimizer_step=optimizer_step)
     train_op = optimizer.minimize(
         functools.partial(model, input_value),
@@ -99,13 +99,13 @@ class TrackableCompatibilityTests(tf.test.TestCase):
     save_graph = tf.Graph()
     with save_graph.as_default(), self.session(graph=save_graph) as sess:
       root = self._initialized_model()
-      object_saver = tf.train.Checkpoint(root=root)
+      object_saver = tf.compat.v2.train.Checkpoint(root=root)
       save_path = object_saver.save(file_prefix=checkpoint_prefix)
 
       # An incompatible object-based checkpoint to check error messages
-      var = tf.Variable(1., name="a")
+      var = tf.compat.v2.Variable(1., name="a")
       self.evaluate(var.initializer)
-      second_saver = tf.train.Checkpoint(v=var)
+      second_saver = tf.compat.v2.train.Checkpoint(v=var)
       second_path = second_saver.save(file_prefix=os.path.join(
           checkpoint_directory, "second"))
 
@@ -133,10 +133,10 @@ class TrackableCompatibilityTests(tf.test.TestCase):
     save_graph = tf.Graph()
     with save_graph.as_default(), self.session(graph=save_graph):
       root = self._initialized_model()
-      object_saver = tf.train.Checkpoint(root=root)
+      object_saver = tf.compat.v2.train.Checkpoint(root=root)
       save_path = object_saver.save(file_prefix=checkpoint_prefix)
 
-    with tf.__internal__.eager_context.eager_mode():
+    with tf.compat.v2.__internal__.eager_context.eager_mode():
       root = self._initialized_model()
       self._set_sentinels(root)
       saver = tf.compat.v1.train.Saver(

@@ -80,7 +80,7 @@ def update_state_wrapper(update_state_fn):
       metric_obj.add_update(update_op)
     return update_op
 
-  return tf.__internal__.decorator.make_decorator(update_state_fn, decorated)
+  return tf.compat.v2.__internal__.decorator.make_decorator(update_state_fn, decorated)
 
 
 def result_wrapper(result_fn):
@@ -136,7 +136,7 @@ def result_wrapper(result_fn):
     metric_obj._call_result = result_t
     return result_t
 
-  return tf.__internal__.decorator.make_decorator(result_fn, decorated)
+  return tf.compat.v2.__internal__.decorator.make_decorator(result_fn, decorated)
 
 
 def weakmethod(method):
@@ -299,7 +299,7 @@ def update_confusion_matrix_variables(variables_to_update,
 
   y_true = tf.cast(y_true, dtype=variable_dtype)
   y_pred = tf.cast(y_pred, dtype=variable_dtype)
-  thresholds = tf.convert_to_tensor(
+  thresholds = tf.compat.v2.convert_to_tensor(
       thresholds, dtype=variable_dtype)
   num_thresholds = thresholds.shape[0]
   if multi_label:
@@ -392,7 +392,7 @@ def update_confusion_matrix_variables(variables_to_update,
   label_is_pos = tf.tile(labels_extra_dim, data_tiles)
 
   if sample_weight is not None:
-    sample_weight = tf.__internal__.ops.broadcast_weights(
+    sample_weight = tf.compat.v2.__internal__.ops.broadcast_weights(
         tf.cast(sample_weight, dtype=variable_dtype), y_pred)
     weights_tiled = tf.tile(
         tf.reshape(sample_weight, thresh_tiles), data_tiles)
@@ -401,7 +401,7 @@ def update_confusion_matrix_variables(variables_to_update,
 
   if label_weights is not None and not multi_label:
     label_weights = tf.compat.v1.expand_dims(label_weights, 0)
-    label_weights = tf.__internal__.ops.broadcast_weights(label_weights,
+    label_weights = tf.compat.v2.__internal__.ops.broadcast_weights(label_weights,
                                                             y_pred)
     label_weights_tiled = tf.tile(
         tf.reshape(label_weights, thresh_tiles), data_tiles)
@@ -417,7 +417,7 @@ def update_confusion_matrix_variables(variables_to_update,
         tf.logical_and(label, pred), dtype=var.dtype)
     if weights is not None:
       label_and_pred *= tf.cast(weights, dtype=var.dtype)
-    return var.assign_add(tf.reduce_sum(label_and_pred, 1))
+    return var.assign_add(tf.compat.v2.reduce_sum(label_and_pred, 1))
 
   loop_vars = {
       ConfusionMatrix.TRUE_POSITIVES: (label_is_pos, pred_is_pos),
@@ -460,7 +460,7 @@ def _filter_top_k(x, k):
     tensor with same shape and dtype as x.
   """
   _, top_k_idx = tf.math.top_k(x, k, sorted=False)
-  top_k_mask = tf.reduce_sum(
+  top_k_mask = tf.compat.v2.reduce_sum(
       tf.one_hot(top_k_idx, tf.compat.v1.shape(x)[-1], axis=-1), axis=-2)
   return x * top_k_mask + NEG_INF * (1 - top_k_mask)
 

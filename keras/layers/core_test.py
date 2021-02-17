@@ -280,7 +280,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   @keras_parameterized.run_with_all_model_types
   def test_lambda_with_variable_in_model(self):
-    v = tf.Variable(1., trainable=True)
+    v = tf.compat.v2.Variable(1., trainable=True)
     def lambda_fn(x, v):
       return x * v
 
@@ -306,8 +306,8 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   def test_creation_inside_lambda(self):
     def lambda_fn(x):
-      scale = tf.Variable(1., trainable=True, name='scale')
-      shift = tf.Variable(1., trainable=True, name='shift')
+      scale = tf.compat.v2.Variable(1., trainable=True, name='scale')
+      shift = tf.compat.v2.Variable(1., trainable=True, name='shift')
       return x * scale + shift
 
     expected_error = textwrap.dedent(r'''
@@ -343,7 +343,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   @keras_parameterized.run_with_all_model_types
   def test_warns_on_variable_capture(self):
-    v = tf.Variable(1., trainable=True)
+    v = tf.compat.v2.Variable(1., trainable=True)
     def lambda_fn(x):
       return x * v
 
@@ -497,14 +497,14 @@ class CoreLayersTest(keras_parameterized.TestCase):
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 4, 5, 2))
 
   def test_dense_dtype(self):
-    inputs = tf.convert_to_tensor(
+    inputs = tf.compat.v2.convert_to_tensor(
         np.random.randint(low=0, high=7, size=(2, 2)))
     layer = keras.layers.Dense(5, dtype='float32')
     outputs = layer(inputs)
     self.assertEqual(outputs.dtype, 'float32')
 
   def test_dense_with_policy(self):
-    inputs = tf.convert_to_tensor(
+    inputs = tf.compat.v2.convert_to_tensor(
         np.random.randint(low=0, high=7, size=(2, 2)))
     layer = keras.layers.Dense(5, dtype=policy.Policy('mixed_float16'))
     outputs = layer(inputs)
@@ -542,7 +542,7 @@ class CoreLayersTest(keras_parameterized.TestCase):
     self.assertEqual(config.pop('l1'), 0.1)
 
   def test_numpy_inputs(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       layer = keras.layers.RepeatVector(2)
       x = np.ones((10, 10))
       self.assertAllEqual(np.ones((10, 2, 10)), layer(x))

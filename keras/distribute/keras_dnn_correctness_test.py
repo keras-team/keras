@@ -29,15 +29,15 @@ from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
 
 
 def all_strategy_combinations_with_eager_and_graph_modes():
-  return (tf.__internal__.test.combinations.combine(
+  return (tf.compat.v2.__internal__.test.combinations.combine(
       distribution=strategy_combinations.all_strategies,
-      mode=['graph', 'eager']) + tf.__internal__.test.combinations.combine(
+      mode=['graph', 'eager']) + tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.multi_worker_mirrored_strategies,
           mode='eager'))
 
 
 def all_strategy_combinations_with_graph_mode():
-  return (tf.__internal__.test.combinations.combine(
+  return (tf.compat.v2.__internal__.test.combinations.combine(
       distribution=keras_correctness_test_base.all_strategies,
       mode=['graph']))
 
@@ -99,13 +99,13 @@ class TestDistributionStrategyDnnCorrectness(
     x_predict = np.array([[1.], [2.], [3.], [4.]], dtype=np.float32)
     return x_train, y_train, x_eval, y_eval, x_predict
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.all_strategy_and_input_config_combinations() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_dnn_correctness(self, distribution, use_numpy, use_validation_data):
     self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base
       .test_combinations_with_tpu_strategies_graph() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
@@ -115,7 +115,7 @@ class TestDistributionStrategyDnnCorrectness(
     self.run_correctness_test(
         distribution, use_numpy, use_validation_data, partial_last_batch='eval')
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base
       .strategy_minus_tpu_and_input_config_combinations_eager() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
@@ -130,7 +130,7 @@ class TestDistributionStrategyDnnCorrectness(
         partial_last_batch='train_and_eval',
         training_epochs=1)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations_with_graph_mode())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations_with_graph_mode())
   def test_dnn_with_dynamic_learning_rate(self, distribution):
     self.run_dynamic_lr_test(distribution)
 
@@ -169,7 +169,7 @@ class TestDistributionStrategyDnnMetricCorrectness(
       history = model.fit(x=train_dataset, epochs=2, steps_per_epoch=10)
       self.assertEqual(history.history['binary_accuracy'], [1.0, 1.0])
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       all_strategy_combinations_with_eager_and_graph_modes())
   def test_simple_dnn_metric_correctness(self, distribution):
     self.run_metric_correctness_test(distribution)
@@ -218,7 +218,7 @@ class TestDistributionStrategyDnnMetricEvalCorrectness(
       self.assertEqual(outs[1], 0.)
       self.assertEqual(outs[2], 0.)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       all_strategy_combinations_with_eager_and_graph_modes())
   def test_identity_model_metric_eval_correctness(self, distribution):
     self.run_eval_metrics_correctness_test(distribution)
@@ -266,13 +266,13 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
           metrics=['mse'])
       return model
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.all_strategy_and_input_config_combinations() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_dnn_correctness(self, distribution, use_numpy, use_validation_data):
-    if (tf.executing_eagerly()) or is_default_strategy(distribution):
+    if (tf.compat.v2.executing_eagerly()) or is_default_strategy(distribution):
       self.run_correctness_test(distribution, use_numpy, use_validation_data)
-    elif K.is_tpu_strategy(distribution) and not tf.executing_eagerly():
+    elif K.is_tpu_strategy(distribution) and not tf.compat.v2.executing_eagerly():
       with self.assertRaisesRegex(
           ValueError,
           'Expected `model` argument to be a functional `Model` instance, '
@@ -286,9 +286,9 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
           '`input_dim` set in its first layer or a subclassed model.'):
         self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations_with_graph_mode())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations_with_graph_mode())
   def test_dnn_with_dynamic_learning_rate(self, distribution):
-    if ((tf.executing_eagerly() and not K.is_tpu_strategy(distribution)) or
+    if ((tf.compat.v2.executing_eagerly() and not K.is_tpu_strategy(distribution)) or
         is_default_strategy(distribution)):
       self.run_dynamic_lr_test(distribution)
     elif K.is_tpu_strategy(distribution):
@@ -305,7 +305,7 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
           '`input_dim` set in its first layer or a subclassed model.'):
         self.run_dynamic_lr_test(distribution)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_with_tpu_strategies_graph())
   def test_dnn_correctness_with_partial_last_batch_eval(self, distribution,
                                                         use_numpy,
@@ -322,4 +322,4 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

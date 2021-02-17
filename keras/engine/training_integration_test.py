@@ -137,8 +137,8 @@ class CoreLayerIntegrationTest(keras_parameterized.TestCase):
         raise ValueError('Tensor or EagerTensor expected, got type {}'
                          .format(type(x)))
 
-      if isinstance(x, tf.__internal__.EagerTensor) != tf.executing_eagerly():
-        expected_type = (tf.__internal__.EagerTensor if tf.executing_eagerly()
+      if isinstance(x, tf.compat.v2.__internal__.EagerTensor) != tf.compat.v2.executing_eagerly():
+        expected_type = (tf.compat.v2.__internal__.EagerTensor if tf.compat.v2.executing_eagerly()
                          else tf.Tensor)
         raise ValueError('Expected type {}, got type {}'
                          .format(expected_type, type(x)))
@@ -153,7 +153,7 @@ class CoreLayerIntegrationTest(keras_parameterized.TestCase):
       y = keras.backend.random_uniform(shape=(1,))
       return x, y
 
-    dataset = tf.data.Dataset.range(4).map(map_fn).batch(batch_size)
+    dataset = tf.compat.v2.data.Dataset.range(4).map(map_fn).batch(batch_size)
 
     inp = keras.layers.Input(shape=input_shape, batch_size=batch_size)
     layer = layer_to_test(**layer_kwargs)(inp)
@@ -161,7 +161,7 @@ class CoreLayerIntegrationTest(keras_parameterized.TestCase):
     # Condense the output down to a single scalar.
     layer = keras.layers.Flatten()(layer)
     layer = keras.layers.Lambda(
-        lambda x: tf.reduce_mean(x, keepdims=True))(layer)
+        lambda x: tf.compat.v2.reduce_mean(x, keepdims=True))(layer)
     layer = keras.layers.Dense(1, activation=None)(layer)
     model = keras.models.Model(inp, layer)
 
@@ -171,13 +171,13 @@ class CoreLayerIntegrationTest(keras_parameterized.TestCase):
     model.compile(loss='mse', optimizer='sgd', run_eagerly=run_eagerly)
     model.fit(dataset.repeat(2), verbose=2, epochs=2, steps_per_epoch=2)
 
-    eval_dataset = tf.data.Dataset.range(4).map(map_fn).batch(batch_size)
+    eval_dataset = tf.compat.v2.data.Dataset.range(4).map(map_fn).batch(batch_size)
     model.evaluate(eval_dataset, verbose=2)
 
     def pred_map_fn(_):
       return keras.backend.random_uniform(shape=data_shape)
 
-    pred_dataset = tf.data.Dataset.range(4)
+    pred_dataset = tf.compat.v2.data.Dataset.range(4)
     pred_dataset = pred_dataset.map(pred_map_fn).batch(batch_size)
     model.predict(pred_dataset, verbose=2)
 

@@ -181,18 +181,18 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
 class KerasMultiWorkerTestIndependentWorker(test_base.IndependentWorkerTestBase,
                                             parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['graph'],
           strategy_cls=[
-              tf.distribute.MultiWorkerMirroredStrategy,
+              tf.compat.v2.distribute.MultiWorkerMirroredStrategy,
           ],
           required_gpus=[0, 1]))
   def testSimpleModelIndependentWorkerSync(self, strategy_cls):
     num_workers = 2
     num_epoch = 2
 
-    cluster_spec = tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=num_workers)
+    cluster_spec = tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=num_workers)
     self._barrier = dc._Barrier(2)
 
     # The verification callback will be shared by multiple threads.

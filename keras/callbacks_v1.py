@@ -124,7 +124,7 @@ class TensorBoard(callbacks.TensorBoard):
     callbacks.Callback.__init__(self)
     self.log_dir = log_dir
     self.histogram_freq = histogram_freq
-    if self.histogram_freq and tf.executing_eagerly():
+    if self.histogram_freq and tf.compat.v2.executing_eagerly():
       logging.warning(
           UserWarning('Weight and gradient histograms not supported for eager'
                       'execution, setting `histogram_freq` to `0`.'))
@@ -158,11 +158,11 @@ class TensorBoard(callbacks.TensorBoard):
 
   def _init_writer(self, model):
     """Sets file writer."""
-    if tf.executing_eagerly():
-      self.writer = tf.summary.create_file_writer(self.log_dir)
+    if tf.compat.v2.executing_eagerly():
+      self.writer = tf.compat.v2.summary.create_file_writer(self.log_dir)
       if not model.run_eagerly and self.write_graph:
         with self.writer.as_default():
-          tf.summary.graph(K.get_graph())
+          tf.compat.v2.summary.graph(K.get_graph())
     elif self.write_graph:
       self.writer = tf.compat.v1.summary.FileWriter(self.log_dir, K.get_graph())
     else:
@@ -229,7 +229,7 @@ class TensorBoard(callbacks.TensorBoard):
     self.model = model
     self._init_writer(model)
     # histogram summaries only enabled in graph mode
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self._make_histogram_ops(model)
       self.merged = tf.compat.v1.summary.merge_all()
 
@@ -264,7 +264,7 @@ class TensorBoard(callbacks.TensorBoard):
           embedding_input = tf.reshape(embedding_input,
                                               (step, int(embedding_size)))
           shape = (self.embeddings_data[0].shape[0], int(embedding_size))
-          embedding = tf.Variable(
+          embedding = tf.compat.v2.Variable(
               tf.zeros(shape), name=layer.name + '_embedding')
           embeddings_vars[layer.name] = embedding
           batch = tf.compat.v1.assign(embedding[batch_id:batch_id + step],
@@ -317,13 +317,13 @@ class TensorBoard(callbacks.TensorBoard):
 
     """
     logs = logs or {}
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # use v2 summary ops
-      with self.writer.as_default(), tf.summary.record_if(True):
+      with self.writer.as_default(), tf.compat.v2.summary.record_if(True):
         for name, value in logs.items():
           if isinstance(value, np.ndarray):
             value = value.item()
-          tf.summary.scalar(name, value, step=step)
+          tf.compat.v2.summary.scalar(name, value, step=step)
     else:
       # use FileWriter from v1 summary
       for name, value in logs.items():
@@ -339,7 +339,7 @@ class TensorBoard(callbacks.TensorBoard):
   def on_train_batch_begin(self, batch, logs=None):
     if (not self._is_profiling and
         self._total_batches_seen == self._profile_batch - 1):
-      tf.profiler.experimental.start(self.log_dir)
+      tf.compat.v2.profiler.experimental.start(self.log_dir)
       self._is_profiling = True
 
   def on_train_batch_end(self, batch, logs=None):
@@ -369,7 +369,7 @@ class TensorBoard(callbacks.TensorBoard):
     self._total_batches_seen += 1
 
     if self._is_profiling:
-      tf.profiler.experimental.stop()
+      tf.compat.v2.profiler.experimental.stop()
       self._is_profiling = False
 
   def on_train_begin(self, logs=None):
@@ -456,6 +456,6 @@ class TensorBoard(callbacks.TensorBoard):
 
   def on_train_end(self, logs=None):
     if self._is_profiling:
-      tf.profiler.experimental.stop()
+      tf.compat.v2.profiler.experimental.stop()
       self._is_profiling = False
     self.writer.close()

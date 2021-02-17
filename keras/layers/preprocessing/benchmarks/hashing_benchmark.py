@@ -57,7 +57,7 @@ class BenchmarkLayer(tf.test.Benchmark):
       starts.append(time.time())
       # Benchmarked code begins here.
       for i in ds:
-        _ = tf.strings.to_hash_bucket(i, num_buckets=2)
+        _ = tf.compat.v2.strings.to_hash_bucket(i, num_buckets=2)
       # Benchmarked code ends here.
       ends.append(time.time())
 

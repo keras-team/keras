@@ -52,12 +52,12 @@ class PreprocessingStage(sequential.Sequential,
         the layers in this preprocessing stage.
     """
     if not isinstance(data,
-                      (tf.data.Dataset, np.ndarray, tf.__internal__.EagerTensor)):
+                      (tf.compat.v2.data.Dataset, np.ndarray, tf.compat.v2.__internal__.EagerTensor)):
       raise ValueError(
           '`adapt()` requires a batched Dataset, an EagerTensor, '
           'or a Numpy array as input, '
           'got {}'.format(type(data)))
-    if isinstance(data, tf.data.Dataset):
+    if isinstance(data, tf.compat.v2.data.Dataset):
       # Validate the datasets to try and ensure we haven't been passed one with
       # infinite size. That would cause an infinite loop here.
       if tf_utils.dataset_is_infinite(data):
@@ -87,7 +87,7 @@ class PreprocessingStage(sequential.Sequential,
           x = self.layers[i](x)
         return x
 
-      if isinstance(data, tf.data.Dataset):
+      if isinstance(data, tf.compat.v2.data.Dataset):
         current_layer_data = data.map(map_fn)
       else:
         current_layer_data = map_fn(data)
@@ -172,7 +172,7 @@ class FunctionalPreprocessingStage(functional.Functional,
     if not isinstance(data, tf.data.Dataset):
       data = self._flatten_to_reference_inputs(data)
       if any([
-          not isinstance(datum, (np.ndarray, tf.__internal__.EagerTensor)) for datum in data
+          not isinstance(datum, (np.ndarray, tf.compat.v2.__internal__.EagerTensor)) for datum in data
       ]):
         raise ValueError(
             '`adapt()` requires a batched Dataset, a list of EagerTensors '
@@ -225,7 +225,7 @@ class FunctionalPreprocessingStage(functional.Functional,
           continue
 
         args, kwargs = node.map_arguments(ds_dict)
-        args = tf.data.Dataset.zip(tf.__internal__.nest.list_to_tuple(*args))
+        args = tf.data.Dataset.zip(tf.compat.v2.__internal__.nest.list_to_tuple(*args))
 
         if hasattr(node.layer, 'adapt'):
           node.layer.adapt(args, reset_state=reset_state)

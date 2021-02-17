@@ -31,7 +31,7 @@ _IMAGE_DATA_FORMAT = 'channels_last'
 
 
 @keras_export('keras.backend.epsilon')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def epsilon():
   """Returns the value of the fuzz factor used in numeric expressions.
 
@@ -112,7 +112,7 @@ def set_floatx(value):
 
 
 @keras_export('keras.backend.image_data_format')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def image_data_format():
   """Returns the default image data format convention.
 

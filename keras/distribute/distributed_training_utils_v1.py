@@ -335,7 +335,7 @@ def validate_per_replica_inputs(distribution_strategy, x):
         raise ValueError('Dataset input to the model should be tensors instead '
                          'they are of type {}'.format(type(value)))
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Validate that the shape and dtype of all the elements in x are the same.
       validate_all_tensor_shapes(x, x_values)
     validate_all_tensor_types(x, x_values)
@@ -478,7 +478,7 @@ def get_input_params(distribution_strategy,
   # In graph mode, the zero batch case in batch norm is not handled due to
   # XLA-GPU regression. Uneven batch sizes are not allowed except
   # for `test()` and `predict()` on TPUStrategy.
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     allow_partial_batch = (
         mode != ModeKeys.TRAIN or
         not K.is_tpu_strategy(distribution_strategy))
@@ -564,7 +564,7 @@ def get_iterator(dataset, distribution_strategy):
 def initialize_iterator(iterator, distribution_strategy):
   with distribution_strategy.scope():
     init_op = tf.group(iterator.initializer)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       K.get_session((init_op,)).run(init_op)
 
 
@@ -632,7 +632,7 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
     sample_weights = []
     targets = []
   elif sample_weights is not None and is_distributing_by_cloning(model):
-    if tf.executing_eagerly() and not model._compile_distribution:
+    if tf.compat.v2.executing_eagerly() and not model._compile_distribution:
       raise NotImplementedError('`sample_weight` is not supported when using '
                                 'tf.distribute.Strategy in eager mode and '
                                 'cloning=True.')
@@ -655,7 +655,7 @@ def is_distributing_by_cloning(model):
     otherwise.
   """
   if (K.is_tpu_strategy(model._distribution_strategy) and
-      tf.executing_eagerly):  # b/137580852
+      tf.compat.v2.executing_eagerly):  # b/137580852
     return False
   elif tf.compat.v1.executing_eagerly_outside_functions():
     return bool(model._compile_distribution)
@@ -908,7 +908,7 @@ def _make_execution_function_with_cloning(model, mode):
   assert distributed_model
 
   # Also create an execution function on that distributed model.
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     distributed_function = _make_eager_execution_function(model, mode)
   else:
     distributed_function = _make_graph_execution_function(model, mode)
@@ -1137,7 +1137,7 @@ def _update_sample_weight_modes(model, mode, sample_weights):
 def concat_along_batch_dimension(outputs):
   """Concats prediction outputs along the batch dimension."""
   if isinstance(outputs[0], tf.SparseTensor):
-    return tf.sparse.concat(axis=0, sp_inputs=outputs)
+    return tf.compat.v2.sparse.concat(axis=0, sp_inputs=outputs)
   if isinstance(outputs[0], tf.RaggedTensor):
     return tf.concat(outputs, axis=0)
   return np.concatenate(outputs)

@@ -97,7 +97,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
   @testing_utils.run_v2_only
   def testKerasModel(self):
     """Test a basic Keras model with Variables."""
-    input_data = {"x": tf.constant(1., shape=[1, 1])}
+    input_data = {"x": tf.compat.v2.constant(1., shape=[1, 1])}
 
     # Create a simple Keras model.
     x = [-1, 0, 1, 2, 3, 4]
@@ -122,7 +122,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     """Test a Keras LSTM containing dynamic_rnn ops."""
     input_data = {
         "x":
-            tf.constant(
+            tf.compat.v2.constant(
                 np.array(
                     np.random.random_sample((10, 10, 10)), dtype=np.float32))
     }
@@ -144,7 +144,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     """Test model with embeddings."""
     input_data = {
         "x":
-            tf.constant(
+            tf.compat.v2.constant(
                 np.array(np.random.random_sample((20)), dtype=np.int32))
     }
 

@@ -18,42 +18,42 @@ import tensorflow as tf
 
 
 multidevice_strategies = [
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-    tf.__internal__.distribute.combinations.tpu_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+    tf.compat.v2.__internal__.distribute.combinations.tpu_strategy,
 ]
 
 multiworker_strategies = [
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu
+    tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu
 ]
 
 strategies_minus_default_minus_tpu = [
-    tf.__internal__.distribute.combinations.one_device_strategy,
-    tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-    tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+    tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.one_device_strategy_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+    tf.compat.v2.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
 ]
 
 strategies_minus_tpu = [
-    tf.__internal__.distribute.combinations.default_strategy,
-    tf.__internal__.distribute.combinations.one_device_strategy,
-    tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-    tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+    tf.compat.v2.__internal__.distribute.combinations.default_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.one_device_strategy_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+    tf.compat.v2.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
 ]
 
 multi_worker_mirrored_strategies = [
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
-    tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
 ]
 
 tpu_strategies = [
-    tf.__internal__.distribute.combinations.tpu_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.tpu_strategy,
 ]
 
 all_strategies = strategies_minus_tpu + tpu_strategies

@@ -256,7 +256,7 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
       return tf.reshape(
           tf.vectorized_map(
               _bucketize_op(tf.compat.v1.squeeze(self.bins)), reshaped),
-          tf.constant([-1] + input_shape.as_list()[1:]))
+          tf.compat.v2.constant([-1] + input_shape.as_list()[1:]))
 
   class DiscretizingCombiner(Combiner):
     """Combiner for the Discretization preprocessing layer.

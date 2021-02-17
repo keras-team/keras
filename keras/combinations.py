@@ -44,22 +44,22 @@ def keras_mode_combinations(mode=None, run_eagerly=None):
     A list contains all the combinations to be used to generate test cases.
   """
   if mode is None:
-    mode = ['eager'] if tf.__internal__.tf2.enabled() else ['graph', 'eager']
+    mode = ['eager'] if tf.compat.v2.__internal__.tf2.enabled() else ['graph', 'eager']
   if run_eagerly is None:
     run_eagerly = [True, False]
   result = []
   if 'eager' in mode:
-    result += tf.__internal__.test.combinations.combine(mode=['eager'], run_eagerly=run_eagerly)
+    result += tf.compat.v2.__internal__.test.combinations.combine(mode=['eager'], run_eagerly=run_eagerly)
   if 'graph' in mode:
-    result += tf.__internal__.test.combinations.combine(mode=['graph'], run_eagerly=[False])
+    result += tf.compat.v2.__internal__.test.combinations.combine(mode=['graph'], run_eagerly=[False])
   return result
 
 
 def keras_model_type_combinations():
-  return tf.__internal__.test.combinations.combine(model_type=KERAS_MODEL_TYPES)
+  return tf.compat.v2.__internal__.test.combinations.combine(model_type=KERAS_MODEL_TYPES)
 
 
-class KerasModeCombination(tf.__internal__.test.combinations.TestCombination):
+class KerasModeCombination(tf.compat.v2.__internal__.test.combinations.TestCombination):
   """Combination for Keras test mode.
 
   It by default includes v1_session, v2_eager and v2_tf_function.
@@ -74,10 +74,10 @@ class KerasModeCombination(tf.__internal__.test.combinations.TestCombination):
       return []
 
   def parameter_modifiers(self):
-    return [tf.__internal__.test.combinations.OptionalParameter('run_eagerly')]
+    return [tf.compat.v2.__internal__.test.combinations.OptionalParameter('run_eagerly')]
 
 
-class KerasModelTypeCombination(tf.__internal__.test.combinations.TestCombination):
+class KerasModelTypeCombination(tf.compat.v2.__internal__.test.combinations.TestCombination):
   """Combination for Keras model types when doing model test.
 
   It by default includes 'functional', 'subclass', 'sequential'.
@@ -95,14 +95,14 @@ class KerasModelTypeCombination(tf.__internal__.test.combinations.TestCombinatio
       return []
 
   def parameter_modifiers(self):
-    return [tf.__internal__.test.combinations.OptionalParameter('model_type')]
+    return [tf.compat.v2.__internal__.test.combinations.OptionalParameter('model_type')]
 
 
-_defaults = tf.__internal__.test.combinations.generate.keywords['test_combinations']
+_defaults = tf.compat.v2.__internal__.test.combinations.generate.keywords['test_combinations']
 generate = functools.partial(
-    tf.__internal__.test.combinations.generate,
+    tf.compat.v2.__internal__.test.combinations.generate,
     test_combinations=_defaults +
     (KerasModeCombination(), KerasModelTypeCombination()))
-combine = tf.__internal__.test.combinations.combine
-times = tf.__internal__.test.combinations.times
-NamedObject = tf.__internal__.test.combinations.NamedObject
+combine = tf.compat.v2.__internal__.test.combinations.combine
+times = tf.compat.v2.__internal__.test.combinations.times
+NamedObject = tf.compat.v2.__internal__.test.combinations.NamedObject

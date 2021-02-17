@@ -30,9 +30,9 @@ _BATCH_SIZE = 10
 
 
 def _get_data_for_simple_models():
-  x_train = tf.constant(np.random.rand(1000, 3), dtype=tf.float32)
-  y_train = tf.constant(np.random.rand(1000, 5), dtype=tf.float32)
-  x_predict = tf.constant(
+  x_train = tf.compat.v2.constant(np.random.rand(1000, 3), dtype=tf.float32)
+  y_train = tf.compat.v2.constant(np.random.rand(1000, 5), dtype=tf.float32)
+  x_predict = tf.compat.v2.constant(
       np.random.rand(1000, 3), dtype=tf.float32)
 
   return x_train, y_train, x_predict
@@ -122,7 +122,7 @@ class SimpleSubclassModel(model_collection_base.ModelAndInput):
 class _SimpleModule(tf.Module):
 
   def __init__(self):
-    self.v = tf.Variable(3.0)
+    self.v = tf.compat.v2.Variable(3.0)
 
   @tf.function
   def __call__(self, x):

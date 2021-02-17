@@ -121,7 +121,7 @@ def _model_loss(model,
   if any(
       isinstance(input_t, (np.ndarray, float, int))
       for input_t in tf.nest.flatten(inputs)):
-    inputs = tf.nest.map_structure(tf.convert_to_tensor, inputs)
+    inputs = tf.nest.map_structure(tf.compat.v2.convert_to_tensor, inputs)
 
   outs = model(inputs, **kwargs)
   outs = tf.nest.flatten(outs)
@@ -133,7 +133,7 @@ def _model_loss(model,
   if sample_weights:
     sample_weights = [
         training_utils_v1.cast_if_floating_dtype(
-            tf.convert_to_tensor(val))
+            tf.compat.v2.convert_to_tensor(val))
         if val is not None else None for val in sample_weights
     ]
 

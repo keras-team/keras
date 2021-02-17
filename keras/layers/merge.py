@@ -148,7 +148,7 @@ class _Merge(Layer):
             x_transposed = tf.reshape(
                 x,
                 tf.stack(
-                    [batch_size, tf.reduce_prod(x_shape[1:])], axis=0))
+                    [batch_size, tf.compat.v2.reduce_prod(x_shape[1:])], axis=0))
             x_transposed = tf.compat.v1.transpose(x_transposed, perm=(1, 0))
             x_transposed = tf.reshape(x_transposed, new_shape)
             reshaped_inputs.append(x_transposed)

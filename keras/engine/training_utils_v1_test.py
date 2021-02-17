@@ -49,7 +49,7 @@ class ModelInputsTest(tf.test.TestCase):
     self.assertEqual(backend.floatx(), vals[0].dtype)
 
   def test_single_thing_eager(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Run in eager mode only.')
     with testing_utils.use_keras_tensors_scope(False):
       a = np.ones(10, dtype=np.int32)
@@ -81,7 +81,7 @@ class ModelInputsTest(tf.test.TestCase):
     self.assertTrue(tf.is_tensor(vals[1]))
 
   def test_list_eager(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Run in eager mode only.')
     with testing_utils.use_keras_tensors_scope(False):
       a = [np.ones(10), np.ones(20)]
@@ -107,7 +107,7 @@ class ModelInputsTest(tf.test.TestCase):
     self.assertTrue(tf.is_tensor(vals['b']))
 
   def test_dict_eager(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Run in eager mode only.')
     with testing_utils.use_keras_tensors_scope(False):
       a = {'b': np.ones(10), 'a': np.ones(20)}
@@ -139,7 +139,7 @@ class DatasetUtilsTest(tf.test.TestCase, parameterized.TestCase):
           lambda _: tf.data.Dataset.from_tensors(0).shuffle(1)), True),
       ('Filter', lambda: tf.data.Dataset.range(5).filter(lambda _: True)),
       ('FixedLengthRecordDatasetV2',
-       lambda: tf.data.FixedLengthRecordDataset([], 42)),
+       lambda: tf.compat.v2.data.FixedLengthRecordDataset([], 42)),
       ('FromTensors', lambda: tf.data.Dataset.from_tensors(0)),
       ('FromTensorSlices',
        lambda: tf.data.Dataset.from_tensor_slices([0, 0, 0])),
@@ -165,8 +165,8 @@ class DatasetUtilsTest(tf.test.TestCase, parameterized.TestCase):
       ('Shuffle', lambda: tf.data.Dataset.range(5).shuffle(1), True),
       ('Skip', lambda: tf.data.Dataset.range(5).skip(2)),
       ('Take', lambda: tf.data.Dataset.range(5).take(2)),
-      ('TextLineDataset', lambda: tf.data.TextLineDataset([])),
-      ('TFRecordDataset', lambda: tf.data.TFRecordDataset([])),
+      ('TextLineDataset', lambda: tf.compat.v2.data.TextLineDataset([])),
+      ('TFRecordDataset', lambda: tf.compat.v2.data.TFRecordDataset([])),
       ('Window', lambda: tf.data.Dataset.range(5).window(2)),
       ('Zip', lambda: tf.data.Dataset.zip(tf.data.Dataset.range(5))),
       # pylint: enable=g-long-lambda
@@ -410,7 +410,7 @@ class CompositeTensorTestUtils(keras_parameterized.TestCase):
         training_utils_v1.is_composite_or_composite_value(np.ndarray([0, 1])))
     self.assertFalse(
         training_utils_v1.is_composite_or_composite_value(
-            tf.convert_to_tensor([3, 1])))
+            tf.compat.v2.convert_to_tensor([3, 1])))
 
   def test_sparse_concatenation(self):
     tensor_1 = tf.SparseTensor([[0, 0]], [1], [1, 1])

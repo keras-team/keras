@@ -37,7 +37,7 @@ from keras.utils.generic_utils import CustomObjectScope
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return string_lookup.StringLookup
   else:
     return string_lookup_v1.StringLookup

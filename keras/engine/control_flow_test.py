@@ -34,7 +34,7 @@ class ControlFlowLayer1(base_layer.Layer):
   """Layer with an `if` condition in call."""
 
   def call(self, inputs):
-    if tf.reduce_sum(inputs) > 0:
+    if tf.compat.v2.reduce_sum(inputs) > 0:
       return tf.sqrt(inputs)
     else:
       return tf.square(inputs)
@@ -68,7 +68,7 @@ class ControlFlowModel(keras.Model):
   """Model with an `if` condition in call."""
 
   def call(self, inputs):
-    if tf.reduce_sum(inputs) > 0:
+    if tf.compat.v2.reduce_sum(inputs) > 0:
       return tf.sqrt(inputs)
     else:
       return tf.square(inputs)
@@ -83,7 +83,7 @@ class NestedControlFlowModel(keras.Model):
 
   def call(self, inputs):
     inputs = self.layer(inputs)
-    if tf.reduce_sum(inputs) > 0:
+    if tf.compat.v2.reduce_sum(inputs) > 0:
       return tf.sqrt(inputs)
     else:
       return tf.square(inputs)
@@ -94,7 +94,7 @@ class FunctionControlFlowModel(keras.Model):
 
   @tf.function
   def call(self, inputs):
-    if tf.reduce_sum(inputs) > 0:
+    if tf.compat.v2.reduce_sum(inputs) > 0:
       return tf.sqrt(inputs)
     else:
       return tf.square(inputs)

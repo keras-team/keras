@@ -28,16 +28,16 @@ from keras.optimizer_v2 import gradient_descent
 
 class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
-          tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
+          tf.compat.v2.__internal__.test.combinations.combine(
               distribution=keras_strategy_combinations.multidevice_strategies,
               mode=["eager"],
           ),
-          tf.__internal__.test.combinations.combine(
+          tf.compat.v2.__internal__.test.combinations.combine(
               experimental_aggregate_gradients=True,
               expected=[[[-0.3, -0.3], [-0.3, -0.3]]]) +
-          tf.__internal__.test.combinations.combine(
+          tf.compat.v2.__internal__.test.combinations.combine(
               experimental_aggregate_gradients=False,
               expected=[[[-0.1, -0.1], [-0.2, -0.2]]])
       ))
@@ -45,14 +45,14 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
                               experimental_aggregate_gradients, expected):
 
     with distribution.scope():
-      v = tf.Variable([0., 0.])
+      v = tf.compat.v2.Variable([0., 0.])
       optimizer = gradient_descent.SGD(0.1)
 
     @tf.function
     def optimize():
       grads = values.PerReplica([
-          tf.convert_to_tensor([1., 1.]),
-          tf.convert_to_tensor([2., 2.]),
+          tf.compat.v2.convert_to_tensor([1., 1.]),
+          tf.compat.v2.convert_to_tensor([2., 2.]),
       ])
 
       def step_fn(grads):
@@ -66,21 +66,21 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllClose(optimize(), expected)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
-          distribution=tf.__internal__.distribute.combinations.one_device_strategy,
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
+          distribution=tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
           mode=["eager"],
           experimental_aggregate_gradients=[True, False]))
   def test_custom_aggregation_one_device(self, distribution,
                                          experimental_aggregate_gradients):
 
     with distribution.scope():
-      v = tf.Variable([0., 0.])
+      v = tf.compat.v2.Variable([0., 0.])
       optimizer = gradient_descent.SGD(0.1)
 
     @tf.function
     def optimize():
-      grads = tf.convert_to_tensor([1., 1.])
+      grads = tf.compat.v2.convert_to_tensor([1., 1.])
 
       def step_fn(grads):
         optimizer.apply_gradients(
@@ -93,16 +93,16 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     self.assertAllClose(optimize(), [[-0.1, -0.1]])
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=[
-          tf.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=[
+          tf.compat.v2.__internal__.distribute.combinations.central_storage_strategy_with_gpu_and_cpu
       ]))
   def test_custom_aggregation_central_storage(self, distribution):
     with distribution.scope():
-      v = tf.Variable([0., 0.])
+      v = tf.compat.v2.Variable([0., 0.])
       optimizer = gradient_descent.SGD(0.1)
 
-    grads = tf.convert_to_tensor([1., 1.])
+    grads = tf.compat.v2.convert_to_tensor([1., 1.])
 
     def step_fn(grads):
       with self.assertRaises(NotImplementedError):

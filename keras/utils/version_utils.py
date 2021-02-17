@@ -82,7 +82,7 @@ class TensorBoardVersionSelector(object):
 
 def should_use_v2():
   """Determine if v1 or v2 version should be used."""
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return True
   elif tf.compat.v1.executing_eagerly_outside_functions():
     # Check for a v1 `wrap_function` FuncGraph.

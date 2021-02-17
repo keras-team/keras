@@ -134,7 +134,7 @@ class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
 
   def _preprocess_input(self, inp):
     if isinstance(inp, (list, tuple, np.ndarray)):
-      inp = tf.convert_to_tensor(inp)
+      inp = tf.compat.v2.convert_to_tensor(inp)
     if inp.shape.rank == 1:
       inp = tf.compat.v1.expand_dims(inp, axis=-1)
     return inp
@@ -159,7 +159,7 @@ class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
             partial_inps, ragged_out, sparse_out)
         outputs.append(partial_out)
     if sparse_out:
-      return tf.sparse.concat(axis=1, sp_inputs=outputs)
+      return tf.compat.v2.sparse.concat(axis=1, sp_inputs=outputs)
     return tf.concat(outputs, axis=1)
 
   def compute_output_shape(self, input_shape):

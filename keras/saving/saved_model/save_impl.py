@@ -482,7 +482,7 @@ class LayerCallCollection(object):
         utils.remove_training_arg(self._training_arg_index, args, kwargs)
         return call_fn(*args, **kwargs)
 
-      return tf.__internal__.decorator.make_decorator(
+      return tf.compat.v2.__internal__.decorator.make_decorator(
           target=call_fn,
           decorator_func=wrap_with_training_arg,
           decorator_argspec=new_arg_spec)
@@ -524,7 +524,7 @@ def layer_call_wrapper(call_collection, method):
         ret = method(*args, **kwargs)
     _restore_layer_losses(original_losses)
     return ret
-  return tf.__internal__.decorator.make_decorator(target=method, decorator_func=wrapper)
+  return tf.compat.v2.__internal__.decorator.make_decorator(target=method, decorator_func=wrapper)
 
 
 class LayerCall(def_function.Function):
@@ -600,7 +600,7 @@ def _create_call_fn_decorator(layer, wrapped_call):
   fn, arg_spec = utils.maybe_add_training_arg(
       call_fn, wrapped_call, layer._expects_training_arg,  # pylint: disable=protected-access
       default_training_value=False)
-  return tf.__internal__.decorator.make_decorator(
+  return tf.compat.v2.__internal__.decorator.make_decorator(
       target=call_fn,
       decorator_func=fn,
       decorator_argspec=arg_spec)

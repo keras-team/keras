@@ -59,7 +59,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(self.evaluate(m.total), 100)
 
       # check update_state() and result() + state accumulation + tensor input
-      update_op = m.update_state(tf.convert_to_tensor([1, 5]))
+      update_op = m.update_state(tf.compat.v2.convert_to_tensor([1, 5]))
       self.evaluate(update_op)
       self.assertAlmostEqual(self.evaluate(m.result()), 106)
       self.assertEqual(self.evaluate(m.total), 106)  # 100 + 1 + 5
@@ -129,7 +129,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       checkpoint_directory = self.get_temp_dir()
       checkpoint_prefix = os.path.join(checkpoint_directory, 'ckpt')
       m = metrics.Sum()
-      checkpoint = tf.train.Checkpoint(sum=m)
+      checkpoint = tf.compat.v2.train.Checkpoint(sum=m)
       self.evaluate(tf.compat.v1.variables_initializer(m.variables))
 
       # update state
@@ -147,7 +147,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
 
       # restore to a different checkpoint sum object
       restore_sum = metrics.Sum()
-      restore_checkpoint = tf.train.Checkpoint(sum=restore_sum)
+      restore_checkpoint = tf.compat.v2.train.Checkpoint(sum=restore_sum)
       status = restore_checkpoint.restore(save_path)
       restore_update = restore_sum(300.)
       status.assert_consumed().run_restore_ops()
@@ -181,8 +181,8 @@ class MeanTest(keras_parameterized.TestCase):
 
     # check update_state() and result() + state accumulation + tensor input
     update_op = m.update_state([
-        tf.convert_to_tensor(1),
-        tf.convert_to_tensor(5)
+        tf.compat.v2.convert_to_tensor(1),
+        tf.compat.v2.convert_to_tensor(5)
     ])
     self.evaluate(update_op)
     self.assertAlmostEqual(self.evaluate(m.result()), 106 / 3, 2)
@@ -285,7 +285,7 @@ class MeanTest(keras_parameterized.TestCase):
     checkpoint_directory = self.get_temp_dir()
     checkpoint_prefix = os.path.join(checkpoint_directory, 'ckpt')
     m = metrics.Mean()
-    checkpoint = tf.train.Checkpoint(mean=m)
+    checkpoint = tf.compat.v2.train.Checkpoint(mean=m)
     self.evaluate(tf.compat.v1.variables_initializer(m.variables))
 
     # update state
@@ -303,7 +303,7 @@ class MeanTest(keras_parameterized.TestCase):
 
     # restore to a different checkpoint mean object
     restore_mean = metrics.Mean()
-    restore_checkpoint = tf.train.Checkpoint(mean=restore_mean)
+    restore_checkpoint = tf.compat.v2.train.Checkpoint(mean=restore_mean)
     status = restore_checkpoint.restore(save_path)
     restore_update = restore_mean(300.)
     status.assert_consumed().run_restore_ops()
@@ -611,8 +611,8 @@ class CosineSimilarityTest(tf.test.TestCase):
     y_pred = self.l2_norm(self.np_y_pred, axis)
     self.expected_loss = np.sum(np.multiply(y_true, y_pred), axis=(axis,))
 
-    self.y_true = tf.constant(self.np_y_true)
-    self.y_pred = tf.constant(self.np_y_pred)
+    self.y_true = tf.compat.v2.constant(self.np_y_true)
+    self.y_pred = tf.compat.v2.constant(self.np_y_pred)
 
   def test_config(self):
     cosine_obj = metrics.CosineSimilarity(
@@ -641,7 +641,7 @@ class CosineSimilarityTest(tf.test.TestCase):
     loss = cosine_obj(
         self.y_true,
         self.y_pred,
-        sample_weight=tf.constant(sample_weight))
+        sample_weight=tf.compat.v2.constant(sample_weight))
     expected_loss = np.sum(
         self.expected_loss * sample_weight) / np.sum(sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
@@ -671,9 +671,9 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
   def test_unweighted(self):
     mae_obj = metrics.MeanAbsoluteError()
     self.evaluate(tf.compat.v1.variables_initializer(mae_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = mae_obj.update_state(y_true, y_pred)
@@ -684,11 +684,11 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
   def test_weighted(self):
     mae_obj = metrics.MeanAbsoluteError()
     self.evaluate(tf.compat.v1.variables_initializer(mae_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = mae_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.54285, self.evaluate(result), atol=1e-5)
 
@@ -711,9 +711,9 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
   def test_unweighted(self):
     mape_obj = metrics.MeanAbsolutePercentageError()
     self.evaluate(tf.compat.v1.variables_initializer(mape_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = mape_obj.update_state(y_true, y_pred)
@@ -724,11 +724,11 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
   def test_weighted(self):
     mape_obj = metrics.MeanAbsolutePercentageError()
     self.evaluate(tf.compat.v1.variables_initializer(mape_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = mape_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(40e7, self.evaluate(result), atol=1e-5)
 
@@ -749,9 +749,9 @@ class MeanSquaredErrorTest(tf.test.TestCase):
   def test_unweighted(self):
     mse_obj = metrics.MeanSquaredError()
     self.evaluate(tf.compat.v1.variables_initializer(mse_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = mse_obj.update_state(y_true, y_pred)
@@ -762,11 +762,11 @@ class MeanSquaredErrorTest(tf.test.TestCase):
   def test_weighted(self):
     mse_obj = metrics.MeanSquaredError()
     self.evaluate(tf.compat.v1.variables_initializer(mse_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.54285, self.evaluate(result), atol=1e-5)
 
@@ -789,9 +789,9 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
   def test_unweighted(self):
     msle_obj = metrics.MeanSquaredLogarithmicError()
     self.evaluate(tf.compat.v1.variables_initializer(msle_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = msle_obj.update_state(y_true, y_pred)
@@ -802,11 +802,11 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
   def test_weighted(self):
     msle_obj = metrics.MeanSquaredLogarithmicError()
     self.evaluate(tf.compat.v1.variables_initializer(msle_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = msle_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.26082, self.evaluate(result), atol=1e-5)
 
@@ -827,8 +827,8 @@ class HingeTest(tf.test.TestCase):
   def test_unweighted(self):
     hinge_obj = metrics.Hinge()
     self.evaluate(tf.compat.v1.variables_initializer(hinge_obj.variables))
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -848,10 +848,10 @@ class HingeTest(tf.test.TestCase):
   def test_weighted(self):
     hinge_obj = metrics.Hinge()
     self.evaluate(tf.compat.v1.variables_initializer(hinge_obj.variables))
-    y_true = tf.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
 
@@ -882,8 +882,8 @@ class SquaredHingeTest(tf.test.TestCase):
   def test_unweighted(self):
     sq_hinge_obj = metrics.SquaredHinge()
     self.evaluate(tf.compat.v1.variables_initializer(sq_hinge_obj.variables))
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -906,10 +906,10 @@ class SquaredHingeTest(tf.test.TestCase):
   def test_weighted(self):
     sq_hinge_obj = metrics.SquaredHinge()
     self.evaluate(tf.compat.v1.variables_initializer(sq_hinge_obj.variables))
-    y_true = tf.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
 
@@ -945,9 +945,9 @@ class CategoricalHingeTest(tf.test.TestCase):
   def test_unweighted(self):
     cat_hinge_obj = metrics.CategoricalHinge()
     self.evaluate(tf.compat.v1.variables_initializer(cat_hinge_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = cat_hinge_obj.update_state(y_true, y_pred)
@@ -958,11 +958,11 @@ class CategoricalHingeTest(tf.test.TestCase):
   def test_weighted(self):
     cat_hinge_obj = metrics.CategoricalHinge()
     self.evaluate(tf.compat.v1.variables_initializer(cat_hinge_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.5, self.evaluate(result), atol=1e-5)
 
@@ -982,8 +982,8 @@ class RootMeanSquaredErrorTest(tf.test.TestCase):
   def test_unweighted(self):
     rmse_obj = metrics.RootMeanSquaredError()
     self.evaluate(tf.compat.v1.variables_initializer(rmse_obj.variables))
-    y_true = tf.constant((2, 4, 6))
-    y_pred = tf.constant((1, 3, 2))
+    y_true = tf.compat.v2.constant((2, 4, 6))
+    y_pred = tf.compat.v2.constant((1, 3, 2))
 
     update_op = rmse_obj.update_state(y_true, y_pred)
     self.evaluate(update_op)
@@ -994,9 +994,9 @@ class RootMeanSquaredErrorTest(tf.test.TestCase):
   def test_weighted(self):
     rmse_obj = metrics.RootMeanSquaredError()
     self.evaluate(tf.compat.v1.variables_initializer(rmse_obj.variables))
-    y_true = tf.constant((2, 4, 6, 8))
-    y_pred = tf.constant((1, 3, 2, 3))
-    sample_weight = tf.constant((0, 1, 0, 1))
+    y_true = tf.compat.v2.constant((2, 4, 6, 8))
+    y_pred = tf.compat.v2.constant((1, 3, 2, 3))
+    sample_weight = tf.compat.v2.constant((0, 1, 0, 1))
     result = rmse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(math.sqrt(13), self.evaluate(result), atol=1e-3)
 
@@ -1016,8 +1016,8 @@ class TopKCategoricalAccuracyTest(tf.test.TestCase):
   def test_correctness(self):
     a_obj = metrics.TopKCategoricalAccuracy()
     self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([[0, 0, 1], [0, 1, 0]])
-    y_pred = tf.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
+    y_true = tf.compat.v2.constant([[0, 0, 1], [0, 1, 0]])
+    y_pred = tf.compat.v2.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
 
     result = a_obj(y_true, y_pred)
     self.assertEqual(1, self.evaluate(result))  # both the samples match
@@ -1029,9 +1029,9 @@ class TopKCategoricalAccuracyTest(tf.test.TestCase):
     self.assertEqual(0.5, self.evaluate(result))  # only sample #2 matches
 
     # With `k` > 5.
-    y_true = tf.constant([[0, 0, 1, 0, 0, 0, 0],
+    y_true = tf.compat.v2.constant([[0, 0, 1, 0, 0, 0, 0],
                                    [0, 1, 0, 0, 0, 0, 0]])
-    y_pred = tf.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+    y_pred = tf.compat.v2.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
                                    [0.05, 0.95, 0, 0, 0, 0, 0]])
     a_obj = metrics.TopKCategoricalAccuracy(k=6)
     self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
@@ -1041,9 +1041,9 @@ class TopKCategoricalAccuracyTest(tf.test.TestCase):
   def test_weighted(self):
     a_obj = metrics.TopKCategoricalAccuracy(k=2)
     self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
-    y_pred = tf.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
-    sample_weight = tf.constant((1.0, 0.0, 1.0))
+    y_true = tf.compat.v2.constant([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
+    y_pred = tf.compat.v2.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
+    sample_weight = tf.compat.v2.constant((1.0, 0.0, 1.0))
     result = a_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
 
@@ -1065,8 +1065,8 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
   def test_correctness(self):
     a_obj = metrics.SparseTopKCategoricalAccuracy()
     self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([2, 1])
-    y_pred = tf.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
+    y_true = tf.compat.v2.constant([2, 1])
+    y_pred = tf.compat.v2.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
 
     result = a_obj(y_true, y_pred)
     self.assertEqual(1, self.evaluate(result))  # both the samples match
@@ -1078,7 +1078,7 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
     self.assertEqual(0.5, self.evaluate(result))  # only sample #2 matches
 
     # With `k` > 5.
-    y_pred = tf.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+    y_pred = tf.compat.v2.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
                                    [0.05, 0.95, 0, 0, 0, 0, 0]])
     a_obj = metrics.SparseTopKCategoricalAccuracy(k=6)
     self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
@@ -1088,9 +1088,9 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
   def test_weighted(self):
     a_obj = metrics.SparseTopKCategoricalAccuracy(k=2)
     self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([1, 0, 2])
-    y_pred = tf.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
-    sample_weight = tf.constant((1.0, 0.0, 1.0))
+    y_true = tf.compat.v2.constant([1, 0, 2])
+    y_pred = tf.compat.v2.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
+    sample_weight = tf.compat.v2.constant((1.0, 0.0, 1.0))
     result = a_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
 
@@ -1106,8 +1106,8 @@ class LogCoshErrorTest(tf.test.TestCase):
     error = y_pred - y_true
     self.expected_results = np.log((np.exp(error) + np.exp(-error)) / 2)
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
     logcosh_obj = metrics.LogCoshError(name='logcosh', dtype=tf.int32)
@@ -1129,7 +1129,7 @@ class LogCoshErrorTest(tf.test.TestCase):
     self.setup()
     logcosh_obj = metrics.LogCoshError()
     self.evaluate(tf.compat.v1.variables_initializer(logcosh_obj.variables))
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     result = logcosh_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
@@ -1148,8 +1148,8 @@ class PoissonTest(tf.test.TestCase):
     self.batch_size = 6
     self.expected_results = y_pred - np.multiply(y_true, np.log(y_pred))
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
     poisson_obj = metrics.Poisson(name='poisson', dtype=tf.int32)
@@ -1175,7 +1175,7 @@ class PoissonTest(tf.test.TestCase):
     self.setup()
     poisson_obj = metrics.Poisson()
     self.evaluate(tf.compat.v1.variables_initializer(poisson_obj.variables))
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
 
     result = poisson_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
     sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
@@ -1194,8 +1194,8 @@ class KLDivergenceTest(tf.test.TestCase):
     self.batch_size = 2
     self.expected_results = np.multiply(y_true, np.log(y_true / y_pred))
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
     k_obj = metrics.KLDivergence(name='kld', dtype=tf.int32)
@@ -1222,7 +1222,7 @@ class KLDivergenceTest(tf.test.TestCase):
     k_obj = metrics.KLDivergence()
     self.evaluate(tf.compat.v1.variables_initializer(k_obj.variables))
 
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     result = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
@@ -1235,7 +1235,7 @@ class KLDivergenceTest(tf.test.TestCase):
 class MeanRelativeErrorTest(tf.test.TestCase):
 
   def test_config(self):
-    normalizer = tf.constant([1, 3], dtype=tf.float32)
+    normalizer = tf.compat.v2.constant([1, 3], dtype=tf.float32)
     mre_obj = metrics.MeanRelativeError(normalizer=normalizer, name='mre')
     self.assertEqual(mre_obj.name, 'mre')
     self.assertArrayNear(self.evaluate(mre_obj.normalizer), [1, 3], 1e-1)
@@ -1250,8 +1250,8 @@ class MeanRelativeErrorTest(tf.test.TestCase):
     expected_error = np.mean(
         np.divide(np.absolute(np_y_pred - np_y_true), np_y_true))
 
-    y_pred = tf.constant(np_y_pred, shape=(1, 4), dtype=tf.float32)
-    y_true = tf.constant(np_y_true, shape=(1, 4))
+    y_pred = tf.compat.v2.constant(np_y_pred, shape=(1, 4), dtype=tf.float32)
+    y_true = tf.compat.v2.constant(np_y_true, shape=(1, 4))
 
     mre_obj = metrics.MeanRelativeError(normalizer=y_true)
     self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
@@ -1266,19 +1266,19 @@ class MeanRelativeErrorTest(tf.test.TestCase):
     rel_errors = np.divide(np.absolute(np_y_pred - np_y_true), np_y_true)
     expected_error = np.sum(rel_errors * sample_weight)
 
-    y_pred = tf.constant(np_y_pred, dtype=tf.float32)
-    y_true = tf.constant(np_y_true)
+    y_pred = tf.compat.v2.constant(np_y_pred, dtype=tf.float32)
+    y_true = tf.compat.v2.constant(np_y_true)
 
     mre_obj = metrics.MeanRelativeError(normalizer=y_true)
     self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
 
     result = mre_obj(
-        y_true, y_pred, sample_weight=tf.constant(sample_weight))
+        y_true, y_pred, sample_weight=tf.compat.v2.constant(sample_weight))
     self.assertAllClose(self.evaluate(result), expected_error, atol=1e-3)
 
   def test_zero_normalizer(self):
-    y_pred = tf.constant([2, 4], dtype=tf.float32)
-    y_true = tf.constant([1, 3])
+    y_pred = tf.compat.v2.constant([2, 4], dtype=tf.float32)
+    y_true = tf.compat.v2.constant([1, 3])
 
     mre_obj = metrics.MeanRelativeError(normalizer=tf.compat.v1.zeros_like(y_true))
     self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
@@ -1316,9 +1316,9 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_weighted(self):
-    y_pred = tf.constant([0, 1, 0, 1], dtype=tf.float32)
-    y_true = tf.constant([0, 0, 1, 1])
-    sample_weight = tf.constant([0.2, 0.3, 0.4, 0.1])
+    y_pred = tf.compat.v2.constant([0, 1, 0, 1], dtype=tf.float32)
+    y_true = tf.compat.v2.constant([0, 0, 1, 1])
+    sample_weight = tf.compat.v2.constant([0.2, 0.3, 0.4, 0.1])
 
     m_obj = metrics.MeanIoU(num_classes=2)
     self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
@@ -1333,9 +1333,9 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_multi_dim_input(self):
-    y_pred = tf.constant([[0, 1], [0, 1]], dtype=tf.float32)
-    y_true = tf.constant([[0, 0], [1, 1]])
-    sample_weight = tf.constant([[0.2, 0.3], [0.4, 0.1]])
+    y_pred = tf.compat.v2.constant([[0, 1], [0, 1]], dtype=tf.float32)
+    y_true = tf.compat.v2.constant([[0, 0], [1, 1]])
+    sample_weight = tf.compat.v2.constant([[0.2, 0.3], [0.4, 0.1]])
 
     m_obj = metrics.MeanIoU(num_classes=2)
     self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
@@ -1355,8 +1355,8 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(m_obj.result()), 0, atol=1e-3)
 
   def test_zero_and_non_zero_entries(self):
-    y_pred = tf.constant([1], dtype=tf.float32)
-    y_true = tf.constant([1])
+    y_pred = tf.compat.v2.constant([1], dtype=tf.float32)
+    y_true = tf.compat.v2.constant([1])
 
     m_obj = metrics.MeanIoU(num_classes=2)
     self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
@@ -1407,8 +1407,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
 
       # check update_state() and result() + state accumulation + tensor input
       update_op = m.update_state([
-          tf.convert_to_tensor(1),
-          tf.convert_to_tensor(5)
+          tf.compat.v2.convert_to_tensor(1),
+          tf.compat.v2.convert_to_tensor(5)
       ])
       self.evaluate(update_op)
       self.assertAllClose(self.evaluate(m.result()), [50.5, 22.5])
@@ -1567,8 +1567,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     bce_obj = metrics.BinaryCrossentropy(from_logits=True)
     self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
 
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    y_pred = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
     result = bce_obj(y_true, y_pred)
 
@@ -1590,7 +1590,7 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
     y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
     y_pred = np.asarray([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = bce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred, Y_MAX = 0.9999999
@@ -1609,10 +1609,10 @@ class BinaryCrossentropyTest(tf.test.TestCase):
   def test_weighted_from_logits(self):
     bce_obj = metrics.BinaryCrossentropy(from_logits=True)
     self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    y_pred = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
-    sample_weight = tf.constant([2., 2.5])
+    sample_weight = tf.compat.v2.constant([2., 2.5])
     result = bce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # Metric = max(x, 0) - x * z + log(1 + exp(-abs(x)))
@@ -1624,8 +1624,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), 37.037, atol=1e-3)
 
   def test_label_smoothing(self):
-    logits = tf.constant(((100., -100., -100.)))
-    y_true = tf.constant(((1, 0, 1)))
+    logits = tf.compat.v2.constant(((100., -100., -100.)))
+    y_true = tf.compat.v2.constant(((1, 0, 1)))
     label_smoothing = 0.1
     # Metric: max(x, 0) - x * z + log(1 + exp(-abs(x)))
     #             (where x = logits and z = y_true)
@@ -1711,7 +1711,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
     y_true = np.asarray([[0, 1, 0], [0, 0, 1]])
     y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = cce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred
@@ -1732,7 +1732,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
     y_true = np.asarray([[0, 1, 0], [0, 0, 1]])
     logits = np.asarray([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = cce_obj(y_true, logits, sample_weight=sample_weight)
 
     # softmax = exp(logits) / sum(exp(logits), axis=-1)
@@ -1847,7 +1847,7 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
     y_true = np.asarray([1, 2])
     y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = scce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred
@@ -1878,7 +1878,7 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
     y_true = np.asarray([1, 2])
     logits = np.asarray([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = scce_obj(y_true, logits, sample_weight=sample_weight)
 
     # softmax = exp(logits) / sum(exp(logits), axis=-1)
@@ -1937,10 +1937,10 @@ class BinaryTruePositives(metrics.Metric):
     values = tf.cast(values, self.dtype)
     if sample_weight is not None:
       sample_weight = tf.cast(sample_weight, dtype=self.dtype)
-      sample_weight = tf.__internal__.ops.broadcast_weights(
+      sample_weight = tf.compat.v2.__internal__.ops.broadcast_weights(
           sample_weight, values)
       values = tf.multiply(values, sample_weight)
-    self.true_positives.assign_add(tf.reduce_sum(values))
+    self.true_positives.assign_add(tf.compat.v2.reduce_sum(values))
 
   def result(self):
     return self.true_positives
@@ -1965,7 +1965,7 @@ class BinaryTruePositivesViaControlFlow(metrics.Metric):
             self.true_positives.assign_add(sample_weight[i][0])
 
   def result(self):
-    if tf.constant(True):
+    if tf.compat.v2.constant(True):
       return self.true_positives
     return 0.0
 
@@ -1986,9 +1986,9 @@ class CustomMetricsTest(tf.test.TestCase):
   def test_unweighted(self):
     btp_obj = BinaryTruePositives()
     self.evaluate(tf.compat.v1.variables_initializer(btp_obj.variables))
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
 
     update_op = btp_obj.update_state(y_true, y_pred)
@@ -1999,22 +1999,22 @@ class CustomMetricsTest(tf.test.TestCase):
   def test_weighted(self):
     btp_obj = BinaryTruePositives()
     self.evaluate(tf.compat.v1.variables_initializer(btp_obj.variables))
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
-    sample_weight = tf.constant([[1.], [1.5], [2.], [2.5]])
+    sample_weight = tf.compat.v2.constant([[1.], [1.5], [2.], [2.5]])
     result = btp_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertEqual(12, self.evaluate(result))
 
   def test_autograph(self):
     metric = BinaryTruePositivesViaControlFlow()
     self.evaluate(tf.compat.v1.variables_initializer(metric.variables))
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
-    sample_weight = tf.constant([[1.], [1.5], [2.], [2.5]])
+    sample_weight = tf.compat.v2.constant([[1.], [1.5], [2.], [2.5]])
 
     @tf.function
     def compute_metric(y_true, y_pred, sample_weight):
@@ -2026,7 +2026,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
   def test_metric_wrappers_autograph(self):
     def metric_fn(y_true, y_pred):
-      x = tf.constant(0.0)
+      x = tf.compat.v2.constant(0.0)
       for i in range(len(y_true)):
         for j in range(len(y_true[i])):
           if tf.equal(y_true[i][j], y_pred[i][j]) and y_true[i][j] > 0:
@@ -2038,11 +2038,11 @@ class CustomMetricsTest(tf.test.TestCase):
     self.evaluate(tf.compat.v1.variables_initializer(mean_metric.variables))
     self.evaluate(tf.compat.v1.variables_initializer(sum_metric.variables))
 
-    y_true = tf.constant([[0, 0, 0, 1, 0],
+    y_true = tf.compat.v2.constant([[0, 0, 0, 1, 0],
                                    [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0],
                                    [1, 1, 1, 0, 1]])
-    y_pred = tf.constant([[0, 0, 1, 1, 0],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 1, 0],
                                    [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0],
                                    [1, 1, 1, 1, 1]])
@@ -2066,7 +2066,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
+            tf.compat.v2.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
         self.add_metric(self.mean_obj(x))
         return x
 
@@ -2086,7 +2086,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
+            tf.compat.v2.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
         self.add_metric(self.mean_obj(x))
         return x
 

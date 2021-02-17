@@ -285,7 +285,7 @@ def get_input_name(use_dict):
 
 
 def get_kwargs(use_dataset, action="predict"):
-  if use_dataset or not tf.executing_eagerly():
+  if use_dataset or not tf.compat.v2.executing_eagerly():
     if action == "fit":
       return {"steps_per_epoch": 1}
     return {"steps": 1}
@@ -301,10 +301,10 @@ def prepare_inputs(data, use_dict, use_dataset, action, input_name):
     input_data = {input_name: input_data}
   if use_dataset:
     if action == "predict":
-      input_data = tf.data.Dataset.from_tensor_slices(input_data).batch(
+      input_data = tf.compat.v2.data.Dataset.from_tensor_slices(input_data).batch(
           batch_size)
     else:
-      input_data = tf.data.Dataset.from_tensor_slices(
+      input_data = tf.compat.v2.data.Dataset.from_tensor_slices(
           (input_data, expected_output)).batch(batch_size)
       expected_output = None
   return (input_data, expected_output)

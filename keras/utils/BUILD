@@ -9,6 +9,7 @@ package(
     default_visibility = [
         "//keras:__subpackages__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
+        "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],  # Apache 2.0
 )

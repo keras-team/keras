@@ -350,7 +350,7 @@ class HashingTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'can only be a tuple of size 2'):
       _ = hashing.Hashing(num_bins=2, salt=[1])
     with self.assertRaisesRegex(ValueError, 'can only be a tuple of size 2'):
-      _ = hashing.Hashing(num_bins=1, salt=tf.constant([133, 137]))
+      _ = hashing.Hashing(num_bins=1, salt=tf.compat.v2.constant([133, 137]))
 
   def test_hash_compute_output_signature(self):
     input_shape = tf.TensorShape([2, 3])

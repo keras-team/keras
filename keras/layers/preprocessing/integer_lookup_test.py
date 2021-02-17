@@ -38,7 +38,7 @@ from keras.utils.generic_utils import CustomObjectScope
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return integer_lookup.IntegerLookup
   else:
     return integer_lookup_v1.IntegerLookup
@@ -574,7 +574,7 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(

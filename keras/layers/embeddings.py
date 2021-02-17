@@ -134,7 +134,7 @@ class Embedding(Layer):
     # When eager execution is enabled, the placement decision has to be made
     # right now. Checking for the presence of GPUs to avoid complicating the
     # TPU codepaths which can handle sparse optimizers.
-    if tf.executing_eagerly() and tf.config.list_logical_devices('GPU'):
+    if tf.compat.v2.executing_eagerly() and tf.config.list_logical_devices('GPU'):
       with tf.compat.v1.device('cpu:0'):
         self.embeddings = self.add_weight(
             shape=(self.input_dim, self.output_dim),
@@ -188,9 +188,9 @@ class Embedding(Layer):
     if dtype != 'int32' and dtype != 'int64':
       inputs = tf.cast(inputs, 'int32')
     if isinstance(self.embeddings, sharded_variable.ShardedVariable):
-      out = tf.nn.embedding_lookup(self.embeddings.variables, inputs)
+      out = tf.compat.v2.nn.embedding_lookup(self.embeddings.variables, inputs)
     else:
-      out = tf.nn.embedding_lookup(self.embeddings, inputs)
+      out = tf.compat.v2.nn.embedding_lookup(self.embeddings, inputs)
     if self._dtype_policy.compute_dtype != self._dtype_policy.variable_dtype:
       # Instead of casting the variable as in most layers, cast the output, as
       # this is mathematically equivalent but is faster.

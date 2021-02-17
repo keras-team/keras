@@ -92,9 +92,9 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     p = backend.placeholder()
     o = losses.categorical_crossentropy(t, p)
 
-    t_val = tf.convert_to_tensor([[1., 0., 0.], [0., 1., 0.],
+    t_val = tf.compat.v2.convert_to_tensor([[1., 0., 0.], [0., 1., 0.],
                                                     [0., 0., 1.]])
-    p_val = tf.convert_to_tensor([[.9, .05, .05],
+    p_val = tf.compat.v2.convert_to_tensor([[.9, .05, .05],
                                                     [.05, .89, .06],
                                                     [.05, .01, .94]])
     f = backend.function([t, p], o)
@@ -103,7 +103,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertArrayNear(result, [.105, .116, .062], 1e-3)
 
     # from logits
-    p_val = tf.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
+    p_val = tf.compat.v2.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
                                                     [2., 3., 5.]])
     o = losses.categorical_crossentropy(t, p, from_logits=True)
     f = backend.function([t, p], o)
@@ -133,8 +133,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     p = backend.placeholder()
     o = losses.sparse_categorical_crossentropy(t, p)
 
-    t_val = tf.convert_to_tensor([0, 1, 2])
-    p_val = tf.convert_to_tensor([[.9, .05, .05],
+    t_val = tf.compat.v2.convert_to_tensor([0, 1, 2])
+    p_val = tf.compat.v2.convert_to_tensor([[.9, .05, .05],
                                                     [.05, .89, .06],
                                                     [.05, .01, .94]])
     f = backend.function([t, p], o)
@@ -143,7 +143,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertArrayNear(result, [.105, .116, .062], 1e-3)
 
     # from logits
-    p_val = tf.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
+    p_val = tf.compat.v2.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
                                                     [2., 3., 5.]])
     o = losses.sparse_categorical_crossentropy(t, p, from_logits=True)
     f = backend.function([t, p], o)
@@ -188,9 +188,9 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(mse_obj.name, 'mean_squared_error')
     self.assertEqual(mse_obj.reduction, losses_utils.ReductionV2.AUTO)
 
-    y_true = tf.constant([[1., 9.], [2., 5.]])
-    y_pred = tf.constant([[4., 8.], [12., 3.]])
-    sample_weight = tf.constant([1.2, 0.5])
+    y_true = tf.compat.v2.constant([[1., 9.], [2., 5.]])
+    y_pred = tf.compat.v2.constant([[4., 8.], [12., 3.]])
+    sample_weight = tf.compat.v2.constant([1.2, 0.5])
     loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # mse = [((4 - 1)^2 + (8 - 9)^2) / 2, ((12 - 2)^2 + (3 - 5)^2) / 2]
@@ -205,16 +205,16 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
     # get autographed when in a tf.function
     def loss_fn(y_true, y_pred):
       mse_loss_fn = losses.get('mse')
-      if tf.reduce_mean(y_true) > 0:
+      if tf.compat.v2.reduce_mean(y_true) > 0:
         return mse_loss_fn(y_true, y_pred)
       else:
         return mse_loss_fn(y_true, y_pred)
 
     mse_obj = losses.LossFunctionWrapper(loss_fn)
 
-    y_true = tf.constant([[1., 9.], [2., 5.]])
-    y_pred = tf.constant([[4., 8.], [12., 3.]])
-    sample_weight = tf.constant([1.2, 0.5])
+    y_true = tf.compat.v2.constant([[1., 9.], [2., 5.]])
+    y_pred = tf.compat.v2.constant([[4., 8.], [12., 3.]])
+    sample_weight = tf.compat.v2.constant([1.2, 0.5])
 
     @tf.function
     def tf_functioned_loss_fn(y_true, y_pred, sample_weight=None):
@@ -233,7 +233,7 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
       losses.MeanSquaredError(reduction='Foo')
 
     mse_obj = losses.MeanSquaredError()
-    y = tf.constant([1])
+    y = tf.compat.v2.constant([1])
     mse_obj.reduction = 'Bar'
     with self.assertRaisesRegex(ValueError, 'Invalid Reduction Key Bar.'):
       mse_obj(y, y)
@@ -244,10 +244,10 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_binary_crossentropy_uses_cached_logits(self):
-    logits = tf.constant([[-30., 30.]])
+    logits = tf.compat.v2.constant([[-30., 30.]])
     y_pred = activations.sigmoid(logits)
     self.assertTrue(hasattr(y_pred, '_keras_logits'))
-    y_true = tf.constant([[0., 1.]])
+    y_true = tf.compat.v2.constant([[0., 1.]])
     loss = losses.binary_crossentropy(y_true, y_pred)[0]
     # Check that logits are used. If y_pred is used directly, loss will
     # collapse to 0 from underflow.
@@ -255,10 +255,10 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_categorical_crossentropy_uses_cached_logits(self):
-    logits = tf.constant([[-5., 0., 5.]])
+    logits = tf.compat.v2.constant([[-5., 0., 5.]])
     y_pred = activations.softmax(logits)
     self.assertTrue(hasattr(y_pred, '_keras_logits'))
-    y_true = tf.constant([[0., 0., 1.]])
+    y_true = tf.compat.v2.constant([[0., 0., 1.]])
     loss = losses.categorical_crossentropy(y_true, logits, from_logits=True)[0]
     # Check that logits are used. If y_pred is used directly, loss will
     # collapse to 0 from underflow.
@@ -266,10 +266,10 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_sparse_categorical_crossentropy_uses_cached_logits(self):
-    logits = tf.constant([[-5., 0., 5.]])
+    logits = tf.compat.v2.constant([[-5., 0., 5.]])
     y_pred = activations.softmax(logits)
     self.assertTrue(hasattr(y_pred, '_keras_logits'))
-    y_true = tf.constant([2])
+    y_true = tf.compat.v2.constant([2])
     loss = losses.sparse_categorical_crossentropy(
         y_true, logits, from_logits=True)[0]
     # Check that logits are used. If y_pred is used directly, loss will
@@ -285,8 +285,8 @@ class KerasLossesTest(tf.test.TestCase, parameterized.TestCase):
         return y_true - y_pred
 
     loss = MyLoss()
-    y_true = tf.constant([[0., 0., 0.]])
-    y_pred = tf.constant([[1., 1., 1.]])
+    y_true = tf.compat.v2.constant([[0., 0., 0.]])
+    y_pred = tf.compat.v2.constant([[1., 1., 1.]])
 
     def tf_convert(fn, _):
       assert False, 'Function should not be autographed.'
@@ -307,14 +307,14 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_all_correct_unweighted(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+    y_true = tf.compat.v2.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
     loss = mse_obj(y_true, y_true)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
   def test_unweighted(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mse_obj(y_true, y_pred)
@@ -322,8 +322,8 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mse_obj(y_true, y_pred, sample_weight=2.3)
@@ -331,11 +331,11 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 767.8 / 6, 3)
 
@@ -344,7 +344,7 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
     y_true = tf.ragged.constant([[1., 1., 9.], [2., 5.]])
     y_pred = tf.ragged.constant([[4., 1., 8.], [12., 3.]])
-    sample_weight = tf.constant([1.2, 0.5])
+    sample_weight = tf.compat.v2.constant([1.2, 0.5])
     loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # mse = [((4 - 1)^2 + (8 - 9)^2) / 3, ((12 - 2)^2 + (3 - 5)^2) / 2]
@@ -355,18 +355,18 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_timestep_weighted(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3, 1),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
     loss = mse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 587 / 6, 3)
 
   def test_zero_weighted(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mse_obj(y_true, y_pred, sample_weight=0)
@@ -374,9 +374,9 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_invalid_sample_weight(self):
     mse_obj = losses.MeanSquaredError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
-    sample_weight = tf.constant([3, 6, 5, 0], shape=(2, 2))
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0], shape=(2, 2))
     with self.assertRaisesRegex((ValueError, tf.errors.InvalidArgumentError),
                                 (r'Incompatible shapes: \[2,3\] vs. \[2,2\]|'
                                  'Dimensions must be equal')):
@@ -384,8 +384,8 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_no_reduction(self):
     mse_obj = losses.MeanSquaredError(reduction=losses_utils.ReductionV2.NONE)
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mse_obj(y_true, y_pred, sample_weight=2.3)
@@ -394,8 +394,8 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_sum_reduction(self):
     mse_obj = losses.MeanSquaredError(reduction=losses_utils.ReductionV2.SUM)
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mse_obj(y_true, y_pred, sample_weight=2.3)
@@ -413,14 +413,14 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_all_correct_unweighted(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
+    y_true = tf.compat.v2.constant([4, 8, 12, 8, 1, 3], shape=(2, 3))
     loss = mae_obj(y_true, y_true)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
   def test_unweighted(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mae_obj(y_true, y_pred)
@@ -428,8 +428,8 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mae_obj(y_true, y_pred, sample_weight=2.3)
@@ -437,28 +437,28 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 81.4 / 6, 3)
 
   def test_timestep_weighted(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3, 1),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
     loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 83 / 6, 3)
 
   def test_zero_weighted(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mae_obj(y_true, y_pred, sample_weight=0)
@@ -466,9 +466,9 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_invalid_sample_weight(self):
     mae_obj = losses.MeanAbsoluteError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
-    sample_weight = tf.constant([3, 6, 5, 0], shape=(2, 2))
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3], shape=(2, 3, 1))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0], shape=(2, 2))
     with self.assertRaisesRegex((ValueError, tf.errors.InvalidArgumentError),
                                 (r'Incompatible shapes: \[2,3\] vs. \[2,2\]|'
                                  'Dimensions must be equal')):
@@ -476,8 +476,8 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_no_reduction(self):
     mae_obj = losses.MeanAbsoluteError(reduction=losses_utils.ReductionV2.NONE)
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mae_obj(y_true, y_pred, sample_weight=2.3)
@@ -486,8 +486,8 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_sum_reduction(self):
     mae_obj = losses.MeanAbsoluteError(reduction=losses_utils.ReductionV2.SUM)
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mae_obj(y_true, y_pred, sample_weight=2.3)
@@ -500,7 +500,7 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
     y_pred = tf.ragged.constant([[4, 8, 12], [8, 1]],
                                          dtype=tf.float32)
     # loss = [14/3, 16/2]
-    sample_weight = tf.constant([1.2, 1.0], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 1.0], shape=(2, 1))
     loss = mae_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 6.8, 5)
 
@@ -516,7 +516,7 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_all_correct_unweighted(self):
     mape_obj = losses.MeanAbsolutePercentageError()
-    y_true = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mape_obj(y_true, y_true)
@@ -524,8 +524,8 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_unweighted(self):
     mape_obj = losses.MeanAbsolutePercentageError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mape_obj(y_true, y_pred)
@@ -533,8 +533,8 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     mape_obj = losses.MeanAbsolutePercentageError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mape_obj(y_true, y_pred, sample_weight=2.3)
@@ -542,28 +542,28 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     mape_obj = losses.MeanAbsolutePercentageError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 422.8888, 3)
 
   def test_timestep_weighted(self):
     mape_obj = losses.MeanAbsolutePercentageError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3, 1),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
     loss = mape_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 694.4445, 3)
 
   def test_zero_weighted(self):
     mape_obj = losses.MeanAbsolutePercentageError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mape_obj(y_true, y_pred, sample_weight=0)
@@ -572,8 +572,8 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
   def test_no_reduction(self):
     mape_obj = losses.MeanAbsolutePercentageError(
         reduction=losses_utils.ReductionV2.NONE)
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = mape_obj(y_true, y_pred, sample_weight=2.3)
@@ -592,8 +592,8 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_unweighted(self):
     msle_obj = losses.MeanSquaredLogarithmicError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = msle_obj(y_true, y_pred)
@@ -601,8 +601,8 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     msle_obj = losses.MeanSquaredLogarithmicError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = msle_obj(y_true, y_pred, sample_weight=2.3)
@@ -610,28 +610,28 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     msle_obj = losses.MeanSquaredLogarithmicError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 3.7856, 3)
 
   def test_timestep_weighted(self):
     msle_obj = losses.MeanSquaredLogarithmicError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3, 1),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
     loss = msle_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 2.6473, 3)
 
   def test_zero_weighted(self):
     msle_obj = losses.MeanSquaredLogarithmicError()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = msle_obj(y_true, y_pred, sample_weight=0)
@@ -655,8 +655,8 @@ class CosineSimilarityTest(tf.test.TestCase):
     y_pred = self.l2_norm(self.np_y_pred, axis)
     self.expected_loss = np.sum(np.multiply(y_true, y_pred), axis=(axis,))
 
-    self.y_true = tf.constant(self.np_y_true)
-    self.y_pred = tf.constant(self.np_y_pred)
+    self.y_true = tf.compat.v2.constant(self.np_y_true)
+    self.y_pred = tf.compat.v2.constant(self.np_y_pred)
 
   def test_config(self):
     cosine_obj = losses.CosineSimilarity(
@@ -686,7 +686,7 @@ class CosineSimilarityTest(tf.test.TestCase):
     loss = cosine_obj(
         self.y_true,
         self.y_pred,
-        sample_weight=tf.constant(sample_weight))
+        sample_weight=tf.compat.v2.constant(sample_weight))
     expected_loss = -np.mean(self.expected_loss * sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
 
@@ -701,10 +701,10 @@ class CosineSimilarityTest(tf.test.TestCase):
     y_pred = self.l2_norm(np_y_pred, 2)
     expected_loss = np.sum(np.multiply(y_true, y_pred), axis=(2,))
 
-    y_true = tf.constant(np_y_true)
-    y_pred = tf.constant(np_y_pred)
+    y_true = tf.compat.v2.constant(np_y_true)
+    y_pred = tf.compat.v2.constant(np_y_pred)
     loss = cosine_obj(
-        y_true, y_pred, sample_weight=tf.constant(sample_weight))
+        y_true, y_pred, sample_weight=tf.compat.v2.constant(sample_weight))
 
     expected_loss = -np.mean(expected_loss * sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
@@ -733,14 +733,14 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertEqual(bce_obj.reduction, losses_utils.ReductionV2.SUM)
 
   def test_all_correct_unweighted(self):
-    y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    y_true = tf.compat.v2.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]],
                                   dtype=tf.float32)
     bce_obj = losses.BinaryCrossentropy()
     loss = bce_obj(y_true, y_true)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
     # Test with logits.
-    logits = tf.constant([[100.0, -100.0, -100.0],
+    logits = tf.compat.v2.constant([[100.0, -100.0, -100.0],
                                    [-100.0, 100.0, -100.0],
                                    [-100.0, -100.0, 100.0]])
     bce_obj = losses.BinaryCrossentropy(from_logits=True)
@@ -766,8 +766,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 3.833, 3)
 
     # Test with logits.
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    logits = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    logits = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
     bce_obj = losses.BinaryCrossentropy(from_logits=True)
     loss = bce_obj(y_true, logits)
@@ -805,8 +805,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 8.817, 3)
 
     # Test with logits.
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    logits = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    logits = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
     bce_obj = losses.BinaryCrossentropy(from_logits=True)
     loss = bce_obj(y_true, logits, sample_weight=2.3)
@@ -823,7 +823,7 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     bce_obj = losses.BinaryCrossentropy()
     y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
     y_pred = np.asarray([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = bce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred, Y_MAX = 0.9999999
@@ -839,10 +839,10 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 4.6, 3)
 
     # Test with logits.
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    logits = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    logits = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
-    weights = tf.constant([4, 3])
+    weights = tf.compat.v2.constant([4, 3])
     bce_obj = losses.BinaryCrossentropy(from_logits=True)
     loss = bce_obj(y_true, logits, sample_weight=weights)
 
@@ -855,8 +855,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), 100, 3)
 
   def test_no_reduction(self):
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    logits = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    logits = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
     bce_obj = losses.BinaryCrossentropy(
         from_logits=True, reduction=losses_utils.ReductionV2.NONE)
@@ -869,8 +869,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAllClose((0., 66.6666), self.evaluate(loss), 3)
 
   def test_label_smoothing(self):
-    logits = tf.constant([[100.0, -100.0, -100.0]])
-    y_true = tf.constant([[1, 0, 1]])
+    logits = tf.compat.v2.constant([[100.0, -100.0, -100.0]])
+    y_true = tf.compat.v2.constant([[1, 0, 1]])
     label_smoothing = 0.1
     # Loss: max(x, 0) - x * z + log(1 + exp(-abs(x)))
     #            (where x = logits and z = y_true)
@@ -899,74 +899,74 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     self.assertEqual(cce_obj.reduction, losses_utils.ReductionV2.SUM)
 
   def test_all_correct_unweighted(self):
-    y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    y_true = tf.compat.v2.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]],
                                   dtype=tf.int64)
-    y_pred = tf.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+    y_pred = tf.compat.v2.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
                                   dtype=tf.float32)
     cce_obj = losses.CategoricalCrossentropy()
     loss = cce_obj(y_true, y_pred)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
     # Test with logits.
-    logits = tf.constant([[10., 0., 0.], [0., 10., 0.], [0., 0., 10.]])
+    logits = tf.compat.v2.constant([[10., 0., 0.], [0., 10., 0.], [0., 0., 10.]])
     cce_obj = losses.CategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
   def test_unweighted(self):
     cce_obj = losses.CategoricalCrossentropy()
-    y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    y_pred = tf.compat.v2.constant(
         [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]], dtype=tf.float32)
     loss = cce_obj(y_true, y_pred)
     self.assertAlmostEqual(self.evaluate(loss), .3239, 3)
 
     # Test with logits.
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.CategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits)
     self.assertAlmostEqual(self.evaluate(loss), .0573, 3)
 
   def test_scalar_weighted(self):
     cce_obj = losses.CategoricalCrossentropy()
-    y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    y_pred = tf.compat.v2.constant(
         [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]], dtype=tf.float32)
     loss = cce_obj(y_true, y_pred, sample_weight=2.3)
     self.assertAlmostEqual(self.evaluate(loss), .7449, 3)
 
     # Test with logits.
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.CategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits, sample_weight=2.3)
     self.assertAlmostEqual(self.evaluate(loss), .1317, 3)
 
   def test_sample_weighted(self):
     cce_obj = losses.CategoricalCrossentropy()
-    y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    y_pred = tf.compat.v2.constant(
         [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]], dtype=tf.float32)
-    sample_weight = tf.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
+    sample_weight = tf.compat.v2.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
     loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 1.0696, 3)
 
     # Test with logits.
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.CategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 0.31829, 3)
 
   def test_no_reduction(self):
-    y_true = tf.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    y_true = tf.compat.v2.constant([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.CategoricalCrossentropy(
         from_logits=True, reduction=losses_utils.ReductionV2.NONE)
     loss = cce_obj(y_true, logits)
     self.assertAllClose((0.001822, 0.000459, 0.169846), self.evaluate(loss), 3)
 
   def test_label_smoothing(self):
-    logits = tf.constant([[100.0, -100.0, -100.0]])
-    y_true = tf.constant([[1, 0, 0]])
+    logits = tf.compat.v2.constant([[100.0, -100.0, -100.0]])
+    y_true = tf.compat.v2.constant([[1, 0, 0]])
     label_smoothing = 0.1
     # Softmax Cross Entropy Loss: -\sum_i p_i \log q_i
     # where for a softmax activation
@@ -987,8 +987,8 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     self.assertAlmostEqual(self.evaluate(loss), expected_value, 3)
 
   def test_shape_mismatch(self):
-    y_true = tf.constant([[0], [1], [2]])
-    y_pred = tf.constant([[.9, .05, .05], [.5, .89, .6],
+    y_true = tf.compat.v2.constant([[0], [1], [2]])
+    y_pred = tf.compat.v2.constant([[.9, .05, .05], [.5, .89, .6],
                                    [.05, .01, .94]])
 
     cce_obj = losses.CategoricalCrossentropy()
@@ -1002,7 +1002,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
         [[[.9, .05, .05], [.5, .89, .6]], [[.05, .01, .94]]],
         dtype=tf.float32)
     # batch losses [[0.1054, 0.8047], [0.0619]]
-    sample_weight = tf.constant([[1.2], [3.4]], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([[1.2], [3.4]], shape=(2, 1))
     loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
     # sum([0.1054, 0.8047, 0.0619]) / 3
     self.assertAlmostEqual(self.evaluate(loss), 0.4341, 3)
@@ -1026,65 +1026,65 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
     self.assertEqual(cce_obj.reduction, losses_utils.ReductionV2.SUM)
 
   def test_all_correct_unweighted(self):
-    y_true = tf.constant([[0], [1], [2]], dtype=tf.int64)
-    y_pred = tf.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
+    y_true = tf.compat.v2.constant([[0], [1], [2]], dtype=tf.int64)
+    y_pred = tf.compat.v2.constant([[1., 0., 0.], [0., 1., 0.], [0., 0., 1.]],
                                   dtype=tf.float32)
     cce_obj = losses.SparseCategoricalCrossentropy()
     loss = cce_obj(y_true, y_pred)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
     # Test with logits.
-    logits = tf.constant([[10., 0., 0.], [0., 10., 0.], [0., 0., 10.]])
+    logits = tf.compat.v2.constant([[10., 0., 0.], [0., 10., 0.], [0., 0., 10.]])
     cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits)
     self.assertAlmostEqual(self.evaluate(loss), 0.0, 3)
 
   def test_unweighted(self):
     cce_obj = losses.SparseCategoricalCrossentropy()
-    y_true = tf.constant([0, 1, 2])
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([0, 1, 2])
+    y_pred = tf.compat.v2.constant(
         [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]], dtype=tf.float32)
     loss = cce_obj(y_true, y_pred)
     self.assertAlmostEqual(self.evaluate(loss), .3239, 3)
 
     # Test with logits.
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits)
     self.assertAlmostEqual(self.evaluate(loss), .0573, 3)
 
   def test_scalar_weighted(self):
     cce_obj = losses.SparseCategoricalCrossentropy()
-    y_true = tf.constant([[0], [1], [2]])
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[0], [1], [2]])
+    y_pred = tf.compat.v2.constant(
         [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]], dtype=tf.float32)
     loss = cce_obj(y_true, y_pred, sample_weight=2.3)
     self.assertAlmostEqual(self.evaluate(loss), .7449, 3)
 
     # Test with logits.
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits, sample_weight=2.3)
     self.assertAlmostEqual(self.evaluate(loss), .1317, 3)
 
   def test_sample_weighted(self):
     cce_obj = losses.SparseCategoricalCrossentropy()
-    y_true = tf.constant([[0], [1], [2]])
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[0], [1], [2]])
+    y_pred = tf.compat.v2.constant(
         [[.9, .05, .05], [.5, .89, .6], [.05, .01, .94]], dtype=tf.float32)
-    sample_weight = tf.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
+    sample_weight = tf.compat.v2.constant([[1.2], [3.4], [5.6]], shape=(3, 1))
     loss = cce_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 1.0696, 3)
 
     # Test with logits.
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.SparseCategoricalCrossentropy(from_logits=True)
     loss = cce_obj(y_true, logits, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 0.31829, 3)
 
   def test_no_reduction(self):
-    y_true = tf.constant([[0], [1], [2]])
-    logits = tf.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
+    y_true = tf.compat.v2.constant([[0], [1], [2]])
+    logits = tf.compat.v2.constant([[8., 1., 1.], [0., 9., 1.], [2., 3., 5.]])
     cce_obj = losses.SparseCategoricalCrossentropy(
         from_logits=True, reduction=losses_utils.ReductionV2.NONE)
     loss = cce_obj(y_true, logits)
@@ -1110,8 +1110,8 @@ class HingeTest(tf.test.TestCase):
 
   def test_unweighted(self):
     hinge_obj = losses.Hinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -1128,8 +1128,8 @@ class HingeTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     hinge_obj = losses.Hinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -1151,8 +1151,8 @@ class HingeTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     hinge_obj = losses.Hinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -1165,16 +1165,16 @@ class HingeTest(tf.test.TestCase):
     # weighted loss = [0.6 * 1.2, 0.4125 * 3.4]
     # reduced loss = (0.6 * 1.2 + 0.4125 * 3.4) / 2
 
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = hinge_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(self.evaluate(loss), 1.061, 1e-3)
 
   def test_timestep_weighted(self):
     hinge_obj = losses.Hinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]], shape=(2, 4, 1))
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]], shape=(2, 4, 1))
+    y_pred = tf.compat.v2.constant(
         [[-0.3, 0.2, -0.1, 1.6], [-0.25, -1., 0.5, 0.6]], shape=(2, 4, 1))
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2, 1, 3], shape=(2, 4))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2, 1, 3], shape=(2, 4))
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
 
@@ -1192,8 +1192,8 @@ class HingeTest(tf.test.TestCase):
 
   def test_zero_weighted(self):
     hinge_obj = losses.Hinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
     loss = hinge_obj(y_true, y_pred, sample_weight=0)
     self.assertAllClose(self.evaluate(loss), 0., 1e-3)
@@ -1210,8 +1210,8 @@ class SquaredHingeTest(tf.test.TestCase):
 
   def test_unweighted(self):
     sq_hinge_obj = losses.SquaredHinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -1231,8 +1231,8 @@ class SquaredHingeTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     sq_hinge_obj = losses.SquaredHinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -1257,8 +1257,8 @@ class SquaredHingeTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     sq_hinge_obj = losses.SquaredHinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -1274,16 +1274,16 @@ class SquaredHingeTest(tf.test.TestCase):
     # weighted loss = [0.485 * 1.2, 0.2431 * 3.4]
     # reduced loss = (0.485 * 1.2 + 0.2431 * 3.4) / 2
 
-    sample_weight = tf.constant([1.2, 3.4])
+    sample_weight = tf.compat.v2.constant([1.2, 3.4])
     loss = sq_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(self.evaluate(loss), 0.704, 1e-3)
 
   def test_timestep_weighted(self):
     sq_hinge_obj = losses.SquaredHinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]], shape=(2, 4, 1))
-    y_pred = tf.constant(
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]], shape=(2, 4, 1))
+    y_pred = tf.compat.v2.constant(
         [[-0.3, 0.2, -0.1, 1.6], [-0.25, -1., 0.5, 0.6]], shape=(2, 4, 1))
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2, 1, 3], shape=(2, 4))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2, 1, 3], shape=(2, 4))
 
     # loss = max(0, 1-y_true * y_pred), where y_true is -1/1
 
@@ -1301,8 +1301,8 @@ class SquaredHingeTest(tf.test.TestCase):
 
   def test_zero_weighted(self):
     sq_hinge_obj = losses.SquaredHinge()
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
     loss = sq_hinge_obj(y_true, y_pred, sample_weight=0)
     self.assertAllClose(self.evaluate(loss), 0., 1e-3)
@@ -1319,8 +1319,8 @@ class CategoricalHingeTest(tf.test.TestCase):
 
   def test_unweighted(self):
     cat_hinge_obj = losses.CategoricalHinge()
-    y_true = tf.constant([1, 9, 2, -5], shape=(2, 2))
-    y_pred = tf.constant([4, 8, 12, 8],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5], shape=(2, 2))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8],
                                   shape=(2, 2),
                                   dtype=tf.float32)
     loss = cat_hinge_obj(y_true, y_pred)
@@ -1333,8 +1333,8 @@ class CategoricalHingeTest(tf.test.TestCase):
 
   def test_scalar_weighted(self):
     cat_hinge_obj = losses.CategoricalHinge()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = cat_hinge_obj(y_true, y_pred, sample_weight=2.3)
@@ -1346,28 +1346,28 @@ class CategoricalHingeTest(tf.test.TestCase):
 
   def test_sample_weighted(self):
     cat_hinge_obj = losses.CategoricalHinge()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 124.1, 3)
 
   def test_timestep_weighted(self):
     cat_hinge_obj = losses.CategoricalHinge()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3, 1))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3, 1),
                                   dtype=tf.float32)
-    sample_weight = tf.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
+    sample_weight = tf.compat.v2.constant([3, 6, 5, 0, 4, 2], shape=(2, 3))
     loss = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), 4.0, 3)
 
   def test_zero_weighted(self):
     cat_hinge_obj = losses.CategoricalHinge()
-    y_true = tf.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
-    y_pred = tf.constant([4, 8, 12, 8, 1, 3],
+    y_true = tf.compat.v2.constant([1, 9, 2, -5, -2, 6], shape=(2, 3))
+    y_pred = tf.compat.v2.constant([4, 8, 12, 8, 1, 3],
                                   shape=(2, 3),
                                   dtype=tf.float32)
     loss = cat_hinge_obj(y_true, y_pred, sample_weight=0)
@@ -1385,8 +1385,8 @@ class LogCoshTest(tf.test.TestCase):
     error = y_pred - y_true
     self.expected_losses = np.log((np.exp(error) + np.exp(-error)) / 2)
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
     logcosh_obj = losses.LogCosh(
@@ -1420,7 +1420,7 @@ class LogCoshTest(tf.test.TestCase):
     self.setup()
     logcosh_obj = losses.LogCosh()
 
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = logcosh_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     expected_loss = np.multiply(
@@ -1438,12 +1438,12 @@ class LogCoshTest(tf.test.TestCase):
     expected_losses = np.log((np.exp(error) + np.exp(-error)) / 2)
     sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3, 1))
 
-    y_pred = tf.constant(y_pred, dtype=tf.float32)
-    y_true = tf.constant(y_true)
+    y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    y_true = tf.compat.v2.constant(y_true)
     loss = logcosh_obj(
         y_true,
         y_pred,
-        sample_weight=tf.constant(sample_weight, shape=(2, 3)))
+        sample_weight=tf.compat.v2.constant(sample_weight, shape=(2, 3)))
     expected_loss = np.sum(expected_losses * sample_weight) / self.batch_size
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
 
@@ -1466,8 +1466,8 @@ class PoissonTest(tf.test.TestCase):
     self.expected_losses = self.np_y_pred - np.multiply(self.np_y_true,
                                                         np.log(self.np_y_pred))
 
-    self.y_pred = tf.constant(self.np_y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(self.np_y_true)
+    self.y_pred = tf.compat.v2.constant(self.np_y_pred, dtype=tf.float32)
+    self.y_true = tf.compat.v2.constant(self.np_y_true)
 
   def test_config(self):
     poisson_obj = losses.Poisson(
@@ -1502,7 +1502,7 @@ class PoissonTest(tf.test.TestCase):
     self.setup()
     poisson_obj = losses.Poisson()
 
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = poisson_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     expected_loss = np.multiply(
@@ -1519,13 +1519,13 @@ class PoissonTest(tf.test.TestCase):
     sample_weight = np.asarray([3, 6, 5, 0, 4, 2]).reshape(2, 3, 1)
     expected_losses = y_pred - np.multiply(y_true, np.log(y_pred))
 
-    y_pred = tf.constant(y_pred, dtype=tf.float32)
-    y_true = tf.constant(y_true)
+    y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    y_true = tf.compat.v2.constant(y_true)
 
     loss = poisson_obj(
         y_true,
         y_pred,
-        sample_weight=tf.constant(sample_weight, shape=(2, 3)))
+        sample_weight=tf.compat.v2.constant(sample_weight, shape=(2, 3)))
     expected_loss = np.sum(expected_losses * sample_weight) / self.batch_size
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
 
@@ -1547,8 +1547,8 @@ class KLDivergenceTest(tf.test.TestCase):
     self.expected_losses = np.multiply(self.np_y_true,
                                        np.log(self.np_y_true / self.np_y_pred))
 
-    self.y_pred = tf.constant(self.np_y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(self.np_y_true)
+    self.y_pred = tf.compat.v2.constant(self.np_y_pred, dtype=tf.float32)
+    self.y_true = tf.compat.v2.constant(self.np_y_true)
 
   def test_config(self):
     k_obj = losses.KLDivergence(
@@ -1581,7 +1581,7 @@ class KLDivergenceTest(tf.test.TestCase):
   def test_sample_weighted(self):
     self.setup()
     k_obj = losses.KLDivergence()
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     loss = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     expected_loss = np.multiply(
@@ -1599,10 +1599,10 @@ class KLDivergenceTest(tf.test.TestCase):
     expected_losses = np.sum(
         np.multiply(y_true, np.log(y_true / y_pred)), axis=-1)
 
-    y_pred = tf.constant(y_pred, dtype=tf.float32)
-    y_true = tf.constant(y_true)
+    y_pred = tf.compat.v2.constant(y_pred, dtype=tf.float32)
+    y_true = tf.compat.v2.constant(y_true)
     loss = k_obj(
-        y_true, y_pred, sample_weight=tf.constant(sample_weight))
+        y_true, y_pred, sample_weight=tf.compat.v2.constant(sample_weight))
 
     num_timesteps = 3
     expected_loss = np.sum(expected_losses * sample_weight) / (
@@ -1637,8 +1637,8 @@ class HuberLossTest(tf.test.TestCase):
     self.expected_losses = self.huber_loss(self.np_y_true, self.np_y_pred,
                                            delta)
 
-    self.y_pred = tf.constant(self.np_y_pred)
-    self.y_true = tf.constant(self.np_y_true)
+    self.y_pred = tf.compat.v2.constant(self.np_y_pred)
+    self.y_true = tf.compat.v2.constant(self.np_y_true)
 
   def test_config(self):
     h_obj = losses.Huber(reduction=losses_utils.ReductionV2.SUM, name='huber')
@@ -1673,7 +1673,7 @@ class HuberLossTest(tf.test.TestCase):
   def test_sample_weighted(self):
     self.setup()
     h_obj = losses.Huber()
-    sample_weight = tf.constant((1.2, 3.4), shape=(2, 1))
+    sample_weight = tf.compat.v2.constant((1.2, 3.4), shape=(2, 1))
 
     loss = h_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
     actual_loss = np.multiply(
@@ -1689,13 +1689,13 @@ class HuberLossTest(tf.test.TestCase):
     y_true = self.np_y_true.reshape((2, 3, 1))
     expected_losses = self.huber_loss(y_true, y_pred)
 
-    y_pred = tf.constant(y_pred)
-    y_true = tf.constant(y_true)
+    y_pred = tf.compat.v2.constant(y_pred)
+    y_true = tf.compat.v2.constant(y_true)
     sample_weight = np.array([3, 6, 5, 0, 4, 2]).reshape((2, 3, 1))
     loss = h_obj(
         y_true,
         y_pred,
-        sample_weight=tf.constant(sample_weight, shape=(2, 3)))
+        sample_weight=tf.compat.v2.constant(sample_weight, shape=(2, 3)))
     actual_loss = np.multiply(expected_losses, sample_weight)
     actual_loss = np.sum(actual_loss) / self.batch_size
     self.assertAlmostEqual(self.evaluate(loss), actual_loss, 3)
@@ -1737,7 +1737,7 @@ class BinaryTruePositivesViaControlFlow(losses.Loss):
     y_true = tf.cast(y_true, tf.bool)
     y_pred = tf.cast(y_pred, tf.bool)
 
-    result = tf.constant(0.0)
+    result = tf.compat.v2.constant(0.0)
     for i in range(len(y_true)):
       for j in range(len(y_true[i])):
         if y_true[i][j] and y_pred[i][j]:
@@ -1749,9 +1749,9 @@ class BinaryTruePositivesViaControlFlow(losses.Loss):
 class CustomLossTest(tf.test.TestCase):
 
   def test_autograph(self):
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
 
     @tf.function

@@ -208,7 +208,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       categorical_column_b = tf.feature_column.sequence_categorical_column_with_identity(
           key='bbb', num_buckets=vocabulary_size)
       # Test that columns are reordered alphabetically.
-      shared_embedding_columns = tf.feature_column.shared_embeddings(
+      shared_embedding_columns = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension,
           initializer=_get_initializer(embedding_dimension, embedding_values))
@@ -250,7 +250,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           key='aaa', num_buckets=vocabulary_size)
       categorical_column_b = tf.feature_column.categorical_column_with_identity(
           key='bbb', num_buckets=vocabulary_size)
-      shared_embedding_columns = tf.feature_column.shared_embeddings(
+      shared_embedding_columns = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_a, categorical_column_b], dimension=2)
 
       sequence_input_layer = ksfc.SequenceFeatures(shared_embedding_columns)
@@ -654,7 +654,7 @@ class SequenceFeaturesSavingTest(tf.test.TestCase, parameterized.TestCase):
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertLen(

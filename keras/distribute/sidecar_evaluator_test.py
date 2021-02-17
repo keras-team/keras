@@ -77,7 +77,7 @@ class SidecarEvaluatorTest(tf.test.TestCase):
     model = self.createTestModel(compile_model=False)
 
     checkpoint_dir = self.get_temp_dir()
-    checkpoint = tf.train.Checkpoint(model=model)
+    checkpoint = tf.compat.v2.train.Checkpoint(model=model)
     checkpoint_manager = tf.train.CheckpointManager(
         checkpoint, checkpoint_dir, max_to_keep=2)
     checkpoint_manager.save()
@@ -102,7 +102,7 @@ class SidecarEvaluatorTest(tf.test.TestCase):
     checkpoint_dir = os.path.join(self.get_temp_dir(), 'ckpt')
     log_dir = os.path.join(self.get_temp_dir(), 'summary')
     logging.info('checkpoint_dir = %s, log_dir = %s', checkpoint_dir, log_dir)
-    checkpoint = tf.train.Checkpoint(
+    checkpoint = tf.compat.v2.train.Checkpoint(
         model=model, optimizer=model.optimizer)
     checkpoint_manager = tf.train.CheckpointManager(
         checkpoint, checkpoint_dir, max_to_keep=2)

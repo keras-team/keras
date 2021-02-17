@@ -33,4 +33,4 @@ def contextmanager(target):
     A callable that can be used inside of a `with` statement.
   """
   context_manager = _contextlib.contextmanager(target)
-  return tf.__internal__.decorator.make_decorator(target, context_manager, 'contextmanager')
+  return tf.compat.v2.__internal__.decorator.make_decorator(target, context_manager, 'contextmanager')

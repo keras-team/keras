@@ -94,7 +94,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
                                                   input_shape=(3,))
       model.compile(rmsprop.RMSprop(0.001), loss='mse')
       model.train_on_batch(np.random.random((2, 3)), np.random.random((2, 3)))
-    except tf.errors.OperatorNotAllowedInGraphError as e:
+    except tf.compat.v2.errors.OperatorNotAllowedInGraphError as e:
       if 'iterating over `tf.Tensor` is not allowed' in str(e):
         raised_error = True
     except TypeError as e:
@@ -176,7 +176,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
         self.layer2 = layers.Dense(3)
 
       def call(self, inputs):
-        if tf.reduce_sum(inputs) > 0:
+        if tf.compat.v2.reduce_sum(inputs) > 0:
           return self.layer1(inputs)
         else:
           return self.layer2(inputs)
@@ -198,7 +198,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
         self.layer2 = layers.Dense(3)
 
       def call(self, inputs):
-        if tf.reduce_sum(inputs) > 0:
+        if tf.compat.v2.reduce_sum(inputs) > 0:
           return self.layer1(inputs)
         else:
           return self.layer2(inputs)
@@ -215,7 +215,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(outputs.shape.as_list(), [2, 3])
 
   def test_deepcopy(self):
-    bias_reg = lambda x: 1e-3 * tf.reduce_sum(x)
+    bias_reg = lambda x: 1e-3 * tf.compat.v2.reduce_sum(x)
     layer = layers.Conv2D(32, (3, 3), bias_regularizer=bias_reg)
     # Call the Layer on data to generate regularize losses.
     layer(tf.ones((1, 10, 10, 3)))
@@ -295,7 +295,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(layer.default_weight.dtype.name, 'float32')
     self.assertEqual(layer.weight_without_name.dtype.name, 'float32')
     self.assertEqual(len(layer.losses), 1)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Cannot access tensor.name in eager execution.
       self.assertIn('Variable_2/Regularizer', layer.losses[0].name)
 
@@ -336,9 +336,9 @@ class BaseLayerTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(ComputeSum, self).__init__()
-        self.total = tf.Variable(
+        self.total = tf.compat.v2.Variable(
             initial_value=tf.zeros((1, 1)), trainable=False)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           backend.get_session().run(self.total.initializer)
 
       def call(self, inputs):
@@ -400,7 +400,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
       def __init__(self, **kwargs):
         super(RawVariableLayer, self).__init__(**kwargs)
         # Test variables in nested structure.
-        self.var_list = [tf.Variable(1.), {'a': tf.Variable(2.)}]
+        self.var_list = [tf.compat.v2.Variable(1.), {'a': tf.compat.v2.Variable(2.)}]
 
       def call(self, inputs):
         return inputs * self.var_list[0] * self.var_list[1]['a']
@@ -434,7 +434,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
       def _from_components(self, variable_list):
         return CompositeVariable(variable_list)
 
-    class CompositeVariable(tf.__internal__.CompositeTensor):
+    class CompositeVariable(tf.compat.v2.__internal__.CompositeTensor):
 
       def __init__(self, variable_list):
         self._variables = variable_list
@@ -448,13 +448,13 @@ class BaseLayerTest(keras_parameterized.TestCase):
       def __init__(self):
         super().__init__()
         self.composite_var = CompositeVariable(
-            [tf.Variable(1.),
-             tf.Variable(2.)])
+            [tf.compat.v2.Variable(1.),
+             tf.compat.v2.Variable(2.)])
 
     layer = CompositeVariableLayer()
     self.assertLen(layer.weights, 2)
-    self.assertIsInstance(layer.weights[0], tf.Variable)
-    self.assertIsInstance(layer.weights[1], tf.Variable)
+    self.assertIsInstance(layer.weights[0], tf.compat.v2.Variable)
+    self.assertIsInstance(layer.weights[1], tf.compat.v2.Variable)
     self.assertEqual(self.evaluate(layer.weights[0]), 1.)
     self.assertEqual(self.evaluate(layer.weights[1]), 2.)
 
@@ -801,8 +801,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(MyModule, self).__init__()
-        self.v1 = tf.Variable(1., trainable=True, name='v1')
-        self.v2 = tf.Variable(2., trainable=False, name='v2')
+        self.v1 = tf.compat.v2.Variable(1., trainable=True, name='v1')
+        self.v2 = tf.compat.v2.Variable(2., trainable=False, name='v2')
 
       def __call__(self, x):
         return x * self.v1 * self.v2
@@ -942,18 +942,18 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_summaries_in_tf_function(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       return
 
     class MyLayer(base_layer.Layer):
 
       def call(self, inputs):
-        tf.summary.scalar('mean', tf.reduce_mean(inputs))
+        tf.compat.v2.summary.scalar('mean', tf.compat.v2.reduce_mean(inputs))
         return inputs
 
     tmp_dir = self.get_temp_dir()
-    writer = tf.summary.create_file_writer(tmp_dir)
-    with writer.as_default(step=1), tf.summary.record_if(True):
+    writer = tf.compat.v2.summary.create_file_writer(tmp_dir)
+    with writer.as_default(step=1), tf.compat.v2.summary.record_if(True):
       my_layer = MyLayer()
       x = tf.ones((10, 10))
 
@@ -997,7 +997,7 @@ class NestedTrackingTest(tf.test.TestCase):
 
       def build(self, input_shape):
         self.v1 = self.add_weight('v1', shape=input_shape[1:].as_list())
-        self.v2 = tf.Variable(
+        self.v2 = tf.compat.v2.Variable(
             name='v2',
             initial_value=np.zeros(input_shape[1:].as_list(), dtype='float32'),
             trainable=False)
@@ -1037,7 +1037,7 @@ class NestedTrackingTest(tf.test.TestCase):
         self.v1 = self.add_weight('v1', shape=())
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs))
+        self.add_loss(tf.compat.v2.reduce_sum(inputs))
         self.add_update(tf.compat.v1.assign_add(self.v1, 1))
         return inputs + 1
 
@@ -1052,14 +1052,14 @@ class NestedTrackingTest(tf.test.TestCase):
         self.ul2 = UpdateAndLossLayer()
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs))
+        self.add_loss(tf.compat.v2.reduce_sum(inputs))
         self.add_update(tf.compat.v1.assign_add(self.v1, 1))
         x = self.ul1(inputs)
         return self.ul2(x)
 
     layer = MyLayer()
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       inputs = tf.ones((3, 1))
       _ = layer(inputs)
       self.assertEqual(len(layer.losses), 3)
@@ -1075,11 +1075,11 @@ class NestedTrackingTest(tf.test.TestCase):
     l = base_layer.Layer()
     l.a = base_layer.Layer()
     l.a = []
-    l.a = tf.Variable(1.)
+    l.a = tf.compat.v2.Variable(1.)
     l.a = base_layer.Layer()
     last_assignment = base_layer.Layer()
     l.a = last_assignment
-    l.b = tf.Variable(1.)
+    l.b = tf.compat.v2.Variable(1.)
     del l.b
     l.c = base_layer.Layer()
     del l.c
@@ -1193,7 +1193,7 @@ class NameScopingTest(keras_parameterized.TestCase):
     class NameScopeTracker(base_layer.Layer):
 
       def call(self, inputs):
-        self.active_name_scope = tf.__internal__.get_name_scope()
+        self.active_name_scope = tf.compat.v2.__internal__.get_name_scope()
         return inputs
 
     x = backend.placeholder(shape=(10, 10))
@@ -1205,7 +1205,7 @@ class NameScopingTest(keras_parameterized.TestCase):
     self.assertEqual(sublayer.active_name_scope, 'MyName2/Sublayer')
 
   def test_name_scope_tf_tensor(self):
-    x = tf.convert_to_tensor(np.ones((10, 10)))
+    x = tf.compat.v2.convert_to_tensor(np.ones((10, 10)))
     layer = layers.Dense(
         10, activation=layers.ReLU(name='MyAct'), name='MyName3')
     layer(x)
@@ -1224,13 +1224,13 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         with test_obj.assertRaisesRegex(TypeError, 'Tensor.*as.*bool'):
-          if tf.constant(False):
+          if tf.compat.v2.constant(False):
             return inputs * 1.
         return inputs * 0.
 
     @tf.function(autograph=False)
     def test_fn():
-      return MyLayer()(tf.constant([[1., 2., 3.]]))
+      return MyLayer()(tf.compat.v2.constant([[1., 2., 3.]]))
 
     test_fn()
 
@@ -1261,7 +1261,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         if training:
-          loss = tf.reduce_sum(inputs)
+          loss = tf.compat.v2.reduce_sum(inputs)
         else:
           loss = 0.
         self.add_loss(loss)
@@ -1285,7 +1285,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         if training:
-          metric = tf.reduce_sum(inputs)
+          metric = tf.compat.v2.reduce_sum(inputs)
         else:
           metric = 0.
         self.add_metric(metric, name='my_metric', aggregation='mean')
@@ -1344,7 +1344,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         if training:
-          self.add_loss(tf.reduce_sum(inputs))
+          self.add_loss(tf.compat.v2.reduce_sum(inputs))
         return inputs
 
       def compute_output_shape(self, input_shape):
@@ -1366,18 +1366,18 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
     model._run_eagerly = testing_utils.should_run_eagerly()
 
     def assert_graph(t):
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.assertEqual(t.graph, tf.compat.v1.get_default_graph())
 
     @tf.function
     def get_losses(t):
       if t < 0:
-        return tf.reduce_sum(model.losses) * t
+        return tf.compat.v2.reduce_sum(model.losses) * t
       else:
-        return tf.reduce_sum(model.losses)
+        return tf.compat.v2.reduce_sum(model.losses)
 
-    assert_graph(get_losses(tf.constant(2.)))
-    assert_graph(get_losses(tf.constant(0.5)))
+    assert_graph(get_losses(tf.compat.v2.constant(2.)))
+    assert_graph(get_losses(tf.compat.v2.constant(0.5)))
 
   def test_conditional_metrics_in_call(self):
 
@@ -1389,7 +1389,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         if training:
-          self.add_metric(tf.reduce_sum(inputs),
+          self.add_metric(tf.compat.v2.reduce_sum(inputs),
                           name='sum',
                           aggregation='mean')
         return inputs
@@ -1415,7 +1415,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
         self.layer = layers.Dense(2, activity_regularizer='l2')
 
       def call(self, x, training=None):
-        if tf.greater(tf.reduce_sum(x), 0.0):
+        if tf.greater(tf.compat.v2.reduce_sum(x), 0.0):
           return self.layer(x)
         else:
           return self.layer(x)
@@ -1446,7 +1446,7 @@ class AutographControlFlowTest(keras_parameterized.TestCase):
             layers.Dense(2, activity_regularizer='l2'), input_shape=(3, 4))
 
       def call(self, x, training=None):
-        if tf.greater(tf.reduce_sum(x), 0.0):
+        if tf.greater(tf.compat.v2.reduce_sum(x), 0.0):
           return self.layer(x)
         else:
           return self.layer(x)
@@ -1500,7 +1500,7 @@ class DTypeTest(keras_parameterized.TestCase):
   # TODO(reedwm): Maybe have a separate test file for input casting tests.
 
   def _const(self, dtype):
-    return tf.constant(1, dtype=dtype)
+    return tf.compat.v2.constant(1, dtype=dtype)
 
   @testing_utils.enable_v2_dtype_behavior
   def test_dtype_defaults_to_floatx(self):
@@ -1630,12 +1630,12 @@ class DTypeTest(keras_parameterized.TestCase):
   @testing_utils.enable_v2_dtype_behavior
   def test_composite_tensors_input_casting(self):
     sparse = tf.SparseTensor(
-        indices=tf.constant([[0, 1], [2, 3]], dtype='int64'),
-        values=tf.constant([0., 1.], dtype='float32'),
-        dense_shape=tf.constant([4, 4], dtype='int64'))
+        indices=tf.compat.v2.constant([[0, 1], [2, 3]], dtype='int64'),
+        values=tf.compat.v2.constant([0., 1.], dtype='float32'),
+        dense_shape=tf.compat.v2.constant([4, 4], dtype='int64'))
     ragged = tf.RaggedTensor.from_row_splits(
-        values=tf.constant([1., 2., 3.], dtype='float32'),
-        row_splits=tf.constant([0, 2, 2, 3], dtype='int64'))
+        values=tf.compat.v2.constant([1., 2., 3.], dtype='float32'),
+        row_splits=tf.compat.v2.constant([0, 2, 2, 3], dtype='int64'))
 
     layer = IdentityLayer(dtype='float16')
 

@@ -105,7 +105,7 @@ def smart_cond(pred, true_fn=None, false_fn=None, name=None):  # pylint: disable
   Raises:
     TypeError: If `true_fn` or `false_fn` is not callable.
   """
-  if isinstance(pred, tf.Variable):
+  if isinstance(pred, tf.compat.v2.Variable):
     return tf.compat.v1.cond(
         pred, true_fn=true_fn, false_fn=false_fn, name=name)
   return smart_module.smart_cond(
@@ -132,7 +132,7 @@ def constant_value(pred):  # pylint: disable=invalid-name
     return bool(pred)
   if isinstance(pred, bool):
     return pred
-  if isinstance(pred, tf.Variable):
+  if isinstance(pred, tf.compat.v2.Variable):
     return None
   raise TypeError("`pred` must be a Tensor, or a Python bool, or 1 or 0. "
                   "Found instead: %s" % type(pred))

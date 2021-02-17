@@ -114,16 +114,16 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.0, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
         grads0_np_indices = np.array([0, 2], dtype=np.int32)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np[grads0_np_indices]),
-            tf.constant(grads0_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads0_np[grads0_np_indices]),
+            tf.compat.v2.constant(grads0_np_indices), tf.compat.v2.constant([3]))
         grads1_np_indices = np.array([0, 2], dtype=np.int32)
         grads1 = tf.IndexedSlices(
-            tf.constant(grads1_np[grads1_np_indices]),
-            tf.constant(grads1_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads1_np[grads1_np_indices]),
+            tf.compat.v2.constant(grads1_np_indices), tf.compat.v2.constant([3]))
         opt = adam.Adam()
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -155,9 +155,9 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           force_gpu=tf.test.is_gpu_available()):
         # If a GPU is available, tests that all optimizer ops can be placed on
         # it (i.e. they have GPU kernels).
-        var = tf.Variable([[1.0], [2.0]])
-        indices = tf.constant([0, 1], dtype=index_dtype)
-        g_sum = lambda: tf.reduce_sum(tf.compat.v1.gather(var, indices))  # pylint: disable=cell-var-from-loop
+        var = tf.compat.v2.Variable([[1.0], [2.0]])
+        indices = tf.compat.v2.constant([0, 1], dtype=index_dtype)
+        g_sum = lambda: tf.compat.v2.reduce_sum(tf.compat.v1.gather(var, indices))  # pylint: disable=cell-var-from-loop
         optimizer = adam.Adam(3.0)
         minimize_op = optimizer.minimize(g_sum, var_list=[var])
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -167,20 +167,20 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32, tf.float64]:
       with tf.Graph().as_default(), self.cached_session():
-        repeated_index_update_var = tf.Variable(
+        repeated_index_update_var = tf.compat.v2.Variable(
             [[1.0], [2.0]], dtype=dtype)
-        aggregated_update_var = tf.Variable(
+        aggregated_update_var = tf.compat.v2.Variable(
             [[1.0], [2.0]], dtype=dtype)
         grad_repeated_index = tf.IndexedSlices(
-            tf.constant(
+            tf.compat.v2.constant(
                 [0.1, 0.1], shape=[2, 1], dtype=dtype),
-            tf.constant([1, 1]),
-            tf.constant([2, 1]))
+            tf.compat.v2.constant([1, 1]),
+            tf.compat.v2.constant([2, 1]))
         grad_aggregated = tf.IndexedSlices(
-            tf.constant(
+            tf.compat.v2.constant(
                 [0.2], shape=[1, 1], dtype=dtype),
-            tf.constant([1]),
-            tf.constant([2, 1]))
+            tf.compat.v2.constant([1]),
+            tf.compat.v2.constant([2, 1]))
         repeated_update = adam.Adam().apply_gradients(
             [(grad_repeated_index, repeated_index_update_var)])
         aggregated_update = adam.Adam().apply_gradients(
@@ -204,10 +204,10 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = lambda: 0.001
         beta1 = lambda: 0.9
@@ -220,7 +220,7 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           epsilon = epsilon()
 
         opt = adam.Adam(learning_rate=learning_rate)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
 
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -231,7 +231,7 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                              self.evaluate(beta_1_power))
           self.assertAllCloseAccordingToType(0.999**(t + 1),
                                              self.evaluate(beta_2_power))
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             self.evaluate(update)
           else:
             opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -262,13 +262,13 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         opt = adam.Adam(amsgrad=True)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
 
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -279,7 +279,7 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                              self.evaluate(beta_1_power))
           self.assertAllCloseAccordingToType(0.999**(t + 1),
                                              self.evaluate(beta_2_power))
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             self.evaluate(update)
           else:
             opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -302,19 +302,19 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         v0 = np.array([[0.0], [0.0]])
         v0hat = np.array([[0.0], [0.0]])
         indices_np = np.array([1])
-        indices = tf.constant(indices_np, dtype=tf.int32)
+        indices = tf.compat.v2.constant(indices_np, dtype=tf.int32)
         var0_np = np.array([[1.0], [2.0]], dtype=dtype.as_numpy_dtype)
-        repeated_index_update_var = tf.Variable(var0_np, dtype=dtype)
-        aggregated_update_var = tf.Variable(var0_np, dtype=dtype)
+        repeated_index_update_var = tf.compat.v2.Variable(var0_np, dtype=dtype)
+        aggregated_update_var = tf.compat.v2.Variable(var0_np, dtype=dtype)
         grads0_np = np.array([[0.2]], dtype=dtype.as_numpy_dtype)
         grad_repeated_index = tf.IndexedSlices(
-            tf.constant([0.1, 0.1], shape=[2, 1], dtype=dtype),
-            tf.constant([1, 1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.1, 0.1], shape=[2, 1], dtype=dtype),
+            tf.compat.v2.constant([1, 1]), tf.compat.v2.constant([2, 1]))
         grad_aggregated = tf.IndexedSlices(grads0_np, indices,
-                                            tf.constant([2, 1]))
+                                            tf.compat.v2.constant([2, 1]))
         opt_repeated = adam.Adam(amsgrad=True)
         opt_aggregated = adam.Adam(amsgrad=True)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           repeated_update = opt_repeated.apply_gradients(
               [(grad_repeated_index, repeated_index_update_var)])
           aggregated_update = opt_aggregated.apply_gradients(
@@ -324,7 +324,7 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(aggregated_update_var),
             self.evaluate(repeated_index_update_var))
         for t in range(3):
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             self.evaluate(repeated_update)
             self.evaluate(aggregated_update)
           else:
@@ -354,10 +354,10 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = 0.001
         beta_1 = 0.9
@@ -399,10 +399,10 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = 0.001
         decay = 0.5
@@ -446,11 +446,11 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
-        opt = adam.Adam(tf.constant(0.001))
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
+        opt = adam.Adam(tf.compat.v2.constant(0.001))
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
         self.evaluate(tf.compat.v1.global_variables_initializer())
 
@@ -485,10 +485,10 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
         opt = adam.Adam()
         update1 = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
         update2 = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -520,8 +520,8 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["eager"]))
   def testSlotsUniqueEager(self):
-    v1 = tf.Variable(1.)
-    v2 = tf.Variable(1.)
+    v1 = tf.compat.v2.Variable(1.)
+    v2 = tf.compat.v2.Variable(1.)
     opt = adam.Adam(1.)
     opt.minimize(lambda: v1 + v2, var_list=[v1, v2])
     # There should be iteration, and two unique slot variables for v1 and v2.
@@ -543,9 +543,9 @@ class AdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = adam.Adam(lr=1.0)
     opt_2 = adam.Adam(learning_rate=0.1, lr=1.0)
     opt_3 = adam.Adam(learning_rate=0.1)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
     self.evaluate(tf.compat.v1.global_variables_initializer())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
@@ -566,16 +566,16 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.0, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
         grads0_np_indices = np.array([0, 2], dtype=np.int32)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np[grads0_np_indices]),
-            tf.constant(grads0_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads0_np[grads0_np_indices]),
+            tf.compat.v2.constant(grads0_np_indices), tf.compat.v2.constant([3]))
         grads1_np_indices = np.array([0, 2], dtype=np.int32)
         grads1 = tf.IndexedSlices(
-            tf.constant(grads1_np[grads1_np_indices]),
-            tf.constant(grads1_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads1_np[grads1_np_indices]),
+            tf.compat.v2.constant(grads1_np_indices), tf.compat.v2.constant([3]))
         opt = adam.NonFusedAdam()
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -607,9 +607,9 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           force_gpu=tf.test.is_gpu_available()):
         # If a GPU is available, tests that all optimizer ops can be placed on
         # it (i.e. they have GPU kernels).
-        var = tf.Variable([[1.0], [2.0]])
-        indices = tf.constant([0, 1], dtype=index_dtype)
-        g_sum = lambda: tf.reduce_sum(tf.compat.v1.gather(var, indices))  # pylint: disable=cell-var-from-loop
+        var = tf.compat.v2.Variable([[1.0], [2.0]])
+        indices = tf.compat.v2.constant([0, 1], dtype=index_dtype)
+        g_sum = lambda: tf.compat.v2.reduce_sum(tf.compat.v1.gather(var, indices))  # pylint: disable=cell-var-from-loop
         optimizer = adam.NonFusedAdam(3.0)
         minimize_op = optimizer.minimize(g_sum, var_list=[var])
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -619,20 +619,20 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     for dtype in [tf.half, tf.float32, tf.float64]:
       with tf.Graph().as_default(), self.cached_session():
-        repeated_index_update_var = tf.Variable(
+        repeated_index_update_var = tf.compat.v2.Variable(
             [[1.0], [2.0]], dtype=dtype)
-        aggregated_update_var = tf.Variable(
+        aggregated_update_var = tf.compat.v2.Variable(
             [[1.0], [2.0]], dtype=dtype)
         grad_repeated_index = tf.IndexedSlices(
-            tf.constant(
+            tf.compat.v2.constant(
                 [0.1, 0.1], shape=[2, 1], dtype=dtype),
-            tf.constant([1, 1]),
-            tf.constant([2, 1]))
+            tf.compat.v2.constant([1, 1]),
+            tf.compat.v2.constant([2, 1]))
         grad_aggregated = tf.IndexedSlices(
-            tf.constant(
+            tf.compat.v2.constant(
                 [0.2], shape=[1, 1], dtype=dtype),
-            tf.constant([1]),
-            tf.constant([2, 1]))
+            tf.compat.v2.constant([1]),
+            tf.compat.v2.constant([2, 1]))
         repeated_update = adam.NonFusedAdam().apply_gradients(
             [(grad_repeated_index, repeated_index_update_var)])
         aggregated_update = adam.NonFusedAdam().apply_gradients(
@@ -656,10 +656,10 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = lambda: 0.001
         beta1 = lambda: 0.9
@@ -672,7 +672,7 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           epsilon = epsilon()
 
         opt = adam.NonFusedAdam(learning_rate=learning_rate)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
 
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -683,7 +683,7 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                              self.evaluate(beta_1_power))
           self.assertAllCloseAccordingToType(0.999**(t + 1),
                                              self.evaluate(beta_2_power))
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             self.evaluate(update)
           else:
             opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -716,13 +716,13 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         opt = adam.NonFusedAdam(amsgrad=True)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
 
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -733,7 +733,7 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                              self.evaluate(beta_1_power))
           self.assertAllCloseAccordingToType(0.999**(t + 1),
                                              self.evaluate(beta_2_power))
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             self.evaluate(update)
           else:
             opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -758,19 +758,19 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         v0 = np.array([[0.0], [0.0]])
         v0hat = np.array([[0.0], [0.0]])
         indices_np = np.array([1])
-        indices = tf.constant(indices_np, dtype=tf.int32)
+        indices = tf.compat.v2.constant(indices_np, dtype=tf.int32)
         var0_np = np.array([[1.0], [2.0]], dtype=dtype.as_numpy_dtype)
-        repeated_index_update_var = tf.Variable(var0_np, dtype=dtype)
-        aggregated_update_var = tf.Variable(var0_np, dtype=dtype)
+        repeated_index_update_var = tf.compat.v2.Variable(var0_np, dtype=dtype)
+        aggregated_update_var = tf.compat.v2.Variable(var0_np, dtype=dtype)
         grads0_np = np.array([[0.2]], dtype=dtype.as_numpy_dtype)
         grad_repeated_index = tf.IndexedSlices(
-            tf.constant([0.1, 0.1], shape=[2, 1], dtype=dtype),
-            tf.constant([1, 1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.1, 0.1], shape=[2, 1], dtype=dtype),
+            tf.compat.v2.constant([1, 1]), tf.compat.v2.constant([2, 1]))
         grad_aggregated = tf.IndexedSlices(grads0_np, indices,
-                                            tf.constant([2, 1]))
+                                            tf.compat.v2.constant([2, 1]))
         opt_repeated = adam.NonFusedAdam(amsgrad=True)
         opt_aggregated = adam.NonFusedAdam(amsgrad=True)
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           repeated_update = opt_repeated.apply_gradients(
               [(grad_repeated_index, repeated_index_update_var)])
           aggregated_update = opt_aggregated.apply_gradients(
@@ -780,7 +780,7 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             self.evaluate(aggregated_update_var),
             self.evaluate(repeated_index_update_var))
         for t in range(3):
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             self.evaluate(repeated_update)
             self.evaluate(aggregated_update)
           else:
@@ -810,10 +810,10 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = 0.001
         beta_1 = 0.9
@@ -855,10 +855,10 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, name="var0_%d" % i)
-        var1 = tf.Variable(var1_np, name="var1_%d" % i)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np, name="var0_%d" % i)
+        var1 = tf.compat.v2.Variable(var1_np, name="var1_%d" % i)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = 0.001
         decay = 0.5
@@ -902,11 +902,11 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
-        opt = adam.NonFusedAdam(tf.constant(0.001))
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
+        opt = adam.NonFusedAdam(tf.compat.v2.constant(0.001))
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
         self.evaluate(tf.compat.v1.global_variables_initializer())
 
@@ -941,10 +941,10 @@ class NonFusedAdamOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
         opt = adam.NonFusedAdam()
         update1 = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
         update2 = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))

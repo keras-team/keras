@@ -62,7 +62,7 @@ class DatasetCreator(object):
     # When a `DatasetCreator` is invoked, it forwards args/kwargs straight to
     # the callable.
     dataset = self.dataset_fn(*args, **kwargs)
-    if not isinstance(dataset, tf.data.Dataset):
+    if not isinstance(dataset, tf.compat.v2.data.Dataset):
       raise TypeError('The `callable` provided to `DatasetCreator` must return '
                       'a Dataset.')
     return dataset

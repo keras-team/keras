@@ -50,8 +50,8 @@ def make_coordinator(num_workers, num_ps):
   ]
   cluster_resolver = SimpleClusterResolver(
       ClusterSpec(cluster_def), rpc_layer="grpc")
-  return tf.distribute.experimental.coordinator.ClusterCoordinator(
-      tf.distribute.experimental.ParameterServerStrategy(cluster_resolver))
+  return tf.compat.v2.distribute.experimental.coordinator.ClusterCoordinator(
+      tf.compat.v2.distribute.experimental.ParameterServerStrategy(cluster_resolver))
 
 
 # TODO(yuefengz): move this to keras/integration_tests.
@@ -102,8 +102,8 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         num_oov_indices=1, mask_token=None, vocabulary=LABEL_VOCAB, invert=True)
     return label_inverse_lookup_layer
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(mode=["eager"], use_adapt=[True, False]))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(mode=["eager"], use_adapt=[True, False]))
   def testTrainAndServe(self, use_adapt):
 
     with self.coordinator.strategy.scope():
@@ -140,7 +140,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
       emb_output = keras.layers.Embedding(
           input_dim=len(FEATURE_VOCAB) + 2, output_dim=20)(
               model_input)
-      emb_output = tf.reduce_mean(emb_output, axis=1)
+      emb_output = tf.compat.v2.reduce_mean(emb_output, axis=1)
       dense_output = keras.layers.Dense(
           units=1, activation="sigmoid")(
               emb_output)
@@ -210,11 +210,11 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
     # check the result w/ and w/o avenger.
     prediction0 = loaded_serving_fn(
-        tf.constant(["avenger", "ironman", "avenger"]))["output_0"]
+        tf.compat.v2.constant(["avenger", "ironman", "avenger"]))["output_0"]
     self.assertIn(prediction0, ("yes", "no"))
 
     prediction1 = loaded_serving_fn(
-        tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+        tf.compat.v2.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
     self.assertIn(prediction1, ("yes", "no"))
 
 

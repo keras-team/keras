@@ -207,7 +207,7 @@ class SerializedAttributes(object):
     """Saves objects to a dictionary, and validates the values."""
     for key in self.all_checkpointable_objects:
       if key in object_dict:
-        if not isinstance(object_dict[key], tf.__internal__.tracking.Trackable):
+        if not isinstance(object_dict[key], tf.compat.v2.__internal__.tracking.Trackable):
           raise ValueError(
               'Object dictionary contained a non-trackable object: {} (for key'
               ' {})'.format(object_dict[key], key))

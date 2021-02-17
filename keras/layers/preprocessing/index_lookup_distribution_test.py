@@ -31,14 +31,14 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return index_lookup.IndexLookup
   else:
     return index_lookup_v1.IndexLookup
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=all_strategies,
         mode=["eager"]))  # Eager-only, no graph: b/158793009
 class IndexLookupDistributionTest(

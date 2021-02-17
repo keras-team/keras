@@ -43,8 +43,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
       ('laplacian', _exact_laplacian(stddev=50.0), [[1.0]]))
   def test_equal_vectors(self, exact_kernel_fn, expected_values):
     """Identical vectors give exactly the identity kernel value."""
-    x = tf.constant([0.5, -0.5, -0.5, 0.5])
-    y = tf.constant([0.5, -0.5, -0.5, 0.5])
+    x = tf.compat.v2.constant([0.5, -0.5, -0.5, 0.5])
+    y = tf.compat.v2.constant([0.5, -0.5, -0.5, 0.5])
     exact_kernel = exact_kernel_fn(x, y)
     shape = exact_kernel.shape.as_list()
     self.assertLen(shape, 2)
@@ -57,8 +57,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
       ('laplacian', _exact_laplacian(stddev=50.0), [[1.0]]))
   def test_almost_identical_vectors(self, exact_kernel_fn, expected_values):
     """Almost identical vectors give the identity kernel value."""
-    x = tf.constant([1.0, 0.4, -2.1, -1.1])
-    y = tf.constant([1.01, 0.39, -2.099, -1.101])
+    x = tf.compat.v2.constant([1.0, 0.4, -2.1, -1.1])
+    y = tf.compat.v2.constant([1.01, 0.39, -2.099, -1.101])
     exact_kernel = exact_kernel_fn(x, y)
     shape = exact_kernel.shape.as_list()
     self.assertLen(shape, 2)
@@ -71,8 +71,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
       ('laplacian', _exact_laplacian(stddev=5.0), [[0.96], [0.94]]))
   def test_similar_matrices(self, exact_kernel_fn, expected_values):
     """Pairwise "close" vectors give high kernel values (similarity scores)."""
-    x = tf.constant([1.0, 3.4, -2.1, 0.9, 3.3, -2.0], shape=[2, 3])
-    y = tf.constant([1.1, 3.35, -2.05])
+    x = tf.compat.v2.constant([1.0, 3.4, -2.1, 0.9, 3.3, -2.0], shape=[2, 3])
+    y = tf.compat.v2.constant([1.1, 3.35, -2.05])
     exact_kernel = exact_kernel_fn(x, y)
     shape = exact_kernel.shape.as_list()
     self.assertLen(shape, 2)
@@ -87,8 +87,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
                                                    [.07, 0.027]]))
   def test_matrices_varying_similarity(self, exact_kernel_fn, expected_values):
     """Test matrices with row vectors of varying pairwise similarity."""
-    x = tf.constant([1.0, 2., -2., 0.9, 3.3, -1.0], shape=[3, 2])
-    y = tf.constant([1.1, 2.1, -2., 0.9], shape=[2, 2])
+    x = tf.compat.v2.constant([1.0, 2., -2., 0.9, 3.3, -1.0], shape=[3, 2])
+    y = tf.compat.v2.constant([1.1, 2.1, -2., 0.9], shape=[2, 2])
     exact_kernel = exact_kernel_fn(x, y)
 
     shape = exact_kernel.shape.as_list()
@@ -101,8 +101,8 @@ class KernelizedUtilsTest(tf.test.TestCase, parameterized.TestCase):
   def test_completely_dissimilar_vectors(self, exact_kernel_fn,
                                          expected_values):
     """Very dissimilar vectors give very low similarity scores."""
-    x = tf.constant([1.0, 3.4, -2.1, -5.1])
-    y = tf.constant([0.5, 2.1, 1.0, 3.0])
+    x = tf.compat.v2.constant([1.0, 3.4, -2.1, -5.1])
+    y = tf.compat.v2.constant([0.5, 2.1, 1.0, 3.0])
     exact_kernel = exact_kernel_fn(x, y)
     shape = exact_kernel.shape.as_list()
     self.assertLen(shape, 2)

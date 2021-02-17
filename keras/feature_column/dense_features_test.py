@@ -448,7 +448,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     categorical_column_b = tf.feature_column.categorical_column_with_identity(
         key='bbb', num_buckets=3)
     embedding_dimension = 2
-    embedding_column_b, embedding_column_a = tf.feature_column.shared_embeddings(
+    embedding_column_b, embedding_column_a = tf.compat.v2.feature_column.shared_embeddings(
         [categorical_column_b, categorical_column_a],
         dimension=embedding_dimension)
 
@@ -482,7 +482,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     categorical_column_b = tf.feature_column.categorical_column_with_identity(
         key='bbb', num_buckets=3)
     embedding_dimension = 2
-    embedding_column_b, embedding_column_a = tf.feature_column.shared_embeddings(
+    embedding_column_b, embedding_column_a = tf.compat.v2.feature_column.shared_embeddings(
         [categorical_column_b, categorical_column_a],
         dimension=embedding_dimension)
     all_cols = [embedding_column_a, embedding_column_b]
@@ -556,7 +556,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     # Provides 1-dim tensor and dense tensor.
     features = {
         'price':
-            tf.constant([
+            tf.compat.v2.constant([
                 11.,
                 12.,
             ]),
@@ -567,7 +567,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
                 dense_shape=(2,)),
         # This is dense tensor for the categorical_column.
         'country':
-            tf.constant(['CA', 'US']),
+            tf.compat.v2.constant(['CA', 'US']),
     }
     self.assertEqual(1, features['price'].shape.ndims)
     self.assertEqual(1, features['body-style'].dense_shape.get_shape()[0])
@@ -648,7 +648,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     # price has 1 dimension in dense_features
     price = tf.feature_column.numeric_column('price')
     features = {
-        'price': tf.constant(0),
+        'price': tf.compat.v2.constant(0),
     }
     self.assertEqual(0, features['price'].shape.ndims)
 
@@ -782,7 +782,7 @@ class EmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
           ('vars/dense_features/aaa_embedding/embedding_weights:0',),
           tuple([v.name for v in global_vars]))
     for v in global_vars:
-      self.assertIsInstance(v, tf.Variable)
+      self.assertIsInstance(v, tf.compat.v2.Variable)
     trainable_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
     if partition_variables:
       self.assertCountEqual(
@@ -945,12 +945,12 @@ class SharedEmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
     categorical_column_d = tf.feature_column.categorical_column_with_identity(
         key='ddd', num_buckets=vocabulary_size)
 
-    embedding_column_a, embedding_column_b = tf.feature_column.shared_embeddings(
+    embedding_column_a, embedding_column_b = tf.compat.v2.feature_column.shared_embeddings(
         [categorical_column_a, categorical_column_b],
         dimension=embedding_dimension,
         initializer=_initializer,
         trainable=trainable)
-    embedding_column_c, embedding_column_d = tf.feature_column.shared_embeddings(
+    embedding_column_c, embedding_column_d = tf.compat.v2.feature_column.shared_embeddings(
         [categorical_column_c, categorical_column_d],
         dimension=embedding_dimension,
         initializer=_initializer,
@@ -975,7 +975,7 @@ class SharedEmbeddingColumnTest(tf.test.TestCase, parameterized.TestCase):
         ['aaa_bbb_shared_embedding:0', 'ccc_ddd_shared_embedding:0'],
         tuple([v.name for v in global_vars]))
     for v in global_vars:
-      self.assertIsInstance(v, tf.Variable)
+      self.assertIsInstance(v, tf.compat.v2.Variable)
     trainable_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)
     if trainable:
       self.assertCountEqual(

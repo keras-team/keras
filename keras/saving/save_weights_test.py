@@ -399,8 +399,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       temp_dir = self.get_temp_dir()
       prefix = os.path.join(temp_dir, 'ckpt')
 
-      x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
-      executing_eagerly = tf.executing_eagerly()
+      x = tf.compat.v2.constant(np.random.random((3, 2)), dtype=tf.float32)
+      executing_eagerly = tf.compat.v2.executing_eagerly()
       model(x)  # pylint: disable=not-callable
       if not executing_eagerly:
         session.run([v.initializer for v in model.variables])
@@ -437,7 +437,7 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
         temp_dir = self.get_temp_dir()
         prefix = os.path.join(temp_dir, 'ckpt')
 
-        x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
+        x = tf.compat.v2.constant(np.random.random((3, 2)), dtype=tf.float32)
         model(x)  # pylint: disable=not-callable
         session.run([v.initializer for v in model.variables])
         model.save_weights(prefix, save_format='tensorflow')
@@ -461,7 +461,7 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       prefix = os.path.join(temp_dir, 'ckpt')
       train_x = np.random.random((3, 2))
       train_y = np.random.random((3,))
-      x = tf.constant(train_x, dtype=tf.float32)
+      x = tf.compat.v2.constant(train_x, dtype=tf.float32)
 
       model.train_on_batch(train_x, train_y)
       model.save_weights(prefix, save_format='tf')
@@ -518,8 +518,8 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       temp_dir = self.get_temp_dir()
       prefix = os.path.join(temp_dir, 'ckpt')
 
-      x = tf.constant(np.random.random((3, 2)), dtype=tf.float32)
-      executing_eagerly = tf.executing_eagerly()
+      x = tf.compat.v2.constant(np.random.random((3, 2)), dtype=tf.float32)
+      executing_eagerly = tf.compat.v2.executing_eagerly()
       ref_y_tensor = model(x)
       if not executing_eagerly:
         session.run([v.initializer for v in model.variables])
@@ -598,13 +598,13 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_incompatible_checkpoint(self):
-    save_path = tf.train.Checkpoint().save(
+    save_path = tf.compat.v2.train.Checkpoint().save(
         os.path.join(self.get_temp_dir(), 'ckpt'))
     m = DummySubclassModel()
     with self.assertRaisesRegex(AssertionError, 'Nothing to load'):
       m.load_weights(save_path)
     m.dense = keras.layers.Dense(2)
-    m.dense(tf.constant([[1.]]))
+    m.dense(tf.compat.v2.constant([[1.]]))
     with self.assertRaisesRegex(AssertionError,
                                 'Nothing except the root object matched'):
       m.load_weights(save_path)

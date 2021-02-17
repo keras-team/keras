@@ -123,7 +123,7 @@ def _concat(prefix, suffix, static=False):
     p = tf.TensorShape(prefix)
     p_static = p.as_list() if p.ndims is not None else None
     p = (
-        tf.constant(p.as_list(), dtype=tf.int32)
+        tf.compat.v2.constant(p.as_list(), dtype=tf.int32)
         if p.is_fully_defined() else None)
   if isinstance(suffix, tf.Tensor):
     s = suffix
@@ -137,7 +137,7 @@ def _concat(prefix, suffix, static=False):
     s = tf.TensorShape(suffix)
     s_static = s.as_list() if s.ndims is not None else None
     s = (
-        tf.constant(s.as_list(), dtype=tf.int32)
+        tf.compat.v2.constant(s.as_list(), dtype=tf.int32)
         if s.is_fully_defined() else None)
 
   if static:
@@ -158,7 +158,7 @@ def _zero_state_tensors(state_size, batch_size, dtype):
     """Combine s with batch_size to get a proper tensor shape."""
     c = _concat(batch_size, s)
     size = tf.zeros(c, dtype=dtype)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       c_static = _concat(batch_size, s, static=True)
       size.set_shape(c_static)
     return size
@@ -268,7 +268,7 @@ class RNNCell(base_layer.Layer):
   def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
     if inputs is not None:
       # Validate the given batch_size and dtype against inputs if provided.
-      inputs = tf.convert_to_tensor(inputs, name="inputs")
+      inputs = tf.compat.v2.convert_to_tensor(inputs, name="inputs")
       if batch_size is not None:
         if tf.is_tensor(batch_size):
           static_batch_size = tf.get_static_value(
@@ -313,7 +313,7 @@ class RNNCell(base_layer.Layer):
     # Try to use the last cached zero_state. This is done to avoid recreating
     # zeros, especially when eager execution is enabled.
     state_size = self.state_size
-    is_eager = tf.executing_eagerly()
+    is_eager = tf.compat.v2.executing_eagerly()
     if is_eager and _hasattr(self, "_last_zero_state"):
       (last_state_size, last_batch_size, last_dtype,
        last_output) = getattr(self, "_last_zero_state")
@@ -415,7 +415,7 @@ class BasicRNNCell(LayerRNNCell):
     super(BasicRNNCell, self).__init__(
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.list_logical_devices("GPU"):
       logging.warn(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnRNNTanh for better "
@@ -524,7 +524,7 @@ class GRUCell(LayerRNNCell):
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
 
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.list_logical_devices("GPU"):
       logging.warn(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnGRU for better "
@@ -700,7 +700,7 @@ class BasicLSTMCell(LayerRNNCell):
       logging.warn(
           "%s: Using a concatenated state is slower and will soon be "
           "deprecated.  Use state_is_tuple=True.", self)
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.list_logical_devices("GPU"):
       logging.warn(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnLSTM for better "
@@ -761,7 +761,7 @@ class BasicLSTMCell(LayerRNNCell):
     _check_rnn_cell_input_dtypes([inputs, state])
 
     sigmoid = tf.sigmoid
-    one = tf.constant(1, dtype=tf.int32)
+    one = tf.compat.v2.constant(1, dtype=tf.int32)
     # Parameters of gates are concatenated into one multiply for efficiency.
     if self._state_is_tuple:
       c, h = state
@@ -776,7 +776,7 @@ class BasicLSTMCell(LayerRNNCell):
     i, j, f, o = tf.split(
         value=gate_inputs, num_or_size_splits=4, axis=one)
 
-    forget_bias_tensor = tf.constant(self._forget_bias, dtype=f.dtype)
+    forget_bias_tensor = tf.compat.v2.constant(self._forget_bias, dtype=f.dtype)
     # Note that using `add` and `multiply` instead of `+` and `*` gives a
     # performance improvement. So using those at the cost of readability.
     add = tf.add
@@ -906,7 +906,7 @@ class LSTMCell(LayerRNNCell):
           "%s: The num_unit_shards and proj_unit_shards parameters are "
           "deprecated and will be removed in Jan 2017.  "
           "Use a variable scope with a partitioner instead.", self)
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.list_logical_devices("GPU"):
       logging.warn(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnLSTM for better "
@@ -1101,7 +1101,7 @@ class _RNNCellWrapperV1(RNNCell):
     super(_RNNCellWrapperV1, self).__init__(*args, **kwargs)
     assert_like_rnncell("cell", cell)
     self.cell = cell
-    if isinstance(cell, tf.__internal__.tracking.Trackable):
+    if isinstance(cell, tf.compat.v2.__internal__.tracking.Trackable):
       self._track_trackable(self.cell, name="cell")
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
@@ -1247,7 +1247,7 @@ class MultiRNNCell(RNNCell):
     for cell_number, cell in enumerate(self._cells):
       # Add Trackable dependencies on these cells so their variables get
       # saved with this object when using object-based saving.
-      if isinstance(cell, tf.__internal__.tracking.Trackable):
+      if isinstance(cell, tf.compat.v2.__internal__.tracking.Trackable):
         # TODO(allenl): Track down non-Trackable callers.
         self._track_trackable(cell, name="cell-%d" % (cell_number,))
     self._state_is_tuple = state_is_tuple

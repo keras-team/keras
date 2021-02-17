@@ -227,7 +227,7 @@ class Constant(Initializer):
       **kwargs: Additional keyword arguments.
     """
     del kwargs
-    return tf.constant(
+    return tf.compat.v2.constant(
         self.value, dtype=_get_dtype(dtype), shape=shape)
 
   def get_config(self):

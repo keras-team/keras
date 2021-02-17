@@ -119,7 +119,7 @@ class DistributeKplTestUtils:
     emb_output = keras.layers.Embedding(
         input_dim=len(self.FEATURE_VOCAB) + 2, output_dim=20)(
             model_input)
-    emb_output = tf.reduce_mean(emb_output, axis=1)
+    emb_output = tf.compat.v2.reduce_mean(emb_output, axis=1)
     dense_output = keras.layers.Dense(
         units=1, activation="sigmoid")(
             emb_output)

@@ -97,10 +97,10 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     self.axis = axis
 
     # Set `mean` and `variance` if passed.
-    if isinstance(mean, tf.Variable):
+    if isinstance(mean, tf.compat.v2.Variable):
       raise ValueError('Normalization does not support passing a Variable '
                        'for the `mean` init arg.')
-    if isinstance(variance, tf.Variable):
+    if isinstance(variance, tf.compat.v2.Variable):
       raise ValueError('Normalization does not support passing a Variable '
                        'for the `variance` init arg.')
     if mean is not None and variance is not None:
@@ -174,11 +174,11 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       raise RuntimeError('`build` must be called before `update_state`.')
 
     data = self._standardize_inputs(data)
-    batch_mean, batch_variance = tf.nn.moments(
+    batch_mean, batch_variance = tf.compat.v2.nn.moments(
         data, axes=self._reduce_axis)
     batch_shape = tf.compat.v1.shape(data, out_type=self.count.dtype)
     batch_reduce_shape = tf.compat.v1.gather(batch_shape, self._reduce_axis)
-    batch_count = tf.reduce_prod(batch_reduce_shape)
+    batch_count = tf.compat.v2.reduce_prod(batch_reduce_shape)
 
     total_count = batch_count + self.count
     batch_weight = (
@@ -208,16 +208,16 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     layer_means = [l.mean for l in layers]
     layer_variances = [l.variance for l in layers]
 
-    total_count = tf.reduce_sum(layer_counts)
+    total_count = tf.compat.v2.reduce_sum(layer_counts)
     layer_weightings = (
         tf.cast(layer_counts, self.dtype) /
         tf.cast(total_count, self.dtype))
     layer_weightings = tf.reshape(
         layer_weightings, shape=[len(layers)] + [1] * self.mean.shape.rank)
 
-    total_mean = tf.reduce_sum(layer_means * layer_weightings, axis=0)
+    total_mean = tf.compat.v2.reduce_sum(layer_means * layer_weightings, axis=0)
     inter_layer_variances = (layer_means - total_mean)**2
-    total_variance = tf.reduce_sum(
+    total_variance = tf.compat.v2.reduce_sum(
         ((layer_variances + inter_layer_variances) * layer_weightings), axis=0)
 
     self.mean.assign(total_mean)
@@ -257,7 +257,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     super(Normalization, self).set_weights(weights)
 
   def _standardize_inputs(self, inputs):
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = tf.compat.v2.convert_to_tensor(inputs)
     if inputs.shape.rank == 0:
       inputs = tf.reshape(inputs, [1, 1])
     elif inputs.shape.rank == 1:

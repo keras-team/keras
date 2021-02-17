@@ -150,7 +150,7 @@ class CategoryEncoding(base_preprocessing_layer.PreprocessingLayer):
 
   def call(self, inputs, count_weights=None):
     if isinstance(inputs, (list, np.ndarray)):
-      inputs = tf.convert_to_tensor(inputs)
+      inputs = tf.compat.v2.convert_to_tensor(inputs)
     if inputs.shape.rank == 1:
       inputs = tf.compat.v1.expand_dims(inputs, 1)
 
@@ -161,11 +161,11 @@ class CategoryEncoding(base_preprocessing_layer.PreprocessingLayer):
     out_depth = self.num_tokens
     binary_output = (self.output_mode == BINARY)
     if isinstance(inputs, tf.SparseTensor):
-      max_value = tf.reduce_max(inputs.values)
-      min_value = tf.reduce_min(inputs.values)
+      max_value = tf.compat.v2.reduce_max(inputs.values)
+      min_value = tf.compat.v2.reduce_min(inputs.values)
     else:
-      max_value = tf.reduce_max(inputs)
-      min_value = tf.reduce_min(inputs)
+      max_value = tf.compat.v2.reduce_max(inputs)
+      min_value = tf.compat.v2.reduce_min(inputs)
     condition = tf.logical_and(
         tf.greater(
             tf.cast(out_depth, max_value.dtype), max_value),
@@ -201,7 +201,7 @@ def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
 
 def dense_bincount(inputs, out_depth, binary_output, count_weights=None):
   """Apply binary or count encoding to an input."""
-  result = tf.math.bincount(
+  result = tf.compat.v2.math.bincount(
       inputs,
       weights=count_weights,
       minlength=out_depth,

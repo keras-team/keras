@@ -108,7 +108,7 @@ def smart_resize(x, size, interpolation='bilinear'):
   if len(size) != 2:
     raise ValueError('Expected `size` to be a tuple of 2 integers, '
                      'but got: %s' % (size,))
-  img = tf.convert_to_tensor(x)
+  img = tf.compat.v2.convert_to_tensor(x)
   if img.shape.rank is not None:
     if img.shape.rank != 3:
       raise ValueError(
@@ -136,7 +136,7 @@ def smart_resize(x, size, interpolation='bilinear'):
   crop_box_size = tf.stack([crop_height, crop_width, -1])
 
   img = tf.slice(img, crop_box_start, crop_box_size)
-  img = tf.image.resize(
+  img = tf.compat.v2.image.resize(
       images=img,
       size=size,
       method=interpolation)

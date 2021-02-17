@@ -132,9 +132,9 @@ class EmbeddingTest(keras_parameterized.TestCase):
   def test_embedding_with_sharded_variable(self):
     layer = keras.layers.Embedding(input_dim=5, output_dim=2)
     v = [
-        tf.Variable([[1., 2.], [3., 4.]]),
-        tf.Variable([[5., 6.], [7., 8.]]),
-        tf.Variable([[9., 10.]])
+        tf.compat.v2.Variable([[1., 2.], [3., 4.]]),
+        tf.compat.v2.Variable([[5., 6.], [7., 8.]]),
+        tf.compat.v2.Variable([[9., 10.]])
     ]
     model = keras.models.Sequential([layer])
     layer.embeddings = sharded_variable.ShardedVariable(v)

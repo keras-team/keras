@@ -55,7 +55,7 @@ def _exact_laplacian(stddev):
 class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   def _assert_all_close(self, expected, actual, atol=0.001):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       with self.cached_session() as sess:
         keras_backend._initialize_variables(sess)
         self.assertAllClose(expected, actual, atol=atol)
@@ -277,7 +277,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         scale=scale,
         trainable=trainable,
         name='random_fourier_features')
-    inputs = tf.constant(
+    inputs = tf.compat.v2.constant(
         np.random.uniform(low=-1.0, high=1.0, size=(2, 4)))
     output1 = rff_layer(inputs)
     output2 = rff_layer(inputs)
@@ -299,8 +299,8 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         scale=scale,
         name='rff2')
     # Two distinct inputs.
-    x = tf.constant([[1.0, -1.0, 0.5]])
-    y = tf.constant([[-1.0, 1.0, 1.0]])
+    x = tf.compat.v2.constant([[1.0, -1.0, 0.5]])
+    y = tf.compat.v2.constant([[-1.0, 1.0, 1.0]])
 
     # Apply both layers to both inputs.
     output_x1 = math.sqrt(2.0 / 3000.0) * rff_layer1(x)
@@ -321,8 +321,8 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
   def test_bad_kernel_approximation(self, initializer, scale, exact_kernel_fn):
     """Approximation is bad when output dimension is small."""
     # Two distinct inputs.
-    x = tf.constant([[1.0, -1.0, 0.5]])
-    y = tf.constant([[-1.0, 1.0, 1.0]])
+    x = tf.compat.v2.constant([[1.0, -1.0, 0.5]])
+    y = tf.compat.v2.constant([[-1.0, 1.0, 1.0]])
 
     small_output_dim = 10
     tf.compat.v1.set_random_seed(1234)
@@ -343,7 +343,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     exact_kernel_value = exact_kernel_fn(x, y)
     approx_kernel_value = kernelized_utils.inner_product(output_x, output_y)
     abs_error = tf.abs(exact_kernel_value - approx_kernel_value)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       with self.cached_session() as sess:
         keras_backend._initialize_variables(sess)
         abs_error_eval = sess.run([abs_error])
@@ -364,9 +364,9 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     x_rows = 20
     y_rows = 30
 
-    x = tf.constant(
+    x = tf.compat.v2.constant(
         np.random.uniform(size=(x_rows, input_dim)), dtype=tf.float32)
-    y = tf.constant(
+    y = tf.compat.v2.constant(
         np.random.uniform(size=(y_rows, input_dim)), dtype=tf.float32)
 
     tf.compat.v1.set_random_seed(1234)

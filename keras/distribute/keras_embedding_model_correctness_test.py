@@ -56,7 +56,7 @@ class DistributionStrategyEmbeddingModelCorrectnessTest(
           metrics=['sparse_categorical_accuracy'])
     return model
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_embedding_model_correctness(self, distribution, use_numpy,
@@ -65,7 +65,7 @@ class DistributionStrategyEmbeddingModelCorrectnessTest(
     self.use_distributed_dense = False
     self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_embedding_time_distributed_model_correctness(
@@ -148,7 +148,7 @@ class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
 
     return x_train, y_train, x_predict
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_siamese_embedding_model_correctness(self, distribution, use_numpy,
@@ -157,4 +157,4 @@ class DistributionStrategySiameseEmbeddingModelCorrectnessTest(
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

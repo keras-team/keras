@@ -512,7 +512,7 @@ class BatchNormalizationBase(Layer):
   def _assign_moving_average(self, variable, value, momentum, inputs_size):
     with K.name_scope('AssignMovingAvg') as scope:
       with ops.colocate_with(variable):
-        decay = tf.convert_to_tensor(
+        decay = tf.compat.v2.convert_to_tensor(
             1.0 - momentum, name='decay')
         if decay.dtype != variable.dtype.base_dtype:
           decay = tf.cast(decay, variable.dtype.base_dtype)
@@ -618,7 +618,7 @@ class BatchNormalizationBase(Layer):
                                                   lambda: self.momentum,
                                                   lambda: 1.0)
         else:
-          momentum = tf.convert_to_tensor(self.momentum)
+          momentum = tf.compat.v2.convert_to_tensor(self.momentum)
 
       def mean_update():
         """Update self.moving_mean with the most recent data point."""
@@ -737,9 +737,9 @@ class BatchNormalizationBase(Layer):
       # Tensor and reusing the existing batch norm implementation
       original_shape = tf.compat.v1.shape(inputs)
       original_shape = tf.concat(
-          [tf.constant([-1]), original_shape[1:]], axis=0)
+          [tf.compat.v2.constant([-1]), original_shape[1:]], axis=0)
       expanded_shape = tf.concat([
-          tf.constant([self.virtual_batch_size, -1]),
+          tf.compat.v2.constant([self.virtual_batch_size, -1]),
           original_shape[1:]
       ],
                                         axis=0)
@@ -821,10 +821,10 @@ class BatchNormalizationBase(Layer):
 
       mean = control_flow_util.smart_cond(
           training, lambda: mean,
-          lambda: tf.convert_to_tensor(moving_mean))
+          lambda: tf.compat.v2.convert_to_tensor(moving_mean))
       variance = control_flow_util.smart_cond(
           training, lambda: variance,
-          lambda: tf.convert_to_tensor(moving_variance))
+          lambda: tf.compat.v2.convert_to_tensor(moving_variance))
 
       if self.virtual_batch_size is not None:
         # This isn't strictly correct since in ghost batch norm, you are
@@ -832,8 +832,8 @@ class BatchNormalizationBase(Layer):
         # with each sub-batch. However, since the moving statistics are only
         # used during evaluation, it is more efficient to just update in one
         # step and should not make a significant difference in the result.
-        new_mean = tf.reduce_mean(mean, axis=1, keepdims=True)
-        new_variance = tf.reduce_mean(variance, axis=1, keepdims=True)
+        new_mean = tf.compat.v2.reduce_mean(mean, axis=1, keepdims=True)
+        new_variance = tf.compat.v2.reduce_mean(variance, axis=1, keepdims=True)
       else:
         new_mean, new_variance = mean, variance
 
@@ -1252,7 +1252,7 @@ class LayerNormalization(Layer):
       inputs = tf.reshape(inputs, squeezed_shape)
 
       def _set_const_tensor(val, dtype, shape):
-        return tf.fill(shape, tf.constant(val, dtype=dtype))
+        return tf.fill(shape, tf.compat.v2.constant(val, dtype=dtype))
 
       # self.gamma and self.beta have the wrong shape for fused_batch_norm, so
       # we cannot pass them as the scale and offset parameters. Therefore, we

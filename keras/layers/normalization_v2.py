@@ -140,10 +140,10 @@ class SyncBatchNormalization(normalization.BatchNormalizationBase):
       y = tf.cast(x, tf.float32) if x.dtype == tf.float16 else x
       replica_ctx = tf.distribute.get_replica_context()
       if replica_ctx:
-        local_sum = tf.reduce_sum(y, axis=axes, keepdims=True)
-        local_squared_sum = tf.reduce_sum(tf.square(y), axis=axes,
+        local_sum = tf.compat.v2.reduce_sum(y, axis=axes, keepdims=True)
+        local_squared_sum = tf.compat.v2.reduce_sum(tf.square(y), axis=axes,
                                                 keepdims=True)
-        batch_size = tf.cast(tf.shape(y)[0], tf.float32)
+        batch_size = tf.cast(tf.compat.v2.shape(y)[0], tf.float32)
         # TODO(b/163099951): batch the all-reduces once we sort out the ordering
         # issue for NCCL. We don't have a mechanism to launch NCCL in the same
         # order in each replica nowadays, so we limit NCCL to batch all-reduces.
@@ -153,8 +153,8 @@ class SyncBatchNormalization(normalization.BatchNormalizationBase):
         global_batch_size = replica_ctx.all_reduce(tf.distribute.ReduceOp.SUM,
                                                    batch_size)
 
-        axes_vals = [(tf.shape(y))[i] for i in range(1, len(axes))]
-        multiplier = tf.cast(tf.reduce_prod(axes_vals),
+        axes_vals = [(tf.compat.v2.shape(y))[i] for i in range(1, len(axes))]
+        multiplier = tf.cast(tf.compat.v2.reduce_prod(axes_vals),
                                    tf.float32)
         multiplier = multiplier * global_batch_size
 
@@ -164,12 +164,12 @@ class SyncBatchNormalization(normalization.BatchNormalizationBase):
         variance = y_squared_mean - tf.square(mean)
       else:
         # Compute true mean while keeping the dims for proper broadcasting.
-        mean = tf.reduce_mean(y, axes, keepdims=True, name='mean')
+        mean = tf.compat.v2.reduce_mean(y, axes, keepdims=True, name='mean')
         # sample variance, not unbiased variance
         # Note: stop_gradient does not change the gradient that gets
         #       backpropagated to the mean from the variance calculation,
         #       because that gradient is zero
-        variance = tf.reduce_mean(
+        variance = tf.compat.v2.reduce_mean(
             tf.math.squared_difference(y, tf.stop_gradient(mean)),
             axes,
             keepdims=True,

@@ -26,7 +26,7 @@ from tensorflow.python.util.tf_export import keras_export
 # As long as you depend //third_party/py/tensorflow:tensorflow target
 # everything will work as normal.
 
-_model_to_estimator_usage_gauge = tf.__internal__.monitoring.BoolGauge(
+_model_to_estimator_usage_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/model_to_estimator',
     'Whether tf.keras.estimator.model_to_estimator() is called.', 'version')
 

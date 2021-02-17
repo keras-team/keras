@@ -32,12 +32,12 @@ class ShardedVariableTest(tf.test.TestCase):
       def __init__(self):
         super().__init__()
         variables1 = [
-            tf.Variable([0]),
-            tf.Variable([1]),
+            tf.compat.v2.Variable([0]),
+            tf.compat.v2.Variable([1]),
         ]
         variables2 = [
-            tf.Variable([2], trainable=False),
-            tf.Variable([3], trainable=False),
+            tf.compat.v2.Variable([2], trainable=False),
+            tf.compat.v2.Variable([3], trainable=False),
         ]
         self.w = sharded_variable.ShardedVariable(variables1)
         self.b = sharded_variable.ShardedVariable(variables2)
@@ -85,7 +85,7 @@ class ShardedVariableTest(tf.test.TestCase):
 
       return sharded_variable.ShardedVariable([v1, v2])
 
-    with tf.variable_creator_scope(sharded_variable_creator):
+    with tf.compat.v2.variable_creator_scope(sharded_variable_creator):
       layer = Layer()
 
     self.assertLen(layer.trainable_weights, 2)

@@ -70,7 +70,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertListEqual(dense.trainable_variables,
                          [dense.kernel, dense.bias])
     self.assertListEqual(dense.non_trainable_variables, [])
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 2)
     self.assertEqual(dense.kernel.name, 'my_dense/kernel:0')
@@ -99,7 +99,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertListEqual(dense.variables, [dense.kernel])
     self.assertListEqual(dense.trainable_variables, [dense.kernel])
     self.assertListEqual(dense.non_trainable_variables, [])
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 1)
     self.assertEqual(dense.kernel.name, 'my_dense/kernel:0')
@@ -114,7 +114,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertListEqual(dense.non_trainable_variables,
                          [dense.kernel, dense.bias])
     self.assertListEqual(dense.trainable_variables, [])
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 0)
 
@@ -164,18 +164,18 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='dense1')
     inputs = tf.random.uniform((5, 3), seed=1)
     outputs = dense(inputs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(outputs.op.name, 'dense1/Relu')
 
     dense = core_layers.Dense(2, name='dense2')
     inputs = tf.random.uniform((5, 3), seed=1)
     outputs = dense(inputs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(outputs.op.name, 'dense2/BiasAdd')
 
   @test_util.run_deprecated_v1
   def testActivityRegularizer(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(
         2, name='my_dense', activity_regularizer=regularizer)
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -186,7 +186,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testKernelRegularizer(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(
         2, name='my_dense', kernel_regularizer=regularizer)
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -198,7 +198,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testKernelRegularizerWithReuse(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     inputs = tf.random.uniform((5, 3), seed=1)
     _ = core_layers.dense(
         inputs, 2, name='my_dense', kernel_regularizer=regularizer)
@@ -211,7 +211,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testBiasRegularizer(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(2, name='my_dense', bias_regularizer=regularizer)
     inputs = tf.random.uniform((5, 3), seed=1)
     _ = dense(inputs)
@@ -337,8 +337,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testConstraints(self):
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     dense = core_layers.Dense(2,
                               kernel_constraint=k_constraint,
                               bias_constraint=b_constraint)
@@ -370,7 +370,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     dp = core_layers.Dropout(0.5)
     inputs = tf.ones((5, 3))
     dropped = dp.apply(inputs, training=True)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(tf.compat.v1.global_variables_initializer())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())

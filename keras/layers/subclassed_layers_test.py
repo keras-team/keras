@@ -35,7 +35,7 @@ class SubclassedLayersTest(keras_parameterized.TestCase):
     class BuildConstantLayer(keras.layers.Layer):
 
       def build(self, input_shape):
-        self.b = tf.convert_to_tensor(2.0)
+        self.b = tf.compat.v2.convert_to_tensor(2.0)
 
       def call(self, inputs):
         return self.b * inputs
@@ -44,11 +44,11 @@ class SubclassedLayersTest(keras_parameterized.TestCase):
     model = testing_utils.get_model_from_layers(
         [layer, keras.layers.Dense(1)], input_shape=(1,))
 
-    x = tf.convert_to_tensor([[3.0]])
+    x = tf.compat.v2.convert_to_tensor([[3.0]])
     self.assertEqual(
-        tf_utils.is_symbolic_tensor(model(x)), not tf.executing_eagerly())
+        tf_utils.is_symbolic_tensor(model(x)), not tf.compat.v2.executing_eagerly())
     self.assertEqual(
-        tf_utils.is_symbolic_tensor(layer(x)), not tf.executing_eagerly())
+        tf_utils.is_symbolic_tensor(layer(x)), not tf.compat.v2.executing_eagerly())
     self.assertAllClose(keras.backend.get_value(layer(x)), [[6.0]])
 
   def test_build_with_derived_constant(self):
@@ -56,10 +56,10 @@ class SubclassedLayersTest(keras_parameterized.TestCase):
     class BuildDerivedConstantLayer(keras.layers.Layer):
 
       def build(self, input_shape):
-        a = tf.convert_to_tensor(1.0)
+        a = tf.compat.v2.convert_to_tensor(1.0)
         b = 2.0 * a
-        self.variable = tf.Variable(b)
-        self.constant = tf.convert_to_tensor(self.variable)
+        self.variable = tf.compat.v2.Variable(b)
+        self.constant = tf.compat.v2.convert_to_tensor(self.variable)
 
       def call(self, inputs):
         return self.variable * self.constant * inputs
@@ -68,11 +68,11 @@ class SubclassedLayersTest(keras_parameterized.TestCase):
     model = testing_utils.get_model_from_layers(
         [layer, keras.layers.Dense(1)], input_shape=(1,))
 
-    x = tf.convert_to_tensor([[3.0]])
+    x = tf.compat.v2.convert_to_tensor([[3.0]])
     self.assertEqual(
-        tf_utils.is_symbolic_tensor(model(x)), not tf.executing_eagerly())
+        tf_utils.is_symbolic_tensor(model(x)), not tf.compat.v2.executing_eagerly())
     self.assertEqual(
-        tf_utils.is_symbolic_tensor(layer(x)), not tf.executing_eagerly())
+        tf_utils.is_symbolic_tensor(layer(x)), not tf.compat.v2.executing_eagerly())
     self.assertAllClose(keras.backend.get_value(layer(x)), [[12.0]])
 
 

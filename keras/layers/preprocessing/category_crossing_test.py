@@ -189,8 +189,8 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_dense_inputs_depth_int(self):
     layer = category_crossing.CategoryCrossing(depth=1)
-    inputs_0 = tf.constant([['a'], ['b'], ['c']])
-    inputs_1 = tf.constant([['d'], ['e'], ['f']])
+    inputs_0 = tf.compat.v2.constant([['a'], ['b'], ['c']])
+    inputs_1 = tf.compat.v2.constant([['d'], ['e'], ['f']])
     output = layer([inputs_0, inputs_1])
     expected_output = [[b'a', b'd'], [b'b', b'e'], [b'c', b'f']]
     self.assertAllEqual(expected_output, output)
@@ -207,9 +207,9 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_dense_inputs_depth_tuple(self):
     layer = category_crossing.CategoryCrossing(depth=[2, 3])
-    inputs_0 = tf.constant([['a'], ['b'], ['c']])
-    inputs_1 = tf.constant([['d'], ['e'], ['f']])
-    inputs_2 = tf.constant([['g'], ['h'], ['i']])
+    inputs_0 = tf.compat.v2.constant([['a'], ['b'], ['c']])
+    inputs_1 = tf.compat.v2.constant([['d'], ['e'], ['f']])
+    inputs_2 = tf.compat.v2.constant([['g'], ['h'], ['i']])
     inp_0_t = input_layer.Input(shape=(1,), dtype=tf.string)
     inp_1_t = input_layer.Input(shape=(1,), dtype=tf.string)
     inp_2_t = input_layer.Input(shape=(1,), dtype=tf.string)

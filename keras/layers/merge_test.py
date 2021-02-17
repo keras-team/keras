@@ -404,7 +404,7 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
 
 def convert_ragged_tensor_value(inputs):
   if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
-    flat_values = tf.convert_to_tensor(
+    flat_values = tf.compat.v2.convert_to_tensor(
         value=inputs.flat_values,
         name='flat_values')
     return tf.RaggedTensor.from_nested_row_splits(

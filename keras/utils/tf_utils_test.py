@@ -36,21 +36,21 @@ except ImportError:
 class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
 
   def test_default_behavior(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertFalse(tf_utils.is_symbolic_tensor(
-          tf.Variable(name='blah', initial_value=0.)))
+          tf.compat.v2.Variable(name='blah', initial_value=0.)))
       self.assertFalse(
           tf_utils.is_symbolic_tensor(
-              tf.convert_to_tensor(0.)))
+              tf.compat.v2.convert_to_tensor(0.)))
       self.assertFalse(tf_utils.is_symbolic_tensor(
           tf.SparseTensor(
               indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])))
     else:
       self.assertTrue(tf_utils.is_symbolic_tensor(
-          tf.Variable(name='blah', initial_value=0.)))
+          tf.compat.v2.Variable(name='blah', initial_value=0.)))
       self.assertTrue(
           tf_utils.is_symbolic_tensor(
-              tf.convert_to_tensor(0.)))
+              tf.compat.v2.convert_to_tensor(0.)))
       self.assertTrue(tf_utils.is_symbolic_tensor(
           tf.SparseTensor(
               indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])))
@@ -60,36 +60,36 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
     class CustomClass(object):
 
       def value(self):
-        return tf.convert_to_tensor(42.)
+        return tf.compat.v2.convert_to_tensor(42.)
 
     tf.register_tensor_conversion_function(
         CustomClass, lambda value, **_: value.value())
 
     tf_utils.register_symbolic_tensor_type(CustomClass)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertFalse(tf_utils.is_symbolic_tensor(
-          tf.Variable(name='blah', initial_value=0.)))
+          tf.compat.v2.Variable(name='blah', initial_value=0.)))
       self.assertFalse(
           tf_utils.is_symbolic_tensor(
-              tf.convert_to_tensor(0.)))
+              tf.compat.v2.convert_to_tensor(0.)))
       self.assertFalse(tf_utils.is_symbolic_tensor(
           tf.SparseTensor(
               indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])))
       self.assertFalse(tf_utils.is_symbolic_tensor(CustomClass()))
     else:
       self.assertTrue(tf_utils.is_symbolic_tensor(
-          tf.Variable(name='blah', initial_value=0.)))
+          tf.compat.v2.Variable(name='blah', initial_value=0.)))
       self.assertTrue(
           tf_utils.is_symbolic_tensor(
-              tf.convert_to_tensor(0.)))
+              tf.compat.v2.convert_to_tensor(0.)))
       self.assertTrue(tf_utils.is_symbolic_tensor(
           tf.SparseTensor(
               indices=[[0, 0], [1, 2]], values=[1, 2], dense_shape=[3, 4])))
       self.assertTrue(tf_utils.is_symbolic_tensor(CustomClass()))
 
   def test_enables_nontensor_plumbing(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('`compile` functionality changed.')
     # Setup.
 
@@ -97,7 +97,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
 
       def __init__(self, input_):
         self._input = input_
-        self.value = tf.convert_to_tensor([[42.]])
+        self.value = tf.compat.v2.convert_to_tensor([[42.]])
 
       @property
       def dtype(self):
@@ -112,7 +112,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
       def __init__(self, fn, **kwargs):
         def _fn(*fargs, **fkwargs):
           d = fn(*fargs, **fkwargs)
-          x = tf.convert_to_tensor(d)
+          x = tf.compat.v2.convert_to_tensor(d)
           d.shape = x.shape
           d.get_shape = x.get_shape
           return d, x
@@ -140,7 +140,7 @@ class TestIsSymbolicTensor(tf.test.TestCase, parameterized.TestCase):
     model = keras.Model(model.inputs, model(model.outputs))
     # Now we instantiate the model and verify we have a `Foo` object, not a
     # `Tensor`.
-    y = model(tf.convert_to_tensor([[7.]]))
+    y = model(tf.compat.v2.convert_to_tensor([[7.]]))
     self.assertIsInstance(y, Foo)
     # Confirm that (custom) loss sees `Foo` instance, not Tensor.
     obtained_prediction_box = [None]
@@ -209,7 +209,7 @@ class TestIsExtensionType(tf.test.TestCase):
 
   def test_is_extension_type_return_false_for_dense_tensor(self):
     self.assertFalse(tf_utils.is_extension_type(
-        tf.constant([[1, 2], [3, 4]])))
+        tf.compat.v2.constant([[1, 2], [3, 4]])))
 
   def test_is_extension_type_return_false_for_list(self):
     tensor = [1., 2., 3.]

@@ -29,7 +29,7 @@ from keras.layers import core
 from keras.saving import model_config
 
 
-class TwoTensors(tf.__internal__.CompositeTensor):
+class TwoTensors(tf.compat.v2.__internal__.CompositeTensor):
   """A simple value type to test TypeSpec.
 
   Contains two tensors (x, y) and a string (color).  The color value is a
@@ -40,8 +40,8 @@ class TwoTensors(tf.__internal__.CompositeTensor):
 
   def __init__(self, x, y, color='red', assign_variant_dtype=False):
     assert isinstance(color, str)
-    self.x = tf.convert_to_tensor(x)
-    self.y = tf.convert_to_tensor(y)
+    self.x = tf.compat.v2.convert_to_tensor(x)
+    self.y = tf.compat.v2.convert_to_tensor(y)
     self.color = color
     self.shape = tf.TensorShape(None)
     self._shape = tf.TensorShape(None)

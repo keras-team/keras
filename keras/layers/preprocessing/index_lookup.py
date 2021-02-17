@@ -546,7 +546,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
     return False
 
   def _static_table_class(self):
-    return tf.lookup.StaticHashTable
+    return tf.compat.v2.lookup.StaticHashTable
 
 
 class _IndexLookupAccumulator(

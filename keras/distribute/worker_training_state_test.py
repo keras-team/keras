@@ -31,8 +31,8 @@ from keras.distribute import multi_worker_testing_utils
 class ModelCheckpointTest(test_base.IndependentWorkerTestBase,
                           parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['graph'],
           required_gpus=[0, 1],
           file_format=['h5', 'tf'],

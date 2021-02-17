@@ -86,10 +86,10 @@ class Normalization(CombinerPreprocessingLayer):
 
     self.axis = axis
 
-    if isinstance(mean, tf.Variable):
+    if isinstance(mean, tf.compat.v2.Variable):
       raise ValueError('Normalization does not support passing a Variable '
                        'for the `mean` init arg.')
-    if isinstance(variance, tf.Variable):
+    if isinstance(variance, tf.compat.v2.Variable):
       raise ValueError('Normalization does not support passing a Variable '
                        'for the `variance` init arg.')
     if mean is not None and variance is not None:
@@ -157,7 +157,7 @@ class Normalization(CombinerPreprocessingLayer):
       self.set_weights([mean_val, variance_val])
 
   def call(self, inputs):
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = tf.compat.v2.convert_to_tensor(inputs)
     if inputs.shape.rank == 1:
       inputs = tf.compat.v1.expand_dims(inputs, 1)
     # If the inputs are not floats, cast them to floats. This avoids issues

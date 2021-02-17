@@ -328,7 +328,7 @@ def is_in_keras_graph():
 
 def is_in_eager_or_tf_function():
   """Returns if in eager mode or inside of a tf.function."""
-  return tf.executing_eagerly() or is_in_tf_function()
+  return tf.compat.v2.executing_eagerly() or is_in_tf_function()
 
 
 def is_in_tf_function():
@@ -336,7 +336,7 @@ def is_in_tf_function():
   # Check if running in V1 graph mode.
   if not tf.compat.v1.executing_eagerly_outside_functions():
     return False
-  if not tf.inside_function():
+  if not tf.compat.v2.inside_function():
     return False
   # Check if inside Keras FuncGraph.
   if is_in_keras_graph():
@@ -507,7 +507,7 @@ class CallContext(object):
   def in_keras_graph(self):
     # Returns True even if in a subgraph of the Keras graph, such as those
     # created by control flow ops.
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       return False
     return (self._in_keras_graph or
             getattr(backend.get_graph(), 'name', None) == 'keras_graph')
@@ -766,7 +766,7 @@ def disable_v2_dtype_behavior():
 def v2_dtype_behavior_enabled():
   """Returns True if the V2 dtype behavior is enabled."""
   if V2_DTYPE_BEHAVIOR is None:
-    return tf.__internal__.tf2.enabled()
+    return tf.compat.v2.__internal__.tf2.enabled()
   return V2_DTYPE_BEHAVIOR
 
 
@@ -783,7 +783,7 @@ class TrackableWeightHandler(object):
   """
 
   def __init__(self, trackable):
-    if not isinstance(trackable, tf.__internal__.tracking.Trackable):
+    if not isinstance(trackable, tf.compat.v2.__internal__.tracking.Trackable):
       raise ValueError('%s is not a Trackable object.' % (trackable,))
     self._trackable = trackable
     self._distribute_strategy = tf.distribute.get_strategy()

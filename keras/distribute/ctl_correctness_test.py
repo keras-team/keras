@@ -73,7 +73,7 @@ def get_data():
   y_train = 3 * x_train
   x_train = x_train.astype('float32')
   y_train = y_train.astype('float32')
-  train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+  train_dataset = tf.compat.v2.data.Dataset.from_tensor_slices((x_train, y_train))
   train_dataset = train_dataset.batch(_BATCH_SIZE)
   return train_dataset
 
@@ -214,15 +214,15 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
     np.random.seed(_RANDOM_SEED)
     tf.compat.v1.set_random_seed(_RANDOM_SEED)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies,
           optimizer_fn=optimizer_combinations.optimizers_v2,
           mode=['eager'],
           iteration_type=['iterator', 'dataset'],
           inside_func=[False, True],
           sync_batchnorm=[True, False]) +
-      tf.__internal__.test.combinations.combine(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.multiworker_strategies,
           optimizer_fn=[
               optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
@@ -264,4 +264,4 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

@@ -174,7 +174,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     class LossLayer(keras.layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs))
+        self.add_loss(tf.compat.v2.reduce_sum(inputs))
         return inputs
 
     # Test loss layer alone

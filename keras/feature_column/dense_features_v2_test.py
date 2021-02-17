@@ -433,7 +433,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
 
     # feature_column.shared_embeddings is not supported in eager.
     with tf.Graph().as_default():
-      embedding_column_b, embedding_column_a = tf.feature_column.shared_embeddings(
+      embedding_column_b, embedding_column_a = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension)
       features = {
@@ -467,7 +467,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
 
     # feature_column.shared_embeddings is not supported in eager.
     with tf.Graph().as_default():
-      embedding_column_b, embedding_column_a = tf.feature_column.shared_embeddings(
+      embedding_column_b, embedding_column_a = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension)
       all_cols = [embedding_column_a, embedding_column_b]
@@ -539,7 +539,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       # Provides 1-dim tensor and dense tensor.
       features = {
           'price':
-              tf.constant([
+              tf.compat.v2.constant([
                   11.,
                   12.,
               ]),
@@ -550,7 +550,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
                   dense_shape=(2,)),
           # This is dense tensor for the categorical_column.
           'country':
-              tf.constant(['CA', 'US']),
+              tf.compat.v2.constant(['CA', 'US']),
       }
       self.assertEqual(1, features['price'].shape.ndims)
       self.assertEqual(1, features['body-style'].dense_shape.get_shape()[0])
@@ -630,7 +630,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     # price has 1 dimension in dense_features
     price = tf.feature_column.numeric_column('price')
     features = {
-        'price': tf.constant(0),
+        'price': tf.compat.v2.constant(0),
     }
     self.assertEqual(0, features['price'].shape.ndims)
 

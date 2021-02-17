@@ -41,7 +41,7 @@ from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
-keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
+keras_optimizers_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/optimizers", "keras optimizer usage", "method")
 
 _DEFAULT_VALID_DTYPES = frozenset([
@@ -94,7 +94,7 @@ def name_scope_only_in_function_or_graph(name):
   Returns:
     `name_scope*` context manager.
   """
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     return tf.compat.v1.name_scope(name)
   else:
     return NullContextmanager()
@@ -102,7 +102,7 @@ def name_scope_only_in_function_or_graph(name):
 
 @six.add_metaclass(abc.ABCMeta)
 @keras_export("keras.optimizers.Optimizer")
-class OptimizerV2(tf.__internal__.tracking.Trackable):
+class OptimizerV2(tf.compat.v2.__internal__.tracking.Trackable):
   """Base class for Keras optimizers.
 
   You should not use this class directly, but instead instantiate one of its
@@ -563,7 +563,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       loss = self._transform_loss(loss)
 
     var_list = tf.nest.flatten(var_list)
-    with tf.name_scope(self._name + "/gradients"):
+    with tf.compat.v2.name_scope(self._name + "/gradients"):
       grads_and_vars = self._get_gradients(tape, loss, var_list, grad_loss)
 
     self._assert_valid_dtypes([
@@ -617,7 +617,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
     var_list = [v for (_, v) in grads_and_vars]
 
-    with tf.name_scope(self._name):
+    with tf.compat.v2.name_scope(self._name):
       # Create iteration if necessary.
       with tf.init_scope():
         self._create_all_weights(var_list)
@@ -637,8 +637,8 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       if (not experimental_aggregate_gradients and strategy and
           isinstance(strategy,
                      (tf.compat.v1.distribute.experimental.ParameterServerStrategy,
-                      tf.distribute.experimental.ParameterServerStrategy,
-                      tf.distribute.experimental.CentralStorageStrategy,
+                      tf.compat.v2.distribute.experimental.ParameterServerStrategy,
+                      tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                       tf.compat.v1.distribute.experimental.CentralStorageStrategy))):
         raise NotImplementedError(
             "`experimental_aggregate_gradients=False is not supported for "
@@ -707,7 +707,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
       any_symbolic = any(isinstance(i, tf.Operation) or
                          tf_utils.is_symbolic_tensor(i) for i in update_ops)
-      if not tf.executing_eagerly() or any_symbolic:
+      if not tf.compat.v2.executing_eagerly() or any_symbolic:
         # If the current context is graph mode or any of the update ops are
         # symbolic then the step update should be carried out under a graph
         # context. (eager updates execute immediately)
@@ -757,7 +757,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
   def _set_hyper(self, name, value):
     """set hyper `name` to value. value can be callable, tensor, numeric."""
-    if isinstance(value, tf.__internal__.tracking.Trackable):
+    if isinstance(value, tf.compat.v2.__internal__.tracking.Trackable):
       self._track_trackable(value, name, overwrite=True)
     if name not in self._hyper:
       self._hyper[name] = value
@@ -889,7 +889,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
               .format(strategy, var))
 
         with strategy.extended.colocate_vars_with(var):
-          weight = tf.Variable(
+          weight = tf.compat.v2.Variable(
               name="%s/%s" % (var._shared_name, slot_name),  # pylint: disable=protected-access
               dtype=var.dtype,
               trainable=False,
@@ -910,7 +910,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
   def _prepare(self, var_list):
     keys = set()
     for var in var_list:
-      if isinstance(var, tf.distribute.DistributedValues):
+      if isinstance(var, tf.compat.v2.distribute.DistributedValues):
         var_devices = var._devices   # pylint: disable=protected-access
       else:
         var_devices = [var.device]
@@ -944,7 +944,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       # Iterate hyper values deterministically.
       for name, value in sorted(self._hyper.items()):
         if isinstance(value,
-                      (tf.Tensor, tf.Variable)) or callable(value):
+                      (tf.Tensor, tf.compat.v2.Variable)) or callable(value):
           # The check for `callable` covers the usage when `value` is a
           # `LearningRateSchedule`, in which case it does not need to create a
           # variable.
@@ -1343,7 +1343,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     variable_key = _var_key(variable)
     slot_dict = self._slots.get(variable_key, {})
     slot_variable = slot_dict.get(slot_name, None)
-    if (slot_variable is None and tf.executing_eagerly() and
+    if (slot_variable is None and tf.compat.v2.executing_eagerly() and
         slot_variable_position.is_simple_variable()
         # Defer slot variable creation if there is an active variable creator
         # scope. Generally we'd like to eagerly create/restore slot variables

@@ -83,7 +83,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
     super(Adagrad, self)._prepare_local(var_device, var_dtype, apply_state)
     apply_state[(var_device, var_dtype)].update(
         dict(
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             neg_lr_t=-apply_state[(var_device, var_dtype)]['lr_t'],
             zero=tf.zeros((), dtype=tf.int64)))

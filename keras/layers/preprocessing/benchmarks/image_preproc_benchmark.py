@@ -67,7 +67,7 @@ def zoom(inputs):
 def image_augmentation(inputs, batch_size):
   """image augmentation."""
   img = inputs
-  img = tf.image.resize(img, size=[224, 224])
+  img = tf.compat.v2.image.resize(img, size=[224, 224])
   img = tf.image.random_crop(img, size=[batch_size, 224, 224, 3])
   img = rotate(img)
   img = zoom(img)
@@ -103,7 +103,7 @@ class BenchmarkLayer(tf.test.Benchmark):
     return avg_time
 
   def bm_layer_implementation(self, batch_size):
-    with tf.device("/gpu:0"):
+    with tf.compat.v2.device("/gpu:0"):
       img = keras.Input(shape=(256, 256, 3), dtype=tf.float32)
       preprocessor = keras.Sequential([
           image_preprocessing.Resizing(224, 224),

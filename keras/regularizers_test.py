@@ -63,7 +63,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
     out = keras.layers.Average()([out1, out2])
     model = keras.models.Model([input_1, input_2], out)
     model.add_loss(keras.backend.mean(out2))
-    model.add_loss(tf.reduce_sum(input_1))
+    model.add_loss(tf.compat.v2.reduce_sum(input_1))
     return model
 
   @keras_parameterized.run_all_keras_modes
@@ -96,7 +96,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
         loss='categorical_crossentropy',
         optimizer='sgd',
         run_eagerly=testing_utils.should_run_eagerly())
-    self.assertEqual(len(model.losses), 1 if tf.executing_eagerly() else 1)
+    self.assertEqual(len(model.losses), 1 if tf.compat.v2.executing_eagerly() else 1)
     model.fit(x_train, y_train, batch_size=10, epochs=1, verbose=0)
 
   @keras_parameterized.run_all_keras_modes
@@ -116,7 +116,7 @@ class KerasRegularizersTest(keras_parameterized.TestCase,
   def test_custom_regularizer_saving(self):
 
     def my_regularizer(weights):
-      return tf.reduce_sum(tf.abs(weights))
+      return tf.compat.v2.reduce_sum(tf.abs(weights))
 
     inputs = keras.Input((10,))
     outputs = keras.layers.Dense(1, kernel_regularizer=my_regularizer)(inputs)

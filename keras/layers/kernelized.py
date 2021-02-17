@@ -213,7 +213,7 @@ class RandomFourierFeatures(base_layer.Layer):
     super(RandomFourierFeatures, self).build(input_shape)
 
   def call(self, inputs):
-    inputs = tf.convert_to_tensor(inputs, dtype=self.dtype)
+    inputs = tf.compat.v2.convert_to_tensor(inputs, dtype=self.dtype)
     inputs = tf.cast(inputs, tf.float32)
     kernel = (1.0 / self.kernel_scale) * self.unscaled_kernel
     outputs = tf.raw_ops.MatMul(a=inputs, b=kernel)

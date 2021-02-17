@@ -181,7 +181,7 @@ class BaseDenseAttention(Layer):
       q_mask = mask[0]
       if q_mask is None:
         return None
-      return tf.convert_to_tensor(q_mask)
+      return tf.compat.v2.convert_to_tensor(q_mask)
     return None
 
   def _validate_call_args(self, inputs, mask):
@@ -494,7 +494,7 @@ class AdditiveAttention(BaseDenseAttention):
       scale = self.scale
     else:
       scale = 1.
-    return tf.reduce_sum(
+    return tf.compat.v2.reduce_sum(
         scale * tf.tanh(q_reshaped + k_reshaped), axis=-1)
 
   def get_config(self):

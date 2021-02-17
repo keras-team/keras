@@ -38,7 +38,7 @@ from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
-keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
+keras_data_adapter_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/data_adapters", "keras data adapter usage", "method")
 
 try:
@@ -283,7 +283,7 @@ class TensorLikeDataAdapter(DataAdapter):
     # 4. optimized permutation batching
     # 5. disabled static optimizations
 
-    indices_dataset = tf.data.Dataset.range(1)
+    indices_dataset = tf.compat.v2.data.Dataset.range(1)
     if shuffle != "batch":
       indices_dataset = indices_dataset.repeat(epochs)
 
@@ -323,9 +323,9 @@ class TensorLikeDataAdapter(DataAdapter):
       first_k_indices = tf.reshape(
           first_k_indices, [num_full_batches, batch_size])
 
-      flat_dataset = tf.data.Dataset.from_tensor_slices(first_k_indices)
+      flat_dataset = tf.compat.v2.data.Dataset.from_tensor_slices(first_k_indices)
       if self._partial_batch_size:
-        index_remainder = tf.data.Dataset.from_tensors(tf.slice(
+        index_remainder = tf.compat.v2.data.Dataset.from_tensors(tf.slice(
             indices, [num_in_full_batch], [self._partial_batch_size]))
         flat_dataset = flat_dataset.concatenate(index_remainder)
 
@@ -360,9 +360,9 @@ class TensorLikeDataAdapter(DataAdapter):
     Returns:
       A Dataset of input batches matching the batch indices.
     """
-    dataset = tf.data.Dataset.zip((
+    dataset = tf.compat.v2.data.Dataset.zip((
         indices_dataset,
-        tf.data.Dataset.from_tensors(inputs).repeat()
+        tf.compat.v2.data.Dataset.from_tensors(inputs).repeat()
     ))
 
     def grab_batch(i, data):
@@ -511,8 +511,8 @@ class CompositeTensorDataAdapter(DataAdapter):
       # Dataset/iterator inherits from CompositeTensor but should be handled
       # by DatasetAdapter and GeneratorAdapter.
       if (tf_utils.is_extension_type(v) and
-          not isinstance(v, (tf.data.Dataset,
-                             tf.data.Iterator))):
+          not isinstance(v, (tf.compat.v2.data.Dataset,
+                             tf.compat.v2.data.Iterator))):
         return True
       # Support Scipy sparse tensors if scipy is installed
       if scipy_sparse is not None and scipy_sparse.issparse(v):
@@ -547,7 +547,7 @@ class CompositeTensorDataAdapter(DataAdapter):
 
     inputs = pack_x_y_sample_weight(x, y, sample_weights)
 
-    dataset = tf.data.Dataset.from_tensor_slices(inputs)
+    dataset = tf.compat.v2.data.Dataset.from_tensor_slices(inputs)
     num_samples = int(tf.nest.flatten(x)[0].shape[0])
     if shuffle:
       dataset = dataset.shuffle(num_samples)
@@ -657,7 +657,7 @@ class DatasetAdapter(DataAdapter):
 
   @staticmethod
   def can_handle(x, y=None):
-    return (isinstance(x, (tf.compat.v1.data.Dataset, tf.data.Dataset)) or
+    return (isinstance(x, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)) or
             _is_distributed_dataset(x))
 
   def __init__(self,
@@ -791,7 +791,7 @@ class GeneratorDataAdapter(DataAdapter):
       for data in generator_fn():
         yield self._standardize_batch(data)
 
-    dataset = tf.data.Dataset.from_generator(
+    dataset = tf.compat.v2.data.Dataset.from_generator(
         wrapped_generator, output_types, output_shapes=output_shapes)
 
     if workers == 1 and not use_multiprocessing:
@@ -805,7 +805,7 @@ class GeneratorDataAdapter(DataAdapter):
     x, y, sample_weight = unpack_x_y_sample_weight(data)
     data = pack_x_y_sample_weight(x, y, sample_weight)
 
-    data = tf.__internal__.nest.list_to_tuple(data)
+    data = tf.compat.v2.__internal__.nest.list_to_tuple(data)
 
     def _convert_dtype(t):
       if (isinstance(t, np.ndarray) and issubclass(t.dtype.type, np.floating)):
@@ -992,13 +992,13 @@ def _process_tensorlike(inputs):
       dtype = None
       if issubclass(x.dtype.type, np.floating):
         dtype = backend.floatx()
-      return tf.convert_to_tensor(x, dtype=dtype)
+      return tf.compat.v2.convert_to_tensor(x, dtype=dtype)
     elif scipy_sparse and scipy_sparse.issparse(x):
       return _scipy_sparse_to_sparse_tensor(x)
     return x
 
   inputs = tf.nest.map_structure(_convert_numpy_and_scipy, inputs)
-  return tf.__internal__.nest.list_to_tuple(inputs)
+  return tf.compat.v2.__internal__.nest.list_to_tuple(inputs)
 
 
 def is_none_or_empty(inputs):
@@ -1292,7 +1292,7 @@ def _make_class_weight_map_fn(class_weight):
         "than the number of classes, found {}").format(class_weight)
     raise ValueError(error_msg)
 
-  class_weight_tensor = tf.convert_to_tensor(
+  class_weight_tensor = tf.compat.v2.convert_to_tensor(
       [class_weight[int(c)] for c in class_ids])
 
   def _class_weights_map_fn(*data):
@@ -1312,7 +1312,7 @@ def _make_class_weight_map_fn(class_weight):
         lambda: backend.argmax(y, axis=1),
         lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64))
 
-    cw = tf.gather(class_weight_tensor, y_classes)
+    cw = tf.compat.v2.gather(class_weight_tensor, y_classes)
     if sw is not None:
       cw = tf.cast(cw, sw.dtype)
       sw, cw = expand_1d((sw, cw))
@@ -1333,7 +1333,7 @@ def expand_1d(data):
     # Leaves `CompositeTensor`s as-is.
     if (isinstance(t, tf.Tensor) and
         isinstance(t.shape, tf.TensorShape) and t.shape.rank == 1):
-      return tf.expand_dims(t, axis=-1)
+      return tf.compat.v2.expand_dims(t, axis=-1)
     return t
 
   return tf.nest.map_structure(_expand_single_1d_tensor, data)
@@ -1520,7 +1520,7 @@ def single_batch_iterator(strategy,
     data = (x, y, sample_weight)
 
   _check_data_cardinality(data)
-  dataset = tf.data.Dataset.from_tensors(data)
+  dataset = tf.compat.v2.data.Dataset.from_tensors(data)
   if class_weight:
     dataset = dataset.map(_make_class_weight_map_fn(class_weight))
   dataset = strategy.experimental_distribute_dataset(dataset)
@@ -1551,4 +1551,4 @@ def _scipy_sparse_to_sparse_tensor(t):
 
 
 def _is_distributed_dataset(ds):
-  return isinstance(ds, tf.distribute.DistributedDataset)
+  return isinstance(ds, tf.compat.v2.distribute.DistributedDataset)

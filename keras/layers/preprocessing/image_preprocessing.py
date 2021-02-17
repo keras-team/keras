@@ -29,7 +29,7 @@ from keras.utils import control_flow_util
 from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
-ResizeMethod = tf.image.ResizeMethod
+ResizeMethod = tf.compat.v2.image.ResizeMethod
 
 _RESIZE_METHODS = {
     'bilinear': ResizeMethod.BILINEAR,
@@ -87,7 +87,7 @@ class Resizing(PreprocessingLayer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
   def call(self, inputs):
-    outputs = tf.image.resize(
+    outputs = tf.compat.v2.image.resize(
         images=inputs,
         size=[self.target_height, self.target_width],
         method=self._interpolation_method)
@@ -221,7 +221,7 @@ class RandomCrop(PreprocessingLayer):
       crop_size = tf.stack(
           [input_shape[0], self.height, self.width, input_shape[3]])
       check = tf.Assert(
-          tf.reduce_all(input_shape >= crop_size),
+          tf.compat.v2.reduce_all(input_shape >= crop_size),
           [self.height, self.width])
       with tf.control_dependencies([check]):
         limit = input_shape - crop_size + 1
@@ -249,7 +249,7 @@ class RandomCrop(PreprocessingLayer):
           lambda: tf.cast(self.height * input_width_t / input_height_t,
                                 input_width_t.dtype))
       # pylint: enable=g-long-lambda
-      resized_inputs = tf.image.resize(
+      resized_inputs = tf.compat.v2.image.resize(
           images=inputs, size=tf.stack([resized_height, resized_width]))
 
       img_hd_diff = resized_height - self.height
@@ -658,12 +658,12 @@ def transform(images,
   with K.name_scope(name or 'transform'):
     if output_shape is None:
       output_shape = tf.compat.v1.shape(images)[1:3]
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         output_shape_value = tf.get_static_value(output_shape)
         if output_shape_value is not None:
           output_shape = output_shape_value
 
-    output_shape = tf.convert_to_tensor(
+    output_shape = tf.compat.v2.convert_to_tensor(
         output_shape, tf.int32, name='output_shape')
 
     if not output_shape.get_shape().is_compatible_with([2]):
@@ -671,7 +671,7 @@ def transform(images,
                        'new_height, new_width, instead got '
                        '{}'.format(output_shape))
 
-    fill_value = tf.convert_to_tensor(
+    fill_value = tf.compat.v2.convert_to_tensor(
         fill_value, tf.float32, name='fill_value')
 
     if tf.compat.forward_compatible(2020, 8, 5):
@@ -1178,7 +1178,7 @@ class RandomHeight(PreprocessingLayer):
           maxval=(1.0 + self.height_upper))
       adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
       adjusted_size = tf.stack([adjusted_height, img_wd])
-      output = tf.image.resize(
+      output = tf.compat.v2.image.resize(
           images=inputs, size=adjusted_size, method=self._interpolation_method)
       original_shape = inputs.shape.as_list()
       output_shape = [original_shape[0]] + [None] + original_shape[2:4]
@@ -1275,7 +1275,7 @@ class RandomWidth(PreprocessingLayer):
           maxval=(1.0 + self.width_upper))
       adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
       adjusted_size = tf.stack([img_hd, adjusted_width])
-      output = tf.image.resize(
+      output = tf.compat.v2.image.resize(
           images=inputs, size=adjusted_size, method=self._interpolation_method)
       original_shape = inputs.shape.as_list()
       output_shape = original_shape[0:2] + [None] + [original_shape[3]]

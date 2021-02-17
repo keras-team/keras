@@ -76,7 +76,7 @@ class ModelToDotFormatTest(tf.test.TestCase):
     inputs = keras.Input(shape=(None, 3))
     outputs = keras.layers.Dense(1)(inputs)
     model = keras.Model(inputs, outputs)
-    model.add_loss(tf.reduce_mean(outputs))
+    model.add_loss(tf.compat.v2.reduce_mean(outputs))
     dot_img_file = 'model_3.png'
     try:
       vis_utils.plot_model(
@@ -92,7 +92,7 @@ class ModelToDotFormatTest(tf.test.TestCase):
 
     model = keras.Sequential([
         keras.Input(shape=(None, 3)), keras.layers.Dense(1)])
-    model.add_loss(tf.reduce_mean(model.output))
+    model.add_loss(tf.compat.v2.reduce_mean(model.output))
     dot_img_file = 'model_4.png'
     try:
       vis_utils.plot_model(
