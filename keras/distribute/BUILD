@@ -724,10 +724,14 @@ tf_py_test(
     srcs = ["parameter_server_training_test.py"],
     python_version = "PY3",
     shard_count = 1,
+    tags = [
+        "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
+    ],
     deps = [
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras/utils:dataset_creator",
     ],
 )
 
