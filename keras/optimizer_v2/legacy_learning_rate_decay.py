@@ -93,7 +93,7 @@ def exponential_decay(learning_rate,
   """
   decayed_lr = learning_rate_schedule.ExponentialDecay(
       learning_rate, decay_steps, decay_rate, staircase=staircase, name=name)
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -144,11 +144,11 @@ def piecewise_constant(x, boundaries, values, name=None):
   the learning rate value across different invocations of optimizer functions.
   @end_compatibility
   """
-  boundaries = tf.nest.map_structure(tf.convert_to_tensor,
+  boundaries = tf.nest.map_structure(tf.compat.v2.convert_to_tensor,
                                   tf.nest.flatten(boundaries))
-  values = tf.nest.map_structure(tf.convert_to_tensor,
+  values = tf.nest.map_structure(tf.compat.v2.convert_to_tensor,
                               tf.nest.flatten(values))
-  x_recomp = tf.convert_to_tensor(x)
+  x_recomp = tf.compat.v2.convert_to_tensor(x)
   # Avoid explicit conversion to x's dtype. This could result in faulty
   # comparisons, for example if floats are converted to integers.
   for i, b in enumerate(boundaries):
@@ -156,8 +156,8 @@ def piecewise_constant(x, boundaries, values, name=None):
       # We can promote int32 boundaries to int64 without loss of precision.
       # This covers the most common case where the user passes in boundaries
       # as an array of Python integers.
-      if (b.dtype.base_dtype == tf.int32 and
-          x_recomp.dtype.base_dtype == tf.int64):
+      if (b.dtype.base_dtype == tf.dtypes.int32 and
+          x_recomp.dtype.base_dtype == tf.dtypes.int64):
         b = tf.cast(b, x_recomp.dtype.base_dtype)
         boundaries[i] = b
       else:
@@ -171,7 +171,7 @@ def piecewise_constant(x, boundaries, values, name=None):
           (values[0].dtype.base_dtype, v.dtype.base_dtype))
   decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(
       boundaries, values, name=name)
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(x)
   else:
     decayed_lr = functools.partial(decayed_lr, x)
@@ -272,7 +272,7 @@ def polynomial_decay(learning_rate,
       cycle=cycle,
       name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -352,7 +352,7 @@ def natural_exp_decay(learning_rate,
   the learning rate value across different invocations of optimizer functions.
   @end_compatibility
   """
-  natural_exp_rate = tf.exp(tf.negative(decay_rate))
+  natural_exp_rate = tf.exp(tf.math.negative(decay_rate))
   decayed_lr = learning_rate_schedule.ExponentialDecay(
       learning_rate,
       decay_steps,
@@ -360,7 +360,7 @@ def natural_exp_decay(learning_rate,
       staircase=staircase,
       name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -443,7 +443,7 @@ def inverse_time_decay(learning_rate,
   decayed_lr = learning_rate_schedule.InverseTimeDecay(
       learning_rate, decay_steps, decay_rate, staircase=staircase, name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -506,7 +506,7 @@ def cosine_decay(learning_rate, global_step, decay_steps, alpha=0.0, name=None):
   decayed_lr = learning_rate_schedule.CosineDecay(
       learning_rate, decay_steps, alpha=alpha, name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -583,7 +583,7 @@ def cosine_decay_restarts(learning_rate,
       alpha=alpha,
       name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -668,7 +668,7 @@ def linear_cosine_decay(learning_rate,
       beta=beta,
       name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)
@@ -763,7 +763,7 @@ def noisy_linear_cosine_decay(learning_rate,
       beta=beta,
       name=name)
 
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     decayed_lr = decayed_lr(global_step)
   else:
     decayed_lr = functools.partial(decayed_lr, global_step)

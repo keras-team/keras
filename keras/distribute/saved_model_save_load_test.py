@@ -46,23 +46,23 @@ class SavedModelKerasModelTest(test_base.TestSavedModelBase):
                                                        predict_dataset,
                                                        output_name)
 
-  @tf.__internal__.distribute.combinations.generate(test_base.simple_models_with_strategies())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(test_base.simple_models_with_strategies())
   def test_save_no_strategy_restore_strategy(self, model_and_input,
                                              distribution):
     self.run_test_save_no_strategy_restore_strategy(
         model_and_input, distribution)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.simple_models_with_strategies(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.simple_models_with_strategies(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_save_strategy_restore_no_strategy(self, model_and_input,
                                              distribution, save_in_scope):
     self.run_test_save_strategy_restore_no_strategy(
         model_and_input, distribution, save_in_scope)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.simple_models_with_strategy_pairs(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.simple_models_with_strategy_pairs(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_save_strategy_restore_strategy(self, model_and_input,
                                           distribution_for_saving,
                                           distribution_for_restoring,
@@ -72,14 +72,14 @@ class SavedModelKerasModelTest(test_base.TestSavedModelBase):
                                                  distribution_for_restoring,
                                                  save_in_scope)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.simple_models_with_strategies(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.simple_models_with_strategies(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_no_variable_device_placement(self, model_and_input, distribution,
                                         save_in_scope):
     saved_dir = self.run_test_save_strategy(model_and_input, distribution,
                                             save_in_scope)
-    func = tf.saved_model.load(saved_dir)
+    func = tf.compat.v2.saved_model.load(saved_dir)
     concrete_function = func.signatures[test_base._DEFAULT_FUNCTION_KEY]
     for f in concrete_function.graph.as_graph_def().library.function:
       for n in f.node_def:
@@ -119,26 +119,26 @@ class SavedModelTFModuleTest(test_base.TestSavedModelBase):
                           predict_dataset,
                           output_name='output_1'):
     del output_name
-    model = tf.saved_model.load(saved_dir)
+    model = tf.compat.v2.saved_model.load(saved_dir)
     return self._predict_with_model(distribution, model, predict_dataset)
 
-  @tf.__internal__.distribute.combinations.generate(test_base.tfmodule_models_with_strategies())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(test_base.tfmodule_models_with_strategies())
   def test_save_no_strategy_restore_strategy(self, model_and_input,
                                              distribution):
     self.run_test_save_no_strategy_restore_strategy(
         model_and_input, distribution)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.tfmodule_models_with_strategies(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.tfmodule_models_with_strategies(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_save_strategy_restore_no_strategy(
       self, model_and_input, distribution, save_in_scope):
     self.run_test_save_strategy_restore_no_strategy(
         model_and_input, distribution, save_in_scope)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.tfmodule_models_with_strategy_pairs(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.tfmodule_models_with_strategy_pairs(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_save_strategy_restore_strategy(self, model_and_input,
                                           distribution_for_saving,
                                           distribution_for_restoring,
@@ -148,11 +148,11 @@ class SavedModelTFModuleTest(test_base.TestSavedModelBase):
                                                  distribution_for_restoring,
                                                  save_in_scope)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           model_and_input=[model_combinations.simple_tfmodule_model],
           distribution=test_base.strategies +
-          [tf.__internal__.distribute.combinations.cloud_tpu_strategy]))
+          [tf.compat.v2.__internal__.distribute.combinations.cloud_tpu_strategy]))
   def test_save_load_io_device(self, model_and_input, distribution):
     saved_dir = os.path.join(self.get_temp_dir(), 'io_device')
     with distribution.scope():
@@ -164,11 +164,11 @@ class SavedModelTFModuleTest(test_base.TestSavedModelBase):
     save_options = tf.saved_model.SaveOptions(
         experimental_io_device='/job:localhost')
     tf.saved_model.save(model, saved_dir, signatures=call, options=save_options)
-    load_options = tf.saved_model.LoadOptions(
+    load_options = tf.compat.v2.saved_model.LoadOptions(
         experimental_io_device='/job:localhost')
     # Check that the model can be loaded and training continued without error.
     with distribution.scope():
-      loaded_model = tf.saved_model.load(saved_dir, options=load_options)
+      loaded_model = tf.compat.v2.saved_model.load(saved_dir, options=load_options)
       self._train_model(loaded_model, x_train, y_train, batch_size)
 
 

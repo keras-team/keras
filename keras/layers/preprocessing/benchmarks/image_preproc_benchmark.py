@@ -38,8 +38,8 @@ def rotate(inputs):
   """rotate image."""
   inputs_shape = tf.compat.v1.shape(inputs)
   batch_size = inputs_shape[0]
-  img_hd = tf.cast(inputs_shape[1], tf.float32)
-  img_wd = tf.cast(inputs_shape[2], tf.float32)
+  img_hd = tf.cast(inputs_shape[1], tf.dtypes.float32)
+  img_wd = tf.cast(inputs_shape[2], tf.dtypes.float32)
   min_angle = LOWER * 2. * np.pi
   max_angle = UPPER * 2. * np.pi
   angles = tf.random.uniform(
@@ -52,14 +52,14 @@ def zoom(inputs):
   """zoom image."""
   inputs_shape = tf.compat.v1.shape(inputs)
   batch_size = inputs_shape[0]
-  img_hd = tf.cast(inputs_shape[1], tf.float32)
-  img_wd = tf.cast(inputs_shape[2], tf.float32)
+  img_hd = tf.cast(inputs_shape[1], tf.dtypes.float32)
+  img_wd = tf.cast(inputs_shape[2], tf.dtypes.float32)
   height_zoom = tf.random.uniform(
       shape=[batch_size, 1], minval=1. + LOWER, maxval=1. + UPPER)
   width_zoom = tf.random.uniform(
       shape=[batch_size, 1], minval=1. + LOWER, maxval=1. + UPPER)
   zooms = tf.cast(
-      tf.concat([width_zoom, height_zoom], axis=1), dtype=tf.float32)
+      tf.concat([width_zoom, height_zoom], axis=1), dtype=tf.dtypes.float32)
   return image_preprocessing.transform(
       inputs, image_preprocessing.get_zoom_matrix(zooms, img_hd, img_wd))
 
@@ -67,7 +67,7 @@ def zoom(inputs):
 def image_augmentation(inputs, batch_size):
   """image augmentation."""
   img = inputs
-  img = tf.image.resize(img, size=[224, 224])
+  img = tf.compat.v2.image.resize(img, size=[224, 224])
   img = tf.image.random_crop(img, size=[batch_size, 224, 224, 3])
   img = rotate(img)
   img = zoom(img)
@@ -103,8 +103,8 @@ class BenchmarkLayer(tf.test.Benchmark):
     return avg_time
 
   def bm_layer_implementation(self, batch_size):
-    with tf.device("/gpu:0"):
-      img = keras.Input(shape=(256, 256, 3), dtype=tf.float32)
+    with tf.compat.v2.device("/gpu:0"):
+      img = keras.Input(shape=(256, 256, 3), dtype=tf.dtypes.float32)
       preprocessor = keras.Sequential([
           image_preprocessing.Resizing(224, 224),
           image_preprocessing.RandomCrop(height=224, width=224),

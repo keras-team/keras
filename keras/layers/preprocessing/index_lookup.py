@@ -171,12 +171,12 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
     # We need to save the key dtype so that we know if we're expecting int64
     # keys. If we are, we will cast int32 inputs to int64 as well.
     if invert:
-      self._key_dtype = tf.int64
+      self._key_dtype = tf.dtypes.int64
       self._value_dtype = self.dtype
       oov_value = self.oov_token
     else:
       self._key_dtype = self.dtype
-      self._value_dtype = tf.int64
+      self._value_dtype = tf.dtypes.int64
       oov_value = self._oov_value
 
     if self.num_oov_indices <= 1:
@@ -221,7 +221,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
       if not self.pad_to_max_tokens or max_tokens is None:
         initializer = lambda shape, dtype: [0]
       else:
-        initializer = tf.compat.v1.zeros_initializer
+        initializer = tf.compat.v1.initializers.zeros
 
       # We are adding these here instead of in build() since they do not depend
       # on the input shape at all.
@@ -518,8 +518,8 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
                        "Either pass a `vocabulary` argument to the layer, or "
                        "call `layer.adapt(dataset)` with some sample data.")
     self._called = True
-    if self._key_dtype == tf.int64 and inputs.dtype == tf.int32:
-      inputs = tf.cast(inputs, tf.int64)
+    if self._key_dtype == tf.dtypes.int64 and inputs.dtype == tf.dtypes.int32:
+      inputs = tf.cast(inputs, tf.dtypes.int64)
     lookup_result = self._table_handler.lookup(inputs)
 
     if self.output_mode == INT:
@@ -535,7 +535,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
                                                    binary_output)
 
     if self.output_mode == TFIDF:
-      return tf.multiply(bincounts, self.tf_idf_weights)
+      return tf.math.multiply(bincounts, self.tf_idf_weights)
 
     return bincounts
 
@@ -546,7 +546,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
     return False
 
   def _static_table_class(self):
-    return tf.lookup.StaticHashTable
+    return tf.compat.v2.lookup.StaticHashTable
 
 
 class _IndexLookupAccumulator(

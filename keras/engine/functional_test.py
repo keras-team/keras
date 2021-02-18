@@ -479,7 +479,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       self.assertListEqual([x.shape for x in fn_outputs], [(10, 64), (10, 5)])
 
   def test_multi_output_layer_output_names(self):
-    inp = layers.Input(name='inp', shape=(None,), dtype=tf.float32)
+    inp = layers.Input(name='inp', shape=(None,), dtype=tf.dtypes.float32)
 
     class _MultiOutput(layers.Layer):
 
@@ -697,8 +697,8 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       self.assertEqual(len(model.inputs), 2)
       tf_model = training_lib.Model([j, k], [m, n])
 
-      j_tf = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 32))
-      k_tf = tf.compat.v1.placeholder(dtype=tf.float32, shape=(None, 32))
+      j_tf = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=(None, 32))
+      k_tf = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=(None, 32))
       m_tf, n_tf = tf_model([j_tf, k_tf])
       self.assertListEqual(m_tf.shape.as_list(), [None, 64])
       self.assertListEqual(n_tf.shape.as_list(), [None, 5])
@@ -708,7 +708,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       layers.add([j_tf, k_tf])
 
       # test tensor input
-      x = tf.compat.v1.placeholder(shape=(None, 2), dtype=tf.float32)
+      x = tf.compat.v1.placeholder(shape=(None, 2), dtype=tf.dtypes.float32)
       layers.InputLayer(input_tensor=x)
 
       x = layers.Input(tensor=x)
@@ -733,9 +733,9 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
       def compute_mask(self, inputs, mask=None):
         return tf.compat.v1.ones_like(inputs)
 
-    if tf.executing_eagerly():
-      a = tf.constant([2] * 32)
-      mask = tf.constant([0, 1] * 16)
+    if tf.compat.v2.executing_eagerly():
+      a = tf.compat.v2.constant([2] * 32)
+      mask = tf.compat.v2.constant([0, 1] * 16)
       a._keras_mask = mask
       b = MaskedLayer().apply(a)
       self.assertTrue(hasattr(b, '_keras_mask'))
@@ -761,7 +761,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
   def test_activity_regularization_with_model_composition(self):
 
     def reg(x):
-      return tf.reduce_sum(x)
+      return tf.compat.v2.math.reduce_sum(x)
 
     net_a_input = input_layer_lib.Input((2,))
     net_a = net_a_input
@@ -1047,7 +1047,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
         return tf.cast(x1 + x1, dtype=dtype)
 
     input1 = input_layer_lib.Input(10)
-    outputs = Double()(input1, dtype=tf.float16)
+    outputs = Double()(input1, dtype=tf.dtypes.float16)
     model = training_lib.Model([input1], outputs)
     model.compile(
         'sgd',
@@ -1061,7 +1061,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     self.assertEqual(history.history['loss'][0], 0.0)
 
     # Check the output dtype
-    self.assertEqual(model(tf.ones((3, 10))).dtype, tf.float16)
+    self.assertEqual(model(tf.ones((3, 10))).dtype, tf.dtypes.float16)
 
     model = training_lib.Model.from_config(
         model.get_config(), custom_objects={'Double': Double})
@@ -1077,7 +1077,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     self.assertEqual(history.history['loss'][0], 0.0)
 
     # Check the output dtype
-    self.assertEqual(model(tf.ones((3, 10))).dtype, tf.float16)
+    self.assertEqual(model(tf.ones((3, 10))).dtype, tf.dtypes.float16)
 
   @combinations.generate(combinations.keras_mode_combinations())
   def test_call_kwarg_nonserializable(self):
@@ -1405,7 +1405,7 @@ class NetworkConstructionTest(keras_parameterized.TestCase):
     self.assertTrue(model.dynamic)
     self.assertTrue(model.trainable)
     w = model.add_weight('w', [], initializer=tf.compat.v1.constant_initializer(1))
-    self.assertEqual(tf.int64, w.dtype)
+    self.assertEqual(tf.dtypes.int64, w.dtype)
 
   def test_disconnected_inputs(self):
     input_tensor1 = input_layer_lib.Input(shape=[200], name='a')
@@ -1454,12 +1454,12 @@ class DeferredModeTest(keras_parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testSimpleNetworkBuilding(self):
     inputs = input_layer_lib.Input(shape=(32,))
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(inputs.dtype.name, 'float32')
       self.assertEqual(inputs.shape.as_list(), [None, 32])
 
     x = layers.Dense(2)(inputs)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(x.dtype.name, 'float32')
       self.assertEqual(x.shape.as_list(), [None, 2])
 
@@ -1467,9 +1467,9 @@ class DeferredModeTest(keras_parameterized.TestCase):
     network = functional.Functional(inputs, outputs)
     self.assertIsInstance(network, functional.Functional)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # It should be possible to call such a network on EagerTensors.
-      inputs = tf.constant(
+      inputs = tf.compat.v2.constant(
           np.random.random((10, 32)).astype('float32'))
       outputs = network(inputs)
       self.assertEqual(outputs.shape.as_list(), [10, 4])
@@ -1489,10 +1489,10 @@ class DeferredModeTest(keras_parameterized.TestCase):
     c = layers.Dense(2)(c)
 
     network = functional.Functional([input_a, input_b], [a, c])
-    if tf.executing_eagerly():
-      a_val = tf.constant(
+    if tf.compat.v2.executing_eagerly():
+      a_val = tf.compat.v2.constant(
           np.random.random((10, 32)).astype('float32'))
-      b_val = tf.constant(
+      b_val = tf.compat.v2.constant(
           np.random.random((10, 16)).astype('float32'))
       outputs = network([a_val, b_val])
       self.assertEqual(len(outputs), 2)
@@ -1521,7 +1521,7 @@ class DefaultShapeInferenceBehaviorTest(keras_parameterized.TestCase):
     inputs = input_layer_lib.Input(shape=(3,))
     layer = LayerWithOneInput()
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(
           layer.compute_output_shape((None, 3)).as_list(), [None, 4])
       # As a side-effect, compute_output_shape builds the layer.
@@ -1690,7 +1690,7 @@ class DefaultShapeInferenceBehaviorTest(keras_parameterized.TestCase):
     model.fit(model_input,
               np.random.random((10, 3, 5)), epochs=1, batch_size=6)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Note: this doesn't work in eager due to DeferredTensor/ops compatibility
       # issue.
       mask_outputs = [model.layers[1].compute_mask(model.layers[1].input)]
@@ -1737,20 +1737,20 @@ class DefaultShapeInferenceBehaviorTest(keras_parameterized.TestCase):
     # will behave differently wrt to dict input for training.
     inputs = {
         'sentence2': input_layer_lib.Input(
-            shape=(), name='a', dtype=tf.string),
+            shape=(), name='a', dtype=tf.dtypes.string),
         'sentence1': input_layer_lib.Input(
-            shape=(), name='b', dtype=tf.string),
+            shape=(), name='b', dtype=tf.dtypes.string),
     }
-    strlen = layers.Lambda(tf.strings.length)
+    strlen = layers.Lambda(tf.compat.v2.strings.length)
     diff = layers.Subtract()(
         [strlen(inputs['sentence1']), strlen(inputs['sentence2'])])
-    diff = tf.cast(diff, tf.float32)
+    diff = tf.cast(diff, tf.dtypes.float32)
     model = training_lib.Model(inputs, diff)
 
     extra_keys = {
-        'sentence1': tf.constant(['brown fox', 'lazy dog']),
-        'sentence2': tf.constant(['owl', 'cheeky cat']),
-        'label': tf.constant([0, 1]),
+        'sentence1': tf.compat.v2.constant(['brown fox', 'lazy dog']),
+        'sentence2': tf.compat.v2.constant(['owl', 'cheeky cat']),
+        'label': tf.compat.v2.constant([0, 1]),
     }
 
     with warnings.catch_warnings(record=True) as w:
@@ -1761,12 +1761,12 @@ class DefaultShapeInferenceBehaviorTest(keras_parameterized.TestCase):
     model.compile('sgd', 'mse')
     with warnings.catch_warnings(record=True) as w:
       warnings.simplefilter('always')
-      model.fit(extra_keys, y=tf.constant([0, 1]), steps_per_epoch=1)
+      model.fit(extra_keys, y=tf.compat.v2.constant([0, 1]), steps_per_epoch=1)
       self.assertIn('ignored by the model', str(w[-1].message))
 
     with warnings.catch_warnings(record=True) as w:
       warnings.simplefilter('always')
-      model.evaluate(extra_keys, tf.constant([0, 1]))
+      model.evaluate(extra_keys, tf.compat.v2.constant([0, 1]))
       self.assertIn('ignored by the model', str(w[-1].message))
 
     # Make sure the model inputs are sorted with the dict keys.
@@ -1966,7 +1966,7 @@ class AddLossTest(keras_parameterized.TestCase):
     mid = layers.Dense(10)(inputs)
     outputs = layers.Dense(1)(mid)
     model = training_lib.Model(inputs, outputs)
-    model.add_loss(tf.reduce_mean(outputs))
+    model.add_loss(tf.compat.v2.math.reduce_mean(outputs))
     self.assertLen(model.losses, 1)
 
     initial_weights = model.get_weights()
@@ -1994,8 +1994,8 @@ class AddLossTest(keras_parameterized.TestCase):
     x2 = layers.Dense(10)(x1)
     outputs = layers.Dense(1)(x2)
     model = training_lib.Model(inputs, outputs)
-    model.add_loss(tf.reduce_sum(x1 * x2))
-    model.add_loss(tf.reduce_mean(outputs))
+    model.add_loss(tf.compat.v2.math.reduce_sum(x1 * x2))
+    model.add_loss(tf.compat.v2.math.reduce_mean(outputs))
     self.assertLen(model.losses, 2)
 
     initial_weights = model.get_weights()
@@ -2133,15 +2133,15 @@ class DTypeTest(keras_parameterized.TestCase):
 
     network = IdentityNetwork()
     self.assertEqual(network.dtype, 'float32')
-    self.assertEqual(network(tf.constant(1, 'float64')).dtype, 'float32')
+    self.assertEqual(network(tf.compat.v2.constant(1, 'float64')).dtype, 'float32')
 
     network = IdentityNetwork(dtype='float16')
     self.assertEqual(network.dtype, 'float16')
-    self.assertEqual(network(tf.constant(1, 'float64')).dtype, 'float16')
+    self.assertEqual(network(tf.compat.v2.constant(1, 'float64')).dtype, 'float16')
 
     network = IdentityNetwork(autocast=False)
     self.assertEqual(network.dtype, 'float32')
-    self.assertEqual(network(tf.constant(1, 'float64')).dtype, 'float64')
+    self.assertEqual(network(tf.compat.v2.constant(1, 'float64')).dtype, 'float64')
 
 
 class AttrTrackingLayer(base_layer.Layer):
@@ -2329,7 +2329,7 @@ class CacheCorrectnessTest(keras_parameterized.TestCase):
     self.assertAllEqual(network(x, training=False), _call(x, False))
     self.assertAllEqual(network(x), _call(x, False))
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # In v2, construction still works when no `training` is specified
       # When no value passed during construction, it uses the local default.
       inputs = input_layer_lib.Input(10)
@@ -2345,7 +2345,7 @@ class CacheCorrectnessTest(keras_parameterized.TestCase):
     network = functional.Functional(inputs, outputs)
     self.assertAllEqual(network(x, training=True), _call(x, True))
     self.assertAllEqual(network(x, training=False), _call(x, False))
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllEqual(network(x), _call(x, True))  # Use local default
     else:
       # in v1 training would have defaulted to using the `None` inside the layer
@@ -2358,7 +2358,7 @@ class CacheCorrectnessTest(keras_parameterized.TestCase):
     network = functional.Functional(inputs, outputs)
     self.assertAllEqual(network(x, training=True), _call(x, True))
     self.assertAllEqual(network(x, training=False), _call(x, False))
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllEqual(network(x), _call(x, True))  # Use local default
     else:
       # in v1 training would have defaulted to using the `None` inside the layer
@@ -2385,7 +2385,7 @@ class InputsOutputsErrorTest(keras_parameterized.TestCase):
       models.Model(inputs=inputs, output=outputs)
 
   def test_input_spec(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       return
     inputs = input_layer_lib.Input((10,))
     outputs = layers.Dense(10)(inputs)
@@ -2395,7 +2395,7 @@ class InputsOutputsErrorTest(keras_parameterized.TestCase):
       model(np.zeros((3, 11)))
 
   def test_input_spec_list_of_inputs(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       return
     input_1 = input_layer_lib.Input((10,), name='1')
     input_2 = input_layer_lib.Input((5,), name='2')
@@ -2421,7 +2421,7 @@ class InputsOutputsErrorTest(keras_parameterized.TestCase):
       model({'1': np.zeros((3, 10)), '2': np.zeros((3, 6))})
 
   def test_input_spec_dict(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       return
     input_1 = input_layer_lib.Input((10,))
     input_2 = input_layer_lib.Input((5,))

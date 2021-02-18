@@ -121,7 +121,7 @@ class LambdaLayerTest(keras_parameterized.TestCase):
 
     # test with lambda
     ld = keras.layers.Lambda(
-        lambda x: keras.backend.concatenate([tf.square(x), x]))
+        lambda x: keras.backend.concatenate([tf.math.square(x), x]))
     config = ld.get_config()
     ld = keras.layers.Lambda.from_config(config)
     self.assertAllEqual(self.evaluate(ld.function([3])), [9, 3])
@@ -149,16 +149,16 @@ class LambdaLayerTest(keras_parameterized.TestCase):
   def test_lambda_output_shape_autocalculate_multiple_inputs(self):
 
     def lambda_fn(x):
-      return tf.matmul(x[0], x[1])
+      return tf.linalg.matmul(x[0], x[1])
 
-    l = keras.layers.Lambda(lambda_fn, dtype=tf.float64)
+    l = keras.layers.Lambda(lambda_fn, dtype=tf.dtypes.float64)
     output_shape = l.compute_output_shape([(10, 10), (10, 20)])
     self.assertAllEqual((10, 20), output_shape)
     output_signature = l.compute_output_signature([
-        tf.TensorSpec(dtype=tf.float64, shape=(10, 10)),
-        tf.TensorSpec(dtype=tf.float64, shape=(10, 20))])
+        tf.TensorSpec(dtype=tf.dtypes.float64, shape=(10, 10)),
+        tf.TensorSpec(dtype=tf.dtypes.float64, shape=(10, 20))])
     self.assertAllEqual((10, 20), output_signature.shape)
-    self.assertAllEqual(tf.float64, output_signature.dtype)
+    self.assertAllEqual(tf.dtypes.float64, output_signature.dtype)
 
   def test_lambda_output_shape_list_multiple_outputs(self):
 
@@ -280,7 +280,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   @keras_parameterized.run_with_all_model_types
   def test_lambda_with_variable_in_model(self):
-    v = tf.Variable(1., trainable=True)
+    v = tf.compat.v2.Variable(1., trainable=True)
     def lambda_fn(x, v):
       return x * v
 
@@ -306,8 +306,8 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   def test_creation_inside_lambda(self):
     def lambda_fn(x):
-      scale = tf.Variable(1., trainable=True, name='scale')
-      shift = tf.Variable(1., trainable=True, name='shift')
+      scale = tf.compat.v2.Variable(1., trainable=True, name='scale')
+      shift = tf.compat.v2.Variable(1., trainable=True, name='shift')
       return x * scale + shift
 
     expected_error = textwrap.dedent(r'''
@@ -343,7 +343,7 @@ class TestStatefulLambda(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   @keras_parameterized.run_with_all_model_types
   def test_warns_on_variable_capture(self):
-    v = tf.Variable(1., trainable=True)
+    v = tf.compat.v2.Variable(1., trainable=True)
     def lambda_fn(x):
       return x * v
 
@@ -497,20 +497,20 @@ class CoreLayersTest(keras_parameterized.TestCase):
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 4, 5, 2))
 
   def test_dense_dtype(self):
-    inputs = tf.convert_to_tensor(
+    inputs = tf.compat.v2.convert_to_tensor(
         np.random.randint(low=0, high=7, size=(2, 2)))
     layer = keras.layers.Dense(5, dtype='float32')
     outputs = layer(inputs)
     self.assertEqual(outputs.dtype, 'float32')
 
   def test_dense_with_policy(self):
-    inputs = tf.convert_to_tensor(
+    inputs = tf.compat.v2.convert_to_tensor(
         np.random.randint(low=0, high=7, size=(2, 2)))
     layer = keras.layers.Dense(5, dtype=policy.Policy('mixed_float16'))
     outputs = layer(inputs)
     output_signature = layer.compute_output_signature(
         tf.TensorSpec(dtype='float16', shape=(2, 2)))
-    self.assertEqual(output_signature.dtype, tf.float16)
+    self.assertEqual(output_signature.dtype, tf.dtypes.float16)
     self.assertEqual(output_signature.shape, (2, 5))
     self.assertEqual(outputs.dtype, 'float16')
     self.assertEqual(layer.kernel.dtype, 'float32')
@@ -542,7 +542,7 @@ class CoreLayersTest(keras_parameterized.TestCase):
     self.assertEqual(config.pop('l1'), 0.1)
 
   def test_numpy_inputs(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       layer = keras.layers.RepeatVector(2)
       x = np.ones((10, 10))
       self.assertAllEqual(np.ones((10, 2, 10)), layer(x))

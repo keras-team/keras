@@ -97,9 +97,9 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
         indices=[[0, 0], [1, 0], [2, 0]],
         values=['g', 'h', 'i'],
         dense_shape=[3, 1])
-    inp_0_t = input_layer.Input(shape=(1,), sparse=True, dtype=tf.string)
-    inp_1_t = input_layer.Input(shape=(1,), sparse=True, dtype=tf.string)
-    inp_2_t = input_layer.Input(shape=(1,), sparse=True, dtype=tf.string)
+    inp_0_t = input_layer.Input(shape=(1,), sparse=True, dtype=tf.dtypes.string)
+    inp_1_t = input_layer.Input(shape=(1,), sparse=True, dtype=tf.dtypes.string)
+    inp_2_t = input_layer.Input(shape=(1,), sparse=True, dtype=tf.dtypes.string)
     out_t = layer([inp_0_t, inp_1_t, inp_2_t])
     model = training.Model([inp_0_t, inp_1_t, inp_2_t], out_t)
     output = model.predict([inputs_0, inputs_1, inputs_2])
@@ -115,12 +115,12 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
   def test_crossing_ragged_inputs(self):
     inputs_0 = tf.ragged.constant(
         [['omar', 'skywalker'], ['marlo']],
-        dtype=tf.string)
+        dtype=tf.dtypes.string)
     inputs_1 = tf.ragged.constant(
         [['a'], ['b']],
-        dtype=tf.string)
-    inp_0_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
-    inp_1_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
+        dtype=tf.dtypes.string)
+    inp_0_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
+    inp_1_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
 
     non_hashed_layer = category_crossing.CategoryCrossing()
     out_t = non_hashed_layer([inp_0_t, inp_1_t])
@@ -138,8 +138,8 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
     self.assertAllEqual(expected_output, output)
 
     layer = category_crossing.CategoryCrossing(depth=2)
-    inp_0_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
-    inp_1_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
+    inp_0_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
+    inp_1_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
     out_t = layer([inp_0_t, inp_1_t])
     model = training.Model([inp_0_t, inp_1_t], out_t)
     expected_output = [[b'a', b'd', b'a_X_d'], [b'b', b'e', b'b_X_e'],
@@ -151,9 +151,9 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
     inputs_0 = tf.ragged.constant([['a'], ['b'], ['c']])
     inputs_1 = tf.ragged.constant([['d'], ['e'], ['f']])
     inputs_2 = tf.ragged.constant([['g'], ['h'], ['i']])
-    inp_0_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
-    inp_1_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
-    inp_2_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.string)
+    inp_0_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
+    inp_1_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
+    inp_2_t = input_layer.Input(shape=(None,), ragged=True, dtype=tf.dtypes.string)
     out_t = layer([inp_0_t, inp_1_t, inp_2_t])
     model = training.Model([inp_0_t, inp_1_t, inp_2_t], out_t)
     expected_output = [[b'a_X_d', b'a_X_g', b'd_X_g', b'a_X_d_X_g'],
@@ -189,15 +189,15 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_dense_inputs_depth_int(self):
     layer = category_crossing.CategoryCrossing(depth=1)
-    inputs_0 = tf.constant([['a'], ['b'], ['c']])
-    inputs_1 = tf.constant([['d'], ['e'], ['f']])
+    inputs_0 = tf.compat.v2.constant([['a'], ['b'], ['c']])
+    inputs_1 = tf.compat.v2.constant([['d'], ['e'], ['f']])
     output = layer([inputs_0, inputs_1])
     expected_output = [[b'a', b'd'], [b'b', b'e'], [b'c', b'f']]
     self.assertAllEqual(expected_output, output)
 
     layer = category_crossing.CategoryCrossing(depth=2)
-    inp_0_t = input_layer.Input(shape=(1,), dtype=tf.string)
-    inp_1_t = input_layer.Input(shape=(1,), dtype=tf.string)
+    inp_0_t = input_layer.Input(shape=(1,), dtype=tf.dtypes.string)
+    inp_1_t = input_layer.Input(shape=(1,), dtype=tf.dtypes.string)
     out_t = layer([inp_0_t, inp_1_t])
     model = training.Model([inp_0_t, inp_1_t], out_t)
     crossed_output = [[b'a_X_d'], [b'b_X_e'], [b'c_X_f']]
@@ -207,12 +207,12 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_dense_inputs_depth_tuple(self):
     layer = category_crossing.CategoryCrossing(depth=[2, 3])
-    inputs_0 = tf.constant([['a'], ['b'], ['c']])
-    inputs_1 = tf.constant([['d'], ['e'], ['f']])
-    inputs_2 = tf.constant([['g'], ['h'], ['i']])
-    inp_0_t = input_layer.Input(shape=(1,), dtype=tf.string)
-    inp_1_t = input_layer.Input(shape=(1,), dtype=tf.string)
-    inp_2_t = input_layer.Input(shape=(1,), dtype=tf.string)
+    inputs_0 = tf.compat.v2.constant([['a'], ['b'], ['c']])
+    inputs_1 = tf.compat.v2.constant([['d'], ['e'], ['f']])
+    inputs_2 = tf.compat.v2.constant([['g'], ['h'], ['i']])
+    inp_0_t = input_layer.Input(shape=(1,), dtype=tf.dtypes.string)
+    inp_1_t = input_layer.Input(shape=(1,), dtype=tf.dtypes.string)
+    inp_2_t = input_layer.Input(shape=(1,), dtype=tf.dtypes.string)
     out_t = layer([inp_0_t, inp_1_t, inp_2_t])
     model = training.Model([inp_0_t, inp_1_t, inp_2_t], out_t)
     expected_outputs_0 = [[b'a_X_d', b'a_X_g', b'd_X_g', b'a_X_d_X_g']]
@@ -229,13 +229,13 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
         tf.TensorShape([2, 3])
     ]
     input_specs = [
-        tf.TensorSpec(input_shape, tf.string)
+        tf.TensorSpec(input_shape, tf.dtypes.string)
         for input_shape in input_shapes
     ]
     layer = category_crossing.CategoryCrossing()
     output_spec = layer.compute_output_signature(input_specs)
     self.assertEqual(output_spec.shape.dims[0], input_shapes[0].dims[0])
-    self.assertEqual(output_spec.dtype, tf.string)
+    self.assertEqual(output_spec.dtype, tf.dtypes.string)
 
   @testing_utils.run_v2_only
   def test_config_with_custom_name(self):

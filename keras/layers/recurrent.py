@@ -228,7 +228,7 @@ class RNN(Layer):
         `batch_size` is a scalar tensor that represents the batch size
         of the inputs. `dtype` is `tf.DType` that represents the dtype of
         the inputs.
-        For backward compatible reason, if this method is not implemented
+        For backward compatibility, if this method is not implemented
         by the cell, the RNN layer will create a zero filled tensor with the
         size of [batch_size, cell.state_size].
       In the case that `cell` is a list of RNN cell instances, the cells
@@ -850,7 +850,7 @@ class RNN(Layer):
         # When layer is stateful and initial_state is provided, check if the
         # recorded state is same as the default value (zeros). Use the recorded
         # state if it is not same as the default.
-        non_zero_count = tf.add_n([tf.math.count_nonzero(s)
+        non_zero_count = tf.add_n([tf.compat.v2.math.count_nonzero(s)
                                          for s in tf.nest.flatten(self.states)])
         # Set strict = True to keep the original structure of the state.
         initial_state = tf.compat.v1.cond(non_zero_count > 0,
@@ -3029,7 +3029,7 @@ def _caching_device(rnn_cell):
   Args:
     rnn_cell: the rnn cell instance.
   """
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     # caching_device is not supported in eager mode.
     return None
   if not getattr(rnn_cell, '_enable_caching_device', False):

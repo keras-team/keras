@@ -73,7 +73,7 @@ def get_data():
   y_train = 3 * x_train
   x_train = x_train.astype('float32')
   y_train = y_train.astype('float32')
-  train_dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+  train_dataset = tf.compat.v2.data.Dataset.from_tensor_slices((x_train, y_train))
   train_dataset = train_dataset.batch(_BATCH_SIZE)
   return train_dataset
 
@@ -98,7 +98,7 @@ def iteration_inside_func(initial_weights, dataset, optimizer_fn,
     optimizer = optimizer_fn()
 
     training_accuracy = keras.metrics.CategoricalAccuracy(
-        'training_accuracy', dtype=tf.float32)
+        'training_accuracy', dtype=tf.dtypes.float32)
 
     @tf.function
     def train_epoch(dist_input):
@@ -137,7 +137,7 @@ def iteration_inside_func(initial_weights, dataset, optimizer_fn,
             total_loss += step_fn(next(iterator))
           num_batches += 1
 
-      return total_loss / tf.cast(num_batches, dtype=tf.float32)
+      return total_loss / tf.cast(num_batches, dtype=tf.dtypes.float32)
 
     if strategy:
       dataset = strategy.experimental_distribute_dataset(dataset)
@@ -159,7 +159,7 @@ def iteration_outside_func(initial_weights, dataset, optimizer_fn,
     optimizer = optimizer_fn()
 
     training_accuracy = keras.metrics.CategoricalAccuracy(
-        'training_accuracy', dtype=tf.float32)
+        'training_accuracy', dtype=tf.dtypes.float32)
 
     @tf.function
     def train_step(dist_inputs):
@@ -200,7 +200,7 @@ def iteration_outside_func(initial_weights, dataset, optimizer_fn,
           num_batches += 1
 
     return (model.get_weights(),
-            total_loss / tf.cast(num_batches, dtype=tf.float32),
+            total_loss / tf.cast(num_batches, dtype=tf.dtypes.float32),
             training_accuracy.result())
 
 
@@ -212,17 +212,17 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
     super(TestDistributionStrategyDnnCorrectness, self).setUp()
     tf.compat.v1.enable_v2_behavior()
     np.random.seed(_RANDOM_SEED)
-    tf.compat.v1.set_random_seed(_RANDOM_SEED)
+    tf.compat.v1.random.set_random_seed(_RANDOM_SEED)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies,
           optimizer_fn=optimizer_combinations.optimizers_v2,
           mode=['eager'],
           iteration_type=['iterator', 'dataset'],
           inside_func=[False, True],
           sync_batchnorm=[True, False]) +
-      tf.__internal__.test.combinations.combine(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.multiworker_strategies,
           optimizer_fn=[
               optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
@@ -264,4 +264,4 @@ class TestDistributionStrategyDnnCorrectness(tf.test.TestCase,
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

@@ -46,7 +46,7 @@ class BenchmarkLayer(tf.test.Benchmark):
     ends = []
     for _ in range(num_repeats):
       ds = tf.data.Dataset.from_generator(
-          int_gen, (tf.int64, tf.int64),
+          int_gen, (tf.dtypes.int64, tf.dtypes.int64),
           (tf.TensorShape([1]), tf.TensorShape([1])))
       ds = ds.shuffle(batch_size * 100)
       ds = ds.batch(batch_size)
@@ -64,8 +64,8 @@ class BenchmarkLayer(tf.test.Benchmark):
     return avg_time
 
   def bm_layer_implementation(self, batch_size):
-    input_1 = keras.Input(shape=(1,), dtype=tf.int64, name="word")
-    input_2 = keras.Input(shape=(1,), dtype=tf.int64, name="int")
+    input_1 = keras.Input(shape=(1,), dtype=tf.dtypes.int64, name="word")
+    input_2 = keras.Input(shape=(1,), dtype=tf.dtypes.int64, name="int")
     layer = category_crossing.CategoryCrossing()
     _ = layer([input_1, input_2])
 
@@ -74,7 +74,7 @@ class BenchmarkLayer(tf.test.Benchmark):
     ends = []
     for _ in range(num_repeats):
       ds = tf.data.Dataset.from_generator(
-          int_gen, (tf.int64, tf.int64),
+          int_gen, (tf.dtypes.int64, tf.dtypes.int64),
           (tf.TensorShape([1]), tf.TensorShape([1])))
       ds = ds.shuffle(batch_size * 100)
       ds = ds.batch(batch_size)

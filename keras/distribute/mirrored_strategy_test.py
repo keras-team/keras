@@ -20,6 +20,7 @@ from __future__ import print_function
 
 import tensorflow as tf
 
+from absl.testing import parameterized
 import numpy as np
 
 import keras
@@ -47,13 +48,13 @@ class MiniModel(keras_training.Model):
     return self.fc(inputs)
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+            tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
         ],
         mode=["eager"]))
-class MirroredStrategyDefunTest(tf.test.TestCase):
+class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
 
   def testTrain(self, distribution):
     with distribution.scope():
@@ -72,7 +73,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase):
       optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.25)
       update_ops = optimizer._distributed_apply(distribution, grads_and_vars)  # pylint: disable=protected-access
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.global_variables_initializer())
         self.evaluate(update_ops)
 
@@ -99,7 +100,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase):
         """The step function for one training step."""
 
         def step_fn(inputs):
-          """The computation to run on each TPU device."""
+          """The computation to run on each replica(GPU)."""
           features, labels = inputs
           with tf.GradientTape() as tape:
             pred = model(features, training=True)
@@ -108,7 +109,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase):
           grads = tape.gradient(loss, model.trainable_variables)
           optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
 
-          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.dtypes.int64)
           accuracy.update_state(labels, actual_pred)
 
         distribution.run(step_fn, args=(next(iterator),))
@@ -125,6 +126,10 @@ class MirroredStrategyDefunTest(tf.test.TestCase):
 
       self.assertGreater(accuracy.result().numpy(), 0.5)
       self.assertEqual(optimizer.iterations.numpy(), num_epochs * num_steps)
+
+    # Test save/load/serving the trained model.
+    test_utils_obj.test_save_load_serving_model(
+        model, feature_mapper, test_utils_obj.define_reverse_lookup_layer())
 
 
 if __name__ == "__main__":

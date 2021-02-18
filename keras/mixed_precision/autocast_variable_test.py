@@ -35,9 +35,9 @@ from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
 from keras.optimizer_v2 import nadam
 from keras.optimizer_v2 import rmsprop
 
-maybe_distribute = tf.__internal__.test.combinations.combine(distribution=[
-    tf.__internal__.distribute.combinations.default_strategy,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2
+maybe_distribute = tf.compat.v2.__internal__.test.combinations.combine(distribution=[
+    tf.compat.v2.__internal__.distribute.combinations.default_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_cpu_1_and_2
 ])
 
 
@@ -45,92 +45,92 @@ def get_var(val, dtype, name=None):
   return tf.compat.v1.Variable(val, use_resource=True, dtype=dtype, name=name)
 
 
-@tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['graph', 'eager']))
+@tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['graph', 'eager']))
 class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
   def setUp(self):
     test_util.set_logical_devices_to_at_least('CPU', 3)
     super(AutoCastVariableTest, self).setUp()
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_read(self, distribution):
     with distribution.scope():
-      x = get_var(1., tf.float32)
+      x = get_var(1., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
       self.evaluate(x.initializer)
 
       # outside of auto cast scope.
-      self.assertEqual(x.dtype, tf.float32)
-      self.assertEqual(x.value().dtype, tf.float32)
-      self.assertEqual(x.read_value().dtype, tf.float32)
-      self.assertEqual(tf.identity(x).dtype, tf.float32)
+      self.assertEqual(x.dtype, tf.dtypes.float32)
+      self.assertEqual(x.value().dtype, tf.dtypes.float32)
+      self.assertEqual(x.read_value().dtype, tf.dtypes.float32)
+      self.assertEqual(tf.identity(x).dtype, tf.dtypes.float32)
 
       # within auto cast scope of different dtype
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
-        self.assertEqual(x.dtype, tf.float32)
-        self.assertEqual(x.value().dtype, tf.float16)
-        self.assertEqual(x.read_value().dtype, tf.float16)
-        self.assertEqual(tf.identity(x).dtype, tf.float16)
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
+        self.assertEqual(x.dtype, tf.dtypes.float32)
+        self.assertEqual(x.value().dtype, tf.dtypes.float16)
+        self.assertEqual(x.read_value().dtype, tf.dtypes.float16)
+        self.assertEqual(tf.identity(x).dtype, tf.dtypes.float16)
 
       # within auto cast scope of same dtype
-      with autocast_variable.enable_auto_cast_variables(tf.float32):
-        self.assertEqual(x.dtype, tf.float32)
-        self.assertEqual(x.value().dtype, tf.float32)
-        self.assertEqual(x.read_value().dtype, tf.float32)
-        self.assertEqual(tf.identity(x).dtype, tf.float32)
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float32):
+        self.assertEqual(x.dtype, tf.dtypes.float32)
+        self.assertEqual(x.value().dtype, tf.dtypes.float32)
+        self.assertEqual(x.read_value().dtype, tf.dtypes.float32)
+        self.assertEqual(tf.identity(x).dtype, tf.dtypes.float32)
 
   def test_sparse_reads(self):
-    x = get_var([1., 2], tf.float32)
+    x = get_var([1., 2], tf.dtypes.float32)
     # DistributedVariables do not support sparse_read or gather_nd, so we pass
     # distribute=False
     x = autocast_variable.create_autocast_variable(x)
     self.evaluate(x.initializer)
 
-    self.assertEqual(x.sparse_read([0]).dtype, tf.float32)
-    self.assertEqual(x.gather_nd([0]).dtype, tf.float32)
+    self.assertEqual(x.sparse_read([0]).dtype, tf.dtypes.float32)
+    self.assertEqual(x.gather_nd([0]).dtype, tf.dtypes.float32)
 
-    with autocast_variable.enable_auto_cast_variables(tf.float16):
-      self.assertEqual(x.sparse_read([0]).dtype, tf.float16)
-      self.assertEqual(x.gather_nd([0]).dtype, tf.float16)
+    with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
+      self.assertEqual(x.sparse_read([0]).dtype, tf.dtypes.float16)
+      self.assertEqual(x.gather_nd([0]).dtype, tf.dtypes.float16)
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_read_nested_scopes(self, distribution):
     with distribution.scope():
-      x = get_var(1., tf.float32)
+      x = get_var(1., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
       self.evaluate(x.initializer)
 
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
-        self.assertEqual(x.read_value().dtype, tf.float16)
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
+        self.assertEqual(x.read_value().dtype, tf.dtypes.float16)
 
-        with autocast_variable.enable_auto_cast_variables(tf.float32):
-          self.assertEqual(x.read_value().dtype, tf.float32)
+        with autocast_variable.enable_auto_cast_variables(tf.dtypes.float32):
+          self.assertEqual(x.read_value().dtype, tf.dtypes.float32)
 
-        self.assertEqual(x.read_value().dtype, tf.float16)
+        self.assertEqual(x.read_value().dtype, tf.dtypes.float16)
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_dtype_is_not_string(self, distribution):
     with distribution.scope():
-      x = get_var(1., tf.float32)
+      x = get_var(1., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
-      self.assertEqual(x.dtype, tf.float32)
+      self.assertEqual(x.dtype, tf.dtypes.float32)
       self.assertIsInstance(x.dtype, tf.DType)
-      self.assertEqual(x.true_dtype, tf.float32)
+      self.assertEqual(x.true_dtype, tf.dtypes.float32)
       self.assertIsInstance(x.true_dtype, tf.DType)
 
-      dtype = tf.float16
+      dtype = tf.dtypes.float16
       with autocast_variable.enable_auto_cast_variables(dtype):
-        self.assertEqual(x.dtype, tf.float32)
+        self.assertEqual(x.dtype, tf.dtypes.float32)
         self.assertIsInstance(x.dtype, tf.DType)
-        self.assertEqual(x.true_dtype, tf.float32)
+        self.assertEqual(x.true_dtype, tf.dtypes.float32)
         self.assertIsInstance(x.true_dtype, tf.DType)
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_method_delegations(self, distribution):
     # Test AutoCastVariable correctly delegates Variable methods to the
     # underlying variable.
     with self.test_session(), distribution.scope():
-      for read_dtype in (tf.float32, tf.float16):
+      for read_dtype in (tf.dtypes.float32, tf.dtypes.float16):
         if tf.distribute.has_strategy():
           # MirroredVariable.assign will (incorrectly) return a Mirrored value
           # instead of a MirroredVariable. So we cannot properly wrap it in an
@@ -143,7 +143,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
             self.assertEqual(tf.identity(var).dtype, read_dtype)  # pylint: disable=cell-var-from-loop
             return self.evaluate(var)
 
-        x = get_var(7., tf.float32)
+        x = get_var(7., tf.dtypes.float32)
         x = autocast_variable.create_autocast_variable(x)
         with autocast_variable.enable_auto_cast_variables(read_dtype):
           self.evaluate(x.initializer)
@@ -153,7 +153,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
           self.assertEqual(x.synchronization, x._variable.synchronization)
           self.assertEqual(x.aggregation, x._variable.aggregation)
           self.assertEqual(self.evaluate(x.initialized_value()), 7)
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             if not tf.distribute.has_strategy():
               # These functions are not supported for DistributedVariables
               x.load(9)
@@ -176,7 +176,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
         if not tf.distribute.has_strategy():
           # Test scatter_* methods. These are not supported for
           # DistributedVariables
-          x = get_var([7, 8], tf.float32)
+          x = get_var([7, 8], tf.dtypes.float32)
           x = autocast_variable.create_autocast_variable(x)
           with autocast_variable.enable_auto_cast_variables(read_dtype):
             self.evaluate(x.initializer)
@@ -184,9 +184,9 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
             def slices(val, index):
               return tf.IndexedSlices(
-                  values=tf.constant(val, dtype=tf.float32),
-                  indices=tf.constant(index, dtype=tf.int32),
-                  dense_shape=tf.constant([2], dtype=tf.int32))
+                  values=tf.compat.v2.constant(val, dtype=tf.dtypes.float32),
+                  indices=tf.compat.v2.constant(index, dtype=tf.dtypes.int32),
+                  dense_shape=tf.compat.v2.constant([2], dtype=tf.dtypes.int32))
 
             self.assertAllEqual(evaluate(x.scatter_sub(slices(1., 0))), [6, 8])
             self.assertAllEqual(evaluate(x.scatter_add(slices(1., 0))), [7, 8])
@@ -203,11 +203,11 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
             self.assertAllEqual(
                 evaluate(x.scatter_nd_update([[0], [1]], [1., 2.])), [1, 2])
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_operator_overloads(self, distribution):
     with distribution.scope():
-      for read_dtype in (tf.float32, tf.float16):
-        x = get_var(7., tf.float32)
+      for read_dtype in (tf.dtypes.float32, tf.dtypes.float16):
+        x = get_var(7., tf.dtypes.float32)
         x = autocast_variable.create_autocast_variable(x)
         with autocast_variable.enable_auto_cast_variables(read_dtype):
           self.evaluate(x.initializer)
@@ -224,7 +224,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAlmostEqual(1.5, self.evaluate(10.5 / x))
           self.assertAlmostEqual(3, self.evaluate(x // 2))
           self.assertAlmostEqual(2, self.evaluate(15 // x))
-          if read_dtype == tf.float32:
+          if read_dtype == tf.dtypes.float32:
             # The "mod" operator does not support float16
             self.assertAlmostEqual(1, self.evaluate(x % 2))
             self.assertAlmostEqual(2, self.evaluate(16 % x))
@@ -241,24 +241,24 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
           self.assertAlmostEqual(-7, self.evaluate(-x))
           self.assertAlmostEqual(7, self.evaluate(abs(x)))
 
-          x = get_var([7, 8, 9], tf.float32)
+          x = get_var([7, 8, 9], tf.dtypes.float32)
           x = autocast_variable.create_autocast_variable(x)
           self.evaluate(x.initializer)
           self.assertEqual(self.evaluate(x[1]), 8)
-          if tf.__internal__.tf2.enabled() and tf.executing_eagerly():
+          if tf.compat.v2.__internal__.tf2.enabled() and tf.compat.v2.executing_eagerly():
             self.assertAllEqual(x == [7., 8., 10.], [True, True, False])
             self.assertAllEqual(x != [7., 8., 10.], [False, False, True])
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_assign(self, distribution):
     with distribution.scope():
-      x = get_var(0., tf.float32)
+      x = get_var(0., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
       self.evaluate(x.initializer)
 
       # outside of auto cast scope.
-      v1 = tf.constant(3., dtype=tf.float32)
-      v2 = tf.constant(3., dtype=tf.float16)
+      v1 = tf.compat.v2.constant(3., dtype=tf.dtypes.float32)
+      v2 = tf.compat.v2.constant(3., dtype=tf.dtypes.float16)
 
       def run_and_check():
         # Assign float32 values
@@ -288,7 +288,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
         # Assign multiple times
         # This currently doesn't work in graph mode if a strategy is used
-        if not tf.distribute.has_strategy() or tf.executing_eagerly():
+        if not tf.distribute.has_strategy() or tf.compat.v2.executing_eagerly():
           assign = x.assign(1.)
           self.assertAllClose(1., self.evaluate(assign))
           self.assertAllClose(0., self.evaluate(assign.assign(0.)))
@@ -321,36 +321,36 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
       # reset x
       self.evaluate(x.assign(0.))
       # within auto cast scope.
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
         # assign still expect float32 value even if in float16 scope
         run_and_check()
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_assign_tf_function(self, distribution):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Test is not compatible with graph mode')
 
     with distribution.scope():
-      x = get_var(0., tf.float32)
+      x = get_var(0., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
 
       @tf.function
       def run_assign():
         return x.assign(1.).assign_add(3.).assign_add(3.).assign_sub(2.)
 
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
         self.assertAllClose(5., self.evaluate(run_assign()))
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_op_attribute(self, distribution):
     with distribution.scope():
-      x = get_var(0., tf.float32)
+      x = get_var(0., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
 
       # Variable.op raises an AttributeError in Eager mode and is an op in graph
       # mode. Variable.assign(...).op is None in Eager mode and an op in Graph
       # mode or a tf.function. We test this is also true of AutoCastVariable.
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         with self.assertRaises(AttributeError):
           x.op  # pylint: disable=pointless-statement
         self.assertIsNone(x.assign(1.0).op)
@@ -370,13 +370,13 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
 
       func()
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_tf_function_control_dependencies(self, distribution):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Test is not compatible with graph mode')
 
     with distribution.scope():
-      x = get_var(0., tf.float32)
+      x = get_var(0., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
 
       @tf.function
@@ -388,17 +388,17 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
       func()
       self.assertAllClose(2., self.evaluate(x))
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_assign_stays_in_true_dtype(self, distribution):
     with distribution.scope():
-      x = get_var(1., tf.float32)
+      x = get_var(1., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
       self.evaluate(x.initializer)
       # small_val is a value such that 1.0 + small_val == 1.0 in fp16, but not
       # in fp32
       small_val = np.finfo('float16').eps / 2
-      small_tensor = tf.constant(small_val, dtype=tf.float32)
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
+      small_tensor = tf.compat.v2.constant(small_val, dtype=tf.dtypes.float32)
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
         # Variable should be increased, despite it appearing to be the same
         # float16 value.
         self.evaluate(x.assign(1. + small_tensor))
@@ -406,18 +406,18 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(1. + small_val, self.evaluate(x))
 
       self.evaluate(x.assign(1.))
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
         self.evaluate(x.assign_add(small_tensor))
         self.assertEqual(1., self.evaluate(x.value()))
       self.assertEqual(1. + small_val, self.evaluate(x))
 
   def test_thread_local_autocast_dtype(self):
-    x = get_var(1., tf.float32)
+    x = get_var(1., tf.dtypes.float32)
     x = autocast_variable.create_autocast_variable(x)
     self.evaluate(x.initializer)
 
-    with autocast_variable.enable_auto_cast_variables(tf.float16):
-      self.assertEqual(tf.identity(x).dtype, tf.float16)
+    with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
+      self.assertEqual(tf.identity(x).dtype, tf.dtypes.float16)
 
       # New threads should not see the modified value of the autocast dtype.
       var_dtype = None
@@ -427,50 +427,50 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
       thread = threading.Thread(target=f)
       thread.start()
       thread.join()
-      self.assertEqual(var_dtype, tf.float32)
+      self.assertEqual(var_dtype, tf.dtypes.float32)
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_checkpoint(self, distribution):
     with self.test_session():
       with distribution.scope():
-        x = get_var(1., tf.float32)
+        x = get_var(1., tf.dtypes.float32)
         x = autocast_variable.create_autocast_variable(x)
       self.evaluate(x.initializer)
       self.evaluate(x.assign(123.))
 
-      checkpoint = tf.train.Checkpoint(x=x)
+      checkpoint = tf.compat.v2.train.Checkpoint(x=x)
       prefix = os.path.join(self.get_temp_dir(), 'ckpt')
       save_path = checkpoint.save(prefix)
       self.evaluate(x.assign(234.))
       checkpoint.restore(save_path).assert_consumed().run_restore_ops()
       self.assertEqual(self.evaluate(x), 123.)
 
-  @tf.__internal__.distribute.combinations.generate(maybe_distribute)
+  @tf.compat.v2.__internal__.distribute.combinations.generate(maybe_distribute)
   def test_invalid_wrapped_variable(self, distribution):
     with distribution.scope():
       # Wrap a non-variable
       with self.assertRaisesRegex(ValueError, 'variable must be of type'):
-        x = tf.constant([1.], dtype=tf.float32)
+        x = tf.compat.v2.constant([1.], dtype=tf.dtypes.float32)
         autocast_variable.create_autocast_variable(x)
 
       # Wrap a non-floating point variable
       with self.assertRaisesRegex(ValueError,
                                   'variable must be a floating point'):
-        x = get_var(1, tf.int32)
+        x = get_var(1, tf.dtypes.int32)
         autocast_variable.create_autocast_variable(x)
 
   def test_repr(self):
     # We do not test with DistributionStrategy because we do not want to rely on
     # the exact __repr__ output of a DistributedVariable.
-    x = get_var(1., tf.float32, name='x')
+    x = get_var(1., tf.dtypes.float32, name='x')
     x = autocast_variable.create_autocast_variable(x)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertStartsWith(
           repr(x),
           "<AutoCastVariable 'x:0' shape=() dtype=float32 "
           "dtype_to_cast_to=float32, numpy="
       )
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
         self.assertStartsWith(
             repr(x),
             "<AutoCastVariable 'x:0' shape=() dtype=float32 "
@@ -482,7 +482,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
           "<AutoCastVariable 'x:0' shape=() dtype=float32 "
           "dtype_to_cast_to=float32>"
       )
-      with autocast_variable.enable_auto_cast_variables(tf.float16):
+      with autocast_variable.enable_auto_cast_variables(tf.dtypes.float16):
         self.assertEqual(
             repr(x),
             "<AutoCastVariable 'x:0' shape=() dtype=float32 "
@@ -490,9 +490,9 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
         )
 
   def test_repr_distributed(self):
-    strategy = tf.distribute.MirroredStrategy(['/cpu:1', '/cpu:2'])
+    strategy = tf.compat.v2.distribute.MirroredStrategy(['/cpu:1', '/cpu:2'])
     with strategy.scope():
-      x = get_var(1., tf.float32)
+      x = get_var(1., tf.dtypes.float32)
       x = autocast_variable.create_autocast_variable(x)
       use_policy = getattr(strategy.extended, '_use_var_policy', False)
       if use_policy:
@@ -508,7 +508,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
             'dtype_to_cast_to=float32 '
             'inner_variable=MirroredVariable.*>')
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(
       optimizer_class=[
           adadelta.Adadelta,
           adagrad.Adagrad,
@@ -522,11 +522,11 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
       ],
       use_tf_function=[False, True]))
   def test_optimizer(self, optimizer_class, use_tf_function):
-    if use_tf_function and not tf.executing_eagerly():
+    if use_tf_function and not tf.compat.v2.executing_eagerly():
       self.skipTest('Test does not support graph mode with tf.function')
-    x = get_var(1., tf.float32)
+    x = get_var(1., tf.dtypes.float32)
     x = autocast_variable.create_autocast_variable(x)
-    y = get_var(1., tf.float32)
+    y = get_var(1., tf.dtypes.float32)
     opt = optimizer_class(learning_rate=1.)
 
     def f():
@@ -538,7 +538,7 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
     if use_tf_function:
       f = tf.function(f)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       f()
     else:
       op = f()

@@ -487,7 +487,7 @@ def squeeze_batch_dims(inp, op, inner_rank):
   Returns:
     `unsqueeze_batch_op(squeeze_batch(inp))`.
   """
-  with tf.name_scope('squeeze_batch_dims'):
+  with tf.compat.v2.name_scope('squeeze_batch_dims'):
     shape = inp.shape
 
     inner_shape = shape[-inner_rank:]

@@ -49,8 +49,8 @@ class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
   def testStaircase(self, serialize):
-    if tf.executing_eagerly():
-      step = tf.Variable(0)
+    if tf.compat.v2.executing_eagerly():
+      step = tf.compat.v2.Variable(0)
       self.evaluate(tf.compat.v1.global_variables_initializer())
       decayed_lr = learning_rate_schedule.ExponentialDecay(
           .1, 3, 0.96, staircase=True)
@@ -73,7 +73,7 @@ class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
   def testVariables(self, serialize):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      step = tf.Variable(1)
+      step = tf.compat.v2.Variable(1)
       assign_1 = step.assign(1)
       assign_2 = step.assign(2)
       assign_100 = step.assign(100)
@@ -93,7 +93,7 @@ class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(self.evaluate(decayed_lr(step)), expected, 1e-6)
 
   def testPiecewiseConstant(self, serialize):
-    x = tf.Variable(-999)
+    x = tf.compat.v2.Variable(-999)
     decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(
         [100, 110, 120], [1.0, 0.1, 0.01, 0.001])
     decayed_lr = _maybe_serialized(decayed_lr, serialize)
@@ -113,11 +113,11 @@ class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr(x)), 0.001, 1e-6)
 
   def testPiecewiseFunction(self, serialize):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest("Run on eager mode only.")
 
     del serialize
-    v = tf.Variable(1.)
+    v = tf.compat.v2.Variable(1.)
     def loss_fn():
       return v * v
     learning_rate = learning_rate_schedule.PiecewiseConstantDecay(
@@ -136,7 +136,7 @@ class LRDecayTestV2(tf.test.TestCase, parameterized.TestCase):
 
   def testPiecewiseConstantEdgeCases(self, serialize):
     # Test casting boundaries from int32 to int64.
-    x_int64 = tf.Variable(0, dtype=tf.int64)
+    x_int64 = tf.compat.v2.Variable(0, dtype=tf.dtypes.int64)
     boundaries, values = [1, 2, 3], [0.4, 0.5, 0.6, 0.7]
     decayed_lr = learning_rate_schedule.PiecewiseConstantDecay(
         boundaries, values)
@@ -302,7 +302,7 @@ class InverseDecayTestV2(tf.test.TestCase, parameterized.TestCase):
     initial_lr = 0.1
     k = 10
     decay_rate = 0.96
-    step = tf.Variable(0)
+    step = tf.compat.v2.Variable(0)
     decayed_lr = learning_rate_schedule.InverseTimeDecay(initial_lr, k,
                                                          decay_rate)
     decayed_lr = _maybe_serialized(decayed_lr, serialize)
@@ -317,7 +317,7 @@ class InverseDecayTestV2(tf.test.TestCase, parameterized.TestCase):
     initial_lr = 0.1
     k = 10
     decay_rate = 0.96
-    step = tf.Variable(0)
+    step = tf.compat.v2.Variable(0)
     decayed_lr = learning_rate_schedule.InverseTimeDecay(
         initial_lr, k, decay_rate, staircase=True)
     decayed_lr = _maybe_serialized(decayed_lr, serialize)

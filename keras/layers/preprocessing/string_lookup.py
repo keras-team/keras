@@ -259,14 +259,14 @@ class StringLookup(index_lookup.IndexLookup):
                sparse=False,
                pad_to_max_tokens=False,
                **kwargs):
-    allowed_dtypes = [tf.string]
+    allowed_dtypes = [tf.dtypes.string]
 
     if "dtype" in kwargs and kwargs["dtype"] not in allowed_dtypes:
       raise ValueError("The value of the dtype argument for StringLookup may "
                        "only be one of %s." % (allowed_dtypes,))
 
     if "dtype" not in kwargs:
-      kwargs["dtype"] = tf.string
+      kwargs["dtype"] = tf.dtypes.string
 
     if encoding is None:
       encoding = "utf-8"

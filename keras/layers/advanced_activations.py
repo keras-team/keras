@@ -280,8 +280,8 @@ def _large_compatible_negative(tensor_type):
   Returns:
     a large negative number.
   """
-  if tensor_type == tf.float16:
-    return tf.float16.min
+  if tensor_type == tf.dtypes.float16:
+    return tf.dtypes.float16.min
   return -1e9
 
 
@@ -337,7 +337,7 @@ class Softmax(Layer):
       inputs += adder
     if isinstance(self.axis, (tuple, list)):
       if len(self.axis) > 1:
-        return tf.exp(inputs - tf.reduce_logsumexp(
+        return tf.exp(inputs - tf.compat.v2.math.reduce_logsumexp(
             inputs, axis=self.axis, keepdims=True))
       else:
         return K.softmax(inputs, axis=self.axis[0])

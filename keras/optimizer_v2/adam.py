@@ -131,14 +131,14 @@ class Adam(optimizer_v2.OptimizerV2):
     local_step = tf.cast(self.iterations + 1, var_dtype)
     beta_1_t = tf.identity(self._get_hyper('beta_1', var_dtype))
     beta_2_t = tf.identity(self._get_hyper('beta_2', var_dtype))
-    beta_1_power = tf.pow(beta_1_t, local_step)
-    beta_2_power = tf.pow(beta_2_t, local_step)
+    beta_1_power = tf.math.pow(beta_1_t, local_step)
+    beta_2_power = tf.math.pow(beta_2_t, local_step)
     lr = (apply_state[(var_device, var_dtype)]['lr_t'] *
-          (tf.sqrt(1 - beta_2_power) / (1 - beta_1_power)))
+          (tf.math.sqrt(1 - beta_2_power) / (1 - beta_1_power)))
     apply_state[(var_device, var_dtype)].update(
         dict(
             lr=lr,
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             beta_1_t=beta_1_t,
             beta_1_power=beta_1_power,
@@ -216,18 +216,18 @@ class Adam(optimizer_v2.OptimizerV2):
       v_t = self._resource_scatter_add(v, indices, v_scaled_g_values)
 
     if not self.amsgrad:
-      v_sqrt = tf.sqrt(v_t)
+      v_sqrt = tf.math.sqrt(v_t)
       var_update = tf.compat.v1.assign_sub(
           var, coefficients['lr'] * m_t / (v_sqrt + coefficients['epsilon']),
           use_locking=self._use_locking)
       return tf.group(*[var_update, m_t, v_t])
     else:
       v_hat = self.get_slot(var, 'vhat')
-      v_hat_t = tf.maximum(v_hat, v_t)
+      v_hat_t = tf.math.maximum(v_hat, v_t)
       with tf.control_dependencies([v_hat_t]):
         v_hat_t = tf.compat.v1.assign(
             v_hat, v_hat_t, use_locking=self._use_locking)
-      v_hat_sqrt = tf.sqrt(v_hat_t)
+      v_hat_sqrt = tf.math.sqrt(v_hat_t)
       var_update = tf.compat.v1.assign_sub(
           var,
           coefficients['lr'] * m_t / (v_hat_sqrt + coefficients['epsilon']),
@@ -383,15 +383,15 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
     local_step = tf.cast(self.iterations + 1, var_dtype)
     beta_1_t = tf.identity(self._get_hyper('beta_1', var_dtype))
     beta_2_t = tf.identity(self._get_hyper('beta_2', var_dtype))
-    beta_1_power = tf.pow(beta_1_t, local_step)
-    beta_2_power = tf.pow(beta_2_t, local_step)
+    beta_1_power = tf.math.pow(beta_1_t, local_step)
+    beta_2_power = tf.math.pow(beta_2_t, local_step)
     lr = (
         apply_state[(var_device, var_dtype)]['lr_t'] *
-        (tf.sqrt(1 - beta_2_power) / (1 - beta_1_power)))
+        (tf.math.sqrt(1 - beta_2_power) / (1 - beta_1_power)))
     apply_state[(var_device, var_dtype)].update(
         dict(
             lr=lr,
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             beta_1_t=beta_1_t,
             beta_1_power=beta_1_power,
@@ -420,16 +420,16 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
     v = self.get_slot(var, 'v')
 
     alpha = (
-        coefficients['lr_t'] * tf.sqrt(1 - coefficients['beta_2_power']) /
+        coefficients['lr_t'] * tf.math.sqrt(1 - coefficients['beta_2_power']) /
         (1 - coefficients['beta_1_power']))
     m.assign_add((grad - m) * (1 - coefficients['beta_1_t']))
-    v.assign_add((tf.square(grad) - v) * (1 - coefficients['beta_2_t']))
+    v.assign_add((tf.math.square(grad) - v) * (1 - coefficients['beta_2_t']))
     if self.amsgrad:
       vhat = self.get_slot(var, 'vhat')
-      vhat.assign(tf.maximum(vhat, v))
+      vhat.assign(tf.math.maximum(vhat, v))
       v = vhat
     var.assign_sub(
-        (m * alpha) / (tf.sqrt(v) - coefficients['epsilon']))
+        (m * alpha) / (tf.math.sqrt(v) - coefficients['epsilon']))
 
   @tf.function(jit_compile=True)
   def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
@@ -451,12 +451,12 @@ class NonFusedAdam(optimizer_v2.OptimizerV2):
 
     if not self.amsgrad:
       var.assign_sub(coefficients['lr'] * m /
-                     (tf.sqrt(v) + coefficients['epsilon']))
+                     (tf.math.sqrt(v) + coefficients['epsilon']))
     else:
       v_hat = self.get_slot(var, 'vhat')
-      v_hat.assign(tf.maximum(v_hat, v))
+      v_hat.assign(tf.math.maximum(v_hat, v))
       var.assign_sub(coefficients['lr'] * m /
-                     (tf.sqrt(v_hat) + coefficients['epsilon']))
+                     (tf.math.sqrt(v_hat) + coefficients['epsilon']))
 
   def get_config(self):
     config = super(NonFusedAdam, self).get_config()

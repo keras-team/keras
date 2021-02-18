@@ -35,9 +35,9 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
 
   def testResidualWrapper(self):
     wrapper_type = rnn_cell_wrapper_v2.ResidualWrapper
-    x = tf.convert_to_tensor(
+    x = tf.compat.v2.convert_to_tensor(
         np.array([[1., 1., 1.]]), dtype="float32")
-    m = tf.convert_to_tensor(
+    m = tf.compat.v2.convert_to_tensor(
         np.array([[0.1, 0.1, 0.1]]), dtype="float32")
     base_cell = rnn_cell_impl.GRUCell(
         3, kernel_initializer=tf.compat.v1.constant_initializer(0.5),
@@ -59,9 +59,9 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
 
   def testResidualWrapperWithSlice(self):
     wrapper_type = rnn_cell_wrapper_v2.ResidualWrapper
-    x = tf.convert_to_tensor(
+    x = tf.compat.v2.convert_to_tensor(
         np.array([[1., 1., 1., 1., 1.]]), dtype="float32")
-    m = tf.convert_to_tensor(
+    m = tf.compat.v2.convert_to_tensor(
         np.array([[0.1, 0.1, 0.1]]), dtype="float32")
     base_cell = rnn_cell_impl.GRUCell(
         3, kernel_initializer=tf.compat.v1.constant_initializer(0.5),
@@ -114,8 +114,8 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
     base_cell = layers.SimpleRNNCell(1, name="basic_rnn_cell")
     rnn_cell = wrapper(base_cell)
     rnn_layer = layers.RNN(rnn_cell)
-    inputs = tf.convert_to_tensor([[[1]]],
-                                                    dtype=tf.float32)
+    inputs = tf.compat.v2.convert_to_tensor([[[1]]],
+                                                    dtype=tf.dtypes.float32)
     rnn_layer(inputs)
 
     wrapper_name = generic_utils.to_snake_case(wrapper.__name__)
@@ -139,8 +139,8 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
       base_cell = rnn_cell_impl.MultiRNNCell(
           [rnn_cell_impl.BasicRNNCell(1) for _ in range(2)])
     rnn_cell = wrapper(base_cell)
-    inputs = tf.convert_to_tensor([[1]], dtype=tf.float32)
-    state = tf.convert_to_tensor([[1]], dtype=tf.float32)
+    inputs = tf.compat.v2.convert_to_tensor([[1]], dtype=tf.dtypes.float32)
+    state = tf.compat.v2.convert_to_tensor([[1]], dtype=tf.dtypes.float32)
     _ = rnn_cell(inputs, [state, state])
     weights = base_cell._cells[0].weights
     self.assertLen(weights, expected_len=2)

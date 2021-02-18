@@ -135,7 +135,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
 
   if not metadata.nodes:
     # When there are no Keras objects, return the results from the core loader
-    return tf.saved_model.load(path, options=options)
+    return tf.compat.v2.saved_model.load(path, options=options)
 
   # Recreate layers and metrics using the info stored in the metadata.
   keras_loader = KerasObjectLoader(metadata, object_graph_def)
@@ -145,7 +145,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   nodes_to_load = {'root': None}
   for node_id, loaded_node in keras_loader.loaded_nodes.items():
     nodes_to_load[keras_loader.get_path(node_id)] = loaded_node
-  loaded = tf.__internal__.saved_model.load_partial(path, nodes_to_load, options=options)
+  loaded = tf.compat.v2.__internal__.saved_model.load_partial(path, nodes_to_load, options=options)
 
   # Finalize the loaded layers and remove the extra tracked dependencies.
   keras_loader.finalize_objects()
@@ -169,7 +169,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
   # pylint: enable=protected-access
 
   # Force variables and resources to initialize.
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     sess = backend.get_session()  # Variables are initialized by this call.
     sess.run(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TABLE_INITIALIZERS))
 
@@ -325,7 +325,7 @@ class KerasObjectLoader(object):
     for (obj_child, child_id, child_name) in children:
       child_proto = self._proto.nodes[child_id]
 
-      if not isinstance(obj_child, tf.__internal__.tracking.Trackable):
+      if not isinstance(obj_child, tf.compat.v2.__internal__.tracking.Trackable):
         continue
       if (child_proto.user_object.identifier in
           revived_types.registered_identifiers()):
@@ -1013,7 +1013,7 @@ def _revive_setter(layer, name, value):
   # Layer and Model. Save these attributes to a separate dictionary.
   if name in PUBLIC_ATTRIBUTES:
     # pylint: disable=protected-access
-    if isinstance(value, tf.__internal__.tracking.Trackable):
+    if isinstance(value, tf.compat.v2.__internal__.tracking.Trackable):
       layer._track_trackable(value, name=name)
     layer._serialized_attributes[name] = value
     # pylint: enable=protected-access

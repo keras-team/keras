@@ -282,7 +282,7 @@ class RandomCropTest(keras_parameterized.TestCase):
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(height, width)
       actual_output = layer(inp, training=0)
-      resized_inp = tf.image.resize(inp, size=[5, 3])
+      resized_inp = tf.compat.v2.image.resize(inp, size=[5, 3])
       expected_output = resized_inp[:, 1:4, :, :]
       self.assertAllClose(expected_output, actual_output)
 
@@ -293,7 +293,7 @@ class RandomCropTest(keras_parameterized.TestCase):
     with testing_utils.use_gpu():
       layer = image_preprocessing.RandomCrop(height, width)
       actual_output = layer(inp, training=0)
-      resized_inp = tf.image.resize(inp, size=[4, 8])
+      resized_inp = tf.compat.v2.image.resize(inp, size=[4, 8])
       expected_output = resized_inp[:, :, 1:7, :]
       self.assertAllClose(expected_output, actual_output)
 

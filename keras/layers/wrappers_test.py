@@ -94,7 +94,7 @@ class _AddOneCell(keras.layers.AbstractRNNCell):
     return 1
 
   def call(self, inputs, state):
-    inputs = tf.reduce_mean(inputs, axis=1, keepdims=True)
+    inputs = tf.compat.v2.math.reduce_mean(inputs, axis=1, keepdims=True)
     outputs = inputs + 1.0
     state = tf.nest.map_structure(lambda t: t + 1.0, state)
     return outputs, state
@@ -139,7 +139,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
         batch_size=10)
 
   def test_timedistributed_invalid_init(self):
-    x = tf.constant(np.zeros((1, 1)).astype('float32'))
+    x = tf.compat.v2.constant(np.zeros((1, 1)).astype('float32'))
     with self.assertRaisesRegex(
         ValueError, 'Please initialize `TimeDistributed` layer with a '
         '`tf.keras.layers.Layer` instance.'):
@@ -400,7 +400,7 @@ class TimeDistributedTest(keras_parameterized.TestCase):
           layer=[keras.layers.LSTM,
                  keras.layers.Dense]))
   def test_TimeDistributed_with_ragged_input(self, layer):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('b/143103634')
     np.random.seed(100)
     layer = layer(4)
@@ -485,11 +485,11 @@ class TimeDistributedTest(keras_parameterized.TestCase):
     np.random.seed(100)
     layer = TestLayer()
 
-    data_1 = tf.constant([[[[1.0], [1.0]], [[2.0], [2.0]]],
+    data_1 = tf.compat.v2.constant([[[[1.0], [1.0]], [[2.0], [2.0]]],
                                  [[[4.0], [4.0]], [[5.0], [5.0]]],
                                  [[[7.0], [7.0]], [[8.0], [8.0]]]])
 
-    data_2 = tf.constant([[[[1.0], [1.0]], [[2.0], [2.0]]],
+    data_2 = tf.compat.v2.constant([[[[1.0], [1.0]], [[2.0], [2.0]]],
                                  [[[4.0], [4.0]], [[5.0], [5.0]]],
                                  [[[7.0], [7.0]], [[8.0], [8.0]]]])
 
@@ -562,7 +562,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
       model.summary()
 
   def test_bidirectional_invalid_init(self):
-    x = tf.constant(np.zeros((1, 1)).astype('float32'))
+    x = tf.compat.v2.constant(np.zeros((1, 1)).astype('float32'))
     with self.assertRaisesRegex(
         ValueError,
         'Please initialize `Bidirectional` layer with a `Layer` instance.'):
@@ -649,7 +649,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
         model.compile(loss='mse', optimizer='sgd')
         model.fit(x, y, epochs=1, batch_size=1)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       run_test()
     else:
       tf_test_util.enable_output_all_intermediates(run_test)()
@@ -724,7 +724,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
     # length is [1 2]. Within the batch, the first element has 1 step, and the
     # second element as 2 steps.
     lengths = tf.range(1, 1 + batch_size)
-    mask = tf.sequence_mask(lengths, maxlen=time, dtype=tf.float32)
+    mask = tf.sequence_mask(lengths, maxlen=time, dtype=tf.dtypes.float32)
 
     forward_cell = _AddOneCell(name='forward')
     backward_cell = _AddOneCell(name='backward')
@@ -835,7 +835,7 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
       assert len(layer.trainable_weights) == 6
 
   def test_Bidirectional_updates(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('layer.updates is only available in graph mode.')
 
     with self.cached_session():
@@ -1364,7 +1364,7 @@ def _to_list(ls):
 
 def convert_ragged_tensor_value(inputs):
   if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
-    flat_values = tf.convert_to_tensor(
+    flat_values = tf.compat.v2.convert_to_tensor(
         value=inputs.flat_values,
         name='flat_values')
     return tf.RaggedTensor.from_nested_row_splits(

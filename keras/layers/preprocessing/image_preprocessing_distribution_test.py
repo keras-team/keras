@@ -29,8 +29,8 @@ from keras.layers.preprocessing import image_preprocessing
 from keras.layers.preprocessing import preprocessing_test_utils
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=all_strategies,
         mode=["eager", "graph"]))
 class ImagePreprocessingDistributionTest(
@@ -46,7 +46,7 @@ class ImagePreprocessingDistributionTest(
         16, drop_remainder=True)
 
     with distribution.scope():
-      input_data = keras.Input(shape=(32, 32, 3), dtype=tf.float32)
+      input_data = keras.Input(shape=(32, 32, 3), dtype=tf.dtypes.float32)
       image_preprocessor = keras.Sequential([
           image_preprocessing.Resizing(height=256, width=256),
           image_preprocessing.RandomCrop(height=224, width=224),

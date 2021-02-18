@@ -31,14 +31,14 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return index_lookup.IndexLookup
   else:
     return index_lookup_v1.IndexLookup
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=all_strategies,
         mode=["eager"]))  # Eager-only, no graph: b/158793009
 class IndexLookupDistributionTest(
@@ -60,13 +60,13 @@ class IndexLookupDistributionTest(
     tf.config.set_soft_device_placement(True)
 
     with distribution.scope():
-      input_data = keras.Input(shape=(None,), dtype=tf.string)
+      input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
       layer = get_layer_class()(
           max_tokens=None,
           num_oov_indices=1,
           mask_token="",
           oov_token="[OOV]",
-          dtype=tf.string)
+          dtype=tf.dtypes.string)
       layer.adapt(vocab_dataset)
       int_data = layer(input_data)
       model = keras.Model(inputs=input_data, outputs=int_data)

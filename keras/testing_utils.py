@@ -146,7 +146,7 @@ def layer_test(layer_cls,
   if expected_output_dtype is None:
     expected_output_dtype = input_dtype
 
-  if tf.as_dtype(expected_output_dtype) == tf.string:
+  if tf.as_dtype(expected_output_dtype) == tf.dtypes.string:
     if test_harness:
       assert_equal = test_harness.assertAllEqual
     else:
@@ -383,7 +383,7 @@ def should_run_eagerly():
                      '`run_eagerly_scope()` or `run_all_keras_modes` '
                      'decorator.')
 
-  return _thread_local_data.run_eagerly and tf.executing_eagerly()
+  return _thread_local_data.run_eagerly and tf.compat.v2.executing_eagerly()
 
 
 @tf_contextlib.contextmanager
@@ -910,7 +910,7 @@ def get_v2_optimizer(name, **kwargs):
 
 def get_expected_metric_variable_names(var_names, name_suffix=''):
   """Returns expected metric variable names given names and prefix/suffix."""
-  if tf.__internal__.tf2.enabled() or tf.executing_eagerly():
+  if tf.compat.v2.__internal__.tf2.enabled() or tf.compat.v2.executing_eagerly():
     # In V1 eager mode and V2 variable names are not made unique.
     return [n + ':0' for n in var_names]
   # In V1 graph mode variable names are made unique using a suffix.
@@ -938,7 +938,7 @@ def _set_v2_dtype_behavior(fn, enabled):
     finally:
       base_layer_utils.V2_DTYPE_BEHAVIOR = v2_dtype_behavior
 
-  return tf.__internal__.decorator.make_decorator(fn, wrapper)
+  return tf.compat.v2.__internal__.decorator.make_decorator(fn, wrapper)
 
 
 @contextlib.contextmanager
@@ -1048,7 +1048,7 @@ def run_v2_only(func=None):
       raise ValueError('`run_v2_only` only supports test methods.')
 
     def decorated(self, *args, **kwargs):
-      if not tf.__internal__.tf2.enabled():
+      if not tf.compat.v2.__internal__.tf2.enabled():
         self.skipTest('Test is only compatible with v2')
 
       return f(self, *args, **kwargs)

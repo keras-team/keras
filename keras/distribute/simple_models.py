@@ -30,10 +30,10 @@ _BATCH_SIZE = 10
 
 
 def _get_data_for_simple_models():
-  x_train = tf.constant(np.random.rand(1000, 3), dtype=tf.float32)
-  y_train = tf.constant(np.random.rand(1000, 5), dtype=tf.float32)
-  x_predict = tf.constant(
-      np.random.rand(1000, 3), dtype=tf.float32)
+  x_train = tf.compat.v2.constant(np.random.rand(1000, 3), dtype=tf.dtypes.float32)
+  y_train = tf.compat.v2.constant(np.random.rand(1000, 5), dtype=tf.dtypes.float32)
+  x_predict = tf.compat.v2.constant(
+      np.random.rand(1000, 3), dtype=tf.dtypes.float32)
 
   return x_train, y_train, x_predict
 
@@ -44,8 +44,8 @@ class SimpleFunctionalModel(model_collection_base.ModelAndInput):
   def get_model(self, **kwargs):
     output_name = 'output_1'
 
-    x = keras.layers.Input(shape=(3,), dtype=tf.float32)
-    y = keras.layers.Dense(5, dtype=tf.float32, name=output_name)(x)
+    x = keras.layers.Input(shape=(3,), dtype=tf.dtypes.float32)
+    y = keras.layers.Dense(5, dtype=tf.dtypes.float32, name=output_name)(x)
 
     model = keras.Model(inputs=x, outputs=y)
     optimizer = gradient_descent.SGD(learning_rate=0.001)
@@ -71,7 +71,7 @@ class SimpleSequentialModel(model_collection_base.ModelAndInput):
 
     model = keras.Sequential()
     y = keras.layers.Dense(
-        5, dtype=tf.float32, name=output_name, input_dim=3)
+        5, dtype=tf.dtypes.float32, name=output_name, input_dim=3)
     model.add(y)
     optimizer = gradient_descent.SGD(learning_rate=0.001)
     model.compile(
@@ -92,7 +92,7 @@ class _SimpleModel(keras.Model):
 
   def __init__(self):
     super(_SimpleModel, self).__init__()
-    self._dense_layer = keras.layers.Dense(5, dtype=tf.float32)
+    self._dense_layer = keras.layers.Dense(5, dtype=tf.dtypes.float32)
 
   def call(self, inputs):
     return self._dense_layer(inputs)
@@ -122,7 +122,7 @@ class SimpleSubclassModel(model_collection_base.ModelAndInput):
 class _SimpleModule(tf.Module):
 
   def __init__(self):
-    self.v = tf.Variable(3.0)
+    self.v = tf.compat.v2.Variable(3.0)
 
   @tf.function
   def __call__(self, x):

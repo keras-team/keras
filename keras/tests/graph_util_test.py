@@ -42,7 +42,7 @@ class ConvertVariablesToConstantsTest(tf.test.TestCase):
   def _evaluate_graph_def(self, graph_def, inputs, outputs, input_data):
     """Evaluates the GraphDef using Sessions."""
     with tf.Graph().as_default() as graph:
-      tf.import_graph_def(graph_def, name="")
+      tf.graph_util.import_graph_def(graph_def, name="")
       sess = tf.compat.v1.Session(graph=graph)
 
     input_tensors = self._get_tensors(sess, inputs)

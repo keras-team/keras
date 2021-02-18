@@ -41,30 +41,30 @@ _GLOBAL_BATCH_SIZE = 64
 
 
 def eager_mode_test_configuration():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       mode='eager', use_numpy=[True, False], use_validation_data=[True, False])
 
 
 def graph_mode_test_configuration():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       mode='graph', use_numpy=[True, False], use_validation_data=[True, False])
 
 
 def all_strategy_and_input_config_combinations():
-  return (tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies),
+  return (tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies),
       eager_mode_test_configuration() + graph_mode_test_configuration()))
 
 
 def all_strategy_and_input_config_combinations_eager():
-  return (tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies),
+  return (tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies),
       eager_mode_test_configuration()))
 
 
 def strategy_minus_tpu_and_input_config_combinations_eager():
-  return (tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(distribution=strategies_minus_tpu),
+  return (tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=strategies_minus_tpu),
       eager_mode_test_configuration()))
 
 
@@ -77,7 +77,7 @@ def strategies_for_embedding_models():
 
   return [
       s for s in all_strategies if s.required_tpu or s.required_gpus or
-      s is tf.__internal__.distribute.combinations.one_device_strategy
+      s is tf.compat.v2.__internal__.distribute.combinations.one_device_strategy
   ]
 
 
@@ -87,34 +87,34 @@ def test_combinations_for_embedding_model():
       s for s in strategies_for_embedding_models() if not s.required_tpu
   ]
 
-  return (tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(
+  return (tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategies_for_embedding_models()),
-      (graph_mode_test_configuration())) + tf.__internal__.test.combinations.times(
-          tf.__internal__.test.combinations.combine(
+      (graph_mode_test_configuration())) + tf.compat.v2.__internal__.test.combinations.times(
+          tf.compat.v2.__internal__.test.combinations.combine(
               distribution=eager_mode_strategies),
           (eager_mode_test_configuration())))
 
 
 def test_combinations_with_tpu_strategies_graph():
   tpu_strategies = [
-      tf.__internal__.distribute.combinations.tpu_strategy,
+      tf.compat.v2.__internal__.distribute.combinations.tpu_strategy,
   ]
 
-  return (tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(distribution=tpu_strategies),
+  return (tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=tpu_strategies),
       graph_mode_test_configuration()))
 
 
 def multi_worker_mirrored_eager():
-  return tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(distribution=multi_worker_mirrored_strategies),
+  return tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=multi_worker_mirrored_strategies),
       eager_mode_test_configuration())
 
 
 def multi_worker_mirrored_eager_and_graph():
-  return tf.__internal__.test.combinations.times(
-      tf.__internal__.test.combinations.combine(distribution=multi_worker_mirrored_strategies),
+  return tf.compat.v2.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=multi_worker_mirrored_strategies),
       eager_mode_test_configuration() + graph_mode_test_configuration())
 
 
@@ -325,7 +325,7 @@ def compare_results(results_with_ds,
   for key in sorted(results_with_ds.keys()):
     if (key.startswith('training_history') and
         isinstance(distribution,
-                   (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)) and
+                   (tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)) and
         distribution.extended.steps_per_run > 1):
       # TODO(b/119894254): Enable this test for all cases once the
       # underlying bug is fixed.
@@ -353,9 +353,9 @@ def compare_results(results_with_ds,
 
 
 def should_skip_tpu_with_eager(distribution):
-  return (tf.executing_eagerly() and
+  return (tf.compat.v2.executing_eagerly() and
           isinstance(distribution,
-                     (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)))
+                     (tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)))
 
 
 class LearningRateBatchScheduler(keras.callbacks.Callback):
@@ -387,7 +387,7 @@ class TestDistributionStrategyCorrectnessBase(tf.test.TestCase,
 
     keras.backend.set_image_data_format('channels_last')
     np.random.seed(_RANDOM_SEED)
-    tf.compat.v1.set_random_seed(_RANDOM_SEED)
+    tf.compat.v1.random.set_random_seed(_RANDOM_SEED)
 
   def get_data(self):
     num_samples = 10000

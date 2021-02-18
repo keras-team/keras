@@ -38,7 +38,7 @@ class TrackableWeightHandlerTest(keras_parameterized.TestCase):
     # to graph building), so we have to use a called setup instead of a setUp()
     # call.
     table = lookup_ops.MutableHashTable(
-        key_dtype=tf.string, value_dtype=tf.int32, default_value=0)
+        key_dtype=tf.dtypes.string, value_dtype=tf.dtypes.int32, default_value=0)
     return base_layer_utils.TrackableWeightHandler(table)
 
   def test_get_num_tensors(self):
@@ -74,8 +74,8 @@ class TrackableWeightHandlerTest(keras_parameterized.TestCase):
 class OpLayerTest(keras_parameterized.TestCase):
 
   def test_tensor_op_layer(self):
-    int_values = keras.Input(shape=(2,), dtype=tf.int32)
-    float_values = tf.cast(int_values, tf.float32)
+    int_values = keras.Input(shape=(2,), dtype=tf.dtypes.int32)
+    float_values = tf.cast(int_values, tf.dtypes.float32)
     model = keras.Model(int_values, float_values)
     model.compile(loss='mse')
 
@@ -92,8 +92,8 @@ class OpLayerTest(keras_parameterized.TestCase):
           r'\[tf.RaggedTensor\(values=Tensor\("Cast:0", shape=\((\?|None),\), '
           r'dtype=float32\), row_splits=Tensor\("Placeholder_1:0", '
           r'shape=\((\?|None),\), dtype=int64\)\)\]'):
-        int_values = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
-        float_values = tf.cast(int_values, tf.float32)
+        int_values = keras.Input(shape=(None,), dtype=tf.dtypes.int32, ragged=True)
+        float_values = tf.cast(int_values, tf.dtypes.float32)
         _ = keras.Model(int_values, float_values)
 
   def test_sparse_op_layer(self):
@@ -101,13 +101,13 @@ class OpLayerTest(keras_parameterized.TestCase):
       with self.assertRaisesRegex(
           ValueError, "(?ms)Keras automatic op wrapping"
           r".*Sparse ops encountered: \[\<tf\.Operation 'Cast' type=Cast\>\]"):
-        int_values = keras.Input(shape=(None,), dtype=tf.int32, sparse=True)
-        float_values = tf.cast(int_values, tf.float32)
+        int_values = keras.Input(shape=(None,), dtype=tf.dtypes.int32, sparse=True)
+        float_values = tf.cast(int_values, tf.dtypes.float32)
         _ = keras.Model(int_values, float_values)
 
   def test_ragged_op_layer_keras_tensors(self):
-    int_values = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
-    float_values = tf.cast(int_values, tf.float32)
+    int_values = keras.Input(shape=(None,), dtype=tf.dtypes.int32, ragged=True)
+    float_values = tf.cast(int_values, tf.dtypes.float32)
     model = keras.Model(int_values, float_values)
     model.compile(loss='mse')
 
@@ -119,8 +119,8 @@ class OpLayerTest(keras_parameterized.TestCase):
     self.assertAllClose(expected, output)
 
   def test_sparse_op_layer_keras_tensors(self):
-    int_values = keras.Input(shape=(None,), dtype=tf.int32, sparse=True)
-    float_values = tf.cast(int_values, tf.float32)
+    int_values = keras.Input(shape=(None,), dtype=tf.dtypes.int32, sparse=True)
+    float_values = tf.cast(int_values, tf.dtypes.float32)
     _ = keras.Model(int_values, float_values)
     model = keras.Model(int_values, float_values)
     model.compile(loss='mse')

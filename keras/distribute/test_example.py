@@ -37,7 +37,7 @@ def minimize_loss_example(optimizer, use_bias=False, use_callable_loss=True):
     """A very simple model written by the user."""
 
     def loss_fn():
-      y = tf.reshape(layer(x), []) - tf.constant(1.)
+      y = tf.reshape(layer(x), []) - tf.compat.v2.constant(1.)
       return y * y
 
     if isinstance(optimizer, optimizer_v2.OptimizerV2):
@@ -78,8 +78,8 @@ def batchnorm_example(optimizer_fn,
       with tf.control_dependencies(
           tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
           if update_ops_in_replica_mode else []):
-        loss = tf.reduce_mean(
-            tf.reduce_sum(layer(y)) - tf.constant(1.))
+        loss = tf.compat.v2.math.reduce_mean(
+            tf.compat.v2.math.reduce_sum(layer(y)) - tf.compat.v2.constant(1.))
       # `x` and `y` will be fetched by the gradient computation, but not `loss`.
       return loss
 

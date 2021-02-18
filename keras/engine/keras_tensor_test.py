@@ -27,7 +27,7 @@ class KerasTensorTest(tf.test.TestCase):
 
   def test_repr_and_string(self):
     kt = keras_tensor.KerasTensor(
-        type_spec=tf.TensorSpec(shape=(1, 2, 3), dtype=tf.float32))
+        type_spec=tf.TensorSpec(shape=(1, 2, 3), dtype=tf.dtypes.float32))
     expected_str = ("KerasTensor(type_spec=TensorSpec(shape=(1, 2, 3), "
                     "dtype=tf.float32, name=None))")
     expected_repr = "<KerasTensor: shape=(1, 2, 3) dtype=float32>"
@@ -35,7 +35,7 @@ class KerasTensorTest(tf.test.TestCase):
     self.assertEqual(expected_repr, repr(kt))
 
     kt = keras_tensor.KerasTensor(
-        type_spec=tf.TensorSpec(shape=(2,), dtype=tf.int32),
+        type_spec=tf.TensorSpec(shape=(2,), dtype=tf.dtypes.int32),
         inferred_value=[2, 3])
     expected_str = ("KerasTensor(type_spec=TensorSpec(shape=(2,), "
                     "dtype=tf.int32, name=None), inferred_value=[2, 3])")
@@ -46,7 +46,7 @@ class KerasTensorTest(tf.test.TestCase):
 
     kt = keras_tensor.KerasTensor(
         type_spec=tf.SparseTensorSpec(
-            shape=(1, 2, 3), dtype=tf.float32))
+            shape=(1, 2, 3), dtype=tf.dtypes.float32))
     expected_str = ("KerasTensor(type_spec=SparseTensorSpec("
                     "TensorShape([1, 2, 3]), tf.float32))")
     expected_repr = (

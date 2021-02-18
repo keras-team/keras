@@ -456,7 +456,7 @@ class RNNTest(keras_parameterized.TestCase):
   def test_rnn_cell_with_non_keras_constants(self):
     # Test basic case.
     x = keras.Input((None, 5))
-    c = tf.zeros([6, 3], dtype=tf.float32)
+    c = tf.zeros([6, 3], dtype=tf.dtypes.float32)
     cell = RNNCellWithConstants(32, constant_size=3)
     layer = keras.layers.RNN(cell)
     y = layer(x, constants=c)
@@ -532,8 +532,8 @@ class RNNTest(keras_parameterized.TestCase):
   def test_rnn_cell_with_non_keras_constants_and_initial_state(self):
     # Test basic case.
     x = keras.Input((None, 5))
-    c = tf.zeros([6, 3], dtype=tf.float32)
-    s = tf.zeros([6, 32], dtype=tf.float32)
+    c = tf.zeros([6, 3], dtype=tf.dtypes.float32)
+    s = tf.zeros([6, 32], dtype=tf.dtypes.float32)
     cell = RNNCellWithConstants(32, constant_size=3)
     layer = keras.layers.RNN(cell)
     y = layer(x, initial_state=s, constants=c)
@@ -550,9 +550,9 @@ class RNNTest(keras_parameterized.TestCase):
              RNNCellWithConstants(12, constant_size=3),
              RNNCellWithConstants(32, constant_size=3)]
     layer = keras.layers.recurrent.RNN(cells)
-    s = [tf.zeros([6, 8], dtype=tf.float32),
-         tf.zeros([6, 12], dtype=tf.float32),
-         tf.zeros([6, 32], dtype=tf.float32)]
+    s = [tf.zeros([6, 8], dtype=tf.dtypes.float32),
+         tf.zeros([6, 12], dtype=tf.dtypes.float32),
+         tf.zeros([6, 32], dtype=tf.dtypes.float32)]
     y = layer(x, initial_state=s, constants=c)
     model = keras.models.Model(x, y)
     model.compile(
@@ -562,7 +562,7 @@ class RNNTest(keras_parameterized.TestCase):
     model.train_on_batch(np.zeros((6, 5, 5)), np.zeros((6, 32)))
 
   def test_stacked_rnn_attributes(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('reduce_sum is not available in eager mode.')
 
     cells = [keras.layers.LSTMCell(1),
@@ -578,8 +578,8 @@ class RNNTest(keras_parameterized.TestCase):
 
     # Test `get_losses_for` and `losses`
     x = keras.Input((None, 1))
-    loss_1 = tf.reduce_sum(x)
-    loss_2 = tf.reduce_sum(cells[0].kernel)
+    loss_1 = tf.compat.v2.math.reduce_sum(x)
+    loss_2 = tf.compat.v2.math.reduce_sum(cells[0].kernel)
     cells[0].add_loss(loss_1, inputs=x)
     cells[0].add_loss(loss_2)
     self.assertEqual(len(layer.losses), 2)
@@ -812,16 +812,16 @@ class RNNTest(keras_parameterized.TestCase):
         unroll=True)
 
     def verify(rnn_layer):
-      inputs = tf.constant(1.0, shape=(6, 2, 5))
+      inputs = tf.compat.v2.constant(1.0, shape=(6, 2, 5))
       out = rnn_layer(inputs, training=True)
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.global_variables_initializer())
       batch_1 = self.evaluate(out)
       batch_1_t0, batch_1_t1 = batch_1[:, 0, :], batch_1[:, 1, :]
       self.assertAllClose(batch_1_t0, batch_1_t1)
 
       # This simulate the layer called with multiple batches in eager mode
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         out2 = rnn_layer(inputs, training=True)
       else:
         out2 = out
@@ -938,7 +938,7 @@ class RNNTest(keras_parameterized.TestCase):
 
     self.assertEqual(cell.state_size.as_list(), [unit_a, unit_b])
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       init_state = layer.get_initial_state(x)
       self.assertEqual(len(init_state), 1)
       self.assertEqual(init_state[0].shape.as_list(), [None, unit_a, unit_b])
@@ -1019,7 +1019,7 @@ class RNNTest(keras_parameterized.TestCase):
     y = layer(x)
 
     self.assertEqual(cell.state_size, state_size)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       init_state = layer.get_initial_state(x)
       self.assertEqual(len(init_state), 1)
       self.assertEqual(init_state[0].shape.as_list(), [None, state_size])
@@ -1040,7 +1040,7 @@ class RNNTest(keras_parameterized.TestCase):
                                 'batch_size and dtype cannot be None'):
       cell.get_initial_state(None, None, None)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       inputs = keras.Input((None, 10))
       initial_state = cell.get_initial_state(inputs, None, None)
       self.assertEqual(initial_state.shape.as_list(), [None, 5])
@@ -1253,15 +1253,15 @@ class RNNTest(keras_parameterized.TestCase):
       cell = cell_fn(5, **kwargs)
       cell.build(inputs.shape)
       initial_state = cell.get_initial_state(
-          inputs=inputs, batch_size=4, dtype=tf.float32)
+          inputs=inputs, batch_size=4, dtype=tf.dtypes.float32)
       inputs, _ = cell(inputs, initial_state)
       output = inputs
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.global_variables_initializer())
         output = self.evaluate(output)
       return output
 
-    tf.compat.v1.set_random_seed(12345)
+    tf.compat.v1.random.set_random_seed(12345)
     # `recurrent_activation` kwarg is set to sigmoid as that is hardcoded into
     # rnn_cell.LSTMCell.
     no_peephole_output = _run_cell(
@@ -1282,7 +1282,7 @@ class RNNTest(keras_parameterized.TestCase):
     tf_lstm_cell_output = _run_cell(
         tf.compat.v1.nn.rnn_cell.LSTMCell,
         use_peepholes=True,
-        initializer=tf.compat.v1.ones_initializer)
+        initializer=tf.compat.v1.initializers.ones)
     self.assertNotAllClose(first_implementation_output, no_peephole_output)
     self.assertAllClose(first_implementation_output,
                         second_implementation_output)
@@ -1619,7 +1619,7 @@ class RNNTest(keras_parameterized.TestCase):
     self.assertAllClose(dense_data, dense_tensor)
 
     # Test optional params, all should work except unrolling
-    inputs = keras.Input(shape=(None, 5), dtype=tf.float32, ragged=True)
+    inputs = keras.Input(shape=(None, 5), dtype=tf.dtypes.float32, ragged=True)
     custom_rnn_layer = layer(
         3, zero_output_for_mask=True, dropout=0.1, use_bias=True)
     outputs = custom_rnn_layer(inputs)
@@ -1632,7 +1632,7 @@ class RNNTest(keras_parameterized.TestCase):
 
     # Test stateful and full shape specification
     inputs = keras.Input(
-        shape=(None, 5), batch_size=3, dtype=tf.float32, ragged=True)
+        shape=(None, 5), batch_size=3, dtype=tf.dtypes.float32, ragged=True)
     stateful_rnn_layer = layer(3, stateful=True)
     outputs = stateful_rnn_layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -1863,7 +1863,7 @@ class NestedCell(keras.layers.Layer):
     flatten_inputs = tf.nest.flatten(inputs)
     s1, s2 = states
 
-    output_1 = tf.matmul(flatten_inputs[0], self.kernel_1)
+    output_1 = tf.linalg.matmul(flatten_inputs[0], self.kernel_1)
     output_2_3 = tf.einsum('bij,ijkl->bkl', flatten_inputs[1],
                                          self.kernel_2_3)
     state_1 = s1 + output_1

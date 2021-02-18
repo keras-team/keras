@@ -141,21 +141,21 @@ class SidecarEvaluator(object):
     self.data = data
     self.checkpoint_dir = checkpoint_dir
     if log_dir:
-      self._summary_writer = tf.summary.create_file_writer(
+      self._summary_writer = tf.compat.v2.summary.create_file_writer(
           logdir=log_dir)
     else:
       self._summary_writer = None
-    self._iterations = tf.Variable(
+    self._iterations = tf.compat.v2.Variable(
         name='iterations',
         initial_value=_ITERATIONS_UNINITIALIZED,
-        dtype=tf.int64)
+        dtype=tf.dtypes.int64)
     self.max_evaluations = max_evaluations
     self.steps = steps
 
   def start(self):
     """Starts the evaluation loop."""
-    optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
-    checkpoint = tf.train.Checkpoint(
+    optimizer_checkpoint = tf.compat.v2.train.Checkpoint(iter=self._iterations)
+    checkpoint = tf.compat.v2.train.Checkpoint(
         model=self.model, optimizer=optimizer_checkpoint)
 
     for latest_checkpoint in tf.train.checkpoints_iterator(
@@ -213,9 +213,9 @@ class SidecarEvaluator(object):
           ]))
 
       if self._summary_writer:
-        with tf.summary.record_if(True), self._summary_writer.as_default():
+        with tf.compat.v2.summary.record_if(True), self._summary_writer.as_default():
           for metric in self.model.metrics:
-            tf.summary.scalar(
+            tf.compat.v2.summary.scalar(
                 metric.name,
                 metric.result(),
                 step=self._iterations.read_value())

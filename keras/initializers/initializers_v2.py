@@ -142,7 +142,7 @@ class Zeros(Initializer):
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
-    if not dtype.is_numpy_compatible or dtype == tf.string:
+    if not dtype.is_numpy_compatible or dtype == tf.dtypes.string:
       raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
@@ -179,7 +179,7 @@ class Ones(Initializer):
     """
     _validate_kwargs(self.__class__.__name__, kwargs)
     dtype = _get_dtype(dtype)
-    if not dtype.is_numpy_compatible or dtype == tf.string:
+    if not dtype.is_numpy_compatible or dtype == tf.dtypes.string:
       raise ValueError('Expected numeric or boolean dtype, got %s.' % dtype)
     if _PARTITION_SHAPE in kwargs:
       shape = kwargs[_PARTITION_SHAPE]
@@ -227,7 +227,7 @@ class Constant(Initializer):
       **kwargs: Additional keyword arguments.
     """
     del kwargs
-    return tf.constant(
+    return tf.compat.v2.constant(
         self.value, dtype=_get_dtype(dtype), shape=shape)
 
   def get_config(self):
@@ -604,7 +604,7 @@ class Orthogonal(Initializer):
     q, r = tf.linalg.qr(a, full_matrices=False)
     # Make Q uniform
     d = tf.linalg.tensor_diag_part(r)
-    q *= tf.sign(d)
+    q *= tf.math.sign(d)
     if num_rows < num_cols:
       q = tf.linalg.matrix_transpose(q)
     return self.gain * tf.reshape(q, shape)
@@ -958,7 +958,7 @@ class _RandomGenerator(object):
     else:
       self.seed = None
 
-  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.float32):
+  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.dtypes.float32):
     """A deterministic random normal if seed is passed."""
     if self.seed:
       op = tf.random.stateless_normal

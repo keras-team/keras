@@ -28,9 +28,9 @@ from keras.mixed_precision import policy
 from keras.optimizer_v2 import gradient_descent as gradient_descent_v2
 
 
-if tf.__internal__.tf2.enabled():
+if tf.compat.v2.__internal__.tf2.enabled():
   enable_mixed_precision_graph_rewrite = (
-      tf.train.experimental.enable_mixed_precision_graph_rewrite)
+      tf.compat.v2.train.experimental.enable_mixed_precision_graph_rewrite)
 else:
   enable_mixed_precision_graph_rewrite = (
       tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite)
@@ -54,7 +54,7 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     else:
       del os.environ[self.IGNORE_PERF_VAR]
 
-    tf.train.experimental.disable_mixed_precision_graph_rewrite()
+    tf.compat.v2.train.experimental.disable_mixed_precision_graph_rewrite()
     super(MixedPrecisionTest, self).tearDown()
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))

@@ -127,7 +127,7 @@ class _DelegatingTrackableMixin(object):
   def _add_variable_with_custom_getter(self,
                                        name,
                                        shape=None,
-                                       dtype=tf.float32,
+                                       dtype=tf.dtypes.float32,
                                        initializer=None,
                                        getter=None,
                                        overwrite=False,
@@ -169,9 +169,9 @@ class _DelegatingTrackableMixin(object):
 def _is_all_finite(grads):
   """Returns a scalar boolean tensor indicating if all gradients are finite."""
   is_finite_per_grad = [
-      tf.reduce_all(tf.math.is_finite(g)) for g in grads if g is not None
+      tf.compat.v2.math.reduce_all(tf.math.is_finite(g)) for g in grads if g is not None
   ]
-  return tf.reduce_all(is_finite_per_grad)
+  return tf.compat.v2.math.reduce_all(is_finite_per_grad)
 
 
 def _op_in_graph_mode(tensor):
@@ -186,7 +186,7 @@ def _op_in_graph_mode(tensor):
   Returns:
     The tensor's op in graph mode. The tensor in eager mode.
   """
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return tensor
   return tensor.op
 
@@ -198,7 +198,7 @@ def _assign_if_finite(var, value):
       tf.no_op)
 
 
-class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
+class _DynamicLossScaleState(tf.compat.v2.__internal__.tracking.Trackable):
   """The state of a dynamic loss scale."""
 
   def __init__(self,
@@ -214,13 +214,13 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     self._weights = {}
     self._current_loss_scale = self._add_weight(
         name='current_loss_scale',
-        dtype=tf.float32,
+        dtype=tf.dtypes.float32,
         initial_value=self._initial_loss_scale)
     # The number of consecutive steps with finite gradients since the last
     # nonfinite gradient or change in loss scale. The name is 'good_steps' for
     # backwards compatibility with older checkpoints.
     self._counter = self._add_weight(
-        name='good_steps', dtype=tf.int64, initial_value=0)
+        name='good_steps', dtype=tf.dtypes.int64, initial_value=0)
 
   def _add_weight(self, name, initial_value, dtype=None):
     """Adds a weight to this loss scale.
@@ -246,7 +246,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
         # Set aggregation to NONE, as loss scaling variables should never be
         # aggregated.
         aggregation=tf.compat.v1.VariableAggregation.NONE)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       graph_key = None
     else:
       graph = tf.compat.v1.get_default_graph()
@@ -261,7 +261,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
   @property
   def _checkpoint_dependencies(self):
     """From Trackable. Gather graph-specific weights to save."""
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       graph_key = None
     else:
       graph = tf.compat.v1.get_default_graph()
@@ -278,7 +278,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     unconditional = super(_DynamicLossScaleState, self)._lookup_dependency(name)
     if unconditional is not None:
       return unconditional
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       graph_key = None
     else:
       graph = tf.compat.v1.get_default_graph()
@@ -333,7 +333,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
         is_finite = _is_all_finite(grads)
         # We cast to float, because we cannot reduce booleans with
         # DistributionStrategy.
-        return tf.cast(is_finite, tf.float32)
+        return tf.cast(is_finite, tf.dtypes.float32)
 
       is_finite_float = distribution.extended.call_for_each_replica(
           get_is_finite, args=(grads,))
@@ -361,7 +361,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     def update_if_not_finite_grads():
       """Update assuming the gradients are nonfinite."""
 
-      new_loss_scale = tf.maximum(
+      new_loss_scale = tf.math.maximum(
           self.current_loss_scale / self.multiplier, 1)
       return tf.group(
           self.counter.assign(0),
@@ -783,8 +783,8 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
     if not strategy_supports_loss_scaling():
       strategy = tf.distribute.get_strategy()
       if isinstance(strategy,
-                    (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy,
-                     tf.distribute.TPUStrategy)):
+                    (tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy,
+                     tf.compat.v2.distribute.TPUStrategy)):
         raise ValueError(
             'Loss scaling is not supported with TPUStrategy. Loss scaling is '
             'unnecessary with TPUs, since they support bfloat16 instead of '
@@ -1096,7 +1096,7 @@ class LossScaleOptimizerV1(LossScaleOptimizer):
     return cls(**config)
 
 
-class FakeOptimizerForRestoration(tf.__internal__.tracking.Trackable):
+class FakeOptimizerForRestoration(tf.compat.v2.__internal__.tracking.Trackable):
   """A fake optimizer used to support restoring TensorFlow 2.2 checkpoints.
 
   The checkpoint format for LossScaleOptimizers changed after TF 2.2. This class
@@ -1166,10 +1166,10 @@ def strategy_supports_loss_scaling():
   # compute replica, this works fine, but otherwise issues will occur.
   # TODO(reedwm): Support all strategies.
   return isinstance(strategy, (
-      tf.distribute.MultiWorkerMirroredStrategy,
+      tf.compat.v2.distribute.MultiWorkerMirroredStrategy,
       tf.compat.v1.distribute.experimental.MultiWorkerMirroredStrategy,
-      tf.distribute.OneDeviceStrategy,
+      tf.compat.v2.distribute.OneDeviceStrategy,
       tf.compat.v1.distribute.OneDeviceStrategy,
-      tf.distribute.MirroredStrategy,
+      tf.compat.v2.distribute.MirroredStrategy,
       tf.compat.v1.distribute.MirroredStrategy,
   ))

@@ -106,7 +106,7 @@ class GlobalPoolingTest(tf.test.TestCase, parameterized.TestCase):
     output_ragged = model.predict(ragged_data, steps=1)
     # Because GlobalAveragePooling3D doesn't support masking, the results
     # cannot be compared with its dense equivalent.
-    expected_output = tf.constant([[2.0], [1.5]])
+    expected_output = tf.compat.v2.constant([[2.0], [1.5]])
     self.assertAllEqual(output_ragged, expected_output)
 
   def test_globalpooling_2d(self):
@@ -181,7 +181,7 @@ class Pooling2DTest(tf.test.TestCase, parameterized.TestCase):
 
     # This part of the test can only run on GPU but doesn't appear
     # to be properly assigned to a GPU when running in eager mode.
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Only runs on GPU with CUDA, channels_first is not supported on CPU.
       # TODO(b/62340061): Support channels_first on CPU.
       if tf.test.is_gpu_available(cuda_only=True):

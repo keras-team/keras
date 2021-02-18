@@ -30,7 +30,7 @@ _OPTIMIZER = 'rmsprop'
 
 
 class KerasModelCPUBenchmark(
-    six.with_metaclass(tf.__internal__.test.ParameterizedBenchmark, tf.test.Benchmark)):
+    six.with_metaclass(tf.compat.v2.__internal__.test.ParameterizedBenchmark, tf.test.Benchmark)):
   """Required Arguments for measure_performance.
 
       x: Input data, it could be Numpy or load from tfds.

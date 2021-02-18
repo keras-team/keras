@@ -47,7 +47,7 @@ def _get_model(input_dim, num_hidden, output_dim):
 class KerasOptimizersTest(keras_parameterized.TestCase):
 
   def _test_optimizer(self, optimizer, target=0.75):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1337)
@@ -162,7 +162,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
           optimizer_v1.SGD(lr=0.01, momentum=0.9, clipvalue=0.5))
 
   def test_tf_optimizer(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     optimizer = optimizer_v1.TFOptimizer(AdamOptimizer(0.01))
@@ -189,7 +189,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
       optimizer.from_config(None)
 
   def test_optimizer_garbage_collection(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     graph = tf.Graph()
@@ -205,7 +205,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
     self.assertIs(optimizer_weak(), None)
 
   def test_tf_optimizer_iterations(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     with self.cached_session():
@@ -234,7 +234,7 @@ class KerasOptimizersTest(keras_parameterized.TestCase):
       _ = optimizer_v1.Adam(clipnorm=-2.0)
 
   def test_mixed_precision_loss_scale_optimizer(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('v1 optimizer does not run in eager mode')
     optimizer = MixedPrecisionLossScaleOptimizer(AdamOptimizer(), 'dynamic')
     model = keras.models.Sequential()

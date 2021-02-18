@@ -424,7 +424,7 @@ def get_inputs(data_format, filters, height, num_samples, width):
 def xent(y_true, y_pred):
   y_true = keras.backend.cast(
       keras.backend.reshape(y_true, (-1,)),
-      tf.int32)
+      tf.dtypes.int32)
 
   return tf.compat.v1.nn.sparse_softmax_cross_entropy_with_logits(
       labels=y_true,
@@ -497,7 +497,7 @@ def copy_lc_weights_2_to_1(lc_layer_2_from, lc_layer_1_to):
   lc_2_kernel_masked = keras.backend.permute_dimensions(
       lc_2_kernel_masked, permutation)
 
-  lc_2_kernel_mask = tf.not_equal(
+  lc_2_kernel_mask = tf.math.not_equal(
       lc_2_kernel_masked, 0)
   lc_2_kernel_flat = tf.compat.v1.boolean_mask(
       lc_2_kernel_masked, lc_2_kernel_mask)
@@ -517,7 +517,7 @@ def copy_lc_weights_2_to_3(lc_layer_2_from, lc_layer_3_to):
   lc_2_kernel_masked = keras.layers.local.make_2d(
       lc_2_kernel_masked, split_dim=keras.backend.ndim(lc_2_kernel_masked) // 2)
   lc_2_kernel_masked = keras.backend.transpose(lc_2_kernel_masked)
-  lc_2_kernel_mask = tf.not_equal(lc_2_kernel_masked, 0)
+  lc_2_kernel_mask = tf.math.not_equal(lc_2_kernel_masked, 0)
   lc_2_kernel_flat = tf.compat.v1.boolean_mask(
       lc_2_kernel_masked, lc_2_kernel_mask)
 

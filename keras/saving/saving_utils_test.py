@@ -39,7 +39,7 @@ from keras.saving import saving_utils
 class TraceModelCallTest(keras_parameterized.TestCase):
 
   def _assert_all_close(self, expected, actual):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       with self.cached_session() as sess:
         K._initialize_variables(sess)
         self.assertAllClose(expected, actual)
@@ -142,7 +142,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
   def test_trace_features_layer(self):
     columns = [tf.feature_column.numeric_column('x')]
     model = sequential.Sequential([dense_features.DenseFeatures(columns)])
-    model_input = {'x': tf.constant([[1.]])}
+    model_input = {'x': tf.compat.v2.constant([[1.]])}
     model.predict(model_input, steps=1)
     fn = saving_utils.trace_model_call(model)
     self.assertAllClose({'output_1': [[1.]]}, fn({'x': [[1.]]}))
@@ -152,8 +152,8 @@ class TraceModelCallTest(keras_parameterized.TestCase):
         tf.feature_column.numeric_column('y')
     ]
     model = sequential.Sequential([dense_features.DenseFeatures(columns)])
-    model_input = {'x': tf.constant([[1.]]),
-                   'y': tf.constant([[2.]])}
+    model_input = {'x': tf.compat.v2.constant([[1.]]),
+                   'y': tf.compat.v2.constant([[2.]])}
     model.predict(model_input, steps=1)
     fn = saving_utils.trace_model_call(model)
     self.assertAllClose({'output_1': [[1., 2.]]},
@@ -168,7 +168,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
       saving_utils.trace_model_call(model)
 
     fn = saving_utils.trace_model_call(
-        model, [tf.TensorSpec(shape=[None, 5], dtype=tf.float32)])
+        model, [tf.TensorSpec(shape=[None, 5], dtype=tf.dtypes.float32)])
     signature_outputs = fn(inputs)
     if model.output_names:
       expected_outputs = {model.output_names[0]: model(inputs)}
@@ -186,16 +186,16 @@ class TraceModelCallTest(keras_parameterized.TestCase):
         self.dense = keras.layers.Dense(3, name='dense')
 
       @tf.function(
-          input_signature=[[tf.TensorSpec([None, 5], tf.float32),
-                            tf.TensorSpec([None], tf.float32)]],)
+          input_signature=[[tf.TensorSpec([None, 5], tf.dtypes.float32),
+                            tf.TensorSpec([None], tf.dtypes.float32)]],)
       def call(self, inputs, *args):
         x, y = inputs
         return self.dense(x) + y
 
     model = Model()
     fn = saving_utils.trace_model_call(model)
-    x = tf.ones((8, 5), dtype=tf.float32)
-    y = tf.ones((3,), dtype=tf.float32)
+    x = tf.ones((8, 5), dtype=tf.dtypes.float32)
+    y = tf.ones((3,), dtype=tf.dtypes.float32)
     expected_outputs = {'output_1': model([x, y])}
     signature_outputs = fn([x, y])
     self._assert_all_close(expected_outputs, signature_outputs)
@@ -258,7 +258,7 @@ class AutographedMetric(keras.metrics.Metric):
     pass
 
   def update_state(self, values):
-    if tf.constant(False):
+    if tf.compat.v2.constant(False):
       x = 1
     else:
       x = 2
@@ -268,13 +268,13 @@ class AutographedMetric(keras.metrics.Metric):
     pass
 
   def result(self):
-    return tf.constant(0)
+    return tf.compat.v2.constant(0)
 
   def GetMean(self):
-    return tf.constant(0)
+    return tf.compat.v2.constant(0)
 
   def GetCount(self):
-    return tf.constant(0)
+    return tf.compat.v2.constant(0)
 
 
 class BasicAutographedMetricLayer(keras.layers.Layer):
@@ -324,7 +324,7 @@ class ModelSaveTest(keras_parameterized.TestCase):
     # Test v2 loading.
     # TODO(mdan): tests using _import_and_infer should uniformly do this.
     self.assertAllClose(model.predict_on_batch(inputs),
-                        tf.saved_model.load(save_dir)(inputs))
+                        tf.compat.v2.saved_model.load(save_dir)(inputs))
 
   def test_model_save(self):
     input_dim = 5
@@ -371,7 +371,7 @@ class ExtractModelMetricsTest(keras_parameterized.TestCase):
           'dense_binary_accuracy', 'dropout_binary_accuracy',
           'dense_mean_squared_error', 'dropout_mean_squared_error'
       ]
-      if tf.__internal__.tf2.enabled():
+      if tf.compat.v2.__internal__.tf2.enabled():
         extract_metric_names.extend(['dense_mae', 'dropout_mae'])
       else:
         extract_metric_names.extend(

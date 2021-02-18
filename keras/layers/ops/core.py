@@ -47,9 +47,9 @@ def dense(inputs, kernel, bias=None, activation=None, dtype=None):
       outputs = tf.raw_ops.MatMul(a=inputs, b=kernel)
   # Broadcast kernel to inputs.
   else:
-    outputs = tf.tensordot(inputs, kernel, [[rank - 1], [0]])
+    outputs = tf.linalg.tensordot(inputs, kernel, [[rank - 1], [0]])
     # Reshape the output back to the original ndim of the input.
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       shape = inputs.shape.as_list()
       output_shape = shape[:-1] + [kernel.shape[-1]]
       outputs.set_shape(output_shape)

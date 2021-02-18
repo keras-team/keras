@@ -31,7 +31,7 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return normalization.Normalization
   else:
     return normalization_v1.Normalization
@@ -102,9 +102,9 @@ def _get_layer_computation_test_cases():
   return crossed_test_cases
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.times(
-        tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.times(
+        tf.compat.v2.__internal__.test.combinations.combine(
             distribution=all_strategies,
             mode=["eager", "graph"]), _get_layer_computation_test_cases()))
 class NormalizationTest(keras_parameterized.TestCase,

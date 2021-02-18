@@ -33,7 +33,7 @@ from keras.saving import model_config
 def _initialized_session(config=None):
   sess = tf.compat.v1.Session(config=config)
   sess.run(tf.compat.v1.global_variables_initializer())
-  sess.run(tf.compat.v1.tables_initializer())
+  sess.run(tf.compat.v1.initializers.tables_initializer())
   return sess
 
 
@@ -105,7 +105,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
       def _initializer(shape, dtype, partition_info=None):
         self.assertAllEqual((vocabulary_size, embedding_dimension), shape)
-        self.assertEqual(tf.float32, dtype)
+        self.assertEqual(tf.dtypes.float32, dtype)
         self.assertIsNone(partition_info)
         return embedding_values
       return _initializer
@@ -189,7 +189,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
         def _initializer(shape, dtype, partition_info=None):
           self.assertAllEqual((vocabulary_size, embedding_dimension), shape)
-          self.assertEqual(tf.float32, dtype)
+          self.assertEqual(tf.dtypes.float32, dtype)
           self.assertIsNone(partition_info)
           return embedding_values
 
@@ -208,7 +208,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       categorical_column_b = tf.feature_column.sequence_categorical_column_with_identity(
           key='bbb', num_buckets=vocabulary_size)
       # Test that columns are reordered alphabetically.
-      shared_embedding_columns = tf.feature_column.shared_embeddings(
+      shared_embedding_columns = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension,
           initializer=_get_initializer(embedding_dimension, embedding_values))
@@ -250,7 +250,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           key='aaa', num_buckets=vocabulary_size)
       categorical_column_b = tf.feature_column.categorical_column_with_identity(
           key='bbb', num_buckets=vocabulary_size)
-      shared_embedding_columns = tf.feature_column.shared_embeddings(
+      shared_embedding_columns = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_a, categorical_column_b], dimension=2)
 
       sequence_input_layer = ksfc.SequenceFeatures(shared_embedding_columns)
@@ -550,7 +550,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         sequence_features.compute_output_shape((None, None)),
         (None, None, 3))
     self.evaluate(tf.compat.v1.global_variables_initializer())
-    self.evaluate(tf.compat.v1.tables_initializer())
+    self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
     self.assertAllClose([[[0., 1., 10.], [10., 11., 11.], [0., 0., 0.]],
                          [[100., 101., 20.], [0., 0., 0.], [0., 0., 0.]],
@@ -654,8 +654,8 @@ class SequenceFeaturesSavingTest(tf.test.TestCase, parameterized.TestCase):
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.tables_initializer())
+      if not tf.compat.v2.executing_eagerly():
+        self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertLen(
           loaded_model.predict({

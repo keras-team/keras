@@ -29,12 +29,12 @@ def strategies_for_stateful_embedding_model():
   """Returns TPUStrategy with single core device assignment."""
 
   return [
-      tf.__internal__.distribute.combinations.tpu_strategy_one_core,
+      tf.compat.v2.__internal__.distribute.combinations.tpu_strategy_one_core,
   ]
 
 
 def test_combinations_for_stateful_embedding_model():
-  return (tf.__internal__.test.combinations.combine(
+  return (tf.compat.v2.__internal__.test.combinations.combine(
       distribution=strategies_for_stateful_embedding_model(),
       mode='graph',
       use_numpy=False,
@@ -80,7 +80,7 @@ class DistributionStrategyStatefulLstmModelCorrectnessTest(
 
   # TODO(jhseu): Disabled to fix b/130808953. Need to investigate why it
   # doesn't work and enable for DistributionStrategy more generally.
-  @tf.__internal__.distribute.combinations.generate(test_combinations_for_stateful_embedding_model())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(test_combinations_for_stateful_embedding_model())
   def disabled_test_stateful_lstm_model_correctness(
       self, distribution, use_numpy, use_validation_data):
     self.run_correctness_test(
@@ -89,8 +89,8 @@ class DistributionStrategyStatefulLstmModelCorrectnessTest(
         use_validation_data,
         is_stateful_model=True)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           keras_correctness_test_base
           .test_combinations_with_tpu_strategies_graph()))
   def test_incorrectly_use_multiple_cores_for_stateful_lstm_model(

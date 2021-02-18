@@ -71,7 +71,7 @@ class MaxNorm(Constraint):
   @doc_controls.do_not_generate_docs
   def __call__(self, w):
     norms = K.sqrt(
-        tf.reduce_sum(tf.square(w), axis=self.axis, keepdims=True))
+        tf.compat.v2.math.reduce_sum(tf.math.square(w), axis=self.axis, keepdims=True))
     desired = K.clip(norms, 0, self.max_value)
     return w * (desired / (K.epsilon() + norms))
 
@@ -118,8 +118,8 @@ class UnitNorm(Constraint):
   def __call__(self, w):
     return w / (
         K.epsilon() + K.sqrt(
-            tf.reduce_sum(
-                tf.square(w), axis=self.axis, keepdims=True)))
+            tf.compat.v2.math.reduce_sum(
+                tf.math.square(w), axis=self.axis, keepdims=True)))
 
   @doc_controls.do_not_generate_docs
   def get_config(self):
@@ -167,7 +167,7 @@ class MinMaxNorm(Constraint):
   @doc_controls.do_not_generate_docs
   def __call__(self, w):
     norms = K.sqrt(
-        tf.reduce_sum(tf.square(w), axis=self.axis, keepdims=True))
+        tf.compat.v2.math.reduce_sum(tf.math.square(w), axis=self.axis, keepdims=True))
     desired = (
         self.rate * K.clip(norms, self.min_value, self.max_value) +
         (1 - self.rate) * norms)

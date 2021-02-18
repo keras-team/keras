@@ -43,7 +43,7 @@ def numpy_text(tensor, is_repr=False):
   return text
 
 
-class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
+class AutoCastVariable(tf.compat.v2.Variable, tf.compat.v2.__internal__.types.Tensor):
   """Variable that will cast itself to a different dtype in applicable contexts.
 
   This class wraps a floating-point `tf.Variable`. It emulates the variable
@@ -75,7 +75,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     Raises:
       ValueError: If `variable` is not a floating-point resource variable
     """
-    if not isinstance(variable, tf.Variable):
+    if not isinstance(variable, tf.compat.v2.Variable):
       raise ValueError('variable must be of type tf.ResourceVariable, but got: '
                        '%s' % variable)
     if not variable.dtype.is_floating:
@@ -139,14 +139,14 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
       raise ValueError('Cannot convert AutoCastVariable to a tensor if '
                        'as_ref=True is passed to convert_to_tensor')
     if not self._should_cast():
-      return tf.convert_to_tensor(self._variable, dtype=dtype,
+      return tf.compat.v2.convert_to_tensor(self._variable, dtype=dtype,
                                                     name=name)
     if dtype is not None and not dtype.is_compatible_with(self._cast_dtype):
       raise ValueError(
           'Incompatible type conversion requested to type {!r} for '
           'AutoCastVariable which is casted to type {!r}'.format(
               dtype.name, self._cast_dtype.name))
-    val = tf.convert_to_tensor(
+    val = tf.compat.v2.convert_to_tensor(
         self._variable, dtype=self._variable.dtype, name=name)
     return tf.cast(val, self._cast_dtype)
 
@@ -155,7 +155,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     pass
 
   def __repr__(self):
-    if tf.executing_eagerly() and not self._in_graph_mode:
+    if tf.compat.v2.executing_eagerly() and not self._in_graph_mode:
       repr_str = ("<AutoCastVariable '{v.name}' shape={v.shape} "
                   'dtype={v.dtype.name} dtype_to_cast_to={v._cast_dtype.name}, '
                   'numpy={np_repr}>')
@@ -231,7 +231,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
 
     # Fallback to wrapping the returned variable in graph mode if possible
     assign_var = update_fn(value, use_locking, name, read_value)
-    if read_value and tf.__internal__.ops.is_resource_variable(assign_var):
+    if read_value and tf.compat.v2.__internal__.ops.is_resource_variable(assign_var):
       return create_autocast_variable(assign_var)
     return assign_var
 
@@ -241,7 +241,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
       return self
 
     # Fallback to wrapping the returned variable in graph mode if possible
-    if tf.__internal__.ops.is_resource_variable(update_var):
+    if tf.compat.v2.__internal__.ops.is_resource_variable(update_var):
       return create_autocast_variable(update_var)
     return update_var
 

@@ -315,7 +315,7 @@ def _export_mode(
               # Allow saving Models with no variables. This is somewhat odd, but
               # it's not necessarily a bug.
               allow_empty=True),
-          init_op=tf.compat.v1.local_variables_initializer(),
+          init_op=tf.compat.v1.initializers.local_variables(),
           train_op=train_op)
     return None
 

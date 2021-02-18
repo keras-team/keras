@@ -98,7 +98,7 @@ class SavedModelSaver(object):
     # returns them in _list_functions_for_serialization(). Add these functions
     # to the dict.
     fns.update(
-        tf.__internal__.tracking.AutoTrackable._list_functions_for_serialization(  # pylint:disable=protected-access
+        tf.compat.v2.__internal__.tracking.AutoTrackable._list_functions_for_serialization(  # pylint:disable=protected-access
             self.obj, serialization_cache))
     return fns
 

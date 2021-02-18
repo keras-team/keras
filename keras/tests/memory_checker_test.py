@@ -30,7 +30,7 @@ class MemoryCheckerTest(tf.test.TestCase):
     self.skipTest('This test is too slow on Forge so disabled for now.')
 
     x = tf.zeros([1, 1])
-    y = tf.constant([[3]])
+    y = tf.compat.v2.constant([[3]])
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(1, input_dim=1))
     model.compile(loss='mean_squared_error')

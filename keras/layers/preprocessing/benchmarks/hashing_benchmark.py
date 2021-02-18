@@ -47,7 +47,7 @@ class BenchmarkLayer(tf.test.Benchmark):
     starts = []
     ends = []
     for _ in range(num_repeats):
-      ds = tf.data.Dataset.from_generator(word_gen, tf.string,
+      ds = tf.data.Dataset.from_generator(word_gen, tf.dtypes.string,
                                               tf.TensorShape([]))
       ds = ds.shuffle(batch_size * 100)
       ds = ds.batch(batch_size)
@@ -57,7 +57,7 @@ class BenchmarkLayer(tf.test.Benchmark):
       starts.append(time.time())
       # Benchmarked code begins here.
       for i in ds:
-        _ = tf.strings.to_hash_bucket(i, num_buckets=2)
+        _ = tf.compat.v2.strings.to_hash_bucket(i, num_buckets=2)
       # Benchmarked code ends here.
       ends.append(time.time())
 
@@ -65,7 +65,7 @@ class BenchmarkLayer(tf.test.Benchmark):
     return avg_time
 
   def bm_layer_implementation(self, batch_size):
-    input_1 = keras.Input(shape=(None,), dtype=tf.string, name="word")
+    input_1 = keras.Input(shape=(None,), dtype=tf.dtypes.string, name="word")
     layer = hashing.Hashing(num_bins=2)
     _ = layer(input_1)
 
@@ -73,7 +73,7 @@ class BenchmarkLayer(tf.test.Benchmark):
     starts = []
     ends = []
     for _ in range(num_repeats):
-      ds = tf.data.Dataset.from_generator(word_gen, tf.string,
+      ds = tf.data.Dataset.from_generator(word_gen, tf.dtypes.string,
                                               tf.TensorShape([]))
       ds = ds.shuffle(batch_size * 100)
       ds = ds.batch(batch_size)

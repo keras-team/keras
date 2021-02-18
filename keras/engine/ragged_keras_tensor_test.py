@@ -46,7 +46,7 @@ class RaggedKerasTensorTest(keras_parameterized.TestCase):
     inp = layers.Input(shape=shape, batch_size=batch_size, ragged=True)
     self.assertEqual(inp.ragged_rank, ragged_rank)
     self.assertAllEqual(inp.shape, [batch_size] + list(shape))
-    with tf.__internal__.FuncGraph('test').as_default():
+    with tf.compat.v2.__internal__.FuncGraph('test').as_default():
       placeholder = inp._to_placeholder()
       self.assertEqual(placeholder.ragged_rank, ragged_rank)
       self.assertAllEqual(placeholder.shape, [batch_size] + list(shape))
@@ -125,7 +125,7 @@ class RaggedKerasTensorTest(keras_parameterized.TestCase):
       {
           'name': 'with_row_splits_dtype',
           'kwargs': {
-              'dtype': tf.int32
+              'dtype': tf.dtypes.int32
           }
       },
       {
@@ -172,7 +172,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
         inp, value_rowids=[0, 0, 0, 0, 2, 2, 2, 3], nrows=5)
     model = training.Model(inp, out)
 
-    x = tf.constant([3, 1, 4, 1, 5, 9, 2, 6])
+    x = tf.compat.v2.constant([3, 1, 4, 1, 5, 9, 2, 6])
     expected = tf.RaggedTensor.from_value_rowids(
         x, value_rowids=[0, 0, 0, 0, 2, 2, 2, 3], nrows=5)
     self.assertAllEqual(model(x), expected)
@@ -188,7 +188,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
         inp, row_splits=[0, 4, 4, 7, 8, 8])
     model = training.Model(inp, out)
 
-    x = tf.constant([3, 1, 4, 1, 5, 9, 2, 6])
+    x = tf.compat.v2.constant([3, 1, 4, 1, 5, 9, 2, 6])
     expected = tf.RaggedTensor.from_row_splits(
         x, row_splits=[0, 4, 4, 7, 8, 8])
     self.assertAllEqual(model(x), expected)
@@ -204,7 +204,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
         inp, row_lengths=[4, 0, 3, 1, 0])
     model = training.Model(inp, out)
 
-    x = tf.constant([3, 1, 4, 1, 5, 9, 2, 6])
+    x = tf.compat.v2.constant([3, 1, 4, 1, 5, 9, 2, 6])
     expected = tf.RaggedTensor.from_row_lengths(
         x, row_lengths=[4, 0, 3, 1, 0])
     self.assertAllEqual(model(x), expected)
@@ -220,7 +220,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
         inp, row_starts=[0, 4, 4, 7, 8])
     model = training.Model(inp, out)
 
-    x = tf.constant([3, 1, 4, 1, 5, 9, 2, 6])
+    x = tf.compat.v2.constant([3, 1, 4, 1, 5, 9, 2, 6])
     expected = tf.RaggedTensor.from_row_starts(
         x, row_starts=[0, 4, 4, 7, 8])
     self.assertAllEqual(model(x), expected)
@@ -231,14 +231,14 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(model2(x), expected)
 
   def test_from_row_limits(self):
-    row_limits = tf.constant([2, 2, 5, 6, 7], tf.int64)
+    row_limits = tf.compat.v2.constant([2, 2, 5, 6, 7], tf.dtypes.int64)
 
-    inp = layers.Input(shape=[None], dtype=tf.string)
+    inp = layers.Input(shape=[None], dtype=tf.dtypes.string)
     out = tf.RaggedTensor.from_row_limits(
         inp, row_limits, validate=False)
     model = training.Model(inp, out)
 
-    x = tf.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+    x = tf.compat.v2.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
     expected = tf.RaggedTensor.from_row_limits(
         x, row_limits, validate=False)
     self.assertAllEqual(model(x), expected)
@@ -253,7 +253,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
     out = tf.RaggedTensor.from_uniform_row_length(inp, 2, 8)
     model = training.Model(inp, out)
 
-    x = tf.constant(
+    x = tf.compat.v2.constant(
         [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16])
     expected = tf.RaggedTensor.from_uniform_row_length(x, 2, 8)
     self.assertAllEqual(model(x), expected)
@@ -265,15 +265,15 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
 
   def test_from_nested_value_row_ids(self):
     nested_value_rowids = [
-        tf.constant([0, 0, 1, 3, 3], tf.int64),
-        tf.constant([0, 0, 2, 2, 2, 3, 4], tf.int64)
+        tf.compat.v2.constant([0, 0, 1, 3, 3], tf.dtypes.int64),
+        tf.compat.v2.constant([0, 0, 2, 2, 2, 3, 4], tf.dtypes.int64)
     ]
-    inp = layers.Input(shape=[None], dtype=tf.string)
+    inp = layers.Input(shape=[None], dtype=tf.dtypes.string)
     out = tf.RaggedTensor.from_nested_value_rowids(
         inp, nested_value_rowids)
     model = training.Model(inp, out)
 
-    x = tf.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+    x = tf.compat.v2.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
     expected = tf.RaggedTensor.from_nested_value_rowids(
         x, nested_value_rowids)
     self.assertAllEqual(model(x), expected)
@@ -285,15 +285,15 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
 
   def test_from_nested_row_splits(self):
     nested_row_splits = [
-        tf.constant([0, 2, 3, 3, 5], tf.int64),
-        tf.constant([0, 2, 2, 5, 6, 7], tf.int64)
+        tf.compat.v2.constant([0, 2, 3, 3, 5], tf.dtypes.int64),
+        tf.compat.v2.constant([0, 2, 2, 5, 6, 7], tf.dtypes.int64)
     ]
-    inp = layers.Input(shape=[None], dtype=tf.string)
+    inp = layers.Input(shape=[None], dtype=tf.dtypes.string)
     out = tf.RaggedTensor.from_nested_row_splits(
         inp, nested_row_splits)
     model = training.Model(inp, out)
 
-    x = tf.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+    x = tf.compat.v2.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
     expected = tf.RaggedTensor.from_nested_row_splits(
         x, nested_row_splits)
     self.assertAllEqual(model(x), expected)
@@ -305,15 +305,15 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
 
   def test_from_nested_row_lengths(self):
     nested_row_lengths = [
-        tf.constant([2, 1, 0, 2], tf.int64),
-        tf.constant([2, 0, 3, 1, 1], tf.int64)
+        tf.compat.v2.constant([2, 1, 0, 2], tf.dtypes.int64),
+        tf.compat.v2.constant([2, 0, 3, 1, 1], tf.dtypes.int64)
     ]
-    inp = layers.Input(shape=[None], dtype=tf.string)
+    inp = layers.Input(shape=[None], dtype=tf.dtypes.string)
     out = tf.RaggedTensor.from_nested_row_lengths(
         inp, nested_row_lengths)
     model = training.Model(inp, out)
 
-    x = tf.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
+    x = tf.compat.v2.constant(['a', 'b', 'c', 'd', 'e', 'f', 'g'])
     expected = tf.RaggedTensor.from_nested_row_lengths(
         x, nested_row_lengths)
     self.assertAllEqual(model(x), expected)
@@ -328,7 +328,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
     out = tf.RaggedTensor.from_tensor(inp)
     model = training.Model(inp, out)
 
-    x = tf.constant([[3., 4.], [1., 2.], [3., 5.]])
+    x = tf.compat.v2.constant([[3., 4.], [1., 2.], [3., 5.]])
     expected = tf.RaggedTensor.from_tensor(x)
     self.assertAllEqual(model(x), expected)
 
@@ -338,7 +338,7 @@ class RaggedTensorClassMethodAsLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(model2(x), expected)
 
   def test_from_sparse(self):
-    inp = layers.Input(shape=[None], sparse=True, dtype=tf.string)
+    inp = layers.Input(shape=[None], sparse=True, dtype=tf.dtypes.string)
     out = tf.RaggedTensor.from_sparse(inp)
     model = training.Model(inp, out)
 

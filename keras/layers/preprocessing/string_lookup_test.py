@@ -37,7 +37,7 @@ from keras.utils.generic_utils import CustomObjectScope
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return string_lookup.StringLookup
   else:
     return string_lookup_v1.StringLookup
@@ -61,7 +61,7 @@ def _get_end_to_end_test_cases():
           },
           "expected_output": [[2], [3], [4], [5], [5], [4], [2], [1]],
           "input_dtype":
-              tf.string
+              tf.dtypes.string
       },
   )
 
@@ -87,7 +87,7 @@ class StringLookupLayerTest(keras_parameterized.TestCase,
                                        use_dataset, expected_output,
                                        input_dtype):
     cls = get_layer_class()
-    expected_output_dtype = tf.int64
+    expected_output_dtype = tf.dtypes.int64
     input_shape = input_data.shape
 
     if use_dataset:
@@ -141,7 +141,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(vocabulary=vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -154,7 +154,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(vocabulary=vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -173,7 +173,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[0, 0, 1, 1, 1, 1], [0, 1, 1, 0, 1, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(vocabulary=vocab_data, output_mode="binary")
     res = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=res)
@@ -186,7 +186,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[0, 0, 2, 0, 0, 2], [0, 1, 1, 0, 1, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(vocabulary=vocab_data, output_mode="count")
     res = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=res)
@@ -196,7 +196,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
   def test_sparse_output(self):
     vocab_data = ["earth", "wind", "and", "fire"]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(
         vocabulary=vocab_data, output_mode="binary", sparse=True)
     res = layer(input_data)
@@ -224,7 +224,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(vocabulary=vocab_path)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -239,7 +239,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()()
     layer.set_vocabulary(vocab_path)
     int_data = layer(input_data)
@@ -264,7 +264,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     expected_output = np.array([["earth", "wind", "and", "fire"],
                                 ["fire", "and", "earth", ""]])
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(vocabulary=vocab_data, invert=True)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -278,7 +278,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     expected_output = np.array([["earth", "wind", "and", "fire"],
                                 ["fire", "and", "earth", "[UNK]"]])
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(vocabulary=vocab_data)
     invert_layer = get_layer_class()(
         vocabulary=layer.get_vocabulary(), invert=True)
@@ -295,7 +295,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
                                                 "ohio"]])
     expected_output = [[3, 4, 6], [6, 5, 3, 2]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string, ragged=True)
     layer = get_layer_class()(num_oov_indices=2)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -311,7 +311,7 @@ class StringLookupSaveableTest(keras_parameterized.TestCase,
   def test_ops_are_not_added_with_multiple_get_set_weights(self):
     vocab_data = ["earth", "wind", "and", "fire"]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(max_tokens=10)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -325,7 +325,7 @@ class StringLookupSaveableTest(keras_parameterized.TestCase,
   def test_layer_saving_with_h5(self):
     vocab_data = ["earth", "wind", "and", "fire"]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.string)
     layer = get_layer_class()(max_tokens=10)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)

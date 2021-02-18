@@ -55,7 +55,7 @@ def _exact_laplacian(stddev):
 class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   def _assert_all_close(self, expected, actual, atol=0.001):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       with self.cached_session() as sess:
         keras_backend._initialize_variables(sess)
         self.assertAllClose(expected, actual, atol=atol)
@@ -106,7 +106,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('gaussian', 'gaussian', 10.0, False),
-      ('random', tf.compat.v1.random_uniform_initializer, 1.0, True))
+      ('random', tf.compat.v1.initializers.random_uniform, 1.0, True))
   def test_random_features_properties(self, initializer, scale, trainable):
     rff_layer = kernel_layers.RandomFourierFeatures(
         output_dim=10,
@@ -120,7 +120,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(('gaussian', 'gaussian', False),
                                   ('laplacian', 'laplacian', True),
-                                  ('other', tf.compat.v1.ones_initializer, True))
+                                  ('other', tf.compat.v1.initializers.ones, True))
   def test_call(self, initializer, trainable):
     rff_layer = kernel_layers.RandomFourierFeatures(
         output_dim=10,
@@ -151,10 +151,10 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('gaussian', 'gaussian'), ('laplacian', 'laplacian'),
-      ('other', tf.compat.v1.random_uniform_initializer))
+      ('other', tf.compat.v1.initializers.random_uniform))
   def test_call_on_placeholder(self, initializer):
     with tf.Graph().as_default():
-      inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, None])
+      inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=[None, None])
       rff_layer = kernel_layers.RandomFourierFeatures(
           output_dim=5,
           kernel_initializer=initializer,
@@ -164,7 +164,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           '`RandomFourierFeatures` should be defined. Found `None`.'):
         rff_layer(inputs)
 
-      inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[2, None])
+      inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=[2, None])
       rff_layer = kernel_layers.RandomFourierFeatures(
           output_dim=5,
           kernel_initializer=initializer,
@@ -174,14 +174,14 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           '`RandomFourierFeatures` should be defined. Found `None`.'):
         rff_layer(inputs)
 
-      inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, 3])
+      inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=[None, 3])
       rff_layer = kernel_layers.RandomFourierFeatures(
           output_dim=5, name='random_fourier_features')
       rff_layer(inputs)
 
   @parameterized.named_parameters(('gaussian', 10, 'gaussian', 2.0),
                                   ('laplacian', 5, 'laplacian', None),
-                                  ('other', 10, tf.compat.v1.ones_initializer, 1.0))
+                                  ('other', 10, tf.compat.v1.initializers.ones, 1.0))
   def test_compute_output_shape(self, output_dim, initializer, scale):
     rff_layer = kernel_layers.RandomFourierFeatures(
         output_dim, initializer, scale=scale, name='rff')
@@ -209,7 +209,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       ('gaussian', 10, 'gaussian', 3.0, False),
       ('laplacian', 5, 'laplacian', 5.5, True),
-      ('other', 7, tf.compat.v1.random_uniform_initializer(), None, True))
+      ('other', 7, tf.compat.v1.initializers.random_uniform(), None, True))
   def test_get_config(self, output_dim, initializer, scale, trainable):
     rff_layer = kernel_layers.RandomFourierFeatures(
         output_dim,
@@ -239,7 +239,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       ('gaussian', 5, 'gaussian', None, True),
       ('laplacian', 5, 'laplacian', 5.5, False),
-      ('other', 7, tf.compat.v1.ones_initializer(), 2.0, True))
+      ('other', 7, tf.compat.v1.initializers.ones(), 2.0, True))
   def test_from_config(self, output_dim, initializer, scale, trainable):
     model_config = {
         'output_dim': output_dim,
@@ -267,7 +267,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(
       ('gaussian', 10, 'gaussian', 3.0, True),
       ('laplacian', 5, 'laplacian', 5.5, False),
-      ('other', 10, tf.compat.v1.random_uniform_initializer(), None, True))
+      ('other', 10, tf.compat.v1.initializers.random_uniform(), None, True))
   def test_same_random_features_params_reused(self, output_dim, initializer,
                                               scale, trainable):
     """Applying the layer on the same input twice gives the same output."""
@@ -277,7 +277,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         scale=scale,
         trainable=trainable,
         name='random_fourier_features')
-    inputs = tf.constant(
+    inputs = tf.compat.v2.constant(
         np.random.uniform(low=-1.0, high=1.0, size=(2, 4)))
     output1 = rff_layer(inputs)
     output2 = rff_layer(inputs)
@@ -285,9 +285,9 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.named_parameters(
       ('gaussian', 'gaussian', 5.0), ('laplacian', 'laplacian', 3.0),
-      ('other', tf.compat.v1.random_uniform_initializer(), 5.0))
+      ('other', tf.compat.v1.initializers.random_uniform(), 5.0))
   def test_different_params_similar_approximation(self, initializer, scale):
-    tf.compat.v1.set_random_seed(12345)
+    tf.compat.v1.random.set_random_seed(12345)
     rff_layer1 = kernel_layers.RandomFourierFeatures(
         output_dim=3000,
         kernel_initializer=initializer,
@@ -299,8 +299,8 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
         scale=scale,
         name='rff2')
     # Two distinct inputs.
-    x = tf.constant([[1.0, -1.0, 0.5]])
-    y = tf.constant([[-1.0, 1.0, 1.0]])
+    x = tf.compat.v2.constant([[1.0, -1.0, 0.5]])
+    y = tf.compat.v2.constant([[-1.0, 1.0, 1.0]])
 
     # Apply both layers to both inputs.
     output_x1 = math.sqrt(2.0 / 3000.0) * rff_layer1(x)
@@ -321,11 +321,11 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
   def test_bad_kernel_approximation(self, initializer, scale, exact_kernel_fn):
     """Approximation is bad when output dimension is small."""
     # Two distinct inputs.
-    x = tf.constant([[1.0, -1.0, 0.5]])
-    y = tf.constant([[-1.0, 1.0, 1.0]])
+    x = tf.compat.v2.constant([[1.0, -1.0, 0.5]])
+    y = tf.compat.v2.constant([[-1.0, 1.0, 1.0]])
 
     small_output_dim = 10
-    tf.compat.v1.set_random_seed(1234)
+    tf.compat.v1.random.set_random_seed(1234)
     # Initialize layer.
     rff_layer = kernel_layers.RandomFourierFeatures(
         output_dim=small_output_dim,
@@ -343,7 +343,7 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     exact_kernel_value = exact_kernel_fn(x, y)
     approx_kernel_value = kernelized_utils.inner_product(output_x, output_y)
     abs_error = tf.abs(exact_kernel_value - approx_kernel_value)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       with self.cached_session() as sess:
         keras_backend._initialize_variables(sess)
         abs_error_eval = sess.run([abs_error])
@@ -364,12 +364,12 @@ class RandomFourierFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     x_rows = 20
     y_rows = 30
 
-    x = tf.constant(
-        np.random.uniform(size=(x_rows, input_dim)), dtype=tf.float32)
-    y = tf.constant(
-        np.random.uniform(size=(y_rows, input_dim)), dtype=tf.float32)
+    x = tf.compat.v2.constant(
+        np.random.uniform(size=(x_rows, input_dim)), dtype=tf.dtypes.float32)
+    y = tf.compat.v2.constant(
+        np.random.uniform(size=(y_rows, input_dim)), dtype=tf.dtypes.float32)
 
-    tf.compat.v1.set_random_seed(1234)
+    tf.compat.v1.random.set_random_seed(1234)
     rff_layer = kernel_layers.RandomFourierFeatures(
         output_dim=output_dim,
         kernel_initializer=initializer,

@@ -43,7 +43,7 @@ def tensor_gen(batch, num_elements):
       batch_element.append(tok)
     batch_element.append("")  # Explicitly test the empty string.
     data.append(batch_element)
-  return tf.constant(data)
+  return tf.compat.v2.constant(data)
 
 
 def get_vocab():
@@ -68,14 +68,14 @@ class BenchmarkLookup(tf.test.Benchmark):
 
   def run_numpy_implementation(self, data, vocab):
     """Test the python implementation."""
-    input_t = keras.Input(shape=(), dtype=tf.string)
+    input_t = keras.Input(shape=(), dtype=tf.dtypes.string)
     layer = index_lookup.IndexLookup(
         vocabulary=vocab,
         max_tokens=None,
         num_oov_indices=1,
         mask_token="",
         oov_token="OOV",
-        dtype=tf.string)
+        dtype=tf.dtypes.string)
     out_t = layer(input_t)
     model = keras.Model(input_t, out_t)
     num_repeats = 5
@@ -95,19 +95,19 @@ class BenchmarkLookup(tf.test.Benchmark):
     vocab_file = self._write_to_temp_file("vocab", vocab)
     vocabulary_initializer = tf.lookup.TextFileInitializer(
         filename=vocab_file,
-        key_dtype=tf.string,
+        key_dtype=tf.dtypes.string,
         key_index=tf.lookup.TextFileIndex.WHOLE_LINE,
-        value_dtype=tf.int64,
+        value_dtype=tf.dtypes.int64,
         value_index=tf.lookup.TextFileIndex.LINE_NUMBER,
         value_index_offset=2)
-    input_t = keras.Input(shape=(), dtype=tf.string)
+    input_t = keras.Input(shape=(), dtype=tf.dtypes.string)
     layer = index_lookup.IndexLookup(
         vocabulary=vocabulary_initializer,
         max_tokens=None,
         num_oov_indices=1,
         mask_token="",
         oov_token="OOV",
-        dtype=tf.string)
+        dtype=tf.dtypes.string)
     out_t = layer(input_t)
     model = keras.Model(input_t, out_t)
     num_repeats = 5

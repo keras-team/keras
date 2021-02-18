@@ -103,9 +103,9 @@ def remove_squeezable_dimensions(
   """
   with K.name_scope(name or 'remove_squeezable_dimensions'):
     if not isinstance(predictions, tf.RaggedTensor):
-      predictions = tf.convert_to_tensor(predictions)
+      predictions = tf.compat.v2.convert_to_tensor(predictions)
     if not isinstance(labels, tf.RaggedTensor):
-      labels = tf.convert_to_tensor(labels)
+      labels = tf.compat.v2.convert_to_tensor(labels)
     predictions_shape = predictions.shape
     predictions_rank = predictions_shape.ndims
     labels_shape = labels.shape
@@ -238,7 +238,7 @@ def _safe_mean(losses, num_present):
     A scalar representing the mean of `losses`. If `num_present` is zero,
       then zero is returned.
   """
-  total_loss = tf.reduce_sum(losses)
+  total_loss = tf.compat.v2.math.reduce_sum(losses)
   return tf.math.divide_no_nan(total_loss, num_present, name='value')
 
 
@@ -254,7 +254,7 @@ def reduce_weighted_loss(weighted_losses,
   if reduction == ReductionV2.NONE:
     loss = weighted_losses
   else:
-    loss = tf.reduce_sum(weighted_losses)
+    loss = tf.compat.v2.math.reduce_sum(weighted_losses)
     if reduction == ReductionV2.SUM_OVER_BATCH_SIZE:
       loss = _safe_mean(loss, _num_elements(weighted_losses))
   return loss
@@ -296,11 +296,11 @@ def compute_weighted_loss(losses,
 
     if not isinstance(losses,
                       (keras_tensor.KerasTensor, tf.RaggedTensor)):
-      losses = tf.convert_to_tensor(losses)
+      losses = tf.compat.v2.convert_to_tensor(losses)
     input_dtype = losses.dtype
 
     if not isinstance(sample_weight, keras_tensor.KerasTensor):
-      sample_weight = tf.convert_to_tensor(sample_weight)
+      sample_weight = tf.compat.v2.convert_to_tensor(sample_weight)
 
     # TODO(psv): Handle casting here in a better way, eg. if losses is float64
     # we do not want to lose precision.
@@ -309,7 +309,7 @@ def compute_weighted_loss(losses,
     # Update dimensions of `sample_weight` to match with `losses` if possible.
     losses, _, sample_weight = squeeze_or_expand_dimensions(  # pylint: disable=unbalanced-tuple-unpacking
         losses, None, sample_weight)
-    weighted_losses = tf.multiply(losses, sample_weight)
+    weighted_losses = tf.math.multiply(losses, sample_weight)
 
     # Apply reduction function to the individual weighted losses.
     loss = reduce_weighted_loss(weighted_losses, reduction)

@@ -280,10 +280,10 @@ class BatchNormalizationBase(Layer):
   @property
   def _param_dtype(self):
     # Raise parameters of fp16 batch norm to fp32
-    if self.dtype == tf.float16 or self.dtype == tf.bfloat16:
-      return tf.float32
+    if self.dtype == tf.dtypes.float16 or self.dtype == tf.bfloat16:
+      return tf.dtypes.float32
     else:
-      return self.dtype or tf.float32
+      return self.dtype or tf.dtypes.float32
 
   def _support_zero_size_input(self):
     return tf.distribute.has_strategy() and getattr(
@@ -459,7 +459,7 @@ class BatchNormalizationBase(Layer):
         # In batch renormalization we track the inference moving stddev instead
         # of the moving variance to more closely align with the paper.
         def moving_stddev_initializer(*args, **kwargs):
-          return tf.sqrt(
+          return tf.math.sqrt(
               self.moving_variance_initializer(*args, **kwargs))
 
         with tf.distribute.get_strategy(
@@ -483,7 +483,7 @@ class BatchNormalizationBase(Layer):
         # device and ignore any devices that may be set by the custom getter.
         def _renorm_variable(name,
                              shape,
-                             initializer=tf.compat.v1.zeros_initializer()):
+                             initializer=tf.compat.v1.initializers.zeros()):
           """Create a renorm variable."""
           var = self.add_weight(
               name=name,
@@ -512,7 +512,7 @@ class BatchNormalizationBase(Layer):
   def _assign_moving_average(self, variable, value, momentum, inputs_size):
     with K.name_scope('AssignMovingAvg') as scope:
       with ops.colocate_with(variable):
-        decay = tf.convert_to_tensor(
+        decay = tf.compat.v2.convert_to_tensor(
             1.0 - momentum, name='decay')
         if decay.dtype != variable.dtype.base_dtype:
           decay = tf.cast(decay, variable.dtype.base_dtype)
@@ -618,7 +618,7 @@ class BatchNormalizationBase(Layer):
                                                   lambda: self.momentum,
                                                   lambda: 1.0)
         else:
-          momentum = tf.convert_to_tensor(self.momentum)
+          momentum = tf.compat.v2.convert_to_tensor(self.momentum)
 
       def mean_update():
         """Update self.moving_mean with the most recent data point."""
@@ -644,13 +644,13 @@ class BatchNormalizationBase(Layer):
   def _renorm_correction_and_moments(self, mean, variance, training,
                                      inputs_size):
     """Returns the correction and update values for renorm."""
-    stddev = tf.sqrt(variance + self.epsilon)
+    stddev = tf.math.sqrt(variance + self.epsilon)
     # Compute the average mean and standard deviation, as if they were
     # initialized with this batch's moments.
     renorm_mean = self.renorm_mean
     # Avoid divide by zero early on in training.
-    renorm_stddev = tf.maximum(self.renorm_stddev,
-                                     tf.sqrt(self.epsilon))
+    renorm_stddev = tf.math.maximum(self.renorm_stddev,
+                                     tf.math.sqrt(self.epsilon))
     # Compute the corrections for batch renorm.
     r = stddev / renorm_stddev
     d = (mean - renorm_mean) / renorm_stddev
@@ -662,12 +662,12 @@ class BatchNormalizationBase(Layer):
         self.renorm_clipping.get(key) for key in ['rmin', 'rmax', 'dmax']
     ]
     if rmin is not None:
-      r = tf.maximum(r, rmin)
+      r = tf.math.maximum(r, rmin)
     if rmax is not None:
-      r = tf.minimum(r, rmax)
+      r = tf.math.minimum(r, rmax)
     if dmax is not None:
-      d = tf.maximum(d, -dmax)
-      d = tf.minimum(d, dmax)
+      d = tf.math.maximum(d, -dmax)
+      d = tf.math.minimum(d, dmax)
     # When not training, use r=1, d=0.
     r = control_flow_util.smart_cond(training, lambda: r,
                                      lambda: tf.compat.v1.ones_like(r))
@@ -737,9 +737,9 @@ class BatchNormalizationBase(Layer):
       # Tensor and reusing the existing batch norm implementation
       original_shape = tf.compat.v1.shape(inputs)
       original_shape = tf.concat(
-          [tf.constant([-1]), original_shape[1:]], axis=0)
+          [tf.compat.v2.constant([-1]), original_shape[1:]], axis=0)
       expanded_shape = tf.concat([
-          tf.constant([self.virtual_batch_size, -1]),
+          tf.compat.v2.constant([self.virtual_batch_size, -1]),
           original_shape[1:]
       ],
                                         axis=0)
@@ -760,11 +760,11 @@ class BatchNormalizationBase(Layer):
       return outputs
 
     inputs_dtype = inputs.dtype.base_dtype
-    if inputs_dtype in (tf.float16, tf.bfloat16):
+    if inputs_dtype in (tf.dtypes.float16, tf.bfloat16):
       # Do all math in float32 if given 16-bit inputs for numeric stability.
       # In particular, it's very easy for variance to overflow in float16 and
       # for safety we also choose to cast bfloat16 to float32.
-      inputs = tf.cast(inputs, tf.float32)
+      inputs = tf.cast(inputs, tf.dtypes.float32)
 
     # Compute the axes along which to reduce the mean / variance
     input_shape = inputs.shape
@@ -821,10 +821,10 @@ class BatchNormalizationBase(Layer):
 
       mean = control_flow_util.smart_cond(
           training, lambda: mean,
-          lambda: tf.convert_to_tensor(moving_mean))
+          lambda: tf.compat.v2.convert_to_tensor(moving_mean))
       variance = control_flow_util.smart_cond(
           training, lambda: variance,
-          lambda: tf.convert_to_tensor(moving_variance))
+          lambda: tf.compat.v2.convert_to_tensor(moving_variance))
 
       if self.virtual_batch_size is not None:
         # This isn't strictly correct since in ghost batch norm, you are
@@ -832,8 +832,8 @@ class BatchNormalizationBase(Layer):
         # with each sub-batch. However, since the moving statistics are only
         # used during evaluation, it is more efficient to just update in one
         # step and should not make a significant difference in the result.
-        new_mean = tf.reduce_mean(mean, axis=1, keepdims=True)
-        new_variance = tf.reduce_mean(variance, axis=1, keepdims=True)
+        new_mean = tf.compat.v2.math.reduce_mean(mean, axis=1, keepdims=True)
+        new_variance = tf.compat.v2.math.reduce_mean(variance, axis=1, keepdims=True)
       else:
         new_mean, new_variance = mean, variance
 
@@ -871,7 +871,7 @@ class BatchNormalizationBase(Layer):
           # We apply epsilon as part of the moving_stddev to mirror the training
           # code path.
           moving_stddev = _do_update(self.moving_stddev,
-                                     tf.sqrt(new_variance + self.epsilon))
+                                     tf.math.sqrt(new_variance + self.epsilon))
           return self._assign_new_value(
               self.moving_variance,
               # Apply relu in case floating point rounding causes it to go
@@ -898,7 +898,7 @@ class BatchNormalizationBase(Layer):
     outputs = tf.nn.batch_normalization(inputs, _broadcast(mean),
                                      _broadcast(variance), offset, scale,
                                      self.epsilon)
-    if inputs_dtype in (tf.float16, tf.bfloat16):
+    if inputs_dtype in (tf.dtypes.float16, tf.bfloat16):
       outputs = tf.cast(outputs, inputs_dtype)
 
     # If some components of the shape got lost due to adjustments, fix that.
@@ -1252,7 +1252,7 @@ class LayerNormalization(Layer):
       inputs = tf.reshape(inputs, squeezed_shape)
 
       def _set_const_tensor(val, dtype, shape):
-        return tf.fill(shape, tf.constant(val, dtype=dtype))
+        return tf.fill(shape, tf.compat.v2.constant(val, dtype=dtype))
 
       # self.gamma and self.beta have the wrong shape for fused_batch_norm, so
       # we cannot pass them as the scale and offset parameters. Therefore, we

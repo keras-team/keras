@@ -34,7 +34,7 @@ class BenchmarkLayer(tf.test.Benchmark):
 
   def run_dataset_implementation(self, output_mode, batch_size, sequence_length,
                                  max_tokens):
-    input_t = keras.Input(shape=(sequence_length,), dtype=tf.int32)
+    input_t = keras.Input(shape=(sequence_length,), dtype=tf.dtypes.int32)
     layer = category_encoding.CategoryEncoding(
         max_tokens=max_tokens, output_mode=output_mode)
     _ = layer(input_t)
@@ -47,7 +47,7 @@ class BenchmarkLayer(tf.test.Benchmark):
           tf.random.uniform([batch_size * 10, sequence_length],
                                     minval=0,
                                     maxval=max_tokens - 1,
-                                    dtype=tf.int32))
+                                    dtype=tf.dtypes.int32))
       ds = ds.shuffle(batch_size * 100)
       ds = ds.batch(batch_size)
       num_batches = 5

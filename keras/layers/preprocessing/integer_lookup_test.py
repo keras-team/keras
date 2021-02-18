@@ -38,7 +38,7 @@ from keras.utils.generic_utils import CustomObjectScope
 
 
 def get_layer_class():
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return integer_lookup.IntegerLookup
   else:
     return integer_lookup_v1.IntegerLookup
@@ -61,11 +61,11 @@ def _get_end_to_end_test_cases():
                        dtype=np.int64),
           "kwargs": {
               "max_values": None,
-              "dtype": tf.int64,
+              "dtype": tf.dtypes.int64,
           },
           "expected_output": [[2], [3], [4], [5], [5], [4], [2], [1]],
           "input_dtype":
-              tf.int64
+              tf.dtypes.int64
       },)
 
   crossed_test_cases = []
@@ -90,7 +90,7 @@ class IntegerLookupLayerTest(keras_parameterized.TestCase,
                                        use_dataset, expected_output,
                                        input_dtype):
     cls = get_layer_class()
-    expected_output_dtype = tf.int64
+    expected_output_dtype = tf.dtypes.int64
     input_shape = input_data.shape
 
     if use_dataset:
@@ -140,7 +140,7 @@ class CategoricalEncodingInputTest(
     expected_values = [5, 1]
     expected_dense_shape = [3, 4]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
     layer = get_layer_class()(max_values=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -156,7 +156,7 @@ class CategoricalEncodingInputTest(
                                               dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, ragged=True)
     layer = get_layer_class()(max_values=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -181,10 +181,10 @@ class CategoricalEncodingMultiOOVTest(
     expected_values = [6, 2]
     expected_dense_shape = [3, 4]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
     layer = get_layer_class()(
         max_values=None,
-        dtype=tf.int64,
+        dtype=tf.dtypes.int64,
         num_oov_indices=2,
         mask_value=0,
         oov_value=-1)
@@ -202,7 +202,7 @@ class CategoricalEncodingMultiOOVTest(
                                               dtype=np.int64)
     expected_output = [[3, 4, 6], [6, 5, 3, 2]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, ragged=True)
     layer = get_layer_class()(max_values=None, num_oov_indices=2)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -248,7 +248,7 @@ class CategoricalEncodingAdaptTest(
     expected_values = [5, 1]
     expected_dense_shape = [3, 4]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
     layer = get_layer_class()(max_values=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -264,7 +264,7 @@ class CategoricalEncodingAdaptTest(
                                               dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, ragged=True)
     layer = get_layer_class()(max_values=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -278,10 +278,10 @@ class CategoricalEncodingAdaptTest(
       for _ in itertools.count(1):
         yield random.randint(0, 100)
 
-    ds = tf.data.Dataset.from_generator(word_gen, tf.int64,
+    ds = tf.data.Dataset.from_generator(word_gen, tf.dtypes.int64,
                                             tf.TensorShape([]))
     batched_ds = ds.take(2)
-    input_t = keras.Input(shape=(), dtype=tf.int64)
+    input_t = keras.Input(shape=(), dtype=tf.dtypes.int64)
     layer = get_layer_class()(
         max_values=10, num_oov_indices=0, mask_value=None, oov_value=None)
     _ = layer(input_t)
@@ -297,7 +297,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()()
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -306,7 +306,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     self.assertAllEqual(expected_output, output_dataset)
 
   def test_output_shape(self):
-    input_data = keras.Input(shape=(4,), dtype=tf.int64)
+    input_data = keras.Input(shape=(4,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(max_values=2, num_oov_indices=1)
     int_data = layer(input_data)
     self.assertAllEqual(int_data.shape[1:], input_data.shape[1:])
@@ -316,7 +316,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(max_values=None, mask_value=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -329,7 +329,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(
         vocabulary=vocab_data,
         max_values=None,
@@ -344,7 +344,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(
         vocabulary=vocab_data,
         max_values=None,
@@ -359,7 +359,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_array = np.array([[2, 3, 4, 5], [5, 4, 2, 1]])
     expected_output = np.array([[42, 1138, 725, 1729], [1729, 725, 42, -1]])
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(invert=True)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -372,7 +372,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = np.array([[42, 1138, 725, 1729], [1729, 725, 42, -1]])
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()()
     inverse_layer = get_layer_class()()
     layer.set_vocabulary(vocab_data)
@@ -404,7 +404,7 @@ class IntegerLookupVocabularyTest(
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(vocabulary=vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -422,7 +422,7 @@ class IntegerLookupVocabularyTest(
     input_array = np.array([[2, 2, 3, 4], [0, 1, 5, 2]])
     expected_output = [[0, 0, 1, 1, 1, 0], [1, 1, 1, 0, 0, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(vocabulary=vocab_data, output_mode="binary")
     res = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=res)
@@ -434,7 +434,7 @@ class IntegerLookupVocabularyTest(
     input_array = np.array([[2, 2, 3, 4], [0, 1, 5, 6]])
     expected_output = [[0, 0, 2, 1, 1, 0], [1, 2, 0, 0, 0, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(vocabulary=vocab_data, output_mode="count")
     res = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=res)
@@ -444,7 +444,7 @@ class IntegerLookupVocabularyTest(
   def test_sparse_output(self):
     vocab_data = [2, 3, 4, 5]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(
         vocabulary=vocab_data, output_mode="binary", sparse=True)
     res = layer(input_data)
@@ -465,7 +465,7 @@ class IntegerLookupVocabularyTest(
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(vocabulary=vocab_path)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -479,7 +479,7 @@ class IntegerLookupVocabularyTest(
     input_array = np.array([[42, 1138, 725, 1729], [1729, 725, 42, 203]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()()
     layer.set_vocabulary(vocab_path)
     int_data = layer(input_data)
@@ -507,7 +507,7 @@ class IntegerLookupSaveableTest(keras_parameterized.TestCase,
   def test_ops_are_not_added_with_multiple_get_set_weights(self):
     vocab_data = [42, 1138, 725, 1729]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(max_values=10)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -521,7 +521,7 @@ class IntegerLookupSaveableTest(keras_parameterized.TestCase,
   def test_layer_saving_with_h5(self):
     vocab_data = [42, 1138, 725, 1729]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(max_values=10)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -559,7 +559,7 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
     # Build and validate a golden model.
-    input_data = keras.Input(shape=(None,), dtype=tf.int64)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64)
     layer = get_layer_class()(max_values=None, num_oov_indices=1)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
@@ -574,7 +574,7 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(

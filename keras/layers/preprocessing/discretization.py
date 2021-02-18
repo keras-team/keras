@@ -194,7 +194,7 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
     self.bins = self._add_state_variable(
         name=_BINS_NAME,
         shape=(self.bins.size,),
-        dtype=tf.float32,
+        dtype=tf.dtypes.float32,
         initializer=tf.compat.v1.constant_initializer(self.bins))
     super(Discretization, self).build(input_shape)
 
@@ -212,7 +212,7 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
-    output_dtype = tf.int64
+    output_dtype = tf.dtypes.int64
     if isinstance(input_spec, tf.SparseTensorSpec):
       return tf.SparseTensorSpec(
           shape=output_shape, dtype=output_dtype)
@@ -220,9 +220,9 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   def call(self, inputs):
     def _bucketize_op(bins):
-      bins = [tf.cast(bins, tf.float32)]
+      bins = [tf.cast(bins, tf.dtypes.float32)]
       return lambda inputs: tf.raw_ops.BoostedTreesBucketize(  # pylint: disable=g-long-lambda
-          float_values=[tf.cast(inputs, tf.float32)],
+          float_values=[tf.cast(inputs, tf.dtypes.float32)],
           bucket_boundaries=bins)[0]
 
     if tf_utils.is_ragged(inputs):
@@ -235,9 +235,9 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
       return tf.identity(integer_buckets)
     elif isinstance(inputs, tf.SparseTensor):
       integer_buckets = tf.raw_ops.BoostedTreesBucketize(
-          float_values=[tf.cast(inputs.values, tf.float32)],
+          float_values=[tf.cast(inputs.values, tf.dtypes.float32)],
           bucket_boundaries=[tf.cast(tf.compat.v1.squeeze(self.bins),
-                                           tf.float32)])[0]
+                                           tf.dtypes.float32)])[0]
       return tf.SparseTensor(
           indices=tf.identity(inputs.indices),
           values=integer_buckets,
@@ -256,7 +256,7 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
       return tf.reshape(
           tf.vectorized_map(
               _bucketize_op(tf.compat.v1.squeeze(self.bins)), reshaped),
-          tf.constant([-1] + input_shape.as_list()[1:]))
+          tf.compat.v2.constant([-1] + input_shape.as_list()[1:]))
 
   class DiscretizingCombiner(Combiner):
     """Combiner for the Discretization preprocessing layer.

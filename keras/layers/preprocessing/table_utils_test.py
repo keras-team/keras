@@ -30,24 +30,24 @@ from keras.layers.preprocessing import table_utils
 from tensorflow.python.ops import lookup_ops
 
 
-def get_table(dtype=tf.string, oov_tokens=None):
+def get_table(dtype=tf.dtypes.string, oov_tokens=None):
   table = lookup_ops.MutableHashTable(
       key_dtype=dtype,
-      value_dtype=tf.int64,
+      value_dtype=tf.dtypes.int64,
       default_value=-7,
       name="index_table")
   return table_utils.TableHandler(
-      table, oov_tokens, use_v1_apis=(not tf.executing_eagerly()))
+      table, oov_tokens, use_v1_apis=(not tf.compat.v2.executing_eagerly()))
 
 
 def get_static_table(tmpdir,
                      vocab_list,
                      mask_token=None,
-                     dtype=tf.string,
+                     dtype=tf.dtypes.string,
                      oov_tokens=None):
   vocabulary_file = os.path.join(tmpdir, "tmp_vocab.txt")
 
-  if dtype == tf.string:
+  if dtype == tf.dtypes.string:
     with open(vocabulary_file, "w") as f:
       f.write("\n".join(vocab_list) + "\n")
   else:
@@ -60,11 +60,11 @@ def get_static_table(tmpdir,
       vocabulary_file,
       dtype,
       tf.lookup.TextFileIndex.WHOLE_LINE,
-      tf.int64,
+      tf.dtypes.int64,
       tf.lookup.TextFileIndex.LINE_NUMBER,
       value_index_offset=offset)
-  if tf.executing_eagerly():
-    table = tf.lookup.StaticHashTable(init, default_value=-7)
+  if tf.compat.v2.executing_eagerly():
+    table = tf.compat.v2.lookup.StaticHashTable(init, default_value=-7)
   else:
     table = tf.compat.v1.lookup.StaticHashTable(init, default_value=-7)
 
@@ -72,7 +72,7 @@ def get_static_table(tmpdir,
       table,
       oov_tokens,
       mask_token=mask_token,
-      use_v1_apis=(not tf.executing_eagerly()))
+      use_v1_apis=(not tf.compat.v2.executing_eagerly()))
 
 
 @keras_parameterized.run_all_keras_modes
@@ -110,7 +110,7 @@ class CategoricalEncodingInputTest(
     expected_values = [5, 1]
     expected_dense_shape = [3, 4]
 
-    table = get_table(dtype=tf.int64, oov_tokens=[1])
+    table = get_table(dtype=tf.dtypes.int64, oov_tokens=[1])
     table.insert(vocab_data, range(2, len(vocab_data) + 2))
     output_data = table.lookup(input_array)
 
@@ -136,7 +136,7 @@ class CategoricalEncodingInputTest(
                                               dtype=np.int64)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
-    table = get_table(dtype=tf.int64, oov_tokens=[1])
+    table = get_table(dtype=tf.dtypes.int64, oov_tokens=[1])
     table.insert(vocab_data, range(2, len(vocab_data) + 2))
     output_data = table.lookup(input_array)
 
@@ -146,7 +146,7 @@ class CategoricalEncodingInputTest(
     key_data = np.array([0, 1], dtype=np.int64)
     value_data = np.array([[11, 12], [21, 22]])
 
-    table = get_table(dtype=tf.int64, oov_tokens=[1, 2])
+    table = get_table(dtype=tf.dtypes.int64, oov_tokens=[1, 2])
 
     with self.assertRaisesRegex(ValueError, "must be 1-dimensional"):
       table.insert(key_data, value_data)
@@ -185,7 +185,7 @@ class CategoricalEncodingMultiOOVTest(
     expected_values = [6, 1]
     expected_dense_shape = [3, 4]
 
-    table = get_table(dtype=tf.int64, oov_tokens=[1, 2])
+    table = get_table(dtype=tf.dtypes.int64, oov_tokens=[1, 2])
     table.insert(vocab_data, range(3, len(vocab_data) + 3))
     output_data = table.lookup(input_array)
 
@@ -212,7 +212,7 @@ class CategoricalEncodingMultiOOVTest(
                                               dtype=np.int64)
     expected_output = [[3, 4, 6], [6, 5, 3, 1]]
 
-    table = get_table(dtype=tf.int64, oov_tokens=[1, 2])
+    table = get_table(dtype=tf.dtypes.int64, oov_tokens=[1, 2])
     table.insert(vocab_data, range(3, len(vocab_data) + 3))
     output_data = table.lookup(input_array)
 
@@ -223,7 +223,7 @@ class CategoricalEncodingMultiOOVTest(
     input_array = np.array([[13, 132], [13, 133]], dtype=np.int64)
     expected_values = [[6, 1], [6, 2]]
 
-    table = get_table(dtype=tf.int64, oov_tokens=[1, 2])
+    table = get_table(dtype=tf.dtypes.int64, oov_tokens=[1, 2])
     table.insert(vocab_data, range(3, len(vocab_data) + 3))
     output_data = table.lookup(input_array)
 
@@ -367,7 +367,7 @@ class CategoricalEncodingStaticInputTest(
     table = get_static_table(
         tmpdir=self.get_temp_dir(),
         vocab_list=vocab_data,
-        dtype=tf.int64,
+        dtype=tf.dtypes.int64,
         mask_token=0,
         oov_tokens=[1])
     output_data = table.lookup(input_array)
@@ -400,7 +400,7 @@ class CategoricalEncodingStaticInputTest(
     table = get_static_table(
         tmpdir=self.get_temp_dir(),
         vocab_list=vocab_data,
-        dtype=tf.int64,
+        dtype=tf.dtypes.int64,
         mask_token=0,
         oov_tokens=[1])
     output_data = table.lookup(input_array)

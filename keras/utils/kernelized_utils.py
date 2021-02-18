@@ -53,7 +53,7 @@ def _align_matrices(x, y):
 def inner_product(u, v):
   u = _to_matrix(u)
   v = _to_matrix(v)
-  return tf.matmul(u, v, transpose_b=True)
+  return tf.linalg.matmul(u, v, transpose_b=True)
 
 
 def exact_gaussian_kernel(x, y, stddev):
@@ -81,7 +81,7 @@ def exact_gaussian_kernel(x, y, stddev):
     ValueError: if the shapes of x, y are not compatible.
   """
   x_aligned, y_aligned = _align_matrices(x, y)
-  diff_squared_l2_norm = tf.reduce_sum(
+  diff_squared_l2_norm = tf.compat.v2.math.reduce_sum(
       tf.math.squared_difference(x_aligned, y_aligned), 2)
   return tf.exp(-diff_squared_l2_norm / (2 * stddev * stddev))
 
@@ -111,6 +111,6 @@ def exact_laplacian_kernel(x, y, stddev):
     ValueError: if the shapes of x, y are not compatible.
   """
   x_aligned, y_aligned = _align_matrices(x, y)
-  diff_l1_norm = tf.reduce_sum(
-      tf.abs(tf.subtract(x_aligned, y_aligned)), 2)
+  diff_l1_norm = tf.compat.v2.math.reduce_sum(
+      tf.abs(tf.math.subtract(x_aligned, y_aligned)), 2)
   return tf.exp(-diff_l1_norm / stddev)

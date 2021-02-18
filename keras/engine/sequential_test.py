@@ -350,7 +350,7 @@ class TestSequential(keras_parameterized.TestCase):
   def test_input_assumptions_propagation(self):
     model = keras.models.Sequential()
     model.add(keras.layers.Dense(1))
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       with self.assertRaisesRegex(ValueError,
                                   'expected min_ndim=2, found ndim=0'):
         model(1.0)
@@ -358,7 +358,7 @@ class TestSequential(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   def test_string_input(self):
     seq = keras.Sequential([
-        keras.layers.InputLayer(input_shape=(1,), dtype=tf.string),
+        keras.layers.InputLayer(input_shape=(1,), dtype=tf.dtypes.string),
         keras.layers.Lambda(lambda x: x[0])
     ])
     seq.run_eagerly = testing_utils.should_run_eagerly()
@@ -458,7 +458,7 @@ class TestSequential(keras_parameterized.TestCase):
     class MyModule(tf.Module):
 
       def __init__(self):
-        self.v = tf.Variable(2.)
+        self.v = tf.compat.v2.Variable(2.)
 
       def __call__(self, x):
         return self.v * x
@@ -476,7 +476,7 @@ class TestSequential(keras_parameterized.TestCase):
     class MyModule(tf.Module):
 
       def __init__(self):
-        self.v = tf.Variable(2.)
+        self.v = tf.compat.v2.Variable(2.)
 
       def call(self, x, training=None):
         # training should be set by Sequential.
@@ -496,7 +496,7 @@ class TestSequential(keras_parameterized.TestCase):
     class MyModule(tf.Module):
 
       def __init__(self):
-        self.v = tf.Variable(2.)
+        self.v = tf.compat.v2.Variable(2.)
 
     model = keras.Sequential()
     with self.assertRaisesRegex(ValueError, 'is not defined'):

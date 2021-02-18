@@ -485,7 +485,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
     inp = keras.Input(shape=(4,), name='inp1')
     out = keras.layers.Dense(2)(inp)
     model = keras.Model(inp, out)
-    model.add_loss(tf.reduce_mean(out))
+    model.add_loss(tf.compat.v2.math.reduce_mean(out))
     model.compile('rmsprop')
     x = np.ones((10, 4))
 

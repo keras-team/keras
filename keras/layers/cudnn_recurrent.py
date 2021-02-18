@@ -75,7 +75,7 @@ class _CuDNNRNN(RNN):
     self.constants_spec = None
     self._states = None
     self._num_constants = 0
-    self._vector_shape = tf.constant([-1])
+    self._vector_shape = tf.compat.v2.constant([-1])
 
   def call(self, inputs, mask=None, training=None, initial_state=None):
     if isinstance(mask, list):
@@ -448,7 +448,7 @@ class CuDNNLSTM(_CuDNNRNN):
       def bias_initializer(_, *args, **kwargs):
         return tf.concat([
             self.bias_initializer((self.units * 5,), *args, **kwargs),
-            tf.compat.v1.ones_initializer()((self.units,), *args, **kwargs),
+            tf.compat.v1.initializers.ones()((self.units,), *args, **kwargs),
             self.bias_initializer((self.units * 2,), *args, **kwargs),
         ], axis=0)
     else:

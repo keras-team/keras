@@ -111,19 +111,19 @@ class Adamax(optimizer_v2.OptimizerV2):
     local_step = tf.cast(self.iterations + 1, var_dtype)
     beta_1_t = tf.identity(self._get_hyper('beta_1', var_dtype))
     beta_2_t = tf.identity(self._get_hyper('beta_2', var_dtype))
-    beta_1_power = tf.pow(beta_1_t, local_step)
+    beta_1_power = tf.math.pow(beta_1_t, local_step)
     lr_t = apply_state[(var_device, var_dtype)]['lr_t']
 
     apply_state[(var_device, var_dtype)].update(
         dict(
             neg_scaled_lr=-lr_t / (1 - beta_1_power),
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             beta_1_t=beta_1_t,
             beta_1_power=beta_1_power,
             one_minus_beta_1_t=1 - beta_1_t,
             beta_2_t=beta_2_t,
-            zero=tf.zeros((), dtype=tf.int64)))
+            zero=tf.zeros((), dtype=tf.dtypes.int64)))
 
   def _resource_apply_dense(self, grad, var, apply_state=None):
     var_device, var_dtype = var.device, var.dtype.base_dtype
@@ -160,7 +160,7 @@ class Adamax(optimizer_v2.OptimizerV2):
     # u_t = max(beta2 * u, abs(g_t))
     v = self.get_slot(var, 'v')
     v_slice = tf.compat.v1.gather(v, indices, axis=coefficients['zero'])
-    v_t_slice = tf.maximum(v_slice * coefficients['beta_2_t'],
+    v_t_slice = tf.math.maximum(v_slice * coefficients['beta_2_t'],
                                  tf.abs(grad))
     with tf.control_dependencies([v_t_slice]):
       v_t = self._resource_scatter_update(v, indices, v_t_slice)

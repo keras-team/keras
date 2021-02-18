@@ -30,7 +30,7 @@ from keras.feature_column import dense_features_v2 as df
 def _initialized_session(config=None):
   sess = tf.compat.v1.Session(config=config)
   sess.run(tf.compat.v1.global_variables_initializer())
-  sess.run(tf.compat.v1.tables_initializer())
+  sess.run(tf.compat.v1.initializers.tables_initializer())
   return sess
 
 
@@ -164,7 +164,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
                                       ])(features, training=False)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 2., 30.], [5., 6., 40.]],
                           self.evaluate(train_mode))
@@ -199,7 +199,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = df.DenseFeatures(tf.feature_column.numeric_column('a'))(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[0.]], self.evaluate(net))
 
@@ -210,7 +210,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = df.DenseFeatures(columns)(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[0., 1.]], self.evaluate(net))
 
@@ -231,7 +231,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = df.DenseFeatures([price])(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1.], [5.]], self.evaluate(net))
 
@@ -242,7 +242,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = df.DenseFeatures([price])(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 2.], [5., 6.]], self.evaluate(net))
 
@@ -259,7 +259,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = dense_features(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 2., 3., 4., 5., 6.], [5., 6., 7., 8., 9., 10.]],
                           self.evaluate(net))
@@ -280,7 +280,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = df.DenseFeatures([price])(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 2.], [5., 6.]], self.evaluate(net))
 
@@ -292,7 +292,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = df.DenseFeatures([price1, price2])(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 2., 3.], [5., 6., 4.]], self.evaluate(net))
 
@@ -306,7 +306,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net = dense_features(features, cols_dict)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 2.], [5., 6.]],
                           self.evaluate(cols_dict[price1]))
@@ -325,7 +325,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       net2 = df.DenseFeatures([price_b, price_a])(features)
 
       self.evaluate(tf.compat.v1.global_variables_initializer())
-      self.evaluate(tf.compat.v1.tables_initializer())
+      self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertAllClose([[1., 3.]], self.evaluate(net1))
       self.assertAllClose([[1., 3.]], self.evaluate(net2))
@@ -360,7 +360,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     price3 = tf.feature_column.numeric_column('price3')
     with tf.Graph().as_default():
       features = {
-          'price1': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 3
+          'price1': tf.compat.v1.placeholder(dtype=tf.dtypes.int64),  # batchsize = 3
           'price2': [[3.], [4.]],  # batchsize = 2
           'price3': [[3.], [4.], [5.]]  # batchsize = 3
       }
@@ -374,7 +374,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     price2 = tf.feature_column.numeric_column('price2')
     with tf.Graph().as_default():
       features = {
-          'price1': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 3
+          'price1': tf.compat.v1.placeholder(dtype=tf.dtypes.int64),  # batchsize = 3
           'price2': [[3.], [4.]]  # batchsize = 2
       }
       net = df.DenseFeatures([price1, price2])(features)
@@ -388,8 +388,8 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     price2 = tf.feature_column.numeric_column('price2')
     with tf.Graph().as_default():
       features = {
-          'price1': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 2
-          'price2': tf.compat.v1.placeholder(dtype=tf.int64),  # batchsize = 2
+          'price1': tf.compat.v1.placeholder(dtype=tf.dtypes.int64),  # batchsize = 2
+          'price2': tf.compat.v1.placeholder(dtype=tf.dtypes.int64),  # batchsize = 2
       }
       net = df.DenseFeatures([price1, price2])(features)
       with _initialized_session() as sess:
@@ -433,7 +433,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
 
     # feature_column.shared_embeddings is not supported in eager.
     with tf.Graph().as_default():
-      embedding_column_b, embedding_column_a = tf.feature_column.shared_embeddings(
+      embedding_column_b, embedding_column_a = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension)
       features = {
@@ -467,7 +467,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
 
     # feature_column.shared_embeddings is not supported in eager.
     with tf.Graph().as_default():
-      embedding_column_b, embedding_column_a = tf.feature_column.shared_embeddings(
+      embedding_column_b, embedding_column_a = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension)
       all_cols = [embedding_column_a, embedding_column_b]
@@ -539,7 +539,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
       # Provides 1-dim tensor and dense tensor.
       features = {
           'price':
-              tf.constant([
+              tf.compat.v2.constant([
                   11.,
                   12.,
               ]),
@@ -550,7 +550,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
                   dense_shape=(2,)),
           # This is dense tensor for the categorical_column.
           'country':
-              tf.constant(['CA', 'US']),
+              tf.compat.v2.constant(['CA', 'US']),
       }
       self.assertEqual(1, features['price'].shape.ndims)
       self.assertEqual(1, features['body-style'].dense_shape.get_shape()[0])
@@ -595,10 +595,10 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     # Provides 1-dim tensor and dense tensor.
     with tf.Graph().as_default():
       features = {
-          'price': tf.compat.v1.placeholder(tf.float32),
-          'body-style': tf.compat.v1.sparse_placeholder(tf.string),
+          'price': tf.compat.v1.placeholder(tf.dtypes.float32),
+          'body-style': tf.compat.v1.sparse.placeholder(tf.dtypes.string),
           # This is dense tensor for the categorical_column.
-          'country': tf.compat.v1.placeholder(tf.string),
+          'country': tf.compat.v1.placeholder(tf.dtypes.string),
       }
       self.assertIsNone(features['price'].shape.ndims)
       self.assertIsNone(features['body-style'].get_shape().ndims)
@@ -630,7 +630,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     # price has 1 dimension in dense_features
     price = tf.feature_column.numeric_column('price')
     features = {
-        'price': tf.constant(0),
+        'price': tf.compat.v2.constant(0),
     }
     self.assertEqual(0, features['price'].shape.ndims)
 
@@ -641,7 +641,7 @@ class DenseFeaturesTest(keras_parameterized.TestCase):
     with tf.Graph().as_default():
       # Dynamic rank 0 should fail
       features = {
-          'price': tf.compat.v1.placeholder(tf.float32),
+          'price': tf.compat.v1.placeholder(tf.dtypes.float32),
       }
       net = df.DenseFeatures([price])(features)
       self.assertEqual(1, net.shape[1])

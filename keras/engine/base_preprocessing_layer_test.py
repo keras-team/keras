@@ -48,8 +48,8 @@ class AddingPreprocessingLayer(
     self._sum = self._add_state_variable(
         name=self._SUM_NAME,
         shape=(1,),
-        dtype=tf.float32,
-        initializer=tf.compat.v1.zeros_initializer)
+        dtype=tf.dtypes.float32,
+        initializer=tf.compat.v1.initializers.zeros)
 
   def reset_state(self):
     self._sum.assign([0.])
@@ -117,7 +117,7 @@ class AddingPreprocessingLayerV1(
 
 
 def get_layer(**kwargs):
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return AddingPreprocessingLayer(**kwargs)
   else:
     return AddingPreprocessingLayerV1(**kwargs)
@@ -131,7 +131,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     input_dataset = {"foo": 0}
 
     layer = get_layer()
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       with self.assertRaisesRegex(ValueError, "Failed to find data adapter"):
         layer.adapt(input_dataset)
     else:
@@ -144,7 +144,7 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
         np.array([[1], [2], [3], [4], [5], [0]])).repeat()
 
     layer = get_layer()
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       with self.assertRaisesRegex(ValueError, "infinite dataset"):
         layer.adapt(input_dataset)
     else:
@@ -360,8 +360,8 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     output = layer(input_data)
     model = keras.Model(input_data, output)
 
-    if not tf.executing_eagerly():
-      self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    if not tf.compat.v2.executing_eagerly():
+      self.evaluate(tf.compat.v1.initializers.variables(model.variables))
 
     output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
     model.save(output_path, save_format="tf")
@@ -420,7 +420,7 @@ class ConvertToListTest(keras_parameterized.TestCase):
           "expected": [[1, 2, 3], [4, 5, 6]]
       }, {
           "testcase_name": "tensor",
-          "inputs": lambda: tf.constant([[1, 2, 3], [4, 5, 6]]),
+          "inputs": lambda: tf.compat.v2.constant([[1, 2, 3], [4, 5, 6]]),
           "expected": [[1, 2, 3], [4, 5, 6]]
       }, {
           "testcase_name":

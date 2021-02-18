@@ -31,11 +31,11 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testBasic(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
-      var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-      var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-      grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-      grads1 = tf.constant([0.01, 0.01], dtype=dtype)
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+      var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+      var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+      grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+      grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
       sgd = gradient_descent.SGD(3.0)
       sgd_op = sgd.apply_gradients(zip([grads0, grads1], [var0, var1]))
       self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -48,15 +48,15 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                          self.evaluate(var1))
 
   def _test_basic_sgd_with_learning_rate_decay(self, sgd, dtype):
-    var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-    var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-    grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-    grads1 = tf.constant([0.01, 0.01], dtype=dtype)
-    if not tf.executing_eagerly():
+    var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+    var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+    grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+    grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
+    if not tf.compat.v2.executing_eagerly():
       sgd_op = sgd.apply_gradients(zip([grads0, grads1], [var0, var1]))
     self.evaluate(tf.compat.v1.global_variables_initializer())
     # Run 2 steps of sgd
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(sgd_op)
     else:
       sgd.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -66,7 +66,7 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllCloseAccordingToType([3.0 - 3.0 * 0.01, 4.0 - 3.0 * 0.01],
                                        self.evaluate(var1))
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(sgd_op)
     else:
       sgd.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -80,7 +80,7 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateDecay(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
       learning_rate = 3.0
       decay = 0.5
       sgd = gradient_descent.SGD(learning_rate=learning_rate, decay=decay)
@@ -88,7 +88,7 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateInverseTimeDecay(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
       learning_rate = learning_rate_schedule.InverseTimeDecay(
           3.0, decay_steps=1.0, decay_rate=0.5)
       sgd = gradient_descent.SGD(learning_rate=learning_rate)
@@ -96,7 +96,7 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testBasicWithLearningRateInverseTimeDecaySerializeAndDeserialize(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
       learning_rate = learning_rate_schedule.InverseTimeDecay(
           3.0, decay_steps=1.0, decay_rate=0.5)
       sgd = gradient_descent.SGD(learning_rate=learning_rate)
@@ -105,11 +105,11 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testBasicCallableParams(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
-      var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-      var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-      grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-      grads1 = tf.constant([0.01, 0.01], dtype=dtype)
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+      var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+      var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+      grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+      grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
       lr = lambda: 3.0
       sgd = gradient_descent.SGD(lr)
       sgd_op = sgd.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -124,11 +124,11 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testMinimizeResourceVariable(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
-      var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-      var1 = tf.Variable([3.0], dtype=dtype)
-      x = tf.constant([[4.0], [5.0]], dtype=dtype)
-      loss = lambda: tf.matmul(var0, x) + var1  # pylint: disable=cell-var-from-loop
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+      var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+      var1 = tf.compat.v2.Variable([3.0], dtype=dtype)
+      x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
+      loss = lambda: tf.linalg.matmul(var0, x) + var1  # pylint: disable=cell-var-from-loop
       sgd = gradient_descent.SGD(1.0)
       sgd_op = sgd.minimize(loss, [var0, var1])
       self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -142,13 +142,13 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testMinimizeSparseResourceVariable(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-        var1 = tf.Variable([3.0], dtype=dtype)
-        x = tf.constant([[4.0], [5.0]], dtype=dtype)
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0], dtype=dtype)
+        x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
         def loss():
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
           pred += var1  # pylint: disable=cell-var-from-loop
           return pred * pred
 
@@ -164,12 +164,12 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllCloseAccordingToType([3.0 - np_grad], self.evaluate(var1))
 
   def testTensorLearningRate(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
-      var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-      var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-      grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-      grads1 = tf.constant([0.01, 0.01], dtype=dtype)
-      lrate = tf.constant(3.0)
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+      var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+      var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+      grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+      grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
+      lrate = tf.compat.v2.constant(3.0)
       sgd_op = gradient_descent.SGD(lrate).apply_gradients(
           zip([grads0, grads1], [var0, var1]))
       self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -184,10 +184,10 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testGradWrtRef(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
         opt = gradient_descent.SGD(3.0)
         values = [1.0, 3.0]
-        vars_ = [tf.Variable([v], dtype=dtype) for v in values]
+        vars_ = [tf.compat.v2.Variable([v], dtype=dtype) for v in values]
         loss = lambda: vars_[0] + vars_[1]  # pylint: disable=cell-var-from-loop
         grads_and_vars = opt._compute_gradients(loss, vars_)
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -197,15 +197,15 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testSparseBasic(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable([[1.0], [2.0]], dtype=dtype)
-        var1 = tf.Variable([[3.0], [4.0]], dtype=dtype)
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([[1.0], [2.0]], dtype=dtype)
+        var1 = tf.compat.v2.Variable([[3.0], [4.0]], dtype=dtype)
         grads0 = tf.IndexedSlices(
-            tf.constant([0.1], shape=[1, 1], dtype=dtype),
-            tf.constant([0]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.1], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([0]), tf.compat.v2.constant([2, 1]))
         grads1 = tf.IndexedSlices(
-            tf.constant([0.01], shape=[1, 1], dtype=dtype),
-            tf.constant([1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.01], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([1]), tf.compat.v2.constant([2, 1]))
         sgd_op = gradient_descent.SGD(3.0).apply_gradients(
             zip([grads0, grads1], [var0, var1]))
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -220,15 +220,15 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testSparseBasicWithLearningRateDecay(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable([[1.0], [2.0]], dtype=dtype)
-        var1 = tf.Variable([[3.0], [4.0]], dtype=dtype)
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([[1.0], [2.0]], dtype=dtype)
+        var1 = tf.compat.v2.Variable([[3.0], [4.0]], dtype=dtype)
         grads0 = tf.IndexedSlices(
-            tf.constant([0.1], shape=[1, 1], dtype=dtype),
-            tf.constant([0]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.1], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([0]), tf.compat.v2.constant([2, 1]))
         grads1 = tf.IndexedSlices(
-            tf.constant([0.01], shape=[1, 1], dtype=dtype),
-            tf.constant([1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.01], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([1]), tf.compat.v2.constant([2, 1]))
         sgd_op = gradient_descent.SGD(
             3.0, decay=0.5).apply_gradients(
                 zip([grads0, grads1], [var0, var1]))
@@ -255,7 +255,7 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     var_holder = {}
     def step():
       if not var_holder:
-        var_holder["var"] = tf.Variable(1.0)
+        var_holder["var"] = tf.compat.v2.Variable(1.0)
       else:
         var_holder["var"].assign(1.0)
 
@@ -277,9 +277,9 @@ class GradientDescentOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = gradient_descent.SGD(lr=1.0)
     opt_2 = gradient_descent.SGD(learning_rate=0.1, lr=1.0)
     opt_3 = gradient_descent.SGD(learning_rate=0.1)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
     self.evaluate(tf.compat.v1.global_variables_initializer())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
@@ -296,11 +296,11 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testBasic(self):
-    for _, dtype in enumerate([tf.half, tf.float32, tf.float64]):
-      var0 = tf.Variable([1.0, 2.0], dtype=dtype, name="var0")
-      var1 = tf.Variable([3.0, 4.0], dtype=dtype, name="var1")
-      grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-      grads1 = tf.constant([0.01, 0.01], dtype=dtype)
+    for _, dtype in enumerate([tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]):
+      var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype, name="var0")
+      var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype, name="var1")
+      grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+      grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
       learning_rate = 2.0
       momentum = 0.9
       mom_opt = gradient_descent.SGD(
@@ -333,7 +333,7 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           self.evaluate(var1))
       # Step 2: the momentum accumulators contain the previous update.
       self.evaluate(mom_update)
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         mom_opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
       # Check that the momentum accumulators have been updated.
       self.assertAllCloseAccordingToType(
@@ -357,9 +357,9 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testNesterovMomentum(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.float32, tf.float64]:
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype, name="var0")
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype, name="var1")
+      for dtype in [tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype, name="var0")
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype, name="var1")
         var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         accum0_np = np.array([0.0, 0.0], dtype=dtype.as_numpy_dtype)
@@ -380,7 +380,7 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testSparseNesterovMomentum(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.float32, tf.dtypes.float64]:
       with tf.Graph().as_default(), self.cached_session() as sess:
         var0_np = np.array([1.0, 2.0], dtype=dtype.as_numpy_dtype)
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
@@ -397,15 +397,15 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         accum0_np = np.array([0.0, 0.0], dtype=dtype.as_numpy_dtype)
         accum1_np = np.array([0.0, 0.0], dtype=dtype.as_numpy_dtype)
-        var0 = tf.Variable(var0_np, dtype=dtype, name="var0")
-        var1 = tf.Variable(var1_np, dtype=dtype, name="var1")
+        var0 = tf.compat.v2.Variable(var0_np, dtype=dtype, name="var0")
+        var1 = tf.compat.v2.Variable(var1_np, dtype=dtype, name="var1")
         mom_op = gradient_descent.SGD(
             learning_rate=2.0, momentum=0.9, nesterov=True)
         x_feed = tf.compat.v1.placeholder(dtype)
-        y_feed = tf.IndexedSlices(x_feed, tf.constant([0, 1]),
-                                   tf.constant([2]))
+        y_feed = tf.IndexedSlices(x_feed, tf.compat.v2.constant([0, 1]),
+                                   tf.compat.v2.constant([2]))
         grads_and_vars = [(y_feed, var0),
-                          (tf.constant([3.0, 3.0], dtype=dtype), var1)]
+                          (tf.compat.v2.constant([3.0, 3.0], dtype=dtype), var1)]
         opt_update = mom_op.apply_gradients(grads_and_vars)
         self.evaluate(tf.compat.v1.global_variables_initializer())
         for t in range(1, 5):
@@ -420,13 +420,13 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testMinimizeSparseResourceVariable(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
 
         # pylint: disable=cell-var-from-loop
         def loss():
-          x = tf.constant([[4.0], [5.0]], dtype=dtype)
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)
+          x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)
           return pred * pred
 
         # pylint: enable=cell-var-from-loop
@@ -441,10 +441,10 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testMinimizeWith2DIndicesForEmbeddingLookup(self):
-    var0 = tf.Variable(tf.ones([2, 2]))
+    var0 = tf.compat.v2.Variable(tf.ones([2, 2]))
 
     def loss():
-      return tf.reduce_sum(tf.compat.v1.nn.embedding_lookup(var0, [[1]]))
+      return tf.compat.v2.math.reduce_sum(tf.compat.v1.nn.embedding_lookup(var0, [[1]]))
 
     opt = gradient_descent.SGD(learning_rate=1.0, momentum=0.9)
     sgd_op = opt.minimize(loss, [var0])
@@ -455,14 +455,14 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testTensorLearningRateAndMomentum(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.01], dtype=dtype)
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
         mom_opt = gradient_descent.SGD(
-            learning_rate=tf.constant(2.0),
-            momentum=tf.constant(0.9))
+            learning_rate=tf.compat.v2.constant(2.0),
+            momentum=tf.compat.v2.constant(0.9))
         mom_update = mom_opt.apply_gradients(
             zip([grads0, grads1], [var0, var1]))
         self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -514,15 +514,15 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testSparse(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable(tf.zeros([4, 2], dtype=dtype))
-        var1 = tf.Variable(tf.constant(1.0, dtype, [4, 2]))
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable(tf.zeros([4, 2], dtype=dtype))
+        var1 = tf.compat.v2.Variable(tf.compat.v2.constant(1.0, dtype, [4, 2]))
         grads0 = tf.IndexedSlices(
-            tf.constant([[.1, .1]], dtype=dtype),
-            tf.constant([1]), tf.constant([4, 2]))
+            tf.compat.v2.constant([[.1, .1]], dtype=dtype),
+            tf.compat.v2.constant([1]), tf.compat.v2.constant([4, 2]))
         grads1 = tf.IndexedSlices(
-            tf.constant([[.01, .01], [.01, .01]], dtype=dtype),
-            tf.constant([2, 3]), tf.constant([4, 2]))
+            tf.compat.v2.constant([[.01, .01], [.01, .01]], dtype=dtype),
+            tf.compat.v2.constant([2, 3]), tf.compat.v2.constant([4, 2]))
         mom_opt = gradient_descent.SGD(learning_rate=2.0, momentum=0.9)
         mom_update = mom_opt.apply_gradients(
             zip([grads0, grads1], [var0, var1]))
@@ -591,11 +591,11 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testSharing(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half, tf.float32, tf.float64]:
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.01], dtype=dtype)
+      for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
         mom_opt = gradient_descent.SGD(learning_rate=2.0, momentum=0.9)
         mom_update1 = mom_opt.apply_gradients(
             zip([grads0, grads1], [var0, var1]))
@@ -662,7 +662,7 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose(
         self.evaluate(opt._get_hyper("decay")),
         self.evaluate(opt2._get_hyper("decay")))
-    var0 = tf.Variable([[1.0], [2.0]], dtype=tf.float32)
+    var0 = tf.compat.v2.Variable([[1.0], [2.0]], dtype=tf.dtypes.float32)
     loss = lambda: 3 * var0
     # learning rate variable created when calling minimize.
     opt.minimize(loss, [var0])
@@ -688,9 +688,9 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = gradient_descent.SGD(lr=1.0, momentum=0.9)
     opt_2 = gradient_descent.SGD(learning_rate=0.1, momentum=0.9, lr=1.0)
     opt_3 = gradient_descent.SGD(learning_rate=0.1, momentum=0.9)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
     self.evaluate(tf.compat.v1.global_variables_initializer())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
@@ -699,14 +699,14 @@ class MomentumOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=["eager"]))
   def testMinimizeLossTensor(self):
-    for dtype in [tf.half, tf.float32, tf.float64]:
-      var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-      var1 = tf.Variable([3.0], dtype=dtype)
-      x = tf.constant([[4.0], [5.0]], dtype=dtype)
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
+      var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+      var1 = tf.compat.v2.Variable([3.0], dtype=dtype)
+      x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
       tape = tf.GradientTape()
       with tape:
-        loss = tf.matmul(var0, x) + var1
+        loss = tf.linalg.matmul(var0, x) + var1
       sgd = gradient_descent.SGD(1.0)
       with self.assertRaisesRegex(ValueError, "`tape` is required"):
         sgd.minimize(loss, [var0, var1])

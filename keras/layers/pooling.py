@@ -790,7 +790,7 @@ class GlobalAveragePooling1D(GlobalPooling1D):
       mask = tf.compat.v1.expand_dims(
           mask, 2 if self.data_format == 'channels_last' else 1)
       inputs *= mask
-      return backend.sum(inputs, axis=steps_axis) / tf.reduce_sum(
+      return backend.sum(inputs, axis=steps_axis) / tf.compat.v2.math.reduce_sum(
           mask, axis=steps_axis)
     else:
       return backend.mean(inputs, axis=steps_axis)

@@ -40,10 +40,10 @@ class TestMultiGPUModel(tf.test.TestCase):
 
   def __init__(self, methodName='runTest'):  # pylint: disable=invalid-name
     super(TestMultiGPUModel, self).__init__(methodName)
-    gpu_devices = tf.config.list_physical_devices('GPU')
+    gpu_devices = tf.config.experimental.list_physical_devices('GPU')
     if len(gpu_devices) == 1:
       # A GPU is available, simulate 2 instead.
-      tf.config.set_logical_device_configuration(gpu_devices[0], [
+      tf.config.experimental.set_virtual_device_configuration(gpu_devices[0], [
           tf.config.LogicalDeviceConfiguration(500),
           tf.config.LogicalDeviceConfiguration(500)
       ])

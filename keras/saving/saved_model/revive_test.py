@@ -71,7 +71,7 @@ class SparseDense(keras.layers.Dense):
 
   def call(self, inputs):
     input_shape = tf.stack(
-        (tf.reduce_prod(tf.compat.v1.shape(inputs)[:-1]),
+        (tf.compat.v2.math.reduce_prod(tf.compat.v1.shape(inputs)[:-1]),
          self.kernel.shape[0]))
     output_shape = tf.concat(
         (tf.compat.v1.shape(inputs)[:-1], [self.kernel.shape[1]]), -1)
@@ -112,7 +112,7 @@ class CustomLayerNoConfig(keras.layers.Layer):
 
   def __init__(self, a, b, name=None):
     super(CustomLayerNoConfig, self).__init__(name=name)
-    self.a = tf.Variable(a, name='a')
+    self.a = tf.compat.v2.Variable(a, name='a')
     self.b = b
     def a_regularizer():
       return self.a * 2
@@ -121,11 +121,11 @@ class CustomLayerNoConfig(keras.layers.Layer):
     self.unused_metric = keras.metrics.Sum(name='not_added_to_metrics')
 
   def build(self, input_shape):
-    self.c = tf.Variable(
-        tf.constant(1.0, shape=input_shape[1:]), name=self.name+'_c')
+    self.c = tf.compat.v2.Variable(
+        tf.compat.v2.constant(1.0, shape=input_shape[1:]), name=self.name+'_c')
 
   def call(self, inputs):
-    self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+    self.add_loss(tf.compat.v2.math.reduce_sum(inputs), inputs=inputs)
     self.add_metric(self.sum_metric(inputs))
     self.add_metric(inputs, aggregation='mean', name='mean')
 
@@ -202,7 +202,7 @@ class ReviveTestBase(keras_parameterized.TestCase):
 
     self.assertAllClose(self.evaluate(model.weights),
                         self.evaluate(revived.weights))
-    input_arr = tf.constant(
+    input_arr = tf.compat.v2.constant(
         np.random.random((2, 2, 3)).astype(np.float32))
     if isinstance(revived._saved_model_inputs_spec,
                   tf.SparseTensorSpec):
@@ -331,14 +331,14 @@ class TestModelRevive(ReviveTestBase):
 
   def test_revive_sequential_inputs(self):
     model = keras.models.Sequential([
-        keras.Input((None,), dtype=tf.string),
+        keras.Input((None,), dtype=tf.dtypes.string),
         keras.layers.Lambda(tf.strings.lower)
     ])
     model.save(self.path, save_format='tf')
     revived = keras_load.load(self.path)
     revived_layers = list(
         revived._flatten_layers(include_self=False, recursive=False))
-    self.assertEqual(tf.string, revived_layers[0].dtype)
+    self.assertEqual(tf.dtypes.string, revived_layers[0].dtype)
 
   @parameterized.named_parameters(
       ('default_config', CustomNetworkDefaultConfig),

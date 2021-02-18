@@ -59,7 +59,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
       training = keras.backend.learning_phase()
     output = control_flow_util.smart_cond(training, lambda: x * 0,
                                           lambda: tf.identity(x))
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       output._uses_learning_phase = True  # pylint: disable=protected-access
     return output
 
@@ -74,7 +74,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
 class LayerWithLoss(keras.layers.Layer):
 
   def call(self, inputs):
-    self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+    self.add_loss(tf.compat.v2.math.reduce_sum(inputs), inputs=inputs)
     return inputs * 2
 
 
@@ -86,7 +86,7 @@ class LayerWithUpdate(keras.layers.Layer):
         shape=[],
         initializer=keras.initializers.zeros,
         trainable=False,
-        dtype=tf.float32)
+        dtype=tf.dtypes.float32)
 
   def call(self, inputs, training=True):
     if training:
@@ -115,13 +115,13 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
         loss='mse',
         optimizer='rmsprop')
     def callable_loss():
-      return tf.reduce_sum(model.weights[0])
+      return tf.compat.v2.math.reduce_sum(model.weights[0])
     model.add_loss(callable_loss)
 
     x = np.random.random((1, 3))
     y = np.random.random((1, 4))
 
-    if not tf.__internal__.tf2.enabled():
+    if not tf.compat.v2.__internal__.tf2.enabled():
       # The layer autocast behavior only runs when autocast is enabled, so
       # in V1, the numpy inputs still need to be cast to float32.
       x = x.astype(np.float32)
@@ -136,17 +136,17 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     saved_model_dir = self._save_model_dir()
     tf.saved_model.save(model, saved_model_dir)
     loaded = keras_load.load(saved_model_dir)
-    self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(loaded.variables))
     self.assertAllClose(self.evaluate(model.weights),
                         self.evaluate(loaded.weights))
 
-    input_arr = tf.constant(
+    input_arr = tf.compat.v2.constant(
         np.random.random((1, 3)).astype(np.float32))
     self.assertAllClose(self.evaluate(model(input_arr)),
                         self.evaluate(loaded(input_arr)))
     # Validate losses. The order of conditional losses may change between the
     # model and loaded model, so sort the losses first.
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(sorted(self.evaluate(model.losses)),
                           sorted(self.evaluate(loaded.losses)))
     else:
@@ -177,10 +177,10 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
         trainable=False)
 
     saved_model_dir = self._save_model_dir()
-    self.evaluate(tf.compat.v1.variables_initializer(layer.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(layer.variables))
     tf.saved_model.save(layer, saved_model_dir)
     loaded = keras_load.load(saved_model_dir)
-    self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(loaded.variables))
 
     equal_attrs = ['name', '_expects_training_arg', 'trainable']
     for attr in equal_attrs:
@@ -213,7 +213,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
       # return False even if they are the same Tensor.
       self.assertAllEqual(previous_losses, model.losses)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # Test that eager losses are maintained.
       model(input_arr)  # Calls model eagerly, creating eager losses.
       previous_losses = model.losses[:]
@@ -236,17 +236,17 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     # Run the layer while explicitly setting the training argument
     self.assertAllEqual(
-        input_arr, loaded(input_arr, training=tf.constant(False)))
+        input_arr, loaded(input_arr, training=tf.compat.v2.constant(False)))
     self.assertAllEqual(
         tf.zeros((4, 3)),
-        loaded(input_arr, training=tf.constant(True)))
+        loaded(input_arr, training=tf.compat.v2.constant(True)))
 
   @keras_parameterized.run_with_all_model_types
   def test_standard_loader(self):
     model = testing_utils.get_small_mlp(1, 4, input_dim=3)
     model.activity_regularizer = regularizers.get('l2')
     def eager_loss():
-      return tf.reduce_sum(model.weights[0])
+      return tf.compat.v2.math.reduce_sum(model.weights[0])
     model.add_loss(eager_loss)
 
     # Call predict to ensure that all layers are built and inputs are set.
@@ -255,8 +255,8 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     tf.saved_model.save(model, saved_model_dir)
 
-    loaded = tf.saved_model.load(saved_model_dir)
-    self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
+    loaded = tf.compat.v2.saved_model.load(saved_model_dir)
+    self.evaluate(tf.compat.v1.initializers.variables(loaded.variables))
     all_close = ['variables', 'trainable_variables',
                  'non_trainable_variables']
     for attr in all_close:
@@ -273,7 +273,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
   def test_compiled_model(self):
     # TODO(b/134519980): Issue with model.fit if the model call function uses
     # a tf.function (Graph mode only).
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       return
 
     input_arr = np.random.random((1, 3))
@@ -376,7 +376,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
                                  kernel_regularizer=regularizers.get('l2')))
     model.add(keras.layers.Dense(2, kernel_regularizer=regularizers.get('l2')))
 
-    self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(model.variables))
 
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
@@ -398,7 +398,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
   def testBatchNormUpdates(self):
     model = keras.models.Sequential(
         keras.layers.BatchNormalization(input_shape=(1,)))
-    self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(model.variables))
     saved_model_dir = self._save_model_dir()
 
     # TODO(kathywu): Re-enable this check after removing the tf.saved_model.save
@@ -412,17 +412,17 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     # if context.executing_eagerly():
     #   self.assertNotIn('deprecated', captured_logs.contents())
 
-    input_arr = tf.constant([[11], [12], [13]], dtype=tf.float32)
-    input_arr2 = tf.constant([[14], [15], [16]], dtype=tf.float32)
+    input_arr = tf.compat.v2.constant([[11], [12], [13]], dtype=tf.dtypes.float32)
+    input_arr2 = tf.compat.v2.constant([[14], [15], [16]], dtype=tf.dtypes.float32)
     self.assertAllClose(self.evaluate(loaded.layers[-1].moving_mean), [0])
 
     self.evaluate(loaded(input_arr, training=True))
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(loaded.get_updates_for(input_arr))
     self.assertAllClose(self.evaluate(loaded.layers[-1].moving_mean), [0.12])
 
     self.evaluate(loaded(input_arr2, training=False))
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(loaded.get_updates_for(input_arr2))
     self.assertAllClose(self.evaluate(loaded.layers[-1].moving_mean), [0.12])
 
@@ -431,25 +431,25 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     model = keras.models.Sequential(
         keras.layers.BatchNormalization(input_shape=(1,)))
     model.trainable = False
-    self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(model.variables))
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
     loaded = keras_load.load(saved_model_dir)
-    self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
-    input_arr = tf.constant([[11], [12], [13]], dtype=tf.float32)
-    input_arr2 = tf.constant([[14], [15], [16]], dtype=tf.float32)
+    self.evaluate(tf.compat.v1.initializers.variables(loaded.variables))
+    input_arr = tf.compat.v2.constant([[11], [12], [13]], dtype=tf.dtypes.float32)
+    input_arr2 = tf.compat.v2.constant([[14], [15], [16]], dtype=tf.dtypes.float32)
     self.assertAllClose(self.evaluate(loaded.layers[-1].moving_mean), [0])
 
     # Trainable should still be disabled after loading
     self.evaluate(loaded(input_arr, training=True))
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(loaded.get_updates_for(input_arr))
     self.assertAllClose(self.evaluate(loaded.layers[-1].moving_mean), [0.0])
 
     # Re-enabling trainable on the loaded model should cause the batchnorm
     # layer to start training again.
     # Note: this only works in v2.
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       loaded.trainable = True
       self.evaluate(loaded(input_arr, training=True))
       self.assertAllClose(self.evaluate(loaded.layers[-1].moving_mean), [0.12])
@@ -478,12 +478,12 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     feature_configs = {
         'inputs': tf.io.FixedLenFeature(
-            shape=[2, 3], dtype=tf.float32)}
+            shape=[2, 3], dtype=tf.dtypes.float32)}
 
     @tf.function(
-        input_signature=[tf.TensorSpec([None], tf.string)])
+        input_signature=[tf.TensorSpec([None], tf.dtypes.string)])
     def parse_and_predict(examples):
-      features = tf.compat.v1.parse_single_example(examples[0], feature_configs)
+      features = tf.compat.v1.io.parse_single_example(examples[0], feature_configs)
       return {'predictions': model(features['inputs']),
               'layer_1_outputs': model.layers[0](features['inputs'])}
 
@@ -499,7 +499,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     self.assertAllClose(
         model.predict(input_arr),
-        loaded.signatures['predict'](tf.convert_to_tensor(
+        loaded.signatures['predict'](tf.compat.v2.convert_to_tensor(
             input_arr.astype('float32')))['predictions'])
 
     feature = {
@@ -509,7 +509,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     example = example_pb2.Example(
         features=feature_pb2.Features(feature=feature))
     outputs = loaded.signatures['parse_and_predict'](
-        tf.convert_to_tensor([example.SerializeToString()]))
+        tf.compat.v2.convert_to_tensor([example.SerializeToString()]))
     self.assertAllClose(model.predict(input_arr), outputs['predictions'])
     self.assertAllClose(model.layers[0](input_arr), outputs['layer_1_outputs'])
 
@@ -550,7 +550,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     model.predict(np.ones([1, 3]).astype('float32'))
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
-    load = tf.saved_model.load(saved_model_dir)
+    load = tf.compat.v2.saved_model.load(saved_model_dir)
 
     # Ensure that the Keras loader is able to load and build the model.
     _ = keras_load.load(saved_model_dir)
@@ -584,7 +584,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
   def testFeatureColumns(self):
     # TODO(b/120099662): Error with table initialization with Keras models in
     # graph mode.
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       numeric = tf.feature_column.numeric_column('a')
       bucketized = tf.feature_column.bucketized_column(numeric, boundaries=[5, 10, 15])
       cat_vocab = tf.feature_column.categorical_column_with_vocabulary_list(
@@ -609,7 +609,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
       def call(self, inputs, tensor=None):
         if tensor is not None:
-          return inputs * tf.cast(tensor, tf.float32)
+          return inputs * tf.cast(tensor, tf.dtypes.float32)
         else:
           return inputs
 
@@ -631,7 +631,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
       @tf.function
       def call(self, inputs, training=False):
-        return inputs * tf.cast(training, tf.float32)
+        return inputs * tf.cast(training, tf.dtypes.float32)
 
     model = Subclass()
     model.predict(tf.ones((1, 2)), steps=1)
@@ -640,10 +640,10 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     loaded = keras_load.load(saved_model_dir)
     self.assertAllEqual(
         [[1, 5]],
-        self.evaluate(loaded(tf.constant([[1, 5.]]), training=True)))
+        self.evaluate(loaded(tf.compat.v2.constant([[1, 5.]]), training=True)))
     self.assertAllEqual(
         [[0, 0]],
-        self.evaluate(loaded(tf.constant([[1, 5.]]), training=False)))
+        self.evaluate(loaded(tf.compat.v2.constant([[1, 5.]]), training=False)))
 
   def testReviveFunctionalModel(self):
 
@@ -669,7 +669,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     outputs = CustomAdd(name='custom')([output1, output2])
     model = keras.models.Model([input1, input2], outputs, name='save_model')
 
-    self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(model.variables))
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
 
@@ -689,13 +689,13 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
       x = np.ones((10, 3))
       if testing_utils.get_model_type() == 'subclass':
         model.predict(x, batch_size=10)
-      self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+      self.evaluate(tf.compat.v1.initializers.variables(model.variables))
       saved_model_dir = self._save_model_dir()
       model.save(saved_model_dir, save_format='tf')
 
     loaded = keras_load.load(saved_model_dir)
     loaded_layer = loaded.layers[-1]
-    self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(loaded.variables))
     self.assertEqual(self.evaluate(loaded_layer.v), 0.)
 
     loaded.compile('sgd', 'mse')
@@ -711,7 +711,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
   @keras_parameterized.run_with_all_model_types
   def testSaveInStrategyScope(self):
-    self._testAddUpdate(tf.distribute.MirroredStrategy().scope())
+    self._testAddUpdate(tf.compat.v2.distribute.MirroredStrategy().scope())
 
   def testSaveTimeDistributedLayer(self):
     model = keras.Sequential([
@@ -758,7 +758,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     loaded = keras_load.load(saved_model_dir)
     loaded_layer = loaded.layers[1]
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       keras.backend.get_session()  # force variable initialization
 
     self.assertAllClose(layer.states, loaded_layer.states)
@@ -794,7 +794,7 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
         self.embeddings = {
             feature: keras.layers.Embedding(10, 3) for feature in list_features}
         self.mean = keras.layers.Lambda(
-            tf.reduce_mean, arguments=dict(axis=1))
+            tf.compat.v2.math.reduce_mean, arguments=dict(axis=1))
 
       def call(self, inputs):
         tensors = [self.embeddings[col](inputs[col]) for col in inputs]
@@ -812,12 +812,12 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
 
     out = EmbeddingMerger(list_features)(f_inputs)
     model = keras.Model(f_inputs, out)
-    self.evaluate(tf.compat.v1.variables_initializer(model.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(model.variables))
     saved_model_dir = self._save_model_dir()
     tf.saved_model.save(model, saved_model_dir)
 
     loaded = keras_load.load(saved_model_dir)
-    self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(loaded.variables))
     self.assertAllClose(model.predict(f), loaded.predict(f))
 
 
@@ -847,7 +847,7 @@ class TestSavedModelFormat(tf.test.TestCase):
         return self.layer(inputs)
 
     model = Model()
-    inp = tf.constant([[1.0]])
+    inp = tf.compat.v2.constant([[1.0]])
     model(inp)
     saved_model_dir = self._save_model_dir()
     tf.saved_model.save(model, saved_model_dir)
@@ -889,19 +889,19 @@ class TestSavedModelFormat(tf.test.TestCase):
     # When saving the config only, the layer call function should not be not
     # traced.
     root.save(saved_model_dir, save_format='tf', save_traces=False)
-    loaded = tf.saved_model.load(saved_model_dir)
+    loaded = tf.compat.v2.saved_model.load(saved_model_dir)
     self.assertTrue(hasattr(loaded, 'attached_layer'))
 
     # This should raise an error when loaded without the custom object
     loaded = keras_load.load(saved_model_dir)
     with self.assertRaisesRegex(ValueError, 'Cannot call custom layer'):
-      loaded.attached_layer(tf.constant([1.]))
+      loaded.attached_layer(tf.compat.v2.constant([1.]))
 
     # Try loading with the custom objects
     with generic_utils.CustomObjectScope({'DoNotTrace': DoNotTrace}):
       loaded = keras_load.load(saved_model_dir)
     with self.assertRaisesRegex(ValueError, 'I said do not trace'):
-      loaded.attached_layer(tf.constant([1.]))
+      loaded.attached_layer(tf.compat.v2.constant([1.]))
 
 
 class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
@@ -1132,7 +1132,7 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
     class NegativeMean(keras.metrics.Mean):
 
       @tf.function(
-          input_signature=[tf.TensorSpec(None, tf.float32)])
+          input_signature=[tf.TensorSpec(None, tf.dtypes.float32)])
       def update_state(self, value):
         super(NegativeMean, self).update_state(-value)
 

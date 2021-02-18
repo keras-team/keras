@@ -73,7 +73,7 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
                              input_shape=(2, 3, 4),
                              supports_masking=True)
     x = keras.backend.ones((3, 4))
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Test that we use `leaky_relu` when appropriate in graph mode.
       self.assertTrue(
           'LeakyRelu' in keras.layers.ReLU(negative_slope=0.2)(x).name)

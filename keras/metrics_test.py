@@ -47,9 +47,9 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       # check config
       self.assertEqual(m.name, 'my_sum')
       self.assertTrue(m.stateful)
-      self.assertEqual(m.dtype, tf.float32)
+      self.assertEqual(m.dtype, tf.dtypes.float32)
       self.assertLen(m.variables, 1)
-      self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+      self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
       # check initial state
       self.assertEqual(self.evaluate(m.total), 0)
@@ -59,7 +59,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(self.evaluate(m.total), 100)
 
       # check update_state() and result() + state accumulation + tensor input
-      update_op = m.update_state(tf.convert_to_tensor([1, 5]))
+      update_op = m.update_state(tf.compat.v2.convert_to_tensor([1, 5]))
       self.evaluate(update_op)
       self.assertAlmostEqual(self.evaluate(m.result()), 106)
       self.assertEqual(self.evaluate(m.total), 106)  # 100 + 1 + 5
@@ -69,9 +69,9 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       self.assertEqual(self.evaluate(m.total), 0)
 
   def test_sum_with_sample_weight(self):
-    m = metrics.Sum(dtype=tf.float64)
-    self.assertEqual(m.dtype, tf.float64)
-    self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+    m = metrics.Sum(dtype=tf.dtypes.float64)
+    self.assertEqual(m.dtype, tf.dtypes.float64)
+    self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
     # check scalar weight
     result_t = m(100, sample_weight=0.5)
@@ -109,9 +109,9 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
   def test_sum_graph_with_placeholder(self):
     with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
       m = metrics.Sum()
-      v = tf.compat.v1.placeholder(tf.float32)
-      w = tf.compat.v1.placeholder(tf.float32)
-      self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+      v = tf.compat.v1.placeholder(tf.dtypes.float32)
+      w = tf.compat.v1.placeholder(tf.dtypes.float32)
+      self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
       # check __call__()
       result_t = m(v, sample_weight=w)
@@ -129,8 +129,8 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
       checkpoint_directory = self.get_temp_dir()
       checkpoint_prefix = os.path.join(checkpoint_directory, 'ckpt')
       m = metrics.Sum()
-      checkpoint = tf.train.Checkpoint(sum=m)
-      self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+      checkpoint = tf.compat.v2.train.Checkpoint(sum=m)
+      self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
       # update state
       self.evaluate(m(100.))
@@ -147,7 +147,7 @@ class KerasSumTest(tf.test.TestCase, parameterized.TestCase):
 
       # restore to a different checkpoint sum object
       restore_sum = metrics.Sum()
-      restore_checkpoint = tf.train.Checkpoint(sum=restore_sum)
+      restore_checkpoint = tf.compat.v2.train.Checkpoint(sum=restore_sum)
       status = restore_checkpoint.restore(save_path)
       restore_update = restore_sum(300.)
       status.assert_consumed().run_restore_ops()
@@ -166,9 +166,9 @@ class MeanTest(keras_parameterized.TestCase):
     # check config
     self.assertEqual(m.name, 'my_mean')
     self.assertTrue(m.stateful)
-    self.assertEqual(m.dtype, tf.float32)
+    self.assertEqual(m.dtype, tf.dtypes.float32)
     self.assertEqual(len(m.variables), 2)
-    self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
     # check initial state
     self.assertEqual(self.evaluate(m.total), 0)
@@ -181,8 +181,8 @@ class MeanTest(keras_parameterized.TestCase):
 
     # check update_state() and result() + state accumulation + tensor input
     update_op = m.update_state([
-        tf.convert_to_tensor(1),
-        tf.convert_to_tensor(5)
+        tf.compat.v2.convert_to_tensor(1),
+        tf.compat.v2.convert_to_tensor(5)
     ])
     self.evaluate(update_op)
     self.assertAlmostEqual(self.evaluate(m.result()), 106 / 3, 2)
@@ -198,7 +198,7 @@ class MeanTest(keras_parameterized.TestCase):
     m2 = metrics.Mean.from_config(m.get_config())
     self.assertEqual(m2.name, 'my_mean')
     self.assertTrue(m2.stateful)
-    self.assertEqual(m2.dtype, tf.float32)
+    self.assertEqual(m2.dtype, tf.dtypes.float32)
     self.assertEqual(len(m2.variables), 2)
 
   @testing_utils.run_v2_only
@@ -217,9 +217,9 @@ class MeanTest(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes
   def test_mean_with_sample_weight(self):
-    m = metrics.Mean(dtype=tf.float64)
-    self.assertEqual(m.dtype, tf.float64)
-    self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+    m = metrics.Mean(dtype=tf.dtypes.float64)
+    self.assertEqual(m.dtype, tf.dtypes.float64)
+    self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
     # check scalar weight
     result_t = m(100, sample_weight=0.5)
@@ -263,9 +263,9 @@ class MeanTest(keras_parameterized.TestCase):
   def test_mean_graph_with_placeholder(self):
     with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
       m = metrics.Mean()
-      v = tf.compat.v1.placeholder(tf.float32)
-      w = tf.compat.v1.placeholder(tf.float32)
-      self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+      v = tf.compat.v1.placeholder(tf.dtypes.float32)
+      w = tf.compat.v1.placeholder(tf.dtypes.float32)
+      self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
       # check __call__()
       result_t = m(v, sample_weight=w)
@@ -285,8 +285,8 @@ class MeanTest(keras_parameterized.TestCase):
     checkpoint_directory = self.get_temp_dir()
     checkpoint_prefix = os.path.join(checkpoint_directory, 'ckpt')
     m = metrics.Mean()
-    checkpoint = tf.train.Checkpoint(mean=m)
-    self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+    checkpoint = tf.compat.v2.train.Checkpoint(mean=m)
+    self.evaluate(tf.compat.v1.initializers.variables(m.variables))
 
     # update state
     self.evaluate(m(100.))
@@ -303,7 +303,7 @@ class MeanTest(keras_parameterized.TestCase):
 
     # restore to a different checkpoint mean object
     restore_mean = metrics.Mean()
-    restore_checkpoint = tf.train.Checkpoint(mean=restore_mean)
+    restore_checkpoint = tf.compat.v2.train.Checkpoint(mean=restore_mean)
     status = restore_checkpoint.restore(save_path)
     restore_update = restore_mean(300.)
     status.assert_consumed().run_restore_ops()
@@ -326,8 +326,8 @@ class MeanTest(keras_parameterized.TestCase):
                      testing_utils.get_expected_metric_variable_names(
                          ['total', 'count'], name_suffix='_1'))
 
-    self.evaluate(tf.compat.v1.variables_initializer(m.variables))
-    self.evaluate(tf.compat.v1.variables_initializer(m2.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m2.variables))
 
     # check initial state
     self.assertEqual(self.evaluate(m.total), 0)
@@ -360,8 +360,8 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(acc_obj.name, 'my_acc')
     self.assertTrue(acc_obj.stateful)
     self.assertEqual(len(acc_obj.variables), 2)
-    self.assertEqual(acc_obj.dtype, tf.float32)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.assertEqual(acc_obj.dtype, tf.dtypes.float32)
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     update_op = acc_obj.update_state([[1], [2], [3], [4]], [[1], [2], [3], [4]])
@@ -374,7 +374,7 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(a2.name, 'my_acc')
     self.assertTrue(a2.stateful)
     self.assertEqual(len(a2.variables), 2)
-    self.assertEqual(a2.dtype, tf.float32)
+    self.assertEqual(a2.dtype, tf.dtypes.float32)
 
     # check with sample_weight
     result_t = acc_obj([[2], [1]], [[2], [0]], sample_weight=[[0.5], [0.2]])
@@ -383,7 +383,7 @@ class KerasAccuracyTest(tf.test.TestCase):
 
   def test_accuracy_ragged(self):
     acc_obj = metrics.Accuracy(name='my_acc')
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     rt1 = tf.ragged.constant([[1], [2], [3], [4]])
@@ -408,8 +408,8 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(acc_obj.name, 'my_acc')
     self.assertTrue(acc_obj.stateful)
     self.assertEqual(len(acc_obj.variables), 2)
-    self.assertEqual(acc_obj.dtype, tf.float32)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.assertEqual(acc_obj.dtype, tf.dtypes.float32)
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     update_op = acc_obj.update_state([[1], [0]], [[1], [0]])
@@ -435,7 +435,7 @@ class KerasAccuracyTest(tf.test.TestCase):
 
   def test_binary_accuracy_ragged(self):
     acc_obj = metrics.BinaryAccuracy(name='my_acc')
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     rt1 = tf.ragged.constant([[1], [0]])
@@ -455,14 +455,14 @@ class KerasAccuracyTest(tf.test.TestCase):
 
   def test_binary_accuracy_threshold(self):
     acc_obj = metrics.BinaryAccuracy(threshold=0.7)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
     result_t = acc_obj([[1], [1], [0], [0]], [[0.9], [0.6], [0.4], [0.8]])
     result = self.evaluate(result_t)
     self.assertAlmostEqual(result, 0.5, 2)
 
   def test_binary_accuracy_threshold_ragged(self):
     acc_obj = metrics.BinaryAccuracy(threshold=0.7)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
     rt1 = tf.ragged.constant([[1], [1], [0], [0]])
     rt2 = tf.ragged.constant([[0.9], [0.6], [0.4], [0.8]])
     result_t = acc_obj(rt1, rt2)
@@ -476,8 +476,8 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(acc_obj.name, 'my_acc')
     self.assertTrue(acc_obj.stateful)
     self.assertEqual(len(acc_obj.variables), 2)
-    self.assertEqual(acc_obj.dtype, tf.float32)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.assertEqual(acc_obj.dtype, tf.dtypes.float32)
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     update_op = acc_obj.update_state([[0, 0, 1], [0, 1, 0]],
@@ -494,7 +494,7 @@ class KerasAccuracyTest(tf.test.TestCase):
 
   def test_categorical_accuracy_ragged(self):
     acc_obj = metrics.CategoricalAccuracy(name='my_acc')
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     rt1 = tf.ragged.constant([[0, 0, 1], [0, 1, 0]])
@@ -519,8 +519,8 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(acc_obj.name, 'my_acc')
     self.assertTrue(acc_obj.stateful)
     self.assertEqual(len(acc_obj.variables), 2)
-    self.assertEqual(acc_obj.dtype, tf.float32)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.assertEqual(acc_obj.dtype, tf.dtypes.float32)
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     update_op = acc_obj.update_state([[2], [1]],
@@ -555,8 +555,8 @@ class KerasAccuracyTest(tf.test.TestCase):
     self.assertEqual(acc_obj.name, 'my_acc')
     self.assertTrue(acc_obj.stateful)
     self.assertEqual(len(acc_obj.variables), 2)
-    self.assertEqual(acc_obj.dtype, tf.float32)
-    self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+    self.assertEqual(acc_obj.dtype, tf.dtypes.float32)
+    self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
     # verify that correct value is returned
     update_op = acc_obj.update_state([2, 1], [[0.1, 0.1, 0.8], [0.05, 0.95, 0]])
@@ -573,11 +573,11 @@ class KerasAccuracyTest(tf.test.TestCase):
   def test_sparse_categorical_accuracy_mismatched_dims_dynamic(self):
     with tf.compat.v1.get_default_graph().as_default(), self.cached_session() as sess:
       acc_obj = metrics.SparseCategoricalAccuracy(name='my_acc')
-      self.evaluate(tf.compat.v1.variables_initializer(acc_obj.variables))
+      self.evaluate(tf.compat.v1.initializers.variables(acc_obj.variables))
 
-      t = tf.compat.v1.placeholder(tf.float32)
-      p = tf.compat.v1.placeholder(tf.float32)
-      w = tf.compat.v1.placeholder(tf.float32)
+      t = tf.compat.v1.placeholder(tf.dtypes.float32)
+      p = tf.compat.v1.placeholder(tf.dtypes.float32)
+      w = tf.compat.v1.placeholder(tf.dtypes.float32)
 
       result_t = acc_obj(t, p, w)
       result = sess.run(
@@ -611,24 +611,24 @@ class CosineSimilarityTest(tf.test.TestCase):
     y_pred = self.l2_norm(self.np_y_pred, axis)
     self.expected_loss = np.sum(np.multiply(y_true, y_pred), axis=(axis,))
 
-    self.y_true = tf.constant(self.np_y_true)
-    self.y_pred = tf.constant(self.np_y_pred)
+    self.y_true = tf.compat.v2.constant(self.np_y_true)
+    self.y_pred = tf.compat.v2.constant(self.np_y_pred)
 
   def test_config(self):
     cosine_obj = metrics.CosineSimilarity(
-        axis=2, name='my_cos', dtype=tf.int32)
+        axis=2, name='my_cos', dtype=tf.dtypes.int32)
     self.assertEqual(cosine_obj.name, 'my_cos')
-    self.assertEqual(cosine_obj._dtype, tf.int32)
+    self.assertEqual(cosine_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     cosine_obj2 = metrics.CosineSimilarity.from_config(cosine_obj.get_config())
     self.assertEqual(cosine_obj2.name, 'my_cos')
-    self.assertEqual(cosine_obj2._dtype, tf.int32)
+    self.assertEqual(cosine_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     self.setup()
     cosine_obj = metrics.CosineSimilarity()
-    self.evaluate(tf.compat.v1.variables_initializer(cosine_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cosine_obj.variables))
     loss = cosine_obj(self.y_true, self.y_pred)
     expected_loss = np.mean(self.expected_loss)
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
@@ -636,12 +636,12 @@ class CosineSimilarityTest(tf.test.TestCase):
   def test_weighted(self):
     self.setup()
     cosine_obj = metrics.CosineSimilarity()
-    self.evaluate(tf.compat.v1.variables_initializer(cosine_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cosine_obj.variables))
     sample_weight = np.asarray([1.2, 3.4])
     loss = cosine_obj(
         self.y_true,
         self.y_pred,
-        sample_weight=tf.constant(sample_weight))
+        sample_weight=tf.compat.v2.constant(sample_weight))
     expected_loss = np.sum(
         self.expected_loss * sample_weight) / np.sum(sample_weight)
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
@@ -649,7 +649,7 @@ class CosineSimilarityTest(tf.test.TestCase):
   def test_axis(self):
     self.setup(axis=1)
     cosine_obj = metrics.CosineSimilarity(axis=1)
-    self.evaluate(tf.compat.v1.variables_initializer(cosine_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cosine_obj.variables))
     loss = cosine_obj(self.y_true, self.y_pred)
     expected_loss = np.mean(self.expected_loss)
     self.assertAlmostEqual(self.evaluate(loss), expected_loss, 3)
@@ -659,21 +659,21 @@ class CosineSimilarityTest(tf.test.TestCase):
 class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_config(self):
-    mae_obj = metrics.MeanAbsoluteError(name='my_mae', dtype=tf.int32)
+    mae_obj = metrics.MeanAbsoluteError(name='my_mae', dtype=tf.dtypes.int32)
     self.assertEqual(mae_obj.name, 'my_mae')
-    self.assertEqual(mae_obj._dtype, tf.int32)
+    self.assertEqual(mae_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     mae_obj2 = metrics.MeanAbsoluteError.from_config(mae_obj.get_config())
     self.assertEqual(mae_obj2.name, 'my_mae')
-    self.assertEqual(mae_obj2._dtype, tf.int32)
+    self.assertEqual(mae_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     mae_obj = metrics.MeanAbsoluteError()
-    self.evaluate(tf.compat.v1.variables_initializer(mae_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(mae_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = mae_obj.update_state(y_true, y_pred)
@@ -683,12 +683,12 @@ class MeanAbsoluteErrorTest(tf.test.TestCase):
 
   def test_weighted(self):
     mae_obj = metrics.MeanAbsoluteError()
-    self.evaluate(tf.compat.v1.variables_initializer(mae_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(mae_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = mae_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.54285, self.evaluate(result), atol=1e-5)
 
@@ -698,22 +698,22 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_config(self):
     mape_obj = metrics.MeanAbsolutePercentageError(
-        name='my_mape', dtype=tf.int32)
+        name='my_mape', dtype=tf.dtypes.int32)
     self.assertEqual(mape_obj.name, 'my_mape')
-    self.assertEqual(mape_obj._dtype, tf.int32)
+    self.assertEqual(mape_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     mape_obj2 = metrics.MeanAbsolutePercentageError.from_config(
         mape_obj.get_config())
     self.assertEqual(mape_obj2.name, 'my_mape')
-    self.assertEqual(mape_obj2._dtype, tf.int32)
+    self.assertEqual(mape_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     mape_obj = metrics.MeanAbsolutePercentageError()
-    self.evaluate(tf.compat.v1.variables_initializer(mape_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(mape_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = mape_obj.update_state(y_true, y_pred)
@@ -723,12 +723,12 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 
   def test_weighted(self):
     mape_obj = metrics.MeanAbsolutePercentageError()
-    self.evaluate(tf.compat.v1.variables_initializer(mape_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(mape_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = mape_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(40e7, self.evaluate(result), atol=1e-5)
 
@@ -737,21 +737,21 @@ class MeanAbsolutePercentageErrorTest(tf.test.TestCase):
 class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_config(self):
-    mse_obj = metrics.MeanSquaredError(name='my_mse', dtype=tf.int32)
+    mse_obj = metrics.MeanSquaredError(name='my_mse', dtype=tf.dtypes.int32)
     self.assertEqual(mse_obj.name, 'my_mse')
-    self.assertEqual(mse_obj._dtype, tf.int32)
+    self.assertEqual(mse_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     mse_obj2 = metrics.MeanSquaredError.from_config(mse_obj.get_config())
     self.assertEqual(mse_obj2.name, 'my_mse')
-    self.assertEqual(mse_obj2._dtype, tf.int32)
+    self.assertEqual(mse_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     mse_obj = metrics.MeanSquaredError()
-    self.evaluate(tf.compat.v1.variables_initializer(mse_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(mse_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = mse_obj.update_state(y_true, y_pred)
@@ -761,12 +761,12 @@ class MeanSquaredErrorTest(tf.test.TestCase):
 
   def test_weighted(self):
     mse_obj = metrics.MeanSquaredError()
-    self.evaluate(tf.compat.v1.variables_initializer(mse_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(mse_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = mse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.54285, self.evaluate(result), atol=1e-5)
 
@@ -776,22 +776,22 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_config(self):
     msle_obj = metrics.MeanSquaredLogarithmicError(
-        name='my_msle', dtype=tf.int32)
+        name='my_msle', dtype=tf.dtypes.int32)
     self.assertEqual(msle_obj.name, 'my_msle')
-    self.assertEqual(msle_obj._dtype, tf.int32)
+    self.assertEqual(msle_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     msle_obj2 = metrics.MeanSquaredLogarithmicError.from_config(
         msle_obj.get_config())
     self.assertEqual(msle_obj2.name, 'my_msle')
-    self.assertEqual(msle_obj2._dtype, tf.int32)
+    self.assertEqual(msle_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     msle_obj = metrics.MeanSquaredLogarithmicError()
-    self.evaluate(tf.compat.v1.variables_initializer(msle_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(msle_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = msle_obj.update_state(y_true, y_pred)
@@ -801,12 +801,12 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 
   def test_weighted(self):
     msle_obj = metrics.MeanSquaredLogarithmicError()
-    self.evaluate(tf.compat.v1.variables_initializer(msle_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(msle_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = msle_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.26082, self.evaluate(result), atol=1e-5)
 
@@ -815,20 +815,20 @@ class MeanSquaredLogarithmicErrorTest(tf.test.TestCase):
 class HingeTest(tf.test.TestCase):
 
   def test_config(self):
-    hinge_obj = metrics.Hinge(name='hinge', dtype=tf.int32)
+    hinge_obj = metrics.Hinge(name='hinge', dtype=tf.dtypes.int32)
     self.assertEqual(hinge_obj.name, 'hinge')
-    self.assertEqual(hinge_obj._dtype, tf.int32)
+    self.assertEqual(hinge_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     hinge_obj2 = metrics.Hinge.from_config(hinge_obj.get_config())
     self.assertEqual(hinge_obj2.name, 'hinge')
-    self.assertEqual(hinge_obj2._dtype, tf.int32)
+    self.assertEqual(hinge_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     hinge_obj = metrics.Hinge()
-    self.evaluate(tf.compat.v1.variables_initializer(hinge_obj.variables))
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    self.evaluate(tf.compat.v1.initializers.variables(hinge_obj.variables))
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -847,11 +847,11 @@ class HingeTest(tf.test.TestCase):
 
   def test_weighted(self):
     hinge_obj = metrics.Hinge()
-    self.evaluate(tf.compat.v1.variables_initializer(hinge_obj.variables))
-    y_true = tf.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    self.evaluate(tf.compat.v1.initializers.variables(hinge_obj.variables))
+    y_true = tf.compat.v2.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
 
@@ -870,20 +870,20 @@ class HingeTest(tf.test.TestCase):
 class SquaredHingeTest(tf.test.TestCase):
 
   def test_config(self):
-    sq_hinge_obj = metrics.SquaredHinge(name='sq_hinge', dtype=tf.int32)
+    sq_hinge_obj = metrics.SquaredHinge(name='sq_hinge', dtype=tf.dtypes.int32)
     self.assertEqual(sq_hinge_obj.name, 'sq_hinge')
-    self.assertEqual(sq_hinge_obj._dtype, tf.int32)
+    self.assertEqual(sq_hinge_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     sq_hinge_obj2 = metrics.SquaredHinge.from_config(sq_hinge_obj.get_config())
     self.assertEqual(sq_hinge_obj2.name, 'sq_hinge')
-    self.assertEqual(sq_hinge_obj2._dtype, tf.int32)
+    self.assertEqual(sq_hinge_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     sq_hinge_obj = metrics.SquaredHinge()
-    self.evaluate(tf.compat.v1.variables_initializer(sq_hinge_obj.variables))
-    y_true = tf.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    self.evaluate(tf.compat.v1.initializers.variables(sq_hinge_obj.variables))
+    y_true = tf.compat.v2.constant([[0, 1, 0, 1], [0, 0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
@@ -905,11 +905,11 @@ class SquaredHingeTest(tf.test.TestCase):
 
   def test_weighted(self):
     sq_hinge_obj = metrics.SquaredHinge()
-    self.evaluate(tf.compat.v1.variables_initializer(sq_hinge_obj.variables))
-    y_true = tf.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
-    y_pred = tf.constant([[-0.3, 0.2, -0.1, 1.6],
+    self.evaluate(tf.compat.v1.initializers.variables(sq_hinge_obj.variables))
+    y_true = tf.compat.v2.constant([[-1, 1, -1, 1], [-1, -1, 1, 1]])
+    y_pred = tf.compat.v2.constant([[-0.3, 0.2, -0.1, 1.6],
                                    [-0.25, -1., 0.5, 0.6]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
 
     # metric = max(0, 1-y_true * y_pred), where y_true is -1/1
 
@@ -932,22 +932,22 @@ class CategoricalHingeTest(tf.test.TestCase):
 
   def test_config(self):
     cat_hinge_obj = metrics.CategoricalHinge(
-        name='cat_hinge', dtype=tf.int32)
+        name='cat_hinge', dtype=tf.dtypes.int32)
     self.assertEqual(cat_hinge_obj.name, 'cat_hinge')
-    self.assertEqual(cat_hinge_obj._dtype, tf.int32)
+    self.assertEqual(cat_hinge_obj._dtype, tf.dtypes.int32)
 
     # Check save and restore config
     cat_hinge_obj2 = metrics.CategoricalHinge.from_config(
         cat_hinge_obj.get_config())
     self.assertEqual(cat_hinge_obj2.name, 'cat_hinge')
-    self.assertEqual(cat_hinge_obj2._dtype, tf.int32)
+    self.assertEqual(cat_hinge_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     cat_hinge_obj = metrics.CategoricalHinge()
-    self.evaluate(tf.compat.v1.variables_initializer(cat_hinge_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(cat_hinge_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = cat_hinge_obj.update_state(y_true, y_pred)
@@ -957,12 +957,12 @@ class CategoricalHingeTest(tf.test.TestCase):
 
   def test_weighted(self):
     cat_hinge_obj = metrics.CategoricalHinge()
-    self.evaluate(tf.compat.v1.variables_initializer(cat_hinge_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    self.evaluate(tf.compat.v1.initializers.variables(cat_hinge_obj.variables))
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = cat_hinge_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(0.5, self.evaluate(result), atol=1e-5)
 
@@ -971,19 +971,19 @@ class CategoricalHingeTest(tf.test.TestCase):
 class RootMeanSquaredErrorTest(tf.test.TestCase):
 
   def test_config(self):
-    rmse_obj = metrics.RootMeanSquaredError(name='rmse', dtype=tf.int32)
+    rmse_obj = metrics.RootMeanSquaredError(name='rmse', dtype=tf.dtypes.int32)
     self.assertEqual(rmse_obj.name, 'rmse')
-    self.assertEqual(rmse_obj._dtype, tf.int32)
+    self.assertEqual(rmse_obj._dtype, tf.dtypes.int32)
 
     rmse_obj2 = metrics.RootMeanSquaredError.from_config(rmse_obj.get_config())
     self.assertEqual(rmse_obj2.name, 'rmse')
-    self.assertEqual(rmse_obj2._dtype, tf.int32)
+    self.assertEqual(rmse_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     rmse_obj = metrics.RootMeanSquaredError()
-    self.evaluate(tf.compat.v1.variables_initializer(rmse_obj.variables))
-    y_true = tf.constant((2, 4, 6))
-    y_pred = tf.constant((1, 3, 2))
+    self.evaluate(tf.compat.v1.initializers.variables(rmse_obj.variables))
+    y_true = tf.compat.v2.constant((2, 4, 6))
+    y_pred = tf.compat.v2.constant((1, 3, 2))
 
     update_op = rmse_obj.update_state(y_true, y_pred)
     self.evaluate(update_op)
@@ -993,10 +993,10 @@ class RootMeanSquaredErrorTest(tf.test.TestCase):
 
   def test_weighted(self):
     rmse_obj = metrics.RootMeanSquaredError()
-    self.evaluate(tf.compat.v1.variables_initializer(rmse_obj.variables))
-    y_true = tf.constant((2, 4, 6, 8))
-    y_pred = tf.constant((1, 3, 2, 3))
-    sample_weight = tf.constant((0, 1, 0, 1))
+    self.evaluate(tf.compat.v1.initializers.variables(rmse_obj.variables))
+    y_true = tf.compat.v2.constant((2, 4, 6, 8))
+    y_pred = tf.compat.v2.constant((1, 3, 2, 3))
+    sample_weight = tf.compat.v2.constant((0, 1, 0, 1))
     result = rmse_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(math.sqrt(13), self.evaluate(result), atol=1e-3)
 
@@ -1005,45 +1005,45 @@ class RootMeanSquaredErrorTest(tf.test.TestCase):
 class TopKCategoricalAccuracyTest(tf.test.TestCase):
 
   def test_config(self):
-    a_obj = metrics.TopKCategoricalAccuracy(name='topkca', dtype=tf.int32)
+    a_obj = metrics.TopKCategoricalAccuracy(name='topkca', dtype=tf.dtypes.int32)
     self.assertEqual(a_obj.name, 'topkca')
-    self.assertEqual(a_obj._dtype, tf.int32)
+    self.assertEqual(a_obj._dtype, tf.dtypes.int32)
 
     a_obj2 = metrics.TopKCategoricalAccuracy.from_config(a_obj.get_config())
     self.assertEqual(a_obj2.name, 'topkca')
-    self.assertEqual(a_obj2._dtype, tf.int32)
+    self.assertEqual(a_obj2._dtype, tf.dtypes.int32)
 
   def test_correctness(self):
     a_obj = metrics.TopKCategoricalAccuracy()
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([[0, 0, 1], [0, 1, 0]])
-    y_pred = tf.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
+    y_true = tf.compat.v2.constant([[0, 0, 1], [0, 1, 0]])
+    y_pred = tf.compat.v2.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
 
     result = a_obj(y_true, y_pred)
     self.assertEqual(1, self.evaluate(result))  # both the samples match
 
     # With `k` < 5.
     a_obj = metrics.TopKCategoricalAccuracy(k=1)
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
     result = a_obj(y_true, y_pred)
     self.assertEqual(0.5, self.evaluate(result))  # only sample #2 matches
 
     # With `k` > 5.
-    y_true = tf.constant([[0, 0, 1, 0, 0, 0, 0],
+    y_true = tf.compat.v2.constant([[0, 0, 1, 0, 0, 0, 0],
                                    [0, 1, 0, 0, 0, 0, 0]])
-    y_pred = tf.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+    y_pred = tf.compat.v2.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
                                    [0.05, 0.95, 0, 0, 0, 0, 0]])
     a_obj = metrics.TopKCategoricalAccuracy(k=6)
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
     result = a_obj(y_true, y_pred)
     self.assertEqual(0.5, self.evaluate(result))  # only 1 sample matches.
 
   def test_weighted(self):
     a_obj = metrics.TopKCategoricalAccuracy(k=2)
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
-    y_pred = tf.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
-    sample_weight = tf.constant((1.0, 0.0, 1.0))
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
+    y_true = tf.compat.v2.constant([[0, 1, 0], [1, 0, 0], [0, 0, 1]])
+    y_pred = tf.compat.v2.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
+    sample_weight = tf.compat.v2.constant((1.0, 0.0, 1.0))
     result = a_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
 
@@ -1053,44 +1053,44 @@ class SparseTopKCategoricalAccuracyTest(tf.test.TestCase):
 
   def test_config(self):
     a_obj = metrics.SparseTopKCategoricalAccuracy(
-        name='stopkca', dtype=tf.int32)
+        name='stopkca', dtype=tf.dtypes.int32)
     self.assertEqual(a_obj.name, 'stopkca')
-    self.assertEqual(a_obj._dtype, tf.int32)
+    self.assertEqual(a_obj._dtype, tf.dtypes.int32)
 
     a_obj2 = metrics.SparseTopKCategoricalAccuracy.from_config(
         a_obj.get_config())
     self.assertEqual(a_obj2.name, 'stopkca')
-    self.assertEqual(a_obj2._dtype, tf.int32)
+    self.assertEqual(a_obj2._dtype, tf.dtypes.int32)
 
   def test_correctness(self):
     a_obj = metrics.SparseTopKCategoricalAccuracy()
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([2, 1])
-    y_pred = tf.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
+    y_true = tf.compat.v2.constant([2, 1])
+    y_pred = tf.compat.v2.constant([[0.1, 0.9, 0.8], [0.05, 0.95, 0]])
 
     result = a_obj(y_true, y_pred)
     self.assertEqual(1, self.evaluate(result))  # both the samples match
 
     # With `k` < 5.
     a_obj = metrics.SparseTopKCategoricalAccuracy(k=1)
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
     result = a_obj(y_true, y_pred)
     self.assertEqual(0.5, self.evaluate(result))  # only sample #2 matches
 
     # With `k` > 5.
-    y_pred = tf.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
+    y_pred = tf.compat.v2.constant([[0.5, 0.9, 0.1, 0.7, 0.6, 0.5, 0.4],
                                    [0.05, 0.95, 0, 0, 0, 0, 0]])
     a_obj = metrics.SparseTopKCategoricalAccuracy(k=6)
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
     result = a_obj(y_true, y_pred)
     self.assertEqual(0.5, self.evaluate(result))  # only 1 sample matches.
 
   def test_weighted(self):
     a_obj = metrics.SparseTopKCategoricalAccuracy(k=2)
-    self.evaluate(tf.compat.v1.variables_initializer(a_obj.variables))
-    y_true = tf.constant([1, 0, 2])
-    y_pred = tf.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
-    sample_weight = tf.constant((1.0, 0.0, 1.0))
+    self.evaluate(tf.compat.v1.initializers.variables(a_obj.variables))
+    y_true = tf.compat.v2.constant([1, 0, 2])
+    y_pred = tf.compat.v2.constant([[0, 0.9, 0.1], [0, 0.9, 0.1], [0, 0.9, 0.1]])
+    sample_weight = tf.compat.v2.constant((1.0, 0.0, 1.0))
     result = a_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(1.0, self.evaluate(result), atol=1e-5)
 
@@ -1106,18 +1106,18 @@ class LogCoshErrorTest(tf.test.TestCase):
     error = y_pred - y_true
     self.expected_results = np.log((np.exp(error) + np.exp(-error)) / 2)
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.dtypes.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
-    logcosh_obj = metrics.LogCoshError(name='logcosh', dtype=tf.int32)
+    logcosh_obj = metrics.LogCoshError(name='logcosh', dtype=tf.dtypes.int32)
     self.assertEqual(logcosh_obj.name, 'logcosh')
-    self.assertEqual(logcosh_obj._dtype, tf.int32)
+    self.assertEqual(logcosh_obj._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     self.setup()
     logcosh_obj = metrics.LogCoshError()
-    self.evaluate(tf.compat.v1.variables_initializer(logcosh_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(logcosh_obj.variables))
 
     update_op = logcosh_obj.update_state(self.y_true, self.y_pred)
     self.evaluate(update_op)
@@ -1128,8 +1128,8 @@ class LogCoshErrorTest(tf.test.TestCase):
   def test_weighted(self):
     self.setup()
     logcosh_obj = metrics.LogCoshError()
-    self.evaluate(tf.compat.v1.variables_initializer(logcosh_obj.variables))
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    self.evaluate(tf.compat.v1.initializers.variables(logcosh_obj.variables))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     result = logcosh_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
@@ -1148,22 +1148,22 @@ class PoissonTest(tf.test.TestCase):
     self.batch_size = 6
     self.expected_results = y_pred - np.multiply(y_true, np.log(y_pred))
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.dtypes.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
-    poisson_obj = metrics.Poisson(name='poisson', dtype=tf.int32)
+    poisson_obj = metrics.Poisson(name='poisson', dtype=tf.dtypes.int32)
     self.assertEqual(poisson_obj.name, 'poisson')
-    self.assertEqual(poisson_obj._dtype, tf.int32)
+    self.assertEqual(poisson_obj._dtype, tf.dtypes.int32)
 
     poisson_obj2 = metrics.Poisson.from_config(poisson_obj.get_config())
     self.assertEqual(poisson_obj2.name, 'poisson')
-    self.assertEqual(poisson_obj2._dtype, tf.int32)
+    self.assertEqual(poisson_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     self.setup()
     poisson_obj = metrics.Poisson()
-    self.evaluate(tf.compat.v1.variables_initializer(poisson_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(poisson_obj.variables))
 
     update_op = poisson_obj.update_state(self.y_true, self.y_pred)
     self.evaluate(update_op)
@@ -1174,8 +1174,8 @@ class PoissonTest(tf.test.TestCase):
   def test_weighted(self):
     self.setup()
     poisson_obj = metrics.Poisson()
-    self.evaluate(tf.compat.v1.variables_initializer(poisson_obj.variables))
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    self.evaluate(tf.compat.v1.initializers.variables(poisson_obj.variables))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
 
     result = poisson_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
     sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
@@ -1194,22 +1194,22 @@ class KLDivergenceTest(tf.test.TestCase):
     self.batch_size = 2
     self.expected_results = np.multiply(y_true, np.log(y_true / y_pred))
 
-    self.y_pred = tf.constant(y_pred, dtype=tf.float32)
-    self.y_true = tf.constant(y_true)
+    self.y_pred = tf.compat.v2.constant(y_pred, dtype=tf.dtypes.float32)
+    self.y_true = tf.compat.v2.constant(y_true)
 
   def test_config(self):
-    k_obj = metrics.KLDivergence(name='kld', dtype=tf.int32)
+    k_obj = metrics.KLDivergence(name='kld', dtype=tf.dtypes.int32)
     self.assertEqual(k_obj.name, 'kld')
-    self.assertEqual(k_obj._dtype, tf.int32)
+    self.assertEqual(k_obj._dtype, tf.dtypes.int32)
 
     k_obj2 = metrics.KLDivergence.from_config(k_obj.get_config())
     self.assertEqual(k_obj2.name, 'kld')
-    self.assertEqual(k_obj2._dtype, tf.int32)
+    self.assertEqual(k_obj2._dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     self.setup()
     k_obj = metrics.KLDivergence()
-    self.evaluate(tf.compat.v1.variables_initializer(k_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(k_obj.variables))
 
     update_op = k_obj.update_state(self.y_true, self.y_pred)
     self.evaluate(update_op)
@@ -1220,9 +1220,9 @@ class KLDivergenceTest(tf.test.TestCase):
   def test_weighted(self):
     self.setup()
     k_obj = metrics.KLDivergence()
-    self.evaluate(tf.compat.v1.variables_initializer(k_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(k_obj.variables))
 
-    sample_weight = tf.constant([1.2, 3.4], shape=(2, 1))
+    sample_weight = tf.compat.v2.constant([1.2, 3.4], shape=(2, 1))
     result = k_obj(self.y_true, self.y_pred, sample_weight=sample_weight)
 
     sample_weight = np.asarray([1.2, 1.2, 1.2, 3.4, 3.4, 3.4]).reshape((2, 3))
@@ -1235,7 +1235,7 @@ class KLDivergenceTest(tf.test.TestCase):
 class MeanRelativeErrorTest(tf.test.TestCase):
 
   def test_config(self):
-    normalizer = tf.constant([1, 3], dtype=tf.float32)
+    normalizer = tf.compat.v2.constant([1, 3], dtype=tf.dtypes.float32)
     mre_obj = metrics.MeanRelativeError(normalizer=normalizer, name='mre')
     self.assertEqual(mre_obj.name, 'mre')
     self.assertArrayNear(self.evaluate(mre_obj.normalizer), [1, 3], 1e-1)
@@ -1250,11 +1250,11 @@ class MeanRelativeErrorTest(tf.test.TestCase):
     expected_error = np.mean(
         np.divide(np.absolute(np_y_pred - np_y_true), np_y_true))
 
-    y_pred = tf.constant(np_y_pred, shape=(1, 4), dtype=tf.float32)
-    y_true = tf.constant(np_y_true, shape=(1, 4))
+    y_pred = tf.compat.v2.constant(np_y_pred, shape=(1, 4), dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(np_y_true, shape=(1, 4))
 
     mre_obj = metrics.MeanRelativeError(normalizer=y_true)
-    self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(mre_obj.variables))
 
     result = mre_obj(y_true, y_pred)
     self.assertAllClose(self.evaluate(result), expected_error, atol=1e-3)
@@ -1266,22 +1266,22 @@ class MeanRelativeErrorTest(tf.test.TestCase):
     rel_errors = np.divide(np.absolute(np_y_pred - np_y_true), np_y_true)
     expected_error = np.sum(rel_errors * sample_weight)
 
-    y_pred = tf.constant(np_y_pred, dtype=tf.float32)
-    y_true = tf.constant(np_y_true)
+    y_pred = tf.compat.v2.constant(np_y_pred, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(np_y_true)
 
     mre_obj = metrics.MeanRelativeError(normalizer=y_true)
-    self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(mre_obj.variables))
 
     result = mre_obj(
-        y_true, y_pred, sample_weight=tf.constant(sample_weight))
+        y_true, y_pred, sample_weight=tf.compat.v2.constant(sample_weight))
     self.assertAllClose(self.evaluate(result), expected_error, atol=1e-3)
 
   def test_zero_normalizer(self):
-    y_pred = tf.constant([2, 4], dtype=tf.float32)
-    y_true = tf.constant([1, 3])
+    y_pred = tf.compat.v2.constant([2, 4], dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant([1, 3])
 
     mre_obj = metrics.MeanRelativeError(normalizer=tf.compat.v1.zeros_like(y_true))
-    self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(mre_obj.variables))
 
     result = mre_obj(y_true, y_pred)
     self.assertEqual(self.evaluate(result), 0)
@@ -1304,7 +1304,7 @@ class MeanIoUTest(tf.test.TestCase):
     y_true = [0, 0, 1, 1]
 
     m_obj = metrics.MeanIoU(num_classes=2)
-    self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m_obj.variables))
 
     result = m_obj(y_true, y_pred)
 
@@ -1316,12 +1316,12 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_weighted(self):
-    y_pred = tf.constant([0, 1, 0, 1], dtype=tf.float32)
-    y_true = tf.constant([0, 0, 1, 1])
-    sample_weight = tf.constant([0.2, 0.3, 0.4, 0.1])
+    y_pred = tf.compat.v2.constant([0, 1, 0, 1], dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant([0, 0, 1, 1])
+    sample_weight = tf.compat.v2.constant([0.2, 0.3, 0.4, 0.1])
 
     m_obj = metrics.MeanIoU(num_classes=2)
-    self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m_obj.variables))
 
     result = m_obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -1333,12 +1333,12 @@ class MeanIoUTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), expected_result, atol=1e-3)
 
   def test_multi_dim_input(self):
-    y_pred = tf.constant([[0, 1], [0, 1]], dtype=tf.float32)
-    y_true = tf.constant([[0, 0], [1, 1]])
-    sample_weight = tf.constant([[0.2, 0.3], [0.4, 0.1]])
+    y_pred = tf.compat.v2.constant([[0, 1], [0, 1]], dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant([[0, 0], [1, 1]])
+    sample_weight = tf.compat.v2.constant([[0.2, 0.3], [0.4, 0.1]])
 
     m_obj = metrics.MeanIoU(num_classes=2)
-    self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m_obj.variables))
 
     result = m_obj(y_true, y_pred, sample_weight=sample_weight)
 
@@ -1351,15 +1351,15 @@ class MeanIoUTest(tf.test.TestCase):
 
   def test_zero_valid_entries(self):
     m_obj = metrics.MeanIoU(num_classes=2)
-    self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m_obj.variables))
     self.assertAllClose(self.evaluate(m_obj.result()), 0, atol=1e-3)
 
   def test_zero_and_non_zero_entries(self):
-    y_pred = tf.constant([1], dtype=tf.float32)
-    y_true = tf.constant([1])
+    y_pred = tf.compat.v2.constant([1], dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant([1])
 
     m_obj = metrics.MeanIoU(num_classes=2)
-    self.evaluate(tf.compat.v1.variables_initializer(m_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(m_obj.variables))
     result = m_obj(y_true, y_pred)
 
     # cm = [[0, 0],
@@ -1380,7 +1380,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       # check config
       self.assertEqual(m.name, 'mean_by_element')
       self.assertTrue(m.stateful)
-      self.assertEqual(m.dtype, tf.float32)
+      self.assertEqual(m.dtype, tf.dtypes.float32)
       self.assertEmpty(m.variables)
 
       with self.assertRaisesRegex(ValueError, 'does not have any result yet'):
@@ -1392,13 +1392,13 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       m2 = metrics.MeanTensor.from_config(m.get_config())
       self.assertEqual(m2.name, 'mean_by_element')
       self.assertTrue(m2.stateful)
-      self.assertEqual(m2.dtype, tf.float32)
+      self.assertEqual(m2.dtype, tf.dtypes.float32)
       self.assertEmpty(m2.variables)
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_unweighted(self):
     with self.test_session():
-      m = metrics.MeanTensor(dtype=tf.float64)
+      m = metrics.MeanTensor(dtype=tf.dtypes.float64)
 
       # check __call__()
       self.assertAllClose(self.evaluate(m([100, 40])), [100, 40])
@@ -1407,8 +1407,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
 
       # check update_state() and result() + state accumulation + tensor input
       update_op = m.update_state([
-          tf.convert_to_tensor(1),
-          tf.convert_to_tensor(5)
+          tf.compat.v2.convert_to_tensor(1),
+          tf.compat.v2.convert_to_tensor(5)
       ])
       self.evaluate(update_op)
       self.assertAllClose(self.evaluate(m.result()), [50.5, 22.5])
@@ -1423,8 +1423,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_weighted(self):
     with self.test_session():
-      m = metrics.MeanTensor(dtype=tf.float64)
-      self.assertEqual(m.dtype, tf.float64)
+      m = metrics.MeanTensor(dtype=tf.dtypes.float64)
+      self.assertEqual(m.dtype, tf.dtypes.float64)
 
       # check scalar weight
       result_t = m([100, 30], sample_weight=0.5)
@@ -1452,8 +1452,8 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose(self.evaluate(m.count), [3, 1.4])
 
       # check weights expand
-      m = metrics.MeanTensor(dtype=tf.float64)
-      self.evaluate(tf.compat.v1.variables_initializer(m.variables))
+      m = metrics.MeanTensor(dtype=tf.dtypes.float64)
+      self.evaluate(tf.compat.v1.initializers.variables(m.variables))
       result_t = m([[1], [5]], sample_weight=[1, 0.2])
       self.assertAllClose(self.evaluate(result_t), [[1], [5]])
       self.assertAllClose(self.evaluate(m.total), [[1], [1]])
@@ -1461,7 +1461,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_invalid_value_shape(self):
-    m = metrics.MeanTensor(dtype=tf.float64)
+    m = metrics.MeanTensor(dtype=tf.dtypes.float64)
     m([1])
     with self.assertRaisesRegex(
         ValueError, 'MeanTensor input values must always have the same shape'):
@@ -1470,7 +1470,7 @@ class MeanTensorTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_build_in_tf_function(self):
     """Ensure that variables are created correctly in a tf function."""
-    m = metrics.MeanTensor(dtype=tf.float64)
+    m = metrics.MeanTensor(dtype=tf.dtypes.float64)
 
     @tf.function
     def call_metric(x):
@@ -1530,9 +1530,9 @@ class BinaryCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
     bce_obj = metrics.BinaryCrossentropy(
-        name='bce', dtype=tf.int32, label_smoothing=0.2)
+        name='bce', dtype=tf.dtypes.int32, label_smoothing=0.2)
     self.assertEqual(bce_obj.name, 'bce')
-    self.assertEqual(bce_obj._dtype, tf.int32)
+    self.assertEqual(bce_obj._dtype, tf.dtypes.int32)
 
     old_config = bce_obj.get_config()
     self.assertAllClose(old_config['label_smoothing'], 0.2, 1e-3)
@@ -1540,13 +1540,13 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     # Check save and restore config
     bce_obj2 = metrics.BinaryCrossentropy.from_config(old_config)
     self.assertEqual(bce_obj2.name, 'bce')
-    self.assertEqual(bce_obj2._dtype, tf.int32)
+    self.assertEqual(bce_obj2._dtype, tf.dtypes.int32)
     new_config = bce_obj2.get_config()
     self.assertDictEqual(old_config, new_config)
 
   def test_unweighted(self):
     bce_obj = metrics.BinaryCrossentropy()
-    self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(bce_obj.variables))
     y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
     y_pred = np.asarray([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
     result = bce_obj(y_true, y_pred)
@@ -1565,10 +1565,10 @@ class BinaryCrossentropyTest(tf.test.TestCase):
 
   def test_unweighted_with_logits(self):
     bce_obj = metrics.BinaryCrossentropy(from_logits=True)
-    self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(bce_obj.variables))
 
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    y_pred = tf.constant([[100.0, -100.0, 100.0],
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
     result = bce_obj(y_true, y_pred)
 
@@ -1587,10 +1587,10 @@ class BinaryCrossentropyTest(tf.test.TestCase):
 
   def test_weighted(self):
     bce_obj = metrics.BinaryCrossentropy()
-    self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(bce_obj.variables))
     y_true = np.asarray([1, 0, 1, 0]).reshape([2, 2])
     y_pred = np.asarray([1, 1, 1, 0], dtype=np.float32).reshape([2, 2])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = bce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred, Y_MAX = 0.9999999
@@ -1608,11 +1608,11 @@ class BinaryCrossentropyTest(tf.test.TestCase):
 
   def test_weighted_from_logits(self):
     bce_obj = metrics.BinaryCrossentropy(from_logits=True)
-    self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
-    y_true = tf.constant([[1, 0, 1], [0, 1, 1]])
-    y_pred = tf.constant([[100.0, -100.0, 100.0],
+    self.evaluate(tf.compat.v1.initializers.variables(bce_obj.variables))
+    y_true = tf.compat.v2.constant([[1, 0, 1], [0, 1, 1]])
+    y_pred = tf.compat.v2.constant([[100.0, -100.0, 100.0],
                                    [100.0, 100.0, -100.0]])
-    sample_weight = tf.constant([2., 2.5])
+    sample_weight = tf.compat.v2.constant([2., 2.5])
     result = bce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # Metric = max(x, 0) - x * z + log(1 + exp(-abs(x)))
@@ -1624,8 +1624,8 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     self.assertAllClose(self.evaluate(result), 37.037, atol=1e-3)
 
   def test_label_smoothing(self):
-    logits = tf.constant(((100., -100., -100.)))
-    y_true = tf.constant(((1, 0, 1)))
+    logits = tf.compat.v2.constant(((100., -100., -100.)))
+    y_true = tf.compat.v2.constant(((1, 0, 1)))
     label_smoothing = 0.1
     # Metric: max(x, 0) - x * z + log(1 + exp(-abs(x)))
     #             (where x = logits and z = y_true)
@@ -1639,7 +1639,7 @@ class BinaryCrossentropyTest(tf.test.TestCase):
     #  = (100 + 50L) * 1/3
     bce_obj = metrics.BinaryCrossentropy(
         from_logits=True, label_smoothing=label_smoothing)
-    self.evaluate(tf.compat.v1.variables_initializer(bce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(bce_obj.variables))
     result = bce_obj(y_true, logits)
     expected_value = (100.0 + 50.0 * label_smoothing) / 3.0
     self.assertAllClose(expected_value, self.evaluate(result), atol=1e-3)
@@ -1650,9 +1650,9 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
     cce_obj = metrics.CategoricalCrossentropy(
-        name='cce', dtype=tf.int32, label_smoothing=0.2)
+        name='cce', dtype=tf.dtypes.int32, label_smoothing=0.2)
     self.assertEqual(cce_obj.name, 'cce')
-    self.assertEqual(cce_obj._dtype, tf.int32)
+    self.assertEqual(cce_obj._dtype, tf.dtypes.int32)
 
     old_config = cce_obj.get_config()
     self.assertAllClose(old_config['label_smoothing'], 0.2, 1e-3)
@@ -1660,13 +1660,13 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
     # Check save and restore config
     cce_obj2 = metrics.CategoricalCrossentropy.from_config(old_config)
     self.assertEqual(cce_obj2.name, 'cce')
-    self.assertEqual(cce_obj2._dtype, tf.int32)
+    self.assertEqual(cce_obj2._dtype, tf.dtypes.int32)
     new_config = cce_obj2.get_config()
     self.assertDictEqual(old_config, new_config)
 
   def test_unweighted(self):
     cce_obj = metrics.CategoricalCrossentropy()
-    self.evaluate(tf.compat.v1.variables_initializer(cce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cce_obj.variables))
 
     y_true = np.asarray([[0, 1, 0], [0, 0, 1]])
     y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
@@ -1685,7 +1685,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_unweighted_from_logits(self):
     cce_obj = metrics.CategoricalCrossentropy(from_logits=True)
-    self.evaluate(tf.compat.v1.variables_initializer(cce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cce_obj.variables))
 
     y_true = np.asarray([[0, 1, 0], [0, 0, 1]])
     logits = np.asarray([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
@@ -1707,11 +1707,11 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_weighted(self):
     cce_obj = metrics.CategoricalCrossentropy()
-    self.evaluate(tf.compat.v1.variables_initializer(cce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cce_obj.variables))
 
     y_true = np.asarray([[0, 1, 0], [0, 0, 1]])
     y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = cce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred
@@ -1728,11 +1728,11 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_weighted_from_logits(self):
     cce_obj = metrics.CategoricalCrossentropy(from_logits=True)
-    self.evaluate(tf.compat.v1.variables_initializer(cce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cce_obj.variables))
 
     y_true = np.asarray([[0, 1, 0], [0, 0, 1]])
     logits = np.asarray([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = cce_obj(y_true, logits, sample_weight=sample_weight)
 
     # softmax = exp(logits) / sum(exp(logits), axis=-1)
@@ -1766,7 +1766,7 @@ class CategoricalCrossentropyTest(tf.test.TestCase):
 
     cce_obj = metrics.CategoricalCrossentropy(
         from_logits=True, label_smoothing=label_smoothing)
-    self.evaluate(tf.compat.v1.variables_initializer(cce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(cce_obj.variables))
     loss = cce_obj(y_true, logits)
     self.assertAllClose(self.evaluate(loss), 3.667, atol=1e-3)
 
@@ -1776,22 +1776,22 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_config(self):
     scce_obj = metrics.SparseCategoricalCrossentropy(
-        name='scce', dtype=tf.int32)
+        name='scce', dtype=tf.dtypes.int32)
     self.assertEqual(scce_obj.name, 'scce')
-    self.assertEqual(scce_obj.dtype, tf.int32)
+    self.assertEqual(scce_obj.dtype, tf.dtypes.int32)
     old_config = scce_obj.get_config()
     self.assertDictEqual(old_config, json.loads(json.dumps(old_config)))
 
     # Check save and restore config
     scce_obj2 = metrics.SparseCategoricalCrossentropy.from_config(old_config)
     self.assertEqual(scce_obj2.name, 'scce')
-    self.assertEqual(scce_obj2.dtype, tf.int32)
+    self.assertEqual(scce_obj2.dtype, tf.dtypes.int32)
     new_config = scce_obj2.get_config()
     self.assertDictEqual(old_config, new_config)
 
   def test_unweighted(self):
     scce_obj = metrics.SparseCategoricalCrossentropy()
-    self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(scce_obj.variables))
 
     y_true = np.asarray([1, 2])
     y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
@@ -1820,7 +1820,7 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_unweighted_from_logits(self):
     scce_obj = metrics.SparseCategoricalCrossentropy(from_logits=True)
-    self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(scce_obj.variables))
 
     y_true = np.asarray([1, 2])
     logits = np.asarray([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
@@ -1843,11 +1843,11 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_weighted(self):
     scce_obj = metrics.SparseCategoricalCrossentropy()
-    self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(scce_obj.variables))
 
     y_true = np.asarray([1, 2])
     y_pred = np.asarray([[0.05, 0.95, 0], [0.1, 0.8, 0.1]])
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = scce_obj(y_true, y_pred, sample_weight=sample_weight)
 
     # EPSILON = 1e-7, y = y_true, y` = y_pred
@@ -1874,11 +1874,11 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_weighted_from_logits(self):
     scce_obj = metrics.SparseCategoricalCrossentropy(from_logits=True)
-    self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(scce_obj.variables))
 
     y_true = np.asarray([1, 2])
     logits = np.asarray([[1, 9, 0], [1, 8, 1]], dtype=np.float32)
-    sample_weight = tf.constant([1.5, 2.])
+    sample_weight = tf.compat.v2.constant([1.5, 2.])
     result = scce_obj(y_true, logits, sample_weight=sample_weight)
 
     # softmax = exp(logits) / sum(exp(logits), axis=-1)
@@ -1892,7 +1892,7 @@ class SparseCategoricalCrossentropyTest(tf.test.TestCase):
 
   def test_axis(self):
     scce_obj = metrics.SparseCategoricalCrossentropy(axis=0)
-    self.evaluate(tf.compat.v1.variables_initializer(scce_obj.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(scce_obj.variables))
 
     y_true = np.asarray([1, 2])
     y_pred = np.asarray([[0.05, 0.1], [0.95, 0.8], [0, 0.1]])
@@ -1937,10 +1937,10 @@ class BinaryTruePositives(metrics.Metric):
     values = tf.cast(values, self.dtype)
     if sample_weight is not None:
       sample_weight = tf.cast(sample_weight, dtype=self.dtype)
-      sample_weight = tf.__internal__.ops.broadcast_weights(
+      sample_weight = tf.compat.v2.__internal__.ops.broadcast_weights(
           sample_weight, values)
-      values = tf.multiply(values, sample_weight)
-    self.true_positives.assign_add(tf.reduce_sum(values))
+      values = tf.math.multiply(values, sample_weight)
+    self.true_positives.assign_add(tf.compat.v2.math.reduce_sum(values))
 
   def result(self):
     return self.true_positives
@@ -1965,7 +1965,7 @@ class BinaryTruePositivesViaControlFlow(metrics.Metric):
             self.true_positives.assign_add(sample_weight[i][0])
 
   def result(self):
-    if tf.constant(True):
+    if tf.compat.v2.constant(True):
       return self.true_positives
     return 0.0
 
@@ -1974,21 +1974,21 @@ class BinaryTruePositivesViaControlFlow(metrics.Metric):
 class CustomMetricsTest(tf.test.TestCase):
 
   def test_config(self):
-    btp_obj = BinaryTruePositives(name='btp', dtype=tf.int32)
+    btp_obj = BinaryTruePositives(name='btp', dtype=tf.dtypes.int32)
     self.assertEqual(btp_obj.name, 'btp')
-    self.assertEqual(btp_obj.dtype, tf.int32)
+    self.assertEqual(btp_obj.dtype, tf.dtypes.int32)
 
     # Check save and restore config
     btp_obj2 = BinaryTruePositives.from_config(btp_obj.get_config())
     self.assertEqual(btp_obj2.name, 'btp')
-    self.assertEqual(btp_obj2.dtype, tf.int32)
+    self.assertEqual(btp_obj2.dtype, tf.dtypes.int32)
 
   def test_unweighted(self):
     btp_obj = BinaryTruePositives()
-    self.evaluate(tf.compat.v1.variables_initializer(btp_obj.variables))
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    self.evaluate(tf.compat.v1.initializers.variables(btp_obj.variables))
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
 
     update_op = btp_obj.update_state(y_true, y_pred)
@@ -1998,23 +1998,23 @@ class CustomMetricsTest(tf.test.TestCase):
 
   def test_weighted(self):
     btp_obj = BinaryTruePositives()
-    self.evaluate(tf.compat.v1.variables_initializer(btp_obj.variables))
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    self.evaluate(tf.compat.v1.initializers.variables(btp_obj.variables))
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
-    sample_weight = tf.constant([[1.], [1.5], [2.], [2.5]])
+    sample_weight = tf.compat.v2.constant([[1.], [1.5], [2.], [2.5]])
     result = btp_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertEqual(12, self.evaluate(result))
 
   def test_autograph(self):
     metric = BinaryTruePositivesViaControlFlow()
-    self.evaluate(tf.compat.v1.variables_initializer(metric.variables))
-    y_true = tf.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
+    self.evaluate(tf.compat.v1.initializers.variables(metric.variables))
+    y_true = tf.compat.v2.constant([[0, 0.9, 0, 1, 0], [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0], [0, 0, 0, 0, 1.5]])
-    y_pred = tf.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 5, 0], [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0], [1, 10, 1, 1, 1]])
-    sample_weight = tf.constant([[1.], [1.5], [2.], [2.5]])
+    sample_weight = tf.compat.v2.constant([[1.], [1.5], [2.], [2.5]])
 
     @tf.function
     def compute_metric(y_true, y_pred, sample_weight):
@@ -2026,7 +2026,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
   def test_metric_wrappers_autograph(self):
     def metric_fn(y_true, y_pred):
-      x = tf.constant(0.0)
+      x = tf.compat.v2.constant(0.0)
       for i in range(len(y_true)):
         for j in range(len(y_true[i])):
           if tf.equal(y_true[i][j], y_pred[i][j]) and y_true[i][j] > 0:
@@ -2035,14 +2035,14 @@ class CustomMetricsTest(tf.test.TestCase):
 
     mean_metric = metrics.MeanMetricWrapper(metric_fn)
     sum_metric = metrics.SumOverBatchSizeMetricWrapper(metric_fn)
-    self.evaluate(tf.compat.v1.variables_initializer(mean_metric.variables))
-    self.evaluate(tf.compat.v1.variables_initializer(sum_metric.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(mean_metric.variables))
+    self.evaluate(tf.compat.v1.initializers.variables(sum_metric.variables))
 
-    y_true = tf.constant([[0, 0, 0, 1, 0],
+    y_true = tf.compat.v2.constant([[0, 0, 0, 1, 0],
                                    [0, 0, 1, 1, 1],
                                    [1, 1, 1, 1, 0],
                                    [1, 1, 1, 0, 1]])
-    y_pred = tf.constant([[0, 0, 1, 1, 0],
+    y_pred = tf.compat.v2.constant([[0, 0, 1, 1, 0],
                                    [1, 1, 1, 1, 1],
                                    [0, 1, 0, 1, 0],
                                    [1, 1, 1, 1, 1]])
@@ -2066,7 +2066,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
+            tf.compat.v2.math.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
         self.add_metric(self.mean_obj(x))
         return x
 
@@ -2086,7 +2086,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
+            tf.compat.v2.math.reduce_sum(x), aggregation='mean', name='my_mean_tensor')
         self.add_metric(self.mean_obj(x))
         return x
 

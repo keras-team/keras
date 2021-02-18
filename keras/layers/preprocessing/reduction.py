@@ -28,15 +28,15 @@ from tensorflow.python.platform import tf_logging as logging
 def get_reduce_op(reduction_str):
   """Translate a reduction string name to a reduction op."""
   if reduction_str == "max":
-    return tf.reduce_max
+    return tf.compat.v2.math.reduce_max
   elif reduction_str == "mean":
-    return tf.reduce_mean
+    return tf.compat.v2.math.reduce_mean
   elif reduction_str == "min":
-    return tf.reduce_min
+    return tf.compat.v2.math.reduce_min
   elif reduction_str == "prod":
-    return tf.reduce_prod
+    return tf.compat.v2.math.reduce_prod
   elif reduction_str == "sum":
-    return tf.reduce_sum
+    return tf.compat.v2.math.reduce_sum
   else:
     raise ValueError("Reduction %s is not supported for unweighted inputs." %
                      reduction_str)
@@ -87,7 +87,7 @@ class Reduction(Layer):
     if weights.shape.rank + 1 == inputs.shape.rank:
       weights = tf.compat.v1.expand_dims(weights, -1)
 
-    weighted_inputs = tf.multiply(inputs, weights)
+    weighted_inputs = tf.math.multiply(inputs, weights)
 
     # Weighted sum and prod can be expressed as reductions over the weighted
     # values, as can min and max.
@@ -97,8 +97,8 @@ class Reduction(Layer):
     # Weighted mean is a bit more complicated: we have to do a sum of the
     # weighted values and divide by the sum of the weights.
     if self.reduction == "mean":
-      input_sum = tf.reduce_sum(weighted_inputs, axis=self.axis)
-      weight_sum = tf.reduce_sum(weights, axis=self.axis)
+      input_sum = tf.compat.v2.math.reduce_sum(weighted_inputs, axis=self.axis)
+      weight_sum = tf.compat.v2.math.reduce_sum(weights, axis=self.axis)
       return tf.divide(input_sum, weight_sum)
 
     # sqrtn is also more complicated: it's like mean but with a normalized
@@ -107,10 +107,10 @@ class Reduction(Layer):
       logging.warning("Reduction `sqrtn` is deprecated and will be removed "
                       "2021-01-01. Please use the `sum` reduction and divide "
                       "the output by the normalized weights instead.")
-      input_sum = tf.reduce_sum(weighted_inputs, axis=self.axis)
-      squared_weights = tf.pow(weights, 2)
-      squared_weights_sum = tf.reduce_sum(squared_weights, axis=self.axis)
-      sqrt_weights_sum = tf.sqrt(squared_weights_sum)
+      input_sum = tf.compat.v2.math.reduce_sum(weighted_inputs, axis=self.axis)
+      squared_weights = tf.math.pow(weights, 2)
+      squared_weights_sum = tf.compat.v2.math.reduce_sum(squared_weights, axis=self.axis)
+      sqrt_weights_sum = tf.math.sqrt(squared_weights_sum)
       return tf.divide(input_sum, sqrt_weights_sum)
 
     raise ValueError("%s is not a supported weighted reduction." %

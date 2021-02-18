@@ -397,7 +397,7 @@ class Layer(base_layer.Layer):
       # If dtype is DT_INT/DT_UINT, provide a default value `zero`
       # If dtype is DT_BOOL, provide a default value `FALSE`
       elif dtype.is_integer or dtype.is_unsigned or dtype.is_bool:
-        initializer = tf.compat.v1.zeros_initializer()
+        initializer = tf.compat.v1.initializers.zeros()
       # NOTES:Do we need to support for handling DT_STRING and DT_COMPLEX here?
       else:
         raise ValueError('An initializer for variable %s of type %s is required'
@@ -531,7 +531,7 @@ class Layer(base_layer.Layer):
     Returns:
         An input shape tuple.
     """
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # In this case we build the model first in order to do shape inference.
       # This is acceptable because the framework only calls
       # `compute_output_shape` on shape values that the layer would later be
@@ -541,7 +541,7 @@ class Layer(base_layer.Layer):
       # implement `compute_output_shape` themselves).
       self._maybe_build(input_shape)
       with tf.compat.v1.get_default_graph().as_default():
-        graph = tf.__internal__.FuncGraph('graph')
+        graph = tf.compat.v2.__internal__.FuncGraph('graph')
         with graph.as_default():
           input_shape = tf_utils.convert_shapes(input_shape, to_tuples=False)
           inputs = tf.nest.map_structure(
@@ -675,7 +675,7 @@ class Layer(base_layer.Layer):
         # Don't call `ops.convert_to_tensor` on all `inputs` because
         # `SparseTensors` can't be converted to `Tensor`.
         if isinstance(x, (np.ndarray, float, int)):
-          return tf.convert_to_tensor(x)
+          return tf.compat.v2.convert_to_tensor(x)
         return x
       inputs = tf.nest.map_structure(_convert_non_tensor, inputs)
       input_list = tf.nest.flatten(inputs)
@@ -755,8 +755,8 @@ class Layer(base_layer.Layer):
           # enclosing tf.function, if any.
           if (base_layer_utils.is_subclassed(self) and
               not base_layer_utils.from_saved_model(self)):
-            call_fn = tf.__internal__.autograph.tf_convert(
-                self.call, tf.__internal__.autograph.control_status_ctx())
+            call_fn = tf.compat.v2.__internal__.autograph.tf_convert(
+                self.call, tf.compat.v2.__internal__.autograph.control_status_ctx())
           else:
             call_fn = self.call
 
@@ -766,7 +766,7 @@ class Layer(base_layer.Layer):
                   self._compute_dtype_object):
                 outputs = call_fn(cast_inputs, *args, **kwargs)
 
-            except tf.errors.OperatorNotAllowedInGraphError as e:
+            except tf.compat.v2.errors.OperatorNotAllowedInGraphError as e:
               raise TypeError('You are attempting to use Python control '
                               'flow in a layer that was not declared to be '
                               'dynamic. Pass `dynamic=True` to the class '
@@ -1018,7 +1018,7 @@ class Layer(base_layer.Layer):
       if loss is None:
         return None  # Will be filtered out when computing the .losses property
       if not tf.is_tensor(loss):
-        loss = tf.convert_to_tensor(
+        loss = tf.compat.v2.convert_to_tensor(
             loss, dtype=backend.floatx())
       loss._unconditional_loss = (inputs is None)  # pylint: disable=protected-access
       return loss
@@ -1034,7 +1034,7 @@ class Layer(base_layer.Layer):
       if loss is None:
         continue
       if not tf.is_tensor(loss):
-        loss = tf.convert_to_tensor(
+        loss = tf.compat.v2.convert_to_tensor(
             loss, dtype=backend.floatx())
       # TF Functions should take the eager path.
       if (tf_utils.is_symbolic_tensor(loss) and
@@ -1196,7 +1196,7 @@ class Layer(base_layer.Layer):
       elif hasattr(x, 'op'):
         update = x.op
       else:
-        update = tf.convert_to_tensor(x)
+        update = tf.compat.v2.convert_to_tensor(x)
 
       reachable = tf_utils.get_reachable_from_inputs(relevant_inputs, [update])
       update._unconditional_update = update not in reachable
@@ -2140,7 +2140,7 @@ class Layer(base_layer.Layer):
     # other attributes referencing it.
     reference_counts = self._obj_reference_counts
     if existing_value not in reference_counts:
-      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__delattr__(name)
       return
 
     reference_count = reference_counts[existing_value]
@@ -2148,24 +2148,24 @@ class Layer(base_layer.Layer):
       # There are other remaining references. We can't remove this object from
       # _layers etc.
       reference_counts[existing_value] = reference_count - 1
-      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__delattr__(name)
       return
     else:
       # This is the last remaining reference.
       del reference_counts[existing_value]
 
-    super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+    super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__delattr__(name)
 
     if (isinstance(existing_value, Layer)
         or base_layer_utils.has_weights(existing_value)):
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(
           '_self_tracked_trackables',
           [l for l in self._self_tracked_trackables if l is not existing_value])
-    if isinstance(existing_value, tf.Variable):
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+    if isinstance(existing_value, tf.compat.v2.Variable):
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(
           '_trainable_weights',
           [w for w in self._trainable_weights if w is not existing_value])
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(
           '_non_trainable_weights',
           [w for w in self._non_trainable_weights if w is not existing_value])
 
@@ -2175,7 +2175,7 @@ class Layer(base_layer.Layer):
         # Exclude @property.setters from tracking
         hasattr(self.__class__, name)):
       try:
-        super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
+        super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
       except AttributeError:
         raise AttributeError(
             ('Can\'t set the attribute "{}", likely because it conflicts with '
@@ -2222,7 +2222,7 @@ class Layer(base_layer.Layer):
     # TODO(b/125122625): This won't pick up on any variables added to a
     # list/dict after creation.
     for val in tf.nest.flatten(value):
-      if not isinstance(val, tf.Variable):
+      if not isinstance(val, tf.compat.v2.Variable):
         continue
 
       # Users may add extra weights/variables
@@ -2242,7 +2242,7 @@ class Layer(base_layer.Layer):
 
     # Skip the auto trackable from tf.Module to keep status quo. See the comment
     # at __delattr__.
-    super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
+    super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
 
   # This is a hack so that the is_layer (within
   # training/trackable/layer_utils.py) check doesn't get the weights attr.

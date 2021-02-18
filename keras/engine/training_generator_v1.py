@@ -124,7 +124,7 @@ def model_iteration(model,
   # dataset at the end of each epoch.
   reset_dataset_after_each_epoch = False
   original_dataset = None
-  is_dataset = isinstance(data, (tf.data.Dataset, tf.compat.v1.data.Dataset))
+  is_dataset = isinstance(data, (tf.compat.v2.data.Dataset, tf.compat.v1.data.Dataset))
   if is_dataset:
     original_dataset = data
     if steps_per_epoch is None:
@@ -182,7 +182,7 @@ def model_iteration(model,
     aggregator = training_utils_v1.MetricsAggregator(
         True, steps=steps_per_epoch)
 
-  should_set_learning_phase = tf.executing_eagerly() and model.run_eagerly
+  should_set_learning_phase = tf.compat.v2.executing_eagerly() and model.run_eagerly
   if should_set_learning_phase:
     learning_phase_scope = backend.eager_learning_phase_scope(
         1 if mode == ModeKeys.TRAIN else 0)
@@ -408,7 +408,7 @@ def _validate_arguments(is_sequence, is_dataset, use_multiprocessing, workers,
 
   val_gen = (
       data_utils.is_generator_or_sequence(validation_data) or
-      isinstance(validation_data, tf.data.Iterator))
+      isinstance(validation_data, tf.compat.v2.data.Iterator))
   if (val_gen and not isinstance(validation_data, data_utils.Sequence) and
       not validation_steps):
     raise ValueError('Please specify the `validation_steps` argument.')
@@ -451,12 +451,12 @@ def convert_to_generator_like(data,
         ele for ele in data if not all(e is None for e in tf.nest.flatten(ele)))
 
   if data_utils.is_generator_or_sequence(data) or isinstance(
-      data, tf.data.Iterator):
+      data, tf.compat.v2.data.Iterator):
     if isinstance(data, data_utils.Sequence):
       if steps_per_epoch is None:
         steps_per_epoch = len(data)
     return data, steps_per_epoch
-  if isinstance(data, tf.data.Dataset):
+  if isinstance(data, tf.compat.v2.data.Dataset):
     return tf.compat.v1.data.make_one_shot_iterator(data), steps_per_epoch
 
   # Create generator from NumPy or EagerTensor Input.
@@ -659,7 +659,7 @@ class EagerDatasetOrIteratorTrainingLoop(training_utils_v1.TrainingLoop):
     # Make sure that y, sample_weights, validation_split are not passed.
     training_utils_v1.validate_dataset_input(x, y, sample_weight,
                                              validation_split)
-    if (isinstance(x, (tf.compat.v1.data.Dataset, tf.data.Dataset)) and
+    if (isinstance(x, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)) and
         shuffle):
       training_utils_v1.verify_dataset_shuffled(x)
 

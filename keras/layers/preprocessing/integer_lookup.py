@@ -258,14 +258,14 @@ class IntegerLookup(index_lookup.IndexLookup):
                sparse=False,
                pad_to_max_values=False,
                **kwargs):
-    allowed_dtypes = [tf.int64]
+    allowed_dtypes = [tf.dtypes.int64]
 
     if "dtype" in kwargs and kwargs["dtype"] not in allowed_dtypes:
       raise ValueError("The value of the dtype argument for IntegerLookup may "
                        "only be one of %s." % (allowed_dtypes,))
 
     if "dtype" not in kwargs:
-      kwargs["dtype"] = tf.int64
+      kwargs["dtype"] = tf.dtypes.int64
 
     # If max_values is set, the value must be greater than 1 - otherwise we
     # are creating a 0-element vocab, which doesn't make sense.

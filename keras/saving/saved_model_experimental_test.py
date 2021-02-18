@@ -204,7 +204,7 @@ class LayerWithLearningPhase(keras.engine.base_layer.Layer):
       training = keras.backend.learning_phase()
     output = control_flow_util.smart_cond(training, lambda: x * 0,
                                           lambda: tf.identity(x))
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       output._uses_learning_phase = True  # pylint: disable=protected-access
     return output
 
@@ -368,7 +368,7 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
 
         # First obtain the loss and predictions, and run the metric update op by
         # feeding in the inputs and targets.
-        metrics_name = 'mae' if tf.__internal__.tf2.enabled() else 'mean_absolute_error'
+        metrics_name = 'mae' if tf.compat.v2.__internal__.tf2.enabled() else 'mean_absolute_error'
         metrics_update_op_key = 'metrics/' + metrics_name + '/update_op'
         metrics_value_op_key = 'metrics/' + metrics_name + '/value'
 
@@ -505,20 +505,20 @@ class TestModelSavedModelExport(tf.test.TestCase, parameterized.TestCase):
           model,
           saved_model_dir,
           input_signature=tf.TensorSpec(
-              shape=(10, 11, 12, 13, 14), dtype=tf.float32,
+              shape=(10, 11, 12, 13, 14), dtype=tf.dtypes.float32,
               name='spec_input'))
 
   @parameterized.parameters(
       {
           'model_builder': sequential_model_without_input_shape,
           'input_signature': [tf.TensorSpec(shape=[None, 3],
-                                                     dtype=tf.float32)]},
+                                                     dtype=tf.dtypes.float32)]},
       {
           'model_builder': subclassed_model,
           'input_signature': [tf.TensorSpec(shape=[None, 3],
-                                                     dtype=tf.float32)]})
+                                                     dtype=tf.dtypes.float32)]})
   def testServingOnly(self, model_builder, input_signature):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       saved_model_dir = self._save_model_dir()
       input_arr = np.random.random((5, 3)).astype(np.float32)
       model = model_builder()

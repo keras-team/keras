@@ -270,7 +270,7 @@ class Sequential(functional.Functional):
                                               input_dtype=None):
     if input_shape is None or not self.layers:
       return
-    if not tf.__internal__.tf2.enabled() or not tf.compat.v1.executing_eagerly_outside_functions():
+    if not tf.compat.v2.__internal__.tf2.enabled() or not tf.compat.v1.executing_eagerly_outside_functions():
       # This behavior is disabled in V1 or when eager execution is disabled.
       return
     if (not self._has_explicit_input_shape and
@@ -365,7 +365,7 @@ class Sequential(functional.Functional):
         # compatibility.
         self._use_legacy_deferred_behavior = True
         self._build_input_shape = tf.nest.map_structure(_get_shape_tuple, inputs)
-        if tf.__internal__.tf2.enabled():
+        if tf.compat.v2.__internal__.tf2.enabled():
           logging.warning('Layers in a Sequential model should only have a '
                           'single input tensor, but we receive a %s input: %s'
                           '\nConsider rewriting this model with the Functional '

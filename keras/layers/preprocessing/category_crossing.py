@@ -134,7 +134,7 @@ class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
 
   def _preprocess_input(self, inp):
     if isinstance(inp, (list, tuple, np.ndarray)):
-      inp = tf.convert_to_tensor(inp)
+      inp = tf.compat.v2.convert_to_tensor(inp)
     if inp.shape.rank == 1:
       inp = tf.compat.v1.expand_dims(inp, axis=-1)
     return inp
@@ -159,7 +159,7 @@ class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
             partial_inps, ragged_out, sparse_out)
         outputs.append(partial_out)
     if sparse_out:
-      return tf.sparse.concat(axis=1, sp_inputs=outputs)
+      return tf.compat.v2.sparse.concat(axis=1, sp_inputs=outputs)
     return tf.concat(outputs, axis=1)
 
   def compute_output_shape(self, input_shape):
@@ -184,13 +184,13 @@ class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
     if any(
         isinstance(inp_spec, tf.RaggedTensorSpec)
         for inp_spec in input_spec):
-      return tf.TensorSpec(shape=output_shape, dtype=tf.string)
+      return tf.TensorSpec(shape=output_shape, dtype=tf.dtypes.string)
     elif any(
         isinstance(inp_spec, tf.SparseTensorSpec)
         for inp_spec in input_spec):
       return tf.SparseTensorSpec(
-          shape=output_shape, dtype=tf.string)
-    return tf.TensorSpec(shape=output_shape, dtype=tf.string)
+          shape=output_shape, dtype=tf.dtypes.string)
+    return tf.TensorSpec(shape=output_shape, dtype=tf.dtypes.string)
 
   def get_config(self):
     config = {

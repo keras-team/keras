@@ -43,10 +43,10 @@ default_strategy_fn = tf.distribute.get_strategy
 
 
 def create_mirrored_strategy():
-  if tf.config.list_logical_devices('GPU'):
-    return tf.distribute.MirroredStrategy(['cpu:0', 'gpu:0'])
+  if tf.config.experimental.list_logical_devices('GPU'):
+    return tf.compat.v2.distribute.MirroredStrategy(['cpu:0', 'gpu:0'])
   else:
-    return tf.distribute.MirroredStrategy(['cpu:0'])
+    return tf.compat.v2.distribute.MirroredStrategy(['cpu:0'])
 
 
 TESTCASES = ({
@@ -67,7 +67,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # a value that, in Graph mode, is runnable with self.evaluate. But in Eager
     # mode, the optimizer already does the computations and the return value
     # cannot be run.
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(val)
 
   def _run_fn_with_grad_check(self, strategy, var, opt, expected_grad):
@@ -79,7 +79,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(*TESTCASES)
   def testFixedLossScaleAppliedToLossWithMinimize(self, strategy_fn):
     with strategy_fn().scope() as strategy:
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(2.0)
       loss_scale = 10.
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
@@ -101,7 +101,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testFixedLossScaleAppliedToLossWithGetGradients(self):
     with tf.Graph().as_default():
-      var = tf.Variable([2.0])
+      var = tf.compat.v2.Variable([2.0])
       opt = gradient_descent.SGD(1.0)
       loss_scale = 10.
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
@@ -127,10 +127,10 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = gradient_descent.SGD(2.0)
     opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
                                                   initial_scale=2.)
-    loss = tf.convert_to_tensor(5.)
+    loss = tf.compat.v2.convert_to_tensor(5.)
     self.assertEqual(10., self.evaluate(opt.get_scaled_loss(loss)))
     self.assertEqual(10., self.evaluate(opt.get_scaled_loss(lambda: loss)()))
-    loss = tf.convert_to_tensor(5., dtype='float16')
+    loss = tf.compat.v2.convert_to_tensor(5., dtype='float16')
     self.assertEqual(10., self.evaluate(opt.get_scaled_loss(loss)))
     self.assertEqual(10., self.evaluate(opt.get_scaled_loss(lambda: loss)()))
 
@@ -139,8 +139,8 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
                                                   initial_scale=2)
     scaled_grads = [
-        tf.convert_to_tensor(3.), None,
-        tf.convert_to_tensor(-4., dtype='float16')
+        tf.compat.v2.convert_to_tensor(3.), None,
+        tf.compat.v2.convert_to_tensor(-4., dtype='float16')
     ]
     grads = opt.get_unscaled_gradients(scaled_grads)
     grads = [self.evaluate(g) if g is not None else g for g in grads]
@@ -151,9 +151,9 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
                                                   initial_scale=2)
     sparse_scaled_grad = tf.IndexedSlices(
-        tf.convert_to_tensor([[4., 2.], [8., 5.]]),
-        tf.convert_to_tensor([1, 3], dtype='int32'),
-        dense_shape=tf.convert_to_tensor([5, 2],
+        tf.compat.v2.convert_to_tensor([[4., 2.], [8., 5.]]),
+        tf.compat.v2.convert_to_tensor([1, 3], dtype='int32'),
+        dense_shape=tf.compat.v2.convert_to_tensor([5, 2],
                                                            dtype='int32'))
     sparse_grad = opt.get_unscaled_gradients([sparse_scaled_grad])[0]
     self.assertIsInstance(sparse_grad, tf.IndexedSlices)
@@ -164,10 +164,10 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testDynamicLossScale(self, strategy_fn):
     strategy = strategy_fn()
     learning_rate = 2.
-    expected_gradient = tf.Variable(learning_rate /
+    expected_gradient = tf.compat.v2.Variable(learning_rate /
                                            strategy.num_replicas_in_sync)
     with strategy.scope():
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(learning_rate)
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2,
                                                     dynamic_growth_steps=1)
@@ -210,7 +210,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     learning_rate = 2.
     for clip_type in ('clipnorm', 'global_clipnorm', 'clipvalue'):
       with strategy.scope(), self.subTest(clip_type=clip_type):
-        var = tf.Variable([5.0])
+        var = tf.compat.v2.Variable([5.0])
         opt = gradient_descent.SGD(learning_rate, **{clip_type: 2.0})
         opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2,
                                                       dynamic_growth_steps=1)
@@ -250,7 +250,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(*TESTCASES)
   def testDynamicUpdate(self, strategy_fn):
     with strategy_fn().scope() as strategy:
-      var = tf.Variable([1.0, 2.0])
+      var = tf.compat.v2.Variable([1.0, 2.0])
       opt = gradient_descent.SGD(1.0)
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2,
                                                     dynamic_growth_steps=1)
@@ -281,7 +281,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     strategy = strategy_fn()
     learning_rate = 2.
     with strategy.scope():
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(learning_rate)
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2,
                                                     dynamic_growth_steps=1)
@@ -299,12 +299,12 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @parameterized.named_parameters(*TESTCASES)
   def testDynamicLossScaleWithSlots(self, strategy_fn):
     strategy_obj = strategy_fn()
-    if (isinstance(strategy_obj, tf.distribute.MirroredStrategy) and
+    if (isinstance(strategy_obj, tf.compat.v2.distribute.MirroredStrategy) and
         tf.compat.v1.control_flow_v2_enabled() and
-        not tf.executing_eagerly()):
+        not tf.compat.v2.executing_eagerly()):
       self.skipTest('b/138667997')
     with strategy_obj.scope() as strategy:
-      var = tf.Variable([1.0, 2.0])
+      var = tf.compat.v2.Variable([1.0, 2.0])
       # An SGD optimizer with momentum has slot variables.
       opt = gradient_descent.SGD(1.0, momentum=1.)
       initial_scale = 2.
@@ -347,7 +347,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # Test iterations is incremented in opt.minimize.
       opt = gradient_descent.SGD(1.0)
       opt = loss_scale_optimizer.LossScaleOptimizer(opt)
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       loss = lambda: var * 2.0 / strategy.num_replicas_in_sync
       run_fn = lambda: opt.minimize(loss, [var])
       run_op = strategy.experimental_run(run_fn)
@@ -367,7 +367,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testWeightMethods(self):
     with self.test_session():
-      var = tf.Variable([1.0])
+      var = tf.compat.v2.Variable([1.0])
       opt = gradient_descent.SGD(1.0)
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2.,
                                                     dynamic_growth_steps=1)
@@ -391,7 +391,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(tf.compat.v1.global_variables_initializer())
 
       self.assertEqual(self.evaluate(lso.beta_1), 0.5)
-      self.assertIsInstance(lso.beta_1, tf.Variable)
+      self.assertIsInstance(lso.beta_1, tf.compat.v2.Variable)
       self.assertEqual(self.evaluate(lso.lr), 1.0)
       self.assertIs(lso.lr, opt.lr)
       self.assertIs(lso.lr, lso.learning_rate)
@@ -468,7 +468,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                                            experimental_aggregate_gradients)
 
     with create_mirrored_strategy().scope() as strategy:
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = MyOptimizer(learning_rate=1.0)
       opt = loss_scale_optimizer.LossScaleOptimizer(opt, dynamic=False,
                                                     initial_scale=1)
@@ -482,7 +482,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     learning_rate = 2.
     with strategy.scope():
       # Test FixedLossScale
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(learning_rate)
       opt = loss_scale_optimizer.LossScaleOptimizerV1(opt, loss_scale=2)
       self.assertIsInstance(opt.loss_scale, tf.Tensor)
@@ -500,7 +500,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose([3.], self.evaluate(var))
 
       # Test DynamicLossScale
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(learning_rate)
       opt = loss_scale_optimizer.LossScaleOptimizerV1(opt, 'dynamic')
       self.assertEqual(opt.initial_scale, 2 ** 15)
@@ -526,7 +526,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     learning_rate = 2.
     with strategy.scope():
       # Test FixedLossScale
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(learning_rate)
       loss_scale = tf.mixed_precision.experimental.FixedLossScale(2.)
       opt = loss_scale_optimizer.LossScaleOptimizerV1(opt, loss_scale)
@@ -543,7 +543,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertAllClose([3.], self.evaluate(var))
 
       # Test DynamicLossScale
-      var = tf.Variable([5.0])
+      var = tf.compat.v2.Variable([5.0])
       opt = gradient_descent.SGD(learning_rate)
       loss_scale = tf.mixed_precision.experimental.DynamicLossScale(
           initial_loss_scale=4, increment_period=1, multiplier=2)
@@ -627,19 +627,19 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
       def __init__(self, *args, **kwargs):
         super(MySGD, self).__init__(*args, **kwargs)
-        self.my_var = tf.Variable(0.)
+        self.my_var = tf.compat.v2.Variable(0.)
         self._track_trackable(self.my_var, 'my_var')
 
     strategy = strategy_fn()
     replicas = strategy.num_replicas_in_sync
-    if (isinstance(strategy, tf.distribute.MirroredStrategy) and
-        not tf.executing_eagerly()):
+    if (isinstance(strategy, tf.compat.v2.distribute.MirroredStrategy) and
+        not tf.compat.v2.executing_eagerly()):
       # TODO(b/121381184): Enable running the test in this case.
       return
 
     with self.test_session(), strategy.scope():
       # Build and run a simple model.
-      var = tf.Variable([2.0])
+      var = tf.compat.v2.Variable([2.0])
       opt = inner_opt = MySGD(1., momentum=1.)
       if save_with_ls:
         opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=1.,
@@ -663,19 +663,19 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.evaluate(inner_opt.my_var.assign(1.))
 
       # Save a checkpoint.
-      checkpoint = tf.train.Checkpoint(optimizer=opt, var=var)
+      checkpoint = tf.compat.v2.train.Checkpoint(optimizer=opt, var=var)
       prefix = os.path.join(self.get_temp_dir(), 'ckpt')
       save_path = checkpoint.save(prefix)
 
       # Create new model
-      var = tf.Variable([2.0])
+      var = tf.compat.v2.Variable([2.0])
       opt = inner_opt = MySGD(1., momentum=1.)
       if restore_with_ls:
         opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=1.,
                                                       dynamic_growth_steps=2.)
 
       # Restore new model.
-      checkpoint = tf.train.Checkpoint(optimizer=opt, var=var)
+      checkpoint = tf.compat.v2.train.Checkpoint(optimizer=opt, var=var)
       status = checkpoint.restore(save_path)
       if save_with_ls:
         status.assert_existing_objects_matched()
@@ -684,7 +684,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
       # Assert restored values. We can only assert in eager mode since the
       # variables are uninitialized in graph mode
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         self.assertEqual(self.evaluate(var), 1.)
         if save_with_ls and restore_with_ls:
           self.assertEqual(self.evaluate(opt.loss_scale), 1.)
@@ -774,7 +774,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertFalse(opt.dynamic)
 
     # Ensure the optimizer can be used
-    var = tf.Variable([5.0])
+    var = tf.compat.v2.Variable([5.0])
     run_op = self._run_fn_with_grad_check(
         tf.distribute.get_strategy(), var, opt, 2)()
     self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -840,7 +840,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertTrue(opt.dynamic)
 
     # Ensure the optimizer can be used
-    var = tf.Variable([5.0])
+    var = tf.compat.v2.Variable([5.0])
     run_op = self._run_fn_with_grad_check(
         tf.distribute.get_strategy(), var, opt, 2)()
     self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -910,7 +910,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(type(opt), loss_scale_optimizer.LossScaleOptimizer)
 
     # Ensure the optimizer can be used
-    var = tf.Variable([5.0])
+    var = tf.compat.v2.Variable([5.0])
     run_op = self._run_fn_with_grad_check(
         tf.distribute.get_strategy(), var, opt, 2)()
     self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -942,7 +942,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(opt.inner_optimizer.my_attribute, 123)
 
   def testUnsupportedStrategy(self):
-    strategy = tf.distribute.experimental.CentralStorageStrategy()
+    strategy = tf.compat.v2.distribute.experimental.CentralStorageStrategy()
     expected_error = (
         'Loss scaling is not supported with the tf.distribute.Strategy: '
         'CentralStorageStrategy. Try using a different Strategy, e.g. a '
@@ -951,7 +951,7 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       loss_scale_optimizer.LossScaleOptimizer(gradient_descent.SGD())
     opt = loss_scale_optimizer.LossScaleOptimizer(gradient_descent.SGD())
     with strategy.scope():
-      var = tf.Variable(1.0)
+      var = tf.compat.v2.Variable(1.0)
       loss = lambda: var * 2.0
       run_fn = lambda: opt.minimize(loss, [var])
       with self.assertRaisesRegex(ValueError, expected_error):

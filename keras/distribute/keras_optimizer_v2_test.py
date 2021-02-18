@@ -36,15 +36,15 @@ def get_model():
 
 class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+              tf.compat.v2.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
           ],
           mode=['graph', 'eager']))
   def testKerasOptimizerWithUnequalInput(self, distribution):
     with distribution.scope():
-      var = tf.Variable(
+      var = tf.compat.v2.Variable(
           2.0, name='var', aggregation=tf.compat.v1.VariableAggregation.SUM)
       optimizer = adam.Adam(learning_rate=0.01, beta_1=0.2, beta_2=0.2)
       all_vars = []
@@ -53,7 +53,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
 
         def loss_fn():
           replica_id = _replica_id()
-          return tf.cast(replica_id + 1, dtype=tf.float32) * 0.5 * var
+          return tf.cast(replica_id + 1, dtype=tf.dtypes.float32) * 0.5 * var
 
         train_op = optimizer.minimize(loss_fn, var_list=[var])
 
@@ -68,7 +68,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
           all_vars.append(optimizer.get_slot(var, 'v'))
         return distribution.group(train_op)
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           train_fn = sess.make_callable(train_fn())
       self.evaluate(tf.compat.v1.global_variables_initializer())
@@ -92,10 +92,10 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
       # v(2) = beta2 * v(1) + (1-beta2) * grad^2 = 0.2 * 1.8 + 0.8 * 2.25
       self.assertAllClose(2.16, self.evaluate(all_vars[2]))
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+              tf.compat.v2.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
           ],
           mode=['graph', 'eager']))
   def testOptimizerWithKerasModelAndNumpyArrays(self, distribution):
@@ -127,7 +127,7 @@ class MirroredStrategyOptimizerV2Test(tf.test.TestCase, parameterized.TestCase):
 def _replica_id():
   replica_id = tf.distribute.get_replica_context().replica_id_in_sync_group
   if not isinstance(replica_id, tf.Tensor):
-    replica_id = tf.constant(replica_id)
+    replica_id = tf.compat.v2.constant(replica_id)
   return replica_id
 
 

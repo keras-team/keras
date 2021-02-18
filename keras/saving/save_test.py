@@ -175,8 +175,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.tables_initializer())
+      if not tf.compat.v2.executing_eagerly():
+        self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertLen(loaded_model.predict({'a': inputs_a, 'b': inputs_b}), 10)
 
@@ -230,8 +230,8 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.tables_initializer())
+      if not tf.compat.v2.executing_eagerly():
+        self.evaluate(tf.compat.v1.initializers.tables_initializer())
 
       self.assertLen(
           loaded_model.predict({
@@ -342,7 +342,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     # In V1/Graph mode, the model isn't built, so the metrics are not loaded
     # immediately (requires model to be called on some data before building
     # metrics).
-    check_metrics = tf.__internal__.tf2.enabled() and tf.executing_eagerly()
+    check_metrics = tf.compat.v2.__internal__.tf2.enabled() and tf.compat.v2.executing_eagerly()
 
     if check_metrics:
       self.assertAllEqual([m.name for m in model.metrics],
@@ -374,12 +374,12 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
           metrics=[
               keras.metrics.categorical_accuracy,
               keras.metrics.CategoricalCrossentropy(
-                  name='cce', label_smoothing=tf.constant(0.2)),
+                  name='cce', label_smoothing=tf.compat.v2.constant(0.2)),
           ],
           weighted_metrics=[
               keras.metrics.categorical_crossentropy,
               keras.metrics.CategoricalCrossentropy(
-                  name='cce', label_smoothing=tf.constant(0.2)),
+                  name='cce', label_smoothing=tf.compat.v2.constant(0.2)),
           ],
           sample_weight_mode='temporal')
 
@@ -815,7 +815,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       # Set the model's optimizer but don't compile. This can happen if the
       # model is trained with a custom training loop.
       model.optimizer = keras.optimizer_v2.rmsprop.RMSprop(lr=0.0001)
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         session.run([v.initializer for v in model.variables])
       model.save(saved_model_dir, save_format=save_format)
 
@@ -878,7 +878,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
       def __init__(self):
         super(InnerLayer, self).__init__()
-        self.v = self.add_weight(name='v', shape=[], dtype=tf.float32)
+        self.v = self.add_weight(name='v', shape=[], dtype=tf.dtypes.float32)
 
       def call(self, inputs):
         return self.v + inputs

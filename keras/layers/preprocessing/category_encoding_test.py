@@ -42,7 +42,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
                                ):
 
   def test_dense_input_sparse_output(self):
-    input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
+    input_array = tf.compat.v2.constant([[1, 2, 3], [3, 3, 0]])
 
     # The expected output should be (X for missing value):
     # [[X, 1, 1, 1]
@@ -52,7 +52,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     expected_values = [1, 1, 1, 1, 2]
     num_tokens = 6
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32)
     layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.COUNT, sparse=True)
     int_data = layer(input_data)
@@ -85,7 +85,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     num_tokens = 6
     expected_output_shape = [None, num_tokens]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
 
     layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.BINARY)
@@ -109,8 +109,8 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     num_tokens = 6
     expected_output_shape = [None, num_tokens]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
-    weight_data = keras.Input(shape=(None,), dtype=tf.float32, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
+    weight_data = keras.Input(shape=(None,), dtype=tf.dtypes.float32, sparse=True)
 
     layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.COUNT)
@@ -127,7 +127,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
         indices=[[0, 0], [1, 1], [2, 0], [2, 1], [3, 1]],
         values=[0, 2, 1, 1, 0],
         dense_shape=[4, 2])
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
 
     # The expected output should be (X for missing value):
     # [[1, X, X, X]
@@ -163,10 +163,10 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     indices = [[0, 0], [1, 1], [2, 0], [2, 1], [3, 1]]
     sp_inp = tf.SparseTensor(
         indices=indices, values=[0, 2, 1, 1, 0], dense_shape=[4, 2])
-    input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int64, sparse=True)
     sp_weight = tf.SparseTensor(
         indices=indices, values=[.1, .2, .4, .3, .2], dense_shape=[4, 2])
-    weight_data = keras.Input(shape=(None,), dtype=tf.float32, sparse=True)
+    weight_data = keras.Input(shape=(None,), dtype=tf.dtypes.float32, sparse=True)
 
     # The expected output should be (X for missing value):
     # [[1, X, X, X]
@@ -196,7 +196,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     num_tokens = 6
     expected_output_shape = [None, num_tokens]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32, ragged=True)
 
     layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.BINARY)
@@ -218,7 +218,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     expected_values = [1, 1, 1, 2]
     num_tokens = 6
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32, ragged=True)
     layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.COUNT, sparse=True)
     int_data = layer(input_data)
@@ -241,11 +241,11 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
         output_dataset)
 
   def test_sparse_output_and_dense_layer(self):
-    input_array = tf.constant([[1, 2, 3], [3, 3, 0]])
+    input_array = tf.compat.v2.constant([[1, 2, 3], [3, 3, 0]])
 
     num_tokens = 4
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32)
     encoding_layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.COUNT, sparse=True)
     int_data = encoding_layer(input_data)
@@ -256,11 +256,11 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     _ = model.predict(input_array, steps=1)
 
   def test_dense_oov_input(self):
-    input_array = tf.constant([[0, 1, 2], [2, 3, 1]])
+    input_array = tf.compat.v2.constant([[0, 1, 2], [2, 3, 1]])
     num_tokens = 3
     expected_output_shape = [None, num_tokens]
     encoder_layer = get_layer_class()(num_tokens)
-    input_data = keras.Input(shape=(3,), dtype=tf.int32)
+    input_data = keras.Input(shape=(3,), dtype=tf.dtypes.int32)
     int_data = encoder_layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -270,11 +270,11 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
       _ = model.predict(input_array, steps=1)
 
   def test_dense_negative(self):
-    input_array = tf.constant([[1, 2, 0], [2, 2, -1]])
+    input_array = tf.compat.v2.constant([[1, 2, 0], [2, 2, -1]])
     num_tokens = 3
     expected_output_shape = [None, num_tokens]
     encoder_layer = get_layer_class()(num_tokens)
-    input_data = keras.Input(shape=(3,), dtype=tf.int32)
+    input_data = keras.Input(shape=(3,), dtype=tf.dtypes.int32)
     int_data = encoder_layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -289,7 +289,7 @@ class CategoryEncodingInputTest(keras_parameterized.TestCase,
     num_tokens = 6
     expected_output_shape = [None, num_tokens]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32)
     layer = get_layer_class()(
         max_tokens=num_tokens, output_mode=category_encoding.BINARY)
     int_data = layer(input_data)
@@ -316,7 +316,7 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
     num_tokens = 6
     expected_output_shape = [None, num_tokens]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32)
     layer = get_layer_class()(
         num_tokens=num_tokens, output_mode=category_encoding.BINARY)
     int_data = layer(input_data)
@@ -336,7 +336,7 @@ class CategoryEncodingOutputTest(keras_parameterized.TestCase,
     num_tokens = 6
     expected_output_shape = [None, num_tokens]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32)
     layer = get_layer_class()(num_tokens=6, output_mode=category_encoding.COUNT)
     int_data = layer(input_data)
     self.assertAllEqual(expected_output_shape, int_data.shape.as_list())
@@ -363,7 +363,7 @@ class CategoryEncodingModelBuildingTest(
   def test_end_to_end_bagged_modeling(self, output_mode, num_tokens):
     input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32)
     layer = get_layer_class()(num_tokens=num_tokens, output_mode=output_mode)
 
     weights = []

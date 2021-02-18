@@ -71,10 +71,10 @@ class GRUV2Test(keras_parameterized.TestCase):
 
   @testing_utils.run_v2_only
   def test_use_on_default_activation_with_gpu_kernel(self):
-    layer = rnn.GRU(1, activation=tf.tanh)
+    layer = rnn.GRU(1, activation=tf.math.tanh)
     self.assertTrue(layer._could_use_gpu_kernel)
 
-    layer = rnn.GRU(1, recurrent_activation=tf.sigmoid)
+    layer = rnn.GRU(1, recurrent_activation=tf.math.sigmoid)
     self.assertTrue(layer._could_use_gpu_kernel)
 
   def test_keras_model_with_gru(self):
@@ -95,7 +95,7 @@ class GRUV2Test(keras_parameterized.TestCase):
     layer = rnn.GRU(rnn_state_size)
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
 
     outputs = layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -160,7 +160,7 @@ class GRUV2Test(keras_parameterized.TestCase):
     y_train[-2:] = 0
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
     masked_input = keras.layers.Masking()(inputs)
     gru_layer = rnn_v1.GRU(rnn_state_size,
                            recurrent_activation='sigmoid',
@@ -207,7 +207,7 @@ class GRUV2Test(keras_parameterized.TestCase):
 
     def build_model():
       inputs = keras.layers.Input(
-          shape=[timestep, input_dim], dtype=tf.float32)
+          shape=[timestep, input_dim], dtype=tf.dtypes.float32)
       layer = rnn.GRU(
           units,
           use_bias=use_bias,
@@ -235,7 +235,7 @@ class GRUV2Test(keras_parameterized.TestCase):
     x_train = np.random.random((batch, timestep, input_shape))
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
     with testing_utils.device(should_use_gpu=False):
       layer = rnn.GRU(rnn_state_size)
       output = layer(inputs)
@@ -282,7 +282,7 @@ class GRUV2Test(keras_parameterized.TestCase):
 
     def build_model(layer_cls):
       inputs = keras.layers.Input(
-          shape=[timestep, input_shape], dtype=tf.float32)
+          shape=[timestep, input_shape], dtype=tf.dtypes.float32)
       layer = layer_cls(rnn_state_size,
                         recurrent_activation='sigmoid',
                         time_major=time_major,
@@ -380,7 +380,7 @@ class GRUV2Test(keras_parameterized.TestCase):
     y = np.abs(np.random.random((2, 5)))
     s = np.abs(np.random.random((2, 5)))
     inputs = keras.layers.Input(
-        shape=[3, 4], dtype=tf.float32)
+        shape=[3, 4], dtype=tf.dtypes.float32)
     masked = keras.layers.Masking()(inputs)
     outputs, states = layer_class(units=5, return_state=True)(masked)
 
@@ -449,7 +449,7 @@ class GRUV2Test(keras_parameterized.TestCase):
 
     x = keras.backend.variable(np.ones((2, 3, 2)))
     layer(x)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(len(layer.losses), 4)
     else:
       self.assertEqual(len(layer.get_losses_for(x)), 1)
@@ -571,14 +571,14 @@ class GRUV2Test(keras_parameterized.TestCase):
     # Test for V1 behavior.
     lstm_v1 = rnn_v1.GRU(units, return_sequences=True, go_backwards=True)
     with testing_utils.device(should_use_gpu=True):
-      outputs_masked_v1 = lstm_v1(inputs, mask=tf.constant(mask))
+      outputs_masked_v1 = lstm_v1(inputs, mask=tf.compat.v2.constant(mask))
       outputs_trimmed_v1 = lstm_v1(inputs[:, :masksteps])
     self.assertAllClose(outputs_masked_v1[:, -masksteps:], outputs_trimmed_v1)
 
     # Test for V2 behavior.
     lstm = rnn.GRU(units, return_sequences=True, go_backwards=True)
     with testing_utils.device(should_use_gpu=True):
-      outputs_masked = lstm(inputs, mask=tf.constant(mask))
+      outputs_masked = lstm(inputs, mask=tf.compat.v2.constant(mask))
       outputs_trimmed = lstm(inputs[:, :masksteps])
     self.assertAllClose(outputs_masked[:, -masksteps:], outputs_trimmed)
 
@@ -630,7 +630,7 @@ class GRUV2Test(keras_parameterized.TestCase):
 
   # TODO (b/169895267): test with xla_gpu is disabled.
   def test_deepcopy(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('v2-only test')
     original_layer = rnn.GRU(5)
     copied_layer = copy.deepcopy(original_layer)
@@ -674,10 +674,10 @@ class GRULayerGradientTapeTest(keras_parameterized.TestCase):
       y = tf.random.uniform([1, gru_unit_size])
 
       with tf.GradientTape() as tape:
-        hidden_state = tf.zeros([1, gru_unit_size], dtype=tf.float32)
+        hidden_state = tf.zeros([1, gru_unit_size], dtype=tf.dtypes.float32)
         _, state = gru(x, initial_state=hidden_state)
 
-        loss = tf.reduce_mean(tf.square(state - y))
+        loss = tf.compat.v2.math.reduce_mean(tf.math.square(state - y))
 
       tape.gradient(loss, gru.variables)
 
@@ -724,7 +724,7 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     layer = rnn.GRU(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
-        shape=[self.timestep, self.input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.dtypes.float32)
 
     outputs, runtime = layer(inputs)
     # Expand the runtime so that it is a 1D tensor instead of scalar.
@@ -746,7 +746,7 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     layer = rnn.GRU(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
-        shape=[self.timestep, self.input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.dtypes.float32)
     masked_inputs = keras.layers.Masking()(inputs)
 
     outputs, runtime = layer(masked_inputs)
@@ -802,12 +802,12 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     layer = rnn.GRU(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
-        shape=[self.timestep, self.input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.dtypes.float32)
 
     zeros = tf.zeros([self.batch, self.output_shape])
     dummy_runtime = rnn._runtime(rnn._RUNTIME_UNKNOWN)
-    a = tf.constant(0)
-    b = tf.constant(1)
+    a = tf.compat.v2.constant(0)
+    b = tf.compat.v2.constant(1)
     # Will always run the GRU layer.
     outputs, runtime = tf.compat.v1.cond(
         tf.less(a, b),

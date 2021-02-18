@@ -40,17 +40,17 @@ class CombinationsTest(tf.test.TestCase):
 
       @combinations.generate(combinations.keras_mode_combinations())
       def testBody(self):
-        mode = "eager" if tf.executing_eagerly() else "graph"
+        mode = "eager" if tf.compat.v2.executing_eagerly() else "graph"
         should_run_eagerly = testing_utils.should_run_eagerly()
         test_params.append((mode, should_run_eagerly))
 
     e = ExampleTest()
-    if not tf.__internal__.tf2.enabled():
+    if not tf.compat.v2.__internal__.tf2.enabled():
       e.testBody_test_mode_graph_runeagerly_False()
     e.testBody_test_mode_eager_runeagerly_True()
     e.testBody_test_mode_eager_runeagerly_False()
 
-    if not tf.__internal__.tf2.enabled():
+    if not tf.compat.v2.__internal__.tf2.enabled():
       self.assertLen(test_params, 3)
       self.assertAllEqual(test_params, [
           ("graph", False),
@@ -82,7 +82,7 @@ class CombinationsTest(tf.test.TestCase):
 
   def test_generate_keras_mode_skip_run_eagerly(self):
     result = combinations.keras_mode_combinations(run_eagerly=[False])
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertLen(result, 1)
       self.assertEqual(result[0], {"mode": "eager", "run_eagerly": False})
     else:
@@ -144,7 +144,7 @@ class CombinationsTest(tf.test.TestCase):
                                            arg=True))
       def testBody(self, arg):
         del arg
-        mode = "eager" if tf.executing_eagerly() else "graph"
+        mode = "eager" if tf.compat.v2.executing_eagerly() else "graph"
         should_run_eagerly = testing_utils.should_run_eagerly()
         test_cases.append((mode, should_run_eagerly,
                            testing_utils.get_model_type()))
@@ -162,7 +162,7 @@ class CombinationsTest(tf.test.TestCase):
         ("eager", True, "subclass"),
     ]
 
-    if not tf.__internal__.tf2.enabled():
+    if not tf.compat.v2.__internal__.tf2.enabled():
       expected_combinations.extend([
           ("graph", False, "functional"),
           ("graph", False, "sequential"),

@@ -61,16 +61,16 @@ class BenchmarkAdapt(tf.test.Benchmark):
 
   def run_numpy_implementation(self, num_elements, batch_size, k):
     """Test the python implementation."""
-    ds = tf.data.Dataset.from_generator(word_gen, tf.string,
+    ds = tf.data.Dataset.from_generator(word_gen, tf.dtypes.string,
                                             tf.TensorShape([]))
     batched_ds = ds.take(num_elements).batch(batch_size)
-    input_t = keras.Input(shape=(), dtype=tf.string)
+    input_t = keras.Input(shape=(), dtype=tf.dtypes.string)
     layer = index_lookup.IndexLookup(
         max_tokens=k,
         num_oov_indices=0,
         mask_token=None,
         oov_token="OOV",
-        dtype=tf.string)
+        dtype=tf.dtypes.string)
     _ = layer(input_t)
     num_repeats = 5
     starts = []
@@ -85,16 +85,16 @@ class BenchmarkAdapt(tf.test.Benchmark):
 
   def bm_adapt_implementation(self, num_elements, batch_size, k):
     """Test the KPL adapt implementation."""
-    ds = tf.data.Dataset.from_generator(word_gen, tf.string,
+    ds = tf.data.Dataset.from_generator(word_gen, tf.dtypes.string,
                                             tf.TensorShape([]))
     batched_ds = ds.take(num_elements).batch(batch_size)
-    input_t = keras.Input(shape=(), dtype=tf.string)
+    input_t = keras.Input(shape=(), dtype=tf.dtypes.string)
     layer = index_lookup.IndexLookup(
         max_tokens=k,
         num_oov_indices=0,
         mask_token=None,
         oov_token="OOV",
-        dtype=tf.string)
+        dtype=tf.dtypes.string)
     _ = layer(input_t)
     num_repeats = 5
     starts = []
