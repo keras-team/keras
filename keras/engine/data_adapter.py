@@ -34,6 +34,7 @@ from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras.engine import training_utils
 from keras.utils import data_utils
+from keras.utils import dataset_creator
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
@@ -498,6 +499,40 @@ class GenericArrayLikeDataAdapter(TensorLikeDataAdapter):
     return dataset
 
 
+class DatasetCreatorAdapter(DataAdapter):
+  """Adapter that handles dataset functions."""
+
+  def __init__(self, *args, **kwargs):
+    super(DatasetCreatorAdapter, self).__init__(*args, **kwargs)
+
+  @staticmethod
+  def can_handle(x, y=None):
+    if isinstance(x, dataset_creator.DatasetCreator):
+      assert y is None
+      return True
+
+  def should_recreate_iterator(self):
+    # We expect users to shuffle the dataset in their `dataset_fn` supplied to
+    # `DatasetCreator`. Since that is a buffered shuffle, we intend to not reset
+    # the dataset so the batches that are not shuffled can still be pulled.
+    return False
+
+  def get_size(self):
+    raise NotImplementedError()
+
+  def get_dataset(self):
+    raise NotImplementedError()
+
+  def batch_size(self):
+    raise NotImplementedError()
+
+  def has_partial_batch(self):
+    raise NotImplementedError()
+
+  def partial_batch_size(self):
+    raise NotImplementedError()
+
+
 class CompositeTensorDataAdapter(DataAdapter):
   """Adapter that handles composite tensor."""
 
@@ -932,8 +967,8 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
 
 ALL_ADAPTER_CLS = [
     ListsOfScalarsDataAdapter, TensorLikeDataAdapter,
-    GenericArrayLikeDataAdapter, DatasetAdapter,
-    GeneratorDataAdapter, KerasSequenceAdapter, CompositeTensorDataAdapter,
+    GenericArrayLikeDataAdapter, DatasetAdapter, GeneratorDataAdapter,
+    KerasSequenceAdapter, CompositeTensorDataAdapter, DatasetCreatorAdapter
 ]
 
 
@@ -1104,6 +1139,7 @@ class DataHandler(object):
       self._steps_per_execution_value = steps_per_execution.numpy().item()
 
     adapter_cls = select_data_adapter(x, y)
+    self._verify_data_adapter_compatibility(adapter_cls)
     self._adapter = adapter_cls(
         x,
         y,
@@ -1119,6 +1155,23 @@ class DataHandler(object):
         model=model)
 
     strategy = tf.distribute.get_strategy()
+
+    self._current_step = 0
+    self._step_increment = self._steps_per_execution_value - 1
+    self._insufficient_data = False
+
+    self._configure_dataset_and_inferred_steps(strategy, x, steps_per_epoch,
+                                               class_weight, distribute)
+
+  def _verify_data_adapter_compatibility(self, adapter_cls):
+    if adapter_cls == DatasetCreatorAdapter:
+      raise NotImplementedError("`DatasetCreator` input is only supported in "
+                                "`ParameterServerStrategy` at this time.")
+
+  def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
+                                            class_weight, distribute):
+    """Configure the `_dataset` and `_inferred_steps` attributes."""
+    del x
     dataset = self._adapter.get_dataset()
     if class_weight:
       dataset = dataset.map(_make_class_weight_map_fn(class_weight))
@@ -1129,11 +1182,6 @@ class DataHandler(object):
     if distribute and not _is_distributed_dataset(dataset):
       dataset = strategy.experimental_distribute_dataset(dataset)
     self._dataset = dataset
-
-    self._current_step = 0
-    self._step_increment = self._steps_per_execution_value - 1
-    self._insufficient_data = False
-
     self._validate_data_handler()
 
   def enumerate_epochs(self):
@@ -1165,12 +1213,15 @@ class DataHandler(object):
         self._steps_per_execution.assign(original_value)
         self._steps_per_execution_value = original_value
 
+  def sync(self):
+    context.async_wait()
+
   @contextlib.contextmanager
   def catch_stop_iteration(self):
     """Catches errors when an iterator runs out of data."""
     try:
       yield
-      context.async_wait()
+      self.sync()
     except (StopIteration, tf.errors.OutOfRangeError):
       if self._inferred_steps is None:
         self._inferred_steps = self._current_step
@@ -1268,6 +1319,46 @@ class DataHandler(object):
           "Could not infer the size of the data. With "
           "`steps_per_execution > 1`, you must specify the number of steps "
           "to run.")
+
+  def resolve_logs(self, logs):
+    return logs
+
+
+class _ClusterCoordinatorDataHandler(DataHandler):
+  """A `DataHandler` that is compatible with `ClusterCoordinator`."""
+
+  def _verify_data_adapter_compatibility(self, adapter_cls):
+    if adapter_cls != DatasetCreatorAdapter:
+      raise NotImplementedError("Only `DatasetCreator` input is supported in "
+                                "`ParameterServerStrategy` at this time.")
+
+  def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
+                                            class_weight, distribute):
+    if not isinstance(x, dataset_creator.DatasetCreator):
+      raise TypeError("When using `ParameterServerStrategy`, `x` must be a "
+                      "`DatasetCreator`.")
+
+    def per_worker_dataset_fn():
+      return strategy.distribute_datasets_from_function(x)
+
+    self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+        per_worker_dataset_fn)
+    if steps_per_epoch is None:
+      raise ValueError(
+          "`steps_per_epoch` must be specified with `ParameterServerStrategy`.")
+    self._inferred_steps = steps_per_epoch
+
+  def sync(self):
+    self._model._cluster_coordinator.join()  # pylint: disable=protected-access
+
+  def resolve_logs(self, logs):
+    return logs.fetch()
+
+
+def get_data_handler(*args, **kwargs):
+  if getattr(kwargs["model"], "_cluster_coordinator", None):
+    return _ClusterCoordinatorDataHandler(*args, **kwargs)
+  return DataHandler(*args, **kwargs)
 
 
 def _make_class_weight_map_fn(class_weight):

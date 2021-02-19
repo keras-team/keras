@@ -9,6 +9,7 @@ package(
     default_visibility = [
         "//keras:__subpackages__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
+        "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -240,7 +241,6 @@ py_library(
         "dataset_creator.py",
     ],
     srcs_version = "PY3",
-    visibility = ["//keras:__subpackages__"],
     deps = [
         "//:expect_tensorflow_installed",
     ],
@@ -250,8 +250,12 @@ tf_py_test(
     name = "dataset_creator_test",
     srcs = ["dataset_creator_test.py"],
     python_version = "PY3",
+    tags = [
+        "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
+    ],
     deps = [
         ":dataset_creator",
+        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras/engine",
         "//keras/layers:core",

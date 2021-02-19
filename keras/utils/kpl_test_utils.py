@@ -20,12 +20,13 @@ from __future__ import print_function
 import tensorflow as tf
 
 import random
+import tempfile
 
 import keras
 from keras.layers.preprocessing import string_lookup
 
 
-class DistributeKplTestUtils:
+class DistributeKplTestUtils(tf.test.TestCase):
   """Utils for test of tf.distribute + KPL."""
   FEATURE_VOCAB = [
       "avenger", "ironman", "batman", "hulk", "spiderman", "kingkong",
@@ -125,3 +126,58 @@ class DistributeKplTestUtils:
             emb_output)
     model = keras.Model({"features": model_input}, dense_output)
     return model
+
+  def define_reverse_lookup_layer(self):
+    """Create string reverse lookup layer for serving."""
+
+    label_inverse_lookup_layer = string_lookup.StringLookup(
+        num_oov_indices=1,
+        mask_token=None,
+        vocabulary=self.LABEL_VOCAB,
+        invert=True)
+    return label_inverse_lookup_layer
+
+  def create_serving_signature(self, model, feature_mapper,
+                               label_inverse_lookup_layer):
+    """Create serving signature for the given model."""
+
+    @tf.function
+    def serve_fn(raw_features):
+      raw_features = tf.compat.v1.expand_dims(raw_features, axis=0)
+      transformed_features = model.feature_mapper(raw_features)
+      outputs = model(transformed_features)
+      outputs = tf.compat.v1.squeeze(outputs, axis=0)
+      outputs = tf.cast(tf.greater(outputs, 0.5), tf.int64)
+      decoded_outputs = model.label_inverse_lookup_layer(outputs)
+      return tf.compat.v1.squeeze(decoded_outputs, axis=0)
+
+    model.feature_mapper = feature_mapper
+    model.label_inverse_lookup_layer = label_inverse_lookup_layer
+    # serving does NOT have batch dimension
+    return serve_fn.get_concrete_function(
+        tf.TensorSpec(
+            shape=(3), dtype=tf.string, name="example"))
+
+  def test_save_load_serving_model(self, model, feature_mapper,
+                                   label_inverse_lookup_layer):
+    """Test save/load/serving model."""
+
+    serving_fn = self.create_serving_signature(model, feature_mapper,
+                                               label_inverse_lookup_layer)
+
+    saved_model_dir = tempfile.mkdtemp(dir=self.get_temp_dir())
+    tf.saved_model.save(
+        model, saved_model_dir, signatures={"serving_default": serving_fn})
+
+    # Test the saved_model.
+    loaded_serving_fn = keras.saving.save.load_model(
+        saved_model_dir).signatures["serving_default"]
+
+    # check the result w/ and w/o avenger.
+    prediction0 = loaded_serving_fn(
+        tf.constant(["avenger", "ironman", "avenger"]))["output_0"]
+    self.assertIn(prediction0.numpy().decode("UTF-8"), ("yes", "no"))
+
+    prediction1 = loaded_serving_fn(
+        tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+    self.assertIn(prediction1.numpy().decode("UTF-8"), ("yes", "no"))
