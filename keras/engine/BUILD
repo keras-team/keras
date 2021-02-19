@@ -128,6 +128,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/utils:dataset_creator",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
     ],

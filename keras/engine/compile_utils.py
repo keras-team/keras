@@ -247,6 +247,15 @@ class LossesContainer(Container):
       # Ok for a model to have no compiled loss.
       return tf.zeros(shape=())
 
+  def reset_states(self):
+    """Resets the state of loss metrics."""
+    if not self._built:
+      return
+    metrics = [self._loss_metric] + tf.nest.flatten(self._per_output_metrics)
+    for metric_obj in metrics:
+      if metric_obj is not None:
+        metric_obj.reset_states()
+
   def _get_loss_object(self, loss):
     """Returns a `Loss` object.
 
@@ -430,6 +439,21 @@ class MetricsContainer(Container):
         if weighted_metric_obj is None:
           continue
         weighted_metric_obj.update_state(y_t, y_p, sample_weight=sw)
+
+  def reset_states(self):
+    """Resets the state of all `Metric`s in this container."""
+    if self._built:
+      metrics = self._metrics_in_order
+    else:
+      # If the user supplied `Metric` objects directly, we should
+      # reset those. This could also contain `str`s or `function`s
+      # though.
+      metrics = tf.nest.flatten(self._user_metrics) + tf.nest.flatten(
+          self._user_weighted_metrics)
+
+    for metric_obj in metrics:
+      if isinstance(metric_obj, metrics_mod.Metric):
+        metric_obj.reset_states()
 
   def _get_metric_objects(self, metrics, y_t, y_p):
     """Convert user-supplied metrics to `Metric` objects."""
