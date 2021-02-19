@@ -24,6 +24,7 @@ import copy
 import numpy as np
 import six
 from tensorflow.python.framework import ops
+from tensorflow.python.framework import composite_tensor
 from keras import backend as K
 from keras.engine import keras_tensor
 from keras.utils import object_identity
@@ -55,7 +56,8 @@ def get_reachable_from_inputs(inputs, targets=None):
   inputs = tf.nest.flatten(inputs, expand_composites=True)
   reachable = object_identity.ObjectIdentitySet(inputs)
   if targets:
-    remaining_targets = object_identity.ObjectIdentitySet(tf.nest.flatten(targets))
+    remaining_targets = object_identity.ObjectIdentitySet(
+        tf.nest.flatten(targets))
   queue = collections.deque(inputs)
 
   while queue:
@@ -318,7 +320,7 @@ def is_symbolic_tensor(tensor):
     return (getattr(tensor, '_keras_history', False) or
             not tf.executing_eagerly())
   elif isinstance(tensor, tuple(_user_convertible_tensor_types)):
-    tensor = ops.convert_to_tensor_or_composite(tensor)
+    tensor = ops.convert_to_tensor_v2(tensor)
     return is_symbolic_tensor(tensor)
   else:
     return False
