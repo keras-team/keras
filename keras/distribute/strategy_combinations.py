@@ -13,7 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 """Strategy combinations for combinations.combine()."""
 
 
