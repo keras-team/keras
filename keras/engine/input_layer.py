@@ -19,7 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras import backend
 from keras.distribute import distributed_training_utils
 from keras.engine import base_layer
