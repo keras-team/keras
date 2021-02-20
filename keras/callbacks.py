@@ -2316,8 +2316,14 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
     if self._start_batch > 0:
       # Warm up and improve the profiling accuracy.
-      tf.profiler.experimental.start('')
-      tf.profiler.experimental.stop(save=False)
+      try:
+        tf.profiler.experimental.start('')
+      except tf.errors.AlreadyExistsError:
+        pass
+      try:
+        tf.profiler.experimental.stop(save=False)
+      except tf.errors.UnavailableError:
+        pass
     # True when a trace is running.
     self._is_tracing = False
 
@@ -2392,7 +2398,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _start_trace(self):
     tf.summary.trace_on(graph=True, profiler=False)
-    tf.profiler.experimental.start(logdir=self._train_dir)
+    try:
+      tf.profiler.experimental.start(logdir=self._train_dir)
+    except tf.errors.AlreadyExistsError:
+      pass
     self._is_tracing = True
 
   def _stop_trace(self, batch=None):
@@ -2403,7 +2412,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       with tf.summary.record_if(True):
         # TODO(b/126388999): Remove step info in the summary name.
         tf.summary.trace_export(name='batch_%d' % batch, step=batch)
-    tf.profiler.experimental.stop()
+    try:
+      tf.profiler.experimental.stop()
+    except tf.errors.UnavailableError:
+      pass
     self._is_tracing = False
 
   def _collect_learning_rate(self, logs):
