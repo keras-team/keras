@@ -167,6 +167,7 @@ py_library(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras/optimizer_v2",
+        "//keras/utils:control_flow_util",
     ],
 )
 

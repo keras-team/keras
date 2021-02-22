@@ -52,7 +52,9 @@ py_library(
     name = "control_flow_util",
     srcs = ["control_flow_util.py"],
     srcs_version = "PY3",
-    deps = [],
+    deps = [
+        "//:expect_tensorflow_installed",
+    ],
 )
 
 py_library(
