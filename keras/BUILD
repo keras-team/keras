@@ -207,6 +207,7 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
+        "//keras/utils:control_flow_util",
         "//keras/utils:engine_utils",
     ],
 )

@@ -30,11 +30,11 @@ import time
 import numpy as np
 import six
 from six.moves import zip  # pylint: disable=redefined-builtin
-from tensorflow.python.framework import smart_cond
 from keras import backend as K
 from keras import callbacks as cbks
 from keras import losses
 from keras import metrics as metrics_module
+from keras.utils import control_flow_util
 from keras.utils import data_utils
 from keras.utils import generic_utils
 from keras.utils import losses_utils
@@ -1009,7 +1009,7 @@ def standardize_weights(y,
       weight_vector[:] = np.nan
       weight_vector[keys] = values
 
-      y_classes = smart_cond.smart_cond(
+      y_classes = control_flow_util.smart_cond(
           len(y.shape.as_list()) == 2 and K.shape(y)[1] > 1,
           lambda: K.argmax(y, axis=1),
           lambda: tf.cast(K.reshape(y, (-1,)), tf.int64))
