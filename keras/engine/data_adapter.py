@@ -546,8 +546,8 @@ class CompositeTensorDataAdapter(DataAdapter):
       # Dataset/iterator inherits from CompositeTensor but should be handled
       # by DatasetAdapter and GeneratorAdapter.
       if (tf_utils.is_extension_type(v) and
-          not isinstance(v, (tf.data.Dataset,
-                             tf.data.Iterator))):
+          not isinstance(v, (tf.data.Dataset, tf.data.Iterator)) and
+          not _is_distributed_dataset(v)):
         return True
       # Support Scipy sparse tensors if scipy is installed
       if scipy_sparse is not None and scipy_sparse.issparse(v):
