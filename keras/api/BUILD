@@ -6,8 +6,8 @@ load("//keras/api:api_init_files.bzl", "KERAS_API_INIT_FILES", "KERAS_API_INIT_F
 
 package(
     default_visibility = [
-        "//keras",
-        "//third_party/py/tensorflow",
+        "//keras:__subpackages__",
+        "//third_party/py/tensorflow:__subpackages__",
     ],
     licenses = ["notice"],  # Apache 2.0 License
 )
@@ -112,6 +112,20 @@ keras_packages = [
     "keras.utils.vis_utils",
     "keras.wrappers.scikit_learn",
 ]
+
+# The target used by PIP package which need to generate API init files during OSS build.
+py_library(
+    name = "keras_api",
+    srcs = [
+        ":keras_python_api_gen",
+        ":keras_python_api_gen_compat_v1",
+        ":keras_python_api_gen_compat_v2",
+    ],
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
 
 gen_api_init_files(
     name = "keras_python_api_gen",
