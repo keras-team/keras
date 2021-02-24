@@ -4,7 +4,7 @@ package(default_visibility = ["//keras:__subpackages__"])
 #  Tools for building the TensorFlow pip package.
 
 COMMON_PIP_DEPS = [
-    "//keras",
+    "//keras/api:keras_api",
     # The following targets are not included by //keras:keras,
     # eg to avoid circular dependency with TF, but they should still be included
     # in the PIP package.
