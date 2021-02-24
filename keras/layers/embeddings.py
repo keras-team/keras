@@ -19,8 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-
-from tensorflow.python.distribute import sharded_variable
 from keras import backend as K
 from keras import constraints
 from keras import initializers
@@ -187,10 +185,7 @@ class Embedding(Layer):
     dtype = K.dtype(inputs)
     if dtype != 'int32' and dtype != 'int64':
       inputs = tf.cast(inputs, 'int32')
-    if isinstance(self.embeddings, sharded_variable.ShardedVariable):
-      out = tf.nn.embedding_lookup(self.embeddings.variables, inputs)
-    else:
-      out = tf.nn.embedding_lookup(self.embeddings, inputs)
+    out = tf.nn.embedding_lookup(self.embeddings, inputs)
     if self._dtype_policy.compute_dtype != self._dtype_policy.variable_dtype:
       # Instead of casting the variable as in most layers, cast the output, as
       # this is mathematically equivalent but is faster.

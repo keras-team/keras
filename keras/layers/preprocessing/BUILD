@@ -5,7 +5,6 @@ load("@org_keras//keras:keras.bzl", "tf_py_test")
 
 # buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
-load("@org_keras//keras:keras.bzl", "tpu_py_test")
 load("@org_keras//keras:keras.bzl", "distribute_py_test")
 
 package(
@@ -394,13 +393,16 @@ cuda_py_test(
     ],
 )
 
-tpu_py_test(
+distribute_py_test(
     name = "hashing_distribution_test",
     srcs = ["hashing_distribution_test.py"],
     disable_mlir_bridge = False,
     main = "hashing_distribution_test.py",
     python_version = "PY3",
-    tags = ["multi_and_single_gpu"],
+    tags = [
+        "multi_and_single_gpu",
+        "nomultivm",  # TODO(b/170502145)
+    ],
     deps = [
         ":hashing",
         "//:expect_tensorflow_installed",
@@ -424,13 +426,17 @@ tf_py_test(
     ],
 )
 
-tpu_py_test(
+distribute_py_test(
     name = "index_lookup_distribution_test",
     srcs = ["index_lookup_distribution_test.py"],
     disable_mlir_bridge = False,
     main = "index_lookup_distribution_test.py",
     python_version = "PY3",
-    tags = ["no_oss"],
+    tags = [
+        "multi_and_single_gpu",
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    tpu_tags = ["no_oss"],
     deps = [
         ":index_lookup",
         "//:expect_tensorflow_installed",
