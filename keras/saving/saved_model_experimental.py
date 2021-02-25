@@ -28,12 +28,12 @@ from keras import optimizer_v1
 from keras.optimizer_v2 import optimizer_v2
 from keras.saving import model_config
 from keras.saving import saving_utils
+from keras.saving import utils_v1 as model_utils
 from keras.utils import mode_keys
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import constants
-from tensorflow.python.saved_model import model_utils
 from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.util.tf_export import keras_export

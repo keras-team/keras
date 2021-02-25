@@ -633,6 +633,7 @@ cuda_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/130369494): Investigate why it times out on OSS.
+        "no_tfrt",  # TODO(b/179839466): Reenable TFRT after the issue is resolved.
     ],
     deps = [
         ":multi_worker_testing_utils",
@@ -645,6 +646,7 @@ cuda_py_test(
         "//keras:engine",
         "//keras:optimizers",
         "//keras/optimizer_v2",
+        "//keras/utils:kpl_test_utils",
     ],
 )
 
