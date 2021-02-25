@@ -115,7 +115,7 @@ py_library(
     name = "expect_tensorboard_installed",
     # This is a dummy rule used as a tensorboard dependency in open-source.
     # We expect tensorboard to already be installed on the system, e.g. via
-    # `pip install tensorflow` or `pip install tensorflow_gpu`
+    # `pip install tensorflow`
     visibility = ["//visibility:public"],
     deps = [],
 )
@@ -124,10 +124,10 @@ py_library(
     name = "expect_tensorflow_installed",
     # This is a dummy rule used as a tensorflow dependency in open-source.
     # We expect tensorflow to already be installed on the system, e.g. via
-    # `pip install tensorflow` or `pip install tensorflow_gpu`
+    # `pip install tensorflow`
     visibility = ["//visibility:public"],
     deps = [
-        requirement("tf-nightly-gpu"),
+        requirement("tf-nightly"),
     ],
 )
 
