@@ -80,7 +80,7 @@ def _get_end_to_end_test_cases():
               np.array([["fire"], ["earth"], ["earth"], ["earth"], ["earth"],
                         ["wind"], ["wind"], ["wind"], ["and"], ["and"]]),
           "input_data":
-              np.array([[1], [2], [3], [4], [4], [3], [1], [5]]),
+              np.array([[2], [3], [4], [1], [1], [4], [2], [5]]),
           "kwargs": {
               "max_tokens": None,
               "num_oov_indices": 1,
@@ -90,8 +90,8 @@ def _get_end_to_end_test_cases():
               "invert": True
           },
           "expected_output":
-              np.array([[b"earth"], [b"wind"], [b"and"], [b"fire"], [b"fire"],
-                        [b"and"], [b"earth"], [b"[OOV]"]]),
+              np.array([[b"earth"], [b"wind"], [b"and"], [b"[OOV]"], [b"[OOV]"],
+                        [b"and"], [b"earth"], [b"fire"]]),
           "input_dtype":
               tf.int64
       },
@@ -199,7 +199,7 @@ def _get_end_to_end_test_cases():
               np.array([["fire"], ["earth"], ["earth"], ["earth"], ["earth"],
                         ["wind"], ["wind"], ["wind"], ["and"], ["and"]]),
           "input_data":
-              np.array([[1], [2], [3], [4], [4], [3], [1], [5]]),
+              np.array([[2], [3], [4], [1], [1], [4], [2], [5]]),
           "kwargs": {
               "max_tokens": 5,
               "num_oov_indices": 1,
@@ -1014,6 +1014,8 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
+
+
 @keras_parameterized.run_all_keras_modes
 class IndexLookupVocabularyTest(keras_parameterized.TestCase,
                                 preprocessing_test_utils.PreprocessingLayerTest
@@ -1068,12 +1070,38 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
     layer.set_vocabulary(vocab_data)
     returned_vocab = layer.get_vocabulary()
     self.assertAllEqual(vocab_data, returned_vocab)
+    self.assertAllEqual(layer.vocab_size(), 5)
 
   def test_int_vocab_with_max_cap(self):
     vocab_data = [0, -1, 42, 1276, 1138]
     layer = get_layer_class()(
         max_tokens=5,
         num_oov_indices=1,
+        mask_token=0,
+        oov_token=-1,
+        dtype=tf.int64)
+    layer.set_vocabulary(vocab_data)
+    returned_vocab = layer.get_vocabulary()
+    self.assertAllEqual(vocab_data, returned_vocab)
+    self.assertAllEqual(layer.vocab_size(), 5)
+
+  def test_vocab_with_multiple_oov_indices(self):
+    vocab_data = ["", "[OOV]", "[OOV]", "[OOV]", "wind"]
+    layer = get_layer_class()(
+        max_tokens=None,
+        num_oov_indices=3,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    returned_vocab = layer.get_vocabulary()
+    self.assertAllEqual(vocab_data, returned_vocab)
+
+  def test_int_vocab_with_multiple_oov_indices(self):
+    vocab_data = [0, -1, -1, -1, 42]
+    layer = get_layer_class()(
+        max_tokens=None,
+        num_oov_indices=3,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
@@ -1185,7 +1213,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         output_mode=index_lookup.BINARY,
         dtype=tf.string)
     with self.assertRaisesRegex(ValueError,
-                                ".*idf_weights should only be set if.*"):
+                                "`idf_weights` should only be set if"):
       layer.set_vocabulary(vocab_data, idf_weights=weight_data)
 
   def test_vocab_with_idf_weights_length_mismatch_fails(self):
@@ -1199,7 +1227,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         output_mode=index_lookup.TFIDF,
         dtype=tf.string)
     with self.assertRaisesRegex(
-        ValueError, "idf_weights must be the same length as vocab.*"):
+        ValueError, "`idf_weights` must be the same length as vocab"):
       layer.set_vocabulary(vocab_data, idf_weights=weight_data)
 
   def test_vocab_without_idf_weights_tfidf_output_fails(self):
@@ -1212,12 +1240,12 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         output_mode=index_lookup.TFIDF,
         dtype=tf.string)
     with self.assertRaisesRegex(
-        ValueError, "idf_weights must be set if output_mode is TFIDF"):
+        ValueError, "`idf_weights` must be set if output_mode is TFIDF"):
       layer.set_vocabulary(vocab_data)
 
   def test_non_unique_int_vocab_fails(self):
     vocab_data = [12, 13, 14, 15, 15]
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*15.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*15"):
       _ = get_layer_class()(
           vocabulary=vocab_data,
           max_tokens=None,
@@ -1234,7 +1262,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, ".*does not have the mask token.*"):
+    with self.assertRaisesRegex(ValueError, "does not have the mask token `0`"):
       layer.set_vocabulary(vocab_data)
 
   def test_int_vocab_with_oov_and_no_mask_fails(self):
@@ -1245,7 +1273,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, ".*Reserved OOV.*"):
+    with self.assertRaisesRegex(ValueError, "Reserved OOV"):
       layer.set_vocabulary(vocab_data)
 
   def test_int_vocab_with_mask_but_no_oov_fails(self):
@@ -1256,7 +1284,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, ".*does not have the OOV token.*"):
+    with self.assertRaisesRegex(ValueError, "does not have the OOV token `-1`"):
       layer.set_vocabulary(vocab_data)
 
   def test_int_vocab_with_repeated_element_fails(self):
@@ -1267,7 +1295,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, ".*repeated term.*11.*"):
+    with self.assertRaisesRegex(ValueError, "repeated term.*11"):
       layer.set_vocabulary(vocab_data)
 
   def test_int_vocab_with_reserved_oov_element_fails(self):
@@ -1278,7 +1306,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, ".*Reserved OOV.*"):
+    with self.assertRaisesRegex(ValueError, "Reserved OOV"):
       layer.set_vocabulary(vocab_data)
 
   def test_int_vocab_with_reserved_mask_element_fails(self):
@@ -1289,7 +1317,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         mask_token=0,
         oov_token=-1,
         dtype=tf.int64)
-    with self.assertRaisesRegex(ValueError, ".*Reserved mask.*"):
+    with self.assertRaisesRegex(ValueError, "Reserved mask"):
       layer.set_vocabulary(vocab_data)
 
 
@@ -1299,7 +1327,7 @@ class IndexLookupInverseVocabularyTest(
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_int_output_explicit_vocab(self):
-    vocab_data = ["[OOV]", "earth", "wind", "and", "fire"]
+    vocab_data = ["", "[OOV]", "earth", "wind", "and", "fire"]
     input_array = np.array([[2, 3, 4, 5], [5, 4, 2, 1]])
     expected_output = np.array([["earth", "wind", "and", "fire"],
                                 ["fire", "and", "earth", "[OOV]"]])

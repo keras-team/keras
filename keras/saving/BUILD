@@ -58,6 +58,7 @@ py_library(
         "//keras/engine:input_spec",
         "//keras/mixed_precision:autocast_variable",
         "//keras/protobuf:saved_metadata_proto_py",
+        "//keras/saving/utils_v1",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
