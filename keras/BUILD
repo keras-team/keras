@@ -207,7 +207,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":backend",
-        "//keras/utils:control_flow_util",
         "//keras/utils:engine_utils",
     ],
 )
@@ -490,6 +489,7 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
         "//:expect_six_installed",
+        "//:expect_tensorflow_installed",
     ],
 )
 

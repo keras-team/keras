@@ -18,12 +18,11 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import ops
+from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras import optimizers
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
 from keras.optimizer_v2 import optimizer_v2
-from keras.utils import control_flow_util
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.training.experimental import mixed_precision
 from tensorflow.python.training.tracking import base as trackable
@@ -309,7 +308,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
 
   def __call__(self):
     """Returns the current loss scale as a scalar `float32` tensor."""
-    return ops.convert_to_tensor(self._current_loss_scale)
+    return tf.convert_to_tensor(self._current_loss_scale)
 
   def update(self, grads):
     """Updates the value of the loss scale.
@@ -553,9 +552,10 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
   def loss_scale(self):
     """The current loss scale as a float32 scalar tensor."""
     if isinstance(self._loss_scale, _DynamicLossScaleState):
-      return ops.convert_to_tensor(self._loss_scale.current_loss_scale)
+      return tf.convert_to_tensor(
+          self._loss_scale.current_loss_scale)
     else:
-      return ops.convert_to_tensor(self._loss_scale)
+      return tf.convert_to_tensor(self._loss_scale)
 
   @property
   def dynamic_counter(self):
@@ -727,8 +727,8 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
     # DistributionStrategy does not support having a cond in a replica context
     # with a branch that calls `merge_call`, and self._optimizer.apply_gradients
     # calls `merge_call`.
-    maybe_apply_op = control_flow_util.smart_cond(
-        should_apply_grads, apply_fn, do_not_apply_fn)
+    maybe_apply_op = smart_cond.smart_cond(should_apply_grads, apply_fn,
+                                           do_not_apply_fn)
     return tf.group(maybe_apply_op, loss_scale_update_op)
 
   def _apply_gradients(self, grads, wrapped_vars, name,
