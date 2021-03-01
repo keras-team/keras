@@ -1010,8 +1010,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         workers: Integer. Used for generator or `keras.utils.Sequence` input
             only. Maximum number of processes to spin up
             when using process-based threading. If unspecified, `workers`
-            will default to 1. If 0, will execute the generator on the main
-            thread.
+            will default to 1.
         use_multiprocessing: Boolean. Used for generator or
             `keras.utils.Sequence` input only. If `True`, use process-based
             threading. If unspecified, `use_multiprocessing` will default to
@@ -1347,8 +1346,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           `max_queue_size` will default to 10.
         workers: Integer. Used for generator or `keras.utils.Sequence` input
           only. Maximum number of processes to spin up when using process-based
-          threading. If unspecified, `workers` will default to 1. If 0, will
-          execute the generator on the main thread.
+          threading. If unspecified, `workers` will default to 1.
         use_multiprocessing: Boolean. Used for generator or
           `keras.utils.Sequence` input only. If `True`, use process-based
           threading. If unspecified, `use_multiprocessing` will default to
@@ -1589,7 +1587,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         workers: Integer. Used for generator or `keras.utils.Sequence` input
             only. Maximum number of processes to spin up when using
             process-based threading. If unspecified, `workers` will default
-            to 1. If 0, will execute the generator on the main thread.
+            to 1.
         use_multiprocessing: Boolean. Used for generator or
             `keras.utils.Sequence` input only. If `True`, use process-based
             threading. If unspecified, `use_multiprocessing` will default to
