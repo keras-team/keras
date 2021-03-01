@@ -70,7 +70,6 @@ py_library(
         "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/mixed_precision:policy",
         "//keras/saving",
-        "//keras/utils:control_flow_util",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
@@ -129,7 +128,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
-        "//keras/utils:control_flow_util",
         "//keras/utils:dataset_creator",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
