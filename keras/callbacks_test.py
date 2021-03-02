@@ -1962,6 +1962,8 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         summary_file.scalars, {
             _ObservedSummary(logdir=train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=validation_dir, tag='evaluation_loss_vs_iterations'),
         })
 
   def test_TensorBoard_basic(self):
@@ -1982,6 +1984,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         summary_file.scalars, {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=self.validation_dir,
+                tag='evaluation_loss_vs_iterations'),
         })
 
   def test_TensorBoard_across_invocations(self):
@@ -2007,6 +2012,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         summary_file.scalars, {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=self.validation_dir,
+                tag='evaluation_loss_vs_iterations'),
         })
 
   def test_TensorBoard_no_spurious_event_files(self):
@@ -2047,6 +2055,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
             _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=self.validation_dir,
+                tag='evaluation_loss_vs_iterations'),
         },
     )
 
@@ -2128,6 +2139,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=self.validation_dir,
+                tag='evaluation_loss_vs_iterations'),
         },
     )
     self.assertEqual(
@@ -2159,6 +2173,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=self.validation_dir,
+                tag='evaluation_loss_vs_iterations'),
         },
     )
     self.assertEqual(
@@ -2258,6 +2275,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
         {
             _ObservedSummary(logdir=self.train_dir, tag='epoch_loss'),
             _ObservedSummary(logdir=self.validation_dir, tag='epoch_loss'),
+            _ObservedSummary(
+                logdir=self.validation_dir,
+                tag='evaluation_loss_vs_iterations'),
             _ObservedSummary(logdir=self.train_dir, tag='batch_loss'),
             _ObservedSummary(
                 logdir=self.train_dir,
