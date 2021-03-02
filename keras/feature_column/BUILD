@@ -60,6 +60,7 @@ py_library(
         ":base_feature_layer",
         ":dense_features",
         "//:expect_tensorflow_installed",
+        "//keras/utils:tf_contextlib",
     ],
 )
 
