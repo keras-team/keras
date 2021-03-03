@@ -543,10 +543,11 @@ class CompositeTensorDataAdapter(DataAdapter):
       flat_inputs += tf.nest.flatten(y)
 
     def _is_composite(v):
-      # Dataset/iterator inherits from CompositeTensor but should be handled
-      # by DatasetAdapter and GeneratorAdapter.
+      # Dataset/iterator/DistributedDataset inherits from CompositeTensor but
+      # should be handled by DatasetAdapter and GeneratorAdapter.
       if (tf_utils.is_extension_type(v) and
-          not isinstance(v, (tf.data.Dataset, tf.data.Iterator)) and
+          not isinstance(v,
+                         (tf.data.Dataset, tf.data.Iterator)) and
           not _is_distributed_dataset(v)):
         return True
       # Support Scipy sparse tensors if scipy is installed
