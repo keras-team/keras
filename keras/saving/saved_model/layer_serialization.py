@@ -26,7 +26,6 @@ from keras.saving.saved_model import constants
 from keras.saving.saved_model import save_impl
 from keras.saving.saved_model import serialized_attributes
 from keras.utils import generic_utils
-from tensorflow.python.training.tracking import data_structures
 
 
 class LayerSavedModelSaver(base_serialization.SavedModelSaver):
@@ -155,7 +154,7 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
     objects, functions = (
         super(RNNSavedModelSaver, self)._get_serialized_attributes_internal(
             serialization_cache))
-    states = data_structures.wrap_or_unwrap(self.obj.states)
+    states = tf.__internal__.tracking.wrap(self.obj.states)
     # SaveModel require all the objects to be Trackable when saving.
     # If the states is still a tuple after wrap_or_unwrap, it means it doesn't
     # contain any trackable item within it, eg empty tuple or (None, None) for
@@ -163,6 +162,6 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
     # make it a Trackable again for saving. When loaded, ConvLSTM2D is
     # able to handle the tuple/list conversion.
     if isinstance(states, tuple):
-      states = data_structures.wrap_or_unwrap(list(states))
+      states = tf.__internal__.tracking.wrap(list(states))
     objects['states'] = states
     return objects, functions

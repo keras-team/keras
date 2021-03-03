@@ -18,10 +18,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow.compat.v2 as tf
+
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
 from keras.utils import generic_utils
-from tensorflow.python.training.tracking import data_structures
 
 
 class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
@@ -42,6 +43,6 @@ class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
     return metadata
 
   def _get_serialized_attributes_internal(self, unused_serialization_cache):
-    return (dict(variables=data_structures.wrap_or_unwrap(self.obj.variables)),
+    return (dict(variables=tf.__internal__.tracking.wrap(self.obj.variables)),
             dict())  # TODO(b/135550038): save functions to enable saving
                      # custom metrics.
