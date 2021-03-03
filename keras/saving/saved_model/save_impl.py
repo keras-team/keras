@@ -42,7 +42,6 @@ from keras.utils import version_utils
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.training.tracking import data_structures
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.
@@ -111,19 +110,19 @@ def wrap_layer_objects(layer, serialization_cache):
   wrapped_layer_losses = [keras_loss_cache[fn]
                           for fn in layer._callable_losses[:]]  # pylint: disable=protected-access
 
-  layer_metrics = data_structures.wrap_or_unwrap(
+  layer_metrics = tf.__internal__.tracking.wrap(
       {m.name: m for m in layer._metrics})  # pylint: disable=protected-access
   return dict(
-      variables=data_structures.wrap_or_unwrap(layer.variables),
-      trainable_variables=data_structures.wrap_or_unwrap(
+      variables=tf.__internal__.tracking.wrap(layer.variables),
+      trainable_variables=tf.__internal__.tracking.wrap(
           layer.trainable_variables),
-      non_trainable_variables=data_structures.wrap_or_unwrap(
+      non_trainable_variables=tf.__internal__.tracking.wrap(
           layer.non_trainable_variables),
-      layers=data_structures.wrap_or_unwrap(utils.list_all_layers(layer)),
-      metrics=data_structures.wrap_or_unwrap(layer.metrics),
-      regularization_losses=data_structures.wrap_or_unwrap(
+      layers=tf.__internal__.tracking.wrap(utils.list_all_layers(layer)),
+      metrics=tf.__internal__.tracking.wrap(layer.metrics),
+      regularization_losses=tf.__internal__.tracking.wrap(
           wrapped_loss_functions),
-      layer_regularization_losses=data_structures.wrap_or_unwrap(
+      layer_regularization_losses=tf.__internal__.tracking.wrap(
           wrapped_layer_losses),
       layer_metrics=layer_metrics)
   # pylint: disable=protected-access
