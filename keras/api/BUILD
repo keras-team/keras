@@ -121,6 +121,7 @@ py_library(
         ":keras_python_api_gen_compat_v1",
         ":keras_python_api_gen_compat_v2",
     ],
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras",
