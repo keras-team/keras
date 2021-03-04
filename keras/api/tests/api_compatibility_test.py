@@ -28,13 +28,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import tensorflow as tf
+
 import argparse
 import os
 import re
 import sys
 
 import six
-import tensorflow as tf
 
 from google.protobuf import message
 from google.protobuf import text_format
@@ -248,7 +249,7 @@ class ApiCompatibilityTest(tf.test.TestCase):
         # Remove files.
         for key in only_in_expected:
           filepath = _KeyToFilePath(key, api_version)
-          file_io.delete_file(filepath)
+          tf.compat.v1.gfile.Remove(filepath)
 
         # If the files are only in actual (current library), these are new
         # modules. Write them to files. Also record all updates in files.
@@ -286,7 +287,7 @@ class ApiCompatibilityTest(tf.test.TestCase):
     proto_dict = visitor.GetProtos()
 
     # Read all golden files.
-    golden_file_list = file_io.get_matching_files(golden_file_patterns)
+    golden_file_list = tf.compat.v1.gfile.Glob(golden_file_patterns)
 
     def _ReadFileToProto(filename):
       """Read a filename, create a protobuf from its contents."""

@@ -29,7 +29,6 @@ from keras import keras_parameterized
 from keras import testing_utils
 from keras.layers import normalization
 from keras.layers import normalization_v2
-from keras.mixed_precision import policy
 
 
 class BatchNormalizationTest(keras_parameterized.TestCase):
@@ -159,7 +158,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
         axis=-1,
         input_shape=(4, 4, 3),
         momentum=0.8,
-        dtype=policy.Policy('mixed_float16'))
+        dtype='mixed_float16')
     x = np.random.normal(size=(10, 4, 4, 3))
     y = norm(x)
     self.assertEqual(y.dtype, 'float16')
@@ -174,7 +173,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
         axis=-1,
         input_shape=(1, 1, 1),
         fused=fused,
-        dtype=policy.Policy('mixed_float16'))
+        dtype='mixed_float16')
     x = np.array([-1000., 1000.]).reshape((2, 1, 1, 1))
     y = norm(x, training=True)
     expected_y = np.array([-1.0, 1.0]).reshape((2, 1, 1, 1))

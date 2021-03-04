@@ -146,6 +146,10 @@ class LossesContainer(Container):
     self._create_metrics()
     self._built = True
 
+  @property
+  def built(self):
+    return self._built
+
   def _create_metrics(self):
     """Creates per-output loss metrics, but only for multi-output Models."""
     if len(self._output_names) == 1:
@@ -375,6 +379,10 @@ class MetricsContainer(Container):
       self._set_metric_names()
     self._create_ordered_metrics()
     self._built = True
+
+  @property
+  def built(self):
+    return self._built
 
   def _set_metric_names(self):
     """Sets unique metric names."""
