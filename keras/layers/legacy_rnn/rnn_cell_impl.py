@@ -24,7 +24,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import warnings
@@ -329,6 +329,12 @@ class RNNCell(base_layer.Layer):
   # TODO(b/134773139): Remove when contrib RNN cells implement `get_config`
   def get_config(self):  # pylint: disable=useless-super-delegation
     return super(RNNCell, self).get_config()
+
+  @property
+  def _use_input_spec_as_call_signature(self):
+    # We do not store the shape information for the state argument in the call
+    # function for legacy RNN cells, so do not generate an input signature.
+    return False
 
 
 class LayerRNNCell(RNNCell):

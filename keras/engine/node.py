@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import copy
@@ -41,7 +41,7 @@ class Node(object):
   Each time the output of a layer is used by another layer,
   a node is added to `layer._outbound_nodes`.
 
-  Arguments:
+  Args:
       layer: The Layer for the Layer.__call__ this node represents.
       call_args: The positional arguments the Layer was called with.
       call_kwargs: The keyword arguments the Layer was called with.

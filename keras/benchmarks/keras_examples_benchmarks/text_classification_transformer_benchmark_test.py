@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras.benchmarks import benchmark_util
 
@@ -77,6 +77,9 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy'])
 
+    metadata = benchmark_util.get_keras_examples_metadata(
+        'transformer', batch_size)
+    extras.update(metadata)
     self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
 
   def benchmark_text_classification_bs_256(self):
@@ -91,6 +94,9 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy'])
 
+    metadata = benchmark_util.get_keras_examples_metadata(
+        'transformer', batch_size)
+    extras.update(metadata)
     self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
 
   def benchmark_text_classification_bs_512(self):
@@ -105,6 +111,9 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy'])
 
+    metadata = benchmark_util.get_keras_examples_metadata(
+        'transformer', batch_size)
+    extras.update(metadata)
     self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
 
   def benchmark_text_classification_bs_512_gpu_2(self):
@@ -124,6 +133,9 @@ class TextWithTransformerBenchmark(tf.test.Benchmark):
         loss='sparse_categorical_crossentropy',
         metrics=['accuracy'])
 
+    metadata = benchmark_util.get_keras_examples_metadata(
+        'transformer', batch_size)
+    extras.update(metadata)
     self.report_benchmark(wall_time=wall_time, metrics=metrics, extras=extras)
 
 

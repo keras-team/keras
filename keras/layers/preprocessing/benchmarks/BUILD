@@ -55,6 +55,16 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "index_lookup_forward_benchmark",
+    srcs = ["index_lookup_forward_benchmark.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_tensorflow_installed",
+        "//keras/layers/preprocessing:index_lookup",
+    ],
+)
+
+tf_py_test(
     name = "normalization_adapt_benchmark",
     srcs = ["normalization_adapt_benchmark.py"],
     python_version = "PY3",

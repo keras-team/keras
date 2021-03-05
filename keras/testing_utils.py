@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import contextlib
@@ -59,7 +59,7 @@ def get_test_data(train_samples,
                   random_seed=None):
   """Generates test data to train a model on.
 
-  Arguments:
+  Args:
     train_samples: Integer, how many training samples to generate.
     test_samples: Integer, how many test samples to generate.
     input_shape: Tuple of integers, shape of the inputs.
@@ -97,7 +97,7 @@ def layer_test(layer_cls,
                supports_masking=None):
   """Test routine for a layer with a single input and single output.
 
-  Arguments:
+  Args:
     layer_cls: Layer class object.
     kwargs: Optional dictionary of keyword arguments for instantiating the
       layer.
@@ -316,7 +316,7 @@ def model_type_scope(value):
 
   The model type gets restored to its original value upon exiting the scope.
 
-  Arguments:
+  Args:
      value: model type value
 
   Yields:
@@ -337,7 +337,7 @@ def run_eagerly_scope(value):
 
   The boolean gets restored to its original value upon exiting the scope.
 
-  Arguments:
+  Args:
      value: Bool specifying if we should run models eagerly in the active test.
      Should be True or False.
 
@@ -359,7 +359,7 @@ def use_keras_tensors_scope(value):
 
   The boolean gets restored to its original value upon exiting the scope.
 
-  Arguments:
+  Args:
      value: Bool specifying if we should build functional models
       using KerasTensors in the active test.
      Should be True or False.
@@ -393,7 +393,7 @@ def saved_model_format_scope(value, **kwargs):
   The saved model format gets restored to its original value upon exiting the
   scope.
 
-  Arguments:
+  Args:
      value: saved model format value
      **kwargs: optional kwargs to pass to the save function.
 
@@ -462,8 +462,13 @@ def get_small_functional_mlp(num_hidden, num_classes, input_dim):
 class SmallSubclassMLP(models.Model):
   """A subclass model based small MLP."""
 
-  def __init__(self, num_hidden, num_classes, use_bn=False, use_dp=False):
-    super(SmallSubclassMLP, self).__init__(name='test_model')
+  def __init__(self,
+               num_hidden,
+               num_classes,
+               use_bn=False,
+               use_dp=False,
+               **kwargs):
+    super(SmallSubclassMLP, self).__init__(name='test_model', **kwargs)
     self.use_bn = use_bn
     self.use_dp = use_dp
 

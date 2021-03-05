@@ -1,7 +1,10 @@
 # Description:
 #   Contains the Keras engine API (internal TensorFlow version).
 
+# buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "tf_py_test")
+
+# buildifier: disable=same-origin-load
 load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
@@ -39,7 +42,7 @@ py_library(
         "training_utils_v1.py",
         "training_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer",
         ":base_preprocessing_layer",
@@ -49,6 +52,7 @@ py_library(
         ":node",
         "//:expect_h5py_installed",
         "//:expect_six_installed",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
         "//keras:activations",
@@ -77,7 +81,7 @@ py_library(
 py_library(
     name = "base_layer_utils",
     srcs = ["base_layer_utils.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -92,7 +96,7 @@ py_library(
         "base_layer.py",
         "base_layer_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer_utils",
         ":input_spec",
@@ -121,9 +125,10 @@ py_library(
 py_library(
     name = "data_adapter",
     srcs = ["data_adapter.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/utils:dataset_creator",
         "//keras/utils:engine_utils",
         "//keras/utils:tf_utils",
     ],
@@ -132,7 +137,7 @@ py_library(
 py_library(
     name = "input_spec",
     srcs = ["input_spec.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_six_installed",
         "//:expect_tensorflow_installed",
@@ -143,7 +148,7 @@ py_library(
 py_library(
     name = "keras_tensor",
     srcs = ["keras_tensor.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_six_installed",
         "//:expect_tensorflow_installed",
@@ -157,7 +162,7 @@ py_library(
         "base_preprocessing_layer.py",
         "base_preprocessing_layer_v1.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer",
         "//:expect_tensorflow_installed",
@@ -168,7 +173,7 @@ py_library(
 py_library(
     name = "node",
     srcs = ["node.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":base_layer_utils",
         "//:expect_numpy_installed",
@@ -202,6 +207,7 @@ tf_py_test(
     shard_count = 4,
     tags = [
         "no_oss_py38",  # TODO(b/150615192)
+        "no_tfrt",  # TODO(b/179805675)
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
@@ -319,7 +325,6 @@ tf_py_test(
     shard_count = 20,
     tags = [
         "manual",
-        "no_rocm",
         "nomac",  # TODO(mihaimaruseac): b/127695564
         "notsan",
     ],
@@ -363,6 +368,7 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
+        "no_tfrt",  # TODO(b/179459136)
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
@@ -425,7 +431,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 30,
     tags = [
-        "no_rocm",
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
@@ -514,6 +519,7 @@ tf_py_test(
     shard_count = 8,
     tags = [
         "no-internal-py3",
+        "no_rocm",
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
@@ -558,13 +564,13 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 8,
     tags = [
-        "no_rocm",
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
         ":base_layer",
         ":engine",
         "//:expect_numpy_installed",
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras:backend",

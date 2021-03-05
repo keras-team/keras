@@ -12,6 +12,7 @@ package(
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
+        "//third_party/tensorflow_models/official/vision/beta/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
     licenses = ["notice"],  # Apache 2.0
 )
@@ -30,7 +31,7 @@ py_library(
         "__init__.py",
         "serialization.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":advanced_activations",
         ":convolutional",
@@ -62,7 +63,7 @@ py_library(
 py_library(
     name = "advanced_activations",
     srcs = ["advanced_activations.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -78,7 +79,7 @@ py_library(
 py_library(
     name = "convolutional",
     srcs = ["convolutional.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":pooling",
         "//:expect_tensorflow_installed",
@@ -97,7 +98,7 @@ py_library(
 py_library(
     name = "convolutional_recurrent",
     srcs = ["convolutional_recurrent.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":recurrent",
         "//:expect_numpy_installed",
@@ -118,7 +119,7 @@ py_library(
 py_library(
     name = "core",
     srcs = ["core.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -141,7 +142,7 @@ py_library(
 py_library(
     name = "cudnn_recurrent",
     srcs = ["cudnn_recurrent.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":recurrent",
         ":recurrent_v2",
@@ -157,7 +158,7 @@ py_library(
 py_library(
     name = "dense_attention",
     srcs = ["dense_attention.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -169,7 +170,7 @@ py_library(
 py_library(
     name = "einsum_dense",
     srcs = ["einsum_dense.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:activations",
@@ -183,7 +184,7 @@ py_library(
 py_library(
     name = "multi_head_attention",
     srcs = ["multi_head_attention.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:activations",
@@ -197,7 +198,7 @@ py_library(
 py_library(
     name = "embeddings",
     srcs = ["embeddings.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -212,7 +213,7 @@ py_library(
 py_library(
     name = "kernelized",
     srcs = ["kernelized.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_six_installed",
@@ -226,7 +227,7 @@ py_library(
 py_library(
     name = "local",
     srcs = ["local.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -245,7 +246,7 @@ py_library(
 py_library(
     name = "merge",
     srcs = ["merge.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -257,7 +258,7 @@ py_library(
 py_library(
     name = "noise",
     srcs = ["noise.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -270,7 +271,7 @@ py_library(
 py_library(
     name = "normalization",
     srcs = ["normalization.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -287,7 +288,7 @@ py_library(
 py_library(
     name = "normalization_v2",
     srcs = ["normalization_v2.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":normalization",
         "//:expect_tensorflow_installed",
@@ -297,7 +298,7 @@ py_library(
 py_library(
     name = "pooling",
     srcs = ["pooling.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -310,7 +311,7 @@ py_library(
 py_library(
     name = "recurrent",
     srcs = ["recurrent.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
@@ -329,7 +330,7 @@ py_library(
 py_library(
     name = "recurrent_v2",
     srcs = ["recurrent_v2.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":recurrent",
         "//:expect_tensorflow_installed",
@@ -342,7 +343,7 @@ py_library(
 py_library(
     name = "rnn_cell_wrapper_v2",
     srcs = ["rnn_cell_wrapper_v2.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":recurrent",
         "//:expect_tensorflow_installed",
@@ -353,7 +354,7 @@ py_library(
 py_library(
     name = "wrappers",
     srcs = ["wrappers.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":recurrent",
         "//:expect_tensorflow_installed",
@@ -570,6 +571,7 @@ tf_py_test(
     size = "medium",
     srcs = ["merge_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
@@ -598,7 +600,6 @@ cuda_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
-        "no_rocm",
         "notsan",
     ],
     deps = [
@@ -633,7 +634,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
-        "no_rocm",
         "notsan",  # http://b/62136390
     ],
     deps = [
@@ -652,7 +652,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
-        "no_rocm",
         "noasan",  # times out b/63678675
         "notsan",  # http://b/62189182
     ],
@@ -733,6 +732,7 @@ cuda_py_test(
     srcs = ["gru_v2_test.py"],
     python_version = "PY3",
     shard_count = 12,
+    tags = ["no_rocm"],
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",

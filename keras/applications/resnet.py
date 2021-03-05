@@ -23,7 +23,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.applications import imagenet_utils
@@ -80,7 +80,7 @@ def ResNet(stack_fn,
   Note that the data format convention used by the model is
   the one specified in your Keras config at `~/.keras/keras.json`.
 
-  Arguments:
+  Args:
     stack_fn: a function that returns output tensor for the
       stacked residual blocks.
     preact: whether to use pre-activation or not
@@ -227,7 +227,7 @@ def ResNet(stack_fn,
 def block1(x, filters, kernel_size=3, stride=1, conv_shortcut=True, name=None):
   """A residual block.
 
-  Arguments:
+  Args:
     x: input tensor.
     filters: integer, filters of the bottleneck layer.
     kernel_size: default 3, kernel size of the bottleneck layer.
@@ -272,7 +272,7 @@ def block1(x, filters, kernel_size=3, stride=1, conv_shortcut=True, name=None):
 def stack1(x, filters, blocks, stride1=2, name=None):
   """A set of stacked residual blocks.
 
-  Arguments:
+  Args:
     x: input tensor.
     filters: integer, filters of the bottleneck layer in a block.
     blocks: integer, blocks in the stacked blocks.
@@ -291,7 +291,7 @@ def stack1(x, filters, blocks, stride1=2, name=None):
 def block2(x, filters, kernel_size=3, stride=1, conv_shortcut=False, name=None):
   """A residual block.
 
-  Arguments:
+  Args:
       x: input tensor.
       filters: integer, filters of the bottleneck layer.
       kernel_size: default 3, kernel size of the bottleneck layer.
@@ -340,7 +340,7 @@ def block2(x, filters, kernel_size=3, stride=1, conv_shortcut=False, name=None):
 def stack2(x, filters, blocks, stride1=2, name=None):
   """A set of stacked residual blocks.
 
-  Arguments:
+  Args:
       x: input tensor.
       filters: integer, filters of the bottleneck layer in a block.
       blocks: integer, blocks in the stacked blocks.
@@ -366,7 +366,7 @@ def block3(x,
            name=None):
   """A residual block.
 
-  Arguments:
+  Args:
     x: input tensor.
     filters: integer, filters of the bottleneck layer.
     kernel_size: default 3, kernel size of the bottleneck layer.
@@ -406,12 +406,12 @@ def block3(x,
       depth_multiplier=c,
       use_bias=False,
       name=name + '_2_conv')(x)
-  x_shape = backend.int_shape(x)[1:-1]
-  x = layers.Reshape(x_shape + (groups, c, c))(x)
+  x_shape = backend.shape(x)[:-1]
+  x = backend.reshape(x, backend.concatenate([x_shape, (groups, c, c)]))
   x = layers.Lambda(
       lambda x: sum(x[:, :, :, :, i] for i in range(c)),
       name=name + '_2_reduce')(x)
-  x = layers.Reshape(x_shape + (filters,))(x)
+  x = backend.reshape(x, backend.concatenate([x_shape, (filters,)]))
   x = layers.BatchNormalization(
       axis=bn_axis, epsilon=1.001e-5, name=name + '_2_bn')(x)
   x = layers.Activation('relu', name=name + '_2_relu')(x)
@@ -429,7 +429,7 @@ def block3(x,
 def stack3(x, filters, blocks, stride1=2, groups=32, name=None):
   """A set of stacked residual blocks.
 
-  Arguments:
+  Args:
     x: input tensor.
     filters: integer, filters of the bottleneck layer in a block.
     blocks: integer, blocks in the stacked blocks.
@@ -548,7 +548,7 @@ DOC = """
   For ResNet, call `tf.keras.applications.resnet.preprocess_input` on your
   inputs before passing them to the model.
 
-  Arguments:
+  Args:
     include_top: whether to include the fully-connected
       layer at the top of the network.
     weights: one of `None` (random initialization),

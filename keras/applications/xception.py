@@ -27,7 +27,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.applications import imagenet_utils
@@ -73,7 +73,7 @@ def Xception(
   For Xception, call `tf.keras.applications.xception.preprocess_input` on your
   inputs before passing them to the model.
 
-  Arguments:
+  Args:
     include_top: whether to include the fully-connected
       layer at the top of the network.
     weights: one of `None` (random initialization),

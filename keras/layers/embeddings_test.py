@@ -18,12 +18,11 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 
 import keras
-from tensorflow.python.distribute import sharded_variable
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
@@ -127,20 +126,6 @@ class EmbeddingTest(keras_parameterized.TestCase):
         tf.ragged.constant(
             [[[1., 1.], [2., 2.], [2., 2.]], [[0., 0.]], [[1., 1.], [2., 2.]]],
             ragged_rank=1))
-
-  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-  def test_embedding_with_sharded_variable(self):
-    layer = keras.layers.Embedding(input_dim=5, output_dim=2)
-    v = [
-        tf.Variable([[1., 2.], [3., 4.]]),
-        tf.Variable([[5., 6.], [7., 8.]]),
-        tf.Variable([[9., 10.]])
-    ]
-    model = keras.models.Sequential([layer])
-    layer.embeddings = sharded_variable.ShardedVariable(v)
-    model.run_eagerly = testing_utils.should_run_eagerly()
-    outputs = model.predict(np.array([[0, 2, 4]], dtype='int32'))
-    self.assertAllClose(outputs, [[[1., 2.], [5., 6.], [9., 10.]]])
 
   @testing_utils.enable_v2_dtype_behavior
   def test_mixed_precision_embedding(self):

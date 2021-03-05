@@ -20,16 +20,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import abc
 import types
 
 import numpy as np
 import six
-
-from tensorflow.python.autograph.core import ag_ctx
-from tensorflow.python.autograph.impl import api as autograph
 from tensorflow.python.eager import def_function
 from keras import activations
 from keras import backend as K
@@ -57,7 +54,6 @@ from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.generic_utils import to_list
 from keras.utils.tf_utils import is_tensor_or_variable
-from tensorflow.python.ops import control_flow_ops
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -157,8 +153,8 @@ class Metric(base_layer.Layer):
       obj_update_state = obj.update_state
 
       def update_state_fn(*args, **kwargs):
-        control_status = ag_ctx.control_status_ctx()
-        ag_update_state = autograph.tf_convert(obj_update_state, control_status)
+        control_status = tf.__internal__.autograph.control_status_ctx()
+        ag_update_state = tf.__internal__.autograph.tf_convert(obj_update_state, control_status)
         return ag_update_state(*args, **kwargs)
     else:
       if isinstance(obj.update_state, def_function.Function):
@@ -172,8 +168,8 @@ class Metric(base_layer.Layer):
     obj_result = obj.result
 
     def result_fn(*args, **kwargs):
-      control_status = ag_ctx.control_status_ctx()
-      ag_result = autograph.tf_convert(obj_result, control_status)
+      control_status = tf.__internal__.autograph.control_status_ctx()
+      ag_result = tf.__internal__.autograph.tf_convert(obj_result, control_status)
       return ag_result(*args, **kwargs)
 
     obj.result = types.MethodType(metrics_utils.result_wrapper(result_fn), obj)
@@ -276,15 +272,13 @@ class Metric(base_layer.Layer):
                  initializer=None,
                  dtype=None):
     """Adds state variable. Only for use by subclasses."""
-    from keras.distribute import distributed_training_utils  # pylint:disable=g-import-not-at-top
-
     if tf.distribute.has_strategy():
       strategy = tf.distribute.get_strategy()
     else:
       strategy = None
 
     # TODO(b/120571621): Make `ON_READ` work with Keras metrics on TPU.
-    if distributed_training_utils.is_tpu_strategy(strategy):
+    if K.is_tpu_strategy(strategy):
       synchronization = tf.VariableSynchronization.ON_WRITE
 
     with tf.init_scope():
@@ -624,7 +618,7 @@ class MeanMetricWrapper(Mean):
     y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
         y_pred, y_true)
 
-    ag_fn = autograph.tf_convert(self._fn, ag_ctx.control_status_ctx())
+    ag_fn = tf.__internal__.autograph.tf_convert(self._fn, tf.__internal__.autograph.control_status_ctx())
     matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
     return super(MeanMetricWrapper, self).update_state(
         matches, sample_weight=sample_weight)
@@ -2008,8 +2002,8 @@ class AUC(Metric):
               label_weights,
               message='All values of `label_weights` must be non-negative.')
       ]
-      self.label_weights = control_flow_ops.with_dependencies(
-          checks, label_weights)
+      with tf.control_dependencies(checks):
+        self.label_weights = label_weights
 
     else:
       self.label_weights = None
@@ -3253,7 +3247,7 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
     y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
         y_pred, y_true)
 
-    ag_fn = autograph.tf_convert(self._fn, ag_ctx.control_status_ctx())
+    ag_fn = tf.__internal__.autograph.tf_convert(self._fn, tf.__internal__.autograph.control_status_ctx())
     matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
     return super(SumOverBatchSizeMetricWrapper, self).update_state(
         matches, sample_weight=sample_weight)
@@ -3481,7 +3475,7 @@ def clone_metrics(metrics):
 def serialize(metric):
   """Serializes metric function or `Metric` instance.
 
-  Arguments:
+  Args:
     metric: A Keras `Metric` instance or a metric function.
 
   Returns:
@@ -3494,7 +3488,7 @@ def serialize(metric):
 def deserialize(config, custom_objects=None):
   """Deserializes a serialized metric class/function instance.
 
-  Arguments:
+  Args:
     config: Metric configuration.
     custom_objects: Optional dictionary mapping names (strings) to custom
       objects (classes and functions) to be considered during deserialization.
@@ -3532,7 +3526,7 @@ def get(identifier):
   >>> type(metric)
   <class '...tensorflow.python.keras.metrics.CategoricalCrossentropy'>
 
-  Arguments:
+  Args:
     identifier: A metric identifier. One of None or string name of a metric
       function/class or metric configuration dictionary or a metric function or
       a metric class instance

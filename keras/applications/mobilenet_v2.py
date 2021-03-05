@@ -77,7 +77,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras import backend
 from keras.applications import imagenet_utils
@@ -116,7 +116,7 @@ def MobileNetV2(input_shape=None,
   For MobileNetV2, call `tf.keras.applications.mobilenet_v2.preprocess_input`
   on your inputs before passing them to the model.
 
-  Arguments:
+  Args:
     input_shape: Optional shape tuple, to be specified if you would
       like to use a model with an input image resolution that is not
       (224, 224, 3).

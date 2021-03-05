@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -28,7 +28,6 @@ from keras import backend as K
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
-from tensorflow.python.ops.ragged import ragged_tensor
 
 
 @keras_parameterized.run_all_keras_modes
@@ -242,8 +241,7 @@ class MergeLayersTest(keras_parameterized.TestCase):
     out = keras.layers.Add()([input1, input2])
     model = keras.models.Model(inputs=[input1, input2], outputs=out)
     out_ragged = model.predict([ragged_data, ragged_data], steps=1)
-    out_ragged = ragged_tensor.convert_to_tensor_or_ragged_tensor(
-        out_ragged).to_tensor()
+    out_ragged = convert_ragged_tensor_value(out_ragged).to_tensor()
 
     input1 = keras.Input(shape=(None,))
     input2 = keras.Input(shape=(None,))
@@ -373,6 +371,20 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     mask = layer.output_mask
     self.assertListEqual(mask.shape.as_list(), [None, 4])
 
+  def test_merge_concatenate_sparse_shape(self):
+    i1 = keras.layers.Input(shape=(1,), batch_size=2, sparse=True)
+    i2 = keras.layers.Input(shape=(2,), batch_size=2, sparse=True)
+    layer = keras.layers.Concatenate(axis=1)
+    o = layer([i1, i2])
+    self.assertListEqual(o.shape.as_list(), [2, 3])
+
+    # Make sure it also respect None as the batch size
+    i1 = keras.layers.Input(shape=(1,), sparse=True)
+    i2 = keras.layers.Input(shape=(2,), sparse=True)
+    layer = keras.layers.Concatenate(axis=1)
+    o = layer([i1, i2])
+    self.assertListEqual(o.shape.as_list(), [None, 3])
+
   def test_user_changes_to_input_structure(self):
     a = keras.layers.Input(shape=(4, 5))
     struct = [a, a]
@@ -388,6 +400,16 @@ class MergeLayersTestNoExecution(tf.test.TestCase):
     self.assertLen(concat2.inbound_nodes[0].input_tensors, 3)
 
     keras.Model(a, c)  # Ensure model can be built.
+
+
+def convert_ragged_tensor_value(inputs):
+  if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
+    flat_values = tf.convert_to_tensor(
+        value=inputs.flat_values,
+        name='flat_values')
+    return tf.RaggedTensor.from_nested_row_splits(
+        flat_values, inputs.nested_row_splits, validate=False)
+  return inputs
 
 
 if __name__ == '__main__':

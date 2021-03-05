@@ -23,10 +23,8 @@ function real_path() {
   is_absolute "$1" && echo "$1" || echo "$PWD/${1#./}"
 }
 
-function build_wheel() {
+function prepare_src() {
   TMPDIR="$1"
-  DEST="$2"
-  PROJECT_NAME="$3"
 
   mkdir -p "$TMPDIR"
   echo $(date) : "=== Preparing sources in dir: ${TMPDIR}"
@@ -38,29 +36,20 @@ function build_wheel() {
   cp -r "bazel-bin/keras/tools/pip_package/build_pip_package.runfiles/org_keras/keras" "$TMPDIR"
   cp keras/tools/pip_package/setup.py "$TMPDIR"
 
-  # Make sure init files exist.
-  touch "${TMPDIR}/keras/__init__.py"
-  touch "${TMPDIR}/keras/applications/__init__.py"
-  touch "${TMPDIR}/keras/benchmarks/__init__.py"
-  touch "${TMPDIR}/keras/datasets/__init__.py"
-  touch "${TMPDIR}/keras/distribute/__init__.py"
-  touch "${TMPDIR}/keras/engine/__init__.py"
-  touch "${TMPDIR}/keras/estimator/__init__.py"
-  touch "${TMPDIR}/keras/feature_column/__init__.py"
-  touch "${TMPDIR}/keras/google_utils/__init__.py"
-  touch "${TMPDIR}/keras/initializers/__init__.py"
-  touch "${TMPDIR}/keras/layers/__init__.py"
-  touch "${TMPDIR}/keras/layers/ops/__init__.py"
-  touch "${TMPDIR}/keras/layers/preprocessing/__init__.py"
-  touch "${TMPDIR}/keras/legacy_tf_layers/__init__.py"
-  touch "${TMPDIR}/keras/mixed_precision/__init__.py"
-  touch "${TMPDIR}/keras/mixed_precision/experimental/__init__.py"
-  touch "${TMPDIR}/keras/premade/__init__.py"
-  touch "${TMPDIR}/keras/preprocessing/__init__.py"
-  touch "${TMPDIR}/keras/saving/__init__.py"
-  touch "${TMPDIR}/keras/utils/__init__.py"
-  touch "${TMPDIR}/keras/wrappers/__init__.py"
+  # Verifies all expected files are in pip.
+  # Creates init files in all directory in pip.
+  python keras/tools/pip_package/create_pip_helper.py --pip-root "${TMPDIR}/keras/" --bazel-root "./keras"
+}
 
+function build_wheel() {
+  if [ $# -lt 2 ] ; then
+    echo "No src and dest dir provided"
+    exit 1
+  fi
+
+  TMPDIR="$1"
+  DEST="$2"
+  PROJECT_NAME="$3"
 
   pushd ${TMPDIR} > /dev/null
   echo $(date) : "=== Building wheel"
@@ -69,36 +58,96 @@ function build_wheel() {
   cp dist/* ${DEST}
   popd > /dev/null
   echo $(date) : "=== Output wheel file is in: ${DEST}"
-  rm -rf "${TMPDIR}"
+}
+
+function usage() {
+  echo "Usage:"
+  echo "$0 [--src srcdir] [--dst dstdir] [options]"
+  echo "$0 dstdir [options]"
+  echo ""
+  echo "    --src                 prepare sources in srcdir"
+  echo "                              will use temporary dir if not specified"
+  echo ""
+  echo "    --dst                 build wheel in dstdir"
+  echo "                              if dstdir is not set do not build, only prepare sources"
+  echo ""
+  echo "  Options:"
+  echo "    --project_name <name> set project name to name"
+  echo "    --nightly             build tensorflow_estimator nightly"
+  echo ""
+  exit 1
 }
 
 function main() {
   NIGHTLY_BUILD=0
+  PROJECT_NAME=""
+  SRCDIR=""
+  DSTDIR=""
+  CLEANSRC=1
 
   while true; do
     if [[ -z "$1" ]]; then
       break
+    elif [[ "$1" == "--help" ]]; then
+      usage
+      exit 1
     elif [[ "$1" == "--nightly" ]]; then
       NIGHTLY_BUILD=1
+    elif [[ "$1" == "--project_name" ]]; then
+      shift
+      if [[ -z "$1" ]]; then
+        break
+      fi
+      PROJECT_NAME="$1"
+    elif [[ "$1" == "--src" ]]; then
+      shift
+      if [[ -z "$1" ]]; then
+        break
+      fi
+      SRCDIR="$(real_path $1)"
+      CLEANSRC=0
+    elif [[ "$1" == "--dst" ]]; then
+      shift
+      if [[ -z "$1" ]]; then
+        break
+      fi
+      DSTDIR="$(real_path $1)"
     else
       DSTDIR="$(real_path $1)"
     fi
     shift
   done
 
-  PROJECT_NAME="keras"
-  if [[ ${NIGHTLY_BUILD} == "1" ]]; then
-    PROJECT_NAME="keras-nightly"
+  if [[ -z ${PROJECT_NAME} ]]; then
+    PROJECT_NAME="keras"
+    if [[ ${NIGHTLY_BUILD} == "1" ]]; then
+      PROJECT_NAME="keras-nightly"
+    fi
   fi
 
-  SRCDIR="$(mktemp -d -t tmp.XXXXXXXXXX)"
-
-  if [[ -z "$DSTDIR" ]]; then
+  if [[ -z "$DSTDIR" ]] && [[ -z "$SRCDIR" ]]; then
     echo "No destination dir provided"
+    usage
     exit 1
   fi
 
+  if [[ -z "$SRCDIR" ]]; then
+    # make temp srcdir if none set
+    SRCDIR="$(mktemp -d -t tmp.XXXXXXXXXX)"
+  fi
+
+  prepare_src "$SRCDIR"
+
+  if [[ -z "$DSTDIR" ]]; then
+      # only want to prepare sources
+      exit
+  fi
+
   build_wheel "$SRCDIR" "$DSTDIR" "$PROJECT_NAME"
+
+  if [[ $CLEANSRC -ne 0 ]]; then
+    rm -rf "${TMPDIR}"
+  fi
 }
 
 main "$@"

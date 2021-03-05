@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import copy
@@ -40,6 +40,10 @@ from keras import metrics as metrics_module
 from keras import models
 from keras import optimizer_v1
 from keras.distribute import multi_worker_testing_utils
+from keras.optimizer_v2 import rmsprop
+from keras.utils import kpl_test_utils
+
+# pylint: disable=g-direct-tensorflow-import
 
 
 def _clone_and_build_model(model, strategy):
@@ -240,9 +244,69 @@ class KerasMultiWorkerTestIndependentWorker(test_base.IndependentWorkerTestBase,
     verification_callback.verify(self)
 
 
+class KPLMultiWorkerTest(tf.test.TestCase,
+                         parameterized.TestCase):
+
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'],
+          use_adapt=[False],  # TODO(b/180742437): Add tests for using adapt.
+          strategy=[
+              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
+          ]))
+  def testTrainAndServeWithKPL(self, use_adapt, strategy):
+    test_utils_obj = kpl_test_utils.DistributeKplTestUtils()
+    with strategy.scope():
+      feature_mapper, label_mapper = test_utils_obj.define_kpls_for_training(
+          use_adapt)
+      model = test_utils_obj.define_model()
+      optimizer = rmsprop.RMSprop(learning_rate=0.1)
+      accuracy = keras.metrics.Accuracy()
+
+      def dataset_fn(_):
+        return test_utils_obj.dataset_fn(feature_mapper, label_mapper)
+
+      @tf.function
+      def train_step(iterator):
+        """The step function for one training step."""
+
+        def step_fn(inputs):
+          """The computation to run on each worker."""
+          features, labels = inputs
+          with tf.GradientTape() as tape:
+            pred = model(features, training=True)
+            loss = keras.losses.binary_crossentropy(labels, pred)
+            loss = tf.nn.compute_average_loss(loss)
+          grads = tape.gradient(loss, model.trainable_variables)
+          optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
+
+          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+          accuracy.update_state(labels, actual_pred)
+
+        strategy.run(step_fn, args=(next(iterator),))
+
+      distributed_dataset = strategy.distribute_datasets_from_function(
+          dataset_fn)
+      distributed_iterator = iter(distributed_dataset)
+      num_epochs = 4
+      num_steps = 7
+      for _ in range(num_epochs):
+        accuracy.reset_states()
+        for _ in range(num_steps):
+          train_step(distributed_iterator)
+
+      self.assertGreater(accuracy.result().numpy(), 0.5)
+      self.assertEqual(optimizer.iterations.numpy(), num_epochs * num_steps)
+
+    # Test save/load/serving the trained model.
+    test_utils_obj.test_save_load_serving_model(
+        model, feature_mapper, test_utils_obj.define_reverse_lookup_layer())
+
+
 if __name__ == '__main__':
   # Enable manual variable initialization to make sure variables are initialized
   # by `init_restore_or_wait_for_variables`.
   backend.manual_variable_initialization(True)
   with tf.compat.v1.test.mock.patch.object(sys, 'exit', os._exit):
-    tf.test.main()
+    tf.__internal__.distribute.multi_process_runner.test_main()

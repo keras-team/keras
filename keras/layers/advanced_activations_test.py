@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 
@@ -107,6 +107,26 @@ class AdvancedActivationsTest(keras_parameterized.TestCase):
         'mse',
         run_eagerly=testing_utils.should_run_eagerly())
     model.fit(np.ones((10, 10)), np.ones((10, 1)), batch_size=2)
+
+  def test_leaky_relu_with_invalid_alpha(self):
+    # Test case for GitHub issue 46993.
+    with self.assertRaisesRegex(ValueError,
+                                'alpha of leaky Relu layer cannot be None'):
+      testing_utils.layer_test(
+          keras.layers.LeakyReLU,
+          kwargs={'alpha': None},
+          input_shape=(2, 3, 4),
+          supports_masking=True)
+
+  def test_leaky_elu_with_invalid_alpha(self):
+    # Test case for GitHub issue 46993.
+    with self.assertRaisesRegex(ValueError,
+                                'alpha of ELU layer cannot be None'):
+      testing_utils.layer_test(
+          keras.layers.ELU,
+          kwargs={'alpha': None},
+          input_shape=(2, 3, 4),
+          supports_masking=True)
 
 
 if __name__ == '__main__':

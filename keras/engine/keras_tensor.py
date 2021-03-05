@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras.utils import object_identity
 
 # pylint: disable=g-classes-have-attributes
@@ -194,6 +194,10 @@ class KerasTensor(object):
       name = getattr(tensor, 'name', None)
       type_spec = tf.type_spec_from_value(tensor)
       return cls(type_spec, name=name)
+
+  @classmethod
+  def from_type_spec(cls, type_spec, name=None):
+    return cls(type_spec=type_spec, name=name)
 
   def _to_placeholder(self):
     """Convert this KerasTensor to a placeholder in a graph."""
@@ -528,6 +532,11 @@ class UserRegisteredTypeKerasTensor(KerasTensor):
   def from_tensor(cls, tensor):
     return cls(tensor)
 
+  @classmethod
+  def from_type_spec(cls, type_spec, name=None):
+    raise NotImplementedError('You cannot instantiate a KerasTensor '
+                              'directly from TypeSpec: %s' % type_spec)
+
   def _to_placeholder(self):
     return self._user_registered_symbolic_object
 
@@ -598,3 +607,17 @@ def keras_tensor_from_tensor(tensor):
   if hasattr(tensor, '_keras_mask'):
     out._keras_mask = keras_tensor_from_tensor(tensor._keras_mask)  # pylint: disable=protected-access
   return out
+
+
+def keras_tensor_from_type_spec(type_spec, name=None):
+  """Convert a TypeSpec to a representative KerasTensor."""
+  # Create a specialized KerasTensor that supports instance methods,
+  # operators, and additional value inference if possible
+  keras_tensor_cls = None
+  value_type = type_spec.value_type
+  for tensor_type, cls in keras_tensor_classes:
+    if issubclass(value_type, tensor_type):
+      keras_tensor_cls = cls
+      break
+
+  return keras_tensor_cls.from_type_spec(type_spec, name=name)

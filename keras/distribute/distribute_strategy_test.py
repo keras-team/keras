@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
 
@@ -25,9 +25,10 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
+from tensorflow.python.distribute import distribute_utils
 from tensorflow.python.distribute import multi_worker_test_base
-from tensorflow.python.distribute import values as ds_values_lib
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
+from keras import backend
 from keras import testing_utils
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
@@ -40,8 +41,8 @@ from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
 from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.utils import losses_utils
 from keras.utils import np_utils
-from tensorflow.python.ops.losses import loss_reduction
 
 _RANDOM_SEED = 1337
 _TRAIN_SIZE = 200
@@ -137,7 +138,7 @@ def batch_wrapper(dataset, batch_size, distribution, repeat=None):
     dataset = dataset.repeat(repeat)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
-  if _is_tpu_strategy(distribution):
+  if backend.is_tpu_strategy(distribution):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)
@@ -478,7 +479,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
                    tf.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('b/152097775')
-    if _is_tpu_strategy(distribution):
+    if backend.is_tpu_strategy(distribution):
       policy_name = 'mixed_bfloat16'
     else:
       policy_name = 'mixed_float16'
@@ -531,7 +532,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('b/152097775')
 
-    if _is_tpu_strategy(distribution):
+    if backend.is_tpu_strategy(distribution):
       policy_name = 'mixed_bfloat16'
     else:
       policy_name = 'mixed_float16'
@@ -975,7 +976,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
   def test_fit_with_dictionary_in_the_dataset_b135161171(
       self, distribution):
 
-    if _is_tpu_strategy(distribution):
+    if backend.is_tpu_strategy(distribution):
       self.skipTest('b/142805125')
 
     def custom_loss(predict, label, weight):
@@ -1058,7 +1059,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
   def test_predict_on_dataset_with_unknown_cardinality_without_steps(
       self, distribution, mode):
 
-    if mode == 'graph' and _is_tpu_strategy(distribution):
+    if mode == 'graph' and backend.is_tpu_strategy(distribution):
       self.skipTest('partial batch not supported with TPU in graph mode.')
 
     with self.cached_session():
@@ -1091,10 +1092,10 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       self, distribution, mode):
     # TODO(b/155867206): Investigate why this test occasionally segfaults on TPU
     # in eager mode.
-    if mode == 'eager' and _is_tpu_strategy(distribution):
+    if mode == 'eager' and backend.is_tpu_strategy(distribution):
       self.skipTest('caused segfault with TPU in eager mode.')
 
-    if mode == 'graph' and _is_tpu_strategy(distribution):
+    if mode == 'graph' and backend.is_tpu_strategy(distribution):
       self.skipTest('partial batch not supported with TPU in graph mode.')
 
     with self.cached_session():
@@ -1568,13 +1569,6 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       self.assertAllClose(result, 13.5)
 
 
-def _is_tpu_strategy(strategy):
-  if isinstance(strategy,
-                (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
-    return True
-  return False
-
-
 class TestDistributionStrategyWithDatasetsFile(tf.test.TestCase,
                                                parameterized.TestCase):
 
@@ -2036,9 +2030,9 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
           ],
           mode=['graph', 'eager'],
           reduction=[
-              loss_reduction.ReductionV2.AUTO,
-              loss_reduction.ReductionV2.SUM_OVER_BATCH_SIZE,
-              loss_reduction.ReductionV2.SUM
+              losses_utils.ReductionV2.AUTO,
+              losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE,
+              losses_utils.ReductionV2.SUM
           ]))
   def test_distribution_strategy_with_loss_reduction_types(
       self, distribution, reduction):
@@ -2541,7 +2535,7 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
           optimizer=keras.optimizers.adam_v2.Adam(1e-4),
           loss=keras.losses.SparseCategoricalCrossentropy(
               from_logits=True,
-              reduction=loss_reduction.ReductionV2.SUM_OVER_BATCH_SIZE),
+              reduction=losses_utils.ReductionV2.SUM_OVER_BATCH_SIZE),
           metrics=[
               keras.metrics.SparseCategoricalAccuracy(),
               keras.metrics.SparseCategoricalCrossentropy(from_logits=True),
@@ -2671,16 +2665,16 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
       model = create_model()
       model.load_weights(temp_dir)
       self.assertNotEmpty(model.optimizer.weights)
-      self.assertIsInstance(model.optimizer.weights[0],
-                            ds_values_lib.DistributedVariable)
+      self.assertTrue(
+          distribute_utils.is_distributed_variable(model.optimizer.weights[0]))
 
     with distribution.scope():
       model = create_model()
     # create/restore slot variables outside of scope is fine.
     model.load_weights(temp_dir)
     self.assertNotEmpty(model.optimizer.weights)
-    self.assertIsInstance(model.optimizer.weights[0],
-                          ds_values_lib.DistributedVariable)
+    self.assertTrue(
+        distribute_utils.is_distributed_variable(model.optimizer.weights[0]))
 
 
 if __name__ == '__main__':

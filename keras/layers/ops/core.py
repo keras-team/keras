@@ -17,14 +17,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 
 # TODO(b/157913406): Expose this publicly.
 def dense(inputs, kernel, bias=None, activation=None, dtype=None):
   """Densely connected NN layer op.
 
-  Arguments:
+  Args:
     inputs: `tf.Tensor` or `tf.SparseTensor`. Inputs to operation.
     kernel: `tf.Variable`. Matrix kernel.
     bias: (Optional) `tf.Variable`. Bias to add to outputs.

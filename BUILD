@@ -55,6 +55,17 @@ py_library(
     ],
 )
 
+py_library(
+    name = "expect_pillow_installed",
+    # This is a dummy rule used as a pillow dependency in open-source.
+    # We expect pillow to already be installed on the system, e.g. via
+    # `pip install Pillow'
+    visibility = ["//visibility:public"],
+    deps = [
+        requirement("Pillow"),
+    ],
+)
+
 # Note that this dependency is for testing only.
 py_library(
     name = "expect_portpicker_installed",
@@ -101,10 +112,19 @@ py_library(
 )
 
 py_library(
+    name = "expect_tensorboard_installed",
+    # This is a dummy rule used as a tensorboard dependency in open-source.
+    # We expect tensorboard to already be installed on the system, e.g. via
+    # `pip install tensorflow`
+    visibility = ["//visibility:public"],
+    deps = [],
+)
+
+py_library(
     name = "expect_tensorflow_installed",
     # This is a dummy rule used as a tensorflow dependency in open-source.
     # We expect tensorflow to already be installed on the system, e.g. via
-    # `pip install tensorflow` or `pip install tensorflow_gpu`
+    # `pip install tensorflow`
     visibility = ["//visibility:public"],
     deps = [
         requirement("tf-nightly"),

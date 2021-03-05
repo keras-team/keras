@@ -19,7 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections
 import warnings
@@ -38,7 +38,6 @@ from keras.utils import generic_utils
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.training.tracking import data_structures
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -54,7 +53,7 @@ class StackedRNNCells(Layer):
 
   Used to implement efficient stacked RNNs.
 
-  Arguments:
+  Args:
     cells: List of RNN cell instances.
 
   Examples:
@@ -197,7 +196,7 @@ class RNN(Layer):
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
   for details about the usage of RNN API.
 
-  Arguments:
+  Args:
     cell: A RNN cell instance or a list of RNN cell instances.
       A RNN cell is a class that has:
       - A `call(input_at_t, states_at_t)` method, returning
@@ -228,7 +227,7 @@ class RNN(Layer):
         `batch_size` is a scalar tensor that represents the batch size
         of the inputs. `dtype` is `tf.DType` that represents the dtype of
         the inputs.
-        For backward compatible reason, if this method is not implemented
+        For backward compatibility, if this method is not implemented
         by the cell, the RNN layer will create a zero filled tensor with the
         size of [batch_size, cell.state_size].
       In the case that `cell` is a list of RNN cell instances, the cells
@@ -1232,7 +1231,7 @@ class SimpleRNNCell(DropoutRNNCellMixin, Layer):
   This class processes one step within the whole time sequence input, whereas
   `tf.keras.layer.SimpleRNN` processes the whole sequence.
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -1431,7 +1430,7 @@ class SimpleRNN(RNN):
   See [the Keras RNN API guide](https://www.tensorflow.org/guide/keras/rnn)
   for details about the usage of RNN API.
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -1682,7 +1681,7 @@ class SimpleRNN(RNN):
 class GRUCell(DropoutRNNCellMixin, Layer):
   """Cell class for the GRU layer.
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -1966,7 +1965,7 @@ class GRU(RNN):
   `recurrent_kernel`. Use `'reset_after'=True` and
   `recurrent_activation='sigmoid'`.
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -2236,7 +2235,7 @@ class GRU(RNN):
 class LSTMCell(DropoutRNNCellMixin, Layer):
   """Cell class for the LSTM layer.
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -2334,13 +2333,7 @@ class LSTMCell(DropoutRNNCellMixin, Layer):
       self.implementation = 1
     else:
       self.implementation = implementation
-    # tuple(_ListWrapper) was silently dropping list content in at least 2.7.10,
-    # and fixed after 2.7.16. Converting the state_size to wrapper around
-    # NoDependency(), so that the base_layer.__setattr__ will not convert it to
-    # ListWrapper. Down the stream, self.states will be a list since it is
-    # generated from nest.map_structure with list, and tuple(list) will work
-    # properly.
-    self.state_size = data_structures.NoDependency([self.units, self.units])
+    self.state_size = [self.units, self.units]
     self.output_size = self.units
 
   @tf_utils.shape_type_conversion
@@ -2639,7 +2632,7 @@ class LSTM(RNN):
    Note that this cell is not optimized for performance on GPU. Please use
   `tf.compat.v1.keras.layers.CuDNNLSTM` for better performance on GPU.
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -2929,7 +2922,7 @@ def _standardize_args(inputs, initial_state, constants, num_constants):
   makes sure the arguments are separated and that `initial_state` and
   `constants` are lists of tensors (or None).
 
-  Arguments:
+  Args:
     inputs: Tensor or list/tuple of tensors. which may include constants
       and initial states. In that case `num_constant` must be specified.
     initial_state: Tensor or list of tensors or None, initial states.

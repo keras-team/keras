@@ -18,16 +18,14 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import uuid
-from tensorflow.python.eager import function
 from tensorflow.python.eager.context import get_device_name
 from keras import activations
 from keras import backend as K
 from keras.engine.input_spec import InputSpec
 from keras.layers import recurrent
-from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -47,11 +45,11 @@ _RUNTIME_UNKNOWN = 0
 _RUNTIME_CPU = 1
 _RUNTIME_GPU = 2
 
-_CUDNN_AVAILABLE_MSG = 'Layer %s will use cuDNN kernel when run on GPU.'
-_CUDNN_NOT_AVAILABLE_MSG = ('Layer %s will not use cuDNN kernel since it '
-                            'doesn\'t meet the cuDNN kernel criteria. It will '
-                            'use generic GPU kernel as fallback when running '
-                            'on GPU')
+_CUDNN_AVAILABLE_MSG = 'Layer %s will use cuDNN kernels when running on GPU.'
+_CUDNN_NOT_AVAILABLE_MSG = ('Layer %s will not use cuDNN kernels since it '
+                            'doesn\'t meet the criteria. It will '
+                            'use a generic GPU kernel as fallback when running '
+                            'on GPU.')
 
 
 def _use_new_code():
@@ -120,7 +118,7 @@ class GRUCell(recurrent.GRUCell):
   >>> print(final_state.shape)
   (32, 4)
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use. Default: hyperbolic tangent
       (`tanh`). If you pass None, no activation is applied
@@ -253,7 +251,7 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
   >>> print(final_state.shape)
   (32, 4)
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`).
@@ -406,19 +404,6 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
     if _use_new_code():
       self._defun_wrapper = _DefunWrapper(time_major, go_backwards, 'gru')
 
-  def build(self, input_shape):
-    super(GRU, self).build(input_shape)
-
-    if not all(isinstance(v, resource_variable_ops.ResourceVariable)
-               for v in self.weights):
-      # Non-resource variables, such as DistributedVariables and
-      # AutoCastVariables, do not work properly with the implementation
-      # selector, which is used when cuDNN is used. However, by chance, such
-      # variables happen to work in LSTM, so this check is only needed for GRU.
-      # TODO(b/136512020): Make non-resource variables work with the
-      # implementation selector.
-      self._could_use_gpu_kernel = False
-
   def call(self, inputs, mask=None, training=None, initial_state=None):
     # The input should be dense, padded with zeros. If a ragged input is fed
     # into the layer, it is padded and the row lengths are used for masking.
@@ -553,7 +538,7 @@ def standard_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask,
   counterpart. The RNN step logic has been simplified, eg dropout and mask is
   removed since CuDNN implementation does not support that.
 
-  Arguments:
+  Args:
     inputs: Input tensor of GRU layer.
     init_h: Initial state tensor for the cell output.
     kernel: Weights for cell kernel.
@@ -869,7 +854,7 @@ class LSTMCell(recurrent.LSTMCell):
   >>> print(final_carry_state.shape)
   (32, 4)
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use. Default: hyperbolic tangent
       (`tanh`). If you pass `None`, no activation is applied (ie. "linear"
@@ -995,7 +980,7 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
   >>> print(final_carry_state.shape)
   (32, 4)
 
-  Arguments:
+  Args:
     units: Positive integer, dimensionality of the output space.
     activation: Activation function to use.
       Default: hyperbolic tangent (`tanh`). If you pass `None`, no activation
@@ -1793,9 +1778,6 @@ def _function_register(func, *args, **kwargs):
   Raises:
     ValueError: When the input function is not a defun wrapped python function.
   """
-  if not isinstance(func, function.Function):
-    raise ValueError('Only defun function is allowed to be registered. '
-                     'Got type: %s' % type(func))
   concrete_func = func.get_concrete_function(*args, **kwargs)
   concrete_func.add_to_graph()
   concrete_func.add_gradient_functions_to_graph()

@@ -19,7 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from keras.engine.base_layer import Layer
 from tensorflow.python.platform import tf_logging as logging
@@ -48,7 +48,7 @@ class Reduction(Layer):
   This layer performs a reduction across one axis of its input data. This
   data may optionally be weighted by passing in an identical float tensor.
 
-  Arguments:
+  Args:
     reduction: The type of reduction to perform. Can be one of the following:
       "max", "mean", "min", "prod", or "sum". This layer uses the Tensorflow
       reduce op which corresponds to that reduction (so, for "mean", we use

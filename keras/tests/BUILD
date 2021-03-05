@@ -8,6 +8,7 @@ load("@org_keras//keras:keras.bzl", "tpu_py_test")
 
 package(
     default_visibility = [
+        "//keras:__subpackages__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
     licenses = ["notice"],  # Apache 2.0
@@ -54,9 +55,11 @@ tpu_py_test(
         "automatic_outside_compilation_test.py",
     ],
     disable_experimental = True,
+    disable_mlir_bridge = False,
     python_version = "PY3",
     tags = ["no_oss"],
     deps = [
+        "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:distribute_strategy_test_lib",
@@ -106,7 +109,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 16,
     tags = [
-        "no_rocm",
         "notsan",
     ],
     deps = [
@@ -124,7 +126,7 @@ py_library(
     srcs = [
         "model_architectures.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//keras",
     ],
@@ -146,7 +148,7 @@ tf_py_test(
 py_library(
     name = "model_subclassing_test_util",
     srcs = ["model_subclassing_test_util.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         "//keras",
     ],
@@ -230,6 +232,7 @@ tf_py_test(
     size = "small",
     srcs = ["saved_model_test.py"],
     tags = [
+        "no_oss",  # TODO(b/170766453)
         "notap",  # TODO(b/170766453)
     ],
     deps = [
@@ -332,6 +335,6 @@ tf_py_test(
 py_library(
     name = "get_config_samples",
     srcs = ["get_config_samples.py"],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [],
 )

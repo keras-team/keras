@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -97,7 +97,7 @@ class BatchNormalizationTest(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   def test_batchnorm_convnet(self):
     if tf.test.is_gpu_available(cuda_only=True):
-      with self.session(use_gpu=True):
+      with self.session():
         model = keras.models.Sequential()
         norm = keras.layers.BatchNormalization(
             axis=1, input_shape=(3, 4, 4), momentum=0.8)

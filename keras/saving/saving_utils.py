@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import collections.abc as collections_abc
 import copy
@@ -322,3 +322,8 @@ def try_build_compiled_arguments(model):
           'Compiled the loaded model, but the compiled metrics have yet to '
           'be built. `model.compile_metrics` will be empty until you train '
           'or evaluate the model.')
+
+
+def is_hdf5_filepath(filepath):
+  return (filepath.endswith('.h5') or filepath.endswith('.keras') or
+          filepath.endswith('.hdf5'))

@@ -18,14 +18,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-
-
-# TODO(sourabhbajaj): Remove this once we use the same API for all strategies.
-def is_tpu_strategy(strategy):
-  """We're executing TPU Strategy."""
-  return (strategy is not None and
-          strategy.__class__.__name__.startswith('TPUStrategy'))
+import tensorflow.compat.v2 as tf
+from keras import backend
 
 
 # TODO(b/118776054): Currently we support global batch size for TPUStrategy and
@@ -41,7 +35,7 @@ def call_replica_local_fn(fn, *args, **kwargs):
   This function correctly handles calling `fn` in a cross-replica
   context.
 
-  Arguments:
+  Args:
     fn: The function to call.
     *args: Positional arguments to the `fn`.
     **kwargs: Keyword argument to `fn`.
@@ -59,7 +53,7 @@ def call_replica_local_fn(fn, *args, **kwargs):
       strategy = tf.distribute.get_strategy()
 
   # TODO(b/120571621): TPUStrategy does not implement replica-local variables.
-  is_tpu = is_tpu_strategy(strategy)
+  is_tpu = backend.is_tpu_strategy(strategy)
   if ((not is_tpu) and strategy and tf.distribute.in_cross_replica_context()):
     with strategy.scope():
       return strategy.extended.call_for_each_replica(fn, args, kwargs)

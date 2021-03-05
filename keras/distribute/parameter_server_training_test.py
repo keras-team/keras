@@ -19,18 +19,25 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import random
 import tempfile
+from absl import logging
 from absl.testing import parameterized
+import numpy as np
 
 import keras
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
+from keras import callbacks as callbacks_lib
+from keras.engine import sequential
+from keras.layers import core as core_layers
 from keras.layers.preprocessing import string_lookup
+from keras.optimizer_v2 import gradient_descent
 from keras.optimizer_v2 import rmsprop
-from tensorflow.python.ops.losses import loss_reduction
+from keras.utils import dataset_creator
+from keras.utils import losses_utils
 from tensorflow.python.training.server_lib import ClusterSpec
 
 
@@ -42,16 +49,20 @@ FEATURE_VOCAB = [
 LABEL_VOCAB = ["yes", "no"]
 
 
-def make_coordinator(num_workers, num_ps):
+def make_cluster(num_workers, num_ps):
   cluster_def = multi_worker_test_base.create_in_process_cluster(
       num_workers=num_workers, num_ps=num_ps, rpc_layer="grpc")
   cluster_def["chief"] = [
       "localhost:%d" % multi_worker_test_base.pick_unused_port()
   ]
-  cluster_resolver = SimpleClusterResolver(
-      ClusterSpec(cluster_def), rpc_layer="grpc")
+  return SimpleClusterResolver(ClusterSpec(cluster_def), rpc_layer="grpc")
+
+
+def make_coordinator(num_workers, num_ps, variable_partitioner=None):
   return tf.distribute.experimental.coordinator.ClusterCoordinator(
-      tf.distribute.experimental.ParameterServerStrategy(cluster_resolver))
+      tf.distribute.experimental.ParameterServerStrategy(
+          make_cluster(num_workers, num_ps),
+          variable_partitioner=variable_partitioner))
 
 
 # TODO(yuefengz): move this to keras/integration_tests.
@@ -74,8 +85,11 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
           num_oov_indices=0, mask_token=None)
       label_lookup_layer.adapt(LABEL_VOCAB)
     else:
+      # Do vocab shuffling.
+      shuffled_vocab = FEATURE_VOCAB.copy()
+      random.shuffle(shuffled_vocab)
       feature_lookup_layer = string_lookup.StringLookup(
-          vocabulary=FEATURE_VOCAB, num_oov_indices=1)
+          vocabulary=shuffled_vocab, num_oov_indices=1)
       label_lookup_layer = string_lookup.StringLookup(
           vocabulary=LABEL_VOCAB, num_oov_indices=0, mask_token=None)
 
@@ -96,7 +110,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
   def define_reverse_lookup_layer(self):
     # Only needed for serving.
     label_inverse_lookup_layer = string_lookup.StringLookup(
-        num_oov_indices=1, mask_token=None, vocabulary=LABEL_VOCAB, invert=True)
+        num_oov_indices=0, mask_token=None, vocabulary=LABEL_VOCAB, invert=True)
     return label_inverse_lookup_layer
 
   @tf.__internal__.distribute.combinations.generate(
@@ -155,7 +169,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
           pred = model(batch_data, training=True)
           loss = tf.nn.compute_average_loss(
               keras.losses.BinaryCrossentropy(
-                  reduction=loss_reduction.ReductionV2.NONE)(labels, pred))
+                  reduction=losses_utils.ReductionV2.NONE)(labels, pred))
           gradients = tape.gradient(loss, model.trainable_variables)
 
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
@@ -163,7 +177,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
         accuracy.update_state(labels, actual_pred)
 
-      self.coordinator._strategy.run(replica_fn, args=(iterator,))
+      self.coordinator.strategy.run(replica_fn, args=(iterator,))
 
     distributed_dataset = self.coordinator.create_per_worker_dataset(dataset_fn)
     distributed_iterator = iter(distributed_dataset)
@@ -213,6 +227,141 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
     prediction1 = loaded_serving_fn(
         tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
     self.assertIn(prediction1, ("yes", "no"))
+
+
+class ModelFitTest(tf.test.TestCase, parameterized.TestCase):
+
+  def _model_compile(self,
+                     steps_per_execution=1,
+                     run_eagerly=False,
+                     with_normalization_layer=False):
+
+    class ResultAssertingCallback(callbacks_lib.Callback):
+
+      def __init__(self):
+        self._prev_epoch = -1
+
+      def on_epoch_end(self, epoch, logs=None):
+        logging.info("testModelFit: epoch=%r, logs=%r", epoch, logs)
+        if epoch <= self._prev_epoch:
+          raise RuntimeError("Epoch is supposed to be larger than previous.")
+        self._prev_epoch = epoch
+        if (logs.get("loss", None) is None or
+            not isinstance(logs["loss"], np.floating)):
+          raise RuntimeError("loss is supposed to be in the logs and float.")
+
+    strategy = tf.distribute.experimental.ParameterServerStrategy(
+        make_cluster(3, 2),
+        variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(2))
+    with strategy.scope():
+      model = sequential.Sequential([core_layers.Dense(10)])
+      if with_normalization_layer:
+        norm = keras.layers.BatchNormalization(
+            axis=-1, input_shape=(4, 4, 3), momentum=0.8)
+        model.add(norm)
+
+    model.compile(
+        gradient_descent.SGD(),
+        loss="mse",
+        steps_per_execution=steps_per_execution,
+        run_eagerly=run_eagerly)
+    return model, [ResultAssertingCallback()]
+
+  def _model_fit(self,
+                 steps_per_execution=1,
+                 validation_data=None,
+                 x=None,
+                 steps_per_epoch=10,
+                 run_eagerly=False,
+                 with_normalization_layer=False):
+    model, callbacks = self._model_compile(steps_per_execution, run_eagerly,
+                                           with_normalization_layer)
+
+    def dataset_fn(input_context):
+      del input_context
+      x = tf.random.uniform((10, 10))
+      y = tf.random.uniform((10,))
+      return tf.data.Dataset.from_tensor_slices(
+          (x, y)).shuffle(10).repeat().batch(2)
+
+    x = x or dataset_creator.DatasetCreator(dataset_fn)
+
+    model.fit(
+        x,
+        epochs=10,
+        steps_per_epoch=steps_per_epoch,
+        verbose=0,
+        callbacks=callbacks,
+        validation_data=validation_data)
+    return model
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFit(self):
+    model = self._model_fit()
+    self.assertEqual(model.optimizer.iterations, 100)
+    return model
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFitWithNormalizationLayer(self):
+    model = self._model_fit(with_normalization_layer=True)
+    self.assertEqual(model.optimizer.iterations, 100)
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFitWithStepsPerExecution(self):
+    model = self._model_fit(steps_per_execution=10)
+    self.assertEqual(model.optimizer.iterations, 100)
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFitWithNoStepsPerEpoch(self):
+    with self.assertRaisesRegex(
+        ValueError, "`steps_per_epoch` must be specified with "
+        "`ParameterServerStrategy`."):
+      self._model_fit(steps_per_epoch=None)
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFitWithRunEagerly(self):
+    with self.assertRaisesRegex(
+        ValueError, "When using `Model` with `ParameterServerStrategy`, "
+        "`run_eagerly` is not supported."):
+      self._model_fit(run_eagerly=True)
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFitWithValidationData(self):
+    with self.assertRaisesRegex(
+        NotImplementedError, "Evaluation in `model.fit` with "
+        "`ParameterServerStrategy` is not yet supported."):
+      self._model_fit(
+          validation_data=tf.data.Dataset.from_tensor_slices([1, 1]))
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelFitWithDatasetInstance(self):
+    with self.assertRaisesRegex(
+        NotImplementedError, "Only `DatasetCreator` input is supported in "
+        "`ParameterServerStrategy` at this time."):
+      self._model_fit(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelEvaluate(self):
+    model, _ = self._model_compile()
+    with self.assertRaisesRegex(
+        NotImplementedError, "`model.evaluate` is not yet supported with "
+        "`ParameterServerStrategy`."):
+      model.evaluate(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testModelPredict(self):
+    model, _ = self._model_compile()
+    with self.assertRaisesRegex(
+        NotImplementedError, "`model.predict` is not yet supported with "
+        "`ParameterServerStrategy`."):
+      model.predict(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+
+  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=["eager"]))
+  def testClusterCoordinatorSingleInstance(self):
+    model = self._model_fit()
+    strategy = model.distribute_strategy
+    self.assertIs(strategy._cluster_coordinator,
+                  tf.distribute.experimental.coordinator.ClusterCoordinator(strategy))
 
 
 if __name__ == "__main__":

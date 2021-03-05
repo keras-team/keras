@@ -18,10 +18,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 from tensorflow.python.eager import def_function
-from tensorflow.python.eager import function as defun
 from keras.saving.saved_model import constants
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.training.tracking.tracking import AutoTrackable
@@ -191,8 +190,7 @@ class SerializedAttributes(object):
     for key in self.all_functions:
       if key in function_dict:
         if (function_dict[key] is not None and  # Not all functions are required
-            not isinstance(function_dict[key],
-                           (defun.Function, def_function.Function))):
+            not isinstance(function_dict[key], def_function.Function)):
           raise ValueError(
               'Function dictionary contained a non-function object: {} (for key'
               ' {})'.format(function_dict[key], key))

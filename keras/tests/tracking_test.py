@@ -16,7 +16,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import os
 
@@ -38,7 +38,7 @@ class HasList(training.Model):
 
   def __init__(self):
     super(HasList, self).__init__()
-    self.layer_list = data_structures.List([core.Dense(3)])
+    self.layer_list = tf.__internal__.tracking.wrap([core.Dense(3)])
     self.layer_list.append(core.Dense(4))
     self.layer_list.extend(
         [core.Dense(5),
@@ -48,13 +48,13 @@ class HasList(training.Model):
         core.Dense(8)
     ]
     self.layer_list += (
-        data_structures.List([core.Dense(9)]) + data_structures.List(
-            [core.Dense(10)]))
+        tf.__internal__.tracking.wrap([core.Dense(9)]) +
+        tf.__internal__.tracking.wrap([core.Dense(10)]))
     self.layer_list.extend(
-        data_structures.List(
+        tf.__internal__.tracking.wrap(
             list([core.Dense(11)]) + [core.Dense(12)]))
-    self.layers_with_updates = data_structures.List(
-        (normalization.BatchNormalization(),))
+    self.layers_with_updates = tf.__internal__.tracking.wrap(
+        [normalization.BatchNormalization()])
 
   def call(self, x):
     aggregation = 0.
@@ -225,7 +225,7 @@ class ListWrapperTest(tf.test.TestCase):
 
   def testLayerCollectionWithExternalMutation(self):
     l = []
-    l_wrapper = data_structures.ListWrapper(l)
+    l_wrapper = tf.__internal__.tracking.wrap(l)
     layer = core.Dense(1)
     l.append(layer)
     self.assertEqual([layer], l_wrapper.layers)
@@ -235,9 +235,9 @@ class HasMapping(training.Model):
 
   def __init__(self):
     super(HasMapping, self).__init__()
-    self.layer_dict = data_structures.Mapping(output=core.Dense(7))
-    self.layer_dict["norm"] = data_structures.List()
-    self.layer_dict["dense"] = data_structures.List()
+    self.layer_dict = tf.__internal__.tracking.wrap(dict(output=core.Dense(7)))
+    self.layer_dict["norm"] = tf.__internal__.tracking.wrap([])
+    self.layer_dict["dense"] = tf.__internal__.tracking.wrap([])
     self.layer_dict["dense"].extend(
         [core.Dense(5),
          core.Dense(6, kernel_regularizer=tf.reduce_sum)])
@@ -293,7 +293,7 @@ class MappingTests(keras_parameterized.TestCase):
   def testDictWrapperBadKeys(self):
     a = tf.Module()
     a.d = {}
-    a.d[1] = data_structures.List()
+    a.d[1] = tf.__internal__.tracking.wrap([])
     model = training.Model()
     model.sub = a
     save_path = os.path.join(self.get_temp_dir(), "ckpt")

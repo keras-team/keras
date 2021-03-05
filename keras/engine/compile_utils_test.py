@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras import backend as K
 from keras import keras_parameterized
 from keras import losses as losses_mod
@@ -41,6 +41,9 @@ class LossesContainerTest(keras_parameterized.TestCase):
     loss_metric = loss_container.metrics[0]
     self.assertEqual(loss_metric.name, 'loss')
     self.assertEqual(loss_metric.result().numpy(), 1.)
+
+    loss_container.reset_states()
+    self.assertEqual(loss_metric.result().numpy(), 0.)
 
   def test_loss_list(self):
     loss_container = compile_utils.LossesContainer(['mse', 'mae'], [1, 0.5])
@@ -67,6 +70,11 @@ class LossesContainerTest(keras_parameterized.TestCase):
     output_2_metric = loss_container.metrics[2]
     self.assertEqual(output_2_metric.name, 'output_2_loss')
     self.assertEqual(output_2_metric.result().numpy(), 0.5)
+
+    loss_container.reset_states()
+    self.assertEqual(loss_metric.result().numpy(), 0)
+    self.assertEqual(output_1_metric.result().numpy(), 0)
+    self.assertEqual(output_2_metric.result().numpy(), 0)
 
   def test_loss_dict(self):
     loss_container = compile_utils.LossesContainer(
@@ -99,6 +107,11 @@ class LossesContainerTest(keras_parameterized.TestCase):
     out2_metric = loss_container.metrics[2]
     self.assertEqual(out2_metric.name, 'out2_loss')
     self.assertEqual(out2_metric.result().numpy(), 0.5)
+
+    loss_container.reset_states()
+    self.assertEqual(loss_metric.result().numpy(), 0)
+    self.assertEqual(out1_metric.result().numpy(), 0)
+    self.assertEqual(out2_metric.result().numpy(), 0)
 
   def test_loss_partial_dict_with_output_names(self):
     loss_container = compile_utils.LossesContainer(
@@ -350,6 +363,35 @@ class LossesContainerTest(keras_parameterized.TestCase):
     self.assertEqual(loss_container._losses[0].name, 'custom_loss_fn')
     self.assertEqual(loss_container._losses[1].name, 'custom_loss_class')
 
+  def test_ragged_tensor_output(self):
+    """ Ensure that ragged tensors can be passed as targets and predictions."""
+
+    def custom_loss_fn(y_true, y_pred):
+      """ MSE supports RaggedTensors directly."""
+      return losses_mod.mse(y_true, y_pred)
+
+    class CustomLossClass(losses_mod.Loss):
+      """ User defined loss function must implement RaggedTensor support."""
+
+      def call(self, y_true, y_pred):
+        losses = tf.ragged.map_flat_values(
+            tf.math.squared_difference, y_true, y_pred)
+        return tf.reduce_mean(losses)
+
+    loss_container = compile_utils.LossesContainer(
+        [custom_loss_fn, CustomLossClass()])
+
+    v_t = tf.constant([[3., 4.], [1., 2.], [3., 5.]])
+    v_p = tf.constant([[3.1, 4.], [1., 2.], [3., 5.]])
+
+    y_t = tf.compat.v1.expand_dims(
+        tf.RaggedTensor.from_row_splits(v_t, [0, 2, 3]), 0)
+    y_p = tf.compat.v1.expand_dims(
+        tf.RaggedTensor.from_row_splits(v_p, [0, 2, 3]), 0)
+    loss_container(y_t, y_p)
+
+    self.assertEqual(loss_container._losses[0].name, 'custom_loss_fn')
+
 
 class MetricsContainerTest(keras_parameterized.TestCase):
 
@@ -362,6 +404,9 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     metric = metric_container.metrics[0]
     self.assertEqual(metric.name, 'mse')
     self.assertEqual(metric.result().numpy(), 1.)
+
+    metric_container.reset_states()
+    self.assertEqual(metric.result().numpy(), 0.)
 
   def test_list_of_metrics_one_output(self):
     metric_container = compile_utils.MetricsContainer(['mse', 'mae'])
@@ -376,6 +421,10 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     mae_metric = metric_container.metrics[1]
     self.assertEqual(mae_metric.name, 'mae')
     self.assertEqual(mae_metric.result().numpy(), 2.)
+
+    metric_container.reset_states()
+    self.assertEqual(mse_metric.result().numpy(), 0.)
+    self.assertEqual(mae_metric.result().numpy(), 0.)
 
   def test_list_of_metrics_list_of_outputs(self):
     metric_container = compile_utils.MetricsContainer(
@@ -457,6 +506,12 @@ class MetricsContainerTest(keras_parameterized.TestCase):
     weighted_mae_metric = metric_container.metrics[3]
     self.assertEqual(weighted_mae_metric.name, 'out2_weighted_mae')
     self.assertEqual(weighted_mae_metric.result().numpy(), 2.)
+
+    metric_container.reset_states()
+    self.assertEqual(mse_metric.result().numpy(), 0.)
+    self.assertEqual(weighted_mse_metric.result().numpy(), 0.)
+    self.assertEqual(mae_metric.result().numpy(), 0.)
+    self.assertEqual(weighted_mae_metric.result().numpy(), 0.)
 
   def test_metric_partial_dict_with_output_names(self):
     metric_container = compile_utils.MetricsContainer(
@@ -726,6 +781,15 @@ class MetricsContainerTest(keras_parameterized.TestCase):
 
     self.assertEqual(metric_container.metrics[0].name, 'custom_metric_fn')
     self.assertEqual(metric_container.metrics[1].name, 'custom_metric_class')
+
+  def test_reset_states_existing_metric_before_built(self):
+    metric = metrics_mod.Mean()
+    metric.update_state([2.0, 4.0])
+    self.assertEqual(metric.result().numpy(), 3.0)
+
+    metric_container = compile_utils.MetricsContainer(metric)
+    metric_container.reset_states()
+    self.assertEqual(metric.result().numpy(), 0.0)
 
 
 if __name__ == '__main__':

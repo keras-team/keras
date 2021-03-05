@@ -22,7 +22,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 from keras import backend as K
 from keras.engine.base_layer import Layer
 from keras.utils import control_flow_util
@@ -44,7 +44,7 @@ class BaseDenseAttention(Layer):
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores.
 
-  Call Arguments:
+  Call Args:
 
     inputs: List of the following tensors:
       * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
@@ -120,7 +120,11 @@ class BaseDenseAttention(Layer):
     if scores_mask is not None:
       padding_mask = tf.logical_not(scores_mask)
       # Bias so padding positions do not contribute to attention distribution.
-      scores -= 1.e9 * tf.cast(padding_mask, dtype=K.floatx())
+      # Note 65504. is the max float16 value.
+      if scores.dtype is tf.float16:
+        scores -= 65504. * tf.cast(padding_mask, dtype=scores.dtype)
+      else:
+        scores -= 1.e9 * tf.cast(padding_mask, dtype=scores.dtype)
     if training is None:
       training = K.learning_phase()
     weights = tf.compat.v1.math.softmax(scores)
@@ -236,7 +240,7 @@ class Attention(BaseDenseAttention):
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores.
 
-  Call Arguments:
+  Call Args:
 
     inputs: List of the following tensors:
       * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.
@@ -375,7 +379,7 @@ class AdditiveAttention(BaseDenseAttention):
     dropout: Float between 0 and 1. Fraction of the units to drop for the
       attention scores.
 
-  Call Arguments:
+  Call Args:
 
     inputs: List of the following tensors:
       * query: Query `Tensor` of shape `[batch_size, Tq, dim]`.

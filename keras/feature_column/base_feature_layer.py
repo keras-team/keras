@@ -21,13 +21,13 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
+import re
 
 from tensorflow.python.feature_column import feature_column_v2
 from keras.engine.base_layer import Layer
 from keras.utils import generic_utils
-from tensorflow.python.ops import variable_scope
 
 
 class _BaseFeaturesLayer(Layer):
@@ -73,12 +73,10 @@ class _BaseFeaturesLayer(Layer):
 
   def build(self, _):
     for column in self._feature_columns:
-      with variable_scope._pure_variable_scope(  # pylint: disable=protected-access
-          self.name,
-          partitioner=self._partitioner):
-        with variable_scope._pure_variable_scope(  # pylint: disable=protected-access
-            feature_column_v2._sanitize_column_name_for_variable_scope(  # pylint: disable=protected-access
-                column.name)):
+      with tf.compat.v1.variable_scope(
+          self.name, partitioner=self._partitioner):
+        with tf.compat.v1.variable_scope(
+            _sanitize_column_name_for_variable_scope(column.name)):
           column.create_state(self._state_manager)
     super(_BaseFeaturesLayer, self).build(None)
 
@@ -116,8 +114,7 @@ class _BaseFeaturesLayer(Layer):
 
   def _verify_and_concat_tensors(self, output_tensors):
     """Verifies and concatenates the dense output of several columns."""
-    feature_column_v2._verify_static_batch_size_equality(  # pylint: disable=protected-access
-        output_tensors, self._feature_columns)
+    _verify_static_batch_size_equality(output_tensors, self._feature_columns)
     return tf.concat(output_tensors, -1)
 
   def get_config(self):
@@ -144,3 +141,36 @@ class _BaseFeaturesLayer(Layer):
         config['partitioner'], custom_objects)
 
     return cls(**config_cp)
+
+
+def _sanitize_column_name_for_variable_scope(name):
+  """Sanitizes user-provided feature names for use as variable scopes."""
+  invalid_char = re.compile('[^A-Za-z0-9_.\\-]')
+  return invalid_char.sub('_', name)
+
+
+def _verify_static_batch_size_equality(tensors, columns):
+  """Verify equality between static batch sizes.
+
+  Args:
+    tensors: iterable of input tensors.
+    columns: Corresponding feature columns.
+
+  Raises:
+    ValueError: in case of mismatched batch sizes.
+  """
+  expected_batch_size = None
+  for i in range(0, len(tensors)):
+    # bath_size is a Dimension object.
+    batch_size = tf.compat.v1.Dimension(tf.compat.dimension_value(
+        tensors[i].shape[0]))
+    if batch_size.value is not None:
+      if expected_batch_size is None:
+        bath_size_column_index = i
+        expected_batch_size = batch_size
+      elif not expected_batch_size.is_compatible_with(batch_size):
+        raise ValueError(
+            'Batch size (first dimension) of each feature must be same. '
+            'Batch size of columns ({}, {}): ({}, {})'.format(
+                columns[bath_size_column_index].name, columns[i].name,
+                expected_batch_size, batch_size))

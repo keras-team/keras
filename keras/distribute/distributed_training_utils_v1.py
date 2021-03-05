@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 
@@ -138,7 +138,7 @@ def unwrap_output_dict(strategy, grouped_outputs, mode):
                                        grouped_outputs['metrics'])
   batch_size = strategy.reduce(tf.distribute.ReduceOp.SUM,
                                grouped_outputs['batch_size'], axis=None)
-  if (dist_utils.is_tpu_strategy(strategy) and
+  if (K.is_tpu_strategy(strategy) and
       tf.compat.v1.executing_eagerly_outside_functions()):
     # Choose 1 value per replica in the TPU case since all replicas produce the
     # same output.
@@ -186,7 +186,7 @@ def unwrap_outputs(distribution_strategy, grouped_outputs,
                                       grouped_outputs[0], axis=None)
   all_outputs = flatten_per_replica_values(distribution_strategy,
                                            grouped_outputs[1:])
-  if (dist_utils.is_tpu_strategy(distribution_strategy) and
+  if (K.is_tpu_strategy(distribution_strategy) and
       tf.compat.v1.executing_eagerly_outside_functions()):
     # Choose 1 value per replica in the TPU case since all replicas produce the
     # same output.
@@ -481,12 +481,12 @@ def get_input_params(distribution_strategy,
   if tf.executing_eagerly():
     allow_partial_batch = (
         mode != ModeKeys.TRAIN or
-        not dist_utils.is_tpu_strategy(distribution_strategy))
+        not K.is_tpu_strategy(distribution_strategy))
   else:
     allow_partial_batch = (
         mode == ModeKeys.TRAIN or
         ((mode == ModeKeys.PREDICT or mode == ModeKeys.TEST) and
-         dist_utils.is_tpu_strategy(distribution_strategy)))
+         K.is_tpu_strategy(distribution_strategy)))
 
   if steps is None:
     if batch_size is None:
@@ -596,7 +596,7 @@ def _get_input_from_iterator(iterator, model):
 def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
   """Prepare feed values to the model execution function.
 
-  Arguments:
+  Args:
     model: Model to prepare feed values for.
     inputs: List or dict of model inputs.
     targets: Optional list of model targets.
@@ -608,7 +608,7 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
   """
   strategy = model._distribution_strategy
   inputs, targets, sample_weights = _get_input_from_iterator(inputs, model)
-  if dist_utils.is_tpu_strategy(strategy):
+  if K.is_tpu_strategy(strategy):
     if sample_weights is not None:
       raise ValueError('TPUStrategy does not support sample weights.')
 
@@ -654,7 +654,7 @@ def is_distributing_by_cloning(model):
     True if the `model` is going to be distributed using cloning and False
     otherwise.
   """
-  if (dist_utils.is_tpu_strategy(model._distribution_strategy) and
+  if (K.is_tpu_strategy(model._distribution_strategy) and
       tf.executing_eagerly):  # b/137580852
     return False
   elif tf.compat.v1.executing_eagerly_outside_functions():
@@ -1082,7 +1082,7 @@ def is_current_worker_chief():
 def filter_distributed_callbacks(callbacks_list, model):
   """Filter Callbacks based on the worker context when running multi-worker.
 
-  Arguments:
+  Args:
     callbacks_list: A list of `Callback` instances.
     model: Keras model instance.
 

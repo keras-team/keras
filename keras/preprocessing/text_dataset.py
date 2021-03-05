@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras.preprocessing import dataset_utils
@@ -57,13 +57,14 @@ def text_dataset_from_directory(directory,
 
   Only `.txt` files are supported at this time.
 
-  Arguments:
+  Args:
     directory: Directory where the data is located.
         If `labels` is "inferred", it should contain
         subdirectories, each containing text files for a class.
         Otherwise, the directory structure is ignored.
     labels: Either "inferred"
         (labels are generated from the directory structure),
+        None (no labels),
         or a list/tuple of integer labels of the same size as the number of
         text files found in the directory. Labels should be sorted according
         to the alphanumeric order of the text file paths
@@ -112,7 +113,7 @@ def text_dataset_from_directory(directory,
       of shape `(batch_size, num_classes)`, representing a one-hot
       encoding of the class index.
   """
-  if labels != 'inferred':
+  if labels not in ('inferred', None):
     if not isinstance(labels, (list, tuple)):
       raise ValueError(
           '`labels` argument should be a list/tuple of integer labels, of '
@@ -129,6 +130,9 @@ def text_dataset_from_directory(directory,
     raise ValueError(
         '`label_mode` argument must be one of "int", "categorical", "binary", '
         'or None. Received: %s' % (label_mode,))
+  if labels is None or label_mode is None:
+    labels = None
+    label_mode = None
   dataset_utils.check_validation_split_arg(
       validation_split, subset, shuffle, seed)
 
@@ -150,6 +154,8 @@ def text_dataset_from_directory(directory,
 
   file_paths, labels = dataset_utils.get_training_or_validation_split(
       file_paths, labels, validation_split, subset)
+  if not file_paths:
+    raise ValueError('No text files found.')
 
   dataset = paths_and_labels_to_dataset(
       file_paths=file_paths,

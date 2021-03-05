@@ -19,7 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import warnings
 
@@ -44,7 +44,7 @@ class BatchNormalization(keras_normalization.BatchNormalization, base.Layer):
     train_op = tf.group([train_op, update_ops])
   ```
 
-  Arguments:
+  Args:
     axis: An `int` or list of `int`, the axis or axes that should be normalized,
       typically the features axis/axes. For instance, after a `Conv2D` layer
       with `data_format="channels_first"`, set `axis=1`. If a list of axes is
@@ -217,7 +217,7 @@ def batch_normalization(inputs,
     train_op = tf.group([train_op, update_ops])
   ```
 
-  Arguments:
+  Args:
     inputs: Tensor input.
     axis: An `int`, the axis that should be normalized (typically the features
       axis). For instance, after a `Convolution2D` layer with

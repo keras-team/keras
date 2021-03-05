@@ -16,7 +16,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import functools
 import os
@@ -33,7 +33,6 @@ from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.optimizer_v2 import adam
-from tensorflow.python.ops import resource_variable_ops
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_utils
@@ -84,24 +83,6 @@ class InterfaceTests(tf.test.TestCase):
       model.fit([1.], [2.])
       checkpoint = tf.train.Checkpoint(model=model)
       checkpoint.save(os.path.join(self.get_temp_dir(), "ckpt"))
-
-  def testObjectMetadata(self):
-    if not tf.executing_eagerly():
-      self.skipTest("Run in eager mode only.")
-
-    checkpoint_directory = self.get_temp_dir()
-    checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
-    dense = core.Dense(1)
-    checkpoint = tf.train.Checkpoint(dense=dense)
-    dense(tf.constant([[1.]]))
-    save_path = checkpoint.save(checkpoint_prefix)
-
-    objects = trackable_utils.object_metadata(save_path)
-    all_variable_names = []
-    for obj in objects.nodes:
-      for attribute in obj.attributes:
-        all_variable_names.append(attribute.full_name)
-    self.assertIn("dense/kernel", all_variable_names)
 
 
 class CheckpointingTests(keras_parameterized.TestCase):
@@ -259,7 +240,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       # Optimizer slot variables are created when the original variable is
       # restored.
       self.assertAllEqual([1.5], self.evaluate(on_create_m_bias_slot))
-      dummy_var = resource_variable_ops.ResourceVariable([1.])
+      dummy_var = tf.Variable([1.])
       on_create_optimizer.minimize(loss=dummy_var.read_value,
                                    var_list=[dummy_var])
       status.assert_existing_objects_matched()
@@ -445,8 +426,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
 
       def __init__(self):
         super(Model, self).__init__()
-        self.w = resource_variable_ops.ResourceVariable(0.0)
-        self.b = resource_variable_ops.ResourceVariable(0.0)
+        self.w = tf.Variable(0.0)
+        self.b = tf.Variable(0.0)
         self.vars = [self.w, self.b]
 
       def call(self, x):
@@ -860,8 +841,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
         self._check_sentinels(root)
         # Check that there is no error when keys are missing from the name-based
         # checkpoint.
-        root.not_in_name_checkpoint = resource_variable_ops.ResourceVariable(
-            [1.])
+        root.not_in_name_checkpoint = tf.Variable([1.])
         status = object_saver.restore(save_path)
         with self.assertRaises(AssertionError):
           status.assert_existing_objects_matched()

@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
 import functools
@@ -156,7 +156,7 @@ class Layer(base_layer.Layer):
   It is considered legacy, and we recommend the use of `tf.keras.layers.Layer`
   instead.
 
-  Arguments:
+  Args:
     trainable: Boolean, whether the layer's variables should be trainable.
     name: String name of the layer.
     dtype: Default dtype of the layer's weights (default of `None` means use the
@@ -327,7 +327,7 @@ class Layer(base_layer.Layer):
                  **kwargs):
     """Adds a new variable to the layer, or gets an existing one; returns it.
 
-    Arguments:
+    Args:
       name: variable name.
       shape: variable shape.
       dtype: The type of the variable. Defaults to `self.dtype` or `float32`.
@@ -482,7 +482,7 @@ class Layer(base_layer.Layer):
   def __call__(self, inputs, *args, **kwargs):
     """Wraps `call`, applying pre- and post-processing steps.
 
-    Arguments:
+    Args:
       inputs: input tensor(s).
       *args: additional positional arguments to be passed to `self.call`.
       **kwargs: additional keyword arguments to be passed to `self.call`.
@@ -520,12 +520,20 @@ class Layer(base_layer.Layer):
         # rather than initializing to None we check for an AttributeError.
         scope_context_manager = self._always_reuse_variable_scope
       except AttributeError:
+        scope_context_manager = None
+
+      if scope_context_manager is None:
         # From this point we will always set reuse=True, so create a "final"
         # variable scope with this setting. We avoid re-creating variable scopes
         # after this point as an optimization.
-        self._always_reuse_variable_scope = tf.compat.v1.variable_scope(
+        scope_context_manager = tf.compat.v1.variable_scope(
             self._scope, reuse=True, auxiliary_name_scope=False)
-        scope_context_manager = self._always_reuse_variable_scope
+
+        # Do not cache variable scopes if Eager mode is enabled. If Eager mode
+        # is enabled then we don't want to reuse scopes because the cached scope
+        # might be from a FuncGraph or Eager scope we are no longer in.
+        if not tf.compat.v1.executing_eagerly_outside_functions():
+          self._always_reuse_variable_scope = scope_context_manager
     else:
       scope_context_manager = tf.compat.v1.variable_scope(
           self._scope, reuse=self._reuse, auxiliary_name_scope=False)

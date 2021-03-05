@@ -19,7 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import abc
 import contextlib
@@ -27,7 +27,6 @@ import functools
 
 import six
 from tensorflow.python.distribute import values as ds_values
-from tensorflow.python.eager import monitoring
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
@@ -42,7 +41,7 @@ from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
-keras_optimizers_gauge = monitoring.BoolGauge(
+keras_optimizers_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/optimizers", "keras optimizer usage", "method")
 
 _DEFAULT_VALID_DTYPES = frozenset([
@@ -723,7 +722,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     Should be used only in legacy v1 graph mode.
 
-    Arguments:
+    Args:
       loss: Loss tensor.
       params: List of variables.
 
@@ -1022,7 +1021,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     capable of instantiating the same optimizer from the config
     dictionary.
 
-    Arguments:
+    Args:
         config: A Python dictionary, typically the output of get_config.
         custom_objects: A Python dictionary mapping names to additional Python
           objects used to create this optimizer, such as a function used for a
@@ -1116,7 +1115,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     >>> opt.iterations
     <tf.Variable 'RMSprop/iter:0' shape=() dtype=int64, numpy=10>
 
-    Arguments:
+    Args:
         weights: weight values as a list of numpy arrays.
     """
     params = self.weights

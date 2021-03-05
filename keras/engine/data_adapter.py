@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import abc
 import contextlib
@@ -30,16 +30,16 @@ import random
 import numpy as np
 import six
 from tensorflow.python.eager import context
-from tensorflow.python.eager import monitoring
 from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras.engine import training_utils
 from keras.utils import data_utils
+from keras.utils import dataset_creator
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
-keras_data_adapter_gauge = monitoring.BoolGauge(
+keras_data_adapter_gauge = tf.__internal__.monitoring.BoolGauge(
     "/tensorflow/api/oss-keras/data_adapters", "keras data adapter usage", "method")
 
 try:
@@ -499,6 +499,40 @@ class GenericArrayLikeDataAdapter(TensorLikeDataAdapter):
     return dataset
 
 
+class DatasetCreatorAdapter(DataAdapter):
+  """Adapter that handles dataset functions."""
+
+  def __init__(self, *args, **kwargs):
+    super(DatasetCreatorAdapter, self).__init__(*args, **kwargs)
+
+  @staticmethod
+  def can_handle(x, y=None):
+    if isinstance(x, dataset_creator.DatasetCreator):
+      assert y is None
+      return True
+
+  def should_recreate_iterator(self):
+    # We expect users to shuffle the dataset in their `dataset_fn` supplied to
+    # `DatasetCreator`. Since that is a buffered shuffle, we intend to not reset
+    # the dataset so the batches that are not shuffled can still be pulled.
+    return False
+
+  def get_size(self):
+    raise NotImplementedError()
+
+  def get_dataset(self):
+    raise NotImplementedError()
+
+  def batch_size(self):
+    raise NotImplementedError()
+
+  def has_partial_batch(self):
+    raise NotImplementedError()
+
+  def partial_batch_size(self):
+    raise NotImplementedError()
+
+
 class CompositeTensorDataAdapter(DataAdapter):
   """Adapter that handles composite tensor."""
 
@@ -509,11 +543,12 @@ class CompositeTensorDataAdapter(DataAdapter):
       flat_inputs += tf.nest.flatten(y)
 
     def _is_composite(v):
-      # Dataset/iterator inherits from CompositeTensor but should be handled
-      # by DatasetAdapter and GeneratorAdapter.
+      # Dataset/iterator/DistributedDataset inherits from CompositeTensor but
+      # should be handled by DatasetAdapter and GeneratorAdapter.
       if (tf_utils.is_extension_type(v) and
-          not isinstance(v, (tf.data.Dataset,
-                             tf.data.Iterator))):
+          not isinstance(v,
+                         (tf.data.Dataset, tf.data.Iterator)) and
+          not _is_distributed_dataset(v)):
         return True
       # Support Scipy sparse tensors if scipy is installed
       if scipy_sparse is not None and scipy_sparse.issparse(v):
@@ -933,8 +968,8 @@ class KerasSequenceAdapter(GeneratorDataAdapter):
 
 ALL_ADAPTER_CLS = [
     ListsOfScalarsDataAdapter, TensorLikeDataAdapter,
-    GenericArrayLikeDataAdapter, DatasetAdapter,
-    GeneratorDataAdapter, KerasSequenceAdapter, CompositeTensorDataAdapter,
+    GenericArrayLikeDataAdapter, DatasetAdapter, GeneratorDataAdapter,
+    KerasSequenceAdapter, CompositeTensorDataAdapter, DatasetCreatorAdapter
 ]
 
 
@@ -1064,7 +1099,30 @@ class DataHandler(object):
                workers=1,
                use_multiprocessing=False,
                model=None,
-               steps_per_execution=None):
+               steps_per_execution=None,
+               distribute=True):
+    """Initializes a `DataHandler`.
+
+    Arguments:
+      x: See `Model.fit`.
+      y: See `Model.fit`.
+      sample_weight: See `Model.fit`.
+      batch_size: See `Model.fit`.
+      steps_per_epoch: See `Model.fit`.
+      initial_epoch: See `Model.fit`.
+      epochs: See `Model.fit`.
+      shuffle: See `Model.fit`.
+      class_weight: See `Model.fit`.
+      max_queue_size: See `Model.fit`.
+      workers: See `Model.fit`.
+      use_multiprocessing: See `Model.fit`.
+      model: The `Model` instance. Needed in order to correctly `build` the
+        `Model` using generator-like inputs (see `GeneratorDataAdapter`).
+      steps_per_execution: See `Model.compile`.
+      distribute: Whether to distribute the `tf.dataset`.
+        `PreprocessingLayer.adapt` does not support distributed datasets,
+        `Model` should always set this to `True`.
+    """
 
     self._initial_epoch = initial_epoch
     self._epochs = epochs
@@ -1082,6 +1140,7 @@ class DataHandler(object):
       self._steps_per_execution_value = steps_per_execution.numpy().item()
 
     adapter_cls = select_data_adapter(x, y)
+    self._verify_data_adapter_compatibility(adapter_cls)
     self._adapter = adapter_cls(
         x,
         y,
@@ -1097,19 +1156,33 @@ class DataHandler(object):
         model=model)
 
     strategy = tf.distribute.get_strategy()
-    dataset = self._adapter.get_dataset()
-    if class_weight:
-      dataset = dataset.map(_make_class_weight_map_fn(class_weight))
-    self._inferred_steps = self._infer_steps(steps_per_epoch, dataset)
-
-    if not _is_distributed_dataset(dataset):
-      dataset = strategy.experimental_distribute_dataset(dataset)
-    self._dataset = dataset
 
     self._current_step = 0
     self._step_increment = self._steps_per_execution_value - 1
     self._insufficient_data = False
 
+    self._configure_dataset_and_inferred_steps(strategy, x, steps_per_epoch,
+                                               class_weight, distribute)
+
+  def _verify_data_adapter_compatibility(self, adapter_cls):
+    if adapter_cls == DatasetCreatorAdapter:
+      raise NotImplementedError("`DatasetCreator` input is only supported in "
+                                "`ParameterServerStrategy` at this time.")
+
+  def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
+                                            class_weight, distribute):
+    """Configure the `_dataset` and `_inferred_steps` attributes."""
+    del x
+    dataset = self._adapter.get_dataset()
+    if class_weight:
+      dataset = dataset.map(_make_class_weight_map_fn(class_weight))
+    self._inferred_steps = self._infer_steps(steps_per_epoch, dataset)
+
+    # `PreprocessingLayer.adapt` does not currently support distributed
+    # datasets, so we pass `distribute=False` there.
+    if distribute and not _is_distributed_dataset(dataset):
+      dataset = strategy.experimental_distribute_dataset(dataset)
+    self._dataset = dataset
     self._validate_data_handler()
 
   def enumerate_epochs(self):
@@ -1141,12 +1214,15 @@ class DataHandler(object):
         self._steps_per_execution.assign(original_value)
         self._steps_per_execution_value = original_value
 
+  def sync(self):
+    context.async_wait()
+
   @contextlib.contextmanager
   def catch_stop_iteration(self):
     """Catches errors when an iterator runs out of data."""
     try:
       yield
-      context.async_wait()
+      self.sync()
     except (StopIteration, tf.errors.OutOfRangeError):
       if self._inferred_steps is None:
         self._inferred_steps = self._current_step
@@ -1245,6 +1321,46 @@ class DataHandler(object):
           "`steps_per_execution > 1`, you must specify the number of steps "
           "to run.")
 
+  def resolve_logs(self, logs):
+    return logs
+
+
+class _ClusterCoordinatorDataHandler(DataHandler):
+  """A `DataHandler` that is compatible with `ClusterCoordinator`."""
+
+  def _verify_data_adapter_compatibility(self, adapter_cls):
+    if adapter_cls != DatasetCreatorAdapter:
+      raise NotImplementedError("Only `DatasetCreator` input is supported in "
+                                "`ParameterServerStrategy` at this time.")
+
+  def _configure_dataset_and_inferred_steps(self, strategy, x, steps_per_epoch,
+                                            class_weight, distribute):
+    if not isinstance(x, dataset_creator.DatasetCreator):
+      raise TypeError("When using `ParameterServerStrategy`, `x` must be a "
+                      "`DatasetCreator`.")
+
+    def per_worker_dataset_fn():
+      return strategy.distribute_datasets_from_function(x)
+
+    self._dataset = self._model._cluster_coordinator.create_per_worker_dataset(  # pylint: disable=protected-access
+        per_worker_dataset_fn)
+    if steps_per_epoch is None:
+      raise ValueError(
+          "`steps_per_epoch` must be specified with `ParameterServerStrategy`.")
+    self._inferred_steps = steps_per_epoch
+
+  def sync(self):
+    self._model._cluster_coordinator.join()  # pylint: disable=protected-access
+
+  def resolve_logs(self, logs):
+    return logs.fetch()
+
+
+def get_data_handler(*args, **kwargs):
+  if getattr(kwargs["model"], "_cluster_coordinator", None):
+    return _ClusterCoordinatorDataHandler(*args, **kwargs)
+  return DataHandler(*args, **kwargs)
+
 
 def _make_class_weight_map_fn(class_weight):
   """Applies class weighting to a `Dataset`.
@@ -1252,7 +1368,7 @@ def _make_class_weight_map_fn(class_weight):
   The `Dataset` is assumed to be in format `(x, y)` or `(x, y, sw)`, where
   `y` must be a single `Tensor`.
 
-  Arguments:
+  Args:
     class_weight: A map where the keys are integer class ids and values are
       the class weights, e.g. `{0: 0.2, 1: 0.6, 2: 0.3}`
 
@@ -1320,7 +1436,7 @@ def train_validation_split(arrays, validation_split):
 
   The last part of data will become validation data.
 
-  Arguments:
+  Args:
     arrays: Tensors to split. Allowed inputs are arbitrarily nested structures
       of Tensors and NumPy arrays.
     validation_split: Float between 0 and 1. The proportion of the dataset to
@@ -1418,7 +1534,7 @@ def unpack_x_y_sample_weight(data):
       return {m.name: m.result() for m in self.metrics}
   ```
 
-  Arguments:
+  Args:
     data: A tuple of the form `(x,)`, `(x, y)`, or `(x, y, sample_weight)`.
 
   Returns:
@@ -1458,7 +1574,7 @@ def pack_x_y_sample_weight(x, y=None, sample_weight=None):
   True
   >>> x, y = data
 
-  Arguments:
+  Args:
     x: Features to pass to `Model`.
     y: Ground-truth targets to pass to `Model`.
     sample_weight: Sample weight for each element.

@@ -45,7 +45,7 @@ py_library(
         "saved_model_experimental.py",
         "saving_utils.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [
         ":load_context",
         "//:expect_h5py_installed",
@@ -58,6 +58,7 @@ py_library(
         "//keras/engine:input_spec",
         "//keras/mixed_precision:autocast_variable",
         "//keras/protobuf:saved_metadata_proto_py",
+        "//keras/saving/utils_v1",
         "//keras/utils:engine_utils",
         "//keras/utils:metrics_utils",
         "//keras/utils:mode_keys",
@@ -69,7 +70,7 @@ py_library(
     srcs = [
         "saved_model/load_context.py",
     ],
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     deps = [],
 )
 
@@ -165,7 +166,6 @@ tf_py_test(
     tags = [
         "no_rocm",
         "no_windows",
-        "notap",  # TODO(b/161198218): flaky timeout
     ],
     deps = [
         "//:expect_absl_installed",

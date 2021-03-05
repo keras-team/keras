@@ -17,8 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
-from tensorflow.python.framework import ops
+import tensorflow.compat.v2 as tf
 from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras import optimizers
@@ -309,7 +308,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
 
   def __call__(self):
     """Returns the current loss scale as a scalar `float32` tensor."""
-    return ops.convert_to_tensor(self._current_loss_scale)
+    return tf.convert_to_tensor(self._current_loss_scale)
 
   def update(self, grads):
     """Updates the value of the loss scale.
@@ -553,9 +552,10 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
   def loss_scale(self):
     """The current loss scale as a float32 scalar tensor."""
     if isinstance(self._loss_scale, _DynamicLossScaleState):
-      return ops.convert_to_tensor(self._loss_scale.current_loss_scale)
+      return tf.convert_to_tensor(
+          self._loss_scale.current_loss_scale)
     else:
-      return ops.convert_to_tensor(self._loss_scale)
+      return tf.convert_to_tensor(self._loss_scale)
 
   @property
   def dynamic_counter(self):

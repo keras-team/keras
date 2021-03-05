@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import gc
 import warnings
@@ -599,6 +599,12 @@ class BackendShapeOpsTest(tf.test.TestCase):
     x = backend.variable(np.ones((1, 3, 2, 2)))
     y = backend.resize_images(x, height_factor, width_factor, data_format)
     self.assertEqual(y.shape.as_list(), [1, 3, 4, 4])
+
+    # Use with a dynamic axis:
+    if not tf.executing_eagerly():
+      x = backend.placeholder(shape=(1, 3, None, None))
+      y = backend.resize_images(x, height_factor, width_factor, data_format)
+      self.assertEqual(y.shape.as_list(), [1, 3, None, None])
 
     # Invalid use:
     with self.assertRaises(ValueError):

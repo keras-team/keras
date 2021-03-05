@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow as tf
+import tensorflow.compat.v2 as tf
 
 import copy
 import os
@@ -39,7 +39,6 @@ from keras.engine import training as training_lib
 from keras.legacy_tf_layers import core as legacy_core
 from keras.optimizer_v2 import rmsprop
 from keras.utils import control_flow_util
-from tensorflow.python.ops import summary_ops_v2
 
 
 class DynamicLayer(base_layer.Layer):
@@ -66,16 +65,16 @@ class InvalidLayer(base_layer.Layer):
 
 class BaseLayerTest(keras_parameterized.TestCase):
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @combinations.generate(combinations.keras_mode_combinations())
   def test_layer_instrumentation(self):
     layer = layers.Add()
     self.assertTrue(layer._instrumented_keras_api)
     self.assertTrue(layer._instrumented_keras_layer_class)
     self.assertFalse(layer._instrumented_keras_model_class)
+    self.assertTrue(base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add'))
+    base_layer.keras_api_gauge.get_cell('tf.keras.layers.Add').set(False)
 
-  @combinations.generate(combinations.times(
-      combinations.keras_model_type_combinations(),
-      combinations.keras_tensor_combinations()))
+  @combinations.generate(combinations.keras_model_type_combinations())
   def test_dynamic_layer(self):
     model = testing_utils.get_model_from_layers([DynamicLayer(dynamic=True)],
                                                 input_shape=(3,))
@@ -84,9 +83,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual(model.run_eagerly, True)
     model.train_on_batch(np.random.random((2, 3)), np.random.random((2, 3)))
 
-  @combinations.generate(combinations.times(
-      combinations.keras_model_type_combinations(),
-      combinations.keras_tensor_combinations()))
+  @combinations.generate(combinations.keras_model_type_combinations())
   def test_dynamic_layer_error(self):
     # Functional Models hit the `dyanamic=True` error during construction.
     # Subclass Models should just throw the original autograph error during
@@ -105,9 +102,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
         raised_error = True
     self.assertTrue(raised_error)
 
-  @combinations.generate(combinations.times(
-      combinations.keras_model_type_combinations(),
-      combinations.keras_tensor_combinations()))
+  @combinations.generate(combinations.keras_model_type_combinations())
   def test_dynamic_layer_error_running_in_graph_mode(self):
     with tf.compat.v1.get_default_graph().as_default():
       model = testing_utils.get_model_from_layers([DynamicLayer(dynamic=True)],
@@ -272,7 +267,6 @@ class BaseLayerTest(keras_parameterized.TestCase):
   @combinations.generate(
       combinations.times(
           combinations.keras_model_type_combinations(),
-          combinations.keras_tensor_combinations(),
           combinations.combine(mode=['graph', 'eager'])))
   def test_build_with_numpy_data(self):
     model_layers = [
@@ -373,8 +367,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
   # b/124459427: can't test with `run_eagerly=True` for now.
   @combinations.generate(
       combinations.times(combinations.keras_mode_combinations(),
-                         combinations.keras_model_type_combinations(),
-                         combinations.keras_tensor_combinations()))
+                         combinations.keras_model_type_combinations()))
   def test_training_arg_in_defun(self):
     layer = self._get_layer_with_training_arg()
     model = testing_utils.get_model_from_layers([layer], input_shape=(1,))
@@ -399,8 +392,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
 
   @combinations.generate(
       combinations.times(combinations.keras_mode_combinations(),
-                         combinations.keras_model_type_combinations(),
-                         combinations.keras_tensor_combinations()))
+                         combinations.keras_model_type_combinations()))
   def test_raw_variable_assignment(self):
 
     class RawVariableLayer(base_layer.Layer):
@@ -468,65 +460,47 @@ class BaseLayerTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_layer_names(self):
-    with testing_utils.use_keras_tensors_scope(False):
-      inputs = input_layer.Input(shape=[2])
-      add1 = inputs + inputs
-      add2 = layers.Add()([inputs, inputs])
-      add3 = inputs + inputs
-      add4 = layers.Add()([inputs, inputs])
-      model = training_lib.Model(
-          inputs=[inputs], outputs=[add1, add2, add3, add4])
-      actual_names = [l.name for l in model.layers]
-      graph_names = [
-          'input_1', 'tf_op_layer_AddV2', 'add', 'tf_op_layer_AddV2_1', 'add_1'
-      ]
-      eager_names = [
-          'input_1', 'tf_op_layer_add', 'add', 'tf_op_layer_add_2', 'add_1'
-      ]
-      for actual, eager, graph in zip(actual_names, graph_names, eager_names):
-        self.assertIn(actual, {eager, graph})
-    if tf.executing_eagerly():
-      backend.clear_session()
-      with testing_utils.use_keras_tensors_scope(True):
-        inputs = input_layer.Input(shape=[2])
-        add1 = inputs + inputs
-        add2 = layers.Add()([inputs, inputs])
-        add3 = inputs + inputs
-        add4 = layers.Add()([inputs, inputs])
-        model = training_lib.Model(
-            inputs=[inputs], outputs=[add1, add2, add3, add4])
-        actual_names = [l.name for l in model.layers]
-        expected_names = [
-            'input_1', 'tf.__operators__.add', 'add', 'tf.__operators__.add_1',
-            'add_1'
-        ]
-        self.assertAllEqual(actual_names, expected_names)
+    inputs = input_layer.Input(shape=[2])
+    add1 = inputs + inputs
+    add2 = layers.Add()([inputs, inputs])
+    add3 = inputs + inputs
+    add4 = layers.Add()([inputs, inputs])
+    model = training_lib.Model(inputs=[inputs],
+                               outputs=[add1, add2, add3, add4])
+    actual_names = [l.name for l in model.layers]
+    graph_names = [
+        'input_1', 'tf_op_layer_add', 'add', 'tf_op_layer_add_2', 'add_1'
+    ]
+    eager_names = [
+        'input_1', 'tf.__operators__.add', 'add', 'tf.__operators__.add_1',
+        'add_1'
+    ]
+    for actual, eager, graph in zip(actual_names, graph_names, eager_names):
+      self.assertIn(actual, {eager, graph})
 
-  @combinations.generate(combinations.combine(mode=['graph', 'eager']))
+  @combinations.generate(combinations.combine(mode=['eager']))
   def test_layer_names_after_loading(self):
-    if tf.executing_eagerly():
-      backend.clear_session()
-      with testing_utils.use_keras_tensors_scope(True):
-        # Mimic loading a model that already contained add layers with
-        # name = 'add_1' and 'tf.__operators__.add'
-        layers.Add(name='add_1')
-        layers.Add(name='tf.__operators__.add')
+    backend.clear_session()
+    # Mimic loading a model that already contained add layers with
+    # name = 'add_1' and 'tf.__operators__.add'
+    layers.Add(name='add_1')
+    layers.Add(name='tf.__operators__.add')
 
-        inputs = input_layer.Input(shape=[2])
-        add1 = inputs + inputs
-        add2 = layers.Add()([inputs, inputs])
-        add3 = inputs + inputs
-        add4 = layers.Add()([inputs, inputs])
-        model = training_lib.Model(
-            inputs=[inputs], outputs=[add1, add2, add3, add4])
-        actual_names = [l.name for l in model.layers]
-        # The generated op layer names should have avoided layer names seen in
-        # the loaded model. (This avoiance should not apply to non-op-layers)
-        expected_names = [
-            'input_1', 'tf.__operators__.add_1',
-            'add', 'tf.__operators__.add_2', 'add_1'
-        ]
-        self.assertAllEqual(actual_names, expected_names)
+    inputs = input_layer.Input(shape=[2])
+    add1 = inputs + inputs
+    add2 = layers.Add()([inputs, inputs])
+    add3 = inputs + inputs
+    add4 = layers.Add()([inputs, inputs])
+    model = training_lib.Model(
+        inputs=[inputs], outputs=[add1, add2, add3, add4])
+    actual_names = [l.name for l in model.layers]
+    # The generated op layer names should have avoided layer names seen in
+    # the loaded model. (This avoiance should not apply to non-op-layers)
+    expected_names = [
+        'input_1', 'tf.__operators__.add_1',
+        'add', 'tf.__operators__.add_2', 'add_1'
+    ]
+    self.assertAllEqual(actual_names, expected_names)
 
   def test_add_trainable_weight_on_frozen_layer(self):
 
@@ -704,10 +678,11 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertEqual([None, 3], layer._build_input_shape.as_list())
 
   @combinations.generate(combinations.combine(mode=['eager']))
-  def custom_layer_training_arg(self):
+  def test_custom_layer_training_arg(self):
     class CustomLayerNoTrainingArg(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
+        super(CustomLayerNoTrainingArg, self).__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs):
@@ -716,6 +691,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class CustomLayerDefaultTrainingMissing(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingMissing, self).__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training):
@@ -727,6 +703,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class CustomLayerDefaultTrainingNone(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingNone, self).__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training=None):
@@ -738,6 +715,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class CustomLayerDefaultTrainingFalse(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingFalse, self).__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training=False):
@@ -749,6 +727,7 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class CustomLayerDefaultTrainingTrue(base_layer.Layer):
 
       def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingTrue, self).__init__()
         self._nested_layer = nested_layer or tf.identity
 
       def call(self, inputs, training=True):
@@ -757,6 +736,88 @@ class BaseLayerTest(keras_parameterized.TestCase):
         else:
           return self._nested_layer(inputs) * 0.5
 
+    self._test_custom_layer_training_arg(
+        CustomLayerNoTrainingArg=CustomLayerNoTrainingArg,
+        CustomLayerDefaultTrainingMissing=CustomLayerDefaultTrainingMissing,
+        CustomLayerDefaultTrainingNone=CustomLayerDefaultTrainingNone,
+        CustomLayerDefaultTrainingFalse=CustomLayerDefaultTrainingFalse,
+        CustomLayerDefaultTrainingTrue=CustomLayerDefaultTrainingTrue)
+
+  @combinations.generate(combinations.combine(mode=['eager']))
+  def test_custom_layer_training_arg_kwargonly(self):
+    class CustomLayerNoTrainingArg(base_layer.Layer):
+
+      def __init__(self, nested_layer=None):
+        super(CustomLayerNoTrainingArg, self).__init__()
+        self._nested_layer = nested_layer or tf.identity
+
+      def call(self, inputs):
+        return self._nested_layer(inputs)
+
+    class CustomLayerDefaultTrainingMissing(base_layer.Layer):
+
+      def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingMissing, self).__init__()
+        self._nested_layer = nested_layer or tf.identity
+
+      def call(self, inputs, *, training):
+        if training:
+          return self._nested_layer(inputs)
+        else:
+          return self._nested_layer(inputs) * 0.5
+
+    class CustomLayerDefaultTrainingNone(base_layer.Layer):
+
+      def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingNone, self).__init__()
+        self._nested_layer = nested_layer or tf.identity
+
+      def call(self, inputs, *, training=None):
+        if training:
+          return self._nested_layer(inputs)
+        else:
+          return self._nested_layer(inputs) * 0.5
+
+    class CustomLayerDefaultTrainingFalse(base_layer.Layer):
+
+      def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingFalse, self).__init__()
+        self._nested_layer = nested_layer or tf.identity
+
+      def call(self, inputs, *, training=False):
+        if training:
+          return self._nested_layer(inputs)
+        else:
+          return self._nested_layer(inputs) * 0.5
+
+    class CustomLayerDefaultTrainingTrue(base_layer.Layer):
+
+      def __init__(self, nested_layer=None):
+        super(CustomLayerDefaultTrainingTrue, self).__init__()
+        self._nested_layer = nested_layer or tf.identity
+
+      def call(self, inputs, *, training=True):
+        if training:
+          return self._nested_layer(inputs)
+        else:
+          return self._nested_layer(inputs) * 0.5
+
+    self._test_custom_layer_training_arg(
+        CustomLayerNoTrainingArg=CustomLayerNoTrainingArg,
+        CustomLayerDefaultTrainingMissing=CustomLayerDefaultTrainingMissing,
+        CustomLayerDefaultTrainingNone=CustomLayerDefaultTrainingNone,
+        CustomLayerDefaultTrainingFalse=CustomLayerDefaultTrainingFalse,
+        CustomLayerDefaultTrainingTrue=CustomLayerDefaultTrainingTrue)
+
+  def _test_custom_layer_training_arg(self,
+                                      # pylint: disable=invalid-name
+                                      CustomLayerNoTrainingArg,
+                                      CustomLayerDefaultTrainingMissing,
+                                      CustomLayerDefaultTrainingNone,
+                                      CustomLayerDefaultTrainingFalse,
+                                      CustomLayerDefaultTrainingTrue,
+                                      # pylint: enable=invalid-name
+                                      ):
     x = tf.ones(shape=(1, 1))
 
     # If the layer signature doesn't specify a default training arg,
@@ -787,14 +848,14 @@ class BaseLayerTest(keras_parameterized.TestCase):
     # nested layers, respecting whatever mode the outer layer was run with.
     layer = CustomLayerDefaultTrainingTrue(CustomLayerDefaultTrainingFalse())
     # No outer value passed: use local defaults
-    self.assertAllEqual(layer(x), x * 0.25)  # Use local default False
+    self.assertAllEqual(layer(x), x)  # Use outer default True
     # Outer value passed: override local defaults
     self.assertAllEqual(layer(x, training=False), x * 0.25)
     self.assertAllEqual(layer(x, training=True), x)
 
     layer = CustomLayerDefaultTrainingFalse(CustomLayerDefaultTrainingTrue())
     # No outer value passed: use local defaults
-    self.assertAllEqual(layer(x), x)  # Use local default True
+    self.assertAllEqual(layer(x), x * 0.25)  # Use outer default False
     # Outer value passed: override local defaults
     self.assertAllEqual(layer(x, training=False), x * 0.25)
     self.assertAllEqual(layer(x, training=True), x)
@@ -809,8 +870,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     self.assertAllEqual(layer(x, training=True), x)
 
     layer = CustomLayerDefaultTrainingNone(CustomLayerDefaultTrainingTrue())
-    self.assertAllEqual(layer(x), x)  # Use local default True
-    self.assertAllEqual(layer(x, training=False), x * 0.5)
+    self.assertAllEqual(layer(x), x * 0.5)  # Nested use local default True
+    self.assertAllEqual(layer(x, training=False), x * 0.25)
     self.assertAllEqual(layer(x, training=True), x)
 
   def test_activity_regularizer_string(self):
@@ -974,12 +1035,12 @@ class SymbolicSupportTest(keras_parameterized.TestCase):
     class MyLayer(base_layer.Layer):
 
       def call(self, inputs):
-        summary_ops_v2.scalar('mean', tf.reduce_mean(inputs))
+        tf.summary.scalar('mean', tf.reduce_mean(inputs))
         return inputs
 
     tmp_dir = self.get_temp_dir()
     writer = tf.summary.create_file_writer(tmp_dir)
-    with writer.as_default(), tf.summary.record_if(True):
+    with writer.as_default(step=1), tf.summary.record_if(True):
       my_layer = MyLayer()
       x = tf.ones((10, 10))
 
@@ -1118,19 +1179,6 @@ class NestedTrackingTest(tf.test.TestCase):
     self.assertEqual([], l.weights)
     del l.a
     self.assertEqual([], l._self_tracked_trackables)
-
-  def test_assign_op_not_tracked_as_variable(self):
-
-    class LayerWithAssignAttr(base_layer.Layer):
-
-      def build(self, input_shape):
-        self.v = tf.Variable(1.)
-        self.v_assign = self.v.assign_add(2.)
-
-    layer = LayerWithAssignAttr()
-    layer.build((10, 10))
-
-    self.assertEqual([layer.v], layer.variables)
 
   def test_layer_class_not_tracked_as_sublayer(self):
     # See https://github.com/tensorflow/tensorflow/issues/27431 for details.

@@ -17,6 +17,7 @@ filegroup(
 py_library(
     name = "feature_column",
     srcs = ["__init__.py"],
+    srcs_version = "PY3",
     deps = [
         ":base_feature_layer",
         ":dense_features",
@@ -28,6 +29,7 @@ py_library(
 py_library(
     name = "base_feature_layer",
     srcs = ["base_feature_layer.py"],
+    srcs_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
         "//keras/engine:base_layer",
@@ -40,6 +42,7 @@ py_library(
     srcs = [
         "dense_features.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":base_feature_layer",
         "//:expect_tensorflow_installed",
@@ -52,10 +55,12 @@ py_library(
     srcs = [
         "dense_features_v2.py",
     ],
+    srcs_version = "PY3",
     deps = [
         ":base_feature_layer",
         ":dense_features",
         "//:expect_tensorflow_installed",
+        "//keras/utils:tf_contextlib",
     ],
 )
 
@@ -86,6 +91,7 @@ tf_py_test(
 py_library(
     name = "sequence_feature_column",
     srcs = ["sequence_feature_column.py"],
+    srcs_version = "PY3",
     deps = [
         ":base_feature_layer",
         "//:expect_tensorflow_installed",
@@ -109,13 +115,15 @@ tf_py_test(
     name = "sequence_feature_column_integration_test",
     srcs = ["sequence_feature_column_integration_test.py"],
     python_version = "PY3",
-    srcs_version = "PY2AND3",
+    srcs_version = "PY3",
     tags = ["no_pip"],
     deps = [
         ":dense_features",
         ":sequence_feature_column",
         "//:expect_tensorflow_installed",
         "//keras:metrics",  # Import it here since base_layer didn't import it due to circular dependency.
+        "//keras/layers:core",
+        "//keras/layers:merge",
         "//keras/layers:recurrent",
     ],
 )
