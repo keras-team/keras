@@ -166,6 +166,7 @@ tf_py_test(
     tags = [
         "no_rocm",
         "no_windows",
+        "notsan",  #TODO(b/181771982): it is flaky
     ],
     deps = [
         "//:expect_absl_installed",
