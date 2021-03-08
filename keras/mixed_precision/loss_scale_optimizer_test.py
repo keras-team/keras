@@ -296,6 +296,58 @@ class LossScaleOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       # and so the variable will be init_val - grad * lr == 5 - 1 * 2 == 3
       self.assertAllClose([3.], self.evaluate(var))
 
+  def testNanOnOneReplicaOnly(self):
+    if not tf.test.is_gpu_available():
+      self.skipTest('Test requires GPU')
+    if (not tf.executing_eagerly() and
+        not tf.compat.v1.control_flow_v2_enabled()):
+      self.skipTest('b/181283011: GradientTape does not work properly with '
+                    'V1 control flow, and opt.minimize uses GradientTape')
+    with create_mirrored_strategy().scope() as strategy:
+      var = tf.Variable([1.0, 2.0])
+      opt = gradient_descent.SGD(1.0)
+      opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2,
+                                                    dynamic_growth_steps=2)
+
+      def loss():
+        rep_id = (tf.distribute.get_replica_context()
+                  .replica_id_in_sync_group)
+        # The last element of last replica's gradient is NaN.
+        return tf.compat.v1.cond(
+            tf.constant(rep_id == 0), lambda: var * 2.,
+            lambda: var * tf.constant([1., float('NaN')]))
+      run_fn = lambda: opt.minimize(loss, var_list=[var])
+      run_op = strategy.experimental_run(run_fn)
+      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self._run_if_in_graph_mode(run_op)
+      # Variable should not change from before, due to NaN gradients.
+      self.assertAllClose(self.evaluate(var), [1.0, 2.0])
+      # Loss scale should half due to NaN gradients.
+      self.assertEqual(1., self.evaluate(opt.loss_scale))
+
+  def testCustomAggregater(self):
+    def gradient_aggregator(grads_and_vars):
+      # Simulate an all-reduce where a replica has a NaN gradient by setting
+      # the last gradient to NaN
+      grads_and_vars = list(grads_and_vars)
+      last_grad, last_var = grads_and_vars[-1]
+      grads_and_vars[-1] = (last_grad * float('NaN'), last_var)
+      return grads_and_vars
+
+    var = tf.Variable([1.0, 2.0])
+    opt = gradient_descent.SGD(1.0, gradient_aggregator=gradient_aggregator)
+    opt = loss_scale_optimizer.LossScaleOptimizer(opt, initial_scale=2,
+                                                  dynamic_growth_steps=2)
+
+    loss = lambda: var * 2
+    run_op = opt.minimize(loss, var_list=[var])
+    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self._run_if_in_graph_mode(run_op)
+    # Variable should not change from before, due to NaN gradients.
+    self.assertAllClose(self.evaluate(var), [1.0, 2.0])
+    # Loss scale should half due to NaN gradients.
+    self.assertEqual(1., self.evaluate(opt.loss_scale))
+
   @parameterized.named_parameters(*TESTCASES)
   def testDynamicLossScaleWithSlots(self, strategy_fn):
     strategy_obj = strategy_fn()

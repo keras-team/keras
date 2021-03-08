@@ -1525,7 +1525,7 @@ def huber(y_true, y_pred, delta=1.0):
 
   ```
   loss = 0.5 * x^2                  if |x| <= d
-  loss = 0.5 * d^2 + d * (|x| - d)  if |x| > d
+  loss = d * |x| - 0.5 * d^2        if |x| > d
   ```
   where d is `delta`. See: https://en.wikipedia.org/wiki/Huber_loss
 
@@ -1545,9 +1545,8 @@ def huber(y_true, y_pred, delta=1.0):
   abs_error = tf.abs(error)
   half = tf.convert_to_tensor(0.5, dtype=abs_error.dtype)
   return K.mean(
-      tf.where(
-          abs_error <= delta, half * tf.pow(error, 2),
-          half * tf.pow(delta, 2) + delta * (abs_error - delta)),
+      tf.where(abs_error <= delta, half * tf.square(error),
+                         delta * abs_error - half * tf.square(delta)),
       axis=-1)
 
 
