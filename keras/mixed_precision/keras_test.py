@@ -436,6 +436,34 @@ class KerasLayerTest(keras_parameterized.TestCase):
     # Non-mixed policies are fine
     mp_test_util.MultiplyLayer(dtype=policy.Policy('float64'))
 
+  def test_input_spec_dtype(self):
+    # Test the InputSpec's dtype is compared against the inputs before the layer
+    # casts them, not after.
+    layer = mp_test_util.MultiplyLayer(dtype='float64')
+    layer.input_spec = input_spec.InputSpec(dtype='float16')
+
+    # Test passing Eager tensors
+    x = tf.ones((2, 2), dtype='float16')
+    layer(x)
+    x = tf.ones((2, 2), dtype='float64')
+    with self.assertRaisesRegex(
+        ValueError, 'expected dtype=float16, found dtype=.*float64'):
+      layer(x)
+
+    # Test passing symbolic tensors
+    x = layers.Input((2,), dtype='float16')
+    y = layer(x)
+    model = models.Model(x, y)
+    model(tf.ones((2, 2)))
+
+    x = layers.Input((2,), dtype='float64')
+    with self.assertRaisesRegex(
+        ValueError, 'expected dtype=float16, found dtype=.*float64'):
+      # In TF2, the error is only raised when the model is run
+      y = layer(x)
+      model = models.Model(x, y)
+      model(tf.ones((2, 2)))
+
 
 class KerasModelTest(keras_parameterized.TestCase):
   """Test mixed precision with Keras models."""

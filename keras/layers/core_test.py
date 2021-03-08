@@ -496,6 +496,36 @@ class CoreLayersTest(keras_parameterized.TestCase):
     testing_utils.layer_test(
         keras.layers.Dense, kwargs={'units': 3}, input_shape=(3, 4, 5, 2))
 
+  def test_dense_output(self):
+    dense_inputs = tf.convert_to_tensor(
+        np.random.uniform(size=(10, 10)).astype('f'))
+    # Create some sparse data where multiple rows and columns are missing.
+    sparse_inputs = tf.SparseTensor(
+        indices=np.random.randint(low=0, high=10, size=(5, 2)),
+        values=np.random.uniform(size=(5,)).astype('f'),
+        dense_shape=[10, 10])
+    sparse_inputs = tf.sparse.reorder(sparse_inputs)
+
+    layer = keras.layers.Dense(
+        5,
+        kernel_initializer=keras.initializers.RandomUniform(),
+        bias_initializer=keras.initializers.RandomUniform(),
+        dtype='float32')
+    dense_outputs = layer(dense_inputs)
+    sparse_outpus = layer(sparse_inputs)
+
+    expected_dense = tf.add(
+        tf.matmul(dense_inputs, keras.backend.get_value(layer.kernel)),
+        keras.backend.get_value(layer.bias))
+    expected_sparse = tf.add(
+        tf.matmul(
+            tf.sparse.to_dense(sparse_inputs),
+            keras.backend.get_value(layer.kernel)),
+        keras.backend.get_value(layer.bias))
+
+    self.assertAllClose(dense_outputs, expected_dense)
+    self.assertAllClose(sparse_outpus, expected_sparse)
+
   def test_dense_dtype(self):
     inputs = tf.convert_to_tensor(
         np.random.randint(low=0, high=7, size=(2, 2)))

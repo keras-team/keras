@@ -23,6 +23,7 @@ from keras import backend
 from keras import optimizers
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
 from keras.optimizer_v2 import optimizer_v2
+from keras.optimizer_v2 import utils as optimizer_utils
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.training.experimental import mixed_precision
 from tensorflow.python.training.tracking import base as trackable
@@ -268,7 +269,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     weights = []
     for (name, g), v in sorted(self._weights.items(), key=lambda i: i[0][0]):
       if g == graph_key:
-        weights.append(trackable.TrackableReference(name=name, ref=v))
+        weights.append(tf.__internal__.tracking.TrackableReference(name=name, ref=v))
     return (super(_DynamicLossScaleState, self)._checkpoint_dependencies +
             weights)
 
@@ -314,8 +315,8 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     """Updates the value of the loss scale.
 
     Args:
-      grads: A nested structure of unscaled gradients, each which is the
-        gradient of the loss with respect to a weight.
+      grads: A nested structure of unscaled gradients, each which is an
+        all-reduced gradient of the loss with respect to a weight.
 
     Returns:
       update_op: In eager mode, None. In graph mode, an op to update the loss
@@ -327,19 +328,13 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     grads = tf.nest.flatten(grads)
     if tf.distribute.has_strategy():
       distribution = tf.distribute.get_strategy()
-
-      def get_is_finite(grads):
-        is_finite = _is_all_finite(grads)
-        # We cast to float, because we cannot reduce booleans with
-        # DistributionStrategy.
-        return tf.cast(is_finite, tf.float32)
-
-      is_finite_float = distribution.extended.call_for_each_replica(
-          get_is_finite, args=(grads,))
-      reduced_is_finite_float = distribution.reduce(tf.distribute.ReduceOp.SUM,
-                                                    is_finite_float, axis=None)
-      is_finite = tf.equal(reduced_is_finite_float,
-                                 distribution.num_replicas_in_sync)
+      is_finite_per_replica = distribution.extended.call_for_each_replica(
+          _is_all_finite, args=(grads,))
+      # Each replica computed the same `is_finite` value, since `grads` is
+      # all-reduced across replicas. Arbitrarily take `is_finite` from the first
+      # replica.
+      is_finite = (
+          distribution.experimental_local_results(is_finite_per_replica)[0])
     else:
       is_finite = _is_all_finite(grads)
 
@@ -462,7 +457,7 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
   skipped is `1 / dynamic_growth_steps`).
 
   `LossScaleOptimizer` delegates all public `Optimizer` methods to the inner
-  optimizer. Additionally, in methods `minimize` and `get_gradients, it scales
+  optimizer. Additionally, in methods `minimize` and `get_gradients`, it scales
   the loss and unscales the gradients. In methods `minimize` and
   `apply_gradients`, it additionally updates the loss scale and skips applying
   gradients if any gradient has a nonfinite value.
@@ -692,13 +687,24 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
     # as frequently the optimizer is created outside the strategy's scope.
     self._raise_if_strategy_unsupported()
 
+    grads_and_vars = optimizer_utils.filter_empty_gradients(grads_and_vars)
+    if experimental_aggregate_gradients:
+      # We must aggregate the gradients here instead of in
+      # self.optimizer.apply_gradients, so that any NaN or Inf gradients are
+      # propogated to each replica. If any replica has a NaN or Inf gradient,
+      # they must all have a NaN or Inf gradient so that they all skip the step.
+      # pylint: disable=protected-access
+      grads_and_vars = self._optimizer._transform_unaggregated_gradients(
+          grads_and_vars)
+      grads_and_vars = self._optimizer._aggregate_gradients(grads_and_vars)
+      # pylint: enable=protected-access
+
     grads_and_vars = tuple(grads_and_vars)
     return tf.distribute.get_replica_context().merge_call(
         self._apply_gradients_cross_replica,
-        args=(grads_and_vars, name, experimental_aggregate_gradients))
+        args=(grads_and_vars, name))
 
-  def _apply_gradients_cross_replica(self, distribution, grads_and_vars, name,
-                                     experimental_aggregate_gradients):
+  def _apply_gradients_cross_replica(self, distribution, grads_and_vars, name):
     grads = [g for g, _ in grads_and_vars]
     if isinstance(self._loss_scale, _DynamicLossScaleState):
       loss_scale_update_op, should_apply_grads = self._loss_scale.update(grads)
@@ -715,7 +721,7 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
       wrapped_vars = _UnwrapPreventer([v for _, v in grads_and_vars])
       return distribution.extended.call_for_each_replica(
           self._apply_gradients,
-          args=(grads, wrapped_vars, name, experimental_aggregate_gradients))
+          args=(grads, wrapped_vars, name))
 
     def do_not_apply_fn():
       # Normally self._optimizer.iterations is incremented in
@@ -731,14 +737,15 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
                                            do_not_apply_fn)
     return tf.group(maybe_apply_op, loss_scale_update_op)
 
-  def _apply_gradients(self, grads, wrapped_vars, name,
-                       experimental_aggregate_gradients):
+  def _apply_gradients(self, grads, wrapped_vars, name):
+    # Pass experimental_aggregate_gradients=False since LossScaleOptimizer
+    # already aggregated the gradients.
     # TODO(reedwm): This will raise a fairly cryptic error message if
     # self._optimizer.apply_gradients does not take
     # experimental_aggregate_gradients.
     return self._optimizer.apply_gradients(
         list(zip(grads, wrapped_vars.value)), name,
-        experimental_aggregate_gradients=experimental_aggregate_gradients)
+        experimental_aggregate_gradients=False)
 
   def get_config(self):
     serialized_optimizer = optimizers.serialize(self._optimizer)

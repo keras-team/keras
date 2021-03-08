@@ -368,7 +368,7 @@ class Functional(training_lib.Model):
   @property
   def _checkpoint_dependencies(self):
     dependencies = [
-        trackable.TrackableReference(name=name, ref=layer)
+        tf.__internal__.tracking.TrackableReference(name=name, ref=layer)
         for name, layer in self._layer_checkpoint_dependencies.items()]
     dependencies.extend(super(Functional, self)._checkpoint_dependencies)
     return dependencies

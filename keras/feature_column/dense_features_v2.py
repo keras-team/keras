@@ -19,8 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-
-from tensorflow.python.feature_column import feature_column_v2 as fc
 from keras.feature_column import base_feature_layer as kfc
 from keras.feature_column import dense_features
 from keras.utils import tf_contextlib
@@ -98,7 +96,7 @@ class DenseFeatures(dense_features.DenseFeatures):
     super(kfc._BaseFeaturesLayer, self).build(None)  # pylint: disable=bad-super-call
 
 
-class _StateManagerImplV2(fc._StateManagerImpl):  # pylint: disable=protected-access
+class _StateManagerImplV2(tf.__internal__.feature_column.StateManager):  # pylint: disable=protected-access
   """Manages the state of DenseFeatures."""
 
   def create_variable(self,
