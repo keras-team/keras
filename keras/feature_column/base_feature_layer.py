@@ -60,7 +60,7 @@ class _BaseFeaturesLayer(Layer):
         name=name, trainable=trainable, **kwargs)
     self._feature_columns = feature_column_v2._normalize_feature_columns(  # pylint: disable=protected-access
         feature_columns)
-    self._state_manager = feature_column_v2._StateManagerImpl(  # pylint: disable=protected-access
+    self._state_manager = tf.__internal__.feature_column.StateManager(  # pylint: disable=protected-access
         self, self.trainable)
     self._partitioner = partitioner
     for column in self._feature_columns:
@@ -118,10 +118,8 @@ class _BaseFeaturesLayer(Layer):
     return tf.concat(output_tensors, -1)
 
   def get_config(self):
-    # Import here to avoid circular imports.
-    from tensorflow.python.feature_column import serialization  # pylint: disable=g-import-not-at-top
-    column_configs = serialization.serialize_feature_columns(
-        self._feature_columns)
+    column_configs = [tf.__internal__.feature_column.serialize_feature_column(fc)
+                      for fc in self._feature_columns]
     config = {'feature_columns': column_configs}
     config['partitioner'] = generic_utils.serialize_keras_object(
         self._partitioner)
@@ -132,11 +130,10 @@ class _BaseFeaturesLayer(Layer):
 
   @classmethod
   def from_config(cls, config, custom_objects=None):
-    # Import here to avoid circular imports.
-    from tensorflow.python.feature_column import serialization  # pylint: disable=g-import-not-at-top
     config_cp = config.copy()
-    config_cp['feature_columns'] = serialization.deserialize_feature_columns(
-        config['feature_columns'], custom_objects=custom_objects)
+    columns_by_name = {}
+    config_cp['feature_columns'] = [tf.__internal__.feature_column.deserialize_feature_column(
+        c, custom_objects, columns_by_name) for c in config['feature_columns']]
     config_cp['partitioner'] = generic_utils.deserialize_keras_object(
         config['partitioner'], custom_objects)
 
