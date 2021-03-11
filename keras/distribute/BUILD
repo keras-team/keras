@@ -299,9 +299,9 @@ distribute_py_test(
     shard_count = 20,
     tags = [
         "multi_and_single_gpu",
+        "no_cuda_asan",  # TODO(b/182391774)
         "no_rocm",  # times out on ROCm
         "no_windows_gpu",
-        "noasan",  # TODO(b/170902997)
         "noguitar",  # TODO(b/172354344)
         "nomultivm",  # TODO(b/170502145)
         "notsan",
@@ -730,10 +730,18 @@ tf_py_test(
         "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
     ],
     deps = [
+        "//:expect_absl_installed",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",
+        "//keras:callbacks",
+        "//keras/engine",
+        "//keras/engine:base_layer",
+        "//keras/layers:core",
+        "//keras/layers/preprocessing:string_lookup",
+        "//keras/optimizer_v2",
         "//keras/utils:dataset_creator",
+        "//keras/utils:engine_utils",
     ],
 )
 
@@ -778,17 +786,6 @@ tf_py_test(
         ":sidecar_evaluator",
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-tf_py_test(
-    name = "sharded_variable_test",
-    size = "small",
-    srcs = ["sharded_variable_test.py"],
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:metrics",
-        "//keras/engine:base_layer",
     ],
 )
 
