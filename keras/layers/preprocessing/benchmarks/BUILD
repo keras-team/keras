@@ -20,6 +20,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:category_encoding",
     ],
 )
@@ -30,6 +31,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:category_crossing",
     ],
 )
@@ -40,6 +42,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:hashing",
     ],
 )
@@ -50,6 +53,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:index_lookup",
     ],
 )
@@ -60,6 +64,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:index_lookup",
     ],
 )
@@ -70,6 +75,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:normalization",
     ],
 )
@@ -80,6 +86,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:discretization",
     ],
 )
@@ -90,6 +97,7 @@ cuda_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
         "//keras/layers/preprocessing:image_preprocessing",
     ],
 )
