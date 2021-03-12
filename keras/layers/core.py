@@ -1073,7 +1073,8 @@ class Dense(Layer):
   where `activation` is the element-wise activation function
   passed as the `activation` argument, `kernel` is a weights matrix
   created by the layer, and `bias` is a bias vector created by the layer
-  (only applicable if `use_bias` is `True`).
+  (only applicable if `use_bias` is `True`). These are all attributes of 
+  `Dense`.
 
   Note: If the input to the layer has a rank greater than 2, then `Dense`
   computes the dot product between the `inputs` and the `kernel` along the
@@ -1086,6 +1087,9 @@ class Dense(Layer):
 
   Besides, layer attributes cannot be modified after the layer has been called
   once (except the `trainable` attribute).
+  When a popular kwarg `input_shape` is passed, then keras will create
+  an input layer to insert before the current layer. This can be treated
+  equivalent to explicitly defining an `InputLayer`.
 
   Example:
 

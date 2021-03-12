@@ -24,6 +24,7 @@ import tensorflow.compat.v2 as tf
 import abc
 import contextlib
 import functools
+import warnings
 
 import six
 from tensorflow.python.distribute import values as ds_values
@@ -360,6 +361,9 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
       # checks that all keyword arguments are non-negative.
       if kwargs[k] is not None and kwargs[k] < 0:
         raise ValueError("Expected {} >= 0, received: {}".format(k, kwargs[k]))
+      if k == "lr":
+        warnings.warn(
+            "The `lr` argument is deprecated, use `learning_rate` instead.")
 
     self._use_locking = True
     self._init_set_name(name)

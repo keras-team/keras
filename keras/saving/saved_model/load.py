@@ -43,7 +43,6 @@ from tensorflow.python.saved_model import loader_impl
 from tensorflow.python.saved_model import nested_structure_coder
 from tensorflow.python.saved_model import revived_types
 from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.training.tracking import data_structures
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.
@@ -350,7 +349,7 @@ class KerasObjectLoader(object):
           child_proto.variable.name):
         obj_child._handle_name = child_proto.variable.name + ':0'  # pylint: disable=protected-access
 
-      if isinstance(obj_child, data_structures.TrackableDataStructure):
+      if isinstance(obj_child, tf.__internal__.tracking.TrackableDataStructure):
         setter = lambda *args: None
 
       child_path = '{}.{}'.format(parent_path, child_name)
