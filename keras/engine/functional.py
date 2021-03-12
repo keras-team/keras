@@ -32,7 +32,6 @@ from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import input_layer as input_layer_module
 from keras.engine import input_spec
-from keras.engine import keras_tensor
 from keras.engine import node as node_module
 from keras.engine import training as training_lib
 from keras.engine import training_utils
@@ -147,7 +146,7 @@ class Functional(training_lib.Model):
     else:
       self._enable_dict_to_input_mapping = False
 
-    if not keras_tensor.keras_tensors_enabled():
+    if not tf.compat.v1.executing_eagerly_outside_functions():
       if any(not hasattr(tensor, '_keras_history') for tensor in self.outputs):
         base_layer_utils.create_keras_history(self._nested_outputs)
 
@@ -1077,7 +1076,7 @@ def _map_subgraph_network(inputs, outputs):
   Returns:
     A tuple of List{Node] and List[Layer].
   """
-  if not keras_tensor.keras_tensors_enabled():
+  if not tf.compat.v1.executing_eagerly_outside_functions():
     base_layer_utils.create_keras_history(outputs)
   # Keep only nodes and layers in the topology between inputs and outputs.
   _, nodes_by_depth, layers, _ = _map_graph_network(inputs, outputs)

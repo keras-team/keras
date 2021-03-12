@@ -26,7 +26,6 @@ import json
 import numpy as np
 from keras import backend
 from keras.engine import base_layer_utils
-from keras.engine import keras_tensor
 from keras.saving.saved_model import json_utils
 from keras.utils import tf_utils
 
@@ -78,8 +77,8 @@ class Node(object):
     self._single_positional_tensor_passed = (not self.call_kwargs and len(
         self.call_args) == 1 and tf.is_tensor(self.call_args[0]))
 
-    if not keras_tensor.keras_tensors_enabled():
-      # Create TensorFlowOpLayers if needed.
+    if not tf.compat.v1.executing_eagerly_outside_functions():
+      # Create TensorFlowOpLayers if needed (in TF1)
       for obj in self._flat_arguments:
         if (isinstance(obj, tf.Tensor) and
             base_layer_utils.needs_keras_history(
