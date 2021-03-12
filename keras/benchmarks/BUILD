@@ -103,6 +103,7 @@ py_library(
         ":distribution_util",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 

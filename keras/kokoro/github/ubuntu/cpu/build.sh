@@ -39,4 +39,5 @@ bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going \
    --build_tests_only \
    --build_tag_filters="-no_oss" \
    --test_tag_filters="-no_oss" \
+   --test_env=_PREFER_OSS_KERAS=1 \
    -- //keras/...
