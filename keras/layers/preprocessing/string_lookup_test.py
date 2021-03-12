@@ -171,7 +171,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    expected_output = [[0, 0, 1, 1, 1, 1], [0, 1, 1, 0, 1, 1]]
+    expected_output = [[0, 1, 1, 1, 1], [1, 1, 0, 1, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = get_layer_class()(vocabulary=vocab_data, output_mode="binary")
@@ -184,7 +184,7 @@ class StringLookupVocabularyTest(keras_parameterized.TestCase,
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "earth", "fire", "fire"],
                             ["fire", "and", "earth", "michigan"]])
-    expected_output = [[0, 0, 2, 0, 0, 2], [0, 1, 1, 0, 1, 1]]
+    expected_output = [[0, 2, 0, 0, 2], [1, 1, 0, 1, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = get_layer_class()(vocabulary=vocab_data, output_mode="count")

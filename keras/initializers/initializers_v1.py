@@ -43,8 +43,10 @@ keras_export(v1=['keras.initializers.Orthogonal',
                  'keras.initializers.orthogonal'], allow_multiple_exports=True)(_v1_orthogonal_initializer)
 keras_export(v1=['keras.initializers.Identity',
                  'keras.initializers.identity'], allow_multiple_exports=True)(_v1_identity)
-keras_export(v1=['keras.initializers.glorot_uniform'], allow_multiple_exports=True)(_v1_glorot_uniform_initializer)
-keras_export(v1=['keras.initializers.glorot_normal'], allow_multiple_exports=True)(_v1_glorot_normal_initializer)
+keras_export(v1=['keras.initializers.glorot_uniform'], allow_multiple_exports=True)(
+    _v1_glorot_uniform_initializer)
+keras_export(v1=['keras.initializers.glorot_normal'], allow_multiple_exports=True)(
+    _v1_glorot_normal_initializer)
 
 
 @keras_export(v1=['keras.initializers.RandomNormal',
