@@ -32,10 +32,7 @@ from keras import testing_utils
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.optimizer_v2 import rmsprop
 
-_DATA_TYPES = [tf.half, tf.float32, tf.float64]
-# TODO(b/143684500): Eigen to support complex sqrt
-if not test_util.IsBuiltWithNvcc():
-  _DATA_TYPES += [tf.complex64, tf.complex128]
+_DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 
 _TEST_PARAM_VALUES = [
     # learning_rate, rho, momentum, epsilon, centered
@@ -346,8 +343,6 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
       for dtype in _DATA_TYPES:
-        if test_util.is_xla_enabled() and dtype.is_complex:
-          self.skipTest("b/143578550")
         var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
         x = tf.constant([[4.0], [5.0]], dtype=dtype)
 
