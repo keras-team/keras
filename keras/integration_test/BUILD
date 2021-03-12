@@ -19,6 +19,7 @@ tf_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -28,6 +29,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -37,6 +39,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -47,6 +50,7 @@ cuda_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -56,6 +60,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -64,6 +69,7 @@ tf_py_test(
     srcs = ["module_test.py"],
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -73,6 +79,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -82,6 +89,7 @@ cuda_py_test(
     python_version = "PY3",
     deps = [
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
 
@@ -131,5 +139,6 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
     ],
 )
