@@ -1,6 +1,6 @@
 path: "tensorflow.keras.preprocessing.image.ImageDataGenerator"
 tf_class {
-  is_instance: "<class \'tensorflow.python.keras.preprocessing.image.ImageDataGenerator\'>"
+  is_instance: "<class \'keras.preprocessing.image.ImageDataGenerator\'>"
   is_instance: "<class \'keras_preprocessing.image.image_data_generator.ImageDataGenerator\'>"
   is_instance: "<type \'object\'>"
   member_method {

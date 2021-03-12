@@ -1,6 +1,6 @@
 path: "tensorflow.keras.callbacks.CallbackList"
 tf_class {
-  is_instance: "<class \'tensorflow.python.keras.callbacks.CallbackList\'>"
+  is_instance: "<class \'keras.callbacks.CallbackList\'>"
   is_instance: "<type \'object\'>"
   member_method {
     name: "__init__"
