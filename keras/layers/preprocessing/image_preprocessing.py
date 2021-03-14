@@ -53,7 +53,8 @@ def check_fill_mode_and_interpolation(fill_mode, interpolation):
                               '`bilinear` are supported.'.format(interpolation))
 
 
-@keras_export('keras.layers.experimental.preprocessing.Resizing')
+@keras_export('keras.layers.Resizing',
+              'keras.layers.experimental.preprocessing.Resizing')
 class Resizing(base_layer.Layer):
   """Image resizing layer.
 
@@ -118,7 +119,8 @@ class Resizing(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.CenterCrop')
+@keras_export('keras.layers.CenterCrop',
+              'keras.layers.experimental.preprocessing.CenterCrop')
 class CenterCrop(base_layer.Layer):
   """Crop the central portion of the images to target height and width.
 
@@ -190,7 +192,8 @@ class CenterCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomCrop')
+@keras_export('keras.layers.RandomCrop',
+              'keras.layers.experimental.preprocessing.RandomCrop')
 class RandomCrop(base_layer.Layer):
   """Randomly crop the images to target height and width.
 
@@ -313,7 +316,8 @@ class RandomCrop(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.Rescaling')
+@keras_export('keras.layers.Rescaling',
+              'keras.layers.experimental.preprocessing.Rescaling')
 class Rescaling(base_layer.Layer):
   """Multiply inputs by `scale` and adds `offset`.
 
@@ -367,7 +371,8 @@ VERTICAL = 'vertical'
 HORIZONTAL_AND_VERTICAL = 'horizontal_and_vertical'
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomFlip')
+@keras_export('keras.layers.RandomFlip',
+              'keras.layers.experimental.preprocessing.RandomFlip')
 class RandomFlip(base_layer.Layer):
   """Randomly flip each image horizontally and vertically.
 
@@ -447,7 +452,8 @@ class RandomFlip(base_layer.Layer):
 
 
 # TODO(tanzheny): Add examples, here and everywhere.
-@keras_export('keras.layers.experimental.preprocessing.RandomTranslation')
+@keras_export('keras.layers.RandomTranslation',
+              'keras.layers.experimental.preprocessing.RandomTranslation')
 class RandomTranslation(base_layer.Layer):
   """Randomly translate each image during training.
 
@@ -767,7 +773,8 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
         axis=1)
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomRotation')
+@keras_export('keras.layers.RandomRotation',
+              'keras.layers.experimental.preprocessing.RandomRotation')
 class RandomRotation(base_layer.Layer):
   """Randomly rotate each image.
 
@@ -887,7 +894,8 @@ class RandomRotation(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomZoom')
+@keras_export('keras.layers.RandomZoom',
+              'keras.layers.experimental.preprocessing.RandomZoom')
 class RandomZoom(base_layer.Layer):
   """Randomly zoom each image during training.
 
@@ -926,7 +934,7 @@ class RandomZoom(base_layer.Layer):
   Example:
 
   >>> input_img = np.random.random((32, 224, 224, 3))
-  >>> layer = tf.keras.layers.experimental.preprocessing.RandomZoom(.5, .2)
+  >>> layer = tf.keras.layers.RandomZoom(.5, .2)
   >>> out_img = layer(input_img)
   >>> out_img.shape
   TensorShape([32, 224, 224, 3])
@@ -1087,7 +1095,8 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
         axis=1)
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomContrast')
+@keras_export('keras.layers.RandomContrast',
+              'keras.layers.experimental.preprocessing.RandomContrast')
 class RandomContrast(base_layer.Layer):
   """Adjust the contrast of an image or images by a random factor.
 
@@ -1156,7 +1165,8 @@ class RandomContrast(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomHeight')
+@keras_export('keras.layers.RandomHeight',
+              'keras.layers.experimental.preprocessing.RandomHeight')
 class RandomHeight(base_layer.Layer):
   """Randomly vary the height of a batch of images during training.
 
@@ -1255,7 +1265,8 @@ class RandomHeight(base_layer.Layer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@keras_export('keras.layers.experimental.preprocessing.RandomWidth')
+@keras_export('keras.layers.RandomWidth',
+              'keras.layers.experimental.preprocessing.RandomWidth')
 class RandomWidth(base_layer.Layer):
   """Randomly vary the width of a batch of images during training.
 

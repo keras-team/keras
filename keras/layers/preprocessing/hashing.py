@@ -27,7 +27,8 @@ from tensorflow.python.util.tf_export import keras_export
 _DEFAULT_SALT_KEY = [0xDECAFCAFFE, 0xDECAFCAFFE]
 
 
-@keras_export('keras.layers.experimental.preprocessing.Hashing')
+@keras_export('keras.layers.Hashing',
+              'keras.layers.experimental.preprocessing.Hashing')
 class Hashing(base_layer.Layer):
   """Implements categorical feature hashing, also known as "hashing trick".
 
@@ -48,7 +49,7 @@ class Hashing(base_layer.Layer):
 
   **Example (FarmHash64)**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3)
+  >>> layer = tf.keras.layers.Hashing(num_bins=3)
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -60,8 +61,7 @@ class Hashing(base_layer.Layer):
 
   **Example (FarmHash64) with a mask value**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
-  ...    mask_value='')
+  >>> layer = tf.keras.layers.Hashing(num_bins=3, mask_value='')
   >>> inp = [['A'], ['B'], [''], ['C'], ['D']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -73,8 +73,7 @@ class Hashing(base_layer.Layer):
 
   **Example (SipHash64)**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
-  ...    salt=[133, 137])
+  >>> layer = tf.keras.layers.Hashing(num_bins=3, salt=[133, 137])
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=
@@ -86,8 +85,7 @@ class Hashing(base_layer.Layer):
 
   **Example (Siphash64 with a single integer, same as `salt=[133, 133]`)**
 
-  >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
-  ...    salt=133)
+  >>> layer = tf.keras.layers.Hashing(num_bins=3, salt=133)
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
   >>> layer(inp)
   <tf.Tensor: shape=(5, 1), dtype=int64, numpy=

@@ -65,6 +65,14 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "CategoryEncoding"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "CenterCrop"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Concatenate"
     mtype: "<type \'type\'>"
   }
@@ -161,6 +169,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "Discretization"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Dot"
     mtype: "<type \'type\'>"
   }
@@ -242,6 +254,10 @@ tf_module {
   }
   member {
     name: "GlobalMaxPooling3D"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "Hashing"
     mtype: "<type \'type\'>"
   }
   member {
@@ -329,6 +345,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "Normalization"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "PReLU"
     mtype: "<type \'type\'>"
   }
@@ -341,6 +361,38 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "RandomContrast"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomCrop"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomFlip"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomHeight"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomRotation"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomTranslation"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomWidth"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "RandomZoom"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "ReLU"
     mtype: "<type \'type\'>"
   }
@@ -349,7 +401,15 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "Rescaling"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Reshape"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "Resizing"
     mtype: "<type \'type\'>"
   }
   member {
