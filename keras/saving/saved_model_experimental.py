@@ -34,7 +34,6 @@ from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.saved_model import constants
-from tensorflow.python.saved_model import utils_impl as saved_model_utils
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.util.tf_export import keras_export
 
@@ -143,7 +142,7 @@ def _export_model_json(model, saved_model_path):
   """Saves model configuration as a json string under assets folder."""
   model_json = model.to_json()
   model_json_filepath = os.path.join(
-      saved_model_utils.get_or_create_assets_dir(saved_model_path),
+      _get_or_create_assets_dir(saved_model_path),
       tf.compat.as_text(constants.SAVED_MODEL_FILENAME_JSON))
   with tf.io.gfile.GFile(model_json_filepath, 'w') as f:
     f.write(model_json)
@@ -151,8 +150,8 @@ def _export_model_json(model, saved_model_path):
 
 def _export_model_variables(model, saved_model_path):
   """Saves model weights in checkpoint format under variables folder."""
-  saved_model_utils.get_or_create_variables_dir(saved_model_path)
-  checkpoint_prefix = saved_model_utils.get_variables_path(saved_model_path)
+  _get_or_create_variables_dir(saved_model_path)
+  checkpoint_prefix = _get_variables_path(saved_model_path)
   model.save_weights(checkpoint_prefix, save_format='tf', overwrite=True)
   return checkpoint_prefix
 
@@ -422,3 +421,46 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
       tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
   model.load_weights(checkpoint_prefix)
   return model
+
+
+#### Directory / path helpers
+
+
+def _get_or_create_variables_dir(export_dir):
+  """Return variables sub-directory, or create one if it doesn't exist."""
+  variables_dir = _get_variables_dir(export_dir)
+  if not tf.compat.v1.gfile.Exists(variables_dir):
+    tf.compat.v1.gfile.MakeDirs(variables_dir)
+  return variables_dir
+
+
+def _get_variables_dir(export_dir):
+  """Return variables sub-directory in the SavedModel."""
+  return os.path.join(
+      tf.compat.as_text(export_dir),
+      tf.compat.as_text(tf.saved_model.VARIABLES_DIRECTORY))
+
+
+def _get_variables_path(export_dir):
+  """Return the variables path, used as the prefix for checkpoint files."""
+  return os.path.join(
+      tf.compat.as_text(_get_variables_dir(export_dir)),
+      tf.compat.as_text(tf.saved_model.VARIABLES_FILENAME))
+
+
+def _get_or_create_assets_dir(export_dir):
+  """Return assets sub-directory, or create one if it doesn't exist."""
+  assets_destination_dir = _get_assets_dir(export_dir)
+
+  if not tf.compat.v1.gfile.Exists(assets_destination_dir):
+    tf.compat.v1.gfile.MakeDirs(assets_destination_dir)
+
+  return assets_destination_dir
+
+
+def _get_assets_dir(export_dir):
+  """Return path to asset directory in the SavedModel."""
+  return os.path.join(
+      tf.compat.as_text(export_dir),
+      tf.compat.as_text(tf.saved_model.ASSETS_DIRECTORY))
+
