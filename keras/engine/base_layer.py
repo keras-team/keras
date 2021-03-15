@@ -2836,7 +2836,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                                     None)
             if subtrackables:
               deque.extendleft(reversed(subtrackables))
-        elif isinstance(trackable_obj, data_structures.TrackableDataStructure):
+        elif isinstance(trackable_obj, tf.__internal__.tracking.TrackableDataStructure):
           # Data structures are introspected even with `recursive=False`.
           tracked_values = trackable_obj._values
           if tracked_values:
