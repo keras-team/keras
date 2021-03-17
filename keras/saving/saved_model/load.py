@@ -25,11 +25,11 @@ import types
 
 from google.protobuf import message
 
-from tensorflow.core.framework import versions_pb2
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
 from keras.protobuf import saved_metadata_pb2
+from keras.protobuf import versions_pb2
 from keras.saving import saving_utils
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import json_utils
