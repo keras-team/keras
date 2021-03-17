@@ -45,36 +45,14 @@ from keras.layers.preprocessing.image_preprocessing import Resizing
 from keras.layers.preprocessing.image_preprocessing import Rescaling
 
 # Preprocessing layers.
-if tf.__internal__.tf2.enabled():
-  from keras.layers.preprocessing.integer_lookup import IntegerLookup
-  from keras.layers.preprocessing.integer_lookup_v1 import IntegerLookup as IntegerLookupV1
-  IntegerLookupV2 = IntegerLookup
-  from keras.layers.preprocessing.normalization import Normalization
-  from keras.layers.preprocessing.normalization_v1 import Normalization as NormalizationV1
-  NormalizationV2 = Normalization
-  from keras.layers.preprocessing.string_lookup import StringLookup
-  from keras.layers.preprocessing.string_lookup_v1 import StringLookup as StringLookupV1
-  StringLookupV2 = StringLookup
-  from keras.layers.preprocessing.text_vectorization import TextVectorization
-  from keras.layers.preprocessing.text_vectorization_v1 import TextVectorization as TextVectorizationV1
-  TextVectorizationV2 = TextVectorization
-else:
-  from keras.layers.preprocessing.integer_lookup_v1 import IntegerLookup
-  from keras.layers.preprocessing.integer_lookup import IntegerLookup as IntegerLookupV2
-  IntegerLookupV1 = IntegerLookup
-  from keras.layers.preprocessing.normalization_v1 import Normalization
-  from keras.layers.preprocessing.normalization import Normalization as NormalizationV2
-  NormalizationV1 = Normalization
-  from keras.layers.preprocessing.string_lookup_v1 import StringLookup
-  from keras.layers.preprocessing.string_lookup import StringLookup as StringLookupV2
-  StringLookupV1 = StringLookup
-  from keras.layers.preprocessing.text_vectorization_v1 import TextVectorization
-  from keras.layers.preprocessing.text_vectorization import TextVectorization as TextVectorizationV2
-  TextVectorizationV1 = TextVectorization
 from keras.layers.preprocessing.category_crossing import CategoryCrossing
 from keras.layers.preprocessing.category_encoding import CategoryEncoding
 from keras.layers.preprocessing.discretization import Discretization
 from keras.layers.preprocessing.hashing import Hashing
+from keras.layers.preprocessing.integer_lookup import IntegerLookup
+from keras.layers.preprocessing.normalization import Normalization
+from keras.layers.preprocessing.string_lookup import StringLookup
+from keras.layers.preprocessing.text_vectorization import TextVectorization
 
 # Advanced activations.
 from keras.layers.advanced_activations import LeakyReLU

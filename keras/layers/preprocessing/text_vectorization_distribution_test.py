@@ -27,20 +27,10 @@ from keras import keras_parameterized
 from keras.distribute.strategy_combinations import all_strategies
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import text_vectorization
-from keras.layers.preprocessing import text_vectorization_v1
-
-
-def get_layer_class():
-  if tf.executing_eagerly():
-    return text_vectorization.TextVectorization
-  else:
-    return text_vectorization_v1.TextVectorization
 
 
 @tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
-        distribution=all_strategies,
-        mode=["eager", "graph"]))
+    tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=["eager"]))
 class TextVectorizationDistributionTest(
     keras_parameterized.TestCase,
     preprocessing_test_utils.PreprocessingLayerTest):
@@ -58,7 +48,7 @@ class TextVectorizationDistributionTest(
 
     with distribution.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
-      layer = get_layer_class()(
+      layer = text_vectorization.TextVectorization(
           max_tokens=None,
           standardize=None,
           split=None,
@@ -87,7 +77,7 @@ class TextVectorizationDistributionTest(
 
     with distribution.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
-      layer = get_layer_class()(
+      layer = text_vectorization.TextVectorization(
           max_tokens=None,
           standardize=None,
           split=None,

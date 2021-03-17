@@ -26,15 +26,7 @@ import keras
 from keras import keras_parameterized
 from keras.distribute.strategy_combinations import all_strategies
 from keras.layers.preprocessing import index_lookup
-from keras.layers.preprocessing import index_lookup_v1
 from keras.layers.preprocessing import preprocessing_test_utils
-
-
-def get_layer_class():
-  if tf.executing_eagerly():
-    return index_lookup.IndexLookup
-  else:
-    return index_lookup_v1.IndexLookup
 
 
 @tf.__internal__.distribute.combinations.generate(
@@ -61,7 +53,7 @@ class IndexLookupDistributionTest(
 
     with distribution.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
-      layer = get_layer_class()(
+      layer = index_lookup.IndexLookup(
           max_tokens=None,
           num_oov_indices=1,
           mask_token="",
