@@ -33,7 +33,6 @@ from keras.utils import mode_keys
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import builder as saved_model_builder
-from tensorflow.python.saved_model import constants
 from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.util.tf_export import keras_export
 
@@ -51,6 +50,10 @@ sequential = LazyLoader(
     "sequential", globals(),
     "keras.engine.sequential")
 # pylint:enable=g-inconsistent-quotes
+
+
+# File name for json format of SavedModel.
+SAVED_MODEL_FILENAME_JSON = 'saved_model.json'
 
 
 @keras_export(v1=['keras.experimental.export_saved_model'])
@@ -143,7 +146,7 @@ def _export_model_json(model, saved_model_path):
   model_json = model.to_json()
   model_json_filepath = os.path.join(
       _get_or_create_assets_dir(saved_model_path),
-      tf.compat.as_text(constants.SAVED_MODEL_FILENAME_JSON))
+      tf.compat.as_text(SAVED_MODEL_FILENAME_JSON))
   with tf.io.gfile.GFile(model_json_filepath, 'w') as f:
     f.write(model_json)
 
@@ -408,7 +411,7 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
   model_json_filepath = os.path.join(
       tf.compat.as_bytes(saved_model_path),
       tf.compat.as_bytes(tf.saved_model.ASSETS_DIRECTORY),
-      tf.compat.as_bytes(constants.SAVED_MODEL_FILENAME_JSON))
+      tf.compat.as_bytes(SAVED_MODEL_FILENAME_JSON))
   with tf.io.gfile.GFile(model_json_filepath, 'r') as f:
     model_json = f.read()
   model = model_config.model_from_json(

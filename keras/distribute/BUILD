@@ -33,7 +33,6 @@ py_library(
     deps = [
         ":sidecar_evaluator",
         "//:expect_tensorflow_installed",
-        "//keras:activations",
         "//keras:backend",
         "//keras:callbacks",
         "//keras:callbacks_v1",
@@ -42,9 +41,7 @@ py_library(
         "//keras:losses",
         "//keras:optimizers",
         "//keras:regularizers",
-        "//keras/mixed_precision:autocast_variable",
         "//keras/mixed_precision:policy",
-        "//keras/saving",
         "//keras/utils:engine_utils",
         "//keras/utils:mode_keys",
     ],
@@ -730,7 +727,30 @@ tf_py_test(
         "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
     ],
     deps = [
+        ":multi_worker_testing_utils",
         "//:expect_absl_installed",
+        "//:expect_portpicker_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras/utils:dataset_creator",
+    ],
+)
+
+distribute_py_test(
+    name = "dataset_creator_model_fit_test",
+    srcs = ["dataset_creator_model_fit_test.py"],
+    disable_mlir_bridge = True,  # TODO(b/170352626)
+    full_precision = True,
+    main = "dataset_creator_model_fit_test.py",
+    shard_count = 50,
+    tags = [
+        "multi_gpu",
+        "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
+        "nomultivm",  # TODO(b/170502145)
+    ],
+    deps = [
+        ":multi_worker_testing_utils",
+        ":strategy_combinations",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras",

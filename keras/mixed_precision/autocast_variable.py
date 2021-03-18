@@ -20,9 +20,8 @@ from __future__ import print_function
 import tensorflow.compat.v2 as tf
 
 import threading
-
-from tensorflow.python.distribute import distribute_utils
 from tensorflow.python.distribute import ps_values as ps_distribute_values
+from keras.distribute import distributed_training_utils
 
 
 # _autocast_dtype.dtype is the dtype AutoCastVariables should be cast to, or
@@ -509,7 +508,7 @@ def create_autocast_variable(variable):
   Returns:
     An AutoCastVariable that wraps the variable.
   """
-  if (not distribute_utils.is_distributed_variable(variable) and
+  if ((not distributed_training_utils.is_distributed_variable(variable)) and
       not isinstance(variable, ps_distribute_values.AggregatingVariable)):
     return AutoCastVariable(variable)
 

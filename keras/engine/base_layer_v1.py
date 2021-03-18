@@ -50,7 +50,6 @@ from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-im
 from keras.utils.tf_utils import is_tensor_or_tensor_list  # pylint: disable=unused-import
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.training.tracking import data_structures
 from tensorflow.tools.docs import doc_controls
 
 
@@ -2189,7 +2188,7 @@ class Layer(base_layer.Layer):
       return
 
     # Keep track of trackable objects, for the needs of `Network.save_weights`.
-    value = data_structures.sticky_attribute_assignment(
+    value = tf.__internal__.tracking.sticky_attribute_assignment(
         trackable=self, value=value, name=name)
 
     reference_counts = self._obj_reference_counts

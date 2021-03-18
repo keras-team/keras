@@ -48,7 +48,6 @@ from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.training import moving_averages
-from tensorflow.python.training.tracking import util as tracking_util
 from tensorflow.python.util import keras_deps
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -721,7 +720,7 @@ keras_deps.register_get_session_function(get_session)
 
 # Inject the get_session function to tracking_util to avoid the backward
 # dependency from TF to Keras.
-tracking_util.register_session_provider(get_session)
+tf.__internal__.tracking.register_session_provider(get_session)
 
 
 def get_graph():

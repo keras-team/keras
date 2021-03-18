@@ -57,7 +57,6 @@ from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-im
 from keras.utils.tf_utils import is_tensor_or_tensor_list  # pylint: disable=unused-import
 from tensorflow.python.platform import tf_logging
 from tensorflow.python.training.tracking import base as trackable
-from tensorflow.python.training.tracking import data_structures
 from tensorflow.python.util.tf_export import get_canonical_name_for_symbol
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -2726,7 +2725,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       return
 
     # Wraps data structures in `Trackable`, unwraps `NoDependency` objects.
-    value = data_structures.sticky_attribute_assignment(
+    value = tf.__internal__.tracking.sticky_attribute_assignment(
         trackable=self, value=value, name=name)
 
     reference_counts = self._obj_reference_counts

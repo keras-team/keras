@@ -30,6 +30,7 @@ from keras import backend as K
 from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
+from keras.utils import version_utils
 from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
@@ -202,6 +203,8 @@ class PreprocessingLayer(Layer):
           throw if 'reset_state' is set to False.
     """
     _disallow_inside_tf_function('adapt')
+    if not version_utils.should_use_v2():
+      raise RuntimeError('`adapt` is only supported in tensorflow v2.')  # pylint: disable=g-doc-exception
     if not self.stateful:
       return
     if not self.streaming and self._is_adapted and not reset_state:
@@ -284,6 +287,7 @@ class CombinerPreprocessingLayer(PreprocessingLayer):
   def reset_state(self):
     self._adapt_accumulator = None
 
+  @trackable.no_automatic_dependency_tracking
   def update_state(self, data):
     if self._adapt_accumulator is None:
       self._adapt_accumulator = self._get_accumulator()

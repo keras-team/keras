@@ -571,7 +571,6 @@ class BinaryCrossentropy(LossFunctionWrapper):
       from_logits: Whether to interpret `y_pred` as a tensor of
         [logit](https://en.wikipedia.org/wiki/Logit) values. By default, we
           assume that `y_pred` contains probabilities (i.e., values in [0, 1]).
-          **Note - Using from_logits=True may be more numerically stable.
       label_smoothing: Float in [0, 1]. When 0, no smoothing occurs. When > 0,
         we compute the loss between the predicted labels and a smoothed version
         of the true labels, where the smoothing squeezes the labels towards 0.5.
@@ -651,7 +650,6 @@ class CategoricalCrossentropy(LossFunctionWrapper):
     Args:
       from_logits: Whether `y_pred` is expected to be a logits tensor. By
         default, we assume that `y_pred` encodes a probability distribution.
-        **Note - Using from_logits=True is more numerically stable.**
       label_smoothing: Float in [0, 1]. When > 0, label values are smoothed,
         meaning the confidence on label values are relaxed. For example, if
         `0.1`, use `0.1 / num_classes` for non-target labels and 
@@ -732,7 +730,6 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
     Args:
       from_logits: Whether `y_pred` is expected to be a logits tensor. By
         default, we assume that `y_pred` encodes a probability distribution.
-        **Note - Using from_logits=True may be more numerically stable.
       reduction: (Optional) Type of `tf.keras.losses.Reduction` to apply to
         loss. Default value is `AUTO`. `AUTO` indicates that the reduction
         option will be determined by the usage context. For almost all cases
@@ -1228,7 +1225,7 @@ def _ragged_tensor_apply_loss(loss_fn, y_true, y_pred):
        without loss of information.
 
     Args:
-      rt: RaggedTensor
+      rt: RaggedTensor.
     """
     return tf.reduce_all([
         tf.equal(
@@ -2026,7 +2023,7 @@ def get(identifier):
   Args:
     identifier: A loss identifier. One of None or string name of a loss
       function/class or loss configuration dictionary or a loss function or a
-      loss class instance
+      loss class instance.
 
   Returns:
     A Keras loss as a `function`/ `Loss` class instance.

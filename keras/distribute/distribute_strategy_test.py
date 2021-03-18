@@ -25,7 +25,6 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.distribute import distribute_utils
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras import backend
@@ -2666,7 +2665,8 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
       model.load_weights(temp_dir)
       self.assertNotEmpty(model.optimizer.weights)
       self.assertTrue(
-          distribute_utils.is_distributed_variable(model.optimizer.weights[0]))
+          distributed_training_utils.is_distributed_variable(
+              model.optimizer.weights[0]))
 
     with distribution.scope():
       model = create_model()
@@ -2674,7 +2674,8 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
     model.load_weights(temp_dir)
     self.assertNotEmpty(model.optimizer.weights)
     self.assertTrue(
-        distribute_utils.is_distributed_variable(model.optimizer.weights[0]))
+        distributed_training_utils.is_distributed_variable(
+            model.optimizer.weights[0]))
 
 
 if __name__ == '__main__':
