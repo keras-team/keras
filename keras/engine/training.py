@@ -2246,7 +2246,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         session = backend.get_session()
         # Restore existing variables (if any) immediately, and set up a
         # streaming restore for any variables created in the future.
-        trackable_utils.streaming_restore(status=status, session=session)
+        tf.__internal__.tracking.streaming_restore(status=status, session=session)
       status.assert_nontrivial_match()
       return status
     if h5py is None:

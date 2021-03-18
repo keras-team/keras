@@ -26,15 +26,7 @@ import keras
 from keras import keras_parameterized
 from keras.distribute.strategy_combinations import all_strategies
 from keras.layers.preprocessing import normalization
-from keras.layers.preprocessing import normalization_v1
 from keras.layers.preprocessing import preprocessing_test_utils
-
-
-def get_layer_class():
-  if tf.executing_eagerly():
-    return normalization.Normalization
-  else:
-    return normalization_v1.Normalization
 
 
 def _get_layer_computation_test_cases():
@@ -104,9 +96,8 @@ def _get_layer_computation_test_cases():
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.times(
-        tf.__internal__.test.combinations.combine(
-            distribution=all_strategies,
-            mode=["eager", "graph"]), _get_layer_computation_test_cases()))
+        tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=["eager"]),
+        _get_layer_computation_test_cases()))
 class NormalizationTest(keras_parameterized.TestCase,
                         preprocessing_test_utils.PreprocessingLayerTest):
 
@@ -122,7 +113,7 @@ class NormalizationTest(keras_parameterized.TestCase,
 
     with distribution.scope():
       input_data = keras.Input(shape=input_shape)
-      layer = get_layer_class()(axis=axis)
+      layer = normalization.Normalization(axis=axis)
       layer.adapt(adapt_data)
       output = layer(input_data)
       model = keras.Model(input_data, output)
