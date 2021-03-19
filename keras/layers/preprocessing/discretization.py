@@ -238,44 +238,39 @@ class Discretization(base_preprocessing_layer.CombinerPreprocessingLayer):
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def call(self, inputs):
-    def _bucketize_op(bins):
-      bins = [tf.cast(bins, tf.float32)]
-      return lambda inputs: tf.raw_ops.BoostedTreesBucketize(  # pylint: disable=g-long-lambda
+    bins = [tf.cast(tf.compat.v1.squeeze(self.bins), tf.float32)]
+
+    def _bucketize_fn(inputs):
+      return tf.raw_ops.BoostedTreesBucketize(
           float_values=[tf.cast(inputs, tf.float32)],
           bucket_boundaries=bins)[0]
 
     if tf_utils.is_ragged(inputs):
       integer_buckets = tf.ragged.map_flat_values(
-          _bucketize_op(tf.compat.v1.squeeze(self.bins)),
-          inputs)
+          _bucketize_fn, inputs)
       # Ragged map_flat_values doesn't touch the non-values tensors in the
       # ragged composite tensor. If this op is the only op a Keras model,
       # this can cause errors in Graph mode, so wrap the tensor in an identity.
       return tf.identity(integer_buckets)
     elif isinstance(inputs, tf.SparseTensor):
-      integer_buckets = tf.raw_ops.BoostedTreesBucketize(
-          float_values=[tf.cast(inputs.values, tf.float32)],
-          bucket_boundaries=[tf.cast(tf.compat.v1.squeeze(self.bins),
-                                           tf.float32)])[0]
       return tf.SparseTensor(
           indices=tf.identity(inputs.indices),
-          values=integer_buckets,
+          values=_bucketize_fn(inputs.values),
           dense_shape=tf.identity(inputs.dense_shape))
     else:
-      input_shape = inputs.get_shape()
-      if any(dim is None for dim in input_shape.as_list()[1:]):
+      static_shape = inputs.get_shape()
+      if any(dim is None for dim in static_shape.as_list()[1:]):
         raise NotImplementedError(
             "Discretization Layer requires known non-batch shape,"
-            "found {}".format(input_shape))
+            "found {}".format(static_shape))
 
-      reshaped = tf.reshape(
-          inputs,
-          [-1, tf.raw_ops.Prod(input=input_shape.as_list()[1:], axis=0)])
-
+      dynamic_shape = tf.shape(inputs)
+      # BoostedTreesBucketize only handles rank 1 inputs. We need to flatten our
+      # inputs after batch size and vectorized_map over each sample.
+      reshaped = tf.reshape(inputs, [dynamic_shape[0], -1])
       return tf.reshape(
-          tf.vectorized_map(
-              _bucketize_op(tf.compat.v1.squeeze(self.bins)), reshaped),
-          tf.constant([-1] + input_shape.as_list()[1:]))
+          tf.vectorized_map(_bucketize_fn, reshaped),
+          dynamic_shape)
 
   class DiscretizingCombiner(Combiner):
     """Combiner for the Discretization preprocessing layer.

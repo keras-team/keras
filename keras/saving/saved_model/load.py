@@ -40,7 +40,6 @@ from keras.utils import metrics_utils
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import loader_impl
-from tensorflow.python.saved_model import nested_structure_coder
 from tensorflow.python.saved_model import revived_types
 from tensorflow.python.training.tracking import base as trackable
 
@@ -749,7 +748,7 @@ class KerasObjectLoader(object):
 
   def _infer_inputs(self, layer_node_id, convert_to_shapes=False):
     """Infers input shape of layer from SavedModel functions."""
-    coder = nested_structure_coder.StructureCoder()
+    coder = tf.__internal__.saved_model.StructureCoder()
     call_fn_id = self._search_for_child_node(
         layer_node_id, ['call_and_return_all_conditional_losses'])
     if call_fn_id is None:

@@ -31,7 +31,7 @@ from keras.layers.preprocessing import preprocessing_test_utils
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(
-        distribution=strategy_combinations.strategies_minus_tpu,
+        distribution=strategy_combinations.all_strategies,
         mode=["eager", "graph"]))
 class DiscretizationDistributionTest(
     keras_parameterized.TestCase,

@@ -52,7 +52,7 @@ def _get_end_to_end_test_cases():
               np.array([[1138], [1729], [725], [42], [42], [725], [1138], [4]],
                        dtype=np.int64),
           "kwargs": {
-              "max_values": None,
+              "max_tokens": None,
               "dtype": tf.int64,
           },
           "expected_output": [[2], [3], [4], [5], [5], [4], [2], [1]],
@@ -133,7 +133,7 @@ class CategoricalEncodingInputTest(
     expected_dense_shape = [3, 4]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
-    layer = integer_lookup.IntegerLookup(max_values=None)
+    layer = integer_lookup.IntegerLookup(max_tokens=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -149,7 +149,7 @@ class CategoricalEncodingInputTest(
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
-    layer = integer_lookup.IntegerLookup(max_values=None)
+    layer = integer_lookup.IntegerLookup(max_tokens=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -175,11 +175,11 @@ class CategoricalEncodingMultiOOVTest(
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, sparse=True)
     layer = integer_lookup.IntegerLookup(
-        max_values=None,
+        max_tokens=None,
         dtype=tf.int64,
         num_oov_indices=2,
-        mask_value=0,
-        oov_value=-1)
+        mask_token=0,
+        oov_token=-1)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -195,7 +195,7 @@ class CategoricalEncodingMultiOOVTest(
     expected_output = [[3, 4, 6], [6, 5, 3, 2]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64, ragged=True)
-    layer = integer_lookup.IntegerLookup(max_values=None, num_oov_indices=2)
+    layer = integer_lookup.IntegerLookup(max_tokens=None, num_oov_indices=2)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -240,7 +240,7 @@ class CategoricalEncodingAdaptTest(
     batched_ds = ds.take(2)
     input_t = keras.Input(shape=(), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(
-        max_values=10, num_oov_indices=0, mask_value=None, oov_value=None)
+        max_tokens=10, num_oov_indices=0, mask_token=None, oov_token=None)
     _ = layer(input_t)
     layer.adapt(batched_ds)
 
@@ -264,7 +264,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
 
   def test_output_shape(self):
     input_data = keras.Input(shape=(4,), dtype=tf.int64)
-    layer = integer_lookup.IntegerLookup(max_values=2, num_oov_indices=1)
+    layer = integer_lookup.IntegerLookup(max_tokens=2, num_oov_indices=1)
     int_data = layer(input_data)
     self.assertAllEqual(int_data.shape[1:], input_data.shape[1:])
 
@@ -274,7 +274,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
-    layer = integer_lookup.IntegerLookup(max_values=None, mask_value=None)
+    layer = integer_lookup.IntegerLookup(max_tokens=None, mask_token=None)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -289,7 +289,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(
         vocabulary=vocab_data,
-        max_values=None,
+        max_tokens=None,
     )
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -304,7 +304,7 @@ class IntegerLookupOutputTest(keras_parameterized.TestCase,
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(
         vocabulary=vocab_data,
-        max_values=None,
+        max_tokens=None,
     )
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)
@@ -479,14 +479,14 @@ class IntegerLookupErrorTest(keras_parameterized.TestCase,
   def test_too_long_vocab_fails_in_single_setting(self):
     vocab_data = [42, 1138, 725, 1729]
 
-    layer = integer_lookup.IntegerLookup(max_values=4, num_oov_indices=1)
+    layer = integer_lookup.IntegerLookup(max_tokens=4, num_oov_indices=1)
     with self.assertRaisesRegex(ValueError,
                                 "vocabulary larger than the maximum vocab.*"):
       layer.set_vocabulary(vocab_data)
 
-  def test_zero_max_values_fails(self):
-    with self.assertRaisesRegex(ValueError, ".*max_values.*"):
-      _ = integer_lookup.IntegerLookup(max_values=0, num_oov_indices=1)
+  def test_zero_max_tokens_fails(self):
+    with self.assertRaisesRegex(ValueError, ".*max_tokens.*"):
+      _ = integer_lookup.IntegerLookup(max_tokens=0, num_oov_indices=1)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -505,7 +505,7 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
 
     # Build and validate a golden model.
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
-    layer = integer_lookup.IntegerLookup(max_values=None, num_oov_indices=1)
+    layer = integer_lookup.IntegerLookup(max_tokens=None, num_oov_indices=1)
     layer.set_vocabulary(vocab_data)
     int_data = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=int_data)

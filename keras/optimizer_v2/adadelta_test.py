@@ -25,7 +25,10 @@ import numpy as np
 from keras import combinations
 from keras.optimizer_v2 import adadelta
 
-_DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
+_DATA_TYPES = [
+    tf.half, tf.float32, tf.float64, tf.complex64,
+    tf.complex128
+]
 
 
 class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):

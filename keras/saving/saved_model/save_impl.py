@@ -26,8 +26,6 @@ import tensorflow.compat.v2 as tf
 import functools
 import threading
 import weakref
-
-from tensorflow.python.eager import def_function
 from keras import backend as K
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
@@ -420,7 +418,7 @@ class LayerCallCollection(object):
       List of possibly nested TensorSpecs of the layer call function inputs.
       The list does not contain the `training` argument.
     """
-    if (isinstance(layer.call, def_function.Function) and
+    if (isinstance(layer.call, tf.__internal__.function.Function) and
         layer.call.input_signature is not None):
       return layer.call.input_signature
     elif isinstance(layer, training_lib.Model):
@@ -687,19 +685,19 @@ def _wrap_unconditional_loss(loss_fn, index):
   """Wraps callable/unconditional loss, returning a serializable function."""
   # Extract original loss function from partial function
   fn = loss_fn.args[0] if isinstance(loss_fn, functools.partial) else loss_fn
-  if isinstance(fn, def_function.Function):
+  if isinstance(fn, tf.__internal__.function.Function):
     return fn
   else:
-    return def_function.Function(
+    return tf.__internal__.function.Function(
         fn, 'loss_fn_{}'.format(index), input_signature=[])
 
 
 def _wrap_activity_regularizer(layer):
   """Wraps the activity regularizer."""
   # pylint: disable=protected-access
-  if isinstance(layer._activity_regularizer, def_function.Function):
+  if isinstance(layer._activity_regularizer, tf.__internal__.function.Function):
     return layer._activity_regularizer
-  return def_function.Function(
+  return tf.__internal__.function.Function(
       layer._activity_regularizer,
       '{}_activity_regularizer'.format(layer.name),
       input_signature=[
@@ -709,6 +707,6 @@ def _wrap_activity_regularizer(layer):
 
 
 def _get_layer_call_method(layer):
-  if isinstance(layer.call, (def_function.Function)):
+  if isinstance(layer.call, (tf.__internal__.function.Function)):
     return layer.call.python_function
   return layer.call

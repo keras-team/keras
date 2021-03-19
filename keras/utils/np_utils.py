@@ -83,24 +83,15 @@ def to_categorical(y, num_classes=None, dtype='float32'):
 
 @keras_export('keras.utils.normalize')
 def normalize(x, axis=-1, order=2):
-  """Normalizes a NumPy array.
+  """Normalizes a Numpy array.
 
   Args:
-      x: NumPy array to normalize.
-      axis: Axis along which to normalize. For instance, `axis=-1` corresponds
-        to feature-wise normalization.
-      order: Normalization order (e.g. `order=2` for the L2 norm).
+      x: Numpy array to normalize.
+      axis: axis along which to normalize.
+      order: Normalization order (e.g. `order=2` for L2 norm).
 
   Returns:
       A normalized copy of the array.
-
-  Example:
-
-  >>> array = np.random.random(size=(32, 3))
-  >>> normalized_array = tf.keras.utils.normalize(array, axis=-1)
-  >>> # Every element in the batch has now a unit norm
-  >>> for i in range(32):
-  >>>     np.testing.assert_allclose(np.square(normalized_array[i, :]).sum(), 1)
   """
   l2 = np.atleast_1d(np.linalg.norm(x, order, axis))
   l2[l2 == 0] = 1

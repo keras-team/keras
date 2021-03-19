@@ -292,7 +292,7 @@ class KPLMultiWorkerTest(tf.test.TestCase,
       num_epochs = 4
       num_steps = 7
       for _ in range(num_epochs):
-        accuracy.reset_states()
+        accuracy.reset_state()
         for _ in range(num_steps):
           train_step(distributed_iterator)
 
