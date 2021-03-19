@@ -24,15 +24,11 @@ import copy
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.framework import test_util
 from keras import combinations
 from keras.optimizer_v2 import adagrad
 from keras.optimizer_v2 import learning_rate_schedule
 
-_DATA_TYPES = [tf.half, tf.float32, tf.float64]
-# TODO(b/143684500): Eigen to support complex sqrt
-if not test_util.IsBuiltWithNvcc():
-  _DATA_TYPES += [tf.complex64, tf.complex128]
+_DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
 
 
 def adagrad_update_numpy(param, accum, g_t, lr=0.001, epsilon=1e-7):
