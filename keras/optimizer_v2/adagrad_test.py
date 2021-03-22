@@ -28,7 +28,10 @@ from keras import combinations
 from keras.optimizer_v2 import adagrad
 from keras.optimizer_v2 import learning_rate_schedule
 
-_DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
+_DATA_TYPES = [
+    tf.half, tf.float32, tf.float64, tf.complex64,
+    tf.complex128
+]
 
 
 def adagrad_update_numpy(param, accum, g_t, lr=0.001, epsilon=1e-7):

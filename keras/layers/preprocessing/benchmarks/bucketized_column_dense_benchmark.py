@@ -20,7 +20,6 @@ import numpy as np
 
 import keras
 from tensorflow.python.eager.def_function import function as tf_function
-from tensorflow.python.feature_column import feature_column_v2 as fcv2
 from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing.benchmarks import feature_column_benchmark as fc_bm
 
@@ -52,7 +51,7 @@ def embedding_varlen(batch_size, max_length):
   # Wrap the FC implementation in a tf.function for a fair comparison
   @tf_function()
   def fc_fn(tensors):
-    fc.transform_feature(fcv2.FeatureTransformationCache(tensors), None)
+    fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
 
   # Benchmark runs
   keras_data = {"data": data.to_tensor(default_value=0.0)}

@@ -19,8 +19,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-
-from tensorflow.python.eager import def_function
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import save_impl
 from keras.utils.generic_utils import LazyLoader
@@ -196,7 +194,7 @@ class SerializedAttributes(object):
       if key in function_dict:
         if (function_dict[key] is not None and  # Not all functions are required
             not isinstance(function_dict[key],
-                           (def_function.Function, save_impl.LayerCall))):
+                           (tf.__internal__.function.Function, save_impl.LayerCall))):
           raise ValueError(
               'Function dictionary contained a non-function object: {} (for key'
               ' {})'.format(function_dict[key], key))

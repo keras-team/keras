@@ -22,8 +22,6 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-
-from tensorflow.python.feature_column import feature_column_v2 as fc
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 from tensorflow.python.util.tf_export import keras_export
@@ -145,7 +143,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
                        features)
     if training is None:
       training = backend.learning_phase()
-    transformation_cache = fc.FeatureTransformationCache(features)
+    transformation_cache = tf.__internal__.feature_column.FeatureTransformationCache(features)
     output_tensors = []
     sequence_lengths = []
 
