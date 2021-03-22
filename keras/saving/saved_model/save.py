@@ -21,9 +21,9 @@ import tensorflow.compat.v2 as tf
 
 import os
 
-from tensorflow.core.framework import versions_pb2
 from keras import backend as K
 from keras.protobuf import saved_metadata_pb2
+from keras.protobuf import versions_pb2
 from keras.saving import saving_utils
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import save_impl
