@@ -32,7 +32,10 @@ from keras import testing_utils
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.optimizer_v2 import rmsprop
 
-_DATA_TYPES = [tf.half, tf.float32, tf.float64, tf.complex64, tf.complex128]
+_DATA_TYPES = [
+    tf.half, tf.float32, tf.float64, tf.complex64,
+    tf.complex128
+]
 
 _TEST_PARAM_VALUES = [
     # learning_rate, rho, momentum, epsilon, centered

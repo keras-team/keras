@@ -23,8 +23,6 @@ import collections.abc as collections_abc
 import copy
 import os
 import six
-
-from tensorflow.python.eager import def_function
 from keras import backend as K
 from keras import losses
 from keras import optimizer_v1
@@ -114,7 +112,7 @@ def trace_model_call(model, input_signature=None):
     ValueError: if input signature cannot be inferred from the model.
   """
   if input_signature is None:
-    if isinstance(model.call, def_function.Function):
+    if isinstance(model.call, tf.__internal__.function.Function):
       input_signature = model.call.input_signature
 
   if input_signature is None:
