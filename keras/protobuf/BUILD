@@ -19,5 +19,11 @@ tf_proto_library(
     name = "saved_metadata_proto",
     srcs = ["saved_metadata.proto"],
     cc_api_version = 2,
-    protodeps = ["@org_tensorflow//tensorflow/core:protos_all"],
+    protodeps = [":versions_proto"],
+)
+
+tf_proto_library(
+    name = "versions_proto",
+    srcs = ["versions.proto"],
+    cc_api_version = 2,
 )
