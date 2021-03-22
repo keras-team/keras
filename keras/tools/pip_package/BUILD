@@ -25,6 +25,7 @@ COMMON_PIP_DEPS = [
     "//keras/benchmarks:keras_benchmark_lib_pip",
     "//keras/distribute:distribute_test_lib_pip",
     "//keras/layers/preprocessing:preprocessing_test_utils",
+    "//keras/layers/preprocessing/benchmarks:feature_column_benchmark",
     "//keras/mixed_precision:test_util",
     "//keras/tests:model_architectures",
     "//keras/tests:model_subclassing_test_util",
