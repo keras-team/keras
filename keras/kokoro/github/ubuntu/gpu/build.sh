@@ -56,7 +56,7 @@ bazel test --test_timeout 300,600,1200,3600 --test_output=errors --keep_going \
    --test_env=_PREFER_OSS_KERAS=1 \
    --build_tag_filters="${tag_filters}" \
    --test_tag_filters="${tag_filters}" \
-   --run_under=@org_tensorflow//tensorflow/tools/ci_build/gpu_build:parallel_gpu_execute \
+   --run_under=@org_keras//keras/tools/gpu_build:parallel_gpu_execute \
    --local_test_jobs=${LOCAL_TEST_JOBS} \
    --nodistinct_host_configuration \
    -- //keras/...
