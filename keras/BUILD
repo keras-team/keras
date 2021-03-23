@@ -139,7 +139,7 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras/distribute:distributed_file_utils",
         "//keras/distribute:worker_training_state",
-        "//keras/protobuf:projector_config_proto_py",
+        "//keras/protobuf:projector_config_proto_py_pb2",
         "//keras/utils:engine_utils",
         "//keras/utils:mode_keys",
     ],

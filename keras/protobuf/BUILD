@@ -1,6 +1,7 @@
 # Description:
 #   Contains Keras protobufs
-load("@org_tensorflow//tensorflow/core/platform:build_config.bzl", "tf_proto_library")
+
+load("@com_google_protobuf//:protobuf.bzl", "py_proto_library")
 
 package(
     default_visibility = [
@@ -9,21 +10,18 @@ package(
     licenses = ["notice"],  # Apache 2.0
 )
 
-tf_proto_library(
-    name = "projector_config_proto",
-    srcs = ["projector_config.proto"],
-    cc_api_version = 2,
-)
-
-tf_proto_library(
-    name = "saved_metadata_proto",
+py_proto_library(
+    name = "saved_metadata_proto_py_pb2",
     srcs = ["saved_metadata.proto"],
-    cc_api_version = 2,
-    protodeps = [":versions_proto"],
+    deps = [":versions_proto_py_pb2"],
 )
 
-tf_proto_library(
-    name = "versions_proto",
+py_proto_library(
+    name = "projector_config_proto_py_pb2",
+    srcs = ["projector_config.proto"],
+)
+
+py_proto_library(
+    name = "versions_proto_py_pb2",
     srcs = ["versions.proto"],
-    cc_api_version = 2,
 )
