@@ -30,12 +30,16 @@ source venv/bin/activate
 python --version
 python3 --version
 
-# numpy is needed by tensorflow as setup dependency.
-pip install -U pip setuptools numpy
-
 cd "src/github/keras"
 
+# Keep pip version at 20.1.1 to avoid the slow resolver issue.
+pip install -U pip==20.1.1 setuptools
+pip install -r requirements.txt
+
+# TODO(scottzhu): Using --define=use_fast_cpp_protos=false to suppress the
+# protobuf build issue for now. We should have a proper solution for this.
 bazel test --test_timeout 300,450,1200,3600 --test_output=errors --keep_going \
+   --define=use_fast_cpp_protos=false \
    --build_tests_only \
    --build_tag_filters="-no_oss" \
    --test_tag_filters="-no_oss" \
