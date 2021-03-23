@@ -22,6 +22,7 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy
+from tensorflow.python.distribute import strategy_combinations
 from keras.distribute import optimizer_combinations
 from keras.distribute.test_example import batchnorm_example
 from keras.distribute.test_example import minimize_loss_example
@@ -291,7 +292,9 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
               tf.__internal__.test.combinations.combine(distribution=[
                   tf.__internal__.distribute.combinations.one_device_strategy,
                   tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                  tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
+                  tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                  strategy_combinations
+                  .mirrored_strategy_with_two_gpus_no_merge_call,
               ]),
               tf.__internal__.test.combinations.times(
                   tf.__internal__.test.combinations.combine(optimizer_fn=optimizer_combinations

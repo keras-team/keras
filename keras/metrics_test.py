@@ -34,7 +34,7 @@ from keras import metrics
 from keras import Model
 from keras import testing_utils
 from keras.engine import base_layer
-from keras.engine import training as training_mod
+from keras.engine import training as training_module
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -2078,7 +2078,7 @@ class CustomMetricsTest(tf.test.TestCase):
 
   def test_metric_not_tracked_as_sublayer_in_model(self):
 
-    class MyModel(training_mod.Model):
+    class MyModel(training_module.Model):
 
       def __init__(self, **kwargs):
         super(MyModel, self).__init__(**kwargs)
@@ -2096,6 +2096,50 @@ class CustomMetricsTest(tf.test.TestCase):
     self.assertLen(list(model._flatten_layers(include_self=False)), 0)
     self.assertLen(model.layers, 0)
     self.assertLen(model.metrics, 2)
+
+  def test_invalid_custom_metric_class_error_msg(self):
+    x = layers.Input(shape=(2,))
+    y = layers.Dense(3)(x)
+    model = training_module.Model(x, y)
+
+    class BadMetric(metrics.Metric):
+
+      def update_state(self, y_true, y_pred, sample_weight=None):
+        return
+
+      def result(self):
+        return
+
+    with self.assertRaisesRegex(RuntimeError,
+                                'can only be a single'):
+      model.compile('sgd',
+                    'mse',
+                    metrics=[BadMetric()])
+      model.fit(np.ones((10, 2)), np.ones((10, 3)))
+
+  def test_invalid_custom_metric_fn_error_msg(self):
+    x = layers.Input(shape=(2,))
+    y = layers.Dense(3)(x)
+    model = training_module.Model(x, y)
+
+    def bad_metric(y_true, y_pred, sample_weight=None):  # pylint: disable=unused-argument
+      return None
+
+    def dict_metric(y_true, y_pred, sample_weight=None):  # pylint: disable=unused-argument
+      return {'value': 0.}
+
+    with self.assertRaisesRegex(RuntimeError,
+                                'The output of a metric function can only be'):
+      model.compile('sgd',
+                    'mse',
+                    metrics=[bad_metric])
+      model.fit(np.ones((10, 2)), np.ones((10, 3)))
+    with self.assertRaisesRegex(RuntimeError,
+                                'To return a dict of values, implement'):
+      model.compile('sgd',
+                    'mse',
+                    metrics=[dict_metric])
+      model.fit(np.ones((10, 2)), np.ones((10, 3)))
 
 
 def _get_model(compile_metrics):

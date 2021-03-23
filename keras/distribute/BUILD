@@ -718,13 +718,15 @@ distribute_py_test(
     ],
 )
 
-tf_py_test(
+distribute_py_test(
     name = "parameter_server_training_test",
     srcs = ["parameter_server_training_test.py"],
     python_version = "PY3",
     shard_count = 1,
     tags = [
+        "multi_and_single_gpu",
         "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
+        "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
         ":multi_worker_testing_utils",
