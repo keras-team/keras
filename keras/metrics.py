@@ -273,13 +273,14 @@ class Metric(base_layer.Layer):
 
   ### For use by subclasses ###
   @doc_controls.for_subclass_implementers
-  def add_weight(self,
-                 name,
-                 shape=(),
-                 aggregation=tf.compat.v1.VariableAggregation.SUM,
-                 synchronization=tf.VariableSynchronization.ON_READ,
-                 initializer=None,
-                 dtype=None):
+  def add_weight(
+      self,
+      name,
+      shape=(),
+      aggregation=tf.compat.v1.VariableAggregation.SUM,
+      synchronization=tf.VariableSynchronization.ON_READ,
+      initializer=None,
+      dtype=None):
     """Adds state variable. Only for use by subclasses."""
     if tf.distribute.has_strategy():
       strategy = tf.distribute.get_strategy()
@@ -372,7 +373,15 @@ class Reduce(Metric):
     [values], sample_weight = \
         metrics_utils.ragged_assert_compatible_and_get_flat_values(
             [values], sample_weight)
-    values = tf.cast(values, self._dtype)
+    try:
+      values = tf.cast(values, self._dtype)
+    except (ValueError, TypeError):
+      msg = ('The output of a metric function can only be a single Tensor. '
+             'Got: %s' % (values,))
+      if isinstance(values, dict):
+        msg += ('. To return a dict of values, implement a custom Metric '
+                'subclass.')
+      raise RuntimeError(msg)
     if sample_weight is not None:
       sample_weight = tf.cast(sample_weight, self._dtype)
       # Update dimensions of weights to match with values if possible.

@@ -1107,33 +1107,22 @@ class ProgbarLogger(Callback):
 class History(Callback):
   """Callback that records events into a `History` object.
 
-  This callback gets added by default to
-  every call of `model.fit()`. That's how Keras keeps track of model training
-  history. You should never have to add this callback manually.
-
-  The `History` callback instance that is automatically added to `fit()`
-  gets returned at the end of `fit()`.
-  This `History` instance contains a `.history` attribute, which is a dict
-  that stores the logs of the model, such as the loss values for each
-  training epoch.
+  This callback is automatically applied to
+  every Keras model. The `History` object
+  gets returned by the `fit` method of models.
 
   Example:
 
   >>> model = tf.keras.models.Sequential([tf.keras.layers.Dense(10)])
-  >>> model.compile(optimizer='sgd', loss='mse')
-  >>> history = model.fit(np.zeros((32, 5)), np.zeros((32, 10)),
-  ...                     epochs=5)
-  >>> # Inspect training parameters
+  >>> model.compile(tf.keras.optimizers.SGD(), loss='mse')
+  >>> history = model.fit(np.arange(100).reshape(5, 20), np.zeros(5),
+  ...                     epochs=10)
   >>> print(history.params)
-  {'verbose': 1, 'epochs': 5, 'steps': 1}
-  >>> # Inspect the keys of the `history` dict
+  {'verbose': 1, 'epochs': 10, 'steps': 1}
+  >>> # check the keys of history object
   >>> print(history.history.keys())
   dict_keys(['loss'])
-  >>> print(history.history.keys())
-  dict_keys(['loss'])
-  >>> # This is the loss history over the 5 training epochs
-  >>> history.history['loss']
-  [0.0, 0.0, 0.0, 0.0, 0.0]
+
   """
 
   def __init__(self):

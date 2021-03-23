@@ -1762,7 +1762,6 @@ class LossWeightingTest(keras_parameterized.TestCase):
         input_shape=(input_dim,),
         num_classes=num_classes)
     int_y_test = y_test.copy()
-    int_y_train = y_train.copy()
     # convert class vectors to binary class matrices
     y_train = np_utils.to_categorical(y_train, num_classes)
     y_test = np_utils.to_categorical(y_test, num_classes)
@@ -3421,6 +3420,41 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
           tf.reduce_sum(y), name='metric_1', aggregation=None)
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_calling_evaluate_in_callback_during_fit(self):
+    # Check fix for a bug that caused `evaluate` to hit a cached dataset
+    # when run from inside a fit callback.
+    x = layers_module.Input(shape=(2,))
+    y = layers_module.Dense(2, kernel_initializer='ones', use_bias=False)(x)
+    model = training_module.Model(x, y)
+
+    ones = np.ones((10, 2), dtype=np.float32)
+    zeros = np.zeros((10, 2), dtype=np.float32)
+    train_ds = tf.data.Dataset.from_tensor_slices(
+        (ones, ones)).batch(5)
+    val_ds_1 = tf.data.Dataset.from_tensor_slices(
+        (ones, ones)).batch(5)
+    val_ds_2 = tf.data.Dataset.from_tensor_slices(
+        (zeros, zeros)).batch(5)
+    model.compile('sgd', 'mse', run_eagerly=testing_utils.should_run_eagerly())
+
+    class MyCallback(Callback):
+
+      def on_epoch_end(self, *args, **kwargs):
+        eval_result = self.model.evaluate(val_ds_2)
+        if abs(eval_result) > 1e-7:
+          raise AssertionError(
+              'Expected to hit the zeros dataset but got high loss value of %s'
+              % eval_result)
+
+    history = model.fit(
+        train_ds, validation_data=val_ds_1, callbacks=[MyCallback()])
+    # Evaluate at the end of fit should hit the ones dataset (cached)
+    self.assertGreater(abs(history.history['val_loss'][-1]), 0.1)
+    # Standalone call to evaluate should not hit the cached dataset
+    eval_result = model.evaluate(val_ds_2)
+    self.assertLess(abs(eval_result), 1e-7)
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_model_with_nested_compiled_model(self):
 
     class LayerWithAddMetric(layers_module.Layer):
@@ -3466,6 +3500,64 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     outer_model.fit(np.ones((10, 1)), np.ones((10, 1)), batch_size=10)
     self.assertEqual([m.name for m in outer_model.metrics],
                      ['loss', 'acc2', 'mean', 'mean1', 'mean2'])
+
+  @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
+  def test_model_with_metric_class_that_returns_dict(self):
+    x = layers_module.Input(shape=(2,))
+    y = layers_module.Dense(3)(x)
+    model = training_module.Model(x, y)
+
+    class DictMetric(metrics_module.Metric):
+
+      def __init__(self):
+        super(DictMetric, self).__init__()
+        self.sample_count = tf.Variable(0)
+        self.l2_sum = tf.Variable(0.)
+
+      def update_state(self, y_true, y_pred, sample_weight=None):
+        self.l2_sum.assign_add(
+            tf.reduce_sum(tf.square(y_true - y_pred)))
+        self.sample_count.assign_add(tf.compat.v1.shape(y_true)[0])
+
+      def reset_state(self):
+        self.sample_count.assign(0)
+        self.l2_sum.assign(0.)
+
+      def result(self):
+        mse = self.l2_sum / tf.cast(self.sample_count, 'float32')
+        rmse = tf.sqrt(mse)
+        return {'my_mse': mse,
+                'my_rmse': rmse}
+
+    model.compile('sgd',
+                  'mse',
+                  metrics=['mae', DictMetric()],
+                  run_eagerly=testing_utils.should_run_eagerly())
+
+    history = model.fit(np.ones((10, 2)), np.ones((10, 3)))
+    self.assertEqual(list(history.history.keys()),
+                     ['loss', 'mae', 'my_mse', 'my_rmse'])
+    list_evaluate_res = model.evaluate(
+        np.ones((10, 2)), np.ones((10, 3)))
+    self.assertEqual(len(list_evaluate_res), 4)
+    dict_evaluate_res = model.evaluate(
+        np.ones((10, 2)), np.ones((10, 3)), return_dict=True)
+    self.assertEqual(list(dict_evaluate_res.keys()),
+                     ['loss', 'mae', 'my_mse', 'my_rmse'])
+    list_train_on_batch_res = model.train_on_batch(
+        np.ones((10, 2)), np.ones((10, 3)))
+    self.assertEqual(len(list_train_on_batch_res), 4)
+    dict_train_on_batch_res = model.train_on_batch(
+        np.ones((10, 2)), np.ones((10, 3)), return_dict=True)
+    self.assertEqual(list(dict_train_on_batch_res.keys()),
+                     ['loss', 'mae', 'my_mse', 'my_rmse'])
+    list_test_on_batch_res = model.test_on_batch(
+        np.ones((10, 2)), np.ones((10, 3)))
+    self.assertEqual(len(list_test_on_batch_res), 4)
+    dict_test_on_batch_res = model.test_on_batch(
+        np.ones((10, 2)), np.ones((10, 3)), return_dict=True)
+    self.assertEqual(list(dict_test_on_batch_res.keys()),
+                     ['loss', 'mae', 'my_mse', 'my_rmse'])
 
 
 class BareUpdateLayer(layers_module.Layer):

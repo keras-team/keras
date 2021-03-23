@@ -20,6 +20,7 @@ from __future__ import print_function
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
+from tensorflow.python.distribute import strategy_combinations
 from keras import metrics
 
 
@@ -73,6 +74,7 @@ def all_combinations():
           tf.__internal__.distribute.combinations.one_device_strategy,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+          strategy_combinations.mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       mode=["graph"])
 

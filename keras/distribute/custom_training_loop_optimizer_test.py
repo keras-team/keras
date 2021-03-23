@@ -50,11 +50,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.function
     def optimize():
-      grads = values.PerReplica([
-          tf.convert_to_tensor([1., 1.]),
-          tf.convert_to_tensor([2., 2.]),
-      ])
-
+      with tf.compat.v1.device(distribution.extended.worker_devices[0]):
+        v1 = tf.convert_to_tensor([1., 1.])
+      with tf.compat.v1.device(distribution.extended.worker_devices[1]):
+        v2 = tf.convert_to_tensor([2., 2.])
+      grads = values.PerReplica([v1, v2])
       def step_fn(grads):
         optimizer.apply_gradients(
             [(grads, v)],

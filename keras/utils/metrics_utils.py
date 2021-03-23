@@ -107,7 +107,23 @@ def result_wrapper(result_fn):
     has_strategy = tf.distribute.has_strategy()
     replica_context = tf.distribute.get_replica_context()
     if not has_strategy or replica_context is None:
-      result_t = tf.identity(result_fn(*args))
+      raw_result = result_fn(*args)
+      # Results need to be wrapped in a `tf.identity` op to ensure
+      # correct execution order.
+      if isinstance(raw_result,
+                    (tf.Tensor, tf.Variable, float, int)):
+        result_t = tf.identity(raw_result)
+      elif isinstance(raw_result, dict):
+        result_t = {key: tf.identity(value)
+                    for key, value in raw_result.items()}
+      else:
+        try:
+          result_t = tf.identity(raw_result)
+        except (ValueError, TypeError):
+          raise RuntimeError(
+              'The output of `metric.result()` can only be a single '
+              'Tensor/Variable, or a dict of Tensors/Variables. '
+              'For metric %s, got result %s.' % (metric_obj.name, raw_result))
     else:
       # TODO(psv): Test distribution of metrics using different distribution
       # strategies.

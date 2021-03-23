@@ -24,7 +24,6 @@ import re
 import types
 
 from google.protobuf import message
-
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
