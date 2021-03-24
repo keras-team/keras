@@ -35,6 +35,9 @@ cd "src/github/keras"
 # Keep pip version at 20.1.1 to avoid the slow resolver issue.
 pip install -U pip==20.1.1 setuptools
 pip install -r requirements.txt
+# Uninstall the keras-nightly package so that we will only test the version of
+# keras code from local workspace.
+pip uninstall -y keras-nightly
 
 # TODO(scottzhu): Using --define=use_fast_cpp_protos=false to suppress the
 # protobuf build issue for now. We should have a proper solution for this.
