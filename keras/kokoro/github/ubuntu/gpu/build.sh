@@ -35,6 +35,9 @@ cd "src/github/keras"
 # Keep pip version at 20.1.1 to avoid the slow resolver issue.
 pip install -U pip==20.1.1 setuptools
 pip install -r requirements.txt
+# Uninstall the keras-nightly package so that we will only test the version of
+# keras code from local workspace.
+pip uninstall -y keras-nightly
 
 export LD_LIBRARY_PATH="/usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64"
 export TF_CUDA_COMPUTE_CAPABILITIES=6.0
