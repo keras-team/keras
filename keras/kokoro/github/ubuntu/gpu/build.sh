@@ -49,7 +49,6 @@ LOCAL_TEST_JOBS=32  # TF_GPU_COUNT * TF_TESTS_PER_GPU
 # TODO(scottzhu): Using --define=use_fast_cpp_protos=false to suppress the
 # protobuf build issue for now. We should have a proper solution for this.
 bazel test --test_timeout 300,600,1200,3600 --test_output=errors --keep_going \
-   --define=use_fast_cpp_protos=false \
    --build_tests_only \
    --action_env=TF_CUDA_COMPUTE_CAPABILITIES="${TF_CUDA_COMPUTE_CAPABILITIES}" \
    --action_env=TF_CUDA_CONFIG_REPO="${TF_CUDA_CONFIG_REPO}" \

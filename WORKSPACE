@@ -10,3 +10,8 @@ http_archive(
 )
 load("@com_google_protobuf//:protobuf_deps.bzl", "protobuf_deps")
 protobuf_deps()
+
+bind(
+    name = "python_headers",
+    actual = "@com_google_protobuf//util/python:python_headers",
+)
