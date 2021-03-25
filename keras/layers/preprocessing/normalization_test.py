@@ -135,6 +135,19 @@ class NormalizationTest(keras_parameterized.TestCase,
     self.assertAllClose(output, expected_output)
     self.assertAllClose(layer.get_weights(), [])
 
+  def test_1d_data(self):
+    data = np.array([0., 2., 0., 2.])
+    layer = normalization.Normalization(mean=1.0, variance=1.0)
+    output = layer(data)
+    self.assertListEqual(output.shape.as_list(), [4])
+    self.assertAllClose(output, [-1, 1, -1, 1])
+
+  def test_0d_data(self):
+    layer = normalization.Normalization(axis=None, mean=1.0, variance=1.0)
+    output = layer(0.)
+    self.assertListEqual(output.shape.as_list(), [])
+    self.assertAllClose(output, -1)
+
   def test_broadcasting_during_direct_setting_with_variables_fails(self):
     with self.assertRaisesRegex(ValueError, "passing a Variable"):
       _ = normalization.Normalization(
@@ -142,26 +155,22 @@ class NormalizationTest(keras_parameterized.TestCase,
           mean=tf.Variable([1.0]),
           variance=tf.Variable([2.0]))
 
-  @parameterized.parameters(
-      {"axis": 0},
-      {"axis": (-1, 0)},
-  )
-  def test_zeros_fail_init(self, axis):
-    with self.assertRaisesRegex(ValueError,
-                                "The argument 'axis' may not be 0."):
-      normalization.Normalization(axis=axis)
+  def test_keeping_an_unknown_axis_fails(self):
+    layer = normalization.Normalization(axis=-1)
+    with self.assertRaisesRegex(ValueError, "axis.*must have known shape"):
+      layer.build([None])
 
   @parameterized.parameters(
       # Out of bounds
       {"axis": 3},
-      {"axis": -3},
+      {"axis": -4},
       # In a tuple
       {"axis": (1, 3)},
-      {"axis": (1, -3)},
+      {"axis": (1, -4)},
   )
   def test_bad_axis_fail_build(self, axis):
     layer = normalization.Normalization(axis=axis)
-    with self.assertRaisesRegex(ValueError, r"in the range"):
+    with self.assertRaisesRegex(ValueError, "in the range"):
       layer.build([None, 2, 3])
 
   def test_list_input(self):
@@ -215,25 +224,26 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     output_data = model.predict(test_data)
     self.assertAllClose(expected, output_data)
 
-  def test_1d_data(self):
-    data = [0, 2, 0, 2]
+  def test_1d_unbatched_adapt(self):
+    ds = tf.data.Dataset.from_tensor_slices([
+        [2., 0., 2., 0.],
+        [0., 2., 0., 2.],
+    ])
     layer = normalization.Normalization(axis=-1)
-    layer.adapt(data)
-    output = layer(data)
-    self.assertListEqual(output.shape.as_list(), [4, 1])
-    if tf.executing_eagerly():
-      self.assertAllClose(output.numpy(), [[-1], [1], [-1], [1]])
+    layer.adapt(ds)
+    output_ds = ds.map(layer)
+    self.assertAllClose(
+        list(output_ds.as_numpy_iterator()), [
+            [1., -1., 1., -1.],
+            [-1., 1., -1., 1.],
+        ])
 
-  def test_0d_data(self):
-    if not tf.executing_eagerly():
-      self.skipTest("Only supported in TF2.")
-
-    data = [0, 2, 0, 2]
-    layer = normalization.Normalization(axis=-1)
-    layer.adapt(data)
-    output = layer(0.)
-    self.assertListEqual(output.shape.as_list(), [1, 1])
-    self.assertAllClose(output.numpy(), [[-1]])
+  def test_0d_unbatched_adapt(self):
+    ds = tf.data.Dataset.from_tensor_slices([2., 0., 2., 0.])
+    layer = normalization.Normalization(axis=None)
+    layer.adapt(ds)
+    output_ds = ds.map(layer)
+    self.assertAllClose(list(output_ds.as_numpy_iterator()), [1., -1., 1., -1.])
 
   @parameterized.parameters(
       # Results should be identical no matter how the axes are specified (3d).
