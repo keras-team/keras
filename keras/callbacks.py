@@ -222,6 +222,8 @@ class CallbackList:
         cb._implements_predict_batch_hooks() for cb in self.callbacks)
     # pylint: enable=protected-access
 
+    self._disallow_batch_hooks_in_ps_strategy()
+
     # Performance check: Check batch hooks for slowness compared to batch time.
     # Only run check for custom callbacks (i.e. not present in this file).
     self._check_timing = any(
@@ -336,7 +338,7 @@ class CallbackList:
         hook(batch, logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         hook(batch, numpy_logs)
 
     if self._check_timing:
@@ -387,7 +389,7 @@ class CallbackList:
         callback.on_epoch_begin(epoch, logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_epoch_begin(epoch, numpy_logs)
 
   def on_epoch_end(self, epoch, logs=None):
@@ -408,7 +410,7 @@ class CallbackList:
         callback.on_epoch_end(epoch, logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_epoch_end(epoch, numpy_logs)
 
   def on_train_batch_begin(self, batch, logs=None):
@@ -491,7 +493,7 @@ class CallbackList:
         callback.on_train_begin(logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_train_begin(numpy_logs)
 
   def on_train_end(self, logs=None):
@@ -508,7 +510,7 @@ class CallbackList:
         callback.on_train_end(logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_train_end(numpy_logs)
 
   def on_test_begin(self, logs=None):
@@ -525,7 +527,7 @@ class CallbackList:
         callback.on_test_begin(logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_test_begin(numpy_logs)
 
   def on_test_end(self, logs=None):
@@ -542,7 +544,7 @@ class CallbackList:
         callback.on_test_end(logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_test_end(numpy_logs)
 
   def on_predict_begin(self, logs=None):
@@ -559,7 +561,7 @@ class CallbackList:
         callback.on_predict_begin(logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_predict_begin(numpy_logs)
 
   def on_predict_end(self, logs=None):
@@ -576,11 +578,31 @@ class CallbackList:
         callback.on_predict_end(logs)
       else:
         if numpy_logs is None:  # Only convert once.
-          numpy_logs = tf_utils.to_numpy_or_python_type(logs)
+          numpy_logs = tf_utils.sync_to_numpy_or_python_type(logs)
         callback.on_predict_end(numpy_logs)
 
   def __iter__(self):
     return iter(self.callbacks)
+
+  def _disallow_batch_hooks_in_ps_strategy(self):
+    """Error out if batch-level callbacks are passed with PSStrategy."""
+    # pylint: disable=protected-access
+    strategy = tf.distribute.get_strategy()
+    if strategy._should_use_with_coordinator:
+      unsupported_callbacks = []
+      for cb in self.callbacks:
+        # These Callbacks can accept RemoteValues directly.
+        if getattr(cb, '_supports_tf_logs', False):
+          continue
+        if (cb._implements_train_batch_hooks() or
+            cb._implements_test_batch_hooks() or
+            cb._implements_predict_batch_hooks()):
+          unsupported_callbacks.append(cb)
+      if unsupported_callbacks:
+        raise ValueError('Batch-level `Callback`s are not supported with '
+                         '`ParameterServerStrategy`. Found unsupported '
+                         'callbacks: {}'.format(unsupported_callbacks))
+    # pylint: enable=protected-access
 
 
 @keras_export('keras.callbacks.Callback')
@@ -933,7 +955,7 @@ class TerminateOnNaN(Callback):
     logs = logs or {}
     loss = logs.get('loss')
     if loss is not None:
-      loss = tf_utils.to_numpy_or_python_type(loss)
+      loss = tf_utils.sync_to_numpy_or_python_type(loss)
       if np.isnan(loss) or np.isinf(loss):
         print('Batch %d: Invalid loss, terminating training' % (batch))
         self.model.stop_training = True
@@ -1083,11 +1105,11 @@ class ProgbarLogger(Callback):
 
     if self.verbose == 1:
       # Only block async when verbose = 1.
-      logs = tf_utils.to_numpy_or_python_type(logs)
+      logs = tf_utils.sync_to_numpy_or_python_type(logs)
       self.progbar.update(self.seen, list(logs.items()), finalize=False)
 
   def _finalize_progbar(self, logs, counter):
-    logs = tf_utils.to_numpy_or_python_type(logs or {})
+    logs = tf_utils.sync_to_numpy_or_python_type(logs or {})
     if self.target is None:
       if counter is not None:
         counter = counter.numpy()
@@ -1382,7 +1404,7 @@ class ModelCheckpoint(Callback):
     if isinstance(self.save_freq,
                   int) or self.epochs_since_last_save >= self.period:
       # Block only when saving interval is reached.
-      logs = tf_utils.to_numpy_or_python_type(logs)
+      logs = tf_utils.sync_to_numpy_or_python_type(logs)
       self.epochs_since_last_save = 0
       filepath = self._get_file_path(epoch, logs)
 

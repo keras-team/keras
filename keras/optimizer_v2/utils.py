@@ -151,4 +151,4 @@ def strategy_supports_no_merge_call():
   if not tf.distribute.has_strategy():
     return True
   strategy = tf.distribute.get_strategy()
-  return not getattr(strategy.extended, "_use_merge_call", True)
+  return not strategy.extended._use_merge_call()  # pylint: disable=protected-access
