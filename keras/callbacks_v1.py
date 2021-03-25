@@ -13,16 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=g-import-not-at-top
-"""Callbacks: utilities called at certain points during model training.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pylint: disable=g-classes-have-attributes
+"""Callbacks: utilities called at certain points during model training."""
 
 import tensorflow.compat.v2 as tf
 
 import os
-
 import numpy as np
 from keras import backend as K
 from keras import callbacks

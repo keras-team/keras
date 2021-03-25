@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Embedding layer.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Embedding layer."""
 
 import tensorflow.compat.v2 as tf
-from keras import backend as K
+from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
@@ -106,7 +102,7 @@ class Embedding(Layer):
         'dtype' not in kwargs):
       # In TF1, the dtype defaults to the input dtype which is typically int32,
       # so explicitly set it to floatx
-      kwargs['dtype'] = K.floatx()
+      kwargs['dtype'] = backend.floatx()
     # We set autocast to False, as we do not want to cast floating- point inputs
     # to self.dtype. In call(), we cast to int32, and casting to self.dtype
     # before casting to int32 might cause the int32 values to be different due
@@ -182,7 +178,7 @@ class Embedding(Layer):
       return (input_shape[0],) + tuple(in_lens) + (self.output_dim,)
 
   def call(self, inputs):
-    dtype = K.dtype(inputs)
+    dtype = backend.dtype(inputs)
     if dtype != 'int32' and dtype != 'int64':
       inputs = tf.cast(inputs, 'int32')
     out = tf.nn.embedding_lookup(self.embeddings, inputs)

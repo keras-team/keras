@@ -14,10 +14,6 @@
 # ==============================================================================
 """Tests for `models.py` (model cloning, mainly)."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import functools
@@ -27,7 +23,7 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from keras import backend as K
+from keras import backend
 from keras import keras_parameterized
 from keras import metrics
 from keras import models
@@ -527,7 +523,7 @@ class TestCloneAndBuildModel(keras_parameterized.TestCase):
     out = np.random.random((10, 4))
     clone_model.train_on_batch(inp, out)
 
-    self.assertEqual(K.eval(global_step), 124)
+    self.assertEqual(backend.eval(global_step), 124)
 
   @keras_parameterized.run_with_all_model_types
   @keras_parameterized.run_all_keras_modes

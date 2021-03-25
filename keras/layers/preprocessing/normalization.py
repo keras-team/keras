@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Normalization preprocessing layer."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras.engine import base_preprocessing_layer
 from tensorflow.python.util.tf_export import keras_export
 
@@ -236,7 +233,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     mean = tf.reshape(self.mean, self._broadcast_shape)
     variance = tf.reshape(self.variance, self._broadcast_shape)
     return ((inputs - mean) /
-            tf.maximum(tf.sqrt(variance), K.epsilon()))
+            tf.maximum(tf.sqrt(variance), backend.epsilon()))
 
   def compute_output_shape(self, input_shape):
     return input_shape
@@ -271,6 +268,6 @@ def convert_to_ndarray(values):
   if isinstance(values, np.ndarray):
     return values
   elif isinstance(values, tf.Tensor):
-    return K.get_value(values)
+    return backend.get_value(values)
   else:
     return np.array(values)

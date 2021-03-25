@@ -214,7 +214,6 @@ cuda_py_test(
     # TODO(b/140065350): Re-enable
     xla_enable_strict_auto_jit = False,
     deps = [
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/api:keras_api",

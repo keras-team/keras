@@ -13,16 +13,11 @@
 # limitations under the License.
 # ==============================================================================
 """Tests for object-based saving which use tf.train.* optimizers."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import functools
 import os
-
-import six
 from tensorflow.python.eager import context
 from tensorflow.python.framework import test_util
 from keras import combinations
@@ -112,8 +107,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
     expected_checkpoint_names = [
         name + suffix for name in expected_checkpoint_names]
     named_variables = {v.name: v for v in named_variables}
-    six.assertCountEqual(self, expected_checkpoint_names,
-                         named_variables.keys())
+    self.assertEqual(len(expected_checkpoint_names),
+                     len(named_variables.keys()))
     # Check that we've mapped to the right variable objects (not exhaustive)
     self.assertEqual(
         "global_step",

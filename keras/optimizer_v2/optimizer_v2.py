@@ -13,20 +13,14 @@
 # limitations under the License.
 # ==============================================================================
 """Version 2 of class Optimizer."""
-# pylint: disable=g-bad-name
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-bad-name
 
 import abc
 import contextlib
 import functools
 import warnings
-
-import six
 from keras import backend
 from keras import initializers
 from keras.engine import base_layer_utils
@@ -100,8 +94,7 @@ def name_scope_only_in_function_or_graph(name):
     return NullContextmanager()
 
 
-@six.add_metaclass(abc.ABCMeta)
-@keras_export("keras.optimizers.Optimizer")
+@keras_export("keras.optimizers.Optimizer", metaclass=abc.ABCMeta)
 class OptimizerV2(tf.__internal__.tracking.Trackable):
   """Base class for Keras optimizers.
 
@@ -855,7 +848,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     slot_dict = self._slots.setdefault(var_key, {})
     weight = slot_dict.get(slot_name, None)
     if weight is None:
-      if isinstance(initializer, six.string_types) or callable(initializer):
+      if isinstance(initializer, str) or callable(initializer):
         initializer = initializers.get(initializer)
         if isinstance(
             initializer,
@@ -1139,7 +1132,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
 
     if dtype is None:
       dtype = tf.float32
-    if isinstance(initializer, six.string_types) or callable(initializer):
+    if isinstance(initializer, str) or callable(initializer):
       initializer = initializers.get(initializer)
 
     if synchronization == tf.VariableSynchronization.ON_READ:

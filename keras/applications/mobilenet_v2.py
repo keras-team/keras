@@ -73,9 +73,6 @@ MACs stands for Multiply Adds
   - [MobileNetV2: Inverted Residuals and Linear Bottlenecks](
       https://arxiv.org/abs/1801.04381) (CVPR 2018)
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 

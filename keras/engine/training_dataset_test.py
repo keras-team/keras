@@ -14,16 +14,12 @@
 # ==============================================================================
 """Tests for training routines."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
+import io
 import sys
 
 import numpy as np
-import six
 
 import keras
 from keras import callbacks
@@ -401,7 +397,7 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
 
       def __enter__(self):
         self._stdout = sys.stdout
-        string_io = six.StringIO()
+        string_io = io.StringIO()
         sys.stdout = string_io
         self._stringio = string_io
         return self

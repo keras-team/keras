@@ -61,9 +61,6 @@ Reference:
      for Mobile Vision Applications](
       https://arxiv.org/abs/1704.04861)
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 

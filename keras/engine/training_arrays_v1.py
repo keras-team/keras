@@ -12,19 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Part of the Keras training engine related to plain array data.
-"""
-# pylint: disable=protected-access
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Part of the Keras training engine related to plain array data."""
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=protected-access
 
 import functools
 
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras import callbacks as cbks
 from keras.distribute import distributed_training_utils_v1
 from keras.engine import training_utils_v1
@@ -227,7 +223,7 @@ def model_iteration(model,
     indices_for_conversion_to_dense = []
     feed = _get_model_feed(model, mode)
     for i, (input_data, feed_tensor) in enumerate(zip(ins, feed)):
-      if issparse(input_data) and not K.is_sparse(feed_tensor):
+      if issparse(input_data) and not backend.is_sparse(feed_tensor):
         indices_for_conversion_to_dense.append(i)
 
   # Select aggregation method.
@@ -523,8 +519,8 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
   targets = list(targets or [])
   sample_weights = list(sample_weights or [])
   ins = inputs + targets + sample_weights
-  if mode == ModeKeys.TRAIN and not isinstance(K.symbolic_learning_phase(),
-                                               int):
+  if mode == ModeKeys.TRAIN and not isinstance(
+      backend.symbolic_learning_phase(), int):
     ins += [True]  # Add learning phase value.
   return ins
 
@@ -566,7 +562,8 @@ def _update_sample_weight_mode(model, mode, inputs):
   if not callable(inputs):
     sample_weights = inputs[len(model._feed_inputs) + len(model._feed_targets):]
     has_learning_phase_pl = (mode == ModeKeys.TRAIN and
-                             not isinstance(K.symbolic_learning_phase(), int))
+                             not isinstance(backend.symbolic_learning_phase(),
+                                            int))
     if has_learning_phase_pl:
       sample_weights = sample_weights[:-1]
     model._update_sample_weight_modes(sample_weights=sample_weights)

@@ -14,12 +14,9 @@
 # limitations under the License.
 # ==============================================================================
 """Keras-based attention layer."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import collections
 import math

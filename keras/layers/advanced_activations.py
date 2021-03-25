@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Layers that act as activation functions.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Layers that act as activation functions."""
 
 import tensorflow.compat.v2 as tf
-from keras import backend as K
+from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
@@ -75,10 +71,10 @@ class LeakyReLU(Layer):
                        'cannot be None, needs a float. '
                        'Got %s' % alpha)
     self.supports_masking = True
-    self.alpha = K.cast_to_floatx(alpha)
+    self.alpha = backend.cast_to_floatx(alpha)
 
   def call(self, inputs):
-    return K.relu(inputs, alpha=self.alpha)
+    return backend.relu(inputs, alpha=self.alpha)
 
   def get_config(self):
     config = {'alpha': float(self.alpha)}
@@ -165,8 +161,8 @@ class PReLU(Layer):
     self.built = True
 
   def call(self, inputs):
-    pos = K.relu(inputs)
-    neg = -self.alpha * K.relu(-inputs)
+    pos = backend.relu(inputs)
+    neg = -self.alpha * backend.relu(-inputs)
     return pos + neg
 
   def get_config(self):
@@ -213,10 +209,10 @@ class ELU(Layer):
       raise ValueError('Alpha of an ELU layer cannot be None, '
                        'requires a float. Got %s' % alpha)
     self.supports_masking = True
-    self.alpha = K.cast_to_floatx(alpha)
+    self.alpha = backend.cast_to_floatx(alpha)
 
   def call(self, inputs):
-    return K.elu(inputs, self.alpha)
+    return backend.elu(inputs, self.alpha)
 
   def get_config(self):
     config = {'alpha': float(self.alpha)}
@@ -260,7 +256,7 @@ class ThresholdedReLU(Layer):
       raise ValueError('The theta value of a Thresholded ReLU layer '
                        'should be >=0, got %s' % theta)
     self.supports_masking = True
-    self.theta = K.cast_to_floatx(theta)
+    self.theta = backend.cast_to_floatx(theta)
 
   def call(self, inputs):
     theta = tf.cast(self.theta, inputs.dtype)
@@ -348,8 +344,8 @@ class Softmax(Layer):
         return tf.exp(inputs - tf.reduce_logsumexp(
             inputs, axis=self.axis, keepdims=True))
       else:
-        return K.softmax(inputs, axis=self.axis[0])
-    return K.softmax(inputs, axis=self.axis)
+        return backend.softmax(inputs, axis=self.axis[0])
+    return backend.softmax(inputs, axis=self.axis)
 
   def get_config(self):
     config = {'axis': self.axis}
@@ -423,18 +419,18 @@ class ReLU(Layer):
 
     self.supports_masking = True
     if max_value is not None:
-      max_value = K.cast_to_floatx(max_value)
+      max_value = backend.cast_to_floatx(max_value)
     self.max_value = max_value
-    self.negative_slope = K.cast_to_floatx(negative_slope)
-    self.threshold = K.cast_to_floatx(threshold)
+    self.negative_slope = backend.cast_to_floatx(negative_slope)
+    self.threshold = backend.cast_to_floatx(threshold)
 
   def call(self, inputs):
     # alpha is used for leaky relu slope in activations instead of
     # negative_slope.
-    return K.relu(inputs,
-                  alpha=self.negative_slope,
-                  max_value=self.max_value,
-                  threshold=self.threshold)
+    return backend.relu(inputs,
+                        alpha=self.negative_slope,
+                        max_value=self.max_value,
+                        threshold=self.threshold)
 
   def get_config(self):
     config = {

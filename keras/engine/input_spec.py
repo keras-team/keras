@@ -13,14 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
+# pylint: disable=g-classes-have-attributes
 """Contains the InputSpec class."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-
-from six.moves import zip  # pylint: disable=redefined-builtin
 from keras import backend
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export

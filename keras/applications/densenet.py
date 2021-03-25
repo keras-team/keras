@@ -19,9 +19,6 @@ Reference:
   - [Densely Connected Convolutional Networks](
       https://arxiv.org/abs/1608.06993) (CVPR 2017)
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 

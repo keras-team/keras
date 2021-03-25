@@ -14,14 +14,9 @@
 # ==============================================================================
 """Tests for Keras combinations."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import unittest
-
 from absl.testing import parameterized
 from keras import combinations
 from keras import models as keras_models

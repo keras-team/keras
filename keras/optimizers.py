@@ -17,15 +17,10 @@
 
 For more examples see the base class `tf.keras.optimizers.Optimizer`.
 """
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
-import six
-
-from keras import backend as K
+from keras import backend
 from keras.optimizer_v1 import Optimizer
 from keras.optimizer_v1 import TFOptimizer
 from keras.optimizer_v2 import adadelta as adadelta_v2
@@ -123,14 +118,14 @@ def get(identifier):
   """
   if isinstance(identifier, (Optimizer, optimizer_v2.OptimizerV2)):
     return identifier
-  # Wrap TF optimizer instances
+  # Wrap legacy TF optimizer instances
   elif isinstance(identifier, tf.compat.v1.train.Optimizer):
     opt = TFOptimizer(identifier)
-    K.track_tf_optimizer(opt)
+    backend.track_tf_optimizer(opt)
     return opt
   elif isinstance(identifier, dict):
     return deserialize(identifier)
-  elif isinstance(identifier, six.string_types):
+  elif isinstance(identifier, str):
     config = {'class_name': str(identifier), 'config': {}}
     return deserialize(config)
   else:

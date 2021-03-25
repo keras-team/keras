@@ -14,10 +14,6 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 from keras.utils import object_identity
 
@@ -539,8 +535,6 @@ class _KerasTensorIterator(object):
     result = self._tensor[self._index]
     self._index += 1
     return result
-
-  next = __next__  # python2.x compatibility.
 
 
 # Specify the mappings of tensor class to KerasTensor class.

@@ -15,14 +15,12 @@
 # ==============================================================================
 """Tests for `DatasetCreator` with `Model.fit` across usages and strategies."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
+
 from absl import logging
 from absl.testing import parameterized
 import numpy as np
+
 import keras
 from keras import callbacks as callbacks_lib
 from keras.distribute import multi_worker_testing_utils
@@ -147,17 +145,19 @@ class DatasetCreatorModelFitTest(DatasetCreatorModelFitTestBase):
     model = self._model_fit(strategy, steps_per_execution=10)
     self.assertEqual(model.optimizer.iterations, 100)
 
+  def testModelFitWithNoStepsPerEpoch(self, strategy):
+    with self.assertRaisesRegex(
+        ValueError, "When using a "
+        "`tf.keras.utils.experimental.DatasetCreator`, "
+        "`steps_per_epoch` argument must be provided in "
+        "`Model.fit`."):
+      self._model_fit(strategy, steps_per_epoch=None)
+
 
 @tf.__internal__.distribute.combinations.generate(
     tf.__internal__.test.combinations.combine(strategy=["ParameterServerStrategy"], mode="eager"))
 class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     DatasetCreatorModelFitTestBase):
-
-  def testModelFitWithNoStepsPerEpoch(self, strategy):
-    with self.assertRaisesRegex(
-        ValueError, "`steps_per_epoch` must be specified with "
-        "`ParameterServerStrategy`."):
-      self._model_fit(strategy, steps_per_epoch=None)
 
   def testModelFitWithRunEagerly(self, strategy):
     with self.assertRaisesRegex(

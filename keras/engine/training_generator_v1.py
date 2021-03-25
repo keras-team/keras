@@ -14,12 +14,9 @@
 # ==============================================================================
 """Part of the Keras training engine related to Python generators of array data.
 """
-# pylint: disable=protected-access
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=protected-access
 
 import functools
 import math

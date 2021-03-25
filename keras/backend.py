@@ -15,11 +15,8 @@
 # pylint: disable=protected-access
 # pylint: disable=redefined-outer-name
 # pylint: disable=redefined-builtin
-"""Keras backend API.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+# pylint: disable=g-classes-have-attributes
+"""Keras backend API."""
 
 import tensorflow.compat.v2 as tf
 
@@ -39,7 +36,6 @@ from tensorflow.python.distribute import distribute_coordinator as dc
 from tensorflow.python.distribute import distribute_coordinator_context as dc_context
 from tensorflow.python.eager.context import get_config
 from tensorflow.python.framework import config
-from tensorflow.python.framework import ops
 from keras import backend_config
 from keras.engine import keras_tensor
 from keras.utils import control_flow_util
@@ -98,7 +94,7 @@ class _DummyEagerGraph(threading.local):
   weak references.
   """
 
-  class _WeakReferencableClass(object):
+  class _WeakReferencableClass:
     """This dummy class is needed for two reasons.
 
     - We need something that supports weak references. Basic types like string
@@ -804,7 +800,7 @@ def get_default_graph_uid_map():
 # DEVICE MANIPULATION
 
 
-class _TfDeviceCaptureOp(object):
+class _TfDeviceCaptureOp:
   """Class for capturing the TF device scope."""
 
   def __init__(self):
@@ -3839,7 +3835,7 @@ def print_tensor(x, message=''):
 # GRAPH MANIPULATION
 
 
-class GraphExecutionFunction(object):
+class GraphExecutionFunction:
   """Runs a computation graph.
 
   It's possible to pass arguments to `tf.Session.run()` via `session_kwargs`.
@@ -3940,7 +3936,7 @@ class GraphExecutionFunction(object):
       connection = callable_opts.tensor_connection.add()
       if x.dtype != y.dtype:
         y = tf.cast(y, dtype=x.dtype)
-      from_tensor = ops._as_graph_element(y)
+      from_tensor = _as_graph_element(y)
       if from_tensor is None:
         from_tensor = y
       connection.from_tensor = from_tensor.name  # Data tensor
@@ -5097,7 +5093,7 @@ def l2_normalize(x, axis=None):
   Returns:
       A tensor.
   """
-  return tf.compat.v1.linalg.l2_normalize(x, axis=axis)
+  return tf.linalg.l2_normalize(x, axis=axis)
 
 
 @keras_export('keras.backend.in_top_k')

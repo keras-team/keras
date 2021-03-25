@@ -151,9 +151,34 @@ tf_py_test(
 )
 
 tf_py_test(
+    name = "category_vocab_file_dense_benchmark",
+    srcs = ["category_vocab_file_dense_benchmark.py"],
+    python_version = "PY3",
+    tags = ["no_windows"],
+    deps = [
+        ":feature_column_benchmark",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+    ],
+)
+
+tf_py_test(
+    name = "category_vocab_file_varlen_benchmark",
+    srcs = ["category_vocab_file_varlen_benchmark.py"],
+    python_version = "PY3",
+    tags = ["no_windows"],
+    deps = [
+        ":feature_column_benchmark",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+    ],
+)
+
+tf_py_test(
     name = "category_vocab_list_dense_benchmark",
     srcs = ["category_vocab_list_dense_benchmark.py"],
     python_version = "PY3",
+    tags = ["no_windows"],
     deps = [
         ":feature_column_benchmark",
         "//:expect_tensorflow_installed",

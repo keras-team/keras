@@ -31,7 +31,6 @@ py_library(
     visibility = ["//visibility:public"],
     deps = [
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras/utils:engine_utils",

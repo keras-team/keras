@@ -13,16 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities used by convolution layers."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import itertools
 
 import numpy as np
-from six.moves import range  # pylint: disable=redefined-builtin
 from keras import backend
 
 

@@ -14,10 +14,6 @@
 # ==============================================================================
 """Tests for Keras model saving code."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import collections
@@ -29,7 +25,6 @@ import warnings
 
 from absl.testing import parameterized
 import numpy as np
-from six import string_types
 
 import keras
 from keras import combinations
@@ -987,7 +982,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
           yield key
         for key in _get_all_keys_recursive(dict_or_iterable.values()):
           yield key
-      elif isinstance(dict_or_iterable, string_types):
+      elif isinstance(dict_or_iterable, str):
         return
       else:
         try:

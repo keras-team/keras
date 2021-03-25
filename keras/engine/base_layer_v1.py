@@ -14,9 +14,6 @@
 # ==============================================================================
 # pylint: disable=protected-access
 """Contains the base Layer class, from which all layers inherit."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
@@ -27,8 +24,6 @@ import threading
 import warnings
 
 import numpy as np
-import six
-from six.moves import zip  # pylint: disable=redefined-builtin
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -290,7 +285,10 @@ class Layer(base_layer.Layer):
     Returns:
       The TrackableWeightHandler used to track this object.
     """
-    handler = base_layer_utils.TrackableWeightHandler(trackable_object)
+    if isinstance(trackable_object, base_layer_utils.TrackableWeightHandler):
+      handler = trackable_object
+    else:
+      handler = base_layer_utils.TrackableWeightHandler(trackable_object)
     if trainable:
       self._trainable_weights.append(handler)
     else:
@@ -552,12 +550,11 @@ class Layer(base_layer.Layer):
           try:
             outputs = self(inputs, training=False)
           except TypeError as e:
-            six.raise_from(
-                NotImplementedError(
-                    'We could not automatically infer the static shape of the '
-                    'layer\'s output. Please implement the '
-                    '`compute_output_shape` method on your layer (%s).' %
-                    self.__class__.__name__), e)
+            raise NotImplementedError(
+                'We could not automatically infer the static shape of the '
+                'layer\'s output. Please implement the '
+                '`compute_output_shape` method on your layer (%s).' %
+                self.__class__.__name__) from e
       return tf.nest.map_structure(lambda t: t.shape, outputs)
     raise NotImplementedError
 

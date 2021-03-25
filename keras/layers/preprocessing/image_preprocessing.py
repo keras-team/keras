@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Keras image preprocessing layers."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.engine.base_preprocessing_layer import PreprocessingLayer
 from keras.engine.input_spec import InputSpec
@@ -209,7 +206,7 @@ class RandomCrop(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_cropped_inputs():
       """Cropped inputs with stateless random ops."""
@@ -383,7 +380,7 @@ class RandomFlip(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_flipped_inputs():
       flipped_outputs = inputs
@@ -509,7 +506,7 @@ class RandomTranslation(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_translated_inputs():
       """Translated inputs with random ops."""
@@ -573,7 +570,7 @@ def get_translation_matrix(translations, name=None):
     A tensor of shape (num_images, 8) projective transforms which can be given
       to `transform`.
   """
-  with K.name_scope(name or 'translation_matrix'):
+  with backend.name_scope(name or 'translation_matrix'):
     num_translations = tf.compat.v1.shape(translations)[0]
     # The translation matrix looks like:
     #     [[1 0 -dx]
@@ -646,7 +643,7 @@ def transform(images,
     TypeError: If `image` is an invalid type.
     ValueError: If output shape is not 1-D int32 Tensor.
   """
-  with K.name_scope(name or 'transform'):
+  with backend.name_scope(name or 'transform'):
     if output_shape is None:
       output_shape = tf.compat.v1.shape(images)[1:3]
       if not tf.executing_eagerly():
@@ -701,7 +698,7 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
        `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
        where `k = c0 x + c1 y + 1`.
   """
-  with K.name_scope(name or 'rotation_matrix'):
+  with backend.name_scope(name or 'rotation_matrix'):
     x_offset = ((image_width - 1) - (tf.cos(angles) *
                                      (image_width - 1) - tf.sin(angles) *
                                      (image_height - 1))) / 2.0
@@ -796,7 +793,7 @@ class RandomRotation(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_rotated_inputs():
       """Rotated inputs with random ops."""
@@ -929,7 +926,7 @@ class RandomZoom(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_zoomed_inputs():
       """Zoomed inputs with random ops."""
@@ -997,7 +994,7 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
        `(x', y') = ((a0 x + a1 y + a2) / k, (b0 x + b1 y + b2) / k)`,
        where `k = c0 x + c1 y + 1`.
   """
-  with K.name_scope(name or 'zoom_matrix'):
+  with backend.name_scope(name or 'zoom_matrix'):
     num_zooms = tf.compat.v1.shape(zooms)[0]
     # The zoom matrix looks like:
     #     [[zx 0 0]
@@ -1068,7 +1065,7 @@ class RandomContrast(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_contrasted_inputs():
       return tf.image.random_contrast(inputs, 1. - self.lower, 1. + self.upper,
@@ -1149,7 +1146,7 @@ class RandomHeight(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_height_inputs():
       """Inputs height-adjusted with random ops."""
@@ -1244,7 +1241,7 @@ class RandomWidth(PreprocessingLayer):
 
   def call(self, inputs, training=True):
     if training is None:
-      training = K.learning_phase()
+      training = backend.learning_phase()
 
     def random_width_inputs():
       """Inputs width-adjusted with random ops."""

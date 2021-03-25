@@ -14,15 +14,11 @@
 # ==============================================================================
 """Layers that operate regularization via the addition of noise."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import numpy as np
 
-from keras import backend as K
+from keras import backend
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
@@ -64,13 +60,13 @@ class GaussianNoise(Layer):
   def call(self, inputs, training=None):
 
     def noised():
-      return inputs + K.random_normal(
+      return inputs + backend.random_normal(
           shape=tf.compat.v1.shape(inputs),
           mean=0.,
           stddev=self.stddev,
           dtype=inputs.dtype)
 
-    return K.in_train_phase(noised, inputs, training=training)
+    return backend.in_train_phase(noised, inputs, training=training)
 
   def get_config(self):
     config = {'stddev': self.stddev}
@@ -117,13 +113,13 @@ class GaussianDropout(Layer):
 
       def noised():
         stddev = np.sqrt(self.rate / (1.0 - self.rate))
-        return inputs * K.random_normal(
+        return inputs * backend.random_normal(
             shape=tf.compat.v1.shape(inputs),
             mean=1.0,
             stddev=stddev,
             dtype=inputs.dtype)
 
-      return K.in_train_phase(noised, inputs, training=training)
+      return backend.in_train_phase(noised, inputs, training=training)
     return inputs
 
   def get_config(self):
@@ -186,7 +182,7 @@ class AlphaDropout(Layer):
         alpha_p = -alpha * scale
 
         kept_idx = tf.greater_equal(
-            K.random_uniform(noise_shape, seed=seed), rate)
+            backend.random_uniform(noise_shape, seed=seed), rate)
         kept_idx = tf.cast(kept_idx, inputs.dtype)
 
         # Get affine transformation params
@@ -199,7 +195,7 @@ class AlphaDropout(Layer):
         # Do affine transformation
         return a * x + b
 
-      return K.in_train_phase(dropped_inputs, inputs, training=training)
+      return backend.in_train_phase(dropped_inputs, inputs, training=training)
     return inputs
 
   def get_config(self):

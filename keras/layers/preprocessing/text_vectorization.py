@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Keras text vectorization preprocessing layer."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import string_lookup
@@ -357,7 +354,8 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
-    output_dtype = tf.int64 if self._output_mode == INT else K.floatx()
+    output_dtype = (tf.int64 if self._output_mode == INT
+                    else backend.floatx())
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def adapt(self, data, reset_state=True):
@@ -563,7 +561,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
       if self._output_sequence_length is None:
         return dense_data
       else:
-        sequence_len = K.shape(dense_data)[1]
+        sequence_len = backend.shape(dense_data)[1]
         pad_amt = self._output_sequence_length - sequence_len
         pad_fn = lambda: tf.compat.v1.pad(dense_data, [[0, 0], [0, pad_amt]])
         slice_fn = lambda: dense_data[:, :self._output_sequence_length]
