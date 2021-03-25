@@ -12,17 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
-import tensorflow.compat.v2 as tf
 
 import functools
+
+import tensorflow.compat.v2 as tf
 import os
 import weakref
-
-import six
 from tensorflow.python.eager import context
 from tensorflow.python.framework import test_util
 from keras import combinations
@@ -144,8 +139,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
     expected_checkpoint_names = [
         name + suffix for name in expected_checkpoint_names]
     named_variables = {v.name: v for v in named_variables}
-    six.assertCountEqual(self, expected_checkpoint_names,
-                         named_variables.keys())
+    self.assertEqual(len(expected_checkpoint_names),
+                     len(named_variables.keys()))
     # Check that we've mapped to the right variable objects (not exhaustive)
     self.assertEqual(
         "global_step",
@@ -166,20 +161,18 @@ class CheckpointingTests(keras_parameterized.TestCase):
     optimizer_node = serialized_graph.nodes[
         serialized_graph.nodes[0].children[1].node_id]
     children = [node.local_name for node in optimizer_node.children]
-    six.assertCountEqual(
-        self,
+    self.assertEqual(
         # hyper variable dependencies
-        ["beta_1", "beta_2", "iter", "decay", "learning_rate"],
-        children)
+        len(["beta_1", "beta_2", "iter", "decay", "learning_rate"]),
+        len(children))
     serialized_slot_keys = []
     for slot in optimizer_node.slot_variables:
       for attribute in (
           serialized_graph.nodes[slot.slot_variable_node_id].attributes):
         serialized_slot_keys.append(attribute.checkpoint_key)
-    six.assertCountEqual(
-        self,
-        [key + suffix for key in expected_slot_keys],
-        serialized_slot_keys)
+    self.assertEqual(
+        len([key + suffix for key in expected_slot_keys]),
+        len(serialized_slot_keys))
 
   @combinations.generate(combinations.combine(mode=["graph", "eager"]))
   def testSaveRestore(self):
@@ -707,11 +700,10 @@ class TemplateTests(keras_parameterized.TestCase):
 
       save_template = tf.compat.v1.make_template("s1", _templated)
       v1_save, _, v2_save, manual_scope, manual_scope_v = save_template()
-      six.assertCountEqual(
-          self,
-          [id(v1_save), id(v2_save), id(manual_scope),
-           id(manual_scope_v), id(save_template)],
-          map(id, trackable_utils.list_objects(save_template)))
+      self.assertEqual(
+          set([id(v1_save), id(v2_save), id(manual_scope),
+               id(manual_scope_v), id(save_template)]),
+          set(map(id, trackable_utils.list_objects(save_template))))
       manual_dep, = manual_scope._checkpoint_dependencies
       self.assertEqual("in_manual_scope", manual_dep.name)
       self.assertIs(manual_scope_v, manual_dep.ref)

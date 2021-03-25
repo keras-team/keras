@@ -14,11 +14,8 @@
 # ==============================================================================
 """Strategy and optimizer combinations for combinations.combine()."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
+
 from tensorflow.python.distribute import strategy_combinations as strategy_combinations_base
 from keras.optimizer_v2 import adadelta as adadelta_keras_v2
 from keras.optimizer_v2 import adagrad as adagrad_keras_v2

@@ -13,19 +13,16 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for multi-gpu training."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
-from keras import backend as K
+from keras import backend
 from keras.engine.training import Model
 from keras.layers.core import Lambda
 from keras.layers.merge import concatenate
 
 
 def _get_available_devices():
-  return [x.name for x in K.get_session().list_devices()]
+  return [x.name for x in backend.get_session().list_devices()]
 
 
 def _normalize_device_name(name):
@@ -212,7 +209,7 @@ def multi_gpu_model(model, gpus, cpu_merge=True, cpu_relocation=False):
   # each getting a slice of the inputs.
   for i, gpu_id in enumerate(target_gpu_ids):
     with tf.compat.v1.device('/gpu:%d' % gpu_id):
-      with K.name_scope('replica_%d' % gpu_id):
+      with backend.name_scope('replica_%d' % gpu_id):
         inputs = []
         # Retrieve a slice of the input.
         for x in model.inputs:

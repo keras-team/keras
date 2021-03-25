@@ -14,19 +14,14 @@
 # ==============================================================================
 """Tests for saving utility functions."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import os
 
 import numpy as np
 
-
 import keras
-from keras import backend as K
+from keras import backend
 from keras import combinations
 from keras import keras_parameterized
 from keras import testing_utils
@@ -41,7 +36,7 @@ class TraceModelCallTest(keras_parameterized.TestCase):
   def _assert_all_close(self, expected, actual):
     if not tf.executing_eagerly():
       with self.cached_session() as sess:
-        K._initialize_variables(sess)
+        backend._initialize_variables(sess)
         self.assertAllClose(expected, actual)
     else:
       self.assertAllClose(expected, actual)

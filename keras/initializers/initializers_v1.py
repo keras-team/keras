@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras initializers for TF 1.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Keras initializers for TF 1."""
 
 import tensorflow.compat.v2 as tf
 from tensorflow.python.util.tf_export import keras_export

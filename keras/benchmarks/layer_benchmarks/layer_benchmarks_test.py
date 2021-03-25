@@ -22,7 +22,6 @@ import tensorflow as tf
 
 import functools
 import numpy as np
-import six
 from keras.benchmarks import benchmark_util
 from keras.benchmarks.layer_benchmarks import layer_benchmarks_test_base
 
@@ -201,9 +200,9 @@ POOLING_LAYERS = [
 ]
 
 
-class KerasLayerBenchmarks(six.with_metaclass(
-    tf.__internal__.test.ParameterizedBenchmark,
-    layer_benchmarks_test_base.LayerBenchmarksBase)):
+class KerasLayerBenchmarks(  # pylint: disable=undefined-variable
+    layer_benchmarks_test_base.LayerBenchmarksBase,
+    metaclass=tf.__internal__.test.ParameterizedBenchmark):
 
   # The parameter of each layer benchmark is a tuple, and the first one is
   # the benchmark name. It must follow the convention of

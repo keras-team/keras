@@ -13,11 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""A `Network` is way to compose layers: the topological form of a `Model`.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""A `Network` is way to compose layers: the topological form of a `Model`."""
 
 import tensorflow.compat.v2 as tf
 
@@ -25,8 +21,6 @@ import collections
 import copy
 import itertools
 import warnings
-
-from six.moves import zip  # pylint: disable=redefined-builtin
 from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_layer_utils

@@ -94,9 +94,6 @@ py_library(
     name = "io_utils",
     srcs = ["io_utils.py"],
     srcs_version = "PY3",
-    deps = [
-        "//:expect_six_installed",
-    ],
 )
 
 py_library(
@@ -105,7 +102,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":object_identity",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
     ],
 )

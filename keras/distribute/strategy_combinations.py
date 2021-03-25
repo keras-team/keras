@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Strategy combinations for combinations.combine()."""
 
 import tensorflow.compat.v2 as tf
-"""Strategy combinations for combinations.combine()."""
 
 from tensorflow.python.distribute import strategy_combinations
 

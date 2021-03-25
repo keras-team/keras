@@ -13,10 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """SGD optimizer implementation."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 from keras.optimizer_v2 import optimizer_v2

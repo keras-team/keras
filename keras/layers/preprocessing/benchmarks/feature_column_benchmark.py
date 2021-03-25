@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Benchmark suite for KPL and feature column implementations."""
 
 import tensorflow as tf
-"""Benchmark suite for KPL and feature column implementations."""
 import itertools
 import math
 import random

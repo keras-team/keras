@@ -14,14 +14,11 @@
 # ==============================================================================
 """Tests that show that DistributionStrategy works with optimizer v2."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
+
 import keras
 from keras.optimizer_v2 import adam
 from keras.optimizer_v2 import gradient_descent

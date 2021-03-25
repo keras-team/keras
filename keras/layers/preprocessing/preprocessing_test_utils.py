@@ -14,10 +14,6 @@
 # ==============================================================================
 """Tests for Keras' base preprocessing layer."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import collections.abc as collections_abc

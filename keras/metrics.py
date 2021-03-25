@@ -15,11 +15,7 @@
 # pylint: disable=unused-import
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-doc-return-or-yield
-"""Built-in metrics.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Built-in metrics."""
 
 import tensorflow.compat.v2 as tf
 
@@ -28,9 +24,8 @@ import types
 import warnings
 
 import numpy as np
-import six
 from keras import activations
-from keras import backend as K
+from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_layer_utils
 from keras.engine import keras_tensor
@@ -61,8 +56,7 @@ from tensorflow.tools.docs import doc_controls
 
 
 @keras_export('keras.metrics.Metric')
-@six.add_metaclass(abc.ABCMeta)
-class Metric(base_layer.Layer):
+class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
   """Encapsulates metric logic and state.
 
   Args:
@@ -141,7 +135,8 @@ class Metric(base_layer.Layer):
     if not base_layer_utils.v2_dtype_behavior_enabled():
       # We only do this when the V2 behavior is not enabled, as when it is
       # enabled, the dtype already defaults to floatx.
-      self._dtype = K.floatx() if dtype is None else tf.as_dtype(dtype).name
+      self._dtype = (backend.floatx() if dtype is None
+                     else tf.as_dtype(dtype).name)
 
   def __new__(cls, *args, **kwargs):
     obj = super(Metric, cls).__new__(cls)
@@ -240,7 +235,7 @@ class Metric(base_layer.Layer):
                     'consistency.' % (self.__class__.__name__,))
       return self.reset_states()
     else:
-      K.batch_set_value([(v, 0) for v in self.variables])
+      backend.batch_set_value([(v, 0) for v in self.variables])
 
   @abc.abstractmethod
   def update_state(self, *args, **kwargs):
@@ -288,7 +283,7 @@ class Metric(base_layer.Layer):
       strategy = None
 
     # TODO(b/120571621): Make `ON_READ` work with Keras metrics on TPU.
-    if K.is_tpu_strategy(strategy):
+    if backend.is_tpu_strategy(strategy):
       synchronization = tf.VariableSynchronization.ON_WRITE
 
     with tf.init_scope():
@@ -393,8 +388,8 @@ class Reduce(Metric):
             sample_weight, values)
       except ValueError:
         # Reduce values to same ndim as weight array
-        ndim = K.ndim(values)
-        weight_ndim = K.ndim(sample_weight)
+        ndim = backend.ndim(values)
+        weight_ndim = backend.ndim(sample_weight)
         if self.reduction == metrics_utils.Reduction.SUM:
           values = tf.reduce_sum(
               values, axis=list(range(weight_ndim, ndim)))
@@ -593,7 +588,7 @@ class MeanRelativeError(Mean):
 
   def get_config(self):
     n = self.normalizer
-    config = {'normalizer': K.eval(n) if is_tensor_or_variable(n) else n}
+    config = {'normalizer': backend.eval(n) if is_tensor_or_variable(n) else n}
     base_config = super(MeanRelativeError, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -656,8 +651,8 @@ class MeanMetricWrapper(Mean):
       # and not a subclass.
       config['fn'] = self._fn
 
-    for k, v in six.iteritems(self._fn_kwargs):
-      config[k] = K.eval(v) if is_tensor_or_variable(v) else v
+    for k, v in self._fn_kwargs.items():
+      config[k] = backend.eval(v) if is_tensor_or_variable(v) else v
     base_config = super(MeanMetricWrapper, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -996,7 +991,7 @@ class _ConfusionMatrixConditionCount(Metric):
 
   def reset_state(self):
     num_thresholds = len(to_list(self.thresholds))
-    K.batch_set_value(
+    backend.batch_set_value(
         [(v, np.zeros((num_thresholds,))) for v in self.variables])
 
   def get_config(self):
@@ -1326,7 +1321,7 @@ class Precision(Metric):
 
   def reset_state(self):
     num_thresholds = len(to_list(self.thresholds))
-    K.batch_set_value(
+    backend.batch_set_value(
         [(v, np.zeros((num_thresholds,))) for v in self.variables])
 
   def get_config(self):
@@ -1451,7 +1446,7 @@ class Recall(Metric):
 
   def reset_state(self):
     num_thresholds = len(to_list(self.thresholds))
-    K.batch_set_value(
+    backend.batch_set_value(
         [(v, np.zeros((num_thresholds,))) for v in self.variables])
 
   def get_config(self):
@@ -1464,8 +1459,7 @@ class Recall(Metric):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-@six.add_metaclass(abc.ABCMeta)
-class SensitivitySpecificityBase(Metric):
+class SensitivitySpecificityBase(Metric, metaclass=abc.ABCMeta):
   """Abstract base class for computing sensitivity and specificity.
 
   For additional information about specificity and sensitivity, see
@@ -1536,7 +1530,7 @@ class SensitivitySpecificityBase(Metric):
 
   def reset_state(self):
     num_thresholds = len(self.thresholds)
-    K.batch_set_value(
+    backend.batch_set_value(
         [(v, np.zeros((num_thresholds,))) for v in self.variables])
 
   def get_config(self):
@@ -2078,8 +2072,8 @@ class AUC(Metric):
 
     # Add an endpoint "threshold" below zero and above one for either
     # threshold method to account for floating point imprecisions.
-    self._thresholds = np.array([0.0 - K.epsilon()] + thresholds +
-                                [1.0 + K.epsilon()])
+    self._thresholds = np.array([0.0 - backend.epsilon()] + thresholds +
+                                [1.0 + backend.epsilon()])
 
     if isinstance(curve, metrics_utils.AUCCurve):
       self.curve = curve
@@ -2163,7 +2157,7 @@ class AUC(Metric):
         # should be initialized outside of any tf.functions, and therefore in
         # eager mode.
         if not tf.executing_eagerly():
-          K._initialize_variables(K._get_session())  # pylint: disable=protected-access
+          backend._initialize_variables(backend._get_session())  # pylint: disable=protected-access
 
     self._built = True
 
@@ -2366,16 +2360,17 @@ class AUC(Metric):
 
   def reset_state(self):
     if self.multi_label:
-      K.batch_set_value([(v, np.zeros((self.num_thresholds, self._num_labels)))
-                         for v in self.variables])
+      backend.batch_set_value(
+          [(v, np.zeros((self.num_thresholds, self._num_labels)))
+           for v in self.variables])
     else:
-      K.batch_set_value([
+      backend.batch_set_value([
           (v, np.zeros((self.num_thresholds,))) for v in self.variables
       ])
 
   def get_config(self):
     if is_tensor_or_variable(self.label_weights):
-      label_weights = K.eval(self.label_weights)
+      label_weights = backend.eval(self.label_weights)
     else:
       label_weights = self.label_weights
     config = {
@@ -2981,7 +2976,8 @@ class MeanIoU(Metric):
         tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
 
   def reset_state(self):
-    K.set_value(self.total_cm, np.zeros((self.num_classes, self.num_classes)))
+    backend.set_value(
+        self.total_cm, np.zeros((self.num_classes, self.num_classes)))
 
   def get_config(self):
     config = {'num_classes': self.num_classes}
@@ -3045,7 +3041,7 @@ class MeanTensor(Metric):
         'count', shape=shape, initializer=tf.compat.v1.zeros_initializer)
     with tf.init_scope():
       if not tf.executing_eagerly():
-        K._initialize_variables(K._get_session())  # pylint: disable=protected-access
+        backend._initialize_variables(backend._get_session())  # pylint: disable=protected-access
     self._built = True
 
   @property
@@ -3087,8 +3083,8 @@ class MeanTensor(Metric):
             sample_weight, values)
       except ValueError:
         # Reduce values to same ndim as weight array
-        ndim = K.ndim(values)
-        weight_ndim = K.ndim(sample_weight)
+        ndim = backend.ndim(values)
+        weight_ndim = backend.ndim(sample_weight)
         values = tf.reduce_mean(
             values, axis=list(range(weight_ndim, ndim)))
 
@@ -3109,7 +3105,7 @@ class MeanTensor(Metric):
 
   def reset_state(self):
     if self._built:
-      K.batch_set_value(
+      backend.batch_set_value(
           [(v, np.zeros(self._shape.as_list())) for v in self.variables])
 
 
@@ -3353,8 +3349,8 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
 
   def get_config(self):
     config = {}
-    for k, v in six.iteritems(self._fn_kwargs):
-      config[k] = K.eval(v) if is_tensor_or_variable(v) else v
+    for k, v in self._fn_kwargs.items():
+      config[k] = backend.eval(v) if is_tensor_or_variable(v) else v
     base_config = super(SumOverBatchSizeMetricWrapper, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
@@ -3366,7 +3362,7 @@ def accuracy(y_true, y_pred):
   y_pred.shape.assert_is_compatible_with(y_true.shape)
   if y_true.dtype != y_pred.dtype:
     y_pred = tf.cast(y_pred, y_true.dtype)
-  return tf.cast(tf.equal(y_true, y_pred), K.floatx())
+  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
 
 
 @keras_export('keras.metrics.binary_accuracy')
@@ -3394,7 +3390,7 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
   y_pred = tf.convert_to_tensor(y_pred)
   threshold = tf.cast(threshold, y_pred.dtype)
   y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
-  return K.mean(tf.equal(y_true, y_pred), axis=-1)
+  return backend.mean(tf.equal(y_true, y_pred), axis=-1)
 
 
 @keras_export('keras.metrics.categorical_accuracy')
@@ -3423,7 +3419,7 @@ def categorical_accuracy(y_true, y_pred):
   return tf.cast(
       tf.equal(
           tf.compat.v1.argmax(y_true, axis=-1), tf.compat.v1.argmax(y_pred, axis=-1)),
-      K.floatx())
+      backend.floatx())
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
@@ -3455,16 +3451,16 @@ def sparse_categorical_accuracy(y_true, y_pred):
   y_true_rank = y_true.shape.ndims
   # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
-      K.int_shape(y_true)) == len(K.int_shape(y_pred))):
+      backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
     y_true = tf.compat.v1.squeeze(y_true, [-1])
   y_pred = tf.compat.v1.argmax(y_pred, axis=-1)
 
   # If the predicted output and actual output types don't match, force cast them
   # to match.
-  if K.dtype(y_pred) != K.dtype(y_true):
-    y_pred = tf.cast(y_pred, K.dtype(y_true))
+  if backend.dtype(y_pred) != backend.dtype(y_true):
+    y_pred = tf.cast(y_pred, backend.dtype(y_true))
 
-  return tf.cast(tf.equal(y_true, y_pred), K.floatx())
+  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
 
 
 @keras_export('keras.metrics.top_k_categorical_accuracy')
@@ -3490,7 +3486,8 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
     Top K categorical accuracy value.
   """
   return tf.cast(
-      tf.compat.v1.math.in_top_k(y_pred, tf.compat.v1.argmax(y_true, axis=-1), k), K.floatx())
+      tf.compat.v1.math.in_top_k(
+          y_pred, tf.compat.v1.argmax(y_true, axis=-1), k), backend.floatx())
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
@@ -3526,7 +3523,7 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
       y_true = tf.reshape(y_true, [-1])
 
   return tf.cast(
-      tf.compat.v1.math.in_top_k(y_pred, tf.cast(y_true, 'int32'), k), K.floatx())
+      tf.compat.v1.math.in_top_k(y_pred, tf.cast(y_true, 'int32'), k), backend.floatx())
 
 
 def cosine_proximity(y_true, y_pred, axis=-1):
@@ -3541,8 +3538,8 @@ def cosine_proximity(y_true, y_pred, axis=-1):
   Returns:
     Cosine similarity value.
   """
-  y_true = tf.compat.v1.linalg.l2_normalize(y_true, axis=axis)
-  y_pred = tf.compat.v1.linalg.l2_normalize(y_pred, axis=axis)
+  y_true = tf.linalg.l2_normalize(y_true, axis=axis)
+  y_pred = tf.linalg.l2_normalize(y_pred, axis=axis)
   return tf.reduce_sum(y_true * y_pred, axis=axis)
 
 # Aliases
@@ -3638,7 +3635,7 @@ def get(identifier):
   """
   if isinstance(identifier, dict):
     return deserialize(identifier)
-  elif isinstance(identifier, six.string_types):
+  elif isinstance(identifier, str):
     return deserialize(str(identifier))
   elif callable(identifier):
     return identifier

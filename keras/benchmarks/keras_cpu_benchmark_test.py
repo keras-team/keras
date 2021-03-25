@@ -13,14 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Benchmark tests for CPU performance of Keras models."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow as tf
 
 import numpy as np
-import six
 
 from keras.benchmarks import benchmark_util
 
@@ -29,8 +25,8 @@ _LOSS = 'binary_crossentropy'
 _OPTIMIZER = 'rmsprop'
 
 
-class KerasModelCPUBenchmark(
-    six.with_metaclass(tf.__internal__.test.ParameterizedBenchmark, tf.test.Benchmark)):
+class KerasModelCPUBenchmark(  # pylint: disable=undefined-variable
+    tf.test.Benchmark, metaclass=tf.__internal__.test.ParameterizedBenchmark):
   """Required Arguments for measure_performance.
 
       x: Input data, it could be Numpy or load from tfds.

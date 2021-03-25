@@ -13,9 +13,6 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the base ProcessingLayer and a subclass that uses Combiners."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
@@ -23,10 +20,9 @@ import abc
 import collections
 
 import numpy as np
-import six
 
 from tensorflow.python.eager import context
-from keras import backend as K
+from keras import backend
 from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
@@ -41,8 +37,7 @@ keras_kpl_gauge = tf.__internal__.monitoring.BoolGauge(
 
 
 @keras_export('keras.layers.experimental.preprocessing.PreprocessingLayer')
-@six.add_metaclass(abc.ABCMeta)
-class PreprocessingLayer(Layer):
+class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
   """Base class for Preprocessing Layers.
 
   **Don't use this class directly: it's an abstract base class!** You may
@@ -413,12 +408,12 @@ def convert_to_list(values, sparse_default_value=None):
     # actual RaggedTensor (not a RaggedTensorValue) passed in non-eager mode,
     # you can't call to_list() on it without evaluating it first. However,
     # because we don't yet fully support composite tensors across Keras,
-    # K.get_value() won't evaluate the tensor.
+    # backend.get_value() won't evaluate the tensor.
     # TODO(momernick): Get Keras to recognize composite tensors as Tensors
-    # and then replace this with a call to K.get_value.
+    # and then replace this with a call to backend.get_value.
     if (isinstance(values, tf.RaggedTensor) and
         not tf.executing_eagerly()):
-      values = K.get_session(values).run(values)
+      values = backend.get_session(values).run(values)
     values = values.to_list()
 
   if isinstance(values,
@@ -430,10 +425,10 @@ def convert_to_list(values, sparse_default_value=None):
         sparse_default_value = -1
     dense_tensor = tf.sparse.to_dense(
         values, default_value=sparse_default_value)
-    values = K.get_value(dense_tensor)
+    values = backend.get_value(dense_tensor)
 
   if isinstance(values, tf.Tensor):
-    values = K.get_value(values)
+    values = backend.get_value(values)
 
   # We may get passed a ndarray or the code above may give us a ndarray.
   # In either case, we want to force it into a standard python list.

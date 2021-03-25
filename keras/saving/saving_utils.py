@@ -13,16 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Utils related to keras model saving."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import collections.abc as collections_abc
 import copy
 import os
-import six
 from keras import backend as K
 from keras import losses
 from keras import optimizer_v1
@@ -247,7 +243,7 @@ def _deserialize_nested_config(deserialize_fn, config):
   def _is_single_object(obj):
     if isinstance(obj, dict) and 'class_name' in obj:
       return True  # Serialized Keras object.
-    if isinstance(obj, six.string_types):
+    if isinstance(obj, str):
       return True  # Serialized function or string.
     return False
 

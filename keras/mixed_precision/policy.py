@@ -13,15 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Contains the Policy class for mixed precision training."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import contextlib
-
-import six
 from keras import backend
 from keras.engine import base_layer_utils
 from keras.mixed_precision import device_compatibility_check
@@ -193,7 +188,7 @@ class Policy(object):
     if isinstance(name, tf.DType):
       raise TypeError("'name' must be a string, not a DType. "
                       "Instead, pass DType.name. Got: %s" % (name.name,))
-    elif not isinstance(name, six.string_types):
+    elif not isinstance(name, str):
       raise TypeError("'name' must be a string, but got: %s" % (name,))
     self._name = name
     self._compute_dtype, self._variable_dtype = self._parse_name(name)
@@ -245,8 +240,7 @@ class Policy(object):
       error = ("Cannot convert value %s to a mixed precision Policy. "
                "Valid policies include 'mixed_float16', 'mixed_bfloat16', "
                "and the name of any dtype such as 'float32'." % (name,))
-      # six.raise_from suppresses the original TypeError from being raised
-      six.raise_from(ValueError(error), None)
+      raise ValueError(error)
     return dtype, dtype
 
   @property

@@ -14,10 +14,6 @@
 #,============================================================================
 """Tests for layer graphs construction & handling."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 from keras import keras_parameterized
@@ -25,7 +21,7 @@ from keras.engine import base_layer
 from keras.engine import node as node_module
 
 
-class DummyTensor(object):
+class DummyTensor:
 
   def __init__(self, shape=None):
     self.shape = shape

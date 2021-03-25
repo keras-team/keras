@@ -14,10 +14,6 @@
 # ==============================================================================
 """Classes and functions implementing Layer SavedModel serialization."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 from keras.mixed_precision import policy
@@ -165,3 +161,15 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
       states = tf.__internal__.tracking.wrap(list(states))
     objects['states'] = states
     return objects, functions
+
+
+class IndexLookupLayerSavedModelSaver(LayerSavedModelSaver):
+  """Index lookup layer serialization."""
+
+  @property
+  def python_properties(self):
+    # TODO(kathywu): Add python property validator
+    metadata = self._python_properties_internal()
+    if metadata['config'].get('has_static_table', False):
+      metadata['config']['vocabulary'] = None
+    return metadata

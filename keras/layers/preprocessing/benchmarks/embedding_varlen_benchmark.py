@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Benchmark for KPL implementation of embedding column with varying-length inputs."""
 
 import tensorflow as tf
-"""Benchmark for KPL implementation of embedding column with varying-length inputs."""
 
 import keras
 from tensorflow.python.eager.def_function import function as tf_function

@@ -12,17 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Keras convolution layers and image transformation layers.
-"""
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Keras convolution layers and image transformation layers."""
 
 import tensorflow.compat.v2 as tf
 
 import functools
-import six
 from keras import activations
 from keras import backend
 from keras import constraints
@@ -222,7 +216,7 @@ class Conv(Layer):
     # Convert Keras formats to TF native formats.
     if self.padding == 'causal':
       tf_padding = 'VALID'  # Causal padding handled in `call`.
-    elif isinstance(self.padding, six.string_types):
+    elif isinstance(self.padding, str):
       tf_padding = self.padding.upper()
     else:
       tf_padding = self.padding

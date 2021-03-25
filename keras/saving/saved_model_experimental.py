@@ -13,17 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Deprecated experimental Keras SavedModel implementation."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import os
 import warnings
-
-import six
-from keras import backend as K
+from keras import backend
 from keras import optimizer_v1
 from keras.optimizer_v2 import optimizer_v2
 from keras.saving import model_config
@@ -224,7 +219,7 @@ def _get_var_list(model):
 
 
 def create_placeholder(spec):
-  return K.placeholder(shape=spec.shape, dtype=spec.dtype, name=spec.name)
+  return backend.placeholder(shape=spec.shape, dtype=spec.dtype, name=spec.name)
 
 
 def _export_mode(
@@ -254,7 +249,7 @@ def _export_mode(
         'Model does not have an optimizer. Cannot export mode %s' % mode)
 
   model_graph = tf.compat.v1.get_default_graph()
-  with tf.Graph().as_default() as g, K.learning_phase_scope(
+  with tf.Graph().as_default() as g, backend.learning_phase_scope(
       mode == mode_keys.ModeKeys.TRAIN):
 
     if input_signature is None:
@@ -339,7 +334,7 @@ def _create_signature_def_map(model, mode):
   local_vars = set(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.LOCAL_VARIABLES))
   vars_to_add = set()
   if metrics is not None:
-    for key, value in six.iteritems(metrics):
+    for key, value in metrics.items():
       if isinstance(value, metrics_lib.Metric):
         vars_to_add.update(value.variables)
         # Convert Metric instances to (value_tensor, update_op) tuple.

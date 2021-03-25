@@ -13,14 +13,10 @@
 # limitations under the License.
 # ==============================================================================
 """Microbenchmarks for Keras components in eager mode."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow as tf
 
 import time
-import six
 
 from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_executor
@@ -146,8 +142,8 @@ class MicroBenchmarksBase(tf.test.Benchmark):
     self._run(fn, 10000)
 
 
-class KerasLayerCallOverheadBenchmarks(
-    six.with_metaclass(tf.__internal__.test.ParameterizedBenchmark, MicroBenchmarksBase)):
+class KerasLayerCallOverheadBenchmarks(  # pylint: disable=undefined-variable
+    MicroBenchmarksBase, metaclass=tf.__internal__.test.ParameterizedBenchmark):
 
   # The set of layers for benchmarking. To add benchmarks for new layers,
   # please add the parameter configs to "_benchmark_paramters".
