@@ -1176,9 +1176,8 @@ class FakeOptimizerForRestoration(tf.__internal__.tracking.Trackable):
         slot_variable_position, slot_name, variable)
 
 
-# pylint: disable=protected-access
-mixed_precision._register_wrapper_optimizer_cls(optimizer_v2.OptimizerV2,
-                                                LossScaleOptimizerV1)
+mixed_precision.register_loss_scale_wrapper(optimizer_v2.OptimizerV2,
+                                            LossScaleOptimizerV1)
 
 
 def _multiply_gradient(gradient, scale):
