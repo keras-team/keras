@@ -18,13 +18,9 @@
 These tests ensure that a model revived from a combination of config and
 SavedModel have the expected structure.
 """
-# TODO(kathywu): Move relevant tests from saved_model_test to
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# TODO(kathywu): Move relevant tests from saved_model_test to
 
 import shutil
 

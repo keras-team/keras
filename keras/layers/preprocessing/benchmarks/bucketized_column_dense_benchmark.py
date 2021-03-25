@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Benchmark for KPL implementation of bucketized columns with dense inputs."""
 
 import tensorflow as tf
-"""Benchmark for KPL implementation of bucketized columns with dense inputs."""
 
 import numpy as np
 

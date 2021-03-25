@@ -14,12 +14,8 @@
 # ==============================================================================
 """Tests for compile utitilies."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
-from keras import backend as K
+from keras import backend
 from keras import keras_parameterized
 from keras import losses as losses_mod
 from keras import metrics as metrics_mod
@@ -262,7 +258,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
       self.assertEqual(labels.dtype, tf.int32)
       self.assertEqual(preds.dtype, tf.float32)
       labels = tf.cast(labels, preds.dtype)
-      return K.mean(tf.abs(preds - labels), axis=-1)
+      return backend.mean(tf.abs(preds - labels), axis=-1)
 
     loss_container = compile_utils.LossesContainer(my_mae)
     total_loss = loss_container(y_t, y_p)
@@ -275,7 +271,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     def my_mae(labels, preds):
       self.assertEqual(labels.dtype, tf.int64)
       self.assertEqual(preds.dtype, tf.int64)
-      return K.mean(tf.abs(preds - labels), axis=-1)
+      return backend.mean(tf.abs(preds - labels), axis=-1)
 
     loss_container = compile_utils.LossesContainer(my_mae)
     total_loss = loss_container(y_t, y_p)
@@ -292,7 +288,7 @@ class LossesContainerTest(keras_parameterized.TestCase):
     def my_mae(labels, preds):
       self.assertEqual(labels.dtype, tf.float64)
       self.assertEqual(preds.dtype, tf.float64)
-      return K.mean(tf.abs(preds - labels), axis=-1)
+      return backend.mean(tf.abs(preds - labels), axis=-1)
 
     loss_container = compile_utils.LossesContainer(my_mae)
     total_loss = loss_container(y_t, y_p)
@@ -364,14 +360,14 @@ class LossesContainerTest(keras_parameterized.TestCase):
     self.assertEqual(loss_container._losses[1].name, 'custom_loss_class')
 
   def test_ragged_tensor_output(self):
-    """ Ensure that ragged tensors can be passed as targets and predictions."""
+    """Ensure that ragged tensors can be passed as targets and predictions."""
 
     def custom_loss_fn(y_true, y_pred):
-      """ MSE supports RaggedTensors directly."""
+      """MSE supports RaggedTensors directly."""
       return losses_mod.mse(y_true, y_pred)
 
     class CustomLossClass(losses_mod.Loss):
-      """ User defined loss function must implement RaggedTensor support."""
+      """User defined loss function must implement RaggedTensor support."""
 
       def call(self, y_true, y_pred):
         losses = tf.ragged.map_flat_values(

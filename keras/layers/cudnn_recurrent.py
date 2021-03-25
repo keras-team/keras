@@ -12,16 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Recurrent layers backed by cuDNN.
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Recurrent layers backed by cuDNN."""
 
 import tensorflow.compat.v2 as tf
 
 import collections
-from keras import backend as K
+from keras import backend
 from keras import constraints
 from keras import initializers
 from keras import regularizers
@@ -103,7 +99,7 @@ class _CuDNNRNN(RNN):
 
     if self.go_backwards:
       # Reverse time axis.
-      inputs = K.reverse(inputs, 1)
+      inputs = backend.reverse(inputs, 1)
     output, states = self._process_batch(inputs, initial_state)
 
     if self.stateful:

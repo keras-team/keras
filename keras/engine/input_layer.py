@@ -13,11 +13,7 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
-"""Input layer code (`Input` and `InputLayer`).
-"""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+"""Input layer code (`Input` and `InputLayer`)."""
 
 import tensorflow.compat.v2 as tf
 from keras import backend

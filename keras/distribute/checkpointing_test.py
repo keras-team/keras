@@ -13,13 +13,9 @@
 # limitations under the License.
 # ==============================================================================
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import os
 
 import tensorflow.compat.v2 as tf
-
-import os
 
 from absl.testing import parameterized
 from keras.optimizer_v2 import adam

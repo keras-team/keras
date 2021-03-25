@@ -20,10 +20,6 @@ saved_model's load() API is used. Keras's export_save_model() when used with
 tf.saved_model.save().
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 from keras import testing_utils
 from keras.distribute import saved_model_test_base as test_base

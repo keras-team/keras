@@ -14,13 +14,9 @@
 #,============================================================================
 """Tests for InputLayer construction."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 from tensorflow.python.framework import type_spec
-from keras import backend as K
+from keras import backend
 from keras import combinations
 from keras import keras_parameterized
 from keras.engine import functional
@@ -361,7 +357,7 @@ class InputLayerTest(keras_parameterized.TestCase):
       self.assertAllEqual(model(two_tensors), lambda_fn(two_tensors))
 
   def test_serialize_with_unknown_rank(self):
-    inp = K.placeholder(shape=None, dtype=tf.string)
+    inp = backend.placeholder(shape=None, dtype=tf.string)
     x = input_layer_lib.InputLayer(input_tensor=inp, dtype=tf.string)
     loaded = input_layer_lib.InputLayer.from_config(x.get_config())
     self.assertIsNone(loaded._batch_input_shape)

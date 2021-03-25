@@ -14,13 +14,9 @@
 # ==============================================================================
 """Built-in WideNDeep model classes."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 from keras import activations
-from keras import backend as K
+from keras import backend
 from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import data_adapter
@@ -98,7 +94,7 @@ class WideDeepModel(keras_training.Model):
     # pylint: disable=protected-access
     if self.dnn_model._expects_training_arg:
       if training is None:
-        training = K.learning_phase()
+        training = backend.learning_phase()
       dnn_output = self.dnn_model(dnn_inputs, training=training)
     else:
       dnn_output = self.dnn_model(dnn_inputs)
@@ -148,8 +144,8 @@ class WideDeepModel(keras_training.Model):
 
       inputs = (
           self._feed_inputs + self._feed_targets + self._feed_sample_weights)
-      if not isinstance(K.symbolic_learning_phase(), int):
-        inputs += [K.symbolic_learning_phase()]
+      if not isinstance(backend.symbolic_learning_phase(), int):
+        inputs += [backend.symbolic_learning_phase()]
 
       if isinstance(self.optimizer, (list, tuple)):
         linear_optimizer = self.optimizer[0]
@@ -158,8 +154,8 @@ class WideDeepModel(keras_training.Model):
         linear_optimizer = self.optimizer
         dnn_optimizer = self.optimizer
 
-      with K.get_graph().as_default():
-        with K.name_scope('training'):
+      with backend.get_graph().as_default():
+        with backend.name_scope('training'):
           # Training updates
           updates = []
           linear_updates = linear_optimizer.get_updates(
@@ -180,9 +176,9 @@ class WideDeepModel(keras_training.Model):
             m._call_result for m in metrics if hasattr(m, '_call_result')  # pylint: disable=protected-access
         ]
 
-      with K.name_scope('training'):
+      with backend.name_scope('training'):
         # Gets loss and metrics. Updates weights at each call.
-        fn = K.function(
+        fn = backend.function(
             inputs, [self.total_loss] + metrics_tensors,
             updates=updates,
             name='train_function',

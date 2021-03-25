@@ -222,7 +222,6 @@ py_library(
         ":backend",
         ":losses",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras/distribute",
         "//keras/engine:base_layer",
@@ -278,7 +277,7 @@ py_library(
     ],
 )
 
-# Internally six.moves.urllib.request.urlretrieve library requires Google
+# Internally urllib.request.urlretrieve library requires Google
 # SSL context to be provided to work in python 3. This isn't needed in OSS.
 # copybara:uncomment_begin(google-only)
 # py_library(
@@ -488,7 +487,6 @@ tf_py_test(
         ":keras",
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
     ],
 )

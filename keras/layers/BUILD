@@ -132,7 +132,6 @@ py_library(
         "//keras:regularizers",
         "//keras/engine:input_spec",
         "//keras/engine:keras_tensor",
-        "//keras/layers/ops:core",
         "//keras/utils:engine_utils",
         "//keras/utils:generic_utils",
         "//keras/utils:tf_utils",
@@ -216,7 +215,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras:base_layer",
         "//keras:initializers",

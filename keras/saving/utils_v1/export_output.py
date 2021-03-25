@@ -15,15 +15,9 @@
 # LINT.IfChange
 """Classes for different types of export output."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
 import abc
-
-import six
 from keras.saving.utils_v1 import signature_def_utils as unexported_signature_utils
 
 
@@ -55,7 +49,7 @@ class ExportOutput(object):
     if isinstance(key, tuple):
       key = self._SEPARATOR_CHAR.join(key)
 
-    if not isinstance(key, six.string_types):
+    if not isinstance(key, str):
       raise ValueError(
           '{} output key must be a string; got {}.'.format(error_label, key))
     return key

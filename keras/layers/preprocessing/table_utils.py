@@ -13,16 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Utilities for working with tf.lookup tables in Keras."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import collections
 import os
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras.utils import tf_utils
 from tensorflow.python.ops import lookup_ops
 
@@ -34,6 +31,7 @@ class TableHandler(object):
                table,
                oov_tokens=None,
                mask_token=None,
+               mask_value=0,
                use_v1_apis=False):
     self.table = table
 
@@ -41,12 +39,13 @@ class TableHandler(object):
     # it. However, not all tables have initializers, so we try-except here.
     if use_v1_apis:
       try:
-        K.get_session().run(self.table.initializer)
+        backend.get_session().run(self.table.initializer)
       except AttributeError:
         pass
 
     self.mutable = isinstance(table, lookup_ops.MutableHashTable)
     self.mask_token = mask_token
+    self.mask_value = mask_value
 
     self.use_v1_apis = use_v1_apis
     if oov_tokens is None:
@@ -112,21 +111,12 @@ class TableHandler(object):
     if self.mask_token is None:
       return lookups
 
-    # If we do need to handle masking, increment all the lookup values by 1
-    # to account for the mask value at location 0. This also increments the
-    # OOV value, so replace that. (This is inefficient, but we can't adjust
-    # the table safely, so we don't have a choice.)
-    oov_locations = tf.equal(lookups, self.table._default_value)  # pylint: disable=protected-access
-    oov_values = tf.compat.v1.ones_like(
-        lookups, dtype=self.table._value_dtype) * self.table._default_value  # pylint: disable=protected-access
-    adjusted_lookups = tf.compat.v1.where(oov_locations, oov_values, lookups)
-
     # Inject 0s wherever the mask token was in the inputs.
     mask_locations = tf.equal(inputs, self.mask_token)
-    return tf.compat.v1.where(
+    return tf.where(
         mask_locations,
-        tf.compat.v1.zeros_like(lookups, dtype=self.table._value_dtype),  # pylint: disable=protected-access
-        adjusted_lookups)  # pylint: disable=protected-access
+        tf.cast(self.mask_value, self.table._value_dtype),  # pylint: disable=protected-access
+        lookups)  # pylint: disable=protected-access
 
   def _ragged_lookup(self, inputs):
     """Perform a table lookup on a ragged tensor."""
@@ -173,8 +163,7 @@ class TableHandler(object):
     if tf_utils.is_ragged(inputs):
       if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
         flat_values = tf.convert_to_tensor(
-            value=inputs.flat_values,
-            name="flat_values")
+            value=inputs.flat_values, name="flat_values")
         inputs = tf.RaggedTensor.from_nested_row_splits(
             flat_values, inputs.nested_row_splits, validate=False)
       return self._ragged_lookup(inputs)
@@ -185,13 +174,25 @@ class TableHandler(object):
 
   def _eval(self, tensor):
     if self.use_v1_apis:
-      return K.get_session().run(tensor)
+      return backend.get_session().run(tensor)
     else:
       return tensor.numpy()
 
   def _run(self, op):
     if self.use_v1_apis:
-      K.get_session().run(op)
+      backend.get_session().run(op)
+
+
+def num_tokens_in_file(vocabulary_path):
+  """Count the number of lines in a vocab file to get the number of tokens."""
+  num_tokens = 0
+  with tf.io.gfile.GFile(vocabulary_path, "r") as reader:
+    text = reader.readline()
+    while text:
+      num_tokens += 1
+      text = reader.readline()
+
+  return num_tokens
 
 
 def get_vocabulary_from_file(vocabulary_path, encoding="utf-8"):
@@ -224,4 +225,3 @@ def find_repeated_tokens(vocabulary):
     ]
   else:
     return []
-

@@ -14,15 +14,10 @@
 # ==============================================================================
 """Tests for io_utils."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
 
+import builtins
 import sys
-
-import six
 
 from keras import keras_parameterized
 from keras.utils import io_utils
@@ -31,7 +26,7 @@ from keras.utils import io_utils
 class TestIOUtils(keras_parameterized.TestCase):
 
   def test_ask_to_proceed_with_overwrite(self):
-    with tf.compat.v1.test.mock.patch.object(six.moves, 'input') as mock_log:
+    with tf.compat.v1.test.mock.patch.object(builtins, 'input') as mock_log:
       mock_log.return_value = 'y'
       self.assertTrue(io_utils.ask_to_proceed_with_overwrite('/tmp/not_exists'))
 

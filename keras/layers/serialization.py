@@ -14,14 +14,10 @@
 # ==============================================================================
 """Layer serialization/deserialization functions.
 """
-# pylint: disable=wildcard-import
-# pylint: disable=unused-import
-
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=wildcard-import
+# pylint: disable=unused-import
 
 import threading
 from keras.engine import base_layer

@@ -51,7 +51,6 @@ py_library(
         ":keras_tensor",
         ":node",
         "//:expect_h5py_installed",
-        "//:expect_six_installed",
         "//:expect_tensorboard_installed",
         "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
@@ -102,7 +101,6 @@ py_library(
         ":input_spec",
         ":node",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//keras:backend",
         "//keras:constraints",
         "//keras:initializers",
@@ -139,7 +137,6 @@ py_library(
     srcs = ["input_spec.py"],
     srcs_version = "PY3",
     deps = [
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
     ],
@@ -150,7 +147,6 @@ py_library(
     srcs = ["keras_tensor.py"],
     srcs_version = "PY3",
     deps = [
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras/utils:object_identity",
     ],
@@ -389,7 +385,6 @@ tf_py_test(
     deps = [
         "//:expect_absl_installed",
         "//:expect_numpy_installed",
-        "//:expect_six_installed",
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/layers",

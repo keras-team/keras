@@ -14,13 +14,7 @@
 # ==============================================================================
 """Keras model saving code."""
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow.compat.v2 as tf
-
-import six
 from keras.saving import hdf5_format
 from keras.saving import saving_utils
 from keras.saving.saved_model import load as saved_model_load
@@ -208,7 +202,7 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
                                                   compile)
 
         filepath = path_to_string(filepath)
-        if isinstance(filepath, six.string_types):
+        if isinstance(filepath, str):
           return saved_model_load.load(filepath, compile, options)
 
   raise IOError(

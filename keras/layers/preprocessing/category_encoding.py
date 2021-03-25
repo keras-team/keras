@@ -13,15 +13,12 @@
 # limitations under the License.
 # ==============================================================================
 """Keras CategoryEncoding preprocessing layer."""
-# pylint: disable=g-classes-have-attributes
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
 
 import numpy as np
-from keras import backend as K
+from keras import backend
 from keras.engine import base_preprocessing_layer
 from keras.utils import layer_utils
 from tensorflow.python.platform import tf_logging as logging
@@ -185,7 +182,7 @@ def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
       maxlength=out_depth,
       axis=-1,
       binary_output=binary_output)
-  result = tf.cast(result, K.floatx())
+  result = tf.cast(result, backend.floatx())
   batch_size = tf.compat.v1.shape(result)[0]
   result = tf.SparseTensor(
       indices=result.indices,
@@ -201,7 +198,7 @@ def dense_bincount(inputs, out_depth, binary_output, count_weights=None):
       weights=count_weights,
       minlength=out_depth,
       maxlength=out_depth,
-      dtype=K.floatx(),
+      dtype=backend.floatx(),
       axis=-1,
       binary_output=binary_output)
   batch_size = inputs.shape.as_list()[0]

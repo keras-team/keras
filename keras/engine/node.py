@@ -13,10 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 # pylint: disable=protected-access
+# pylint: disable=g-classes-have-attributes
 """Contains the `Node` class."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
@@ -32,7 +30,7 @@ from keras.utils import tf_utils
 _CONSTANT_VALUE = '_CONSTANT_VALUE'
 
 
-class Node(object):
+class Node:
   """A `Node` describes the connectivity between two layers.
 
   Each time a layer is connected to some new input,

@@ -13,15 +13,13 @@
 # limitations under the License.
 # ==============================================================================
 """Correctness tests for tf.keras DNN model using DistributionStrategy."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
 import numpy as np
+
 import keras
-from keras import backend as K
+from keras import backend
 from keras import testing_utils
 from keras.distribute import keras_correctness_test_base
 from keras.distribute import strategy_combinations
@@ -272,7 +270,8 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
   def test_dnn_correctness(self, distribution, use_numpy, use_validation_data):
     if (tf.executing_eagerly()) or is_default_strategy(distribution):
       self.run_correctness_test(distribution, use_numpy, use_validation_data)
-    elif K.is_tpu_strategy(distribution) and not tf.executing_eagerly():
+    elif (backend.is_tpu_strategy(distribution)
+          and not tf.executing_eagerly()):
       with self.assertRaisesRegex(
           ValueError,
           'Expected `model` argument to be a functional `Model` instance, '
@@ -288,10 +287,11 @@ class TestDistributionStrategyDnnCorrectnessWithSubclassedModel(
 
   @tf.__internal__.distribute.combinations.generate(all_strategy_combinations_with_graph_mode())
   def test_dnn_with_dynamic_learning_rate(self, distribution):
-    if ((tf.executing_eagerly() and not K.is_tpu_strategy(distribution)) or
-        is_default_strategy(distribution)):
+    if ((tf.executing_eagerly()
+         and not backend.is_tpu_strategy(distribution))
+        or is_default_strategy(distribution)):
       self.run_dynamic_lr_test(distribution)
-    elif K.is_tpu_strategy(distribution):
+    elif backend.is_tpu_strategy(distribution):
       with self.assertRaisesRegex(
           ValueError,
           'Expected `model` argument to be a functional `Model` instance, '

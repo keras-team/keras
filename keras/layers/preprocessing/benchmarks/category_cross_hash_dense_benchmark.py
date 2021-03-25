@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
+"""Benchmark for KPL implementation of categorical cross hash columns with dense inputs."""
 
 import tensorflow as tf
-"""Benchmark for KPL implementation of categorical cross hash columns with dense inputs."""
 
 import keras
 from tensorflow.python.eager.def_function import function as tf_function
