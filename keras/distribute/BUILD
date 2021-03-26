@@ -596,7 +596,6 @@ cuda_py_test(
     python_version = "PY3",
     tags = [
         "multi_and_single_gpu",
-        "no_tfrt",  # TODO(b/179839466): Reenable TFRT after the issue is resolved.
         "no_windows_gpu",  # TODO(b/130551176)
     ],
     deps = [
@@ -630,7 +629,6 @@ cuda_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_oss",  # TODO(b/130369494): Investigate why it times out on OSS.
-        "no_tfrt",  # TODO(b/179839466): Reenable TFRT after the issue is resolved.
     ],
     deps = [
         ":multi_worker_testing_utils",
@@ -725,7 +723,6 @@ distribute_py_test(
     shard_count = 1,
     tags = [
         "multi_and_single_gpu",
-        "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -748,7 +745,6 @@ distribute_py_test(
     tags = [
         "multi_gpu",
         "no_oss",  # TODO(b/183640564): Reenable
-        "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
