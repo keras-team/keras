@@ -473,8 +473,8 @@ def get_tensor_spec(t, dynamic_batch=False, name=None):
   # pylint: enable=protected-access
 
 
-def to_numpy_or_python_type(tensors):
-  """Converts a structure of `Tensor`s to `NumPy` arrays or Python scalar types.
+def sync_to_numpy_or_python_type(tensors):
+  """Syncs and converts a structure of `Tensor`s to `NumPy` arrays or Python scalar types.
 
   For each tensor, it calls `tensor.numpy()`. If the result is a scalar value,
   it converts it to a Python type, such as a float or int, by calling
@@ -484,6 +484,10 @@ def to_numpy_or_python_type(tensors):
   with. This is especially useful for bfloat16 Numpy scalars, which don't
   support as many operations as other Numpy values.
 
+  Async strategies (such as `TPUStrategy` and `ParameterServerStrategy`) are
+  forced to
+  sync during this process.
+
   Args:
     tensors: A structure of tensors.
 
@@ -491,6 +495,9 @@ def to_numpy_or_python_type(tensors):
     `tensors`, but scalar tensors are converted to Python types and non-scalar
     tensors are converted to Numpy arrays.
   """
+  if isinstance(tensors, tf.distribute.experimental.coordinator.RemoteValue):
+    return tensors.fetch()
+
   def _to_single_numpy_or_python_type(t):
     if isinstance(t, tf.Tensor):
       x = t.numpy()
