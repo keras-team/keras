@@ -169,10 +169,10 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
 
   @testing_utils.enable_v2_dtype_behavior
   def test_loss_scale_warning(self):
-    with tf.compat.v1.test.mock.patch.object(tf_logging, 'warn') as mock_warn:
+    with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
       mp_policy.PolicyV1('float32', loss_scale=2.)
       self.assertEqual(
-          mock_warn.call_args[0][0],
+          mock_warn.call_args_list[0][0][0],
           'Creating a Policy with a loss scale is only useful for float16 '
           'policies. You passed loss_scale=2.0 for policy float32. Consider '
           'not passing any loss_scale instead.')
@@ -180,7 +180,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
     for policy_name in 'float16', 'mixed_float16':
       # Trigger any other warnings that occur only once
       mp_policy.PolicyV1(policy_name, loss_scale=2.)
-      with tf.compat.v1.test.mock.patch.object(tf_logging, 'warn') as mock_warn:
+      with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
         mp_policy.PolicyV1(policy_name, loss_scale=2.)
         mock_warn.assert_not_called()
 
@@ -190,7 +190,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
       self.skipTest('Run in eager mode only.')
 
     device_compatibility_check._logged_compatibility_check = False
-    with tf.compat.v1.test.mock.patch.object(tf_logging, 'warn') as mock_warn:
+    with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
       mp_policy.Policy('mixed_float16')
     if tf.config.list_physical_devices('GPU'):
       mock_warn.assert_not_called()
@@ -201,7 +201,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
 
     if tf.config.list_physical_devices('GPU'):
       # Assert message is only logged once
-      with tf.compat.v1.test.mock.patch.object(tf_logging, 'warn') as mock_warn:
+      with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
         mp_policy.Policy('mixed_float16')
       mock_warn.assert_not_called()
 
