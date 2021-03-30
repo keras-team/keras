@@ -2808,7 +2808,7 @@ class SummaryOpsTest(tf.test.TestCase):
         return self.activation(x)
 
     model = SimpleSubclass()
-    with tf.compat.v1.test.mock.patch.object(logging, 'warn') as mock_log:
+    with tf.compat.v1.test.mock.patch.object(logging, 'warning') as mock_log:
       self.assertFalse(
           keras.callbacks.keras_model_summary(
               name='my_name', data=model, step=1))
@@ -2820,7 +2820,7 @@ class SummaryOpsTest(tf.test.TestCase):
     model = keras.Sequential()
 
     with tf.compat.v1.test.mock.patch.object(model, 'to_json') as mock_to_json:
-      with tf.compat.v1.test.mock.patch.object(logging, 'warn') as mock_log:
+      with tf.compat.v1.test.mock.patch.object(logging, 'warning') as mock_log:
         mock_to_json.side_effect = Exception('oops')
         self.assertFalse(
             keras.callbacks.keras_model_summary(
