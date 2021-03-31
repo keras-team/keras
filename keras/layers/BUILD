@@ -14,7 +14,7 @@ package(
         "//third_party/tensorflow/tools/pip_package:__pkg__",
         "//third_party/tensorflow_models/official/vision/beta/projects/residual_mobilenet/modeling/backbones:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(
@@ -460,6 +460,7 @@ tf_py_test(
     # TODO(b/127881287): Re-enable.
     tags = [
         "no_windows_gpu",
+        "notsan",  # TODO(b/183962355)
     ],
     deps = [
         "//:expect_absl_installed",

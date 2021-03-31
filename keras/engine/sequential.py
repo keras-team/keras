@@ -30,7 +30,6 @@ from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -97,7 +96,7 @@ class Sequential(functional.Functional):
   ```
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, layers=None, name=None):
     """Creates a `Sequential` model instance.
 
@@ -147,7 +146,7 @@ class Sequential(functional.Functional):
       return layers[1:]
     return layers[:]
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def add(self, layer):
     """Adds a layer instance on top of the layer stack.
 
@@ -235,7 +234,7 @@ class Sequential(functional.Functional):
 
     self._layer_call_argspecs[layer] = tf_inspect.getfullargspec(layer.call)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def pop(self):
     """Removes the last layer in the model.
 
@@ -260,7 +259,7 @@ class Sequential(functional.Functional):
       self._init_graph_network(self.inputs, self.outputs)
       self.built = True
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _build_graph_network_for_inferred_shape(self,
                                               input_shape,
                                               input_dtype=None):

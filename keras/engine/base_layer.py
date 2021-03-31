@@ -51,7 +51,6 @@ from keras.utils import version_utils
 from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-import
 from keras.utils.tf_utils import is_tensor_or_tensor_list  # pylint: disable=unused-import
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import get_canonical_name_for_symbol
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -296,7 +295,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         keras_layers_gauge.get_cell(self._get_cell_name()).set(True)
         self._instrumented_keras_layer_class = True
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
                trainable=True,
                name=None,
@@ -430,7 +429,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # a list with one element.
     self._preserve_input_structure_in_config = False
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
   def build(self, input_shape):
     """Creates the variables of the layer (optional, for subclass implementers).
@@ -1249,7 +1248,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   @input_spec.setter
   # Must be decorated to prevent tracking, since the input_spec can be nested
   # InputSpec objects.
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def input_spec(self, value):
     for v in tf.nest.flatten(value):
       if v is not None and not isinstance(v, InputSpec):
@@ -2204,7 +2203,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return self._inbound_nodes_value
 
   @_inbound_nodes.setter
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _inbound_nodes(self, value):
     self._inbound_nodes_value = value
 
@@ -2213,7 +2212,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return self._outbound_nodes_value
 
   @_outbound_nodes.setter
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _outbound_nodes(self, value):
     self._outbound_nodes_value = value
 
@@ -2650,7 +2649,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                                  object_identity.ObjectIdentityDictionary())
     return self._obj_reference_counts_dict
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _maybe_create_attribute(self, name, default_value):
     """Create the attribute with the default value if it hasn't been created.
 
@@ -2957,7 +2956,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   # SavedModel properties. Please see keras/saving/saved_model for details.
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_save_spec(self, inputs):
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
@@ -3050,7 +3049,7 @@ class TensorFlowOpLayer(Layer):
       effect on this class, however is used in `get_config`.
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
                node_def,
                name,

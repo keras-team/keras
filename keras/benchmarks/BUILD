@@ -5,7 +5,7 @@ load("@org_keras//keras:keras.bzl", "cuda_py_test")
 
 package(
     default_visibility = ["//visibility:public"],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(

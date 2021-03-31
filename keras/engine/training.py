@@ -47,8 +47,6 @@ from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from keras.utils.io_utils import path_to_string
 from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import checkpoint_management
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.training.tracking import util as trackable_utils
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -194,7 +192,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     else:
       return super(Model, cls).__new__(cls, *args, **kwargs)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, *args, **kwargs):
     self._is_model_for_instrumentation = True
     base_layer.keras_api_gauge.get_cell('model').set(True)
@@ -293,7 +291,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self._init_batch_counters()
     self._base_model_initialized = True
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_batch_counters(self):
     # Untracked Variables, used to keep track of mini-batches seen in `fit`,
     # `evaluate`, and `predict`.
@@ -585,7 +583,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
     return tf.nest.map_structure(_get_single_optimizer, optimizer)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _reset_compile_cache(self):
     self.train_function = None
     self.test_function = None
@@ -594,7 +592,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # Used to cache `trainable` attr of `Layer`s for `fit`.
     self._compiled_trainable_state = self._get_trainable_state()
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _configure_steps_per_execution(self, steps_per_execution):
     self._steps_per_execution = tf.Variable(
         steps_per_execution,
@@ -2200,7 +2198,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         session = backend.get_session()
       self._trackable_saver.save(filepath, session=session, options=options)
       # Record this checkpoint so it's visible from tf.train.latest_checkpoint.
-      checkpoint_management.update_checkpoint_state_internal(
+      tf.__internal__.train.update_checkpoint_state(
           save_dir=os.path.dirname(filepath),
           model_checkpoint_path=filepath,
           save_relative_paths=True,
@@ -2501,7 +2499,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       raise ValueError('No such layer: ' + name + '.')
     raise ValueError('Provide either a layer name or layer index.')
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_save_spec(self, inputs):
     if self._saved_model_inputs_spec is not None:
       return  # Already set.

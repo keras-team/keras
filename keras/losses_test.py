@@ -1777,7 +1777,7 @@ class HuberLossTest(tf.test.TestCase):
 class BinaryTruePositivesViaControlFlow(losses.Loss):
 
   def __init__(self, reduction=losses_utils.ReductionV2.AUTO):
-    super(BinaryTruePositivesViaControlFlow, self).__init__(reduction=reduction)
+    super().__init__(reduction=reduction)
 
   def call(self, y_true, y_pred):
     y_true = tf.cast(y_true, tf.bool)
