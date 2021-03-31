@@ -25,7 +25,6 @@ from keras.engine import sequential
 from keras.engine import training
 from keras.layers import core
 from keras.layers import normalization
-from tensorflow.python.training.tracking import base
 from tensorflow.python.training.tracking import data_structures
 from tensorflow.python.training.tracking import util
 
@@ -544,7 +543,7 @@ class InterfaceTests(keras_parameterized.TestCase):
 
     class NoDependencyModel(training.Model):
 
-      @base.no_automatic_dependency_tracking
+      @tf.__internal__.tracking.no_automatic_dependency_tracking
       def __init__(self):
         super(NoDependencyModel, self).__init__()
         self.a = []

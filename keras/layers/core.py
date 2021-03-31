@@ -39,7 +39,6 @@ from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import get_canonical_name_for_symbol
 from tensorflow.python.util.tf_export import get_symbol_from_name
 from tensorflow.python.util.tf_export import keras_export
@@ -831,7 +830,7 @@ class Lambda(Layer):
     Specified by `output_shape` argument
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, output_shape=None, mask=None, arguments=None,
                **kwargs):
     super(Lambda, self).__init__(**kwargs)
@@ -1312,7 +1311,7 @@ class TFOpLambda(Layer):
   out = x * tf_variable
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
     self.function = function
     self.symbol = (
@@ -1498,7 +1497,7 @@ class SlicingOpLambda(TFOpLambda):
   out = x * tf_variable
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
     super(SlicingOpLambda, self).__init__(function, **kwargs)
 
@@ -1576,7 +1575,7 @@ class InstanceProperty(Layer):
   out = x.flat_values
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, attr_name, **kwargs):
     self.attr_name = attr_name
 
@@ -1723,7 +1722,7 @@ class ClassMethod(Layer):
   out = tf.RaggedTensor.from_row_splits(x, y)
   """
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, cls_ref, method_name, **kwargs):
     self.cls_ref = cls_ref
     self.method_name = method_name

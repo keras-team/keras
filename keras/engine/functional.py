@@ -34,7 +34,6 @@ from keras.utils import generic_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.tools.docs import doc_controls
 
 
@@ -95,7 +94,7 @@ class Functional(training_lib.Model):
       training_lib.Model._TF_MODULE_IGNORED_PROPERTIES
   ))
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, inputs, outputs, name=None, trainable=True,
                **kwargs):
     # This is used by the Model class, since we have some logic to swap the
@@ -109,7 +108,7 @@ class Functional(training_lib.Model):
     super(Functional, self).__init__(name=name, trainable=trainable)
     self._init_graph_network(inputs, outputs)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_graph_network(self, inputs, outputs):
     base_layer.keras_api_gauge.get_cell('Functional').set(True)
     # This method is needed for Sequential to reinitialize graph network when

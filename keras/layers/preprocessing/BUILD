@@ -12,7 +12,7 @@ package(
         "//keras:__subpackages__",
         "//third_party/tensorflow/tools/pip_package:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(

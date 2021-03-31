@@ -11,7 +11,7 @@ package(
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(

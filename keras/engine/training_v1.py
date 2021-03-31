@@ -47,7 +47,6 @@ from keras.utils import tf_inspect
 from keras.utils import tf_utils
 from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import base as trackable
 
 try:
   from scipy.sparse import issparse  # pylint: disable=g-import-not-at-top
@@ -144,7 +143,7 @@ class Model(training_lib.Model):
   def _init_batch_counters(self):
     pass  # Batch counters should not be created in legacy graph mode.
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_strategy(self, strategy):
     self._compile_time_distribution_strategy = strategy
 
@@ -214,7 +213,7 @@ class Model(training_lib.Model):
                          'with steps_per_run greater than 1.')
     return super(Model, self).load_weights(filepath, by_name, skip_mismatch)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def compile(self,
               optimizer='rmsprop',
               loss=None,
@@ -468,7 +467,7 @@ class Model(training_lib.Model):
                 '  model=_create_model()\n'
                 '  model.compile(...)'% (v, strategy))
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _init_distributed_function_cache_if_not_compiled(self):
     if not hasattr(self, '_distributed_function_cache'):
       self._distributed_function_cache = {}
@@ -1494,7 +1493,7 @@ class Model(training_lib.Model):
       self._compile_weights_loss_and_weighted_metrics()
     return recompile
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _compile_weights_loss_and_weighted_metrics(self, sample_weights=None):
     """Compiles the model loss and weighted metric sub-graphs.
 
@@ -1658,7 +1657,7 @@ class Model(training_lib.Model):
       return self.callback_model
     return self
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _make_callback_model(self, grouped_model):
     first_replicated_model = self._distribution_strategy.unwrap(
         grouped_model)[0]
@@ -2619,7 +2618,7 @@ class Model(training_lib.Model):
 
     self._set_output_attrs(outputs)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_input_attrs(self, inputs):
     """Sets attributes related to the inputs of the Model."""
     if self.inputs:
@@ -2664,7 +2663,7 @@ class Model(training_lib.Model):
 
     return inputs
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _set_output_attrs(self, outputs):
     """Sets attributes related to the outputs of the Model."""
     # NOTE(taylorrobie): This convention cannot be changed without updating the

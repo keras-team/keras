@@ -28,7 +28,6 @@ from keras.utils import mode_keys
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.saved_model import builder as saved_model_builder
-from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.util.tf_export import keras_export
 
 # To avoid circular dependencies between keras/engine and keras/saving,
@@ -214,7 +213,7 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
 
 def _get_var_list(model):
   """Returns list of all checkpointed saveable objects in the model."""
-  var_list, _, _ = graph_view.ObjectGraphView(model).serialize_object_graph()
+  var_list, _, _ = tf.__internal__.tracking.ObjectGraphView(model).serialize_object_graph()
   return var_list
 
 

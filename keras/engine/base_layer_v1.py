@@ -44,7 +44,6 @@ from keras.utils import tf_utils
 from keras.utils.generic_utils import to_snake_case  # pylint: disable=unused-import
 from keras.utils.tf_utils import is_tensor_or_tensor_list  # pylint: disable=unused-import
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.tools.docs import doc_controls
 
 
@@ -124,7 +123,7 @@ class Layer(base_layer.Layer):
       tf.Module._TF_MODULE_IGNORED_PROPERTIES
   ))
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, trainable=True, name=None, dtype=None, dynamic=False,
                **kwargs):
     self._instrument_layer_creation()
@@ -239,7 +238,7 @@ class Layer(base_layer.Layer):
     # a list with one element.
     self._preserve_input_structure_in_config = False
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
   def build(self, input_shape):
     """Creates the variables of the layer (optional, for subclass implementers).
@@ -881,7 +880,7 @@ class Layer(base_layer.Layer):
   @input_spec.setter
   # Must be decorated to prevent tracking, since the input_spec can be nested
   # InputSpec objects.
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def input_spec(self, value):
     for v in tf.nest.flatten(value):
       if v is not None and not isinstance(v, base_layer.InputSpec):
@@ -1713,7 +1712,7 @@ class Layer(base_layer.Layer):
     return self._inbound_nodes_value
 
   @_inbound_nodes.setter
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _inbound_nodes(self, value):
     self._inbound_nodes_value = value
 
@@ -1722,7 +1721,7 @@ class Layer(base_layer.Layer):
     return self._outbound_nodes_value
 
   @_outbound_nodes.setter
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _outbound_nodes(self, value):
     self._outbound_nodes_value = value
 
@@ -2114,7 +2113,7 @@ class Layer(base_layer.Layer):
                                  object_identity.ObjectIdentityDictionary())
     return self._obj_reference_counts_dict
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _maybe_create_attribute(self, name, default_value):
     """Create the attribute with the default value if it hasn't been created.
 
