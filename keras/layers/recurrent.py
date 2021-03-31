@@ -34,7 +34,6 @@ from keras.utils import control_flow_util
 from keras.utils import generic_utils
 from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -452,7 +451,7 @@ class RNN(Layer):
   @states.setter
   # Automatic tracking catches "self._states" which adds an extra weight and
   # breaks HDF5 checkpoints.
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def states(self, states):
     self._states = states
 
@@ -1104,7 +1103,7 @@ class DropoutRNNCellMixin(object):
     self._create_non_trackable_mask_cache()
     super(DropoutRNNCellMixin, self).__init__(*args, **kwargs)
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _create_non_trackable_mask_cache(self):
     """Create the cache for dropout and recurrent dropout mask.
 

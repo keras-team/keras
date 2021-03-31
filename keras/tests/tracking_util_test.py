@@ -29,7 +29,6 @@ from keras.engine import training
 from keras.layers import core
 from keras.optimizer_v2 import adam
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import graph_view
 from tensorflow.python.training.tracking import util as trackable_utils
 
 
@@ -111,7 +110,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
     self.evaluate(trackable_utils.gather_initializers(
         root_trackable))
     self.evaluate(train_op)
-    named_variables, serialized_graph, _ = graph_view.ObjectGraphView(
+    named_variables, serialized_graph, _ = tf.__internal__.tracking.ObjectGraphView(
         root_trackable).serialize_object_graph()
     expected_slot_keys = (
         "model/_second/kernel/.OPTIMIZER_SLOT/optimizer/m",
@@ -806,7 +805,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
         with self.assertRaises(AssertionError):
           self._check_sentinels(root)
         object_saver = trackable_utils.TrackableSaver(
-            graph_view.ObjectGraphView(root))
+            tf.__internal__.tracking.ObjectGraphView(root))
         self._set_sentinels(root)
         status = object_saver.restore(save_path)
         if tf.executing_eagerly():

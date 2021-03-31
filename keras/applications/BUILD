@@ -8,7 +8,7 @@ package(
         # Remove this deps to integration test.
         "//keras:__subpackages__",
     ],
-    licenses = ["notice"],  # Apache 2.0
+    licenses = ["notice"],
 )
 
 filegroup(

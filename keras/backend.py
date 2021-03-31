@@ -43,7 +43,6 @@ from keras.utils import object_identity
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import moving_averages
 from tensorflow.python.util import keras_deps
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
@@ -1899,9 +1898,13 @@ def moving_average_update(x, value, momentum):
   Returns:
       The updated variable.
   """
-  zero_debias = not tf.__internal__.tf2.enabled()
-  return moving_averages.assign_moving_average(
-      x, value, momentum, zero_debias=zero_debias)
+  if tf.__internal__.tf2.enabled():
+    momentum = tf.cast(momentum, x.dtype)
+    value = tf.cast(value, x.dtype)
+    return x.assign(x * momentum + value * (1 - momentum))
+  else:
+    return tf.__internal__.train.assign_moving_average(
+        x, value, momentum, zero_debias=True)
 
 
 # LINEAR ALGEBRA

@@ -225,7 +225,7 @@ class LossFunctionWrapper(Loss):
       name: (Optional) name for the loss.
       **kwargs: The keyword arguments that are passed on to `fn`.
     """
-    super(LossFunctionWrapper, self).__init__(reduction=reduction, name=name)
+    super().__init__(reduction=reduction, name=name)
     self.fn = fn
     self._fn_kwargs = kwargs
 
@@ -249,7 +249,7 @@ class LossFunctionWrapper(Loss):
     config = {}
     for k, v in self._fn_kwargs.items():
       config[k] = backend.eval(v) if tf_utils.is_tensor_or_variable(v) else v
-    base_config = super(LossFunctionWrapper, self).get_config()
+    base_config = super().get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
 
@@ -308,8 +308,7 @@ class MeanSquaredError(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'mean_squared_error'.
     """
-    super(MeanSquaredError, self).__init__(
-        mean_squared_error, name=name, reduction=reduction)
+    super().__init__(mean_squared_error, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.MeanAbsoluteError')
@@ -367,8 +366,7 @@ class MeanAbsoluteError(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'mean_absolute_error'.
     """
-    super(MeanAbsoluteError, self).__init__(
-        mean_absolute_error, name=name, reduction=reduction)
+    super().__init__(mean_absolute_error, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.MeanAbsolutePercentageError')
@@ -428,7 +426,7 @@ class MeanAbsolutePercentageError(LossFunctionWrapper):
       name: Optional name for the op. Defaults to
         'mean_absolute_percentage_error'.
     """
-    super(MeanAbsolutePercentageError, self).__init__(
+    super().__init__(
         mean_absolute_percentage_error, name=name, reduction=reduction)
 
 
@@ -489,7 +487,7 @@ class MeanSquaredLogarithmicError(LossFunctionWrapper):
       name: Optional name for the op. Defaults to
         'mean_squared_logarithmic_error'.
     """
-    super(MeanSquaredLogarithmicError, self).__init__(
+    super().__init__(
         mean_squared_logarithmic_error, name=name, reduction=reduction)
 
 
@@ -583,7 +581,7 @@ class BinaryCrossentropy(LossFunctionWrapper):
             more details.
       name: (Optional) Name for the op. Defaults to 'binary_crossentropy'.
     """
-    super(BinaryCrossentropy, self).__init__(
+    super().__init__(
         binary_crossentropy,
         name=name,
         reduction=reduction,
@@ -662,7 +660,7 @@ class CategoricalCrossentropy(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'categorical_crossentropy'.
     """
-    super(CategoricalCrossentropy, self).__init__(
+    super().__init__(
         categorical_crossentropy,
         name=name,
         reduction=reduction,
@@ -739,7 +737,7 @@ class SparseCategoricalCrossentropy(LossFunctionWrapper):
       name: Optional name for the op. Defaults to
         'sparse_categorical_crossentropy'.
     """
-    super(SparseCategoricalCrossentropy, self).__init__(
+    super().__init__(
         sparse_categorical_crossentropy,
         name=name,
         reduction=reduction,
@@ -802,7 +800,7 @@ class Hinge(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'hinge'.
     """
-    super(Hinge, self).__init__(hinge, name=name, reduction=reduction)
+    super().__init__(hinge, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.SquaredHinge')
@@ -863,8 +861,7 @@ class SquaredHinge(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'squared_hinge'.
     """
-    super(SquaredHinge, self).__init__(
-        squared_hinge, name=name, reduction=reduction)
+    super().__init__(squared_hinge, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.CategoricalHinge')
@@ -923,8 +920,7 @@ class CategoricalHinge(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'categorical_hinge'.
     """
-    super(CategoricalHinge, self).__init__(
-        categorical_hinge, name=name, reduction=reduction)
+    super().__init__(categorical_hinge, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.Poisson')
@@ -980,7 +976,7 @@ class Poisson(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'poisson'.
     """
-    super(Poisson, self).__init__(poisson, name=name, reduction=reduction)
+    super().__init__(poisson, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.LogCosh')
@@ -1037,7 +1033,7 @@ class LogCosh(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'log_cosh'.
     """
-    super(LogCosh, self).__init__(log_cosh, name=name, reduction=reduction)
+    super().__init__(log_cosh, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.KLDivergence')
@@ -1097,8 +1093,7 @@ class KLDivergence(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'kl_divergence'.
     """
-    super(KLDivergence, self).__init__(
-        kl_divergence, name=name, reduction=reduction)
+    super().__init__(kl_divergence, name=name, reduction=reduction)
 
 
 @keras_export('keras.losses.Huber')
@@ -1165,8 +1160,7 @@ class Huber(LossFunctionWrapper):
             more details.
       name: Optional name for the op. Defaults to 'huber_loss'.
     """
-    super(Huber, self).__init__(
-        huber, name=name, reduction=reduction, delta=delta)
+    super().__init__(huber, name=name, reduction=reduction, delta=delta)
 
 
 @keras_export('keras.metrics.mean_squared_error', 'keras.metrics.mse',
@@ -1966,7 +1960,7 @@ class CosineSimilarity(LossFunctionWrapper):
                axis=-1,
                reduction=losses_utils.ReductionV2.AUTO,
                name='cosine_similarity'):
-    super(CosineSimilarity, self).__init__(
+    super().__init__(
         cosine_similarity, reduction=reduction, name=name, axis=axis)
 
 
@@ -2065,11 +2059,10 @@ def get(identifier):
     return deserialize(identifier)
   if isinstance(identifier, dict):
     return deserialize(identifier)
-  elif callable(identifier):
+  if callable(identifier):
     return identifier
-  else:
-    raise ValueError(
-        'Could not interpret loss function identifier: {}'.format(identifier))
+  raise ValueError(
+      f'Could not interpret loss function identifier: {identifier}')
 
 
 LABEL_DTYPES_FOR_LOSSES = {

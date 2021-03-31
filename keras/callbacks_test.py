@@ -40,7 +40,6 @@ from keras.optimizer_v2 import gradient_descent
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.utils import np_utils
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training import checkpoint_management
 
 try:
   import h5py  # pylint:disable=g-import-not-at-top
@@ -2735,7 +2734,7 @@ class MostRecentlyModifiedFileMatchingPatternTest(tf.test.TestCase):
     ckpt_file_path = os.path.join(test_dir, ckpt_file_name)
     with open(ckpt_file_path, 'w') as f:
       f.write('dummy ckpt')
-    checkpoint_management.update_checkpoint_state_internal(
+    tf.__internal__.train.update_checkpoint_state(
         test_dir, ckpt_file_path)
 
     file_paths = [

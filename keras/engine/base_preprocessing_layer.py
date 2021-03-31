@@ -27,7 +27,6 @@ from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
 from keras.utils import version_utils
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -243,7 +242,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     self._reset_state_impl()
     self._is_adapted = False
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def _configure_steps_per_execution(self, steps_per_execution):
     self._steps_per_execution = tf.Variable(
         steps_per_execution,
@@ -294,7 +293,7 @@ class CombinerPreprocessingLayer(PreprocessingLayer):
   def reset_state(self):
     self._adapt_accumulator = None
 
-  @trackable.no_automatic_dependency_tracking
+  @tf.__internal__.tracking.no_automatic_dependency_tracking
   def update_state(self, data):
     if self._adapt_accumulator is None:
       self._adapt_accumulator = self._get_accumulator()
