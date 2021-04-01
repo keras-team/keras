@@ -23,7 +23,6 @@ from keras.mixed_precision import device_compatibility_check
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
 from keras.utils import generic_utils
 from tensorflow.python.platform import tf_logging
-from tensorflow.python.training.experimental import mixed_precision_global_state
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -444,7 +443,7 @@ def global_policy():
 
 
 def _check_if_mixed_precision_graph_rewrite_is_enabled(policy):
-  if mixed_precision_global_state.mixed_precision_graph_rewrite_is_enabled:
+  if tf.__internal__.train.is_mixed_precision_graph_rewrite_enabled():
     raise ValueError(
         'The global dtype policy cannot be set to "{policy.name}", because the '
         'mixed precision graph rewrite has already been enabled.\n'
@@ -515,7 +514,7 @@ def set_policy(policy):
                      '"mixed_float16", but got policy: %s'
                      % (policy.name,))
   _global_policy = policy
-  mixed_precision_global_state.using_mixed_precision_policy = is_mixed_policy
+  tf.__internal__.train.set_using_mixed_precision_policy(is_mixed_policy)
 
 
 # TODO(reedwm): Make this thread local

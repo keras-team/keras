@@ -22,8 +22,6 @@ import tempfile
 
 from absl.testing import parameterized
 import numpy as np
-
-from tensorflow.python.data import Dataset
 from keras import keras_parameterized
 from keras import layers
 from keras import testing_utils
@@ -77,7 +75,7 @@ class TestImage(keras_parameterized.TestCase):
   @testing_utils.run_v2_only
   def test_smart_resize_tf_dataset(self, size):
     test_input_np = np.random.random((2, 20, 40, 3))
-    test_ds = Dataset.from_tensor_slices(test_input_np)
+    test_ds = tf.data.Dataset.from_tensor_slices(test_input_np)
 
     resize = lambda img: preprocessing_image.smart_resize(img, size=size)
     test_ds = test_ds.map(resize)
