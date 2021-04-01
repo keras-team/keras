@@ -202,7 +202,6 @@ tf_py_test(
     shard_count = 4,
     tags = [
         "no_oss_py38",  # TODO(b/150615192)
-        "no_tfrt",  # TODO(b/179805675)
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [
@@ -363,7 +362,6 @@ tf_py_test(
     python_version = "PY3",
     shard_count = 4,
     tags = [
-        "no_tfrt",  # TODO(b/179459136)
         "nomac",  # TODO(mihaimaruseac): b/127695564
     ],
     deps = [

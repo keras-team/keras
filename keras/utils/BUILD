@@ -246,9 +246,6 @@ tf_py_test(
     name = "dataset_creator_test",
     srcs = ["dataset_creator_test.py"],
     python_version = "PY3",
-    tags = [
-        "no_tfrt",  # TODO(b/180537361): Reenable TFRT after the issue is resolved.
-    ],
     deps = [
         ":dataset_creator",
         "//:expect_portpicker_installed",
