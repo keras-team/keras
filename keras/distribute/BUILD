@@ -746,6 +746,7 @@ distribute_py_test(
         "multi_gpu",
         "no_oss",  # TODO(b/183640564): Reenable
         "nomultivm",  # TODO(b/170502145)
+        "notsan",  # TODO(b/184374640)
     ],
     deps = [
         ":multi_worker_testing_utils",
