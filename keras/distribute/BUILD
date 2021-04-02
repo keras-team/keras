@@ -720,7 +720,7 @@ distribute_py_test(
     name = "parameter_server_training_test",
     srcs = ["parameter_server_training_test.py"],
     python_version = "PY3",
-    shard_count = 1,
+    shard_count = 4,  # TODO(b/184290570): Investigate why only 1 shard times out.
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -746,7 +746,6 @@ distribute_py_test(
         "multi_gpu",
         "no_oss",  # TODO(b/183640564): Reenable
         "nomultivm",  # TODO(b/170502145)
-        "notsan",  # TODO(b/184374640)
     ],
     deps = [
         ":multi_worker_testing_utils",

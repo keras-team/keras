@@ -250,6 +250,7 @@ tf_py_test(
         ":dataset_creator",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
+        "//keras:combinations",
         "//keras/engine",
         "//keras/layers:core",
     ],
