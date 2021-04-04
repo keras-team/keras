@@ -42,7 +42,11 @@ class DatasetCreator(object):
     dataset = dataset.prefetch(2)
     return dataset
 
-  model.fit(DatasetCreator(dataset_fn), epochs=10, steps_per_epoch=10)
+  input_options = tf.distribute.InputOptions(
+      experimental_fetch_to_device=True,
+      experimental_per_replica_buffer_size=2)
+  model.fit(DatasetCreator(dataset_fn, input_options=input_options),
+      epochs=10, steps_per_epoch=10)
   ```
 
   `Model.fit` usage with `DatasetCreator` is intended to work across all
@@ -67,12 +71,24 @@ class DatasetCreator(object):
       cross-worker input pipeline sharding (if neither is needed, the
       `InputContext` parameter can be ignored in the `dataset_fn`), and returns
       a `tf.data.Dataset`.
+    input_options: Optional `tf.distribute.InputOptions`, used for specific
+      options when used with distribution, for example, whether to prefetch
+      dataset elements to accelerator device memory or host device memory, and
+      prefetch buffer size in the replica device memory. No effect if not used
+      with distributed training. See `tf.distribute.InputOptions` for more
+      information.
   """
 
-  def __init__(self, dataset_fn):
+  def __init__(self, dataset_fn, input_options=None):
     if not callable(dataset_fn):
       raise TypeError('`dataset_fn` for `DatasetCreator` must be a `callable`.')
+    if input_options and (not isinstance(input_options,
+                                         tf.distribute.InputOptions)):
+      raise TypeError('`input_options` for `DatasetCreator` must be a '
+                      '`tf.distribute.InputOptions`.')
+
     self.dataset_fn = dataset_fn
+    self.input_options = input_options
 
   def __call__(self, *args, **kwargs):
     # When a `DatasetCreator` is invoked, it forwards args/kwargs straight to
