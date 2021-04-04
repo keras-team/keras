@@ -15,8 +15,12 @@
 """Tests for dataset_creator."""
 
 import tensorflow.compat.v2 as tf
+
+from absl.testing import parameterized
 from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
+from keras import combinations
+from keras.engine import data_adapter
 from keras.engine import sequential
 from keras.layers import core as core_layers
 from keras.optimizer_v2 import gradient_descent
@@ -24,7 +28,7 @@ from keras.utils import dataset_creator
 from tensorflow.python.training.server_lib import ClusterSpec
 
 
-class DatasetCreatorTest(tf.test.TestCase):
+class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_dataset_creator(self):
     with self.assertRaisesRegex(
@@ -57,35 +61,81 @@ class DatasetCreatorTest(tf.test.TestCase):
 
     return dataset_fn
 
-  def test_dataset_creator_model_fit_without_strategy(self):
+  @combinations.generate(combinations.combine(use_input_options=[True, False]))
+  def test_dataset_creator_model_fit_without_strategy(self, use_input_options):
     model = sequential.Sequential([core_layers.Dense(10)])
     model.compile(gradient_descent.SGD(), loss="mse")
 
+    input_options = tf.distribute.InputOptions() if use_input_options else None
     history = model.fit(
-        dataset_creator.DatasetCreator(self._get_dataset_fn()),
+        dataset_creator.DatasetCreator(self._get_dataset_fn(), input_options),
         epochs=10,
         steps_per_epoch=10,
         verbose=0)
     self.assertLen(history.history["loss"], 10)
 
-  def test_dataset_creator_usage_in_parameter_server_model_fit(self):
+  def _get_parameter_server_strategy(self):
     cluster_def = multi_worker_test_base.create_in_process_cluster(
         num_workers=2, num_ps=1, rpc_layer="grpc")
-    cluster_def["chief"] = [
-        "localhost:%d" % multi_worker_test_base.pick_unused_port()
-    ]
-    strategy = tf.distribute.experimental.ParameterServerStrategy(
+    return tf.distribute.experimental.ParameterServerStrategy(
         SimpleClusterResolver(ClusterSpec(cluster_def), rpc_layer="grpc"))
+
+  @combinations.generate(combinations.combine(use_input_options=[True, False]))
+  def test_dataset_creator_usage_in_parameter_server_model_fit(
+      self, use_input_options):
+    strategy = self._get_parameter_server_strategy()
     with strategy.scope():
       model = sequential.Sequential([core_layers.Dense(10)])
     model.compile(gradient_descent.SGD(), loss="mse")
 
+    input_options = tf.distribute.InputOptions() if use_input_options else None
     history = model.fit(
-        dataset_creator.DatasetCreator(self._get_dataset_fn()),
+        dataset_creator.DatasetCreator(self._get_dataset_fn(), input_options),
         epochs=10,
         steps_per_epoch=10,
         verbose=0)
     self.assertLen(history.history["loss"], 10)
+
+  def test_dataset_creator_input_options(self):
+    dataset_fn = lambda _: tf.data.Dataset.from_tensor_slices([1, 1])
+    input_options = tf.distribute.InputOptions(
+        experimental_fetch_to_device=True,
+        experimental_per_replica_buffer_size=2)
+    x = dataset_creator.DatasetCreator(dataset_fn, input_options=input_options)
+    with tf.distribute.MultiWorkerMirroredStrategy().scope():
+      data_handler = data_adapter.get_data_handler(
+          x,
+          steps_per_epoch=2,
+          model=sequential.Sequential([core_layers.Dense(10)]))
+
+    # Ensuring the resulting `DistributedDatasetsFromFunction` has the right
+    # options.
+    self.assertTrue(data_handler._dataset._options.experimental_fetch_to_device)
+    self.assertEqual(
+        data_handler._dataset._options.experimental_per_replica_buffer_size, 2)
+
+  def test_dataset_creator_input_options_with_cluster_coordinator(self):
+    dataset_fn = lambda _: tf.data.Dataset.from_tensor_slices([1, 1])
+    input_options = tf.distribute.InputOptions(
+        experimental_fetch_to_device=True,
+        experimental_per_replica_buffer_size=2)
+    x = dataset_creator.DatasetCreator(dataset_fn, input_options=input_options)
+    strategy = self._get_parameter_server_strategy()
+    with strategy.scope():
+      model = sequential.Sequential([core_layers.Dense(10)])
+      model._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+          strategy)
+      data_handler = data_adapter.get_data_handler(
+          x, steps_per_epoch=2, model=model)
+
+    iter_rv = iter(data_handler._dataset)._values[0]
+    iter_rv._rebuild_on(model._cluster_coordinator._cluster.workers[0])
+    distributed_iterator = iter_rv._get_values()
+
+    # Ensuring the resulting `DistributedIterator` has the right options.
+    self.assertTrue(distributed_iterator._options.experimental_fetch_to_device)
+    self.assertEqual(
+        distributed_iterator._options.experimental_per_replica_buffer_size, 2)
 
 
 if __name__ == "__main__":
