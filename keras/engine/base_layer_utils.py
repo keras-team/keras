@@ -22,7 +22,6 @@ from keras import backend
 from keras.utils import control_flow_util
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-from tensorflow.python.util import keras_deps
 from tensorflow.python.util.tf_export import keras_export
 
 _call_context = threading.local()
@@ -418,7 +417,7 @@ def call_context():
 
 # Inject the call_context function to keras_deps to remove the dependency
 # from TFLite to Keras.
-keras_deps.register_call_context_function(call_context)
+tf.__internal__.register_call_context_function(call_context)
 
 
 class CallContext(object):

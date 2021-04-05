@@ -23,7 +23,6 @@ import numpy as np
 
 import keras
 from tensorflow.python.distribute import multi_worker_test_base
-from tensorflow.python.distribute import strategy_combinations
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras import backend
 from keras import testing_utils
@@ -233,7 +232,7 @@ def all_strategy_minus_default_and_tpu_combinations():
           tf.__internal__.distribute.combinations.one_device_strategy_gpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          strategy_combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       mode=['graph', 'eager'])
 
@@ -1289,7 +1288,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           distribution=[
               tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
               tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              strategy_combinations
+              tf.__internal__.distribute.combinations
               .mirrored_strategy_with_two_gpus_no_merge_call,
           ],
           mode=['graph', 'eager']))
@@ -2027,7 +2026,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
           distribution=[
               tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
               tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              strategy_combinations
+              tf.__internal__.distribute.combinations
               .mirrored_strategy_with_two_gpus_no_merge_call,
           ],
           mode=['graph', 'eager'],
@@ -2185,7 +2184,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
               tf.__internal__.distribute.combinations.one_device_strategy_gpu,
               tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
               tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              strategy_combinations
+              tf.__internal__.distribute.combinations
               .mirrored_strategy_with_two_gpus_no_merge_call,
           ],
           mode=['eager']))
