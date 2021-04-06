@@ -15,8 +15,6 @@
 """Strategy and optimizer combinations for combinations.combine()."""
 
 import tensorflow.compat.v2 as tf
-
-from tensorflow.python.distribute import strategy_combinations as strategy_combinations_base
 from keras.optimizer_v2 import adadelta as adadelta_keras_v2
 from keras.optimizer_v2 import adagrad as adagrad_keras_v2
 from keras.optimizer_v2 import adam as adam_keras_v2
@@ -77,7 +75,7 @@ def distributions_and_v1_optimizers():
           tf.__internal__.distribute.combinations.one_device_strategy,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          strategy_combinations_base
+          tf.__internal__.distribute.combinations
           .mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       optimizer_fn=optimizers_v1)
@@ -90,7 +88,7 @@ def distributions_and_v2_optimizers():
           tf.__internal__.distribute.combinations.one_device_strategy,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          strategy_combinations_base
+          tf.__internal__.distribute.combinations
           .mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       optimizer_fn=optimizers_v2)
@@ -103,7 +101,7 @@ def distributions_and_v1_and_v2_optimizers():
           tf.__internal__.distribute.combinations.one_device_strategy,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          strategy_combinations_base
+          tf.__internal__.distribute.combinations
           .mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       optimizer_fn=optimizers_v1_and_v2)

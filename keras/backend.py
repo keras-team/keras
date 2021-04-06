@@ -43,7 +43,6 @@ from keras.utils import object_identity
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.util import keras_deps
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -280,7 +279,7 @@ def clear_session():
 
 # Inject the clear_session function to keras_deps to remove the dependency
 # from TFLite to Keras.
-keras_deps.register_clear_session_function(clear_session)
+tf.__internal__.register_clear_session_function(clear_session)
 
 
 @keras_export('keras.backend.manual_variable_initialization')
@@ -711,7 +710,7 @@ def get_session(op_input_list=()):
 
 # Inject the get_session function to keras_deps to remove the dependency
 # from TFLite to Keras.
-keras_deps.register_get_session_function(get_session)
+tf.__internal__.register_get_session_function(get_session)
 
 # Inject the get_session function to tracking_util to avoid the backward
 # dependency from TF to Keras.

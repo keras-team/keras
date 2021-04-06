@@ -18,7 +18,6 @@ import tensorflow.compat.v2 as tf
 
 from absl.testing import parameterized
 import numpy as np
-from tensorflow.python.distribute import strategy_combinations
 from keras.engine import sequential
 from keras.layers import core
 from keras.optimizer_v2 import adagrad
@@ -35,7 +34,7 @@ def strategy_combinations_eager_data_fn():
           tf.__internal__.distribute.combinations.one_device_strategy_gpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
           tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          strategy_combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
           tf.__internal__.distribute.combinations.multi_worker_mirrored_2x2_gpu,
