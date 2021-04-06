@@ -21,7 +21,6 @@ import functools
 
 import numpy as np
 from tensorflow.python.distribute import distribute_coordinator_context as dc_context
-from tensorflow.python.distribute import multi_worker_util
 from keras import backend
 from keras import callbacks
 from keras import metrics as metrics_module
@@ -383,13 +382,7 @@ def _wait_for_variable_initialization(session):
 
 def init_restore_or_wait_for_variables():
   """Initialize or restore variables or wait for variables to be initialized."""
-  session = backend._get_session()  # pylint: disable=protected-access
-  if not multi_worker_util.has_worker_context(
-  ) or multi_worker_util.should_load_checkpoint():
-    # TODO(yuefengz): if checkpoints exist, restore from checkpoint.
-    backend._initialize_variables(session)  # pylint: disable=protected-access
-  else:
-    _wait_for_variable_initialization(session)
+  backend._initialize_variables(backend._get_session())  # pylint: disable=protected-access
 
 
 def validate_inputs(x, y):

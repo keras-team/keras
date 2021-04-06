@@ -20,38 +20,32 @@ import os
 import sys
 
 from absl.testing import parameterized
-from tensorflow.python.distribute import multi_worker_test_base as test_base
 from keras import callbacks
 from keras.distribute import multi_worker_testing_utils
 
 
-class ModelCheckpointTest(test_base.IndependentWorkerTestBase,
-                          parameterized.TestCase):
+class ModelCheckpointTest(tf.test.TestCase, parameterized.TestCase):
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
-          mode=['graph'],
-          required_gpus=[0, 1],
+          mode=['eager'],
           file_format=['h5', 'tf'],
           save_weights_only=[True, False]))
   def testCheckpointExists(self, file_format, save_weights_only):
-    with self.cached_session():
-      train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(64, 2)
-      model = multi_worker_testing_utils.get_mnist_model((28, 28, 1))
-      saving_dir = self.get_temp_dir()
-      saving_filepath = os.path.join(saving_dir, 'checkpoint.' + file_format)
-      callbacks_list = [
-          callbacks.ModelCheckpoint(
-              filepath=saving_filepath, save_weights_only=save_weights_only)
-      ]
-      self.assertFalse(tf.io.gfile.exists(saving_filepath))
-      model.fit(
-          x=train_ds, epochs=2, steps_per_epoch=2, callbacks=callbacks_list)
-      tf_saved_model_exists = tf.io.gfile.exists(saving_filepath)
-      tf_weights_only_checkpoint_exists = tf.io.gfile.exists(
-          saving_filepath + '.index')
-      self.assertTrue(
-          tf_saved_model_exists or tf_weights_only_checkpoint_exists)
+    train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(64, 2)
+    model = multi_worker_testing_utils.get_mnist_model((28, 28, 1))
+    saving_dir = self.get_temp_dir()
+    saving_filepath = os.path.join(saving_dir, 'checkpoint.' + file_format)
+    callbacks_list = [
+        callbacks.ModelCheckpoint(
+            filepath=saving_filepath, save_weights_only=save_weights_only)
+    ]
+    self.assertFalse(tf.io.gfile.exists(saving_filepath))
+    model.fit(x=train_ds, epochs=2, steps_per_epoch=2, callbacks=callbacks_list)
+    tf_saved_model_exists = tf.io.gfile.exists(saving_filepath)
+    tf_weights_only_checkpoint_exists = tf.io.gfile.exists(saving_filepath +
+                                                               '.index')
+    self.assertTrue(tf_saved_model_exists or tf_weights_only_checkpoint_exists)
 
 
 if __name__ == '__main__':
