@@ -15,7 +15,6 @@
 """Contains the loss scaling optimizer class."""
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras import optimizers
 from keras.mixed_precision import loss_scale as keras_loss_scale_module
@@ -507,8 +506,19 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
       # LossScaleOptimizerV1.
       raise TypeError('"dynamic" argument to LossScaleOptimizer.__init__ must '
                       'be a bool, but got: %r' % (dynamic,))
+    if isinstance(inner_optimizer, LossScaleOptimizer):
+      raise TypeError('LossScaleOptimizer cannot wrap another '
+                      'LossScaleOptimizer, but got: %s' % (inner_optimizer,))
     self._raise_if_strategy_unsupported()
+    if getattr(inner_optimizer, '_is_wrapped_by_loss_scale_optimizer', False):
+      # TODO(reedwm): Maybe support this. The difficulty is that LSO has the
+      # same checkpoint format as the inner optimizer, so multiple LSOs wrapping
+      # the same optimizer causes the checkpointing logic to become confused.
+      raise ValueError('"inner_optimizer" is already wrapped by a '
+                       'LossScaleOptimizer. An optimizer can only be wrapped '
+                       'by a single LossScaleOptimizer')
     self._optimizer = inner_optimizer
+    self._optimizer._is_wrapped_by_loss_scale_optimizer = True
 
     # We don't call super().__init__, since we do not want to call OptimizerV2's
     # constructor.
@@ -722,7 +732,7 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
       def apply_fn():
         return self._apply_gradients(grads, wrapped_vars, name)
 
-      maybe_apply_op = smart_cond.smart_cond(should_apply_grads, apply_fn,
+      maybe_apply_op = tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
                                              do_not_apply_fn)
       return tf.group(maybe_apply_op, loss_scale_update_op)
 
@@ -741,7 +751,7 @@ class LossScaleOptimizer(_DelegatingTrackableMixin, optimizer_v2.OptimizerV2):
         # DistributionStrategy does not support having a cond in a replica
         # context with a branch that calls `merge_call`, and
         # self._optimizer.apply_gradients calls `merge_call`.
-        maybe_apply_op = smart_cond.smart_cond(should_apply_grads, apply_fn,
+        maybe_apply_op = tf.__internal__.smart_cond.smart_cond(should_apply_grads, apply_fn,
                                                do_not_apply_fn)
         return tf.group(maybe_apply_op, loss_scale_update_op)
       return tf.distribute.get_replica_context().merge_call(

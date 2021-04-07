@@ -615,7 +615,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
         self._set_sentinels(root)
         with self.assertRaises(AssertionError):
           self._check_sentinels(root)
-        object_saver = trackable_utils.TrackableSaver(
+        object_saver = tf.__internal__.tracking.TrackableSaver(
             tf.__internal__.tracking.ObjectGraphView(root))
         self._set_sentinels(root)
         status = object_saver.restore(save_path)

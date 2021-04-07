@@ -28,7 +28,6 @@ import weakref
 import numpy as np
 
 from google.protobuf import json_format
-from tensorflow.python.eager import execute
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -3103,6 +3102,8 @@ class TensorFlowOpLayer(Layer):
         if value is not None:
           constant = tf.constant(value, name=node_def.input[index])
         inputs.insert(index, constant)
+      # TODO(b/183990973): We should drop or consolidate these private api calls
+      # for adding an op to the graph and recording its gradient.
       c_op = tf.__internal__.create_c_op(graph, node_def, inputs, control_inputs=[])
       op = graph._create_op_from_tf_operation(c_op)
       op._control_flow_post_processing()
@@ -3116,7 +3117,7 @@ class TensorFlowOpLayer(Layer):
         attrs.append(attr_name)
         attrs.append(op.get_attr(attr_name))
       attrs = tuple(attrs)
-      execute.record_gradient(op_type, op.inputs, attrs, op.outputs)
+      tf.__internal__.record_gradient(op_type, op.inputs, attrs, op.outputs)
 
       if len(op.outputs) == 1:
         return op.outputs[0]

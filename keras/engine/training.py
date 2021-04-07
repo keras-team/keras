@@ -21,6 +21,7 @@ import itertools
 import json
 import os
 import warnings
+import weakref
 from tensorflow.python.eager import context
 from keras import backend
 from keras import callbacks as callbacks_module
@@ -40,13 +41,13 @@ from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
 from keras.utils import layer_utils
+from keras.utils import object_identity
 from keras.utils import tf_utils
 from keras.utils import version_utils
 from keras.utils.io_utils import ask_to_proceed_with_overwrite
 from keras.utils.io_utils import path_to_string
 from keras.utils.mode_keys import ModeKeys
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.training.tracking import util as trackable_utils
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
@@ -282,8 +283,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # Fault-tolerance handler. Set in `ModelCheckpoint`.
     self._training_state = None
     self._saved_model_inputs_spec = None
-    self._trackable_saver = (
-        trackable_utils.saver_with_op_caching(self))
+    self._trackable_saver = saver_with_op_caching(self)
 
     self._steps_per_execution = None
 
@@ -2934,3 +2934,13 @@ def flatten_metrics_in_order(logs, metrics_names):
 def _is_per_replica_instance(obj):
   return (isinstance(obj, tf.distribute.DistributedValues) and
           isinstance(obj, tf.__internal__.CompositeTensor))
+
+
+def saver_with_op_caching(obj):
+  if tf.executing_eagerly():
+    saveables_cache = None
+  else:
+    saveables_cache = object_identity.ObjectIdentityWeakKeyDictionary()
+  return tf.__internal__.tracking.TrackableSaver(
+      tf.__internal__.tracking.ObjectGraphView(
+          weakref.ref(obj), saveables_cache=saveables_cache))
