@@ -31,6 +31,7 @@ class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
   @tf.function(
       input_signature=(tf.TensorSpec([None, 2], tf.float32),
                        tf.TensorSpec([None], tf.float32)),
+      autograph=False,  # Generates false positives.
   )
   def call(self, x, y):
     with tf.GradientTape() as tape:
