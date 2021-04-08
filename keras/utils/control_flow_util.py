@@ -18,7 +18,6 @@ This file is copied from tensorflow/python/ops/control_flow_util.py.
 """
 
 import tensorflow.compat.v2 as tf
-from tensorflow.python.framework import smart_cond as smart_module
 
 
 def InXlaContext(graph):
@@ -103,7 +102,7 @@ def smart_cond(pred, true_fn=None, false_fn=None, name=None):  # pylint: disable
   if isinstance(pred, tf.Variable):
     return tf.compat.v1.cond(
         pred, true_fn=true_fn, false_fn=false_fn, name=name)
-  return smart_module.smart_cond(
+  return tf.__internal__.smart_cond.smart_cond(
       pred, true_fn=true_fn, false_fn=false_fn, name=name)
 
 

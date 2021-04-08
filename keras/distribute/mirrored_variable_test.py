@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 from tensorflow.python.distribute import combinations as ds_combinations
-from tensorflow.python.distribute import distribute_utils
+from keras.distribute import distributed_training_utils
 from keras.layers import core
 
 
@@ -59,6 +59,14 @@ class MirroredVariableCreationTest(tf.test.TestCase):
           continue
         self.assertIsNot(objs[i], objs[j])
 
+  def _is_mirrored(self, val):
+    if distributed_training_utils.is_distributed_variable(val):
+      if val._policy:  # pylint: disable=protected-access
+        return val._policy._is_mirrored()  # pylint: disable=protected-access
+    # Since `Mirrored` is a private symbol in tf.distribute, we're checking
+    # with `DistributedValues` as an approximation.
+    return isinstance(val, tf.distribute.DistributedValues)
+
   def testWithLayers(self, distribution):
 
     def model_fn(features):
@@ -86,9 +94,9 @@ class MirroredVariableCreationTest(tf.test.TestCase):
       result = distribution.extended.call_for_each_replica(
           model_fn, args=(features,))
       for kernel, bias in result:
-        self.assertTrue(distribute_utils.is_mirrored(kernel))
+        self.assertTrue(self._is_mirrored(kernel))
         self.assertAllDifferent(distribution.experimental_local_results(kernel))
-        self.assertTrue(distribute_utils.is_mirrored(bias))
+        self.assertTrue(self._is_mirrored(bias))
         self.assertAllDifferent(distribution.experimental_local_results(kernel))
 
 

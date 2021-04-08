@@ -25,7 +25,6 @@ import random
 
 import numpy as np
 from tensorflow.python.eager import context
-from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras.engine import training_utils
 from keras.utils import data_utils
@@ -1387,7 +1386,7 @@ def _make_class_weight_map_fn(class_weight):
       raise ValueError("`class_weight` not supported for "
                        "3+ dimensional targets.")
 
-    y_classes = smart_cond.smart_cond(
+    y_classes = tf.__internal__.smart_cond.smart_cond(
         y.shape.rank == 2 and backend.shape(y)[1] > 1,
         lambda: backend.argmax(y, axis=1),
         lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64))
