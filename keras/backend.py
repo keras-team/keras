@@ -1269,7 +1269,6 @@ def placeholder(shape=None,
           [guide](https://www.tensorflow.org/guide/ragged_tensors).
 
   Raises:
-      ValueError: If called with eager execution
       ValueError: If called with sparse = True and ragged = True.
 
   Returns:

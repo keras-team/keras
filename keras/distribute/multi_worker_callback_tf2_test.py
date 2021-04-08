@@ -14,6 +14,7 @@
 # ==============================================================================
 """Tests for Keras callbacks in multi-worker training with TF2."""
 
+import tensorflow.compat.v2 as tf
 
 import json
 import os
@@ -22,7 +23,6 @@ from absl.testing import parameterized
 from keras import callbacks
 from keras.distribute import distributed_file_utils
 from keras.distribute import multi_worker_testing_utils
-import tensorflow.compat.v2 as tf
 
 
 def checkpoint_exists(filepath):
@@ -62,10 +62,6 @@ def _model_setup(test_obj, file_format):
   saving_filepath = os.path.join(test_obj.get_temp_dir(),
                                  'checkpoint.' + file_format)
   return model, saving_filepath, train_ds, steps
-
-
-def get_tf_config_task():
-  return json.loads(os.environ['TF_CONFIG'])['task']
 
 
 def get_tf_config_task():

@@ -25,7 +25,6 @@ import threading
 import time
 
 import numpy as np
-from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras import callbacks as cbks
 from keras import losses
@@ -1011,7 +1010,7 @@ def standardize_weights(y,
       weight_vector[:] = np.nan
       weight_vector[keys] = values
 
-      y_classes = smart_cond.smart_cond(
+      y_classes = tf.__internal__.smart_cond.smart_cond(
           len(y.shape.as_list()) == 2 and backend.shape(y)[1] > 1,
           lambda: backend.argmax(y, axis=1),
           lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64))

@@ -19,7 +19,6 @@ import tensorflow.compat.v2 as tf
 
 import abc
 import functools
-from tensorflow.python.framework import smart_cond
 from keras import backend
 from keras.utils import losses_utils
 from keras.utils import tf_utils
@@ -1427,7 +1426,7 @@ def _maybe_convert_labels(y_true):
     # Convert the binary labels to -1 or 1.
     return 2. * y_true - 1.
 
-  updated_y_true = smart_cond.smart_cond(is_binary, _convert_binary_labels,
+  updated_y_true = tf.__internal__.smart_cond.smart_cond(is_binary, _convert_binary_labels,
                                          lambda: y_true)
   return updated_y_true
 
@@ -1645,7 +1644,7 @@ def categorical_crossentropy(y_true,
     num_classes = tf.cast(tf.compat.v1.shape(y_true)[-1], y_pred.dtype)
     return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
 
-  y_true = smart_cond.smart_cond(label_smoothing, _smooth_labels,
+  y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing, _smooth_labels,
                                  lambda: y_true)
   return backend.categorical_crossentropy(
       y_true, y_pred, from_logits=from_logits)
@@ -1778,7 +1777,7 @@ def binary_crossentropy(y_true, y_pred, from_logits=False, label_smoothing=0):
   def _smooth_labels():
     return y_true * (1.0 - label_smoothing) + 0.5 * label_smoothing
 
-  y_true = smart_cond.smart_cond(label_smoothing, _smooth_labels,
+  y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing, _smooth_labels,
                                  lambda: y_true)
   return backend.mean(
       backend.binary_crossentropy(
