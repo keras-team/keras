@@ -1625,7 +1625,8 @@ class BackupAndRestore(Callback):
     self._supported_strategies = (
         tf.distribute.MirroredStrategy,
         tf.distribute.MultiWorkerMirroredStrategy,
-        tf.distribute.experimental.TPUStrategy, tf.distribute.TPUStrategy)
+        tf.distribute.experimental.TPUStrategy, tf.distribute.TPUStrategy,
+        tf.distribute.experimental.ParameterServerStrategy)
 
     if not tf.executing_eagerly():
       if tf.inside_function():
@@ -2413,7 +2414,8 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if self.write_steps_per_second:
       batch_run_time = time.time() - self._batch_start_time
       self._train_accumulated_time += batch_run_time
-      tf.summary.scalar('batch_steps_per_second', 1. / batch_run_time)
+      tf.summary.scalar(
+          'batch_steps_per_second', 1. / batch_run_time, step=self._train_step)
     if not self._should_trace:
       return
 

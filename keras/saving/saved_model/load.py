@@ -35,8 +35,6 @@ from keras.utils import generic_utils
 from keras.utils import metrics_utils
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import loader_impl
-from tensorflow.python.saved_model import revived_types
 
 # To avoid circular dependencies between keras/engine and keras/saving,
 # code in keras/saving must delay imports.
@@ -106,7 +104,7 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
 
   # Look for metadata file or parse the SavedModel
   metadata = saved_metadata_pb2.SavedMetadata()
-  meta_graph_def = loader_impl.parse_saved_model(path).meta_graphs[0]
+  meta_graph_def = tf.__internal__.saved_model.parse_saved_model(path).meta_graphs[0]
   object_graph_def = meta_graph_def.object_graph_def
   path_to_metadata_pb = os.path.join(path, constants.SAVED_METADATA_PATH)
   if tf.compat.v1.gfile.Exists(path_to_metadata_pb):
@@ -320,8 +318,8 @@ class KerasObjectLoader(object):
       if not isinstance(obj_child, tf.__internal__.tracking.Trackable):
         continue
       if (child_proto.user_object.identifier in
-          revived_types.registered_identifiers()):
-        setter = revived_types.get_setter(child_proto.user_object)
+          tf.__internal__.saved_model.load.registered_identifiers()):
+        setter = tf.__internal__.saved_model.load.get_setter(child_proto.user_object)
       elif obj_child._object_identifier in constants.KERAS_OBJECT_IDENTIFIERS:
         setter = _revive_setter
       else:

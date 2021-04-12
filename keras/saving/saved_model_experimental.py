@@ -27,7 +27,6 @@ from keras.saving import utils_v1 as model_utils
 from keras.utils import mode_keys
 from keras.utils.generic_utils import LazyLoader
 from tensorflow.python.platform import tf_logging as logging
-from tensorflow.python.saved_model import builder as saved_model_builder
 from tensorflow.python.util.tf_export import keras_export
 
 # To avoid circular dependencies between keras/engine and keras/saving,
@@ -172,7 +171,7 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
           'Subclassed models can only be exported for serving. Please set '
           'argument serving_only=True.')
 
-  builder = saved_model_builder._SavedModelBuilder(path)  # pylint: disable=protected-access
+  builder = tf.__internal__.saved_model.SavedModelBuilder(path)  # pylint: disable=protected-access
 
   # Manually save variables to export them in an object-based checkpoint. This
   # skips the `builder.add_meta_graph_and_variables()` step, which saves a

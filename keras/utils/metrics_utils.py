@@ -365,9 +365,8 @@ def update_confusion_matrix_variables(variables_to_update,
     num_labels = 1
   else:
     num_labels = tf.raw_ops.Prod(input=pred_shape[1:], axis=0)
-  thresh_label_tile = tf.compat.v1.cond(
-      one_thresh, lambda: num_labels,
-      lambda: tf.cast(1, dtype=tf.int32))
+  thresh_label_tile = tf.where(one_thresh, num_labels,
+                                         tf.ones([], dtype=tf.int32))
 
   # Reshape predictions and labels, adding a dim for thresholding.
   if multi_label:

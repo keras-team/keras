@@ -199,7 +199,6 @@ distribute_py_test(
     main = "custom_training_loop_metrics_test.py",
     tags = [
         "multi_and_single_gpu",
-        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -218,7 +217,6 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
-        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
         "notsan",  # TODO(b/170954243)
     ],
@@ -259,6 +257,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":multi_worker_testing_utils",
         ":optimizer_combinations",
         ":strategy_combinations",
         "//:expect_absl_installed",
@@ -466,7 +465,7 @@ distribute_py_test(
     shard_count = 31,
     tags = [
         "multi_and_single_gpu",
-        "no_rocm",
+        "no_rocm",  # Would require size large, but that effectively disables the test for presubmits.
         "no_windows_gpu",
         "noasan",  # TODO(b/337374867) fails with -fsanitize=null
         "nomultivm",  # TODO(b/170502145)
@@ -527,7 +526,6 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
-        "no_rocm",
         "no_windows_gpu",
         "nomultivm",  # TODO(b/170502145)
         "notsan",
@@ -690,6 +688,7 @@ distribute_py_test(
     tags = [
         "multi_and_single_gpu",
         "no_cuda_asan",  # times out
+        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [

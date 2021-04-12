@@ -295,7 +295,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
   @testing_utils.enable_v2_dtype_behavior
   def test_error_if_graph_rewrite_enabled(self):
     try:
-      tf.train.experimental.enable_mixed_precision_graph_rewrite(
+      tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
           gradient_descent.SGD(1.))
       with self.assertRaisesRegex(
           ValueError, 'cannot be set to "mixed_float16", .* the mixed '
@@ -304,7 +304,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
       with mp_policy.policy_scope('float64'):
         pass  # Non-mixed policies are allowed
     finally:
-      tf.train.experimental.disable_mixed_precision_graph_rewrite()
+      tf.compat.v1.mixed_precision.disable_mixed_precision_graph_rewrite()
 
   @testing_utils.disable_v2_dtype_behavior
   def test_v1_dtype_behavior(self):

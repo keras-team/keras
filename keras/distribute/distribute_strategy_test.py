@@ -22,12 +22,12 @@ from absl.testing import parameterized
 import numpy as np
 
 import keras
-from tensorflow.python.distribute import multi_worker_test_base
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras import backend
 from keras import testing_utils
 from keras.distribute import distributed_training_utils
 from keras.distribute import distributed_training_utils_v1
+from keras.distribute import multi_worker_testing_utils
 from keras.distribute import optimizer_combinations
 from keras.distribute.strategy_combinations import all_strategies
 from keras.distribute.strategy_combinations import multi_worker_mirrored_strategies
@@ -2398,7 +2398,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
   @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['graph', 'eager']))
   def test_unimplemented_parameter_server_strategy(self):
-    cluster_spec = multi_worker_test_base.create_in_process_cluster(
+    cluster_spec = multi_worker_testing_utils.create_in_process_cluster(
         num_workers=3, num_ps=2)
     cluster_resolver = SimpleClusterResolver(
         cluster_spec=tf.train.ClusterSpec(cluster_spec),
