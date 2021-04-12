@@ -41,7 +41,6 @@ from keras.layers import core
 from keras.saving import model_config
 from keras.saving import save
 from keras.utils import generic_utils
-from tensorflow.python.saved_model import loader_impl
 
 
 if sys.version_info >= (3, 6):
@@ -66,7 +65,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
                       .format(path))
 
   def assert_saved_model(self, path):
-    loader_impl.parse_saved_model(path)
+    tf.__internal__.saved_model.parse_saved_model(path)
 
   @testing_utils.run_v2_only
   def test_save_format_defaults(self):

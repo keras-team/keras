@@ -411,9 +411,9 @@ class PolynomialDecay(LearningRateSchedule):
       if self.cycle:
         # Find the first multiple of decay_steps that is bigger than
         # global_step. If global_step is zero set the multiplier to 1
-        multiplier = tf.compat.v1.cond(
-            tf.equal(global_step_recomp, 0), lambda: 1.0,
-            lambda: tf.math.ceil(global_step_recomp / self.decay_steps))
+        multiplier = tf.where(
+            tf.equal(global_step_recomp, 0), 1.0,
+            tf.math.ceil(global_step_recomp / self.decay_steps))
         decay_steps_recomp = tf.multiply(decay_steps_recomp, multiplier)
       else:
         # Make sure that the global_step used is not bigger than decay_steps.

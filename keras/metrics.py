@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# pylint: disable=unused-import
 # pylint: disable=g-classes-have-attributes
 # pylint: disable=g-doc-return-or-yield
 """Built-in metrics."""
@@ -46,7 +45,6 @@ from keras.saving.saved_model import metric_serialization
 from keras.utils import generic_utils
 from keras.utils import losses_utils
 from keras.utils import metrics_utils
-from keras.utils import tf_inspect
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
 from keras.utils.generic_utils import to_list
@@ -1553,13 +1551,11 @@ class SensitivitySpecificityBase(Metric, metaclass=abc.ABCMeta):
 
     Returns maximal dependent value, if no value satiesfies the constraint 0.0.
     """
-    feasible = tf.compat.v1.where(predicate(constrained, self.value))
+    feasible = tf.where(predicate(constrained, self.value))
     feasible_exists = tf.greater(tf.compat.v1.size(feasible), 0)
+    max_dependent = tf.reduce_max(tf.compat.v1.gather(dependent, feasible))
 
-    def get_max():
-      return tf.reduce_max(tf.compat.v1.gather(dependent, feasible))
-
-    return tf.compat.v1.cond(feasible_exists, get_max, lambda: 0.0)
+    return tf.where(feasible_exists, max_dependent, 0.0)
 
 
 @keras_export('keras.metrics.SensitivityAtSpecificity')
