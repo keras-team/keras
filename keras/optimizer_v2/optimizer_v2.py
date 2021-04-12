@@ -30,8 +30,6 @@ from keras.utils import generic_utils
 from keras.utils import layer_utils
 from keras.utils import tf_inspect
 from keras.utils import tf_utils
-from tensorflow.python.saved_model import revived_types
-from tensorflow.python.training.tracking import base as trackable
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -657,8 +655,16 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         grads_and_vars = self._aggregate_gradients(grads_and_vars)
       grads_and_vars = self._transform_gradients(grads_and_vars)
 
-      return self._distributed_apply(strategy, grads_and_vars, name,
-                                     apply_state)
+      if optimizer_utils.strategy_supports_no_merge_call():
+        return self._distributed_apply(strategy, grads_and_vars, name,
+                                       apply_state)
+      else:
+        return tf.distribute.get_replica_context().merge_call(
+            functools.partial(self._distributed_apply, apply_state=apply_state),
+            args=(grads_and_vars,),
+            kwargs={
+                "name": name,
+            })
 
   def _distributed_apply(self, distribution, grads_and_vars, name, apply_state):
     """`apply_gradients` using a `DistributionStrategy`."""
@@ -697,8 +703,16 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
           with name_scope_only_in_function_or_graph(
               "update" if eagerly_outside_functions else "update_" +
               var.op.name):
-            update_ops.append(tf.distribute.get_replica_context()._update(  # pylint: disable=protected-access
-                var, apply_grad_to_update_var, args=(grad,), group=False))
+            update_op = distribution.extended.update(
+                var, apply_grad_to_update_var, args=(grad,), group=False)
+            if tf.distribute.in_cross_replica_context():
+              # In cross-replica context, extended.update returns a list of
+              # update ops from all replicas (group=False).
+              update_ops.extend(update_op)
+            else:
+              # In replica context, extended.update return the single update op
+              # of current replica.
+              update_ops.append(update_op)
 
       any_symbolic = any(isinstance(i, tf.Operation) or
                          tf_utils.is_symbolic_tensor(i) for i in update_ops)
@@ -863,7 +877,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         initializer = initializers.get(initializer)
         if isinstance(
             initializer,
-            trackable.CheckpointInitialValueCallable) or (shape is not None):
+            tf.__internal__.tracking.CheckpointInitialValueCallable) or (shape is not None):
           slot_shape = shape
         else:
           slot_shape = var.shape
@@ -1355,7 +1369,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
         # variables.
         and (not tf.compat.v1.get_default_graph()._variable_creator_stack or  # pylint: disable=protected-access
              self._distribution_strategy)):
-      initializer = trackable.CheckpointInitialValueCallable(
+      initializer = tf.__internal__.tracking.CheckpointInitialValueCallable(
           checkpoint_position=slot_variable_position)
       slot_variable = self.add_slot(
           var=variable,
@@ -1444,10 +1458,10 @@ class RestoredOptimizer(OptimizerV2):
         "supported. Please file a feature request if this limitation bothers "
         "you.")
 
-revived_types.register_revived_type(
+tf.__internal__.saved_model.load.register_revived_type(
     "oss_optimizer",  # TODO(scottzhu): Change this back after repo split.
     lambda obj: isinstance(obj, OptimizerV2),
-    versions=[revived_types.VersionedTypeRegistration(
+    versions=[tf.__internal__.saved_model.load.VersionedTypeRegistration(
         object_factory=lambda proto: RestoredOptimizer(),
         version=1,
         min_producer_version=1,

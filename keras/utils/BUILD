@@ -251,6 +251,7 @@ tf_py_test(
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
         "//keras:combinations",
+        "//keras/distribute:multi_worker_testing_utils",
         "//keras/engine",
         "//keras/layers:core",
     ],
