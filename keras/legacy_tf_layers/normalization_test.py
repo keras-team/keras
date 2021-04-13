@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 
@@ -45,7 +45,7 @@ class BNTest(tf.test.TestCase):
     bn_layer._bessels_correction_test_only = False
     training = not freeze_mode
     bn = bn_layer.apply(conv, training=training)
-    loss = tf.reduce_sum(tf.abs(bn))
+    loss = tf.compat.v2.reduce_sum(tf.math.abs(bn))
     optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.01)
     if not freeze_mode:
       update_ops = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.UPDATE_OPS)
@@ -63,7 +63,7 @@ class BNTest(tf.test.TestCase):
              is_fused,
              restore=False,
              freeze_mode=False,
-             dtype=tf.float32):
+             dtype=tf.dtypes.float32):
     tf.compat.v1.reset_default_graph()
     graph = tf.compat.v1.get_default_graph()
     with self.session(graph=graph, use_gpu=use_gpu) as sess:
@@ -72,7 +72,7 @@ class BNTest(tf.test.TestCase):
       if restore:
         saver.restore(sess, checkpoint_path)
       else:
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
       np.random.seed(0)
       for _ in range(2):
         image_val = np.random.rand(*shape).astype(dtype.as_numpy_dtype)
@@ -104,7 +104,7 @@ class BNTest(tf.test.TestCase):
     # filenames in all operating systems. This map will sanitize these.
     dtype_to_valid_fn = {
         tf.float16: 'float16',
-        tf.float32: 'float32',
+        tf.dtypes.float32: 'float32',
     }
     checkpoint = os.path.join(
         self.get_temp_dir(), 'cp_%s_%s_%s_%s' % (
@@ -139,7 +139,7 @@ class BNTest(tf.test.TestCase):
 
   def testHalfPrecision(self):
     ref_vars, ref_loss = self._trainEvalSequence(
-        dtype=tf.float32,
+        dtype=tf.dtypes.float32,
         train1_use_gpu=True,
         train2_use_gpu=True,
         infer_use_gpu=True)
@@ -308,14 +308,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=1, epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 4, 1))
@@ -351,14 +351,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=2, epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 3))
       np_beta = np.reshape(np_beta, (1, 1, 3))
@@ -393,14 +393,14 @@ class BNTest(tf.test.TestCase):
       epsilon = 1e-3
       bn = normalization_layers.BatchNormalization(
           axis=1, epsilon=epsilon, momentum=0.9)
-      inputs = tf.Variable(
-          np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+      inputs = tf.compat.v2.Variable(
+          np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
       training = tf.compat.v1.placeholder(dtype='bool')
       outputs = bn.apply(inputs, training=training)
 
       with self.session() as sess:
         # Test training with placeholder learning phase.
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
         np_gamma = np.reshape(np_gamma, (1, 4, 1, 1))
         np_beta = np.reshape(np_beta, (1, 4, 1, 1))
@@ -434,14 +434,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=2, epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 3, 1))
       np_beta = np.reshape(np_beta, (1, 1, 3, 1))
@@ -475,14 +475,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=3, epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 1, 6))
       np_beta = np.reshape(np_beta, (1, 1, 1, 6))
@@ -516,14 +516,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=3, epsilon=epsilon, momentum=0.9, fused=True)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 1, 6))
       np_beta = np.reshape(np_beta, (1, 1, 1, 6))
@@ -558,14 +558,14 @@ class BNTest(tf.test.TestCase):
       epsilon = 1e-3
       bn = normalization_layers.BatchNormalization(
           axis=1, epsilon=epsilon, momentum=0.9, fused=True)
-      inputs = tf.Variable(
-          np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+      inputs = tf.compat.v2.Variable(
+          np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
       training = tf.compat.v1.placeholder(dtype='bool')
       outputs = bn.apply(inputs, training=training)
 
       with self.cached_session() as sess:
         # Test training with placeholder learning phase.
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
         np_gamma = np.reshape(np_gamma, (1, 4, 1, 1))
         np_beta = np.reshape(np_beta, (1, 4, 1, 1))
@@ -599,14 +599,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=-1, epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 1, 6))
       np_beta = np.reshape(np_beta, (1, 1, 1, 6))
@@ -641,14 +641,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=-1, epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)) + 100, dtype=tf.dtypes.float32)
     outputs_training = bn.apply(inputs, training=True)
     outputs_infer = bn.apply(inputs, training=False)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 1, 6))
       np_beta = np.reshape(np_beta, (1, 1, 1, 6))
@@ -678,8 +678,8 @@ class BNTest(tf.test.TestCase):
       self.assertAlmostEqual(np.std(normed_np_output), 1., places=1)
 
   def testFunctionalNoReuse(self):
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)), dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)), dtype=tf.dtypes.float32)
     epsilon = 1e-3
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = normalization_layers.batch_norm(
@@ -699,7 +699,7 @@ class BNTest(tf.test.TestCase):
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_gamma, np_beta = self.evaluate([gamma, beta])
       np_gamma = np.reshape(np_gamma, (1, 1, 1, 6))
       np_beta = np.reshape(np_beta, (1, 1, 1, 6))
@@ -730,10 +730,10 @@ class BNTest(tf.test.TestCase):
       self.assertAlmostEqual(np.std(normed_np_output), 1., places=1)
 
   def testFunctionalReuse(self):
-    inputs1 = tf.Variable(
-        np.random.random((5, 4, 3, 6)), dtype=tf.float32)
-    inputs2 = tf.Variable(
-        np.random.random((5, 4, 3, 6)), dtype=tf.float32)
+    inputs1 = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)), dtype=tf.dtypes.float32)
+    inputs2 = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)), dtype=tf.dtypes.float32)
     epsilon = 1e-3
     training = tf.compat.v1.placeholder(dtype='bool')
     _ = normalization_layers.batch_norm(
@@ -762,7 +762,7 @@ class BNTest(tf.test.TestCase):
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(100):
         np_output, _, _ = sess.run([outputs2] + updates,
                                    feed_dict={training: True})
@@ -794,8 +794,8 @@ class BNTest(tf.test.TestCase):
       self.assertAlmostEqual(np.std(normed_np_output), 1., places=1)
 
   def testFunctionalReuseFromScope(self):
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3, 6)), dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3, 6)), dtype=tf.dtypes.float32)
     epsilon = 1e-3
     training = tf.compat.v1.placeholder(dtype='bool')
     with tf.compat.v1.variable_scope('scope'):
@@ -838,7 +838,7 @@ class BNTest(tf.test.TestCase):
     self.assertEqual(len(bn.non_trainable_variables), 2)
 
   def testRegularizers(self):
-    reg = lambda x: 0.1 * tf.reduce_sum(x)
+    reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
     bn = normalization_layers.BatchNormalization(axis=1, beta_regularizer=reg)
     inputs = tf.random.uniform((5, 4, 3), seed=1)
     training = tf.compat.v1.placeholder(dtype='bool')
@@ -852,8 +852,8 @@ class BNTest(tf.test.TestCase):
     self.assertEqual(len(bn.losses), 1)
 
   def testConstraints(self):
-    g_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    g_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     bn = normalization_layers.BatchNormalization(axis=1,
                                                  gamma_constraint=g_constraint,
                                                  beta_constraint=b_constraint)
@@ -864,7 +864,7 @@ class BNTest(tf.test.TestCase):
 
   def testRenorm(self):
     shape = (4, 3)
-    xt = tf.compat.v1.placeholder(tf.float32, shape)
+    xt = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     momentum = 0.99
     renorm_momentum = 0.8
     rmax = 1.1
@@ -875,8 +875,8 @@ class BNTest(tf.test.TestCase):
     epsilon = 0.001
     bn = normalization_layers.BatchNormalization(
         axis=1,
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
         epsilon=epsilon,
         momentum=momentum,
         renorm=True,
@@ -890,7 +890,7 @@ class BNTest(tf.test.TestCase):
     renorm_mean = 0.
     renorm_stddev = 1.
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
 
@@ -918,7 +918,7 @@ class BNTest(tf.test.TestCase):
 
   def testRenormNoClippingSameMomentumGivesSameTestTrain(self):
     shape = (4, 3)
-    xt = tf.compat.v1.placeholder(tf.float32, shape)
+    xt = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     momentum = 0.9
     renorm_momentum = 0.9
     gamma = 2.
@@ -926,8 +926,8 @@ class BNTest(tf.test.TestCase):
     epsilon = 0.001
     bn = normalization_layers.BatchNormalization(
         axis=1,
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
         epsilon=epsilon,
         momentum=momentum,
         renorm=True,
@@ -940,7 +940,7 @@ class BNTest(tf.test.TestCase):
     renorm_mean = 0.
     renorm_stddev = 1.
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for step in range(6):
         x = np.random.random(shape)
 
@@ -974,7 +974,7 @@ class BNTest(tf.test.TestCase):
 
   def testAdjustment(self):
     shape = (4, 3)
-    xt = tf.compat.v1.placeholder(tf.float32, shape)
+    xt = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     momentum = 0.99
     gamma = 2.
     beta = 3.
@@ -983,8 +983,8 @@ class BNTest(tf.test.TestCase):
     adjust_bias = tf.random.uniform(shape[-1:], -.2, .2)
     bn = normalization_layers.BatchNormalization(
         axis=1,
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
         epsilon=epsilon,
         momentum=momentum,
         adjustment=lambda _: (adjust_scale, adjust_bias))
@@ -994,7 +994,7 @@ class BNTest(tf.test.TestCase):
     moving_mean = 0.
     moving_variance = 1.
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
         yt_val_train, adj_scale_val, adj_bias_val = sess.run(
@@ -1018,7 +1018,7 @@ class BNTest(tf.test.TestCase):
 
   def testRenormWithAdjustment(self):
     shape = (4, 3)
-    xt = tf.compat.v1.placeholder(tf.float32, shape)
+    xt = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     momentum = 0.99
     renorm_momentum = 0.8
     rmax = 1.1
@@ -1031,8 +1031,8 @@ class BNTest(tf.test.TestCase):
     adjust_bias = tf.random.uniform(shape[-1:], -.2, .2)
     bn = normalization_layers.BatchNormalization(
         axis=1,
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
         epsilon=epsilon,
         momentum=momentum,
         renorm=True,
@@ -1047,7 +1047,7 @@ class BNTest(tf.test.TestCase):
     renorm_mean = 0.
     renorm_stddev = 1.
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
         yt_val_train, adj_scale_val, adj_bias_val = sess.run(
@@ -1093,7 +1093,7 @@ class BNTest(tf.test.TestCase):
         out1.shape.as_list(), out2.shape.as_list())
 
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       x = np.random.random(shape)
       y1, y2 = sess.run([out1, out2], feed_dict={inp: x})
@@ -1110,12 +1110,12 @@ class BNTest(tf.test.TestCase):
   def testGhostBNUnknownBatchSize(self):
     np_shape = [10, 5, 4]
     tf_shape = [None, 5, 4]
-    inp = tf.compat.v1.placeholder(tf.float32, tf_shape)
+    inp = tf.compat.v1.placeholder(tf.dtypes.float32, tf_shape)
     out = normalization_layers.batch_normalization(
         inp, virtual_batch_size=2)
 
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       x = np.random.random(np_shape)
       y = sess.run(out, feed_dict={inp: x})
@@ -1132,13 +1132,13 @@ class BNTest(tf.test.TestCase):
     moving_means = np.zeros([2, 2], dtype=np.float32)
     moving_vars = np.ones([2, 2], dtype=np.float32)
 
-    inp = tf.compat.v1.placeholder(tf.float32, shape)
+    inp = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     is_training = tf.compat.v1.placeholder(tf.bool)
     bn = normalization_layers.BatchNormalization(
         momentum=momentum,
         epsilon=epsilon,
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
         virtual_batch_size=virtual_batch_size)
     out = bn.apply(inp, training=is_training)
     ghost_shape = ([virtual_batch_size,
@@ -1146,7 +1146,7 @@ class BNTest(tf.test.TestCase):
                     shape[1]])
 
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
 
@@ -1185,21 +1185,21 @@ class BNTest(tf.test.TestCase):
     moving_means = np.zeros([1, 1, 1, 1, 3], dtype=np.float32)
     moving_vars = np.ones([1, 1, 1, 1, 3], dtype=np.float32)
 
-    inp = tf.compat.v1.placeholder(tf.float32, shape)
+    inp = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     is_training = tf.compat.v1.placeholder(tf.bool)
     bn = normalization_layers.BatchNormalization(
         axis=3,
         momentum=momentum,
         epsilon=epsilon,
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
         virtual_batch_size=virtual_batch_size)
     out = bn.apply(inp, training=is_training)
     ghost_shape = ([virtual_batch_size, shape[0] // virtual_batch_size] +
                    shape[1:])
 
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
 
@@ -1238,14 +1238,14 @@ class BNTest(tf.test.TestCase):
     moving_means = np.zeros([1, 1, 3, 1, 1], dtype=np.float32)
     moving_vars = np.ones([1, 1, 3, 1, 1], dtype=np.float32)
 
-    inp = tf.compat.v1.placeholder(tf.float32, shape)
+    inp = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     is_training = tf.compat.v1.placeholder(tf.bool)
     bn = normalization_layers.BatchNormalization(
         axis=1,
         momentum=momentum,
         epsilon=epsilon,
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
         virtual_batch_size=virtual_batch_size,
         fused=False)      # NCHW is unsupported by CPU fused batch norm
     out = bn.apply(inp, training=is_training)
@@ -1253,7 +1253,7 @@ class BNTest(tf.test.TestCase):
                    shape[1:])
 
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
 
@@ -1302,14 +1302,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=[1, 2], epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 4, 3)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 4, 3)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
 
@@ -1343,14 +1343,14 @@ class BNTest(tf.test.TestCase):
     epsilon = 1e-3
     bn = normalization_layers.BatchNormalization(
         axis=[1, 2, 3], epsilon=epsilon, momentum=0.9)
-    inputs = tf.Variable(
-        np.random.random((5, 3, 4, 4, 3)) + 100, dtype=tf.float32)
+    inputs = tf.compat.v2.Variable(
+        np.random.random((5, 3, 4, 4, 3)) + 100, dtype=tf.dtypes.float32)
     training = tf.compat.v1.placeholder(dtype='bool')
     outputs = bn.apply(inputs, training=training)
 
     with self.cached_session() as sess:
       # Test training with placeholder learning phase.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       np_gamma, np_beta = self.evaluate([bn.gamma, bn.beta])
 
@@ -1390,14 +1390,14 @@ class BNTest(tf.test.TestCase):
     moving_means = np.zeros([1, 1, 3, 1, 1, 4], dtype=np.float32)
     moving_vars = np.ones([1, 1, 3, 1, 1, 4], dtype=np.float32)
 
-    inp = tf.compat.v1.placeholder(tf.float32, shape)
+    inp = tf.compat.v1.placeholder(tf.dtypes.float32, shape)
     is_training = tf.compat.v1.placeholder(tf.bool)
     bn = normalization_layers.BatchNormalization(
         axis=[1, 4],
         momentum=momentum,
         epsilon=epsilon,
-        beta_initializer=tf.compat.v1.constant_initializer(beta),
-        gamma_initializer=tf.compat.v1.constant_initializer(gamma),
+        beta_initializer=tf.compat.v1.initializers.constant(beta),
+        gamma_initializer=tf.compat.v1.initializers.constant(gamma),
         virtual_batch_size=virtual_batch_size,
         fused=False)
     out = bn.apply(inp, training=is_training)
@@ -1405,7 +1405,7 @@ class BNTest(tf.test.TestCase):
                    shape[1:])
 
     with self.session() as sess:
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       for _ in range(5):
         x = np.random.random(shape)
 

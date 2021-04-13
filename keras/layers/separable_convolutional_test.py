@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for separable convolutional layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np

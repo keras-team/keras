@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities for working with tf.lookup tables in Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import os
@@ -66,9 +66,9 @@ class TableHandler(object):
       raise RuntimeError("Size mismatch between values and key arrays. "
                          "Keys had size %s, values had size %s." %
                          (len(keys), len(values)))
-    keys = tf.convert_to_tensor(
+    keys = tf.compat.v2.convert_to_tensor(
         keys, dtype=self.table._key_dtype)  # pylint: disable=protected-access
-    values = tf.convert_to_tensor(
+    values = tf.compat.v2.convert_to_tensor(
         values, dtype=self.table._value_dtype)  # pylint: disable=protected-access
     if values.shape.ndims != 1:
       raise ValueError("`values` must be 1-dimensional, got an input with "
@@ -82,13 +82,13 @@ class TableHandler(object):
 
     num_oov_elements = self.oov_tokens.shape.num_elements()
     if inputs.dtype.is_integer:
-      oov_indices = tf.math.floormod(inputs, num_oov_elements)
+      oov_indices = tf.math.mod(inputs, num_oov_elements)
     else:
       oov_indices = tf.strings.to_hash_bucket_fast(
           inputs, num_buckets=num_oov_elements)
 
     oov_values = tf.compat.v1.gather(self.oov_tokens, oov_indices)
-    oov_locations = tf.equal(lookups, self.table._default_value)  # pylint: disable=protected-access
+    oov_locations = tf.math.equal(lookups, self.table._default_value)  # pylint: disable=protected-access
 
     return tf.compat.v1.where(oov_locations, oov_values, lookups)
 
@@ -100,8 +100,8 @@ class TableHandler(object):
       return lookups
 
     # Inject 0s wherever the mask token was in the inputs.
-    mask_locations = tf.equal(inputs, self.mask_token)
-    return tf.where(
+    mask_locations = tf.math.equal(inputs, self.mask_token)
+    return tf.compat.v2.where(
         mask_locations,
         tf.cast(self.mask_value, self.table._value_dtype),  # pylint: disable=protected-access
         lookups)  # pylint: disable=protected-access
@@ -125,7 +125,7 @@ class TableHandler(object):
     """Perform a table lookup on a sparse tensor."""
     values = self._lookup_and_mask(inputs.values)
     values = self._replace_oov_buckets(inputs.values, values)
-    indexed_data = tf.SparseTensor(inputs.indices, values,
+    indexed_data = tf.sparse.SparseTensor(inputs.indices, values,
                                               inputs.dense_shape)
     # Composite tensors can pass tensor values through, which will cause
     # errors if all operations in the TF graph do so. We can break this chain
@@ -145,19 +145,19 @@ class TableHandler(object):
     # Sparse tensors don't play nicely with tensor conversion, so we handle
     # them before attempting to convert lists or arrays to tensors.
     if isinstance(
-        inputs, (tf.SparseTensor, tf.compat.v1.SparseTensorValue)):
+        inputs, (tf.sparse.SparseTensor, tf.compat.v1.SparseTensorValue)):
       return self._sparse_lookup(inputs)
 
     if tf_utils.is_ragged(inputs):
       if isinstance(inputs, tf.compat.v1.ragged.RaggedTensorValue):
-        flat_values = tf.convert_to_tensor(
+        flat_values = tf.compat.v2.convert_to_tensor(
             value=inputs.flat_values, name="flat_values")
         inputs = tf.RaggedTensor.from_nested_row_splits(
             flat_values, inputs.nested_row_splits, validate=False)
       return self._ragged_lookup(inputs)
 
     # For normal tensor inputs
-    inputs = tf.convert_to_tensor(inputs)
+    inputs = tf.compat.v2.convert_to_tensor(inputs)
     return self._tensor_lookup(inputs)
 
 

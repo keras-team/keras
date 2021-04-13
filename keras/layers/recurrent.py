@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes
 """Recurrent layers and their base classes."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import warnings
@@ -451,7 +451,7 @@ class RNN(Layer):
   @states.setter
   # Automatic tracking catches "self._states" which adds an extra weight and
   # breaks HDF5 checkpoints.
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def states(self, states):
     self._states = states
 
@@ -846,7 +846,7 @@ class RNN(Layer):
         # When layer is stateful and initial_state is provided, check if the
         # recorded state is same as the default value (zeros). Use the recorded
         # state if it is not same as the default.
-        non_zero_count = tf.add_n([tf.math.count_nonzero(s)
+        non_zero_count = tf.add_n([tf.compat.v2.math.count_nonzero(s)
                                          for s in tf.nest.flatten(self.states)])
         # Set strict = True to keep the original structure of the state.
         initial_state = tf.compat.v1.cond(non_zero_count > 0,
@@ -1103,7 +1103,7 @@ class DropoutRNNCellMixin(object):
     self._create_non_trackable_mask_cache()
     super(DropoutRNNCellMixin, self).__init__(*args, **kwargs)
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _create_non_trackable_mask_cache(self):
     """Create the cache for dropout and recurrent dropout mask.
 
@@ -3024,7 +3024,7 @@ def _caching_device(rnn_cell):
   Args:
     rnn_cell: the rnn cell instance.
   """
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     # caching_device is not supported in eager mode.
     return None
   if not getattr(rnn_cell, '_enable_caching_device', False):

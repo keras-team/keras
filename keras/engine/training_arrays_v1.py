@@ -14,7 +14,7 @@
 # ==============================================================================
 """Part of the Keras training engine related to plain array data."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=protected-access
 
 import functools
@@ -124,7 +124,7 @@ def model_iteration(model,
   reset_dataset_after_each_epoch = False
   input_iterator = None
   is_dataset = isinstance(inputs,
-                          (tf.compat.v1.data.Dataset, tf.data.Dataset))
+                          (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset))
   # TODO(fchollet): consider moving `steps_per_epoch` inference to
   # _standardize_user_data and set reset_dataset_after_each_epoch as an
   # attribute on the dataset instance.
@@ -179,7 +179,7 @@ def model_iteration(model,
   # Prepare validation data. Hold references to the iterator and the input list
   # to properly reinitialize and reuse in multiple validation passes.
   val_iterator = None
-  if isinstance(val_inputs, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
+  if isinstance(val_inputs, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)):
     if validation_steps is None:
       # Because we pass an iterator feed instead of a Dataset to the eval
       # model_iteration() call, it will not trigger the dataset-input path
@@ -489,7 +489,7 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
     Feed values for the model in the given mode.
   """
   if model._distribution_strategy:
-    if isinstance(inputs, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
+    if isinstance(inputs, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)):
       inputs = distributed_training_utils_v1.get_iterator(
           inputs, model._distribution_strategy)
 
@@ -504,12 +504,12 @@ def _prepare_feed_values(model, inputs, targets, sample_weights, mode):
     # TODO(priyag,omalleyt): Either we should move the training DS with
     # IteratorBase to use training_generator code path, or figure out how to
     # set a symbolic Iterator out of a Dataset when in eager mode.
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       return get_distributed_inputs
     else:
       return get_distributed_inputs()
 
-  if isinstance(inputs, (tf.compat.v1.data.Dataset, tf.data.Dataset,
+  if isinstance(inputs, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset,
                          tf.compat.v1.data.Iterator)):
     inputs, targets, sample_weights = model._standardize_user_data(
         inputs,

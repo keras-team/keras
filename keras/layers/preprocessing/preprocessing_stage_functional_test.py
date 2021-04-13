@@ -14,7 +14,7 @@
 # ==============================================================================
 """Functional preprocessing stage tests."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import time
@@ -163,9 +163,9 @@ class PreprocessingStageTest(keras_parameterized.TestCase,
 
     # dimension will mismatch if x1 incorrectly placed.
     x1_sum = core.Lambda(
-        lambda x: tf.reduce_sum(x, axis=-1, keepdims=True))(
+        lambda x: tf.compat.v2.reduce_sum(x, axis=-1, keepdims=True))(
             x1)
-    x2_sum = core.Lambda(lambda x: tf.reduce_sum(x, axis=-1))(x2)
+    x2_sum = core.Lambda(lambda x: tf.compat.v2.reduce_sum(x, axis=-1))(x2)
 
     l0 = PLMerge()
     y = l0([x0, x1_sum])
@@ -197,9 +197,9 @@ class PreprocessingStageTest(keras_parameterized.TestCase,
 
     # Check call
     y, z = stage({
-        'x1': tf.constant(one_array1),
-        'x2': tf.constant(one_array2),
-        'x0': tf.constant(one_array0)
+        'x1': tf.compat.v2.constant(one_array1),
+        'x2': tf.compat.v2.constant(one_array2),
+        'x0': tf.compat.v2.constant(one_array0)
     })
     self.assertAllClose(y, np.zeros((4, 3), dtype='float32') + 9.)
     self.assertAllClose(z, np.zeros((4, 3), dtype='float32') + 11.)
@@ -268,7 +268,7 @@ class PreprocessingStageTest(keras_parameterized.TestCase,
     self.assertLessEqual(l0.adapt_time, l1.adapt_time)
 
     # Check call
-    outputs = stage({'x': tf.constant(one_array)})
+    outputs = stage({'x': tf.compat.v2.constant(one_array)})
     self.assertEqual(set(outputs.keys()), {'y0', 'y1', 'z0', 'z1'})
     self.assertAllClose(outputs['y0'], np.ones((4, 3), dtype='float32') + 1.)
     self.assertAllClose(outputs['y1'], np.ones((4, 3), dtype='float32') - 1.)

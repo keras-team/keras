@@ -21,7 +21,7 @@ Reference:
     (AAAI 2017)
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras.applications import imagenet_utils

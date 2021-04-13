@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Home of the `Sequential` model."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 import warnings
@@ -96,7 +96,7 @@ class Sequential(functional.Functional):
   ```
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, layers=None, name=None):
     """Creates a `Sequential` model instance.
 
@@ -146,7 +146,7 @@ class Sequential(functional.Functional):
       return layers[1:]
     return layers[:]
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def add(self, layer):
     """Adds a layer instance on top of the layer stack.
 
@@ -234,7 +234,7 @@ class Sequential(functional.Functional):
 
     self._layer_call_argspecs[layer] = tf_inspect.getfullargspec(layer.call)
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def pop(self):
     """Removes the last layer in the model.
 
@@ -259,13 +259,13 @@ class Sequential(functional.Functional):
       self._init_graph_network(self.inputs, self.outputs)
       self.built = True
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _build_graph_network_for_inferred_shape(self,
                                               input_shape,
                                               input_dtype=None):
     if input_shape is None or not self.layers:
       return
-    if not tf.__internal__.tf2.enabled() or not tf.compat.v1.executing_eagerly_outside_functions():
+    if not tf.compat.v2.__internal__.tf2.enabled() or not tf.compat.v1.executing_eagerly_outside_functions():
       # This behavior is disabled in V1 or when eager execution is disabled.
       return
     if (not self._has_explicit_input_shape and
@@ -360,7 +360,7 @@ class Sequential(functional.Functional):
         # compatibility.
         self._use_legacy_deferred_behavior = True
         self._build_input_shape = tf.nest.map_structure(_get_shape_tuple, inputs)
-        if tf.__internal__.tf2.enabled():
+        if tf.compat.v2.__internal__.tf2.enabled():
           logging.warning('Layers in a Sequential model should only have a '
                           'single input tensor, but we receive a %s input: %s'
                           '\nConsider rewriting this model with the Functional '

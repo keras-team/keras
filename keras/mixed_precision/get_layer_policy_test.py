@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests the get_layer_policy function."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras.engine import base_layer_utils
 from keras.layers import core

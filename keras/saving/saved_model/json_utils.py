@@ -21,7 +21,7 @@ separate inputs if the given input_shape is a list, and will create a single
 input if the given shape is a tuple.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections.abc as collections_abc
 import enum

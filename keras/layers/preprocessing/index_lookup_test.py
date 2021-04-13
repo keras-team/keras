@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import itertools
 import os
@@ -304,7 +304,7 @@ class IndexLookupLayerTest(keras_parameterized.TestCase,
     if "invert" in kwargs and kwargs["invert"]:
       expected_output_dtype = kwargs["dtype"]
     elif "output_mode" in kwargs and kwargs["output_mode"] != index_lookup.INT:
-      expected_output_dtype = tf.float32
+      expected_output_dtype = tf.dtypes.float32
     else:
       expected_output_dtype = tf.int64
 
@@ -351,7 +351,7 @@ class CategoricalEncodingInputTest(
 
   def test_sparse_string_input(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=["fire", "michigan"],
         dense_shape=[3, 4])
@@ -377,7 +377,7 @@ class CategoricalEncodingInputTest(
 
   def test_sparse_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 32], dtype=np.int64),
         dense_shape=[3, 4])
@@ -445,7 +445,7 @@ class CategoricalEncodingInputTest(
                                               dtype=np.int32)
     expected_output = [[2, 3, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
+    input_data = keras.Input(shape=(None,), dtype=tf.dtypes.int32, ragged=True)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
         dtype=tf.int64,
@@ -466,7 +466,7 @@ class CategoricalEncodingMultiOOVTest(
 
   def test_sparse_string_input_multi_bucket(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]], values=["fire", "ohio"], dense_shape=[3, 4])
 
     expected_indices = [[0, 0], [1, 2]]
@@ -490,7 +490,7 @@ class CategoricalEncodingMultiOOVTest(
 
   def test_sparse_int_input_multi_bucket(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 133], dtype=np.int64),
         dense_shape=[3, 4])
@@ -560,7 +560,7 @@ class CategoricalEncodingAdaptTest(
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_adapt(self):
-    vocab_data = tf.SparseTensor(
+    vocab_data = tf.sparse.SparseTensor(
         indices=[[0, 0], [0, 1], [1, 2]],
         values=["michigan", "fire", "michigan"],
         dense_shape=[3, 4])
@@ -593,7 +593,7 @@ class CategoricalEncodingAdaptTest(
 
   def test_sparse_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 32], dtype=np.int64),
         dense_shape=[3, 4])
@@ -1048,7 +1048,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
 
   def test_non_int_output_file_vocab_in_tf_function(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = tf.constant(
+    input_array = tf.compat.v2.constant(
         [["earth", "wind", "and", "fire", ""],
          ["fire", "and", "earth", "michigan", ""]],
         dtype=tf.string)
@@ -1792,7 +1792,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(
@@ -1865,17 +1865,17 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
-    loaded_model = tf.saved_model.load(output_path)
+    loaded_model = tf.compat.v2.saved_model.load(output_path)
     f = loaded_model.signatures["serving_default"]
 
     # Ensure that the loaded model is unique (so that the save/load is real)
     self.assertIsNot(model, loaded_model)
 
     # Validate correctness of the new model.
-    new_output_dataset = f(tf.constant(input_array))["index_lookup"]
+    new_output_dataset = f(tf.compat.v2.constant(input_array))["index_lookup"]
     self.assertAllEqual(new_output_dataset, expected_output)
 
   def test_vocabulary_persistence_file_vocab_keras_save_tf_load(self):
@@ -1907,17 +1907,17 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
-    loaded_model = tf.saved_model.load(output_path)
+    loaded_model = tf.compat.v2.saved_model.load(output_path)
     f = loaded_model.signatures["serving_default"]
 
     # Ensure that the loaded model is unique (so that the save/load is real)
     self.assertIsNot(model, loaded_model)
 
     # Validate correctness of the new model.
-    new_output_dataset = f(tf.constant(input_array))["index_lookup"]
+    new_output_dataset = f(tf.compat.v2.constant(input_array))["index_lookup"]
     self.assertAllEqual(new_output_dataset, expected_output)
 
   def test_persistence_file_vocab_keras_save_keras_load(self):
@@ -1949,7 +1949,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
     tf.compat.v1.gfile.Remove(vocab_file)
 
@@ -1978,7 +1978,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(
@@ -2020,7 +2020,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
     tf.compat.v1.gfile.Remove(vocab_file)
 
@@ -2049,17 +2049,17 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
-    loaded_model = tf.saved_model.load(output_path)
+    loaded_model = tf.compat.v2.saved_model.load(output_path)
     f = loaded_model.signatures["serving_default"]
 
     # Ensure that the loaded model is unique (so that the save/load is real)
     self.assertIsNot(model, loaded_model)
 
     # Validate correctness of the new model.
-    new_output_dataset = f(tf.constant(input_array))["model"]
+    new_output_dataset = f(tf.compat.v2.constant(input_array))["model"]
     self.assertAllEqual(new_output_dataset, expected_output)
 
   def test_persistence_file_vocab_keras_save_keras_load_keras_save_keras_load(
@@ -2092,7 +2092,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
     tf.compat.v1.gfile.Remove(vocab_file)
 
@@ -2121,7 +2121,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(

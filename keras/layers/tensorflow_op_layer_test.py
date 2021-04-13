@@ -14,7 +14,7 @@
 # ==============================================================================
 """Test for allowing TF ops to work with Keras Functional API."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import time
 
@@ -83,7 +83,7 @@ def _shape_op_known_batch_size():
   x = tf.ones(x)
   assert x.shape.as_list() == [2, 10]
   outputs = keras.layers.Dense(10)(x)
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return keras.Model(inputs, outputs)
   else:
     # In V1 the op layer fails for some reason,
@@ -111,7 +111,7 @@ def _shape_op_slice_and_range_known_dim():
   x = tf.reshape(x, (batch_size, 3))
   x = tf.cast(x, dtype='float32')
   outputs = keras.layers.Dense(10)(x)
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return keras.Model(inputs, outputs)
   else:
     # In V1 the op layer fails for some reason,
@@ -132,7 +132,7 @@ def _int32_manipulation_too_big_for_shape():
   x = tf.reshape(x, (batch_size, num_features))
   x = tf.cast(x, dtype='float32')
   outputs = keras.layers.Dense(10)(x)
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return keras.Model(inputs, outputs)
   else:
     # In V1 the op layer fails for some reason,
@@ -160,7 +160,7 @@ def _int32_manipulation_at_max_shape_dims_limit():
   x = tf.reshape(x, (batch_size, num_features))
   x = tf.cast(x, dtype='float32')
   outputs = keras.layers.Dense(10)(x)
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return keras.Model(inputs, outputs)
   else:
     # In V1 the op layer fails for some reason,
@@ -178,14 +178,14 @@ def _single_standalone_branch():
 
 def _single_op_with_attrs():
   inputs = keras.Input(shape=(10,))
-  x = tf.reduce_mean(inputs, axis=1, keepdims=True)
+  x = tf.compat.v2.reduce_mean(inputs, axis=1, keepdims=True)
   outputs = keras.layers.Dense(10)(x)
   return keras.Model(inputs, outputs)
 
 
 def _multiple_uses():
   inputs = keras.Input(shape=(10,))
-  x = tf.reduce_mean(inputs, axis=1, keepdims=True)
+  x = tf.compat.v2.reduce_mean(inputs, axis=1, keepdims=True)
   x1 = keras.layers.Dense(10)(x)
   x2 = keras.layers.Dense(10)(x)
   outputs = x1 + x2
@@ -265,12 +265,12 @@ def _reuse_ancillary_layer():
   model = keras.Model(inputs, outputs)
   # The second input is only involved in ancillary layers.
   outputs_delta = outputs - base_model(0.5 * inputs[1])
-  l2_loss = tf.reduce_mean(
-      tf.reduce_sum(tf.square(outputs_delta), -1))
+  l2_loss = tf.compat.v2.reduce_mean(
+      tf.compat.v2.reduce_sum(tf.square(outputs_delta), -1))
   model.add_loss(l2_loss)
   model.add_metric(l2_loss, aggregation='mean', name='l2_loss')
-  l1_loss = 0.01 * tf.reduce_mean(
-      tf.reduce_sum(tf.abs(outputs_delta), -1))
+  l1_loss = 0.01 * tf.compat.v2.reduce_mean(
+      tf.compat.v2.reduce_sum(tf.math.abs(outputs_delta), -1))
   model.add_loss(l1_loss)
   model.add_metric(l1_loss, aggregation='mean', name='l1_loss')
   return model
@@ -389,7 +389,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model(x), expected)
 
   def test_getitem_slice_with_step_only(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Complex slicing like this fails in v1')
     inp = keras.Input(shape=(8,))
     slice_step = keras.Input(shape=(), dtype='int32')
@@ -406,7 +406,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     step = 3
     x = tf.stack([
         tf.range(8) for _ in range(batch_size)])
-    args = [x, tf.constant(step, shape=(batch_size,))]
+    args = [x, tf.compat.v2.constant(step, shape=(batch_size,))]
     expected = tf.stack([
         tf.range(8)[::step] for _ in range(batch_size)])
 
@@ -426,7 +426,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model.predict(args, batch_size=batch_size), expected)
 
   def test_getitem_slice_real_tensor(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Complex slicing like this fails in v1')
     x = tf.range(10.0)
     slice_stop = keras.Input(shape=(), dtype='int32')
@@ -441,7 +441,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
         run_eagerly=testing_utils.should_run_eagerly())
     batch_size = 7
     stop = 6
-    args = tf.constant(stop, shape=(batch_size,))
+    args = tf.compat.v2.constant(stop, shape=(batch_size,))
     expected = x[:stop]
 
     if tf.compat.v1.executing_eagerly_outside_functions():
@@ -460,7 +460,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model.predict(args, batch_size=batch_size), expected)
 
   def test_getitem_index_real_tensor(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Complex slicing like this fails in v1')
     x = tf.range(10.0)
     slice_stop = keras.Input(shape=(), dtype='int32')
@@ -475,7 +475,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
         run_eagerly=testing_utils.should_run_eagerly())
     batch_size = 7
     index = 6
-    args = tf.constant(index, shape=(batch_size,))
+    args = tf.compat.v2.constant(index, shape=(batch_size,))
     expected = x[index]
 
     if tf.compat.v1.executing_eagerly_outside_functions():
@@ -495,7 +495,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model.predict(args, batch_size=batch_size), expected)
 
   def test_getitem_slice_with_stop_only(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Complex slicing like this fails in v1')
     inp = keras.Input(shape=(8,))
     slice_stop = keras.Input(shape=(), dtype='int32')
@@ -512,7 +512,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     stop = 6
     x = tf.stack([
         tf.range(8) for _ in range(batch_size)])
-    args = [x, tf.constant(stop, shape=(batch_size,))]
+    args = [x, tf.compat.v2.constant(stop, shape=(batch_size,))]
     expected = x[:stop]
 
     if tf.compat.v1.executing_eagerly_outside_functions():
@@ -531,7 +531,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model.predict(args, batch_size=batch_size), expected)
 
   def test_getitem_slice_with_stop_and_ellipsis_only(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Complex slicing like this fails in v1')
     inp = keras.Input(shape=(8,))
     slice_stop = keras.Input(shape=(), dtype='int32')
@@ -548,7 +548,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     stop = 6
     x = tf.stack([
         tf.range(8) for _ in range(batch_size)])
-    args = [x, tf.constant(stop, shape=(batch_size,))]
+    args = [x, tf.compat.v2.constant(stop, shape=(batch_size,))]
     expected = tf.stack([
         tf.range(8)[:stop] for _ in range(batch_size)])
 
@@ -568,7 +568,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model.predict(args, batch_size=batch_size), expected)
 
   def test_getitem_complex_slicing(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Complex slicing like this fails in v1')
     inp = keras.Input(shape=(4, 3, 8))
     first_dim = keras.Input(shape=(), dtype='int32')
@@ -592,10 +592,10 @@ class AutoLambdaTest(keras_parameterized.TestCase):
         tf.range(8)
         for _ in range(3)]) for _ in range(4)]) for _ in range(batch_size)])
     args = [x,
-            tf.constant(0, shape=(batch_size,)),
-            tf.constant(start, shape=(batch_size,)),
-            tf.constant(stop, shape=(batch_size,)),
-            tf.constant(step, shape=(batch_size,))]
+            tf.compat.v2.constant(0, shape=(batch_size,)),
+            tf.compat.v2.constant(start, shape=(batch_size,)),
+            tf.compat.v2.constant(stop, shape=(batch_size,)),
+            tf.compat.v2.constant(step, shape=(batch_size,))]
     # Slice the innermost dim. only grab one index from the second-to-innermost
     # dim, removing that dim from the shape.
     expected = tf.stack([tf.stack([
@@ -626,7 +626,7 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllEqual(model(ones), 3.0 * ones)
 
   def test_numerical_correctness_simple(self):
-    x = tf.convert_to_tensor([[-1., 0., -2., 1.]])
+    x = tf.compat.v2.convert_to_tensor([[-1., 0., -2., 1.]])
     inputs = keras.Input(shape=(4,))
     outputs = tf.nn.relu(inputs)
     model = keras.Model(inputs, outputs)
@@ -634,15 +634,15 @@ class AutoLambdaTest(keras_parameterized.TestCase):
     self.assertAllClose(y, [[0., 0., 0., 1.]])
 
   def test_numerical_correctness_with_attrs(self):
-    x = tf.convert_to_tensor([[1.5, 1.5], [2.5, 3.5]])
+    x = tf.compat.v2.convert_to_tensor([[1.5, 1.5], [2.5, 3.5]])
     inputs = keras.Input(shape=(2,))
-    outputs = tf.reduce_mean(inputs, axis=1)
+    outputs = tf.compat.v2.reduce_mean(inputs, axis=1)
     model = keras.Model(inputs, outputs)
     y = self.evaluate(model(x))
     self.assertAllClose(y, [1.5, 3.])
 
   def test_numerical_correctness_serialization(self):
-    x = tf.convert_to_tensor([[-1., 0., -2., 1.]])
+    x = tf.compat.v2.convert_to_tensor([[-1., 0., -2., 1.]])
     inputs = keras.Input(shape=(4,))
     outputs = tf.nn.relu(inputs)
     model1 = keras.Model(inputs, outputs)
@@ -653,8 +653,8 @@ class AutoLambdaTest(keras_parameterized.TestCase):
 
   def test_gradient_tape_in_function(self):
     z = keras.Input((1,))
-    x = tf.matmul(z, tf.constant(2.0, shape=(1, 1)))
-    x = tf.reduce_mean(x, axis=0, keepdims=True)
+    x = tf.linalg.matmul(z, tf.compat.v2.constant(2.0, shape=(1, 1)))
+    x = tf.compat.v2.reduce_mean(x, axis=0, keepdims=True)
     h = tf.nn.relu(x)
     m = keras.Model(z, h)
 
@@ -666,17 +666,17 @@ class AutoLambdaTest(keras_parameterized.TestCase):
       grads = t.gradient(z, x)
       return grads
 
-    self.assertAllEqual(f(tf.constant(10.0, shape=(1, 1))),
-                        tf.constant(40.0, shape=(1, 1)))
+    self.assertAllEqual(f(tf.compat.v2.constant(10.0, shape=(1, 1))),
+                        tf.compat.v2.constant(40.0, shape=(1, 1)))
 
     f = tf.function(f)
 
-    self.assertAllEqual(f(tf.constant(10.0, shape=(1, 1))),
-                        tf.constant(40.0, shape=(1, 1)))
+    self.assertAllEqual(f(tf.compat.v2.constant(10.0, shape=(1, 1))),
+                        tf.compat.v2.constant(40.0, shape=(1, 1)))
 
   def test_no_tracking(self):
-    if not tf.executing_eagerly():
-      x = tf.constant(1.0, shape=(10, 10))
+    if not tf.compat.v2.executing_eagerly():
+      x = tf.compat.v2.constant(1.0, shape=(10, 10))
       keras.layers.Dense(1)(x)
       self.assertTrue(x._keras_history_checked)
 

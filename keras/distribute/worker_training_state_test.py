@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests of `worker_training_state.py` utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import sys
@@ -26,8 +26,8 @@ from keras.distribute import multi_worker_testing_utils
 
 class ModelCheckpointTest(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['eager'],
           file_format=['h5', 'tf'],
           save_weights_only=[True, False]))

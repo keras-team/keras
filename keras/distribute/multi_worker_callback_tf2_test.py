@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras callbacks in multi-worker training with TF2."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import json
 import os
@@ -51,7 +51,7 @@ def _model_setup(test_obj, file_format):
   """
   batch_size = 64
   steps = 2
-  with tf.distribute.MultiWorkerMirroredStrategy().scope():
+  with tf.compat.v2.distribute.MultiWorkerMirroredStrategy().scope():
     # TODO(b/142509827): In rare cases this errors out at C++ level with the
     # "Connect failed" error message.
     train_ds, _ = multi_worker_testing_utils.mnist_synthetic_dataset(
@@ -87,8 +87,8 @@ def is_chief():
 
 class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['eager'],
           file_format=['h5', 'tf'],
           save_weights_only=[True, False]))
@@ -138,12 +138,12 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
               distributed_file_utils.write_filepath(
                   saving_filepath, model._distribution_strategy)), is_chief())
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_model_checkpoint_saves_on_chief_but_not_otherwise,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self, file_format))
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['eager']))
   def test_model_checkpoint_works_with_same_file_path(self, mode):
 
     def proc_model_checkpoint_works_with_same_file_path(
@@ -164,12 +164,12 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
 
     saving_filepath = os.path.join(self.get_temp_dir(), 'checkpoint')
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_model_checkpoint_works_with_same_file_path,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self, saving_filepath))
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['eager']))
   def test_backupandrestore_checkpoint_works_with_interruption(self, mode):
 
     class InterruptingCallback(callbacks.Callback):
@@ -209,7 +209,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
         if 'Interrupting!' not in str(e):
           raise
 
-      tf.__internal__.distribute.multi_process_runner.get_barrier().wait()
+      tf.compat.v2.__internal__.distribute.multi_process_runner.get_barrier().wait()
       backup_filepath = os.path.join(bar_dir, 'chief', 'checkpoint')
       test_obj.assertTrue(tf.io.gfile.exists(backup_filepath))
       test_obj.assertTrue(tf.io.gfile.exists(saving_filepath))
@@ -223,18 +223,18 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
               callbacks.BackupAndRestore(backup_dir=bar_dir),
               AssertCallback()
           ])
-      tf.__internal__.distribute.multi_process_runner.get_barrier().wait()
+      tf.compat.v2.__internal__.distribute.multi_process_runner.get_barrier().wait()
       test_obj.assertFalse(tf.io.gfile.exists(backup_filepath))
       test_obj.assertTrue(tf.io.gfile.exists(saving_filepath))
 
     saving_filepath = os.path.join(self.get_temp_dir(), 'checkpoint')
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_model_checkpoint_works_with_same_file_path,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self, saving_filepath))
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['eager']))
   def test_tensorboard_saves_on_chief_but_not_otherwise(self, mode):
 
     def proc_tensorboard_saves_on_chief_but_not_otherwise(test_obj):
@@ -266,12 +266,12 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
       test_obj.assertEqual(
           bool(tf.io.gfile.listdir(saving_filepath)), is_chief())
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_tensorboard_saves_on_chief_but_not_otherwise,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self,))
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['eager']))
   def test_tensorboard_can_still_save_to_temp_even_if_it_exists(self, mode):
 
     def proc_tensorboard_can_still_save_to_temp_even_if_it_exists(test_obj):
@@ -296,12 +296,12 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
           steps_per_epoch=steps,
           callbacks=[callbacks.TensorBoard(log_dir=saving_filepath)])
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_tensorboard_can_still_save_to_temp_even_if_it_exists,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self,))
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['eager']))
   def test_tensorboard_works_with_same_file_path(self, mode):
 
     def proc_tensorboard_works_with_same_file_path(test_obj, saving_filepath):
@@ -311,7 +311,7 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
       # The saving_filepath shouldn't exist at the beginning (as it's unique).
       test_obj.assertFalse(tf.io.gfile.exists(saving_filepath))
 
-      tf.__internal__.distribute.multi_process_runner.get_barrier().wait()
+      tf.compat.v2.__internal__.distribute.multi_process_runner.get_barrier().wait()
 
       model.fit(
           x=train_ds,
@@ -319,18 +319,18 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
           steps_per_epoch=steps,
           callbacks=[callbacks.TensorBoard(log_dir=saving_filepath)])
 
-      tf.__internal__.distribute.multi_process_runner.get_barrier().wait()
+      tf.compat.v2.__internal__.distribute.multi_process_runner.get_barrier().wait()
 
       test_obj.assertTrue(tf.io.gfile.listdir(saving_filepath))
 
     saving_filepath = os.path.join(self.get_temp_dir(), 'logfile')
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_tensorboard_works_with_same_file_path,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self, saving_filepath))
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['eager']))
   def test_early_stopping(self, mode):
 
     def proc_early_stopping(test_obj):
@@ -354,11 +354,11 @@ class KerasCallbackMultiProcessTest(parameterized.TestCase, tf.test.TestCase):
       model.fit(x=train_ds, epochs=100, steps_per_epoch=steps, callbacks=cbks)
       test_obj.assertLess(epoch_counter_cbk.last_epoch, 50)
 
-    tf.__internal__.distribute.multi_process_runner.run(
+    tf.compat.v2.__internal__.distribute.multi_process_runner.run(
         proc_early_stopping,
-        cluster_spec=tf.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
+        cluster_spec=tf.compat.v2.__internal__.distribute.multi_process_runner.create_cluster_spec(num_workers=2),
         args=(self,))
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

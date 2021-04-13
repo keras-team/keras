@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests Keras integration with enable_mixed_precision_graph_rewrite()."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 from keras import combinations
@@ -43,13 +43,13 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     else:
       del os.environ[self.IGNORE_PERF_VAR]
 
-    tf.compat.v1.mixed_precision.disable_mixed_precision_graph_rewrite()
+    tf.compat.v1.train.experimental.disable_mixed_precision_graph_rewrite()
     super(MixedPrecisionTest, self).tearDown()
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_wrap_optimizer(self):
     opt = gradient_descent_v2.SGD(1.0)
-    opt = tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(opt, 123.)
+    opt = tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(opt, 123.)
     self.assertIsInstance(
         opt, loss_scale_optimizer_v2.LossScaleOptimizerV1)
     self.assertEqual(self.evaluate(opt.loss_scale), 123.)
@@ -61,7 +61,7 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(
         ValueError, '"opt" must not already be an instance of a '
         'LossScaleOptimizer.'):
-      tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(opt)
+      tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(opt)
     self.assertFalse(tf.config.optimizer.get_experimental_options()
                      .get('auto_mixed_precision', False))
 
@@ -70,14 +70,14 @@ class MixedPrecisionTest(keras_parameterized.TestCase):
     with policy.policy_scope('mixed_float16'):
       with self.assertRaisesRegex(ValueError,
                                   'the global Keras dtype Policy has been set'):
-        tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+        tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(
             gradient_descent_v2.SGD(1.0))
     # Test no error is thrown when the policy is currently the default.
-    tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+    tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(
         gradient_descent_v2.SGD(1.0))
     # Test no error is thrown when the policy is a non-mixed policy.
     with policy.policy_scope('float64'):
-      tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+      tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(
           gradient_descent_v2.SGD(1.0))
 
 

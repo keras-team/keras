@@ -15,7 +15,7 @@
 
 import functools
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 import os
 import weakref
 from tensorflow.python.eager import context
@@ -75,7 +75,7 @@ class InterfaceTests(tf.test.TestCase):
       model = training.Model(inp, dense)
       model.compile(optimizer="sgd", loss="mse")
       model.fit([1.], [2.])
-      checkpoint = tf.train.Checkpoint(model=model)
+      checkpoint = tf.compat.v2.train.Checkpoint(model=model)
       checkpoint.save(os.path.join(self.get_temp_dir(), "ckpt"))
 
 
@@ -83,14 +83,14 @@ class CheckpointingTests(keras_parameterized.TestCase):
 
   @test_util.run_in_graph_and_eager_modes(assert_no_eager_garbage=True)
   def testNamingWithOptimizer(self):
-    input_value = tf.constant([[3.]])
+    input_value = tf.compat.v2.constant([[3.]])
     model = MyModel()
     # A nuisance Model using the same optimizer. Its slot variables should not
     # go in the checkpoint, since it is never depended on.
     other_model = MyModel()
     optimizer = adam.Adam(0.001)
     step = tf.compat.v1.train.get_or_create_global_step()
-    root_trackable = tf.train.Checkpoint(
+    root_trackable = tf.compat.v2.train.Checkpoint(
         optimizer=optimizer, model=model, step=step)
 
     with tf.GradientTape() as tape:
@@ -110,7 +110,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
     self.evaluate(trackable_utils.gather_initializers(
         root_trackable))
     self.evaluate(train_op)
-    named_variables, serialized_graph, _ = tf.__internal__.tracking.ObjectGraphView(
+    named_variables, serialized_graph, _ = tf.compat.v2.__internal__.tracking.ObjectGraphView(
         root_trackable).serialize_object_graph()
     expected_slot_keys = (
         "model/_second/kernel/.OPTIMIZER_SLOT/optimizer/m",
@@ -178,9 +178,9 @@ class CheckpointingTests(keras_parameterized.TestCase):
     with self.test_session():
       model = MyModel()
       optimizer = adam.Adam(0.001)
-      root_trackable = tf.train.Checkpoint(
+      root_trackable = tf.compat.v2.train.Checkpoint(
           optimizer=optimizer, model=model)
-      input_value = tf.constant([[3.]])
+      input_value = tf.compat.v2.constant([[3.]])
       with tf.GradientTape() as tape:
         loss = model(input_value)
       variables = model.trainable_variables
@@ -206,11 +206,11 @@ class CheckpointingTests(keras_parameterized.TestCase):
       self.assertAllEqual([42.], self.evaluate(model._named_dense.variables[1]))
       self.assertAllEqual(1, self.evaluate(root_trackable.save_counter))
       self.assertAllEqual([1.5], self.evaluate(m_bias_slot))
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         return  # Restore-on-create is only supported when executing eagerly
       on_create_model = MyModel()
       on_create_optimizer = adam.Adam(0.001)
-      on_create_root = tf.train.Checkpoint(
+      on_create_root = tf.compat.v2.train.Checkpoint(
           optimizer=on_create_optimizer, model=on_create_model)
       # Deferred restoration
       status = on_create_root.restore(save_path=save_path)
@@ -218,7 +218,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       status.assert_existing_objects_matched()
       with self.assertRaises(AssertionError):
         status.assert_consumed()
-      on_create_model(tf.constant([[3.]]))  # create variables
+      on_create_model(tf.compat.v2.constant([[3.]]))  # create variables
       self.assertAllEqual(1, self.evaluate(on_create_root.save_counter))
       self.assertAllEqual([42.],
                           self.evaluate(
@@ -226,13 +226,13 @@ class CheckpointingTests(keras_parameterized.TestCase):
       on_create_m_bias_slot = on_create_optimizer.get_slot(
           on_create_model._named_dense.variables[1], "m")
       status.assert_existing_objects_matched()
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.assertRaises(AssertionError):
           status.assert_consumed()
       # Optimizer slot variables are created when the original variable is
       # restored.
       self.assertAllEqual([1.5], self.evaluate(on_create_m_bias_slot))
-      dummy_var = tf.Variable([1.])
+      dummy_var = tf.compat.v2.Variable([1.])
       on_create_optimizer.minimize(loss=dummy_var.read_value,
                                    var_list=[dummy_var])
       status.assert_existing_objects_matched()
@@ -251,13 +251,13 @@ class CheckpointingTests(keras_parameterized.TestCase):
     for training_continuation in range(3):
       model = MyModel()
       optimizer = adam.Adam(0.001)
-      root = tf.train.Checkpoint(
+      root = tf.compat.v2.train.Checkpoint(
           optimizer=optimizer, model=model)
       root.restore(tf.train.latest_checkpoint(
           checkpoint_directory))
       for _ in range(num_training_steps):
         # TODO(allenl): Use a Dataset and serialize/checkpoint it.
-        input_value = tf.constant([[3.]])
+        input_value = tf.compat.v2.constant([[3.]])
         with tf.GradientTape() as tape:
           loss = model(input_value)
         variables = model.trainable_variables
@@ -279,7 +279,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
           optimizer = adam.Adam(0.001)
           root = tf.compat.v1.train.Checkpoint(
               optimizer=optimizer, model=model)
-          input_value = tf.constant([[3.]])
+          input_value = tf.compat.v2.constant([[3.]])
           with tf.GradientTape() as tape:
             loss = model(input_value)
           variables = model.trainable_variables
@@ -325,14 +325,14 @@ class CheckpointingTests(keras_parameterized.TestCase):
       for training_continuation in range(3):
         with testing_utils.device(should_use_gpu=True):
           model = MyModel()
-          root = tf.train.Checkpoint(
+          root = tf.compat.v2.train.Checkpoint(
               optimizer=optimizer, model=model)
           manager = tf.train.CheckpointManager(
               root, checkpoint_directory, max_to_keep=1)
           status = root.restore(save_path=manager.latest_checkpoint)
-          input_value = tf.constant([[3.]])
+          input_value = tf.compat.v2.constant([[3.]])
           train_fn = functools.partial(_train_fn, model, input_value)
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             train_fn = functools.partial(self.evaluate, train_fn())
           status.initialize_or_restore()
           for _ in range(num_training_steps):
@@ -346,14 +346,14 @@ class CheckpointingTests(keras_parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=["eager"]))
   def testPartialRestoreWarningObject(self):
     optimizer = adam.Adam(0.0)
-    original_root = tf.train.Checkpoint(v1=tf.Variable(2.),
-                                               v2=tf.Variable(3.),
+    original_root = tf.compat.v2.train.Checkpoint(v1=tf.compat.v2.Variable(2.),
+                                               v2=tf.compat.v2.Variable(3.),
                                                optimizer=optimizer)
     # Create a slot variable to save
     optimizer.minimize(original_root.v1.read_value, [original_root.v1])
     prefix = os.path.join(self.get_temp_dir(), "ckpt")
     save_path = original_root.save(prefix)
-    partial_root = tf.train.Checkpoint(v1=tf.Variable(0.))
+    partial_root = tf.compat.v2.train.Checkpoint(v1=tf.compat.v2.Variable(0.))
     weak_partial_root = weakref.ref(partial_root)
     weak_v1 = weakref.ref(partial_root.v1)
     partial_root.restore(save_path)
@@ -380,7 +380,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
           model = MyModel()
           # Don't actually train so we can test variable values
           optimizer = adam.Adam(0.)
-          root = tf.train.Checkpoint(
+          root = tf.compat.v2.train.Checkpoint(
               optimizer=optimizer, model=model)
           checkpoint_path = tf.train.latest_checkpoint(
               checkpoint_directory)
@@ -390,10 +390,10 @@ class CheckpointingTests(keras_parameterized.TestCase):
             def _call_model(x):
               return model(x)
             with tf.GradientTape() as tape:
-              loss = _call_model(tf.constant([[3.]]))
+              loss = _call_model(tf.compat.v2.constant([[3.]]))
             gradients = tape.gradient(loss, model.variables)
             return optimizer.apply_gradients(zip(gradients, model.variables))
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             train_fn = functools.partial(
                 self.evaluate, train_fn())
           status.initialize_or_restore()
@@ -418,8 +418,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
 
       def __init__(self):
         super(Model, self).__init__()
-        self.w = tf.Variable(0.0)
-        self.b = tf.Variable(0.0)
+        self.w = tf.compat.v2.Variable(0.0)
+        self.b = tf.compat.v2.Variable(0.0)
         self.vars = [self.w, self.b]
 
       def call(self, x):
@@ -429,13 +429,13 @@ class CheckpointingTests(keras_parameterized.TestCase):
     optimizer = adam.Adam(learning_rate=0.05)
     checkpoint_directory = self.get_temp_dir()
     checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
-    checkpoint = tf.train.Checkpoint(
+    checkpoint = tf.compat.v2.train.Checkpoint(
         model=model, optimizer=optimizer)
     for _ in range(2):
       checkpoint.save(checkpoint_prefix)
       with tf.GradientTape() as tape:
-        loss = (tf.constant(1.)
-                - model(tf.constant(1.))) ** 2
+        loss = (tf.compat.v2.constant(1.)
+                - model(tf.compat.v2.constant(1.))) ** 2
       grad = tape.gradient(loss, model.vars)
       optimizer.apply_gradients(
           [(g, v) for g, v in zip(grad, model.vars)])
@@ -445,7 +445,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
     with self.test_session():
       checkpoint_directory = self.get_temp_dir()
 
-      root = tf.train.Checkpoint()
+      root = tf.compat.v2.train.Checkpoint()
       root.var = trackable_utils.add_variable(
           root, name="var", initializer=0.)
       optimizer = adam.Adam(0.1)
@@ -456,7 +456,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       # `root`. Create a one-off grouping so that slot variables for `root.var`
       # get initialized too.
       self.evaluate(trackable_utils.gather_initializers(
-          tf.train.Checkpoint(root=root, optimizer=optimizer)))
+          tf.compat.v2.train.Checkpoint(root=root, optimizer=optimizer)))
       self.evaluate(train_op)
       self.evaluate(tf.compat.v1.assign(root.var, 12.))
       no_slots_path = root.save(os.path.join(checkpoint_directory, "no_slots"))
@@ -466,7 +466,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
           optimizer.get_slot(slot_name="m", var=root.var),
           14.))
       slots_path = root.save(os.path.join(checkpoint_directory, "with_slots"))
-      new_root = tf.train.Checkpoint()
+      new_root = tf.compat.v2.train.Checkpoint()
       # Load the slot-containing checkpoint (deferred), then immediately
       # overwrite the non-slot variable (also deferred).
       slot_status = new_root.restore(slots_path)
@@ -480,11 +480,11 @@ class CheckpointingTests(keras_parameterized.TestCase):
       self.assertEqual(12., self.evaluate(new_root.var))
       new_root.optimizer = adam.Adam(0.1)
       slot_status.assert_existing_objects_matched()
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.assertRaisesRegex(AssertionError, "Unresolved object"):
           slot_status.assert_consumed()
       self.assertEqual(12., self.evaluate(new_root.var))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         # Slot variables are only created with restoring initializers when
         # executing eagerly.
         self.assertEqual(14., self.evaluate(
@@ -499,7 +499,7 @@ class CheckpointingTests(keras_parameterized.TestCase):
       # The slot variable now exists; restore() didn't create it, but we should
       # now have a restore op for it.
       slot_status.run_restore_ops()
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         # The train op hasn't run when graph building, so the slot variable has
         # its restored value. It has run in eager, so the value will
         # be different.
@@ -515,8 +515,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
       with graph.as_default(), self.session(graph):
         checkpoint_directory = self.get_temp_dir()
         checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
-        obj = tf.train.Checkpoint()
-        obj.var = tf.Variable(0., name="v")
+        obj = tf.compat.v2.train.Checkpoint()
+        obj.var = tf.compat.v2.Variable(0., name="v")
         obj.opt = adam.Adam(0.1)
         variables = [obj.var]
         gradients = [1.]
@@ -533,8 +533,8 @@ class CheckpointingTests(keras_parameterized.TestCase):
       with graph.as_default(), self.session(graph):
         checkpoint_directory = self.get_temp_dir()
         checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
-        obj = tf.train.Checkpoint()
-        obj.var = tf.Variable(0., name="v")
+        obj = tf.compat.v2.train.Checkpoint()
+        obj.var = tf.compat.v2.Variable(0., name="v")
         obj.opt = adam.Adam(0.1)
         variables = [obj.var]
         gradients = [1.]
@@ -549,31 +549,31 @@ class CheckpointingTests(keras_parameterized.TestCase):
   def test_sequential(self):
     with self.test_session():
       model = sequential.Sequential()
-      checkpoint = tf.train.Checkpoint(model=model)
+      checkpoint = tf.compat.v2.train.Checkpoint(model=model)
       model.add(core.Dense(4))
       second_dense = core.Dense(5)
       model.add(second_dense)
-      model(tf.constant([[1.]]))
+      model(tf.compat.v2.constant([[1.]]))
       checkpoint.restore(None).initialize_or_restore()
       self.evaluate(second_dense.bias.assign(
-          tf.constant([1., 2., 3., 4., 5.])))
+          tf.compat.v2.constant([1., 2., 3., 4., 5.])))
       checkpoint_directory = self.get_temp_dir()
       checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
       save_path = checkpoint.save(checkpoint_prefix)
       self.evaluate(second_dense.bias.assign(
-          tf.constant([5., 6., 7., 8., 9.])))
+          tf.compat.v2.constant([5., 6., 7., 8., 9.])))
       checkpoint.restore(save_path).assert_consumed().run_restore_ops()
       self.assertAllEqual([1., 2., 3., 4., 5.],
                           self.evaluate(second_dense.bias))
 
       deferred_sequential = sequential.Sequential()
-      deferred_sequential_checkpoint = tf.train.Checkpoint(
+      deferred_sequential_checkpoint = tf.compat.v2.train.Checkpoint(
           model=deferred_sequential)
       status = deferred_sequential_checkpoint.restore(save_path)
       deferred_sequential.add(core.Dense(4))
       deferred_second_dense = core.Dense(5)
       deferred_sequential.add(deferred_second_dense)
-      deferred_sequential(tf.constant([[1.]]))
+      deferred_sequential(tf.compat.v2.constant([[1.]]))
       status.run_restore_ops()
       self.assertAllEqual([1., 2., 3., 4., 5.],
                           self.evaluate(deferred_second_dense.bias))
@@ -587,29 +587,29 @@ class CheckpointingTests(keras_parameterized.TestCase):
       with testing_utils.device(should_use_gpu=True):
         model = MyModel()
         optimizer = adam.Adam(0.001)
-        root = tf.train.Checkpoint(
+        root = tf.compat.v2.train.Checkpoint(
             model=model)  # Do not save the optimizer with the checkpoint.
-        optimizer_checkpoint = tf.train.Checkpoint(
+        optimizer_checkpoint = tf.compat.v2.train.Checkpoint(
             optimizer=optimizer)
 
         checkpoint_path = tf.train.latest_checkpoint(
             checkpoint_directory)
         status = root.restore(save_path=checkpoint_path)
-        input_value = tf.constant([[3.]])
+        input_value = tf.compat.v2.constant([[3.]])
         def train_fn():
           with tf.GradientTape() as tape:
             loss = model(input_value)
           variables = model.trainable_variables
           gradients = tape.gradient(loss, variables)
           return optimizer.apply_gradients(zip(gradients, variables))
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           train_fn = functools.partial(self.evaluate, train_fn())
         status.initialize_or_restore()
         # TODO(tanzheny): Add hyper variables to .variables(), and set them with
         # set_weights etc.
         variables_not_in_the_variables_property = [
             obj for obj in optimizer._hyper.values()
-            if isinstance(obj, tf.Variable)]
+            if isinstance(obj, tf.compat.v2.Variable)]
         self.evaluate([v.initializer for v
                        in optimizer.variables()
                        + variables_not_in_the_variables_property])
@@ -623,17 +623,17 @@ class CheckpointingTests(keras_parameterized.TestCase):
       with testing_utils.device(should_use_gpu=True):
         model = MyModel()
         optimizer = adam.Adam(0.001)
-        root = tf.train.Checkpoint(
+        root = tf.compat.v2.train.Checkpoint(
             optimizer=optimizer, model=model)
         status = root.restore(save_path=model_save_path)
-        input_value = tf.constant([[3.]])
+        input_value = tf.compat.v2.constant([[3.]])
         def train_fn1():
           with tf.GradientTape() as tape:
             loss = model(input_value)
           variables = model.trainable_variables
           gradients = tape.gradient(loss, variables)
           return optimizer.apply_gradients(zip(gradients, variables))
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           train_fn1 = functools.partial(self.evaluate, train_fn1())
         status.initialize_or_restore()
         train_fn1()
@@ -647,21 +647,21 @@ class CheckpointingTests(keras_parameterized.TestCase):
       with testing_utils.device(should_use_gpu=True):
         model = MyModel()
         optimizer = adam.Adam(0.001, beta_1=1.0)
-        root = tf.train.Checkpoint(
+        root = tf.compat.v2.train.Checkpoint(
             optimizer=optimizer, model=model)
-        opt_root = tf.train.Checkpoint(
+        opt_root = tf.compat.v2.train.Checkpoint(
             optimizer=optimizer)
         status = root.restore(save_path=model_save_path)
         init_only_optimizer_status = opt_root.restore(save_path=None)
         optimizer_status = opt_root.restore(save_path=optimizer_save_path)
-        input_value = tf.constant([[3.]])
+        input_value = tf.compat.v2.constant([[3.]])
         def train_fn2():
           with tf.GradientTape() as tape:
             loss = model(input_value)
           variables = model.trainable_variables
           gradients = tape.gradient(loss, variables)
           return optimizer.apply_gradients(zip(gradients, variables))
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           train_fn2 = functools.partial(self.evaluate, train_fn2())
         optimizer_status.run_restore_ops()
         status.initialize_or_restore()
@@ -707,7 +707,7 @@ class TemplateTests(keras_parameterized.TestCase):
       self.assertEqual("in_manual_scope", manual_dep.name)
       self.assertIs(manual_scope_v, manual_dep.ref)
       optimizer = adam.Adam(0.0)
-      save_root = tf.train.Checkpoint(
+      save_root = tf.compat.v2.train.Checkpoint(
           my_template=save_template, optimizer=optimizer)
       optimizer.minimize(v1_save.read_value,
                          var_list=[v1_save])
@@ -723,7 +723,7 @@ class TemplateTests(keras_parameterized.TestCase):
 
       load_template = tf.compat.v1.make_template("s2", _templated)
       load_optimizer = adam.Adam(0.0)
-      load_root = tf.train.Checkpoint(
+      load_root = tf.compat.v2.train.Checkpoint(
           my_template=load_template, optimizer=load_optimizer)
       status = load_root.restore(save_path)
       var, var_plus_one, var2, _, _ = load_template()
@@ -742,10 +742,10 @@ class TemplateTests(keras_parameterized.TestCase):
 class CheckpointCompatibilityTests(keras_parameterized.TestCase):
 
   def _initialized_model(self):
-    input_value = tf.constant([[3.]])
+    input_value = tf.compat.v2.constant([[3.]])
     model = MyModel()
     optimizer = adam.Adam(0.001)
-    root_trackable = tf.train.Checkpoint(
+    root_trackable = tf.compat.v2.train.Checkpoint(
         optimizer=optimizer, model=model)
     with tf.GradientTape() as tape:
       loss = model(input_value)
@@ -804,13 +804,13 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
         self._set_sentinels(root)
         with self.assertRaises(AssertionError):
           self._check_sentinels(root)
-        object_saver = tf.__internal__.tracking.TrackableSaver(
-            tf.__internal__.tracking.ObjectGraphView(root))
+        object_saver = tf.compat.v2.__internal__.tracking.TrackableSaver(
+            tf.compat.v2.__internal__.tracking.ObjectGraphView(root))
         self._set_sentinels(root)
         status = object_saver.restore(save_path)
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           self._check_sentinels(root)
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           status.assert_consumed()
           status.assert_existing_objects_matched()
           status.assert_nontrivial_match()
@@ -832,7 +832,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
         self._check_sentinels(root)
         # Check that there is no error when keys are missing from the name-based
         # checkpoint.
-        root.not_in_name_checkpoint = tf.Variable([1.])
+        root.not_in_name_checkpoint = tf.compat.v2.Variable([1.])
         status = object_saver.restore(save_path)
         with self.assertRaises(AssertionError):
           status.assert_existing_objects_matched()
@@ -846,7 +846,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
           graph=save_graph):
         root = self._initialized_model()
         save_path = root.save(file_prefix=checkpoint_prefix)
-    with tf.__internal__.eager_context.eager_mode():
+    with tf.compat.v2.__internal__.eager_context.eager_mode():
       root = self._initialized_model()
       self._set_sentinels(root)
       root.restore(save_path).assert_consumed()
@@ -855,7 +855,7 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
   def testSaveEagerLoadGraph(self):
     checkpoint_directory = self.get_temp_dir()
     checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
-    with tf.__internal__.eager_context.eager_mode():
+    with tf.compat.v2.__internal__.eager_context.eager_mode():
       root = self._initialized_model()
       save_path = root.save(file_prefix=checkpoint_prefix)
     with context.graph_mode():
@@ -880,12 +880,12 @@ class CheckpointCompatibilityTests(keras_parameterized.TestCase):
       save_path = name_saver.save(
           sess=session, save_path=checkpoint_prefix, global_step=1)
       # Checkpoint.restore must successfully load that checkpoint.
-      ckpt = tf.train.Checkpoint(model=model)
+      ckpt = tf.compat.v2.train.Checkpoint(model=model)
       status = ckpt.restore(save_path)
       status.assert_existing_objects_matched()
       # It should, however, refuse to load a checkpoint where an unrelated
       # `save_counter` variable is missing.
-      model.layers[1].var = tf.Variable(0., name="save_counter")
+      model.layers[1].var = tf.compat.v2.Variable(0., name="save_counter")
       status = ckpt.restore(save_path)
       with self.assertRaises(AssertionError):
         status.assert_existing_objects_matched()

@@ -14,7 +14,7 @@
 # ==============================================================================
 """SignatureDef utility functions implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras.saving.utils_v1 import unexported_constants
 
@@ -60,17 +60,17 @@ def _supervised_signature_def(
   if inputs is None or not inputs:
     raise ValueError('{} inputs cannot be None or empty.'.format(method_name))
 
-  signature_inputs = {key: tf.compat.v1.saved_model.build_tensor_info(tensor)
+  signature_inputs = {key: tf.compat.v1.saved_model.utils.build_tensor_info(tensor)
                       for key, tensor in inputs.items()}
 
   signature_outputs = {}
   for output_set in (loss, predictions, metrics):
     if output_set is not None:
-      sig_out = {key: tf.compat.v1.saved_model.build_tensor_info(tensor)
+      sig_out = {key: tf.compat.v1.saved_model.utils.build_tensor_info(tensor)
                  for key, tensor in output_set.items()}
       signature_outputs.update(sig_out)
 
-  signature_def = tf.compat.v1.saved_model.build_signature_def(
+  signature_def = tf.compat.v1.saved_model.signature_def_utils.build_signature_def(
       signature_inputs, signature_outputs, method_name)
 
   return signature_def

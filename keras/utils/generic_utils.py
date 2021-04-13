@@ -14,7 +14,7 @@
 # ==============================================================================
 """Python utilities required by Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import binascii
 import codecs
@@ -479,7 +479,7 @@ def serialize_keras_object(instance):
   Returns:
     A dict-like, JSON-compatible representation of the object's config.
   """
-  _, instance = tf.__internal__.decorator.unwrap(instance)
+  _, instance = tf.compat.v2.__internal__.decorator.unwrap(instance)
   if instance is None:
     return None
 

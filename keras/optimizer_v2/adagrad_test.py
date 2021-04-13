@@ -14,7 +14,7 @@
 # ==============================================================================
 """Functional tests for aggregate operations."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 
@@ -25,8 +25,8 @@ from keras.optimizer_v2 import adagrad
 from keras.optimizer_v2 import learning_rate_schedule
 
 _DATA_TYPES = [
-    tf.half, tf.float32, tf.float64, tf.complex64,
-    tf.complex128
+    tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64, tf.dtypes.complex64,
+    tf.dtypes.complex128
 ]
 
 
@@ -65,10 +65,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
       grads0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
       grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
-      var0 = tf.Variable(var0_np)
-      var1 = tf.Variable(var1_np)
-      grads0 = tf.constant(grads0_np)
-      grads1 = tf.constant(grads1_np)
+      var0 = tf.compat.v2.Variable(var0_np)
+      var1 = tf.compat.v2.Variable(var1_np)
+      grads0 = tf.compat.v2.constant(grads0_np)
+      grads1 = tf.compat.v2.constant(grads1_np)
 
       learning_rate = lambda: 3.0
       if not use_callable_params:
@@ -79,10 +79,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       accum0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
       accum1_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         ada_update = ada_opt.apply_gradients(
             zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
       # Fetch params to validate initial values
       v0_val, v1_val = self.evaluate([var0, var1])
@@ -91,7 +91,7 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
       # Run 3 steps of adagrad
       for _ in range(3):
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           self.evaluate(ada_update)
         else:
           ada_opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -116,10 +116,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
       grads0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
       grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
-      var0 = tf.Variable(var0_np)
-      var1 = tf.Variable(var1_np)
-      grads0 = tf.constant(grads0_np)
-      grads1 = tf.constant(grads1_np)
+      var0 = tf.compat.v2.Variable(var0_np)
+      var1 = tf.compat.v2.Variable(var1_np)
+      grads0 = tf.compat.v2.constant(grads0_np)
+      grads1 = tf.compat.v2.constant(grads1_np)
 
       learning_rate = 3.0
       decay = 0.5
@@ -129,10 +129,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       accum0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
       accum1_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         ada_update = ada_opt.apply_gradients(
             zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
       # Fetch params to validate initial values
       v0_val, v1_val = self.evaluate([var0, var1])
@@ -141,7 +141,7 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
       # Run 3 steps of adagrad
       for t in range(3):
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           self.evaluate(ada_update)
         else:
           ada_opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -158,10 +158,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     var1_np = np.array([3.0, 4.0])
     grads0_np = np.array([0.1, 0.1])
     grads1_np = np.array([0.01, 0.01])
-    var0 = tf.Variable(var0_np)
-    var1 = tf.Variable(var1_np)
-    grads0 = tf.constant(grads0_np)
-    grads1 = tf.constant(grads1_np)
+    var0 = tf.compat.v2.Variable(var0_np)
+    var1 = tf.compat.v2.Variable(var1_np)
+    grads0 = tf.compat.v2.constant(grads0_np)
+    grads1 = tf.compat.v2.constant(grads1_np)
 
     learning_rate = 3.0
 
@@ -170,9 +170,9 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     accum0_np = np.array([0.1, 0.1])
     accum1_np = np.array([0.1, 0.1])
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       ada_update = ada_opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
     # Fetch params to validate initial values
     v0_val, v1_val = self.evaluate([var0, var1])
@@ -181,7 +181,7 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
     # Run 3 steps of adagrad
     for _ in range(3):
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(ada_update)
       else:
         ada_opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -198,10 +198,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
       grads0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
       grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
-      var0 = tf.Variable(var0_np)
-      var1 = tf.Variable(var1_np)
-      grads0 = tf.constant(grads0_np)
-      grads1 = tf.constant(grads1_np)
+      var0 = tf.compat.v2.Variable(var0_np)
+      var1 = tf.compat.v2.Variable(var1_np)
+      grads0 = tf.compat.v2.constant(grads0_np)
+      grads1 = tf.compat.v2.constant(grads1_np)
 
       learning_rate = 3.0
       decay = 0.5
@@ -213,10 +213,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       accum0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
       accum1_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         ada_update = ada_opt.apply_gradients(
             zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
       # Fetch params to validate initial values
       v0_val, v1_val = self.evaluate([var0, var1])
@@ -225,7 +225,7 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
       # Run 3 steps of adagrad
       for t in range(3):
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           self.evaluate(ada_update)
         else:
           ada_opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
@@ -241,15 +241,15 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
       for dtype in _DATA_TYPES:
-        var0 = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=dtype)
-        x = tf.constant([[4.0], [5.0]], dtype=dtype)
+        var0 = tf.compat.v2.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=dtype)
+        x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
         def loss():
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
           return pred * pred
 
         sgd_op = adagrad.Adagrad(1.0).minimize(loss, var_list=[var0])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllCloseAccordingToType([[1.0, 2.0], [3.0, 4.0]],
                                            self.evaluate(var0))
@@ -268,16 +268,16 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads0_np = np.array([0.1, 0.1], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
-        learning_rate = tf.constant(3.0)
+        learning_rate = tf.compat.v2.constant(3.0)
         ada_opt = adagrad.Adagrad(learning_rate)
         ada_update = ada_opt.apply_gradients(zip([grads0, grads1],
                                                  [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 2.0], self.evaluate(var0))
         self.assertAllClose([3.0, 4.0], self.evaluate(var1))
@@ -302,21 +302,21 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
         grads0_np_indices = np.array([0, 2], dtype=np.int32)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np[grads0_np_indices]),
-            tf.constant(grads0_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads0_np[grads0_np_indices]),
+            tf.compat.v2.constant(grads0_np_indices), tf.compat.v2.constant([3]))
         grads1_np_indices = np.array([0, 2], dtype=np.int32)
         grads1 = tf.IndexedSlices(
-            tf.constant(grads1_np[grads1_np_indices]),
-            tf.constant(grads1_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads1_np[grads1_np_indices]),
+            tf.compat.v2.constant(grads1_np_indices), tf.compat.v2.constant([3]))
         learning_rate = 3.0
         ada_opt = adagrad.Adagrad(learning_rate)
         ada_update = ada_opt.apply_gradients(zip([grads0, grads1],
                                                  [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 1.0, 2.0], self.evaluate(var0))
@@ -345,15 +345,15 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var0_np = np.array([1.0], dtype=dtype.as_numpy_dtype)
         grads0_np = np.array([0.1], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
+        var0 = tf.compat.v2.Variable(var0_np)
         grads0_np_indices = np.array([0], dtype=np.int32)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np[grads0_np_indices]),
-            tf.constant(grads0_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads0_np[grads0_np_indices]),
+            tf.compat.v2.constant(grads0_np_indices), tf.compat.v2.constant([3]))
         learning_rate = 3.0
         ada_opt = adagrad.Adagrad(learning_rate, epsilon=1.)
         ada_update = ada_opt.apply_gradients(zip([grads0], [var0]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         # Fetch params to validate initial values
         self.assertAllClose([1.0], self.evaluate(var0))
@@ -379,23 +379,23 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       for dtype in _DATA_TYPES:
         var_np = np.array([[1.0], [2.0]], dtype=dtype.as_numpy_dtype)
 
-        repeated_index_update_var = tf.Variable(
+        repeated_index_update_var = tf.compat.v2.Variable(
             var_np, dtype=dtype)
-        aggregated_update_var = tf.Variable(
+        aggregated_update_var = tf.compat.v2.Variable(
             var_np, dtype=dtype)
         grad_repeated_index = tf.IndexedSlices(
-            tf.constant([0.1, 0.1], shape=[2, 1], dtype=dtype),
-            tf.constant([1, 1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.1, 0.1], shape=[2, 1], dtype=dtype),
+            tf.compat.v2.constant([1, 1]), tf.compat.v2.constant([2, 1]))
         grad_aggregated = tf.IndexedSlices(
-            tf.constant([0.2], shape=[1, 1], dtype=dtype),
-            tf.constant([1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.2], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([1]), tf.compat.v2.constant([2, 1]))
         repeated_update = adagrad.Adagrad(3.0).apply_gradients([
             (grad_repeated_index, repeated_index_update_var)
         ])
         aggregated_update = adagrad.Adagrad(3.0).apply_gradients([
             (grad_aggregated, aggregated_update_var)
         ])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.assertAllClose(
             self.evaluate(aggregated_update_var),
             self.evaluate(repeated_index_update_var))
@@ -410,17 +410,17 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
       for dtype in _DATA_TYPES:
-        var_repeated = tf.Variable([1.0, 2.0], dtype=dtype)
-        loss_repeated = lambda: tf.reduce_sum(  # pylint: disable=g-long-lambda
+        var_repeated = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        loss_repeated = lambda: tf.compat.v2.reduce_sum(  # pylint: disable=g-long-lambda
             tf.compat.v1.nn.embedding_lookup(var_repeated, [0, 0]))  # pylint: disable=cell-var-from-loop
-        var_aggregated = tf.Variable([1.0, 2.0], dtype=dtype)
-        loss_aggregated = lambda: 2 * tf.reduce_sum(  # pylint: disable=g-long-lambda
+        var_aggregated = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        loss_aggregated = lambda: 2 * tf.compat.v2.reduce_sum(  # pylint: disable=g-long-lambda
             tf.compat.v1.nn.embedding_lookup(var_aggregated, [0]))  # pylint: disable=cell-var-from-loop
         update_op_repeated = adagrad.Adagrad(2.0).minimize(
             loss_repeated, var_list=[var_repeated])
         update_op_aggregated = adagrad.Adagrad(2.0).minimize(
             loss_aggregated, var_list=[var_aggregated])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.assertAllCloseAccordingToType(
             self.evaluate(var_repeated), self.evaluate(var_aggregated))
         for _ in range(3):
@@ -432,24 +432,24 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testSparseStability(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
-      for dtype in [tf.half]:
+      for dtype in [tf.dtypes.half]:
         shape = [1, 6]
         var0_np = np.array([[0.00872496, -0.106952, 0.110467,
                              0.226505, -0.0147257, -0.0105945]],
                            dtype=dtype.as_numpy_dtype)
-        var0 = tf.Variable(var0_np)
+        var0 = tf.compat.v2.Variable(var0_np)
         grads0_np = np.array([[
             -5.91278e-05, 5.31673e-05, -2.5779e-06, 4.29153e-05, -8.4877e-05,
             -9.48906e-05
         ]],
                              dtype=dtype.as_numpy_dtype)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np), tf.constant([0]),
-            tf.constant(shape))
+            tf.compat.v2.constant(grads0_np), tf.compat.v2.constant([0]),
+            tf.compat.v2.constant(shape))
         ada_opt = adagrad.Adagrad(1.0)
         ada_update = ada_opt.apply_gradients(zip([grads0], [var0]))
         slot0 = ada_opt.get_slot(var0, "accumulator")
-        init = tf.compat.v1.global_variables_initializer()
+        init = tf.compat.v1.initializers.global_variables()
         for _ in range(100):
           self.evaluate(init)
           self.evaluate(ada_update)
@@ -470,10 +470,10 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
 
         learning_rate = 3.0
         ada_opt = adagrad.Adagrad(learning_rate)
@@ -487,7 +487,7 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertEqual(slot0.shape, var0.shape)
         slot1 = ada_opt.get_slot(var1, "accumulator")
         self.assertEqual(slot1.shape, var1.shape)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         # Fetch params to validate initial values.
         self.assertAllClose([1.0, 2.0], self.evaluate(var0))
@@ -511,11 +511,11 @@ class AdagradOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = adagrad.Adagrad(lr=1.0)
     opt_2 = adagrad.Adagrad(learning_rate=0.1, lr=1.0)
     opt_3 = adagrad.Adagrad(learning_rate=0.1)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_2.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_3.lr), (0.1))

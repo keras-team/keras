@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for tensorflow.python.client.graph_util."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from tensorflow.core.protobuf import meta_graph_pb2
@@ -38,7 +38,7 @@ class ConvertVariablesToConstantsTest(tf.test.TestCase):
   def _evaluate_graph_def(self, graph_def, inputs, outputs, input_data):
     """Evaluates the GraphDef using Sessions."""
     with tf.Graph().as_default() as graph:
-      tf.import_graph_def(graph_def, name="")
+      tf.graph_util.import_graph_def(graph_def, name="")
       sess = tf.compat.v1.Session(graph=graph)
 
     input_tensors = self._get_tensors(sess, inputs)

@@ -24,7 +24,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import warnings
@@ -123,7 +123,7 @@ def _concat(prefix, suffix, static=False):
     p = tf.TensorShape(prefix)
     p_static = p.as_list() if p.ndims is not None else None
     p = (
-        tf.constant(p.as_list(), dtype=tf.int32)
+        tf.compat.v2.constant(p.as_list(), dtype=tf.dtypes.int32)
         if p.is_fully_defined() else None)
   if isinstance(suffix, tf.Tensor):
     s = suffix
@@ -137,7 +137,7 @@ def _concat(prefix, suffix, static=False):
     s = tf.TensorShape(suffix)
     s_static = s.as_list() if s.ndims is not None else None
     s = (
-        tf.constant(s.as_list(), dtype=tf.int32)
+        tf.compat.v2.constant(s.as_list(), dtype=tf.dtypes.int32)
         if s.is_fully_defined() else None)
 
   if static:
@@ -158,7 +158,7 @@ def _zero_state_tensors(state_size, batch_size, dtype):
     """Combine s with batch_size to get a proper tensor shape."""
     c = _concat(batch_size, s)
     size = tf.zeros(c, dtype=dtype)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       c_static = _concat(batch_size, s, static=True)
       size.set_shape(c_static)
     return size
@@ -268,7 +268,7 @@ class RNNCell(base_layer.Layer):
   def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
     if inputs is not None:
       # Validate the given batch_size and dtype against inputs if provided.
-      inputs = tf.convert_to_tensor(inputs, name="inputs")
+      inputs = tf.compat.v2.convert_to_tensor(inputs, name="inputs")
       if batch_size is not None:
         if tf.is_tensor(batch_size):
           static_batch_size = tf.get_static_value(
@@ -313,7 +313,7 @@ class RNNCell(base_layer.Layer):
     # Try to use the last cached zero_state. This is done to avoid recreating
     # zeros, especially when eager execution is enabled.
     state_size = self.state_size
-    is_eager = tf.executing_eagerly()
+    is_eager = tf.compat.v2.executing_eagerly()
     if is_eager and _hasattr(self, "_last_zero_state"):
       (last_state_size, last_batch_size, last_dtype,
        last_output) = getattr(self, "_last_zero_state")
@@ -415,7 +415,7 @@ class BasicRNNCell(LayerRNNCell):
     super(BasicRNNCell, self).__init__(
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.experimental.list_logical_devices("GPU"):
       logging.warning(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnRNNTanh for better "
@@ -459,7 +459,7 @@ class BasicRNNCell(LayerRNNCell):
   def call(self, inputs, state):
     """Most basic RNN: output = new_state = act(W * input + U * state + B)."""
     _check_rnn_cell_input_dtypes([inputs, state])
-    gate_inputs = tf.matmul(
+    gate_inputs = tf.linalg.matmul(
         tf.concat([inputs, state], 1), self._kernel)
     gate_inputs = tf.nn.bias_add(gate_inputs, self._bias)
     output = self._activation(gate_inputs)
@@ -524,7 +524,7 @@ class GRUCell(LayerRNNCell):
         _reuse=reuse, name=name, dtype=dtype, **kwargs)
     _check_supported_dtypes(self.dtype)
 
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.experimental.list_logical_devices("GPU"):
       logging.warning(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnGRU for better "
@@ -564,7 +564,7 @@ class GRUCell(LayerRNNCell):
         shape=[2 * self._num_units],
         initializer=(self._bias_initializer
                      if self._bias_initializer is not None else
-                     tf.compat.v1.constant_initializer(1.0, dtype=self.dtype)))
+                     tf.compat.v1.initializers.constant(1.0, dtype=self.dtype)))
     self._candidate_kernel = self.add_variable(
         "candidate/%s" % _WEIGHTS_VARIABLE_NAME,
         shape=[input_depth + self._num_units, self._num_units],
@@ -582,7 +582,7 @@ class GRUCell(LayerRNNCell):
     """Gated recurrent unit (GRU) with nunits cells."""
     _check_rnn_cell_input_dtypes([inputs, state])
 
-    gate_inputs = tf.matmul(
+    gate_inputs = tf.linalg.matmul(
         tf.concat([inputs, state], 1), self._gate_kernel)
     gate_inputs = tf.nn.bias_add(gate_inputs, self._gate_bias)
 
@@ -591,7 +591,7 @@ class GRUCell(LayerRNNCell):
 
     r_state = r * state
 
-    candidate = tf.matmul(
+    candidate = tf.linalg.matmul(
         tf.concat([inputs, r_state], 1), self._candidate_kernel)
     candidate = tf.nn.bias_add(candidate, self._candidate_bias)
 
@@ -700,7 +700,7 @@ class BasicLSTMCell(LayerRNNCell):
       logging.warning(
           "%s: Using a concatenated state is slower and will soon be "
           "deprecated.  Use state_is_tuple=True.", self)
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.experimental.list_logical_devices("GPU"):
       logging.warning(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnLSTM for better "
@@ -761,14 +761,14 @@ class BasicLSTMCell(LayerRNNCell):
     _check_rnn_cell_input_dtypes([inputs, state])
 
     sigmoid = tf.sigmoid
-    one = tf.constant(1, dtype=tf.int32)
+    one = tf.compat.v2.constant(1, dtype=tf.dtypes.int32)
     # Parameters of gates are concatenated into one multiply for efficiency.
     if self._state_is_tuple:
       c, h = state
     else:
       c, h = tf.split(value=state, num_or_size_splits=2, axis=one)
 
-    gate_inputs = tf.matmul(
+    gate_inputs = tf.linalg.matmul(
         tf.concat([inputs, h], 1), self._kernel)
     gate_inputs = tf.nn.bias_add(gate_inputs, self._bias)
 
@@ -776,11 +776,11 @@ class BasicLSTMCell(LayerRNNCell):
     i, j, f, o = tf.split(
         value=gate_inputs, num_or_size_splits=4, axis=one)
 
-    forget_bias_tensor = tf.constant(self._forget_bias, dtype=f.dtype)
+    forget_bias_tensor = tf.compat.v2.constant(self._forget_bias, dtype=f.dtype)
     # Note that using `add` and `multiply` instead of `+` and `*` gives a
     # performance improvement. So using those at the cost of readability.
     add = tf.add
-    multiply = tf.multiply
+    multiply = tf.math.multiply
     new_c = add(
         multiply(c, sigmoid(add(f, forget_bias_tensor))),
         multiply(sigmoid(i), self._activation(j)))
@@ -906,7 +906,7 @@ class LSTMCell(LayerRNNCell):
           "%s: The num_unit_shards and proj_unit_shards parameters are "
           "deprecated and will be removed in Jan 2017.  "
           "Use a variable scope with a partitioner instead.", self)
-    if tf.executing_eagerly() and tf.config.list_logical_devices("GPU"):
+    if tf.compat.v2.executing_eagerly() and tf.config.experimental.list_logical_devices("GPU"):
       logging.warning(
           "%s: Note that this cell is not optimized for performance. "
           "Please use tf.contrib.cudnn_rnn.CudnnLSTM for better "
@@ -1033,7 +1033,7 @@ class LSTMCell(LayerRNNCell):
       raise ValueError("Could not infer input size from inputs.get_shape()[-1]")
 
     # i = input_gate, j = new_input, f = forget_gate, o = output_gate
-    lstm_matrix = tf.matmul(
+    lstm_matrix = tf.linalg.matmul(
         tf.concat([inputs, m_prev], 1), self._kernel)
     lstm_matrix = tf.nn.bias_add(lstm_matrix, self._bias)
 
@@ -1059,7 +1059,7 @@ class LSTMCell(LayerRNNCell):
       m = sigmoid(o) * self._activation(c)
 
     if self._num_proj is not None:
-      m = tf.matmul(m, self._proj_kernel)
+      m = tf.linalg.matmul(m, self._proj_kernel)
 
       if self._proj_clip is not None:
         # pylint: disable=invalid-unary-operand-type
@@ -1101,7 +1101,7 @@ class _RNNCellWrapperV1(RNNCell):
     super(_RNNCellWrapperV1, self).__init__(*args, **kwargs)
     assert_like_rnncell("cell", cell)
     self.cell = cell
-    if isinstance(cell, tf.__internal__.tracking.Trackable):
+    if isinstance(cell, tf.compat.v2.__internal__.tracking.Trackable):
       self._track_trackable(self.cell, name="cell")
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
@@ -1247,7 +1247,7 @@ class MultiRNNCell(RNNCell):
     for cell_number, cell in enumerate(self._cells):
       # Add Trackable dependencies on these cells so their variables get
       # saved with this object when using object-based saving.
-      if isinstance(cell, tf.__internal__.tracking.Trackable):
+      if isinstance(cell, tf.compat.v2.__internal__.tracking.Trackable):
         # TODO(allenl): Track down non-Trackable callers.
         self._track_trackable(cell, name="cell-%d" % (cell_number,))
     self._state_is_tuple = state_is_tuple

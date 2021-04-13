@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras metrics functions."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import json
 
@@ -47,9 +47,9 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
     fp_obj = metrics.FalsePositives()
     self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
 
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = fp_obj.update_state(y_true, y_pred)
@@ -60,11 +60,11 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
   def test_weighted(self):
     fp_obj = metrics.FalsePositives()
     self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = fp_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(14., self.evaluate(result))
 
@@ -72,9 +72,9 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
     fp_obj = metrics.FalsePositives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
 
     update_op = fp_obj.update_state(y_true, y_pred)
@@ -86,9 +86,9 @@ class FalsePositivesTest(tf.test.TestCase, parameterized.TestCase):
     fp_obj = metrics.FalsePositives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(fp_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
     sample_weight = ((1.0, 2.0, 3.0, 5.0), (7.0, 11.0, 13.0, 17.0),
                      (19.0, 23.0, 29.0, 31.0), (5.0, 15.0, 10.0, 0))
@@ -127,9 +127,9 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
     fn_obj = metrics.FalseNegatives()
     self.evaluate(tf.compat.v1.variables_initializer(fn_obj.variables))
 
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = fn_obj.update_state(y_true, y_pred)
@@ -140,11 +140,11 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
   def test_weighted(self):
     fn_obj = metrics.FalseNegatives()
     self.evaluate(tf.compat.v1.variables_initializer(fn_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = fn_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(5., self.evaluate(result))
 
@@ -152,9 +152,9 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
     fn_obj = metrics.FalseNegatives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(fn_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
 
     update_op = fn_obj.update_state(y_true, y_pred)
@@ -166,9 +166,9 @@ class FalseNegativesTest(tf.test.TestCase, parameterized.TestCase):
     fn_obj = metrics.FalseNegatives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(fn_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
     sample_weight = ((3.0,), (5.0,), (7.0,), (4.0,))
 
@@ -195,9 +195,9 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
     tn_obj = metrics.TrueNegatives()
     self.evaluate(tf.compat.v1.variables_initializer(tn_obj.variables))
 
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = tn_obj.update_state(y_true, y_pred)
@@ -208,11 +208,11 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
   def test_weighted(self):
     tn_obj = metrics.TrueNegatives()
     self.evaluate(tf.compat.v1.variables_initializer(tn_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = tn_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(4., self.evaluate(result))
 
@@ -220,9 +220,9 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
     tn_obj = metrics.TrueNegatives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(tn_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
 
     update_op = tn_obj.update_state(y_true, y_pred)
@@ -234,9 +234,9 @@ class TrueNegativesTest(tf.test.TestCase, parameterized.TestCase):
     tn_obj = metrics.TrueNegatives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(tn_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
     sample_weight = ((0.0, 2.0, 3.0, 5.0),)
 
@@ -263,9 +263,9 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
     tp_obj = metrics.TruePositives()
     self.evaluate(tf.compat.v1.variables_initializer(tp_obj.variables))
 
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
 
     update_op = tp_obj.update_state(y_true, y_pred)
@@ -276,11 +276,11 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
   def test_weighted(self):
     tp_obj = metrics.TruePositives()
     self.evaluate(tf.compat.v1.variables_initializer(tp_obj.variables))
-    y_true = tf.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
+    y_true = tf.compat.v2.constant(((0, 1, 0, 1, 0), (0, 0, 1, 1, 1),
                                    (1, 1, 1, 1, 0), (0, 0, 0, 0, 1)))
-    y_pred = tf.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
+    y_pred = tf.compat.v2.constant(((0, 0, 1, 1, 0), (1, 1, 1, 1, 1),
                                    (0, 1, 0, 1, 0), (1, 1, 1, 1, 1)))
-    sample_weight = tf.constant((1., 1.5, 2., 2.5))
+    sample_weight = tf.compat.v2.constant((1., 1.5, 2., 2.5))
     result = tp_obj(y_true, y_pred, sample_weight=sample_weight)
     self.assertAllClose(12., self.evaluate(result))
 
@@ -288,9 +288,9 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
     tp_obj = metrics.TruePositives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(tp_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
 
     update_op = tp_obj.update_state(y_true, y_pred)
@@ -302,9 +302,9 @@ class TruePositivesTest(tf.test.TestCase, parameterized.TestCase):
     tp_obj = metrics.TruePositives(thresholds=[0.15, 0.5, 0.85])
     self.evaluate(tf.compat.v1.variables_initializer(tp_obj.variables))
 
-    y_pred = tf.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
+    y_pred = tf.compat.v2.constant(((0.9, 0.2, 0.8, 0.1), (0.2, 0.9, 0.7, 0.6),
                                    (0.1, 0.2, 0.4, 0.3), (0, 1, 0.7, 0.3)))
-    y_true = tf.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
+    y_true = tf.compat.v2.constant(((0, 1, 1, 0), (1, 0, 0, 0), (0, 0, 0, 0),
                                    (1, 1, 1, 1)))
 
     result = tp_obj(y_true, y_pred, sample_weight=37.)
@@ -352,8 +352,8 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_unweighted(self):
     p_obj = metrics.Precision()
-    y_pred = tf.constant([1, 0, 1, 0], shape=(1, 4))
-    y_true = tf.constant([0, 1, 1, 0], shape=(1, 4))
+    y_pred = tf.compat.v2.constant([1, 0, 1, 0], shape=(1, 4))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0], shape=(1, 4))
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
@@ -361,21 +361,21 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
   def test_unweighted_all_incorrect(self):
     p_obj = metrics.Precision(thresholds=[0.5])
     inputs = np.random.randint(0, 2, size=(100, 1))
-    y_pred = tf.constant(inputs)
-    y_true = tf.constant(1 - inputs)
+    y_pred = tf.compat.v2.constant(inputs)
+    y_true = tf.compat.v2.constant(1 - inputs)
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(0, self.evaluate(result))
 
   def test_weighted(self):
     p_obj = metrics.Precision()
-    y_pred = tf.constant([[1, 0, 1, 0], [1, 0, 1, 0]])
-    y_true = tf.constant([[0, 1, 1, 0], [1, 0, 0, 1]])
+    y_pred = tf.compat.v2.constant([[1, 0, 1, 0], [1, 0, 1, 0]])
+    y_true = tf.compat.v2.constant([[0, 1, 1, 0], [1, 0, 0, 1]])
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(
         y_true,
         y_pred,
-        sample_weight=tf.constant([[1, 2, 3, 4], [4, 3, 2, 1]]))
+        sample_weight=tf.compat.v2.constant([[1, 2, 3, 4], [4, 3, 2, 1]]))
     weighted_tp = 3.0 + 4.0
     weighted_positives = (1.0 + 3.0) + (4.0 + 2.0)
     expected_precision = weighted_tp / weighted_positives
@@ -383,29 +383,29 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_div_by_zero(self):
     p_obj = metrics.Precision()
-    y_pred = tf.constant([0, 0, 0, 0])
-    y_true = tf.constant([0, 0, 0, 0])
+    y_pred = tf.compat.v2.constant([0, 0, 0, 0])
+    y_true = tf.compat.v2.constant([0, 0, 0, 0])
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(y_true, y_pred)
     self.assertEqual(0, self.evaluate(result))
 
   def test_unweighted_with_threshold(self):
     p_obj = metrics.Precision(thresholds=[0.5, 0.7])
-    y_pred = tf.constant([1, 0, 0.6, 0], shape=(1, 4))
-    y_true = tf.constant([0, 1, 1, 0], shape=(1, 4))
+    y_pred = tf.compat.v2.constant([1, 0, 0.6, 0], shape=(1, 4))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0], shape=(1, 4))
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(y_true, y_pred)
     self.assertArrayNear([0.5, 0.], self.evaluate(result), 0)
 
   def test_weighted_with_threshold(self):
     p_obj = metrics.Precision(thresholds=[0.5, 1.])
-    y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-    y_pred = tf.constant([[1, 0], [0.6, 0]],
+    y_true = tf.compat.v2.constant([[0, 1], [1, 0]], shape=(2, 2))
+    y_pred = tf.compat.v2.constant([[1, 0], [0.6, 0]],
                                   shape=(2, 2),
-                                  dtype=tf.float32)
-    weights = tf.constant([[4, 0], [3, 1]],
+                                  dtype=tf.dtypes.float32)
+    weights = tf.compat.v2.constant([[4, 0], [3, 1]],
                                    shape=(2, 2),
-                                   dtype=tf.float32)
+                                   dtype=tf.dtypes.float32)
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(y_true, y_pred, sample_weight=weights)
     weighted_tp = 0 + 3.
@@ -415,13 +415,13 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_multiple_updates(self):
     p_obj = metrics.Precision(thresholds=[0.5, 1.])
-    y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-    y_pred = tf.constant([[1, 0], [0.6, 0]],
+    y_true = tf.compat.v2.constant([[0, 1], [1, 0]], shape=(2, 2))
+    y_pred = tf.compat.v2.constant([[1, 0], [0.6, 0]],
                                   shape=(2, 2),
-                                  dtype=tf.float32)
-    weights = tf.constant([[4, 0], [3, 1]],
+                                  dtype=tf.dtypes.float32)
+    weights = tf.compat.v2.constant([[4, 0], [3, 1]],
                                    shape=(2, 2),
-                                   dtype=tf.float32)
+                                   dtype=tf.dtypes.float32)
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     update_op = p_obj.update_state(y_true, y_pred, sample_weight=weights)
     for _ in range(2):
@@ -435,26 +435,26 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_unweighted_top_k(self):
     p_obj = metrics.Precision(top_k=3)
-    y_pred = tf.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(1. / 3, self.evaluate(result))
 
   def test_weighted_top_k(self):
     p_obj = metrics.Precision(top_k=3)
-    y_pred1 = tf.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
-    y_true1 = tf.constant([0, 1, 1, 0, 1], shape=(1, 5))
+    y_pred1 = tf.compat.v2.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
+    y_true1 = tf.compat.v2.constant([0, 1, 1, 0, 1], shape=(1, 5))
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
     self.evaluate(
         p_obj(
             y_true1,
             y_pred1,
-            sample_weight=tf.constant([[1, 4, 2, 3, 5]])))
+            sample_weight=tf.compat.v2.constant([[1, 4, 2, 3, 5]])))
 
-    y_pred2 = tf.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
-    y_true2 = tf.constant([1, 0, 1, 1, 1], shape=(1, 5))
-    result = p_obj(y_true2, y_pred2, sample_weight=tf.constant(3))
+    y_pred2 = tf.compat.v2.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
+    y_true2 = tf.compat.v2.constant([1, 0, 1, 1, 1], shape=(1, 5))
+    result = p_obj(y_true2, y_pred2, sample_weight=tf.compat.v2.constant(3))
 
     tp = (2 + 5) + (3 + 3)
     predicted_positives = (1 + 2 + 5) + (3 + 3 + 3)
@@ -465,22 +465,22 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
     p_obj = metrics.Precision(class_id=2)
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
 
-    y_pred = tf.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(p_obj.true_positives))
     self.assertAlmostEqual(0, self.evaluate(p_obj.false_positives))
 
-    y_pred = tf.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(p_obj.true_positives))
     self.assertAlmostEqual(0, self.evaluate(p_obj.false_positives))
 
-    y_pred = tf.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 0, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 0, 0, 0], shape=(1, 5))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(p_obj.true_positives))
@@ -490,15 +490,15 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
     p_obj = metrics.Precision(class_id=2, top_k=2)
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
 
-    y_pred = tf.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(p_obj.true_positives))
     self.assertAlmostEqual(0, self.evaluate(p_obj.false_positives))
 
-    y_pred = tf.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(p_obj.true_positives))
@@ -508,8 +508,8 @@ class PrecisionTest(tf.test.TestCase, parameterized.TestCase):
     p_obj = metrics.Precision(thresholds=.7, top_k=2)
     self.evaluate(tf.compat.v1.variables_initializer(p_obj.variables))
 
-    y_pred = tf.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 1], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 1], shape=(1, 5))
     result = p_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(p_obj.true_positives))
@@ -556,8 +556,8 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_unweighted(self):
     r_obj = metrics.Recall()
-    y_pred = tf.constant([1, 0, 1, 0], shape=(1, 4))
-    y_true = tf.constant([0, 1, 1, 0], shape=(1, 4))
+    y_pred = tf.compat.v2.constant([1, 0, 1, 0], shape=(1, 4))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0], shape=(1, 4))
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
@@ -565,21 +565,21 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
   def test_unweighted_all_incorrect(self):
     r_obj = metrics.Recall(thresholds=[0.5])
     inputs = np.random.randint(0, 2, size=(100, 1))
-    y_pred = tf.constant(inputs)
-    y_true = tf.constant(1 - inputs)
+    y_pred = tf.compat.v2.constant(inputs)
+    y_true = tf.compat.v2.constant(1 - inputs)
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0, self.evaluate(result))
 
   def test_weighted(self):
     r_obj = metrics.Recall()
-    y_pred = tf.constant([[1, 0, 1, 0], [0, 1, 0, 1]])
-    y_true = tf.constant([[0, 1, 1, 0], [1, 0, 0, 1]])
+    y_pred = tf.compat.v2.constant([[1, 0, 1, 0], [0, 1, 0, 1]])
+    y_true = tf.compat.v2.constant([[0, 1, 1, 0], [1, 0, 0, 1]])
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(
         y_true,
         y_pred,
-        sample_weight=tf.constant([[1, 2, 3, 4], [4, 3, 2, 1]]))
+        sample_weight=tf.compat.v2.constant([[1, 2, 3, 4], [4, 3, 2, 1]]))
     weighted_tp = 3.0 + 1.0
     weighted_t = (2.0 + 3.0) + (4.0 + 1.0)
     expected_recall = weighted_tp / weighted_t
@@ -587,29 +587,29 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_div_by_zero(self):
     r_obj = metrics.Recall()
-    y_pred = tf.constant([0, 0, 0, 0])
-    y_true = tf.constant([0, 0, 0, 0])
+    y_pred = tf.compat.v2.constant([0, 0, 0, 0])
+    y_true = tf.compat.v2.constant([0, 0, 0, 0])
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(y_true, y_pred)
     self.assertEqual(0, self.evaluate(result))
 
   def test_unweighted_with_threshold(self):
     r_obj = metrics.Recall(thresholds=[0.5, 0.7])
-    y_pred = tf.constant([1, 0, 0.6, 0], shape=(1, 4))
-    y_true = tf.constant([0, 1, 1, 0], shape=(1, 4))
+    y_pred = tf.compat.v2.constant([1, 0, 0.6, 0], shape=(1, 4))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0], shape=(1, 4))
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(y_true, y_pred)
     self.assertArrayNear([0.5, 0.], self.evaluate(result), 0)
 
   def test_weighted_with_threshold(self):
     r_obj = metrics.Recall(thresholds=[0.5, 1.])
-    y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-    y_pred = tf.constant([[1, 0], [0.6, 0]],
+    y_true = tf.compat.v2.constant([[0, 1], [1, 0]], shape=(2, 2))
+    y_pred = tf.compat.v2.constant([[1, 0], [0.6, 0]],
                                   shape=(2, 2),
-                                  dtype=tf.float32)
-    weights = tf.constant([[1, 4], [3, 2]],
+                                  dtype=tf.dtypes.float32)
+    weights = tf.compat.v2.constant([[1, 4], [3, 2]],
                                    shape=(2, 2),
-                                   dtype=tf.float32)
+                                   dtype=tf.dtypes.float32)
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(y_true, y_pred, sample_weight=weights)
     weighted_tp = 0 + 3.
@@ -619,13 +619,13 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_multiple_updates(self):
     r_obj = metrics.Recall(thresholds=[0.5, 1.])
-    y_true = tf.constant([[0, 1], [1, 0]], shape=(2, 2))
-    y_pred = tf.constant([[1, 0], [0.6, 0]],
+    y_true = tf.compat.v2.constant([[0, 1], [1, 0]], shape=(2, 2))
+    y_pred = tf.compat.v2.constant([[1, 0], [0.6, 0]],
                                   shape=(2, 2),
-                                  dtype=tf.float32)
-    weights = tf.constant([[1, 4], [3, 2]],
+                                  dtype=tf.dtypes.float32)
+    weights = tf.compat.v2.constant([[1, 4], [3, 2]],
                                    shape=(2, 2),
-                                   dtype=tf.float32)
+                                   dtype=tf.dtypes.float32)
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     update_op = r_obj.update_state(y_true, y_pred, sample_weight=weights)
     for _ in range(2):
@@ -639,26 +639,26 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_unweighted_top_k(self):
     r_obj = metrics.Recall(top_k=3)
-    y_pred = tf.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0.5, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
 
   def test_weighted_top_k(self):
     r_obj = metrics.Recall(top_k=3)
-    y_pred1 = tf.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
-    y_true1 = tf.constant([0, 1, 1, 0, 1], shape=(1, 5))
+    y_pred1 = tf.compat.v2.constant([0.2, 0.1, 0.4, 0, 0.2], shape=(1, 5))
+    y_true1 = tf.compat.v2.constant([0, 1, 1, 0, 1], shape=(1, 5))
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
     self.evaluate(
         r_obj(
             y_true1,
             y_pred1,
-            sample_weight=tf.constant([[1, 4, 2, 3, 5]])))
+            sample_weight=tf.compat.v2.constant([[1, 4, 2, 3, 5]])))
 
-    y_pred2 = tf.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
-    y_true2 = tf.constant([1, 0, 1, 1, 1], shape=(1, 5))
-    result = r_obj(y_true2, y_pred2, sample_weight=tf.constant(3))
+    y_pred2 = tf.compat.v2.constant([0.2, 0.6, 0.4, 0.2, 0.2], shape=(1, 5))
+    y_true2 = tf.compat.v2.constant([1, 0, 1, 1, 1], shape=(1, 5))
+    result = r_obj(y_true2, y_pred2, sample_weight=tf.compat.v2.constant(3))
 
     tp = (2 + 5) + (3 + 3)
     positives = (4 + 2 + 5) + (3 + 3 + 3 + 3)
@@ -669,22 +669,22 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
     r_obj = metrics.Recall(class_id=2)
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
 
-    y_pred = tf.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(r_obj.true_positives))
     self.assertAlmostEqual(0, self.evaluate(r_obj.false_negatives))
 
-    y_pred = tf.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(r_obj.true_positives))
     self.assertAlmostEqual(1, self.evaluate(r_obj.false_negatives))
 
-    y_pred = tf.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 0, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.1, 0.6, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 0, 0, 0], shape=(1, 5))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(r_obj.true_positives))
@@ -694,15 +694,15 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
     r_obj = metrics.Recall(class_id=2, top_k=2)
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
 
-    y_pred = tf.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.6, 0.3, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(r_obj.true_positives))
     self.assertAlmostEqual(0, self.evaluate(r_obj.false_negatives))
 
-    y_pred = tf.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
-    y_true = tf.constant([0, 1, 1, 0, 0], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([1, 1, 0.9, 1, 1], shape=(1, 5))
+    y_true = tf.compat.v2.constant([0, 1, 1, 0, 0], shape=(1, 5))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0.5, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(r_obj.true_positives))
@@ -712,8 +712,8 @@ class RecallTest(tf.test.TestCase, parameterized.TestCase):
     r_obj = metrics.Recall(thresholds=.7, top_k=2)
     self.evaluate(tf.compat.v1.variables_initializer(r_obj.variables))
 
-    y_pred = tf.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
-    y_true = tf.constant([1, 1, 1, 0, 1], shape=(1, 5))
+    y_pred = tf.compat.v2.constant([0.2, 0.8, 0.6, 0, 0.2], shape=(1, 5))
+    y_true = tf.compat.v2.constant([1, 1, 1, 0, 1], shape=(1, 5))
     result = r_obj(y_true, y_pred)
     self.assertAlmostEqual(0.25, self.evaluate(result))
     self.assertAlmostEqual(1, self.evaluate(r_obj.true_positives))
@@ -747,7 +747,7 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
     s_obj = metrics.SensitivityAtSpecificity(0.7)
     y_pred = tf.random.uniform((10, 3),
                                        maxval=1,
-                                       dtype=tf.float32,
+                                       dtype=tf.dtypes.float32,
                                        seed=1)
     y_true = tf.random.uniform((10, 3),
                                        maxval=2,
@@ -770,8 +770,8 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
     with self.test_session():
       s_obj = metrics.SensitivityAtSpecificity(0.7)
       inputs = np.random.randint(0, 2, size=(100, 1))
-      y_pred = tf.constant(inputs, dtype=tf.float32)
-      y_true = tf.constant(inputs)
+      y_pred = tf.compat.v2.constant(inputs, dtype=tf.dtypes.float32)
+      y_true = tf.compat.v2.constant(inputs)
       self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
       result = s_obj(y_true, y_pred)
       self.assertAlmostEqual(1, self.evaluate(result))
@@ -781,8 +781,8 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.1, 0.45, 0.5, 0.8, 0.9]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(0.8, self.evaluate(result))
@@ -792,8 +792,8 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(0.6, self.evaluate(result))
@@ -809,16 +809,16 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(0.6, self.evaluate(result))
 
-  @parameterized.parameters([tf.bool, tf.int32, tf.float32])
+  @parameterized.parameters([tf.bool, tf.dtypes.int32, tf.dtypes.float32])
   def test_weighted(self, label_dtype):
     s_obj = metrics.SensitivityAtSpecificity(0.4)
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
     weight_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
     y_true = tf.cast(label_values, dtype=label_dtype)
-    weights = tf.constant(weight_values)
+    weights = tf.compat.v2.constant(weight_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred, sample_weight=weights)
     self.assertAlmostEqual(0.675, self.evaluate(result))
@@ -860,7 +860,7 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
     s_obj = metrics.SpecificityAtSensitivity(0.7)
     y_pred = tf.random.uniform((10, 3),
                                        maxval=1,
-                                       dtype=tf.float32,
+                                       dtype=tf.dtypes.float32,
                                        seed=1)
     y_true = tf.random.uniform((10, 3),
                                        maxval=2,
@@ -882,8 +882,8 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
   def test_unweighted_all_correct(self):
     s_obj = metrics.SpecificityAtSensitivity(0.7)
     inputs = np.random.randint(0, 2, size=(100, 1))
-    y_pred = tf.constant(inputs, dtype=tf.float32)
-    y_true = tf.constant(inputs)
+    y_pred = tf.compat.v2.constant(inputs, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(inputs)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
@@ -893,8 +893,8 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(0.2, self.evaluate(result))
@@ -904,8 +904,8 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(0.6, self.evaluate(result))
@@ -921,16 +921,16 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(0.6, self.evaluate(result))
 
-  @parameterized.parameters([tf.bool, tf.int32, tf.float32])
+  @parameterized.parameters([tf.bool, tf.dtypes.int32, tf.dtypes.float32])
   def test_weighted(self, label_dtype):
     s_obj = metrics.SpecificityAtSensitivity(0.4)
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
     weight_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
     y_true = tf.cast(label_values, dtype=label_dtype)
-    weights = tf.constant(weight_values)
+    weights = tf.compat.v2.constant(weight_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred, sample_weight=weights)
     self.assertAlmostEqual(0.4, self.evaluate(result))
@@ -969,7 +969,7 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
     s_obj = metrics.PrecisionAtRecall(0.7)
     y_pred = tf.random.uniform((10, 3),
                                        maxval=1,
-                                       dtype=tf.float32,
+                                       dtype=tf.dtypes.float32,
                                        seed=1)
     y_true = tf.random.uniform((10, 3),
                                        maxval=2,
@@ -991,8 +991,8 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
   def test_unweighted_all_correct(self):
     s_obj = metrics.PrecisionAtRecall(0.7)
     inputs = np.random.randint(0, 2, size=(100, 1))
-    y_pred = tf.constant(inputs, dtype=tf.float32)
-    y_true = tf.constant(inputs)
+    y_pred = tf.compat.v2.constant(inputs, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(inputs)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
@@ -1002,8 +1002,8 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.5, 0.6, 0.2, 0.5, 0.6, 0.8, 0.9]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     # For 0.5 < decision threshold < 0.6.
@@ -1014,8 +1014,8 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.5, 0.6, 0.2, 0.5, 0.6, 0.8, 0.9]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     # For 0.2 < decision threshold < 0.5.
@@ -1033,16 +1033,16 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
     # For 0.2 < decision threshold < 0.5.
     self.assertAlmostEqual(0.75, self.evaluate(result))
 
-  @parameterized.parameters([tf.bool, tf.int32, tf.float32])
+  @parameterized.parameters([tf.bool, tf.dtypes.int32, tf.dtypes.float32])
   def test_weighted(self, label_dtype):
     s_obj = metrics.PrecisionAtRecall(7.0/8)
     pred_values = [0.0, 0.1, 0.2, 0.5, 0.6, 0.2, 0.5, 0.6, 0.8, 0.9]
     label_values = [0, 0, 0, 0, 0, 1, 1, 1, 1, 1]
     weight_values = [2, 1, 2, 1, 2, 1, 2, 2, 1, 2]
 
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
     y_true = tf.cast(label_values, dtype=label_dtype)
-    weights = tf.constant(weight_values)
+    weights = tf.compat.v2.constant(weight_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred, sample_weight=weights)
     # For 0.0 < decision threshold < 0.2.
@@ -1082,7 +1082,7 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
     s_obj = metrics.RecallAtPrecision(0.7)
     y_pred = tf.random.uniform((10, 3),
                                        maxval=1,
-                                       dtype=tf.float32,
+                                       dtype=tf.dtypes.float32,
                                        seed=1)
     y_true = tf.random.uniform((10, 3),
                                        maxval=2,
@@ -1104,8 +1104,8 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
   def test_unweighted_all_correct(self):
     s_obj = metrics.RecallAtPrecision(0.7)
     inputs = np.random.randint(0, 2, size=(100, 1))
-    y_pred = tf.constant(inputs, dtype=tf.float32)
-    y_true = tf.constant(inputs)
+    y_pred = tf.compat.v2.constant(inputs, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(inputs)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     self.assertAlmostEqual(1, self.evaluate(result))
@@ -1118,8 +1118,8 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
     label_values = [0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1]
     # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2, 1].
     # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6, 1/6].
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     # The precision 0.75 can be reached at thresholds 0.4<=t<0.45.
@@ -1133,8 +1133,8 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
     label_values = [0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1]
     # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2, 1].
     # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6, 1/6].
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     # The precision 5/7 can be reached at thresholds 00.3<=t<0.35.
@@ -1155,15 +1155,15 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
     # The precision 5/7 can be reached at thresholds 00.3<=t<0.35.
     self.assertAlmostEqual(5. / 6, self.evaluate(result))
 
-  @parameterized.parameters([tf.bool, tf.int32, tf.float32])
+  @parameterized.parameters([tf.bool, tf.dtypes.int32, tf.dtypes.float32])
   def test_weighted(self, label_dtype):
     s_obj = metrics.RecallAtPrecision(0.75)
     pred_values = [0.1, 0.2, 0.3, 0.5, 0.6, 0.9, 0.9]
     label_values = [0, 1, 0, 0, 0, 1, 1]
     weight_values = [1, 2, 1, 2, 1, 2, 1]
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
     y_true = tf.cast(label_values, dtype=label_dtype)
-    weights = tf.constant(weight_values)
+    weights = tf.compat.v2.constant(weight_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred, sample_weight=weights)
     self.assertAlmostEqual(0.6, self.evaluate(result))
@@ -1172,8 +1172,8 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
     s_obj = metrics.RecallAtPrecision(2.0 / 3)
     pred_values = [0.1, 0.2, 0.3, 0.9]
     label_values = [1, 1, 0, 0]
-    y_pred = tf.constant(pred_values, dtype=tf.float32)
-    y_true = tf.constant(label_values)
+    y_pred = tf.compat.v2.constant(pred_values, dtype=tf.dtypes.float32)
+    y_true = tf.compat.v2.constant(label_values)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
     # The highest possible precision is 1/2 which is below the required
@@ -1195,10 +1195,10 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
 
   def setup(self):
     self.num_thresholds = 3
-    self.y_pred = tf.constant([0, 0.5, 0.3, 0.9], dtype=tf.float32)
+    self.y_pred = tf.compat.v2.constant([0, 0.5, 0.3, 0.9], dtype=tf.dtypes.float32)
     epsilon = 1e-12
     self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
-    self.y_true = tf.constant([0, 0, 1, 1])
+    self.y_true = tf.compat.v2.constant([0, 0, 1, 1])
     self.sample_weight = [1, 2, 3, 4]
 
     # threshold values are [0 - 1e-7, 0.5, 1 + 1e-7]
@@ -1489,16 +1489,16 @@ class MultiAUCTest(tf.test.TestCase, parameterized.TestCase):
 
   def setup(self):
     self.num_thresholds = 5
-    self.y_pred = tf.constant(
+    self.y_pred = tf.compat.v2.constant(
         np.array([[0, 0.5, 0.3, 0.9], [0.1, 0.2, 0.3, 0.4]]).T,
-        dtype=tf.float32)
+        dtype=tf.dtypes.float32)
 
     epsilon = 1e-12
     self.y_pred_logits = -tf.math.log(1.0 / (self.y_pred + epsilon) - 1.0)
 
-    self.y_true_good = tf.constant(
+    self.y_true_good = tf.compat.v2.constant(
         np.array([[0, 0, 1, 1], [0, 0, 1, 1]]).T)
-    self.y_true_bad = tf.constant(
+    self.y_true_bad = tf.compat.v2.constant(
         np.array([[0, 0, 1, 1], [1, 1, 0, 0]]).T)
     self.sample_weight = [1, 2, 3, 4]
 

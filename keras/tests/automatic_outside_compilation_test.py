@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for automatic outside compilation for TF 2.0/Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 
@@ -56,7 +56,7 @@ def get_tpu_strategy():
   resolver = get_tpu_cluster_resolver()
   tf.config.experimental_connect_to_cluster(resolver)
   tf.tpu.experimental.initialize_tpu_system(resolver)
-  return tf.distribute.experimental.TPUStrategy(resolver)
+  return tf.compat.v2.distribute.experimental.TPUStrategy(resolver)
 
 
 class LayerForScalarSummary(base_layer.Layer):
@@ -64,7 +64,7 @@ class LayerForScalarSummary(base_layer.Layer):
 
   def call(self, x):
     # Add summary scalar using compat v2 implementation.
-    scalar_summary_v2.scalar('custom_scalar_summary_v2', tf.reduce_sum(x))
+    scalar_summary_v2.scalar('custom_scalar_summary_v2', tf.compat.v2.reduce_sum(x))
     return x
 
 
@@ -97,12 +97,12 @@ class CustomModel(training.Model):
         layer_lib.Dense(
             4096,
             name='dense1',
-            kernel_initializer=tf.compat.v1.glorot_normal_initializer(seed=0),
+            kernel_initializer=tf.compat.v1.initializers.glorot_normal(seed=0),
             use_bias=False),
         layer_lib.Dense(
             4,
             name='dense2',
-            kernel_initializer=tf.compat.v1.glorot_normal_initializer(seed=0),
+            kernel_initializer=tf.compat.v1.initializers.glorot_normal(seed=0),
             use_bias=False),
     ]
     self.histogram_summary_layer = LayerForHistogramSummary()
@@ -231,7 +231,7 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
   def testSummaryWithCustomTrainingLoop(self):
     strategy = get_tpu_strategy()
 
-    writer = tf.summary.create_file_writer(self.summary_dir)
+    writer = tf.compat.v2.summary.create_file_writer(self.summary_dir)
     with strategy.scope():
       model = distribute_strategy_test.get_model()
       model.compile('sgd', 'mse')
@@ -242,10 +242,10 @@ class AutoOutsideCompilationWithKerasTest(tf.test.TestCase):
       def _custom_step(features, labels):
         del labels
         logits = model(features)
-        with tf.summary.record_if(True), writer.as_default():
+        with tf.compat.v2.summary.record_if(True), writer.as_default():
           scalar_summary_v2.scalar(
               'logits',
-              tf.reduce_sum(logits),
+              tf.compat.v2.reduce_sum(logits),
               step=model.optimizer.iterations)
         return logits
 

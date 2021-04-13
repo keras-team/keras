@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for hashing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras import keras_parameterized
@@ -97,7 +97,7 @@ class HashingTest(keras_parameterized.TestCase):
   def test_hash_sparse_input_farmhash(self):
     layer = hashing.Hashing(num_bins=2)
     indices = [[0, 0], [1, 0], [1, 1], [2, 0], [2, 1]]
-    inp = tf.SparseTensor(
+    inp = tf.sparse.SparseTensor(
         indices=indices,
         values=['omar', 'stringer', 'marlo', 'wire', 'skywalker'],
         dense_shape=[3, 2])
@@ -109,7 +109,7 @@ class HashingTest(keras_parameterized.TestCase):
     empty_mask_layer = hashing.Hashing(num_bins=3, mask_value='')
     omar_mask_layer = hashing.Hashing(num_bins=3, mask_value='omar')
     indices = [[0, 0], [1, 0], [1, 1], [2, 0], [2, 1]]
-    inp = tf.SparseTensor(
+    inp = tf.sparse.SparseTensor(
         indices=indices,
         values=['omar', 'stringer', 'marlo', 'wire', 'skywalker'],
         dense_shape=[3, 2])
@@ -126,7 +126,7 @@ class HashingTest(keras_parameterized.TestCase):
   def test_hash_sparse_int_input_farmhash(self):
     layer = hashing.Hashing(num_bins=3)
     indices = [[0, 0], [1, 0], [1, 1], [2, 0], [2, 1]]
-    inp = tf.SparseTensor(
+    inp = tf.sparse.SparseTensor(
         indices=indices, values=[0, 1, 2, 3, 4], dense_shape=[3, 2])
     output = layer(inp)
     self.assertAllClose(indices, output.indices)
@@ -135,7 +135,7 @@ class HashingTest(keras_parameterized.TestCase):
   def test_hash_sparse_input_siphash(self):
     layer = hashing.Hashing(num_bins=2, salt=[133, 137])
     indices = [[0, 0], [1, 0], [1, 1], [2, 0], [2, 1]]
-    inp = tf.SparseTensor(
+    inp = tf.sparse.SparseTensor(
         indices=indices,
         values=['omar', 'stringer', 'marlo', 'wire', 'skywalker'],
         dense_shape=[3, 2])
@@ -152,7 +152,7 @@ class HashingTest(keras_parameterized.TestCase):
   def test_hash_sparse_int_input_siphash(self):
     layer = hashing.Hashing(num_bins=3, salt=[133, 137])
     indices = [[0, 0], [1, 0], [1, 1], [2, 0], [2, 1]]
-    inp = tf.SparseTensor(
+    inp = tf.sparse.SparseTensor(
         indices=indices, values=[0, 1, 2, 3, 4], dense_shape=[3, 2])
     output = layer(inp)
     self.assertAllClose(indices, output.indices)
@@ -251,7 +251,7 @@ class HashingTest(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'can only be a tuple of size 2'):
       _ = hashing.Hashing(num_bins=2, salt=[1])
     with self.assertRaisesRegex(ValueError, 'can only be a tuple of size 2'):
-      _ = hashing.Hashing(num_bins=1, salt=tf.constant([133, 137]))
+      _ = hashing.Hashing(num_bins=1, salt=tf.compat.v2.constant([133, 137]))
 
   def test_hash_compute_output_signature(self):
     input_shape = tf.TensorShape([2, 3])

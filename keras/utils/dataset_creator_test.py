@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for dataset_creator."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
@@ -41,18 +41,18 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
         "a Dataset."):
       dataset_creator.DatasetCreator(dataset_fn)()
 
-    dataset_fn = lambda: tf.data.Dataset.from_tensor_slices([1, 1])
+    dataset_fn = lambda: tf.compat.v2.data.Dataset.from_tensor_slices([1, 1])
     got = dataset_creator.DatasetCreator(dataset_fn)()
     self.assertEqual(
         next(iter(got)),
-        next(iter(tf.data.Dataset.from_tensor_slices([1, 1]))))
+        next(iter(tf.compat.v2.data.Dataset.from_tensor_slices([1, 1]))))
 
   def _get_dataset_fn(self):
 
     def dataset_fn(input_context):
       global_batch_size = 64
       batch_size = input_context.get_per_replica_batch_size(global_batch_size)
-      dataset = tf.data.Dataset.from_tensors(([1.], [1.])).repeat()
+      dataset = tf.compat.v2.data.Dataset.from_tensors(([1.], [1.])).repeat()
       dataset = dataset.shard(input_context.num_input_pipelines,
                               input_context.input_pipeline_id)
       dataset = dataset.batch(batch_size)
@@ -66,7 +66,7 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
     model = sequential.Sequential([core_layers.Dense(10)])
     model.compile(gradient_descent.SGD(), loss="mse")
 
-    input_options = tf.distribute.InputOptions() if use_input_options else None
+    input_options = tf.compat.v2.distribute.InputOptions() if use_input_options else None
     history = model.fit(
         dataset_creator.DatasetCreator(self._get_dataset_fn(), input_options),
         epochs=10,
@@ -77,7 +77,7 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
   def _get_parameter_server_strategy(self):
     cluster_def = multi_worker_testing_utils.create_in_process_cluster(
         num_workers=2, num_ps=1, rpc_layer="grpc")
-    return tf.distribute.experimental.ParameterServerStrategy(
+    return tf.compat.v2.distribute.experimental.ParameterServerStrategy(
         SimpleClusterResolver(ClusterSpec(cluster_def), rpc_layer="grpc"))
 
   @combinations.generate(combinations.combine(use_input_options=[True, False]))
@@ -88,7 +88,7 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
       model = sequential.Sequential([core_layers.Dense(10)])
     model.compile(gradient_descent.SGD(), loss="mse")
 
-    input_options = tf.distribute.InputOptions() if use_input_options else None
+    input_options = tf.compat.v2.distribute.InputOptions() if use_input_options else None
     history = model.fit(
         dataset_creator.DatasetCreator(self._get_dataset_fn(), input_options),
         epochs=10,
@@ -97,12 +97,12 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
     self.assertLen(history.history["loss"], 10)
 
   def test_dataset_creator_input_options(self):
-    dataset_fn = lambda _: tf.data.Dataset.from_tensor_slices([1, 1])
-    input_options = tf.distribute.InputOptions(
+    dataset_fn = lambda _: tf.compat.v2.data.Dataset.from_tensor_slices([1, 1])
+    input_options = tf.compat.v2.distribute.InputOptions(
         experimental_fetch_to_device=True,
         experimental_per_replica_buffer_size=2)
     x = dataset_creator.DatasetCreator(dataset_fn, input_options=input_options)
-    with tf.distribute.MultiWorkerMirroredStrategy().scope():
+    with tf.compat.v2.distribute.MultiWorkerMirroredStrategy().scope():
       data_handler = data_adapter.get_data_handler(
           x,
           steps_per_epoch=2,
@@ -115,15 +115,15 @@ class DatasetCreatorTest(tf.test.TestCase, parameterized.TestCase):
         data_handler._dataset._options.experimental_per_replica_buffer_size, 2)
 
   def test_dataset_creator_input_options_with_cluster_coordinator(self):
-    dataset_fn = lambda _: tf.data.Dataset.from_tensor_slices([1, 1])
-    input_options = tf.distribute.InputOptions(
+    dataset_fn = lambda _: tf.compat.v2.data.Dataset.from_tensor_slices([1, 1])
+    input_options = tf.compat.v2.distribute.InputOptions(
         experimental_fetch_to_device=True,
         experimental_per_replica_buffer_size=2)
     x = dataset_creator.DatasetCreator(dataset_fn, input_options=input_options)
     strategy = self._get_parameter_server_strategy()
     with strategy.scope():
       model = sequential.Sequential([core_layers.Dense(10)])
-      model._cluster_coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+      model._cluster_coordinator = tf.compat.v2.distribute.experimental.coordinator.ClusterCoordinator(
           strategy)
       data_handler = data_adapter.get_data_handler(
           x, steps_per_epoch=2, model=model)

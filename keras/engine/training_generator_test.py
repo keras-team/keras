@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import itertools
 
@@ -484,7 +484,7 @@ class TestConvertToGeneratorLike(tf.test.TestCase, parameterized.TestCase):
                                                             np.ones((10, 3))))
 
   def _make_dataset(self, inputs, batches):
-    return tf.data.Dataset.from_tensors(inputs).repeat(batches)
+    return tf.compat.v2.data.Dataset.from_tensors(inputs).repeat(batches)
 
   def _make_iterator(self, inputs, batches):
     return tf.compat.v1.data.make_one_shot_iterator(
@@ -515,8 +515,8 @@ class TestConvertToGeneratorLike(tf.test.TestCase, parameterized.TestCase):
     data = input_fn(self, inputs, expected_batches)
 
     # Dataset and Iterator not supported in Legacy Graph mode.
-    if (not tf.executing_eagerly() and
-        isinstance(data, (tf.data.Dataset, tf.compat.v1.data.Iterator))):
+    if (not tf.compat.v2.executing_eagerly() and
+        isinstance(data, (tf.compat.v2.data.Dataset, tf.compat.v1.data.Iterator))):
       return
 
     generator, steps = training_generator_v1.convert_to_generator_like(

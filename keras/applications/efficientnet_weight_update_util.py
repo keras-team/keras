@@ -36,7 +36,7 @@ python efficientnet_weight_update_util.py --model b3 --notop \
     --ckpt noisy_student_efficientnet-b3/model.ckpt --o efficientnetb3_new.h5
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import argparse
 import warnings

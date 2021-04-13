@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import gc
 import itertools
@@ -119,7 +119,7 @@ class CategoricalEncodingInputTest(
 
   def test_sparse_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 32], dtype=np.int64),
         dense_shape=[3, 4])
@@ -160,7 +160,7 @@ class CategoricalEncodingMultiOOVTest(
 
   def test_sparse_int_input_multi_bucket(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 133], dtype=np.int64),
         dense_shape=[3, 4])
@@ -205,7 +205,7 @@ class CategoricalEncodingAdaptTest(
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_sparse_adapt(self):
-    vocab_data = tf.SparseTensor(
+    vocab_data = tf.sparse.SparseTensor(
         indices=[[0, 0], [0, 1], [1, 2]],
         values=[203, 1729, 203],
         dense_shape=[3, 4])
@@ -546,7 +546,7 @@ class IntegerLookupSavingTest(keras_parameterized.TestCase,
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(

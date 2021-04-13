@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras image preprocessing layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -26,7 +26,7 @@ from keras.utils import control_flow_util
 from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
 
-ResizeMethod = tf.image.ResizeMethod
+ResizeMethod = tf.compat.v2.image.ResizeMethod
 
 _RESIZE_METHODS = {
     'bilinear': ResizeMethod.BILINEAR,
@@ -82,7 +82,7 @@ class Resizing(PreprocessingLayer):
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
   def call(self, inputs):
-    outputs = tf.image.resize(
+    outputs = tf.compat.v2.image.resize(
         images=inputs,
         size=[self.target_height, self.target_width],
         method=self._interpolation_method)
@@ -138,18 +138,18 @@ class CenterCrop(PreprocessingLayer):
     img_wd_diff = img_wd - self.target_width
     checks = []
     checks.append(
-        tf.compat.v1.assert_non_negative(
+        tf.compat.v1.debugging.assert_non_negative(
             img_hd_diff,
             message='The crop height {} should not be greater than input '
             'height.'.format(self.target_height)))
     checks.append(
-        tf.compat.v1.assert_non_negative(
+        tf.compat.v1.debugging.assert_non_negative(
             img_wd_diff,
             message='The crop width {} should not be greater than input '
             'width.'.format(self.target_width)))
     with tf.control_dependencies(checks):
-      bbox_h_start = tf.cast(img_hd_diff / 2, tf.int32)
-      bbox_w_start = tf.cast(img_wd_diff / 2, tf.int32)
+      bbox_h_start = tf.cast(img_hd_diff / 2, tf.dtypes.int32)
+      bbox_w_start = tf.cast(img_wd_diff / 2, tf.dtypes.int32)
       bbox_begin = tf.stack([0, bbox_h_start, bbox_w_start, 0])
       bbox_size = tf.stack(
           [-1, self.target_height, self.target_width, -1])
@@ -213,8 +213,8 @@ class RandomCrop(PreprocessingLayer):
       input_shape = tf.compat.v1.shape(inputs)
       crop_size = tf.stack(
           [input_shape[0], self.height, self.width, input_shape[3]])
-      check = tf.Assert(
-          tf.reduce_all(input_shape >= crop_size),
+      check = tf.debugging.Assert(
+          tf.compat.v2.reduce_all(input_shape >= crop_size),
           [self.height, self.width])
       with tf.control_dependencies([check]):
         limit = input_shape - crop_size + 1
@@ -242,13 +242,13 @@ class RandomCrop(PreprocessingLayer):
           lambda: tf.cast(self.height * input_width_t / input_height_t,
                                 input_width_t.dtype))
       # pylint: enable=g-long-lambda
-      resized_inputs = tf.image.resize(
+      resized_inputs = tf.compat.v2.image.resize(
           images=inputs, size=tf.stack([resized_height, resized_width]))
 
       img_hd_diff = resized_height - self.height
       img_wd_diff = resized_width - self.width
-      bbox_h_start = tf.cast(img_hd_diff / 2, tf.int32)
-      bbox_w_start = tf.cast(img_wd_diff / 2, tf.int32)
+      bbox_h_start = tf.cast(img_hd_diff / 2, tf.dtypes.int32)
+      bbox_w_start = tf.cast(img_wd_diff / 2, tf.dtypes.int32)
       bbox_begin = tf.stack([0, bbox_h_start, bbox_w_start, 0])
       bbox_size = tf.stack([-1, self.height, self.width, -1])
       outputs = tf.slice(resized_inputs, bbox_begin, bbox_size)
@@ -513,23 +513,23 @@ class RandomTranslation(PreprocessingLayer):
       inputs_shape = tf.compat.v1.shape(inputs)
       batch_size = inputs_shape[0]
       h_axis, w_axis = H_AXIS, W_AXIS
-      img_hd = tf.cast(inputs_shape[h_axis], tf.float32)
-      img_wd = tf.cast(inputs_shape[w_axis], tf.float32)
+      img_hd = tf.cast(inputs_shape[h_axis], tf.dtypes.float32)
+      img_wd = tf.cast(inputs_shape[w_axis], tf.dtypes.float32)
       height_translate = self._rng.uniform(
           shape=[batch_size, 1],
           minval=self.height_lower,
           maxval=self.height_upper,
-          dtype=tf.float32)
+          dtype=tf.dtypes.float32)
       height_translate = height_translate * img_hd
       width_translate = self._rng.uniform(
           shape=[batch_size, 1],
           minval=self.width_lower,
           maxval=self.width_upper,
-          dtype=tf.float32)
+          dtype=tf.dtypes.float32)
       width_translate = width_translate * img_wd
       translations = tf.cast(
           tf.concat([width_translate, height_translate], axis=1),
-          dtype=tf.float32)
+          dtype=tf.dtypes.float32)
       return transform(
           inputs,
           get_translation_matrix(translations),
@@ -580,13 +580,13 @@ def get_translation_matrix(translations, name=None):
     # Translation matrices are always float32.
     return tf.concat(
         values=[
-            tf.ones((num_translations, 1), tf.float32),
-            tf.zeros((num_translations, 1), tf.float32),
+            tf.ones((num_translations, 1), tf.dtypes.float32),
+            tf.zeros((num_translations, 1), tf.dtypes.float32),
             -translations[:, 0, None],
-            tf.zeros((num_translations, 1), tf.float32),
-            tf.ones((num_translations, 1), tf.float32),
+            tf.zeros((num_translations, 1), tf.dtypes.float32),
+            tf.ones((num_translations, 1), tf.dtypes.float32),
             -translations[:, 1, None],
-            tf.zeros((num_translations, 2), tf.float32),
+            tf.zeros((num_translations, 2), tf.dtypes.float32),
         ],
         axis=1)
 
@@ -646,21 +646,21 @@ def transform(images,
   with backend.name_scope(name or 'transform'):
     if output_shape is None:
       output_shape = tf.compat.v1.shape(images)[1:3]
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         output_shape_value = tf.get_static_value(output_shape)
         if output_shape_value is not None:
           output_shape = output_shape_value
 
-    output_shape = tf.convert_to_tensor(
-        output_shape, tf.int32, name='output_shape')
+    output_shape = tf.compat.v2.convert_to_tensor(
+        output_shape, tf.dtypes.int32, name='output_shape')
 
     if not output_shape.get_shape().is_compatible_with([2]):
       raise ValueError('output_shape must be a 1-D Tensor of 2 elements: '
                        'new_height, new_width, instead got '
                        '{}'.format(output_shape))
 
-    fill_value = tf.convert_to_tensor(
-        fill_value, tf.float32, name='fill_value')
+    fill_value = tf.compat.v2.convert_to_tensor(
+        fill_value, tf.dtypes.float32, name='fill_value')
 
     if tf.compat.forward_compatible(2020, 8, 5):
       return tf.raw_ops.ImageProjectiveTransformV3(
@@ -700,21 +700,21 @@ def get_rotation_matrix(angles, image_height, image_width, name=None):
   """
   with backend.name_scope(name or 'rotation_matrix'):
     x_offset = ((image_width - 1) - (tf.cos(angles) *
-                                     (image_width - 1) - tf.sin(angles) *
+                                     (image_width - 1) - tf.math.sin(angles) *
                                      (image_height - 1))) / 2.0
-    y_offset = ((image_height - 1) - (tf.sin(angles) *
+    y_offset = ((image_height - 1) - (tf.math.sin(angles) *
                                       (image_width - 1) + tf.cos(angles) *
                                       (image_height - 1))) / 2.0
     num_angles = tf.compat.v1.shape(angles)[0]
     return tf.concat(
         values=[
             tf.cos(angles)[:, None],
-            -tf.sin(angles)[:, None],
+            -tf.math.sin(angles)[:, None],
             x_offset[:, None],
-            tf.sin(angles)[:, None],
+            tf.math.sin(angles)[:, None],
             tf.cos(angles)[:, None],
             y_offset[:, None],
-            tf.zeros((num_angles, 2), tf.float32),
+            tf.zeros((num_angles, 2), tf.dtypes.float32),
         ],
         axis=1)
 
@@ -799,8 +799,8 @@ class RandomRotation(PreprocessingLayer):
       """Rotated inputs with random ops."""
       inputs_shape = tf.compat.v1.shape(inputs)
       batch_size = inputs_shape[0]
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+      img_hd = tf.cast(inputs_shape[H_AXIS], tf.dtypes.float32)
+      img_wd = tf.cast(inputs_shape[W_AXIS], tf.dtypes.float32)
       min_angle = self.lower * 2. * np.pi
       max_angle = self.upper * 2. * np.pi
       angles = self._rng.uniform(
@@ -932,8 +932,8 @@ class RandomZoom(PreprocessingLayer):
       """Zoomed inputs with random ops."""
       inputs_shape = tf.compat.v1.shape(inputs)
       batch_size = inputs_shape[0]
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+      img_hd = tf.cast(inputs_shape[H_AXIS], tf.dtypes.float32)
+      img_wd = tf.cast(inputs_shape[W_AXIS], tf.dtypes.float32)
       height_zoom = self._rng.uniform(
           shape=[batch_size, 1],
           minval=1. + self.height_lower,
@@ -947,7 +947,7 @@ class RandomZoom(PreprocessingLayer):
         width_zoom = height_zoom
       zooms = tf.cast(
           tf.concat([width_zoom, height_zoom], axis=1),
-          dtype=tf.float32)
+          dtype=tf.dtypes.float32)
       return transform(
           inputs,
           get_zoom_matrix(zooms, img_hd, img_wd),
@@ -1007,12 +1007,12 @@ def get_zoom_matrix(zooms, image_height, image_width, name=None):
     return tf.concat(
         values=[
             zooms[:, 0, None],
-            tf.zeros((num_zooms, 1), tf.float32),
+            tf.zeros((num_zooms, 1), tf.dtypes.float32),
             x_offset,
-            tf.zeros((num_zooms, 1), tf.float32),
+            tf.zeros((num_zooms, 1), tf.dtypes.float32),
             zooms[:, 1, None],
             y_offset,
-            tf.zeros((num_zooms, 2), tf.float32),
+            tf.zeros((num_zooms, 2), tf.dtypes.float32),
         ],
         axis=1)
 
@@ -1151,15 +1151,15 @@ class RandomHeight(PreprocessingLayer):
     def random_height_inputs():
       """Inputs height-adjusted with random ops."""
       inputs_shape = tf.compat.v1.shape(inputs)
-      img_hd = tf.cast(inputs_shape[H_AXIS], tf.float32)
+      img_hd = tf.cast(inputs_shape[H_AXIS], tf.dtypes.float32)
       img_wd = inputs_shape[W_AXIS]
       height_factor = self._rng.uniform(
           shape=[],
           minval=(1.0 + self.height_lower),
           maxval=(1.0 + self.height_upper))
-      adjusted_height = tf.cast(height_factor * img_hd, tf.int32)
+      adjusted_height = tf.cast(height_factor * img_hd, tf.dtypes.int32)
       adjusted_size = tf.stack([adjusted_height, img_wd])
-      output = tf.image.resize(
+      output = tf.compat.v2.image.resize(
           images=inputs, size=adjusted_size, method=self._interpolation_method)
       original_shape = inputs.shape.as_list()
       output_shape = [original_shape[0]] + [None] + original_shape[2:4]
@@ -1247,14 +1247,14 @@ class RandomWidth(PreprocessingLayer):
       """Inputs width-adjusted with random ops."""
       inputs_shape = tf.compat.v1.shape(inputs)
       img_hd = inputs_shape[H_AXIS]
-      img_wd = tf.cast(inputs_shape[W_AXIS], tf.float32)
+      img_wd = tf.cast(inputs_shape[W_AXIS], tf.dtypes.float32)
       width_factor = self._rng.uniform(
           shape=[],
           minval=(1.0 + self.width_lower),
           maxval=(1.0 + self.width_upper))
-      adjusted_width = tf.cast(width_factor * img_wd, tf.int32)
+      adjusted_width = tf.cast(width_factor * img_wd, tf.dtypes.int32)
       adjusted_size = tf.stack([img_hd, adjusted_width])
-      output = tf.image.resize(
+      output = tf.compat.v2.image.resize(
           images=inputs, size=adjusted_size, method=self._interpolation_method)
       original_shape = inputs.shape.as_list()
       output_shape = original_shape[0:2] + [None] + [original_shape[3]]
@@ -1290,9 +1290,9 @@ def make_generator(seed=None):
     A generator object.
   """
   if seed:
-    return tf.random.Generator.from_seed(seed)
+    return tf.random.experimental.Generator.from_seed(seed)
   else:
-    return tf.random.Generator.from_non_deterministic_state()
+    return tf.random.experimental.Generator.from_non_deterministic_state()
 
 
 def get_interpolation(interpolation):

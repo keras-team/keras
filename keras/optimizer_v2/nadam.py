@@ -14,7 +14,7 @@
 # ==============================================================================
 """Nadam optimizer implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend_config
 from keras.optimizer_v2 import learning_rate_schedule
 from keras.optimizer_v2 import optimizer_v2
@@ -120,7 +120,7 @@ class Nadam(optimizer_v2.OptimizerV2):
     apply_state[(var_device, var_dtype)] = dict(
         lr_t=lr_t,
         neg_lr_t=-lr_t,
-        epsilon=tf.convert_to_tensor(self.epsilon, var_dtype),
+        epsilon=tf.compat.v2.convert_to_tensor(self.epsilon, var_dtype),
         beta_1_t=beta_1_t,
         beta_2_t=beta_2_t,
         m_t=m_t,
@@ -158,7 +158,7 @@ class Nadam(optimizer_v2.OptimizerV2):
     m_t_bar = (coefficients['one_minus_m_t'] * g_prime +
                coefficients['m_t_1'] * m_t_prime)
     var_t = var - coefficients['lr_t'] * m_t_bar / (
-        tf.sqrt(v_t_prime) + coefficients['epsilon'])
+        tf.math.sqrt(v_t_prime) + coefficients['epsilon'])
     return tf.compat.v1.assign(var, var_t, use_locking=self._use_locking).op
 
   def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
@@ -194,7 +194,7 @@ class Nadam(optimizer_v2.OptimizerV2):
       v_t_slice = tf.compat.v1.gather(v_t, indices)
 
     v_t_prime = v_t_slice / coefficients['v_t_prime_denominator']
-    v_prime_sqrt_plus_eps = tf.sqrt(v_t_prime) + coefficients['epsilon']
+    v_prime_sqrt_plus_eps = tf.math.sqrt(v_t_prime) + coefficients['epsilon']
 
     var_update = self._resource_scatter_add(
         var, indices,

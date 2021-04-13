@@ -15,7 +15,7 @@
 # LINT.IfChange
 """Classes for different types of export output."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import abc
 from keras.saving.utils_v1 import signature_def_utils as unexported_signature_utils
@@ -155,7 +155,7 @@ class ClassificationOutput(ExportOutput):
     if tf.as_dtype(examples.dtype) != tf.string:
       raise ValueError('Classification input must be a single string Tensor; '
                        'got {}'.format(receiver_tensors))
-    return tf.compat.v1.saved_model.classification_signature_def(
+    return tf.compat.v1.saved_model.signature_def_utils.classification_signature_def(
         examples, self.classes, self.scores)
 
 
@@ -188,7 +188,7 @@ class RegressionOutput(ExportOutput):
     if tf.as_dtype(examples.dtype) != tf.string:
       raise ValueError('Regression input must be a single string Tensor; '
                        'got {}'.format(receiver_tensors))
-    return tf.compat.v1.saved_model.regression_signature_def(examples, self.value)
+    return tf.compat.v1.saved_model.signature_def_utils.regression_signature_def(examples, self.value)
 
 
 class PredictOutput(ExportOutput):
@@ -220,7 +220,7 @@ class PredictOutput(ExportOutput):
     return self._outputs
 
   def as_signature_def(self, receiver_tensors):
-    return tf.compat.v1.saved_model.predict_signature_def(receiver_tensors,
+    return tf.compat.v1.saved_model.signature_def_utils.predict_signature_def(receiver_tensors,
                                                      self.outputs)
 
 
@@ -345,7 +345,7 @@ class _SupervisedOutput(ExportOutput):
       metric_op_tensor = metric_op
       if not isinstance(metric_op, tf.Tensor):
         with tf.control_dependencies([metric_op]):
-          metric_op_tensor = tf.constant([], name='metric_op_wrapper')
+          metric_op_tensor = tf.compat.v2.constant([], name='metric_op_wrapper')
 
       outputs[val_name] = metric_val
       outputs[op_name] = metric_op_tensor

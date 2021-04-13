@@ -15,7 +15,7 @@
 """Helper classes that list&validate all attributes to serialize to SavedModel.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import save_impl
 from keras.utils.generic_utils import LazyLoader
@@ -191,7 +191,7 @@ class SerializedAttributes(object):
       if key in function_dict:
         if (function_dict[key] is not None and  # Not all functions are required
             not isinstance(function_dict[key],
-                           (tf.__internal__.function.Function, save_impl.LayerCall))):
+                           (tf.compat.v2.__internal__.function.Function, save_impl.LayerCall))):
           raise ValueError(
               'Function dictionary contained a non-function object: {} (for key'
               ' {})'.format(function_dict[key], key))
@@ -210,7 +210,7 @@ class SerializedAttributes(object):
     """Saves objects to a dictionary, and validates the values."""
     for key in self.all_checkpointable_objects:
       if key in object_dict:
-        if not isinstance(object_dict[key], tf.__internal__.tracking.Trackable):
+        if not isinstance(object_dict[key], tf.compat.v2.__internal__.tracking.Trackable):
           raise ValueError(
               'Object dictionary contained a non-trackable object: {} (for key'
               ' {})'.format(object_dict[key], key))

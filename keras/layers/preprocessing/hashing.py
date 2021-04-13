@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras hashing preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import functools
@@ -144,7 +144,7 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
 
   def _preprocess_single_input(self, inp):
     if isinstance(inp, (list, tuple, np.ndarray)):
-      inp = tf.convert_to_tensor(inp)
+      inp = tf.compat.v2.convert_to_tensor(inp)
     return inp
 
   def _preprocess_inputs(self, inputs):
@@ -158,8 +158,8 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
 
   def call(self, inputs):
     inputs = self._preprocess_inputs(inputs)
-    if isinstance(inputs, tf.SparseTensor):
-      return tf.SparseTensor(
+    if isinstance(inputs, tf.sparse.SparseTensor):
+      return tf.sparse.SparseTensor(
           indices=inputs.indices,
           values=self._hash_values_to_bins(inputs.values),
           dense_shape=inputs.dense_shape)
@@ -173,7 +173,7 @@ class Hashing(base_preprocessing_layer.PreprocessingLayer):
     # If mask_value is set, the zeroth bin is reserved for it.
     if self.mask_value is not None and num_available_bins > 1:
       num_available_bins -= 1
-      mask = tf.equal(values, self.mask_value)
+      mask = tf.math.equal(values, self.mask_value)
     # Convert all values to strings before hashing.
     if values.dtype.is_integer:
       values = tf.as_string(values)

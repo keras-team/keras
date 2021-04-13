@@ -14,7 +14,7 @@
 # ==============================================================================
 """Adamax optimizer implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend_config
 from keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
@@ -113,7 +113,7 @@ class Adamax(optimizer_v2.OptimizerV2):
     apply_state[(var_device, var_dtype)].update(
         dict(
             neg_scaled_lr=-lr_t / (1 - beta_1_power),
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             beta_1_t=beta_1_t,
             beta_1_power=beta_1_power,
@@ -156,8 +156,8 @@ class Adamax(optimizer_v2.OptimizerV2):
     # u_t = max(beta2 * u, abs(g_t))
     v = self.get_slot(var, 'v')
     v_slice = tf.compat.v1.gather(v, indices, axis=coefficients['zero'])
-    v_t_slice = tf.maximum(v_slice * coefficients['beta_2_t'],
-                                 tf.abs(grad))
+    v_t_slice = tf.math.maximum(v_slice * coefficients['beta_2_t'],
+                                 tf.math.abs(grad))
     with tf.control_dependencies([v_t_slice]):
       v_t = self._resource_scatter_update(v, indices, v_t_slice)
     # theta_t = theta - lr / (1 - beta1^t) * m_t / u_t

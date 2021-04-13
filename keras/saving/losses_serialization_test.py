@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras losses serialization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import shutil
@@ -49,7 +49,7 @@ class MyMeanAbsoluteError(losses.LossFunctionWrapper):
 
 # Custom loss function
 def my_mae(y_true, y_pred):
-  return keras.backend.mean(tf.abs(y_pred - y_true), axis=-1)
+  return keras.backend.mean(tf.math.abs(y_pred - y_true), axis=-1)
 
 
 def _get_multi_io_model():

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for layer_utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import contextlib
@@ -31,7 +31,7 @@ from keras.utils import layer_utils
 _PICKLEABLE_CALL_COUNT = collections.Counter()
 
 
-class MyPickleableObject(tf.__internal__.tracking.AutoTrackable):
+class MyPickleableObject(tf.compat.v2.__internal__.tracking.AutoTrackable):
   """Needed for InterfaceTests.test_property_cache_serialization.
 
   This class must be at the top level. This is a constraint of pickle,
@@ -50,7 +50,7 @@ class LayerUtilsTest(tf.test.TestCase):
   def test_property_cache(self):
     test_counter = collections.Counter()
 
-    class MyObject(tf.__internal__.tracking.AutoTrackable):
+    class MyObject(tf.compat.v2.__internal__.tracking.AutoTrackable):
 
       def __init__(self):
         super(MyObject, self).__init__()
@@ -88,7 +88,7 @@ class LayerUtilsTest(tf.test.TestCase):
   def test_property_cache_threaded(self):
     call_count = collections.Counter()
 
-    class MyObject(tf.__internal__.tracking.AutoTrackable):
+    class MyObject(tf.compat.v2.__internal__.tracking.AutoTrackable):
 
       @property
       @layer_utils.cached_per_instance

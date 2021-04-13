@@ -16,7 +16,7 @@
 # pylint: disable=g-import-not-at-top
 """Utilities for file download and caching."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from abc import abstractmethod
 from contextlib import closing

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import io
@@ -70,9 +70,9 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training):
         if training:
-          return inputs + tf.constant([100], 'float32')
+          return inputs + tf.compat.v2.constant([100], 'float32')
         else:
-          return inputs + tf.constant([0], 'float32')
+          return inputs + tf.compat.v2.constant([0], 'float32')
 
     model = sequential.Sequential([ReturnTraining()])
     model.compile(
@@ -429,7 +429,7 @@ class TrainingTest(keras_parameterized.TestCase):
 
     # Test execution on inputs that are lists of scalars.
     # TF2 and TF1 have slightly different semantics:
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # In TF2 to avoid any ambiguity when there are nested lists
       # the entire input gets converted to a
       # single numpy array (& it only works in the case of a single io model)
@@ -616,7 +616,7 @@ class TrainingTest(keras_parameterized.TestCase):
   )
   def test_sequence_input_types(self, input_type):
     """Ensure that namedtuples and tuples are plumbed identically."""
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Improved checking is only present in data_adapter.')
 
     xy_function, x_function = self._make_sequence_input_functions(input_type)
@@ -680,7 +680,7 @@ class TrainingTest(keras_parameterized.TestCase):
   @keras_parameterized.run_all_keras_modes
   def test_compile_with_sparse_placeholders(self):
     inputs = layers_module.Input(shape=(10,), sparse=True)
-    weights = tf.Variable(
+    weights = tf.compat.v2.Variable(
         np.ones((10, 1)).astype(np.float32), name='weights')
     weights_mult = lambda x: tf.sparse.sparse_dense_matmul(x, weights)
     output_layer = layers_module.Lambda(weights_mult)(inputs)
@@ -815,8 +815,8 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(LayerWithWeightSharedLayers, self).__init__()
-        shared_trainable_var = tf.Variable(1.)
-        shared_non_trainable_var = tf.Variable(
+        shared_trainable_var = tf.compat.v2.Variable(1.)
+        shared_non_trainable_var = tf.compat.v2.Variable(
             1., trainable=False)
         self.layer1 = AddWeightLayer(shared_trainable_var,
                                      shared_non_trainable_var)
@@ -971,7 +971,7 @@ class TrainingTest(keras_parameterized.TestCase):
     dataset = dataset.batch(10)
     model.fit(dataset, epochs=1, steps_per_epoch=2)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # Test with eager execution
       model.compile(RMSPropOptimizer(learning_rate=0.001),
                     loss='sparse_categorical_crossentropy',
@@ -1038,7 +1038,7 @@ class TrainingTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_static_batch_in_input_layer(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('Not inferred in eager.')
 
     class Counter(Callback):
@@ -1070,7 +1070,7 @@ class TrainingTest(keras_parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def test_static_batch_in_input_layer_consistency_checks(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('Not inferred in eager.')
     x, y = np.ones((64, 10), 'float32'), np.ones((64, 1), 'float32')
 
@@ -1211,7 +1211,7 @@ class TrainingTest(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   @keras_parameterized.run_all_keras_modes
   def test_validation_steps_without_data(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('Check removed in new `fit`')
     x, y = np.ones((10, 10)), np.ones((10, 1))
     model = testing_utils.get_small_mlp(2, 1, 10)
@@ -1315,7 +1315,7 @@ class TrainingTest(keras_parameterized.TestCase):
         run_eagerly=testing_utils.should_run_eagerly())
     model.fit(x, x, epochs=1)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       expected_training_arg = True
     else:
       expected_training_arg = backend.symbolic_learning_phase()
@@ -1334,7 +1334,7 @@ class TrainingTest(keras_parameterized.TestCase):
     class MyModel(training_module.Model):
 
       def call(self, x):
-        self.add_loss(tf.reduce_sum(x))
+        self.add_loss(tf.compat.v2.reduce_sum(x))
         return x
 
     model = MyModel()
@@ -1352,7 +1352,7 @@ class TrainingTest(keras_parameterized.TestCase):
         2, dtype='float16', kernel_regularizer='l2')(
             inp)
     model = training_module.Model(inp, [out_1, out_2])
-    extra_loss = tf.reduce_sum(tf.cast(out_2, 'float64'))
+    extra_loss = tf.compat.v2.reduce_sum(tf.cast(out_2, 'float64'))
     model.add_loss(extra_loss)
     model.compile('sgd', ['mse', 'mse'],
                   run_eagerly=testing_utils.should_run_eagerly())
@@ -1427,7 +1427,7 @@ class TrainingTest(keras_parameterized.TestCase):
         del y_true, y_pred, sample_weight
 
       def result(self):
-        return tf.constant(1, dtype='int64')
+        return tf.compat.v2.constant(1, dtype='int64')
 
     model.compile('sgd', 'mse', metrics=[MyMetric()],
                   run_eagerly=testing_utils.should_run_eagerly())
@@ -1516,7 +1516,7 @@ class TrainingTest(keras_parameterized.TestCase):
       def __init__(self, name):
         super(MyModel, self).__init__(name=name)
 
-        self.weight = tf.Variable(0, name=name)
+        self.weight = tf.compat.v2.Variable(0, name=name)
 
         self.direct_sublayer = MyLayer(name='direct')
         self.direct_sublayer.d = {'d': MyLayer(name='direct/dict')}
@@ -1538,7 +1538,7 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def __init__(self):
         super(UpdateLayer, self).__init__()
-        self.v = tf.Variable(0., trainable=False)
+        self.v = tf.compat.v2.Variable(0., trainable=False)
 
       def call(self, x):
         self.add_update(lambda: self.v.assign_add(1.))
@@ -1606,7 +1606,7 @@ class TrainingTest(keras_parameterized.TestCase):
     inputs = layers_module.Input(shape=(1,), name='my_input')
     outputs = layers_module.Dense(1)(inputs)
     model = MyModel(inputs, outputs)
-    model.add_loss(tf.reduce_sum(outputs))
+    model.add_loss(tf.compat.v2.reduce_sum(outputs))
     model.compile('sgd', 'mse')
     model.fit(x, batch_size=batch_size)
     model.evaluate(x, batch_size=batch_size)
@@ -1634,8 +1634,8 @@ class TrainingTest(keras_parameterized.TestCase):
             metrics[metric.name] = metric.result()
         if use_custom_metrics:
           custom_metrics = {
-              'mean': tf.reduce_mean(pred),
-              'sum': tf.reduce_sum(pred)
+              'mean': tf.compat.v2.reduce_mean(pred),
+              'sum': tf.compat.v2.reduce_sum(pred)
           }
           metrics.update(custom_metrics)
         return metrics
@@ -1884,7 +1884,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           temporal_y_train[:batch_size],
           sample_weight=temporal_sample_weight[:batch_size])
       ref_score = model.evaluate(temporal_x_test, temporal_y_test, verbose=0)
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         score = model.evaluate(
             temporal_x_test[test_ids], temporal_y_test[test_ids], verbose=0)
         self.assertLess(score[0], ref_score[0])
@@ -1992,7 +1992,7 @@ class LossWeightingTest(keras_parameterized.TestCase):
           optimizer='adam')
 
       # Prepare sample weights iterator tensor
-      sample_weights = tf.constant(
+      sample_weights = tf.compat.v2.constant(
           [[0, .4, 1, 1], [2, .4, .3, 1]])
       dataset = tf.data.Dataset.from_tensor_slices(sample_weights)
       sample_weights = tf.compat.v1.data.make_one_shot_iterator(dataset).get_next()
@@ -2422,7 +2422,7 @@ class TestTrainingWithDataTensors(keras_parameterized.TestCase):
       output_a_np = np.random.random((10, 4))
       output_b_np = np.random.random((10, 3))
 
-      input_v = tf.Variable(input_a_np, dtype='float32')
+      input_v = tf.compat.v2.Variable(input_a_np, dtype='float32')
       self.evaluate(tf.compat.v1.variables_initializer([input_v]))
       a = input_layer.Input(tensor=input_v)
       b = input_layer.Input(shape=(3,), name='input_b')
@@ -2633,7 +2633,7 @@ class TestTrainingWithDataTensors(keras_parameterized.TestCase):
       out = model.evaluate(input_a_np, None)
 
       # Test model with no external data at all.
-      input_v = tf.Variable(input_a_np, dtype='float32')
+      input_v = tf.compat.v2.Variable(input_a_np, dtype='float32')
       self.evaluate(tf.compat.v1.variables_initializer([input_v]))
       a = input_layer.Input(tensor=input_v)
       a_2 = layers_module.Dense(4, name='dense_1')(a)
@@ -2822,7 +2822,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         metrics=metrics,
         run_eagerly=testing_utils.should_run_eagerly())
 
-    mse_metric = 'mse' if tf.executing_eagerly() else 'mean_squared_error'
+    mse_metric = 'mse' if tf.compat.v2.executing_eagerly() else 'mean_squared_error'
     reference_metric_names = [
         'loss', 'dense_loss', 'dropout_loss', 'dense_' + mse_metric,
         'dense_binary_accuracy', 'dropout_' + mse_metric,
@@ -2954,9 +2954,9 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     y = layers_module.Dense(1, kernel_initializer='ones')(x)
     model = training_module.Model(x, y)
     model.add_metric(
-        tf.reduce_sum(y), name='metric_1', aggregation='mean')
+        tf.compat.v2.reduce_sum(y), name='metric_1', aggregation='mean')
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # This is not a use case in v1 graph mode.
       mean_result = metrics_module.Mean()(y)
       with self.assertRaisesRegex(
@@ -3003,7 +3003,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), name='metric_2', aggregation='mean')
+            tf.compat.v2.reduce_sum(x), name='metric_2', aggregation='mean')
         # Provide same name as in the instance created in __init__
         # for eager mode
         self.add_metric(self.mean(x), name='metric_1')
@@ -3044,7 +3044,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
       def call(self, inputs):
         self.add_metric(
-            tf.reduce_sum(inputs), name='metric_1', aggregation='mean')
+            tf.compat.v2.reduce_sum(inputs), name='metric_1', aggregation='mean')
         return inputs + 1
 
     layers = [
@@ -3075,7 +3075,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
       def __call__(self, inputs):
         outputs = self.dense(inputs)
         self.add_metric(
-            tf.reduce_sum(outputs), name='metric_1', aggregation='mean')
+            tf.compat.v2.reduce_sum(outputs), name='metric_1', aggregation='mean')
         return outputs
 
     class LayerWithNestedAddMetricLayer(layers_module.Layer):
@@ -3087,7 +3087,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
       def call(self, inputs):
         outputs = self.layer(inputs)
         self.add_metric(
-            tf.reduce_sum(outputs), name='metric_2', aggregation='mean')
+            tf.compat.v2.reduce_sum(outputs), name='metric_2', aggregation='mean')
         return outputs
 
     x = layers_module.Input(shape=(1,))
@@ -3095,9 +3095,9 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
     model = training_module.Model(x, y)
     model.add_metric(
-        tf.reduce_sum(y), name='metric_3', aggregation='mean')
+        tf.compat.v2.reduce_sum(y), name='metric_3', aggregation='mean')
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # This is not a use case in v1 graph mode.
       mean_result = metrics_module.Mean()(y)
       with self.assertRaisesRegex(
@@ -3134,7 +3134,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), name='metric_1', aggregation='mean')
+            tf.compat.v2.reduce_sum(x), name='metric_1', aggregation='mean')
         return self.dense1(x)
 
     model = TestModel()
@@ -3165,7 +3165,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         self.add_metric(self.mean2(x), name='metric_2')
         self.add_metric(self.mean1(x), name='metric_1')
         self.add_metric(
-            tf.reduce_sum(x), name='metric_3', aggregation='mean')
+            tf.compat.v2.reduce_sum(x), name='metric_3', aggregation='mean')
         return self.dense1(x)
 
     model = TestModel()
@@ -3214,7 +3214,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         self.add_metric(self.m1(x))
         self.add_metric(self.m3['mean4'](x))
         self.add_metric(self.m3['mean5'](x))
-        self.add_metric(tf.reduce_sum(x), name='m_6', aggregation='mean')
+        self.add_metric(tf.compat.v2.reduce_sum(x), name='m_6', aggregation='mean')
         return self.dense1(x)
 
     layer = TestLayer()
@@ -3264,7 +3264,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
         self.dense1 = layers_module.Dense(2, kernel_initializer='ones')
 
       def call(self, x):
-        self.add_metric(tf.reduce_sum(x), aggregation='mean')
+        self.add_metric(tf.compat.v2.reduce_sum(x), aggregation='mean')
         return self.dense1(x)
 
     model = TestModel()
@@ -3371,7 +3371,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
       def call(self, x):
         self.add_metric(
-            tf.reduce_sum(x), name='metric_1', aggregation='mean')
+            tf.compat.v2.reduce_sum(x), name='metric_1', aggregation='mean')
         return self.dense1(x)
 
     model = TestModel()
@@ -3407,12 +3407,12 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     with self.assertRaisesRegex(ValueError,
                                 'only `mean` sample-wise metric aggregation'):
       model.add_metric(
-          tf.reduce_sum(y), name='metric_1', aggregation='sum')
+          tf.compat.v2.reduce_sum(y), name='metric_1', aggregation='sum')
 
     with self.assertRaisesRegex(ValueError,
                                 'only `mean` sample-wise metric aggregation'):
       model.add_metric(
-          tf.reduce_sum(y), name='metric_1', aggregation=None)
+          tf.compat.v2.reduce_sum(y), name='metric_1', aggregation=None)
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_calling_evaluate_in_callback_during_fit(self):
@@ -3461,7 +3461,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
       def call(self, inputs):
         outputs = self.dense(inputs)
         self.add_metric(
-            tf.reduce_sum(outputs), name='mean', aggregation='mean')
+            tf.compat.v2.reduce_sum(outputs), name='mean', aggregation='mean')
         return outputs
 
     x = layers_module.Input(shape=(1,))
@@ -3469,7 +3469,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
     inner_model = training_module.Model(x, y)
     inner_model.add_metric(
-        tf.reduce_sum(y), name='mean1', aggregation='mean')
+        tf.compat.v2.reduce_sum(y), name='mean1', aggregation='mean')
 
     inner_model.compile(
         'sgd',
@@ -3485,7 +3485,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
     y = inner_model(x)
     outer_model = training_module.Model(x, y)
     outer_model.add_metric(
-        tf.reduce_sum(y), name='mean2', aggregation='mean')
+        tf.compat.v2.reduce_sum(y), name='mean2', aggregation='mean')
 
     outer_model.compile(
         'sgd',
@@ -3506,12 +3506,12 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
       def __init__(self):
         super(DictMetric, self).__init__()
-        self.sample_count = tf.Variable(0)
-        self.l2_sum = tf.Variable(0.)
+        self.sample_count = tf.compat.v2.Variable(0)
+        self.l2_sum = tf.compat.v2.Variable(0.)
 
       def update_state(self, y_true, y_pred, sample_weight=None):
         self.l2_sum.assign_add(
-            tf.reduce_sum(tf.square(y_true - y_pred)))
+            tf.compat.v2.reduce_sum(tf.square(y_true - y_pred)))
         self.sample_count.assign_add(tf.compat.v1.shape(y_true)[0])
 
       def reset_state(self):
@@ -3520,7 +3520,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
 
       def result(self):
         mse = self.l2_sum / tf.cast(self.sample_count, 'float32')
-        rmse = tf.sqrt(mse)
+        rmse = tf.math.sqrt(mse)
         return {'my_mse': mse,
                 'my_rmse': rmse}
 

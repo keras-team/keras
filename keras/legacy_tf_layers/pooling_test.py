@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from tensorflow.python.framework import test_util
 from keras.legacy_tf_layers import pooling as pooling_layers

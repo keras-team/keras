@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for serialization functions."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import json
 from keras import combinations
@@ -31,7 +31,7 @@ class SerializationTests(keras_parameterized.TestCase):
 
   def test_serialize_dense(self):
     dense = core.Dense(3)
-    dense(tf.constant([[4.]]))
+    dense(tf.compat.v2.constant([[4.]]))
     round_trip = json.loads(json.dumps(
         dense, default=json_utils.get_json_type))
     self.assertEqual(3, round_trip["config"]["units"])
@@ -40,7 +40,7 @@ class SerializationTests(keras_parameterized.TestCase):
     model = sequential.Sequential()
     model.add(core.Dense(4))
     model.add(core.Dense(5))
-    model(tf.constant([[1.]]))
+    model(tf.compat.v2.constant([[1.]]))
     sequential_round_trip = json.loads(
         json.dumps(model, default=json_utils.get_json_type))
     self.assertEqual(
@@ -52,7 +52,7 @@ class SerializationTests(keras_parameterized.TestCase):
     x = input_layer.Input(shape=[3])
     y = core.Dense(10)(x)
     model = training.Model(x, y)
-    model(tf.constant([[1., 1., 1.]]))
+    model(tf.compat.v2.constant([[1., 1., 1.]]))
     model_round_trip = json.loads(
         json.dumps(model, default=json_utils.get_json_type))
     self.assertEqual(

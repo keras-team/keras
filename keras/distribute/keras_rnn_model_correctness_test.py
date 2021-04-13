@@ -14,7 +14,7 @@
 # ==============================================================================
 """Correctness tests for tf.keras RNN models using DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 
@@ -70,14 +70,14 @@ class DistributionStrategyGruModelCorrectnessTest(
     _DistributionStrategyRnnModelCorrectnessTest):
 
   def _get_layer_class(self):
-    if tf.__internal__.tf2.enabled():
-      if not tf.executing_eagerly():
+    if tf.compat.v2.__internal__.tf2.enabled():
+      if not tf.compat.v2.executing_eagerly():
         self.skipTest("GRU v2 and legacy graph mode don't work together.")
       return rnn_v2.GRU
     else:
       return rnn_v1.GRU
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_gru_model_correctness(self, distribution, use_numpy,
@@ -91,33 +91,33 @@ class DistributionStrategyLstmModelCorrectnessTest(
     _DistributionStrategyRnnModelCorrectnessTest):
 
   def _get_layer_class(self):
-    if tf.__internal__.tf2.enabled():
-      if not tf.executing_eagerly():
+    if tf.compat.v2.__internal__.tf2.enabled():
+      if not tf.compat.v2.executing_eagerly():
         self.skipTest("LSTM v2 and legacy graph mode don't work together.")
       return rnn_v2.LSTM
     else:
       return rnn_v1.LSTM
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   def test_lstm_model_correctness(self, distribution, use_numpy,
                                   use_validation_data):
     self.run_correctness_test(distribution, use_numpy, use_validation_data)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       keras_correctness_test_base.test_combinations_for_embedding_model() +
       keras_correctness_test_base.multi_worker_mirrored_eager())
   @testing_utils.enable_v2_dtype_behavior
   def test_lstm_model_correctness_mixed_precision(self, distribution, use_numpy,
                                                   use_validation_data):
     if isinstance(distribution,
-                  (tf.distribute.experimental.CentralStorageStrategy,
+                  (tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('CentralStorageStrategy is not supported by '
                     'mixed precision.')
     if isinstance(distribution,
-                  (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
+                  (tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
       policy_name = 'mixed_bfloat16'
     else:
       policy_name = 'mixed_float16'
@@ -127,4 +127,4 @@ class DistributionStrategyLstmModelCorrectnessTest(
 
 
 if __name__ == '__main__':
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

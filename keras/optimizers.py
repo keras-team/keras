@@ -18,7 +18,7 @@
 For more examples see the base class `tf.keras.optimizers.Optimizer`.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras.optimizer_v1 import Optimizer

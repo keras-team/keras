@@ -15,7 +15,7 @@
 # ==============================================================================
 """Keras-based attention layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import collections
@@ -462,7 +462,7 @@ class MultiHeadAttention(Layer):
     # Note: Applying scalar multiply at the smaller end of einsum improves
     # XLA performance, but may introduce slight numeric differences in
     # the Transformer attention head.
-    query = tf.multiply(query, 1.0 / math.sqrt(float(self._key_dim)))
+    query = tf.math.multiply(query, 1.0 / math.sqrt(float(self._key_dim)))
 
     # Take the dot product between "query" and "key" to get the raw
     # attention scores.

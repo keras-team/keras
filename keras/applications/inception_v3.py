@@ -20,7 +20,7 @@ Reference:
       http://arxiv.org/abs/1512.00567) (CVPR 2016)
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras.applications import imagenet_utils

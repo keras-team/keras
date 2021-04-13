@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Adadelta Optimizer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -22,8 +22,8 @@ from keras import combinations
 from keras.optimizer_v2 import adadelta
 
 _DATA_TYPES = [
-    tf.half, tf.float32, tf.float64, tf.complex64,
-    tf.complex128
+    tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64, tf.dtypes.complex64,
+    tf.dtypes.complex128
 ]
 
 
@@ -37,13 +37,13 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           var0_init = [1.0, 2.0]
           var1_init = [3.0, 4.0]
           if use_resource:
-            var0 = tf.Variable(var0_init, dtype=dtype)
-            var1 = tf.Variable(var1_init, dtype=dtype)
+            var0 = tf.compat.v2.Variable(var0_init, dtype=dtype)
+            var1 = tf.compat.v2.Variable(var1_init, dtype=dtype)
           else:
-            var0 = tf.Variable(var0_init, dtype=dtype)
-            var1 = tf.Variable(var1_init, dtype=dtype)
+            var0 = tf.compat.v2.Variable(var0_init, dtype=dtype)
+            var1 = tf.compat.v2.Variable(var1_init, dtype=dtype)
 
-          grads = tf.constant([grad, grad], dtype=dtype)
+          grads = tf.compat.v2.constant([grad, grad], dtype=dtype)
 
           accum = 0.0
           accum_update = 0.0
@@ -59,10 +59,10 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           else:
             adadelta_opt = adadelta.Adadelta(
                 learning_rate=lr, rho=rho, epsilon=epsilon)
-          if not tf.executing_eagerly():
+          if not tf.compat.v2.executing_eagerly():
             adadelta_update = adadelta_opt.apply_gradients(
                 zip([grads, grads], [var0, var1]))
-            self.evaluate(tf.compat.v1.global_variables_initializer())
+            self.evaluate(tf.compat.v1.initializers.global_variables())
 
             # Assign slots
             slot = [None] * 2
@@ -87,7 +87,7 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           tot_update = 0
           for step in range(num_updates):
             # Run adadelta update for comparison
-            if not tf.executing_eagerly():
+            if not tf.compat.v2.executing_eagerly():
               self.evaluate(adadelta_update)
             else:
               adadelta_opt.apply_gradients(zip([grads, grads], [var0, var1]))
@@ -101,7 +101,7 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
                 accum_update * rho + (update[step]**2) * (1.0 - rho))
             tot_update += update[step] * lr
 
-            if not tf.executing_eagerly():
+            if not tf.compat.v2.executing_eagerly():
               # Check that the accumulators have been updated
               # TODO(lxuechen): This is hard to test in eager mode
               for slot_idx in range(2):
@@ -144,16 +144,16 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
       for dtype in _DATA_TYPES:
-        var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-        x = tf.constant([[4.0], [5.0]], dtype=dtype)
+        var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+        x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
         def loss():
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
           return pred * pred
 
         sgd_op = adadelta.Adadelta(1.0, 1.0, 1.0).minimize(
             loss, var_list=[var0])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllCloseAccordingToType([[1.0, 2.0]], self.evaluate(var0))
         # Run 1 step of sgd
@@ -165,11 +165,11 @@ class AdadeltaOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = adadelta.Adadelta(lr=1.0, rho=0.9, epsilon=1.)
     opt_2 = adadelta.Adadelta(learning_rate=0.1, rho=0.9, epsilon=1., lr=1.0)
     opt_3 = adadelta.Adadelta(learning_rate=0.1, rho=0.9, epsilon=1.)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_2.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_3.lr), (0.1))

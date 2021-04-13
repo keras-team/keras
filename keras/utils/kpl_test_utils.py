@@ -14,7 +14,7 @@
 # ==============================================================================
 """Test related utilities for KPL + tf.distribute."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import random
 import tempfile
@@ -117,7 +117,7 @@ class DistributeKplTestUtils(tf.test.TestCase):
     emb_output = keras.layers.Embedding(
         input_dim=len(self.FEATURE_VOCAB) + 2, output_dim=20)(
             model_input)
-    emb_output = tf.reduce_mean(emb_output, axis=1)
+    emb_output = tf.compat.v2.reduce_mean(emb_output, axis=1)
     dense_output = keras.layers.Dense(
         units=1, activation="sigmoid")(
             emb_output)
@@ -144,7 +144,7 @@ class DistributeKplTestUtils(tf.test.TestCase):
       transformed_features = model.feature_mapper(raw_features)
       outputs = model(transformed_features)
       outputs = tf.compat.v1.squeeze(outputs, axis=0)
-      outputs = tf.cast(tf.greater(outputs, 0.5), tf.int64)
+      outputs = tf.cast(tf.math.greater(outputs, 0.5), tf.int64)
       decoded_outputs = model.label_inverse_lookup_layer(outputs)
       return tf.compat.v1.squeeze(decoded_outputs, axis=0)
 
@@ -172,9 +172,9 @@ class DistributeKplTestUtils(tf.test.TestCase):
 
     # check the result w/ and w/o avenger.
     prediction0 = loaded_serving_fn(
-        tf.constant(["avenger", "ironman", "avenger"]))["output_0"]
+        tf.compat.v2.constant(["avenger", "ironman", "avenger"]))["output_0"]
     self.assertIn(prediction0.numpy().decode("UTF-8"), ("yes", "no"))
 
     prediction1 = loaded_serving_fn(
-        tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+        tf.compat.v2.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
     self.assertIn(prediction1.numpy().decode("UTF-8"), ("yes", "no"))

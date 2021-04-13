@@ -15,7 +15,7 @@
 # pylint: disable=g-classes-have-attributes
 """Keras layers that implement explicit (approximate) kernel feature maps."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras import initializers
@@ -184,16 +184,16 @@ class RandomFourierFeatures(base_layer.Layer):
     self.unscaled_kernel = self.add_weight(
         name='unscaled_kernel',
         shape=(input_dim, self.output_dim),
-        dtype=tf.float32,
+        dtype=tf.dtypes.float32,
         initializer=kernel_initializer,
         trainable=False)
 
     self.bias = self.add_weight(
         name='bias',
         shape=(self.output_dim,),
-        dtype=tf.float32,
+        dtype=tf.dtypes.float32,
         initializer=tf.compat.v1.random_uniform_initializer(
-            minval=0.0, maxval=2 * np.pi, dtype=tf.float32),
+            minval=0.0, maxval=2 * np.pi, dtype=tf.dtypes.float32),
         trainable=False)
 
     if self.scale is None:
@@ -201,15 +201,15 @@ class RandomFourierFeatures(base_layer.Layer):
     self.kernel_scale = self.add_weight(
         name='kernel_scale',
         shape=(1,),
-        dtype=tf.float32,
-        initializer=tf.compat.v1.constant_initializer(self.scale),
+        dtype=tf.dtypes.float32,
+        initializer=tf.compat.v1.initializers.constant(self.scale),
         trainable=True,
         constraint='NonNeg')
     super(RandomFourierFeatures, self).build(input_shape)
 
   def call(self, inputs):
-    inputs = tf.convert_to_tensor(inputs, dtype=self.dtype)
-    inputs = tf.cast(inputs, tf.float32)
+    inputs = tf.compat.v2.convert_to_tensor(inputs, dtype=self.dtype)
+    inputs = tf.cast(inputs, tf.dtypes.float32)
     kernel = (1.0 / self.kernel_scale) * self.unscaled_kernel
     outputs = tf.raw_ops.MatMul(a=inputs, b=kernel)
     outputs = tf.nn.bias_add(outputs, self.bias)
@@ -250,7 +250,7 @@ def _get_random_features_initializer(initializer, shape):
       random_features_initializer = tf.compat.v1.random_normal_initializer(
           stddev=1.0)
     elif initializer.lower() == 'laplacian':
-      random_features_initializer = tf.compat.v1.constant_initializer(
+      random_features_initializer = tf.compat.v1.initializers.constant(
           _get_cauchy_samples(loc=0.0, scale=1.0, shape=shape))
 
     else:

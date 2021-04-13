@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for distributed training utility functions."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import callbacks
 from keras.distribute import distributed_training_utils_v1

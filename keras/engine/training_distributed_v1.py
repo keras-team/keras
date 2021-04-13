@@ -14,7 +14,7 @@
 # ==============================================================================
 """Part of the Keras training engine related to distributed training."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=protected-access
 
 import numpy as np
@@ -175,7 +175,7 @@ def experimental_tpu_fit_loop(model,
 
   # Add initial dummy values for loss and other metric tensors.
   initial_loop_values = {}
-  initial_loop_values['loss'] = tf.constant(1e7)
+  initial_loop_values['loss'] = tf.compat.v2.constant(1e7)
   for m in model._get_training_eval_metrics():
     tensor = m.result()
     initial_loop_values[m.name] = tf.zeros(tensor.shape, tensor.dtype)
@@ -647,7 +647,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
         raise ValueError('Number of steps could not be inferred from the data, '
                          'please pass the steps_per_epoch argument.')
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         # Run TPU training in a custom loop in graph mode.
         return experimental_tpu_fit_loop(
             model,
@@ -704,7 +704,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
         raise ValueError('Number of steps could not be inferred from the data, '
                          'please pass the steps argument.')
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         # Run TPU evaluation in a custom loop in graph mode.
         return experimental_tpu_test_loop(
             model, dataset, verbose=verbose, steps=steps, callbacks=callbacks)
@@ -740,7 +740,7 @@ class DistributionSingleWorkerTrainingLoop(training_utils_v1.TrainingLoop):
       if steps is None:
         raise ValueError('Number of steps could not be inferred from the data, '
                          'please pass the steps argument.')
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         return experimental_tpu_predict_loop(
             model, dataset, verbose=verbose, steps=steps, callbacks=callbacks)
     return training_arrays_v1.predict_loop(

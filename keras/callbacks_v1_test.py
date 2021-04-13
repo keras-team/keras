@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras callbacks."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import shutil
@@ -234,13 +234,13 @@ class TestTensorBoardV1(tf.test.TestCase, parameterized.TestCase):
         self.steps_seen = []
 
       def add_summary(self, summary, global_step):
-        summary_obj = tf.compat.v1.Summary()
+        summary_obj = tf.compat.v1.summary.Summary()
 
         # ensure a valid Summary proto is being sent
         if isinstance(summary, bytes):
           summary_obj.ParseFromString(summary)
         else:
-          assert isinstance(summary, tf.compat.v1.Summary)
+          assert isinstance(summary, tf.compat.v1.summary.Summary)
           summary_obj = summary
 
         # keep track of steps seen for the merged_summary op,

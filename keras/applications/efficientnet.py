@@ -21,7 +21,7 @@ Reference:
       https://arxiv.org/abs/1905.11946) (ICML 2019)
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 import math

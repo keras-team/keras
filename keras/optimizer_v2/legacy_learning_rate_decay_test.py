@@ -14,7 +14,7 @@
 # ==============================================================================
 """Functional test for learning rate decay."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import math
 from keras import combinations
@@ -26,16 +26,16 @@ from keras.optimizer_v2 import legacy_learning_rate_decay as learning_rate_decay
 class LRDecayTest(keras_parameterized.TestCase):
 
   def testContinuous(self):
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     step = 5
     decayed_lr = tf.compat.v1.train.exponential_decay(0.05, step, 10, 0.96)
     expected = .05 * 0.96**(5.0 / 10.0)
     self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
   def testStaircase(self):
-    if tf.executing_eagerly():
-      step = tf.Variable(0)
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+    if tf.compat.v2.executing_eagerly():
+      step = tf.compat.v2.Variable(0)
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       decayed_lr = tf.compat.v1.train.exponential_decay(
           .1, step, 3, 0.96, staircase=True)
 
@@ -58,29 +58,29 @@ class LRDecayTest(keras_parameterized.TestCase):
 
     decayed_lr = tf.compat.v1.train.exponential_decay(
         .1, step, 3, 0.96, staircase=True)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     # No change to learning rate
     assign_1 = step.assign(1)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(assign_1.op)
     self.assertAllClose(self.evaluate(decayed_lr), .1, 1e-6)
     assign_2 = step.assign(2)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(assign_2.op)
     self.assertAllClose(self.evaluate(decayed_lr), .1, 1e-6)
     # Decayed learning rate
     assign_100 = step.assign(100)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.evaluate(assign_100.op)
     expected = .1 * 0.96**(100 // 3)
     self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
 
   def testPiecewiseConstant(self):
-    x = tf.Variable(-999)
-    decayed_lr = tf.compat.v1.train.piecewise_constant(
+    x = tf.compat.v2.Variable(-999)
+    decayed_lr = tf.compat.v1.train.piecewise_constant_decay(
         x, [100, 110, 120], [1.0, 0.1, 0.01, 0.001])
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
 
     self.assertAllClose(self.evaluate(decayed_lr), 1.0, 1e-6)
     self.evaluate(x.assign(100))
@@ -95,36 +95,36 @@ class LRDecayTest(keras_parameterized.TestCase):
     self.assertAllClose(self.evaluate(decayed_lr), 0.001, 1e-6)
 
   def testPiecewiseConstantEdgeCases(self):
-    x_int = tf.Variable(0, dtype=tf.int32)
+    x_int = tf.compat.v2.Variable(0, dtype=tf.dtypes.int32)
     boundaries, values = [-1.0, 1.0], [1, 2, 3]
     with self.assertRaises(ValueError):
-      decayed_lr = tf.compat.v1.train.piecewise_constant(
+      decayed_lr = tf.compat.v1.train.piecewise_constant_decay(
           x_int, boundaries, values)
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         decayed_lr()
 
-    x = tf.Variable(0.0)
+    x = tf.compat.v2.Variable(0.0)
     boundaries, values = [-1.0, 1.0], [1.0, 2, 3]
     with self.assertRaises(ValueError):
-      decayed_lr = tf.compat.v1.train.piecewise_constant(
+      decayed_lr = tf.compat.v1.train.piecewise_constant_decay(
           x, boundaries, values)
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         decayed_lr()
 
     # Test that ref types are valid.
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       x = tf.compat.v1.Variable(0.0, use_resource=False)
       x_ref = x.op.outputs[0]   # float32_ref tensor should be accepted
       boundaries, values = [1.0, 2.0], [1, 2, 3]
-      tf.compat.v1.train.piecewise_constant(x_ref, boundaries, values)
+      tf.compat.v1.train.piecewise_constant_decay(x_ref, boundaries, values)
 
     # Test casting boundaries from int32 to int64.
-    x_int64 = tf.Variable(0, dtype=tf.int64)
+    x_int64 = tf.compat.v2.Variable(0, dtype=tf.int64)
     boundaries, values = [1, 2, 3], [0.4, 0.5, 0.6, 0.7]
-    decayed_lr = tf.compat.v1.train.piecewise_constant(
+    decayed_lr = tf.compat.v1.train.piecewise_constant_decay(
         x_int64, boundaries, values)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(self.evaluate(decayed_lr), 0.4, 1e-6)
     self.evaluate(x_int64.assign(1))
     self.assertAllClose(self.evaluate(decayed_lr), 0.4, 1e-6)
@@ -255,11 +255,11 @@ class ExponentialDecayTest(keras_parameterized.TestCase):
     initial_lr = 0.1
     k = 10
     decay_rate = 0.96
-    step = tf.Variable(0)
+    step = tf.compat.v2.Variable(0)
     decayed_lr = tf.compat.v1.train.natural_exp_decay(initial_lr, step, k,
                                                        decay_rate)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     for i in range(k + 1):
       expected = initial_lr * math.exp(-i / k * decay_rate)
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
@@ -269,11 +269,11 @@ class ExponentialDecayTest(keras_parameterized.TestCase):
     initial_lr = 0.1
     k = 10
     decay_rate = 0.96
-    step = tf.Variable(0)
+    step = tf.compat.v2.Variable(0)
     decayed_lr = tf.compat.v1.train.natural_exp_decay(
         initial_lr, step, k, decay_rate, staircase=True)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     for i in range(k + 1):
       expected = initial_lr * math.exp(-decay_rate * (i // k))
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
@@ -287,11 +287,11 @@ class InverseDecayTest(keras_parameterized.TestCase):
     initial_lr = 0.1
     k = 10
     decay_rate = 0.96
-    step = tf.Variable(0)
+    step = tf.compat.v2.Variable(0)
     decayed_lr = tf.compat.v1.train.inverse_time_decay(initial_lr, step, k,
                                                         decay_rate)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     for i in range(k + 1):
       expected = initial_lr / (1 + i / k * decay_rate)
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)
@@ -301,11 +301,11 @@ class InverseDecayTest(keras_parameterized.TestCase):
     initial_lr = 0.1
     k = 10
     decay_rate = 0.96
-    step = tf.Variable(0)
+    step = tf.compat.v2.Variable(0)
     decayed_lr = tf.compat.v1.train.inverse_time_decay(
         initial_lr, step, k, decay_rate, staircase=True)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     for i in range(k + 1):
       expected = initial_lr / (1 + decay_rate * (i // k))
       self.assertAllClose(self.evaluate(decayed_lr), expected, 1e-6)

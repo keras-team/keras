@@ -17,7 +17,7 @@
 # pylint: disable=g-classes-have-attributes
 """Set of tools for real-time data augmentation on image data."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras_preprocessing import image
 import numpy as np
@@ -104,7 +104,7 @@ def smart_resize(x, size, interpolation='bilinear'):
   if len(size) != 2:
     raise ValueError('Expected `size` to be a tuple of 2 integers, '
                      'but got: %s' % (size,))
-  img = tf.convert_to_tensor(x)
+  img = tf.compat.v2.convert_to_tensor(x)
   if img.shape.rank is not None:
     if img.shape.rank != 3:
       raise ValueError(
@@ -120,8 +120,8 @@ def smart_resize(x, size, interpolation='bilinear'):
       tf.cast(height * target_width, 'float32') / target_height, 'int32')
 
   # Set back to input height / width if crop_height / crop_width is not smaller.
-  crop_height = tf.minimum(height, crop_height)
-  crop_width = tf.minimum(width, crop_width)
+  crop_height = tf.math.minimum(height, crop_height)
+  crop_width = tf.math.minimum(width, crop_width)
 
   crop_box_hstart = tf.cast(
       tf.cast(height - crop_height, 'float32') / 2, 'int32')
@@ -132,7 +132,7 @@ def smart_resize(x, size, interpolation='bilinear'):
   crop_box_size = tf.stack([crop_height, crop_width, -1])
 
   img = tf.slice(img, crop_box_start, crop_box_size)
-  img = tf.image.resize(
+  img = tf.compat.v2.image.resize(
       images=img,
       size=size,
       method=interpolation)

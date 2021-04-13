@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras text dataset generation utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras.preprocessing import dataset_utils

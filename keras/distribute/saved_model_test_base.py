@@ -14,7 +14,7 @@
 # ==============================================================================
 """Base class for testing saving/loading with DS."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 
@@ -41,16 +41,16 @@ simple_models = [
 
 
 strategies = [
-    tf.__internal__.distribute.combinations.default_strategy,
-    tf.__internal__.distribute.combinations.one_device_strategy,
-    tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_one_gpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-    tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-    tf.__internal__.distribute.combinations.tpu_strategy,
-    tf.__internal__.distribute.combinations.tpu_strategy_packed_var,
-    tf.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
+    tf.compat.v2.__internal__.distribute.combinations.default_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.one_device_strategy_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_one_gpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+    tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+    tf.compat.v2.__internal__.distribute.combinations.tpu_strategy,
+    tf.compat.v2.__internal__.distribute.combinations.tpu_strategy_packed_var,
+    tf.compat.v2.__internal__.distribute.combinations.central_storage_strategy_with_two_gpus,
 ]
 
 
@@ -62,14 +62,14 @@ def get_tolerance(save_distribution, restore_distribution):
 
 
 def simple_models_with_strategies():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       model_and_input=simple_models,
       distribution=strategies,
       mode=['eager'])
 
 
 def simple_models_with_strategy_pairs():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       model_and_input=simple_models,
       distribution_for_saving=strategies,
       distribution_for_restoring=strategies,
@@ -77,14 +77,14 @@ def simple_models_with_strategy_pairs():
 
 
 def tfmodule_models_with_strategies():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       model_and_input=[model_combinations.simple_tfmodule_model],
       distribution=strategies,
       mode=['eager'])
 
 
 def tfmodule_models_with_strategy_pairs():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       model_and_input=[model_combinations.simple_tfmodule_model],
       distribution_for_saving=strategies,
       distribution_for_restoring=strategies,
@@ -94,7 +94,7 @@ def tfmodule_models_with_strategy_pairs():
 def load_and_run_with_saved_model_api(distribution, saved_dir, predict_dataset,
                                       output_name):
   """Loads a saved_model using tf.saved_model API, and runs it."""
-  func = tf.saved_model.load(saved_dir)
+  func = tf.compat.v2.saved_model.load(saved_dir)
   if distribution:
     dist_predict_dataset = distribution.experimental_distribute_dataset(
         predict_dataset)

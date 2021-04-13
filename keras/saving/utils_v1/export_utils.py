@@ -15,7 +15,7 @@
 # LINT.IfChange
 """Utilities for creating SavedModels."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import os
@@ -128,7 +128,7 @@ def build_all_signature_defs(receiver_tensors,
     signature_def_map = {
         k: v
         for k, v in signature_def_map.items()
-        if tf.compat.v1.saved_model.is_valid_signature(v)
+        if tf.compat.v1.saved_model.signature_def_utils.is_valid_signature(v)
     }
   return signature_def_map
 

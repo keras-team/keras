@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import platform
@@ -57,7 +57,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
       v = tf.compat.v1.get_variable(
           'X', initializer=tf.compat.v1.zeros_initializer(), shape=(1, 1))
       x = core_layers.Dense(1)(v)
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertAllEqual(x, [[0.0]])
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -70,7 +70,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertListEqual(dense.trainable_variables,
                          [dense.kernel, dense.bias])
     self.assertListEqual(dense.non_trainable_variables, [])
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 2)
     self.assertEqual(dense.kernel.name, 'my_dense/kernel:0')
@@ -99,7 +99,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertListEqual(dense.variables, [dense.kernel])
     self.assertListEqual(dense.trainable_variables, [dense.kernel])
     self.assertListEqual(dense.non_trainable_variables, [])
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 1)
     self.assertEqual(dense.kernel.name, 'my_dense/kernel:0')
@@ -114,7 +114,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     self.assertListEqual(dense.non_trainable_variables,
                          [dense.kernel, dense.bias])
     self.assertListEqual(dense.trainable_variables, [])
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(
           len(tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES)), 0)
 
@@ -135,27 +135,27 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testCallOnPlaceHolder(self):
-    inputs = tf.compat.v1.placeholder(dtype=tf.float32)
+    inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32)
     dense = core_layers.Dense(4, name='my_dense')
     with self.assertRaises(ValueError):
       dense(inputs)
 
-    inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, None])
+    inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=[None, None])
     dense = core_layers.Dense(4, name='my_dense')
     with self.assertRaises(ValueError):
       dense(inputs)
 
     inputs = tf.compat.v1.placeholder(
-        dtype=tf.float32, shape=[None, None, None])
+        dtype=tf.dtypes.float32, shape=[None, None, None])
     dense = core_layers.Dense(4, name='my_dense')
     with self.assertRaises(ValueError):
       dense(inputs)
 
-    inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, 3])
+    inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=[None, 3])
     dense = core_layers.Dense(4, name='my_dense')
     dense(inputs)
 
-    inputs = tf.compat.v1.placeholder(dtype=tf.float32, shape=[None, None, 3])
+    inputs = tf.compat.v1.placeholder(dtype=tf.dtypes.float32, shape=[None, None, 3])
     dense = core_layers.Dense(4, name='my_dense')
     dense(inputs)
 
@@ -164,18 +164,18 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
     dense = core_layers.Dense(2, activation=tf.nn.relu, name='dense1')
     inputs = tf.random.uniform((5, 3), seed=1)
     outputs = dense(inputs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(outputs.op.name, 'dense1/Relu')
 
     dense = core_layers.Dense(2, name='dense2')
     inputs = tf.random.uniform((5, 3), seed=1)
     outputs = dense(inputs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(outputs.op.name, 'dense2/BiasAdd')
 
   @test_util.run_deprecated_v1
   def testActivityRegularizer(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(
         2, name='my_dense', activity_regularizer=regularizer)
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -186,7 +186,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testKernelRegularizer(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(
         2, name='my_dense', kernel_regularizer=regularizer)
     inputs = tf.random.uniform((5, 3), seed=1)
@@ -198,7 +198,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testKernelRegularizerWithReuse(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     inputs = tf.random.uniform((5, 3), seed=1)
     _ = core_layers.dense(
         inputs, 2, name='my_dense', kernel_regularizer=regularizer)
@@ -211,7 +211,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @test_util.run_deprecated_v1
   def testBiasRegularizer(self):
-    regularizer = lambda x: tf.reduce_sum(x) * 1e-3
+    regularizer = lambda x: tf.compat.v2.reduce_sum(x) * 1e-3
     dense = core_layers.Dense(2, name='my_dense', bias_regularizer=regularizer)
     inputs = tf.random.uniform((5, 3), seed=1)
     _ = dense(inputs)
@@ -269,7 +269,7 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
         initializer=tf.compat.v1.ones_initializer()), self.cached_session():
       inputs = tf.random.uniform((5, 3), seed=1)
       core_layers.dense(inputs, 2)
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       weights = _get_variable_dict_from_varstore()
       self.assertEqual(len(weights), 2)
       # Check that the matrix weights got initialized to ones (from scope).
@@ -337,8 +337,8 @@ class DenseTest(tf.test.TestCase, parameterized.TestCase):
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testConstraints(self):
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     dense = core_layers.Dense(2,
                               kernel_constraint=k_constraint,
                               bias_constraint=b_constraint)
@@ -370,8 +370,8 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     dp = core_layers.Dropout(0.5)
     inputs = tf.ones((5, 3))
     dropped = dp.apply(inputs, training=True)
-    if not tf.executing_eagerly():
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+    if not tf.compat.v2.executing_eagerly():
+      self.evaluate(tf.compat.v1.initializers.global_variables())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())
     dropped = dp.apply(inputs, training=False)
@@ -385,7 +385,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
       inputs = tf.ones((5, 5))
       training = tf.compat.v1.placeholder(dtype='bool')
       dropped = dp.apply(inputs, training=training)
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_output = sess.run(dropped, feed_dict={training: True})
       self.assertAlmostEqual(0., np_output.min())
       np_output = sess.run(dropped, feed_dict={training: False})
@@ -397,7 +397,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     noise_shape = [None, 1, None]
     dp = core_layers.Dropout(0.5, noise_shape=noise_shape, seed=1)
     dropped = dp.apply(inputs, training=True)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())
     self.assertAllClose(np_output[:, 0, :], np_output[:, 1, :])
@@ -407,7 +407,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     noise_shape = [5, 1, 2]
     dp = core_layers.Dropout(0.5, noise_shape=noise_shape, seed=1)
     dropped = dp.apply(inputs, training=True)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     np_output = self.evaluate(dropped)
     self.assertAlmostEqual(0., np_output.min())
     self.assertAllClose(np_output[:, 0, :], np_output[:, 1, :])
@@ -417,7 +417,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
     with self.cached_session():
       inputs = tf.ones((5, 5))
       dropped = core_layers.dropout(inputs, 0.5, training=True, seed=1)
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_output = self.evaluate(dropped)
       self.assertAlmostEqual(0., np_output.min())
       dropped = core_layers.dropout(inputs, 0.5, training=False, seed=1)
@@ -431,7 +431,7 @@ class DropoutTest(tf.test.TestCase, parameterized.TestCase):
       dp = core_layers.Dropout(rate, name='dropout')
       inputs = tf.ones((5, 5))
       dropped = dp.apply(inputs, training=True)
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       np_output = sess.run(dropped, feed_dict={rate: 0.5})
       self.assertAlmostEqual(0., np_output.min())
       np_output = sess.run(dropped, feed_dict={rate: 0.0})

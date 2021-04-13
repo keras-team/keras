@@ -109,7 +109,7 @@ def create_vocabulary(vocab_size):
 def run_keras(data, model, batch_size, num_runs, steps_per_repeat=100):
   """Benchmark a Keras model."""
   ds = tf.data.Dataset.from_tensor_slices(data).repeat().prefetch(
-      tf.data.AUTOTUNE).batch(batch_size).cache()
+      tf.data.experimental.AUTOTUNE).batch(batch_size).cache()
   steps = 0
   times = []
   for _ in range(num_runs):
@@ -127,7 +127,7 @@ def run_fc(data, fc_fn, batch_size, num_runs, steps_per_repeat=100):
   """Benchmark a Feature Column."""
 
   ds = tf.data.Dataset.from_tensor_slices(data).repeat().prefetch(
-      tf.data.AUTOTUNE).batch(batch_size).cache()
+      tf.data.experimental.AUTOTUNE).batch(batch_size).cache()
 
   # Trace the fc_fn
   ds_iter = ds.__iter__()

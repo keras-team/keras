@@ -14,7 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.category_encoding."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 
@@ -31,14 +31,14 @@ def batch_wrapper(dataset, batch_size, distribution, repeat=None):
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
   if isinstance(distribution,
-                (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
+                (tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)):
     return dataset.batch(batch_size, drop_remainder=True)
   else:
     return dataset.batch(batch_size)
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         # (b/156783625): Outside compilation failed for eager mode only.
         distribution=strategy_combinations.strategies_minus_tpu,
         mode=["eager", "graph"]))
@@ -48,7 +48,7 @@ class CategoryEncodingDistributionTest(
 
   def test_distribution(self, distribution):
     input_array = np.array([[1, 2, 3, 1], [0, 3, 1, 0]])
-    inp_dataset = tf.data.Dataset.from_tensor_slices(input_array)
+    inp_dataset = tf.compat.v2.data.Dataset.from_tensor_slices(input_array)
     inp_dataset = batch_wrapper(inp_dataset, 2, distribution)
 
     # pyformat: disable
@@ -59,7 +59,7 @@ class CategoryEncodingDistributionTest(
     tf.config.set_soft_device_placement(True)
 
     with distribution.scope():
-      input_data = keras.Input(shape=(4,), dtype=tf.int32)
+      input_data = keras.Input(shape=(4,), dtype=tf.dtypes.int32)
       layer = category_encoding.CategoryEncoding(
           num_tokens=num_tokens, output_mode=category_encoding.BINARY)
       int_data = layer(input_data)

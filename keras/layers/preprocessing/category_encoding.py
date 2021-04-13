@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras CategoryEncoding preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -142,7 +142,7 @@ class CategoryEncoding(base_preprocessing_layer.PreprocessingLayer):
 
   def call(self, inputs, count_weights=None):
     if isinstance(inputs, (list, np.ndarray)):
-      inputs = tf.convert_to_tensor(inputs)
+      inputs = tf.compat.v2.convert_to_tensor(inputs)
     if inputs.shape.rank == 1:
       inputs = tf.compat.v1.expand_dims(inputs, 1)
 
@@ -152,18 +152,18 @@ class CategoryEncoding(base_preprocessing_layer.PreprocessingLayer):
 
     out_depth = self.num_tokens
     binary_output = (self.output_mode == BINARY)
-    if isinstance(inputs, tf.SparseTensor):
-      max_value = tf.reduce_max(inputs.values)
-      min_value = tf.reduce_min(inputs.values)
+    if isinstance(inputs, tf.sparse.SparseTensor):
+      max_value = tf.compat.v2.reduce_max(inputs.values)
+      min_value = tf.compat.v2.reduce_min(inputs.values)
     else:
-      max_value = tf.reduce_max(inputs)
-      min_value = tf.reduce_min(inputs)
-    condition = tf.logical_and(
-        tf.greater(
+      max_value = tf.compat.v2.reduce_max(inputs)
+      min_value = tf.compat.v2.reduce_min(inputs)
+    condition = tf.math.logical_and(
+        tf.math.greater(
             tf.cast(out_depth, max_value.dtype), max_value),
         tf.greater_equal(
             min_value, tf.cast(0, min_value.dtype)))
-    tf.Assert(condition, [
+    tf.debugging.Assert(condition, [
         "Input values must be in the range 0 <= values < num_tokens"
         " with num_tokens={}".format(out_depth)
     ])
@@ -184,7 +184,7 @@ def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
       binary_output=binary_output)
   result = tf.cast(result, backend.floatx())
   batch_size = tf.compat.v1.shape(result)[0]
-  result = tf.SparseTensor(
+  result = tf.sparse.SparseTensor(
       indices=result.indices,
       values=result.values,
       dense_shape=[batch_size, out_depth])
@@ -193,7 +193,7 @@ def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
 
 def dense_bincount(inputs, out_depth, binary_output, count_weights=None):
   """Apply binary or count encoding to an input."""
-  result = tf.math.bincount(
+  result = tf.compat.v2.math.bincount(
       inputs,
       weights=count_weights,
       minlength=out_depth,

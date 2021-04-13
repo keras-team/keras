@@ -14,17 +14,17 @@
 # ==============================================================================
 """Strategy and optimizer combinations for combinations.combine()."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.distribute import simple_models
 
-simple_functional_model = tf.__internal__.test.combinations.NamedObject(
+simple_functional_model = tf.compat.v2.__internal__.test.combinations.NamedObject(
     "SimpleFunctionalModel", simple_models.SimpleFunctionalModel())
 
-simple_sequential_model = tf.__internal__.test.combinations.NamedObject(
+simple_sequential_model = tf.compat.v2.__internal__.test.combinations.NamedObject(
     "SimpleSequentialModel", simple_models.SimpleSequentialModel())
 
-simple_subclass_model = tf.__internal__.test.combinations.NamedObject(
+simple_subclass_model = tf.compat.v2.__internal__.test.combinations.NamedObject(
     "SimpleSubclassModel", simple_models.SimpleSubclassModel())
 
-simple_tfmodule_model = tf.__internal__.test.combinations.NamedObject(
+simple_tfmodule_model = tf.compat.v2.__internal__.test.combinations.NamedObject(
     "SimpleTFModuleModel", simple_models.SimpleTFModuleModel())

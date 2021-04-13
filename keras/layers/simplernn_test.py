@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for SimpleRNN layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 
@@ -151,7 +151,7 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
 
     x = keras.backend.variable(np.ones((2, 3, 2)))
     layer(x)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertLen(layer.losses, 4)
     else:
       self.assertLen(layer.get_losses_for(x), 1)
@@ -224,7 +224,7 @@ class SimpleRNNLayerTest(tf.test.TestCase, parameterized.TestCase):
     batch_size = 4
     cell = keras.layers.SimpleRNNCell(20)
     initial_state = cell.get_initial_state(
-        batch_size=batch_size, dtype=tf.float32)
+        batch_size=batch_size, dtype=tf.dtypes.float32)
     _, state = cell(np.ones((batch_size, 20), dtype=np.float32), initial_state)
     self.assertEqual(state.shape, initial_state.shape)
 

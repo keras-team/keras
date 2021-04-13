@@ -14,7 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.discretization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 
@@ -25,8 +25,8 @@ from keras.layers.preprocessing import discretization
 from keras.layers.preprocessing import preprocessing_test_utils
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=strategy_combinations.all_strategies,
         mode=["eager", "graph"]))
 class DiscretizationDistributionTest(

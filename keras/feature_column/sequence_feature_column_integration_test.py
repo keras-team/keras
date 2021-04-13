@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 
 from google.protobuf import text_format
@@ -75,8 +75,8 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     def _parse_example(example):
       ctx, seq = tf.io.parse_single_sequence_example(
           example,
-          context_features=tf.feature_column.make_parse_example_spec(ctx_cols),
-          sequence_features=tf.feature_column.make_parse_example_spec(seq_cols))
+          context_features=tf.compat.v2.feature_column.make_parse_example_spec(ctx_cols),
+          sequence_features=tf.compat.v2.feature_column.make_parse_example_spec(seq_cols))
       ctx.update(seq)
       return ctx
 
@@ -99,7 +99,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     output = rnn_layer(concatenated_input)
 
     with self.cached_session() as sess:
-      sess.run(tf.compat.v1.global_variables_initializer())
+      sess.run(tf.compat.v1.initializers.global_variables())
       features_r = sess.run(features)
       self.assertAllEqual(features_r['int_list'].dense_shape, [20, 3, 6])
 
@@ -112,18 +112,18 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
                                                   num_buckets=10)
     seq = tf.feature_column.sequence_categorical_column_with_identity('seq',
                                                         num_buckets=10)
-    shared_non_seq, shared_seq = tf.feature_column.shared_embeddings(
+    shared_non_seq, shared_seq = tf.compat.v2.feature_column.shared_embeddings(
         [non_seq, seq],
         dimension=4,
         combiner='sum',
-        initializer=tf.ones_initializer(),
+        initializer=tf.compat.v2.ones_initializer(),
         shared_embedding_collection_name='shared')
 
-    seq = tf.SparseTensor(
+    seq = tf.sparse.SparseTensor(
         indices=[[0, 0], [0, 1], [1, 0]],
         values=[0, 1, 2],
         dense_shape=[2, 2])
-    non_seq = tf.SparseTensor(
+    non_seq = tf.sparse.SparseTensor(
         indices=[[0, 0], [0, 1], [1, 0]],
         values=[0, 1, 2],
         dense_shape=[2, 2])
@@ -134,7 +134,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     non_seq_input = dense_features.DenseFeatures([shared_non_seq])(features)
 
     with self.cached_session() as sess:
-      sess.run(tf.compat.v1.global_variables_initializer())
+      sess.run(tf.compat.v1.initializers.global_variables())
       output_seq, output_seq_length, output_non_seq = sess.run(
           [seq_input, seq_length, non_seq_input])
       self.assertAllEqual(output_seq, [[[1, 1, 1, 1], [1, 1, 1, 1]],

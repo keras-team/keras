@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities for multi-gpu training."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 from keras.engine.training import Model
 from keras.layers.core import Lambda

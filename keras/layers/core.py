@@ -14,7 +14,7 @@
 # ==============================================================================
 """Core Keras layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 import functools
@@ -45,7 +45,7 @@ from tensorflow.python.util.tf_export import keras_export
 
 # TODO(b/168039935): track dropout rate to decide whether/how to make a
 # dropout rate fastpath.
-keras_temporary_dropout_rate = tf.__internal__.monitoring.BoolGauge(
+keras_temporary_dropout_rate = tf.compat.v2.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/dropout/temp_rate_is_zero',
     'Temporarily record if Keras dropout layer was created w/'
     'constant rate = 0')
@@ -193,7 +193,7 @@ class Dropout(Layer):
     noise_shape = []
     for i, value in enumerate(self.noise_shape):
       noise_shape.append(concrete_inputs_shape[i] if value is None else value)
-    return tf.convert_to_tensor(noise_shape)
+    return tf.compat.v2.convert_to_tensor(noise_shape)
 
   def call(self, inputs, training=None):
     if training is None:
@@ -530,7 +530,7 @@ class Reshape(Layer):
   def call(self, inputs):
     result = tf.reshape(
         inputs, (tf.compat.v1.shape(inputs)[0],) + self.target_shape)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Set the static shape for the result since it might lost during array_ops
       # reshape, eg, some `None` dim in the result could be inferred.
       result.set_shape(self.compute_output_shape(inputs.shape))
@@ -647,27 +647,27 @@ class Flatten(Layer):
         permutation.append(1)
         inputs = tf.compat.v1.transpose(inputs, perm=permutation)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # Full static shape is guaranteed to be available.
       # Performance: Using `constant_op` is much faster than passing a list.
-      flattened_shape = tf.constant([inputs.shape[0], -1])
+      flattened_shape = tf.compat.v2.constant([inputs.shape[0], -1])
       return tf.reshape(inputs, flattened_shape)
     else:
       input_shape = inputs.shape
       rank = input_shape.rank
       if rank == 1:
-        return tf.expand_dims(inputs, axis=1)
+        return tf.compat.v2.expand_dims(inputs, axis=1)
       else:
         batch_dim = tf.compat.dimension_value(input_shape[0])
         non_batch_dims = input_shape[1:]
         # Reshape in a way that preserves as much shape info as possible.
         if non_batch_dims.is_fully_defined():
           last_dim = int(functools.reduce(operator.mul, non_batch_dims))
-          flattened_shape = tf.constant([-1, last_dim])
+          flattened_shape = tf.compat.v2.constant([-1, last_dim])
         elif batch_dim is not None:
-          flattened_shape = tf.constant([int(batch_dim), -1])
+          flattened_shape = tf.compat.v2.constant([int(batch_dim), -1])
         else:
-          flattened_shape = [tf.shape(inputs)[0], -1]
+          flattened_shape = [tf.compat.v2.shape(inputs)[0], -1]
         return tf.reshape(inputs, flattened_shape)
 
   def compute_output_shape(self, input_shape):
@@ -830,7 +830,7 @@ class Lambda(Layer):
     Specified by `output_shape` argument
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, output_shape=None, mask=None, arguments=None,
                **kwargs):
     super(Lambda, self).__init__(**kwargs)
@@ -857,7 +857,7 @@ class Lambda(Layer):
       # error message. This is always safe to run even when the outer context
       # is Graph mode because Lambda layers don't have side effects such as
       # `add_loss`.
-      with tf.__internal__.eager_context.eager_mode():
+      with tf.compat.v2.__internal__.eager_context.eager_mode():
         try:
           return super(Lambda, self).compute_output_shape(input_shape)
         except NotImplementedError:
@@ -894,7 +894,7 @@ class Lambda(Layer):
       return var
 
     with tf.GradientTape(watch_accessed_variables=True) as tape,\
-        tf.variable_creator_scope(_variable_creator):
+        tf.compat.v2.variable_creator_scope(_variable_creator):
       result = self.function(inputs, **kwargs)
     self._check_variables(created_variables, tape.watched_variables())
     return result
@@ -1198,7 +1198,7 @@ class Dense(Layer):
       # large sparse input tensors. The op will result in a sparse gradient, as
       # opposed to sparse_ops.sparse_tensor_dense_matmul which results in dense
       # gradients. This can lead to sigfinicant speedups, see b/171762937.
-      if isinstance(inputs, tf.SparseTensor):
+      if isinstance(inputs, tf.sparse.SparseTensor):
         # We need to fill empty rows, as the op assumes at least one id per row.
         inputs, _ = tf.sparse.fill_empty_rows(inputs, 0)
         # We need to do some munging of our input to use the embedding lookup as
@@ -1210,20 +1210,20 @@ class Dense(Layer):
         # will be summed over and does not matter. See the documentation for
         # sparse_ops.sparse_tensor_dense_matmul a more detailed explanation
         # of the inputs to both ops.
-        ids = tf.SparseTensor(
+        ids = tf.sparse.SparseTensor(
             indices=inputs.indices,
             values=inputs.indices[:, 1],
             dense_shape=inputs.dense_shape)
         weights = inputs
-        outputs = tf.nn.embedding_lookup_sparse(
+        outputs = tf.compat.v2.nn.embedding_lookup_sparse(
             self.kernel, ids, weights, combiner='sum')
       else:
         outputs = tf.raw_ops.MatMul(a=inputs, b=self.kernel)
     # Broadcast kernel to inputs.
     else:
-      outputs = tf.tensordot(inputs, self.kernel, [[rank - 1], [0]])
+      outputs = tf.linalg.tensordot(inputs, self.kernel, [[rank - 1], [0]])
       # Reshape the output back to the original ndim of the input.
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         shape = inputs.shape.as_list()
         output_shape = shape[:-1] + [self.kernel.shape[-1]]
         outputs.set_shape(output_shape)
@@ -1311,7 +1311,7 @@ class TFOpLambda(Layer):
   out = x * tf_variable
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
     self.function = function
     self.symbol = (
@@ -1340,7 +1340,7 @@ class TFOpLambda(Layer):
     # Decorate the function to produce this layer's call method
     def _call_wrapper(*args, **kwargs):
       return self._call_wrapper(*args, **kwargs)
-    self.call = tf.__internal__.decorator.make_decorator(function, _call_wrapper)
+    self.call = tf.compat.v2.__internal__.decorator.make_decorator(function, _call_wrapper)
 
     # Do not individually trace op layers in the SavedModel.
     self._must_restore_from_config = True
@@ -1365,7 +1365,7 @@ class TFOpLambda(Layer):
       return var
 
     with tf.GradientTape(watch_accessed_variables=True) as tape, \
-        tf.variable_creator_scope(_variable_creator):
+        tf.compat.v2.variable_creator_scope(_variable_creator):
       # We explicitly drop `name` arguments here,
       # to guard against the case where an op explicitly has a
       # `name` passed (which is susceptible to producing
@@ -1454,7 +1454,7 @@ class TFOpLambda(Layer):
     return cls(**config)
 
 
-class KerasOpDispatcher(tf.__internal__.dispatch.GlobalOpDispatcher):
+class KerasOpDispatcher(tf.compat.v2.__internal__.dispatch.GlobalOpDispatcher):
   """A global dispatcher that allows building a functional model with TF Ops."""
 
   def handle(self, op, args, kwargs):
@@ -1497,7 +1497,7 @@ class SlicingOpLambda(TFOpLambda):
   out = x * tf_variable
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, function, **kwargs):
     super(SlicingOpLambda, self).__init__(function, **kwargs)
 
@@ -1534,10 +1534,10 @@ class SlicingOpLambda(TFOpLambda):
         new_kwargs[key] = value
 
       return original_call(*new_args, **new_kwargs)
-    self.call = tf.__internal__.decorator.make_decorator(original_call, _call_wrapper)
+    self.call = tf.compat.v2.__internal__.decorator.make_decorator(original_call, _call_wrapper)
 
 
-class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
+class TFSlicingOpDispatcher(tf.compat.v2.__internal__.dispatch.OpDispatcher):
   """A global dispatcher that allows building a functional model with TF Ops."""
 
   def __init__(self, op):
@@ -1554,9 +1554,9 @@ class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
     else:
       return self.NOT_SUPPORTED
 
-for slicing_op in [tf.__operators__.getitem,  # pylint: disable=protected-access
+for slicing_op in [tf.compat.v2.__operators__.getitem,  # pylint: disable=protected-access
                    tf.compat.v1.boolean_mask,
-                   tf.boolean_mask]:
+                   tf.compat.v2.boolean_mask]:
   TFSlicingOpDispatcher(slicing_op).register(slicing_op)
 
 
@@ -1575,7 +1575,7 @@ class InstanceProperty(Layer):
   out = x.flat_values
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, attr_name, **kwargs):
     self.attr_name = attr_name
 
@@ -1722,7 +1722,7 @@ class ClassMethod(Layer):
   out = tf.RaggedTensor.from_row_splits(x, y)
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, cls_ref, method_name, **kwargs):
     self.cls_ref = cls_ref
     self.method_name = method_name
@@ -1784,7 +1784,7 @@ class ClassMethod(Layer):
     return cls(**config)
 
 
-class TFClassMethodDispatcher(tf.__internal__.dispatch.OpDispatcher):
+class TFClassMethodDispatcher(tf.compat.v2.__internal__.dispatch.OpDispatcher):
   """A class method dispatcher that allows building a functional model with TF class methods."""
 
   def __init__(self, cls, method_name):

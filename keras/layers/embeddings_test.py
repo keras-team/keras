@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for embedding layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 
@@ -105,7 +105,7 @@ class EmbeddingTest(keras_parameterized.TestCase):
         output_dim=2,
         weights=[np.array([[0., 0.], [1., 1.], [2., 2.]])])
     inputs = keras.layers.Input(
-        shape=(None,), dtype=tf.float32, ragged=True)
+        shape=(None,), dtype=tf.dtypes.float32, ragged=True)
     # pylint: disable=unnecessary-lambda
     outputs = keras.layers.Lambda(lambda args: keras.backend.identity(args))(
         inputs)

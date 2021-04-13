@@ -14,7 +14,7 @@
 # ==============================================================================
 """Test multi-worker Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import copy
@@ -182,12 +182,12 @@ class MultiWorkerVerificationCallback(callbacks.Callback):
 class KerasMultiWorkerTestIndependentWorker(tf.test.TestCase,
                                             parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['eager'],
           strategy=[
-              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+              tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
           ]))
   def testSimpleModelIndependentWorkerSync(self, strategy):
     verification_callback = MultiWorkerVerificationCallback(
@@ -218,12 +218,12 @@ class KerasMultiWorkerTestIndependentWorker(tf.test.TestCase,
 class KPLMultiWorkerTest(tf.test.TestCase,
                          parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           mode=['eager'],
           use_adapt=[False],  # TODO(b/180742437): Add tests for using adapt.
           strategy=[
-              tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+              tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
               # TODO(b/183956672): Re-enable
               # strategy_combinations.multi_worker_mirrored_2x2_gpu,
           ]))
@@ -253,7 +253,7 @@ class KPLMultiWorkerTest(tf.test.TestCase,
           grads = tape.gradient(loss, model.trainable_variables)
           optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
 
-          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+          actual_pred = tf.cast(tf.math.greater(pred, 0.5), tf.int64)
           accuracy.update_state(labels, actual_pred)
 
         strategy.run(step_fn, args=(next(iterator),))
@@ -281,4 +281,4 @@ if __name__ == '__main__':
   # by `init_restore_or_wait_for_variables`.
   backend.manual_variable_initialization(True)
   with tf.compat.v1.test.mock.patch.object(sys, 'exit', os._exit):
-    tf.__internal__.distribute.multi_process_runner.test_main()
+    tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

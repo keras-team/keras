@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests dense attention layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -382,7 +382,7 @@ class AttentionTest(tf.test.TestCase, parameterized.TestCase):
 
   def test_scale_init_eager(self):
     """Tests that scale initializes to 1 when use_scale=True."""
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Only run in eager mode')
     attention_layer = dense_attention.Attention(use_scale=True)
     attention_layer.build(input_shape=([1, 1, 1], [1, 1, 1]))

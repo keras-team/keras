@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras generic Python utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from functools import partial
 

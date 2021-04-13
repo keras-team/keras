@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras utilities to split v1 and v2 classes."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import abc
 

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras high level APIs, e.g. fit, evaluate and predict."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -25,8 +25,8 @@ from keras.distribute.strategy_combinations import all_strategies
 
 class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=all_strategies, mode=["eager"]))
   def test_lstm_model_with_dynamic_batch(self, distribution):
     input_data = np.random.random([1, 32, 64, 64, 3])

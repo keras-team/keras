@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes
 """Callbacks: utilities called at certain points during model training."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import copy
@@ -164,7 +164,7 @@ def set_callback_parameters(callback_list,
 def _is_generator_like(data):
   """Checks if data is a generator, Sequence, or Iterator."""
   return (hasattr(data, '__next__') or hasattr(data, 'next') or isinstance(
-      data, (Sequence, tf.compat.v1.data.Iterator, tf.data.Iterator)))
+      data, (Sequence, tf.compat.v1.data.Iterator, tf.compat.v2.data.Iterator)))
 
 
 def make_logs(model, logs, outputs, mode, prefix=''):
@@ -1623,13 +1623,13 @@ class BackupAndRestore(Callback):
     self.backup_dir = backup_dir
     self._supports_tf_logs = True
     self._supported_strategies = (
-        tf.distribute.MirroredStrategy,
-        tf.distribute.MultiWorkerMirroredStrategy,
-        tf.distribute.experimental.TPUStrategy, tf.distribute.TPUStrategy,
-        tf.distribute.experimental.ParameterServerStrategy)
+        tf.compat.v2.distribute.MirroredStrategy,
+        tf.compat.v2.distribute.MultiWorkerMirroredStrategy,
+        tf.compat.v2.distribute.experimental.TPUStrategy, tf.compat.v2.distribute.TPUStrategy,
+        tf.compat.v2.distribute.experimental.ParameterServerStrategy)
 
-    if not tf.executing_eagerly():
-      if tf.inside_function():
+    if not tf.compat.v2.executing_eagerly():
+      if tf.compat.v2.inside_function():
         raise ValueError('This Callback\'s method contains Python state and '
                          'should be called outside of `tf.function`s.')
       else:  # Legacy graph mode:
@@ -1985,11 +1985,11 @@ def keras_model_summary(name, data, step=None):
     logging.warning('Model failed to serialize as JSON. Ignoring... %s', exc)
     return False
 
-  with tf.summary.experimental.summary_scope(name, 'graph_keras_model',
+  with tf.compat.v2.summary.experimental.summary_scope(name, 'graph_keras_model',
                                     [data, step]) as (tag, _):
     with tf.compat.v1.device('cpu:0'):
-      tensor = tf.constant(json_string, dtype=tf.string)
-    return tf.summary.write(
+      tensor = tf.compat.v2.constant(json_string, dtype=tf.string)
+    return tf.compat.v2.summary.write(
         tag=tag, tensor=tensor, step=step, metadata=summary_metadata)
 
 
@@ -2212,14 +2212,14 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
   @property
   def _train_writer(self):
     if 'train' not in self._writers:
-      self._writers['train'] = tf.summary.create_file_writer(
+      self._writers['train'] = tf.compat.v2.summary.create_file_writer(
           self._train_dir)
     return self._writers['train']
 
   @property
   def _val_writer(self):
     if 'val' not in self._writers:
-      self._writers['val'] = tf.summary.create_file_writer(self._val_dir)
+      self._writers['val'] = tf.compat.v2.summary.create_file_writer(self._val_dir)
     return self._writers['val']
 
   def _get_log_write_dir(self):
@@ -2235,16 +2235,16 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
   def _write_keras_model_train_graph(self):
     """Writes Keras model train_function graph to TensorBoard."""
     with self._train_writer.as_default():
-      with tf.summary.record_if(True):
+      with tf.compat.v2.summary.record_if(True):
         train_fn = self.model.train_function
         # If the train_function is a `tf.function`, we can write out a graph
         if hasattr(train_fn, 'function_spec'):
-          tf.summary.graph(train_fn._concrete_stateful_fn.graph)  # pylint: disable=protected-access
+          tf.compat.v2.summary.graph(train_fn._concrete_stateful_fn.graph)  # pylint: disable=protected-access
 
   def _write_keras_model_summary(self):
     """Writes Keras graph network summary to TensorBoard."""
     with self._train_writer.as_default():
-      with tf.summary.record_if(True):
+      with tf.compat.v2.summary.record_if(True):
         summary_writable = (
             self.model._is_graph_network or  # pylint: disable=protected-access
             self.model.__class__.__name__ == 'Sequential')  # pylint: disable=protected-access
@@ -2290,10 +2290,10 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if self.update_freq == 'epoch':
       return
 
-    should_record = lambda: tf.equal(step % self.update_freq, 0)
+    should_record = lambda: tf.math.equal(step % self.update_freq, 0)
     # TODO(b/151339474): Fix deadlock when not using .value() here.
     summary_context = (writer.as_default(step.value()),
-                       tf.summary.record_if(should_record))
+                       tf.compat.v2.summary.record_if(should_record))
     self._prev_summary_state.append(summary_context)
     summary_context[0].__enter__()
     summary_context[1].__enter__()
@@ -2385,7 +2385,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def on_test_end(self, logs=None):
     if self.model.optimizer and hasattr(self.model.optimizer, 'iterations'):
-      with tf.summary.record_if(True), self._val_writer.as_default():
+      with tf.compat.v2.summary.record_if(True), self._val_writer.as_default():
         for name, value in logs.items():
           tf.summary.scalar(
               'evaluation_' + name + '_vs_iterations',
@@ -2439,7 +2439,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
       self._log_embeddings(epoch)
 
   def _start_trace(self):
-    tf.summary.trace_on(graph=True, profiler=False)
+    tf.compat.v2.summary.trace_on(graph=True, profiler=False)
     self._start_profiler(logdir=self._train_dir)
     self._is_tracing = True
 
@@ -2448,9 +2448,9 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if batch is None:
       batch = self._stop_batch
     with self._train_writer.as_default():
-      with tf.summary.record_if(True):
+      with tf.compat.v2.summary.record_if(True):
         # TODO(b/126388999): Remove step info in the summary name.
-        tf.summary.trace_export(name='batch_%d' % batch, step=batch)
+        tf.compat.v2.summary.trace_export(name='batch_%d' % batch, step=batch)
     self._stop_profiler()
     self._is_tracing = False
 
@@ -2482,7 +2482,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if self.write_steps_per_second:
       train_logs['steps_per_second'] = self._compute_steps_per_second()
 
-    with tf.summary.record_if(True):
+    with tf.compat.v2.summary.record_if(True):
       if train_logs:
         with self._train_writer.as_default():
           for name, value in train_logs.items():
@@ -2496,7 +2496,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
   def _log_weights(self, epoch):
     """Logs the weights of the Model to TensorBoard."""
     with self._train_writer.as_default():
-      with tf.summary.record_if(True):
+      with tf.compat.v2.summary.record_if(True):
         for layer in self.model.layers:
           for weight in layer.weights:
             weight_name = weight.name.replace(':', '_')
@@ -2543,7 +2543,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if self._profiler_started:
       return
     try:
-      tf.profiler.experimental.start(logdir=logdir)
+      tf.compat.v2.profiler.experimental.start(logdir=logdir)
       self._profiler_started = True
     except tf.errors.AlreadyExistsError as e:
       # Profiler errors should not be fatal.
@@ -2558,7 +2558,7 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
     if not self._profiler_started:
       return
     try:
-      tf.profiler.experimental.stop(save=save)
+      tf.compat.v2.profiler.experimental.stop(save=save)
     except tf.errors.UnavailableError as e:
       # Profiler errors should not be fatal.
       logging.error('Failed to stop profiler: %s', e.message)

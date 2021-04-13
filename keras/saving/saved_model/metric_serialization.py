@@ -14,7 +14,7 @@
 # ==============================================================================
 """Classes and functions implementing Metrics SavedModel serialization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras.saving.saved_model import constants
 from keras.saving.saved_model import layer_serialization
@@ -39,6 +39,6 @@ class MetricSavedModelSaver(layer_serialization.LayerSavedModelSaver):
     return metadata
 
   def _get_serialized_attributes_internal(self, unused_serialization_cache):
-    return (dict(variables=tf.__internal__.tracking.wrap(self.obj.variables)),
+    return (dict(variables=tf.compat.v2.__internal__.tracking.wrap(self.obj.variables)),
             dict())  # TODO(b/135550038): save functions to enable saving
                      # custom metrics.

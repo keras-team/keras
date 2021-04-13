@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for dynamic control flow behavior with Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -30,8 +30,8 @@ class ControlFlowLayer1(base_layer.Layer):
   """Layer with an `if` condition in call."""
 
   def call(self, inputs):
-    if tf.reduce_sum(inputs) > 0:
-      return tf.sqrt(inputs)
+    if tf.compat.v2.reduce_sum(inputs) > 0:
+      return tf.math.sqrt(inputs)
     else:
       return tf.square(inputs)
 
@@ -41,7 +41,7 @@ class ControlFlowLayer2(base_layer.Layer):
 
   def call(self, inputs):
     samples = tf.TensorArray(
-        dtype=tf.float32, size=tf.compat.v1.shape(inputs)[0])
+        dtype=tf.dtypes.float32, size=tf.compat.v1.shape(inputs)[0])
     i = 0
     for sample in inputs:
       samples = samples.write(i, tf.square(sample))
@@ -64,8 +64,8 @@ class ControlFlowModel(keras.Model):
   """Model with an `if` condition in call."""
 
   def call(self, inputs):
-    if tf.reduce_sum(inputs) > 0:
-      return tf.sqrt(inputs)
+    if tf.compat.v2.reduce_sum(inputs) > 0:
+      return tf.math.sqrt(inputs)
     else:
       return tf.square(inputs)
 
@@ -79,8 +79,8 @@ class NestedControlFlowModel(keras.Model):
 
   def call(self, inputs):
     inputs = self.layer(inputs)
-    if tf.reduce_sum(inputs) > 0:
-      return tf.sqrt(inputs)
+    if tf.compat.v2.reduce_sum(inputs) > 0:
+      return tf.math.sqrt(inputs)
     else:
       return tf.square(inputs)
 
@@ -90,8 +90,8 @@ class FunctionControlFlowModel(keras.Model):
 
   @tf.function
   def call(self, inputs):
-    if tf.reduce_sum(inputs) > 0:
-      return tf.sqrt(inputs)
+    if tf.compat.v2.reduce_sum(inputs) > 0:
+      return tf.math.sqrt(inputs)
     else:
       return tf.square(inputs)
 

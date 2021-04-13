@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests specific to Feature Columns integration."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 

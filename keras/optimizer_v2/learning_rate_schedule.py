@@ -14,7 +14,7 @@
 # ==============================================================================
 """Various learning rate decay functions."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import abc
 import math
@@ -168,8 +168,8 @@ class ExponentialDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "ExponentialDecay") as name:
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "ExponentialDecay") as name:
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       decay_steps = tf.cast(self.decay_steps, dtype)
@@ -178,8 +178,8 @@ class ExponentialDecay(LearningRateSchedule):
       global_step_recomp = tf.cast(step, dtype)
       p = global_step_recomp / decay_steps
       if self.staircase:
-        p = tf.floor(p)
-      return tf.multiply(
+        p = tf.math.floor(p)
+      return tf.math.multiply(
           initial_learning_rate, tf.pow(decay_rate, p), name=name)
 
   def get_config(self):
@@ -262,12 +262,12 @@ class PiecewiseConstantDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "PiecewiseConstant"):
-      boundaries = tf.nest.map_structure(tf.convert_to_tensor,
+    with tf.compat.v2.name_scope(self.name or "PiecewiseConstant"):
+      boundaries = tf.nest.map_structure(tf.compat.v2.convert_to_tensor,
                                       tf.nest.flatten(self.boundaries))
-      values = tf.nest.map_structure(tf.convert_to_tensor,
+      values = tf.nest.map_structure(tf.compat.v2.convert_to_tensor,
                                   tf.nest.flatten(self.values))
-      x_recomp = tf.convert_to_tensor(step)
+      x_recomp = tf.compat.v2.convert_to_tensor(step)
       for i, b in enumerate(boundaries):
         if b.dtype.base_dtype != x_recomp.dtype.base_dtype:
           # We cast the boundaries to have the same type as the step
@@ -399,8 +399,8 @@ class PolynomialDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "PolynomialDecay") as name:
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "PolynomialDecay") as name:
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       end_learning_rate = tf.cast(self.end_learning_rate, dtype)
@@ -411,18 +411,18 @@ class PolynomialDecay(LearningRateSchedule):
       if self.cycle:
         # Find the first multiple of decay_steps that is bigger than
         # global_step. If global_step is zero set the multiplier to 1
-        multiplier = tf.where(
-            tf.equal(global_step_recomp, 0), 1.0,
+        multiplier = tf.compat.v2.where(
+            tf.math.equal(global_step_recomp, 0), 1.0,
             tf.math.ceil(global_step_recomp / self.decay_steps))
-        decay_steps_recomp = tf.multiply(decay_steps_recomp, multiplier)
+        decay_steps_recomp = tf.math.multiply(decay_steps_recomp, multiplier)
       else:
         # Make sure that the global_step used is not bigger than decay_steps.
-        global_step_recomp = tf.minimum(global_step_recomp,
+        global_step_recomp = tf.math.minimum(global_step_recomp,
                                               decay_steps_recomp)
 
       p = tf.divide(global_step_recomp, decay_steps_recomp)
       return tf.add(
-          tf.multiply(initial_learning_rate - end_learning_rate,
+          tf.math.multiply(initial_learning_rate - end_learning_rate,
                             tf.pow(1 - p, power)),
           end_learning_rate,
           name=name)
@@ -519,8 +519,8 @@ class InverseTimeDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "InverseTimeDecay") as name:
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "InverseTimeDecay") as name:
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       decay_steps = tf.cast(self.decay_steps, dtype)
@@ -529,9 +529,9 @@ class InverseTimeDecay(LearningRateSchedule):
       global_step_recomp = tf.cast(step, dtype)
       p = global_step_recomp / decay_steps
       if self.staircase:
-        p = tf.floor(p)
-      const = tf.cast(tf.constant(1), dtype)
-      denom = tf.add(const, tf.multiply(decay_rate, p))
+        p = tf.math.floor(p)
+      const = tf.cast(tf.compat.v2.constant(1), dtype)
+      denom = tf.add(const, tf.math.multiply(decay_rate, p))
       return tf.divide(initial_learning_rate, denom, name=name)
 
   def get_config(self):
@@ -614,20 +614,20 @@ class CosineDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "CosineDecay"):
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "CosineDecay"):
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       decay_steps = tf.cast(self.decay_steps, dtype)
 
       global_step_recomp = tf.cast(step, dtype)
-      global_step_recomp = tf.minimum(global_step_recomp, decay_steps)
+      global_step_recomp = tf.math.minimum(global_step_recomp, decay_steps)
       completed_fraction = global_step_recomp / decay_steps
       cosine_decayed = 0.5 * (1.0 + tf.cos(
-          tf.constant(math.pi) * completed_fraction))
+          tf.compat.v2.constant(math.pi) * completed_fraction))
 
       decayed = (1 - self.alpha) * cosine_decayed + self.alpha
-      return tf.multiply(initial_learning_rate, decayed)
+      return tf.math.multiply(initial_learning_rate, decayed)
 
   def get_config(self):
     return {
@@ -714,8 +714,8 @@ class CosineDecayRestarts(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "SGDRDecay") as name:
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "SGDRDecay") as name:
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       first_decay_steps = tf.cast(self.first_decay_steps, dtype)
@@ -729,7 +729,7 @@ class CosineDecayRestarts(LearningRateSchedule):
       def compute_step(completed_fraction, geometric=False):
         """Helper for `cond` operation."""
         if geometric:
-          i_restart = tf.floor(
+          i_restart = tf.math.floor(
               tf.math.log(1.0 - completed_fraction * (1.0 - t_mul)) /
               tf.math.log(t_mul))
 
@@ -737,22 +737,22 @@ class CosineDecayRestarts(LearningRateSchedule):
           completed_fraction = (completed_fraction - sum_r) / t_mul**i_restart
 
         else:
-          i_restart = tf.floor(completed_fraction)
+          i_restart = tf.math.floor(completed_fraction)
           completed_fraction -= i_restart
 
         return i_restart, completed_fraction
 
       i_restart, completed_fraction = tf.compat.v1.cond(
-          tf.equal(t_mul, 1.0),
+          tf.math.equal(t_mul, 1.0),
           lambda: compute_step(completed_fraction, geometric=False),
           lambda: compute_step(completed_fraction, geometric=True))
 
       m_fac = m_mul**i_restart
       cosine_decayed = 0.5 * m_fac * (1.0 + tf.cos(
-          tf.constant(math.pi) * completed_fraction))
+          tf.compat.v2.constant(math.pi) * completed_fraction))
       decayed = (1 - alpha) * cosine_decayed + alpha
 
-      return tf.multiply(initial_learning_rate, decayed, name=name)
+      return tf.math.multiply(initial_learning_rate, decayed, name=name)
 
   def get_config(self):
     return {
@@ -851,8 +851,8 @@ class LinearCosineDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "LinearCosineDecay") as name:
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "LinearCosineDecay") as name:
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       decay_steps = tf.cast(self.decay_steps, dtype)
@@ -861,15 +861,15 @@ class LinearCosineDecay(LearningRateSchedule):
       beta = tf.cast(self.beta, dtype)
 
       global_step_recomp = tf.cast(step, dtype)
-      global_step_recomp = tf.minimum(global_step_recomp, decay_steps)
+      global_step_recomp = tf.math.minimum(global_step_recomp, decay_steps)
       linear_decayed = (decay_steps - global_step_recomp) / decay_steps
       completed_fraction = global_step_recomp / decay_steps
       fraction = 2.0 * num_periods * completed_fraction
       cosine_decayed = 0.5 * (
-          1.0 + tf.cos(tf.constant(math.pi) * fraction))
+          1.0 + tf.cos(tf.compat.v2.constant(math.pi) * fraction))
 
       linear_cosine_decayed = (alpha + linear_decayed) * cosine_decayed + beta
-      return tf.multiply(initial_learning_rate, linear_cosine_decayed,
+      return tf.math.multiply(initial_learning_rate, linear_cosine_decayed,
                                name=name)
 
   def get_config(self):
@@ -977,8 +977,8 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
     self.name = name
 
   def __call__(self, step):
-    with tf.name_scope(self.name or "NoisyLinearCosineDecay") as name:
-      initial_learning_rate = tf.convert_to_tensor(
+    with tf.compat.v2.name_scope(self.name or "NoisyLinearCosineDecay") as name:
+      initial_learning_rate = tf.compat.v2.convert_to_tensor(
           self.initial_learning_rate, name="initial_learning_rate")
       dtype = initial_learning_rate.dtype
       decay_steps = tf.cast(self.decay_steps, dtype)
@@ -989,11 +989,11 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
       beta = tf.cast(self.beta, dtype)
 
       global_step_recomp = tf.cast(step, dtype)
-      global_step_recomp = tf.minimum(global_step_recomp, decay_steps)
+      global_step_recomp = tf.math.minimum(global_step_recomp, decay_steps)
       linear_decayed = (decay_steps - global_step_recomp) / decay_steps
       variance = initial_variance / (
           tf.pow(1.0 + global_step_recomp, variance_decay))
-      std = tf.sqrt(variance)
+      std = tf.math.sqrt(variance)
       noisy_linear_decayed = (
           linear_decayed + tf.random.normal(
               linear_decayed.shape, stddev=std))
@@ -1001,11 +1001,11 @@ class NoisyLinearCosineDecay(LearningRateSchedule):
       completed_fraction = global_step_recomp / decay_steps
       fraction = 2.0 * num_periods * completed_fraction
       cosine_decayed = 0.5 * (
-          1.0 + tf.cos(tf.constant(math.pi) * fraction))
+          1.0 + tf.cos(tf.compat.v2.constant(math.pi) * fraction))
       noisy_linear_cosine_decayed = (
           (alpha + noisy_linear_decayed) * cosine_decayed + beta)
 
-      return tf.multiply(
+      return tf.math.multiply(
           initial_learning_rate, noisy_linear_cosine_decayed, name=name)
 
   def get_config(self):

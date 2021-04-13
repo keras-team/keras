@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for MirroredStrategy."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -44,10 +44,10 @@ class MiniModel(keras_training.Model):
     return self.fc(inputs)
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=[
-            tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+            tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
         ],
         mode=["eager"]))
 class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
@@ -69,8 +69,8 @@ class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
       optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.25)
       update_ops = optimizer._distributed_apply(distribution, grads_and_vars)  # pylint: disable=protected-access
 
-      if not tf.executing_eagerly():
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+      if not tf.compat.v2.executing_eagerly():
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.evaluate(update_ops)
 
       updated_var_values = self.evaluate(mock_model.variables)
@@ -105,7 +105,7 @@ class MirroredStrategyDefunTest(tf.test.TestCase, parameterized.TestCase):
           grads = tape.gradient(loss, model.trainable_variables)
           optimizer.apply_gradients(list(zip(grads, model.trainable_variables)))
 
-          actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+          actual_pred = tf.cast(tf.math.greater(pred, 0.5), tf.int64)
           accuracy.update_state(labels, actual_pred)
 
         distribution.run(step_fn, args=(next(iterator),))

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Contains the Policy class for mixed precision training."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import contextlib
 from keras import backend
@@ -443,7 +443,7 @@ def global_policy():
 
 
 def _check_if_mixed_precision_graph_rewrite_is_enabled(policy):
-  if tf.__internal__.train.is_mixed_precision_graph_rewrite_enabled():
+  if tf.compat.v2.__internal__.train.is_mixed_precision_graph_rewrite_enabled():
     raise ValueError(
         'The global dtype policy cannot be set to "{policy.name}", because the '
         'mixed precision graph rewrite has already been enabled.\n'
@@ -514,7 +514,7 @@ def set_policy(policy):
                      '"mixed_float16", but got policy: %s'
                      % (policy.name,))
   _global_policy = policy
-  tf.__internal__.train.set_using_mixed_precision_policy(is_mixed_policy)
+  tf.compat.v2.__internal__.train.set_using_mixed_precision_policy(is_mixed_policy)
 
 
 # TODO(reedwm): Make this thread local

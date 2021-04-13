@@ -14,7 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.index_lookup."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import numpy as np
@@ -26,8 +26,8 @@ from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import preprocessing_test_utils
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=all_strategies,
         mode=["eager"]))  # Eager-only, no graph: b/158793009
 class IndexLookupDistributionTest(

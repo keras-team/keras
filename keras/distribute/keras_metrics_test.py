@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras metrics."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 from keras import metrics
@@ -64,20 +64,20 @@ def _regression_dataset_fn():
 
 
 def all_combinations():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       distribution=[
-          tf.__internal__.distribute.combinations.default_strategy,
-          tf.__internal__.distribute.combinations.one_device_strategy,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+          tf.compat.v2.__internal__.distribute.combinations.default_strategy,
+          tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       mode=["graph"])
 
 
 def tpu_combinations():
-  return tf.__internal__.test.combinations.combine(
-      distribution=[tf.__internal__.distribute.combinations.tpu_strategy,],
+  return tf.compat.v2.__internal__.test.combinations.combine(
+      distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy,],
       mode=["graph"])
 
 
@@ -106,7 +106,7 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
         if batches_consumed >= 4:  # Consume 4 input batches in total.
           break
 
-  @tf.__internal__.distribute.combinations.generate(all_combinations() + tpu_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_combinations() + tpu_combinations())
   def testMean(self, distribution):
     def _dataset_fn():
       return tf.data.Dataset.range(1000).map(tf.compat.v1.to_float).batch(

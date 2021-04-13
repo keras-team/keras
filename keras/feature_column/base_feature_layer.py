@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import re
@@ -59,7 +59,7 @@ class _BaseFeaturesLayer(Layer):
         name=name, trainable=trainable, **kwargs)
     self._feature_columns = _normalize_feature_columns(
         feature_columns)
-    self._state_manager = tf.__internal__.feature_column.StateManager(  # pylint: disable=protected-access
+    self._state_manager = tf.compat.v2.__internal__.feature_column.StateManager(  # pylint: disable=protected-access
         self, self.trainable)
     self._partitioner = partitioner
     for column in self._feature_columns:
@@ -117,7 +117,7 @@ class _BaseFeaturesLayer(Layer):
     return tf.concat(output_tensors, -1)
 
   def get_config(self):
-    column_configs = [tf.__internal__.feature_column.serialize_feature_column(fc)
+    column_configs = [tf.compat.v2.__internal__.feature_column.serialize_feature_column(fc)
                       for fc in self._feature_columns]
     config = {'feature_columns': column_configs}
     config['partitioner'] = generic_utils.serialize_keras_object(
@@ -131,7 +131,7 @@ class _BaseFeaturesLayer(Layer):
   def from_config(cls, config, custom_objects=None):
     config_cp = config.copy()
     columns_by_name = {}
-    config_cp['feature_columns'] = [tf.__internal__.feature_column.deserialize_feature_column(
+    config_cp['feature_columns'] = [tf.compat.v2.__internal__.feature_column.deserialize_feature_column(
         c, custom_objects, columns_by_name) for c in config['feature_columns']]
     config_cp['partitioner'] = generic_utils.deserialize_keras_object(
         config['partitioner'], custom_objects)
@@ -188,7 +188,7 @@ def _normalize_feature_columns(feature_columns):
   Raises:
     ValueError: for any invalid inputs, such as empty, duplicated names, etc.
   """
-  if isinstance(feature_columns, tf.__internal__.feature_column.FeatureColumn):
+  if isinstance(feature_columns, tf.compat.v2.__internal__.feature_column.FeatureColumn):
     feature_columns = [feature_columns]
 
   if isinstance(feature_columns, collections.Iterator):
@@ -198,7 +198,7 @@ def _normalize_feature_columns(feature_columns):
     raise ValueError('Expected feature_columns to be iterable, found dict.')
 
   for column in feature_columns:
-    if not isinstance(column, tf.__internal__.feature_column.FeatureColumn):
+    if not isinstance(column, tf.compat.v2.__internal__.feature_column.FeatureColumn):
       raise ValueError('Items of feature_columns must be a FeatureColumn. '
                        'Given (type {}): {}.'.format(type(column), column))
   if not feature_columns:

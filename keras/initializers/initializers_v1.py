@@ -14,18 +14,18 @@
 # ==============================================================================
 """Keras initializers for TF 1."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from tensorflow.python.util.tf_export import keras_export
 
 
 _v1_zeros_initializer = tf.compat.v1.zeros_initializer
 _v1_ones_initializer = tf.compat.v1.ones_initializer
-_v1_constant_initializer = tf.compat.v1.constant_initializer
+_v1_constant_initializer = tf.compat.v1.initializers.constant
 _v1_variance_scaling_initializer = tf.compat.v1.variance_scaling_initializer
 _v1_orthogonal_initializer = tf.compat.v1.orthogonal_initializer
 _v1_identity = tf.compat.v1.initializers.identity
-_v1_glorot_uniform_initializer = tf.compat.v1.glorot_uniform_initializer
-_v1_glorot_normal_initializer = tf.compat.v1.glorot_normal_initializer
+_v1_glorot_uniform_initializer = tf.compat.v1.initializers.glorot_uniform
+_v1_glorot_normal_initializer = tf.compat.v1.initializers.glorot_normal
 
 keras_export(v1=['keras.initializers.Zeros', 'keras.initializers.zeros'], allow_multiple_exports=True)(
     _v1_zeros_initializer)
@@ -50,7 +50,7 @@ keras_export(v1=['keras.initializers.glorot_normal'], allow_multiple_exports=Tru
                   'keras.initializers.normal'])
 class RandomNormal(tf.compat.v1.random_normal_initializer):
 
-  def __init__(self, mean=0.0, stddev=0.05, seed=None, dtype=tf.float32):
+  def __init__(self, mean=0.0, stddev=0.05, seed=None, dtype=tf.dtypes.float32):
     super(RandomNormal, self).__init__(
         mean=mean, stddev=stddev, seed=seed, dtype=dtype)
 
@@ -61,7 +61,7 @@ class RandomNormal(tf.compat.v1.random_normal_initializer):
 class RandomUniform(tf.compat.v1.random_uniform_initializer):
 
   def __init__(self, minval=-0.05, maxval=0.05, seed=None,
-               dtype=tf.float32):
+               dtype=tf.dtypes.float32):
     super(RandomUniform, self).__init__(
         minval=minval, maxval=maxval, seed=seed, dtype=dtype)
 
@@ -70,7 +70,7 @@ class RandomUniform(tf.compat.v1.random_uniform_initializer):
                   'keras.initializers.truncated_normal'])
 class TruncatedNormal(tf.compat.v1.truncated_normal_initializer):
 
-  def __init__(self, mean=0.0, stddev=0.05, seed=None, dtype=tf.float32):
+  def __init__(self, mean=0.0, stddev=0.05, seed=None, dtype=tf.dtypes.float32):
     super(TruncatedNormal, self).__init__(
         mean=mean, stddev=stddev, seed=seed, dtype=dtype)
 

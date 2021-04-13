@@ -26,7 +26,7 @@ _OPTIMIZER = 'rmsprop'
 
 
 class KerasModelCPUBenchmark(  # pylint: disable=undefined-variable
-    tf.test.Benchmark, metaclass=tf.__internal__.test.ParameterizedBenchmark):
+    tf.test.Benchmark, metaclass=tf.compat.v2.__internal__.test.ParameterizedBenchmark):
   """Required Arguments for measure_performance.
 
       x: Input data, it could be Numpy or load from tfds.

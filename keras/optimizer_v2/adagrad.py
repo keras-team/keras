@@ -14,7 +14,7 @@
 # ==============================================================================
 """Adagrad optimizer implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -80,7 +80,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
   def _create_slots(self, var_list):
     for var in var_list:
       dtype = var.dtype.base_dtype
-      init = tf.compat.v1.constant_initializer(
+      init = tf.compat.v1.initializers.constant(
           self._initial_accumulator_value, dtype=dtype)
       self.add_slot(var, 'accumulator', init)
 
@@ -88,7 +88,7 @@ class Adagrad(optimizer_v2.OptimizerV2):
     super(Adagrad, self)._prepare_local(var_device, var_dtype, apply_state)
     apply_state[(var_device, var_dtype)].update(
         dict(
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             neg_lr_t=-apply_state[(var_device, var_dtype)]['lr_t'],
             zero=tf.zeros((), dtype=tf.int64)))

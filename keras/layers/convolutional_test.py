@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for convolutional layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -459,7 +459,7 @@ class GroupedConvTest(keras_parameterized.TestCase):
         input_slices = tf.split(inputs, 4, axis=-1)
         weight_slices = tf.split(layer.kernel, 4, axis=-1)
         expected_outputs = tf.concat([
-            tf.nn.convolution(inputs, weights)
+            tf.compat.v2.nn.convolution(inputs, weights)
             for inputs, weights in zip(input_slices, weight_slices)
         ],
                                             axis=-1)
@@ -632,7 +632,7 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
       layer = keras.layers.ZeroPadding1D(padding=2)
       layer.build(shape)
       output = layer(keras.backend.variable(inputs))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         np_output = output.numpy()
       else:
         np_output = keras.backend.eval(output)
@@ -643,7 +643,7 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
       layer = keras.layers.ZeroPadding1D(padding=(1, 2))
       layer.build(shape)
       output = layer(keras.backend.variable(inputs))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         np_output = output.numpy()
       else:
         np_output = keras.backend.eval(output)
@@ -695,7 +695,7 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
           padding=(2, 2), data_format=data_format)
       layer.build(inputs.shape)
       output = layer(keras.backend.variable(inputs))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         np_output = output.numpy()
       else:
         np_output = keras.backend.eval(output)
@@ -714,7 +714,7 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
           padding=((1, 2), (3, 4)), data_format=data_format)
       layer.build(inputs.shape)
       output = layer(keras.backend.variable(inputs))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         np_output = output.numpy()
       else:
         np_output = keras.backend.eval(output)
@@ -784,7 +784,7 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
           padding=(2, 2, 2), data_format=data_format)
       layer.build(inputs.shape)
       output = layer(keras.backend.variable(inputs))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         np_output = output.numpy()
       else:
         np_output = keras.backend.eval(output)
@@ -805,7 +805,7 @@ class ZeroPaddingTest(keras_parameterized.TestCase):
           padding=((1, 2), (3, 4), (0, 2)), data_format=data_format)
       layer.build(inputs.shape)
       output = layer(keras.backend.variable(inputs))
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         np_output = output.numpy()
       else:
         np_output = keras.backend.eval(output)
@@ -879,7 +879,7 @@ class UpSamplingTest(keras_parameterized.TestCase):
                 size=(length_row, length_col), data_format=data_format)
             layer.build(inputs.shape)
             output = layer(keras.backend.variable(inputs))
-            if tf.executing_eagerly():
+            if tf.compat.v2.executing_eagerly():
               np_output = output.numpy()
             else:
               np_output = keras.backend.eval(output)
@@ -919,7 +919,7 @@ class UpSamplingTest(keras_parameterized.TestCase):
                                        'interpolation': 'bilinear'},
                                input_shape=inputs.shape)
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         for length_row in [2]:
           for length_col in [2, 3]:
             layer = keras.layers.UpSampling2D(
@@ -966,7 +966,7 @@ class UpSamplingTest(keras_parameterized.TestCase):
                   data_format=data_format)
               layer.build(inputs.shape)
               output = layer(keras.backend.variable(inputs))
-              if tf.executing_eagerly():
+              if tf.compat.v2.executing_eagerly():
                 np_output = output.numpy()
               else:
                 np_output = keras.backend.eval(output)
@@ -1039,7 +1039,7 @@ class CroppingTest(keras_parameterized.TestCase):
             cropping=cropping, data_format=data_format)
         layer.build(inputs.shape)
         output = layer(keras.backend.variable(inputs))
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           np_output = output.numpy()
         else:
           np_output = keras.backend.eval(output)
@@ -1066,7 +1066,7 @@ class CroppingTest(keras_parameterized.TestCase):
             cropping=cropping, data_format=data_format)
         layer.build(inputs.shape)
         output = layer(keras.backend.variable(inputs))
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           np_output = output.numpy()
         else:
           np_output = keras.backend.eval(output)
@@ -1110,7 +1110,7 @@ class CroppingTest(keras_parameterized.TestCase):
                 cropping=cropping, data_format=data_format)
             layer.build(inputs.shape)
             output = layer(keras.backend.variable(inputs))
-            if tf.executing_eagerly():
+            if tf.compat.v2.executing_eagerly():
               np_output = output.numpy()
             else:
               np_output = keras.backend.eval(output)

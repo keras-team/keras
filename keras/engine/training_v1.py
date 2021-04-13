@@ -14,7 +14,7 @@
 # ==============================================================================
 """V1 Training-related part of the Keras engine."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import warnings
@@ -143,7 +143,7 @@ class Model(training_lib.Model):
   def _init_batch_counters(self):
     pass  # Batch counters should not be created in legacy graph mode.
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _set_strategy(self, strategy):
     self._compile_time_distribution_strategy = strategy
 
@@ -213,7 +213,7 @@ class Model(training_lib.Model):
                          'with steps_per_run greater than 1.')
     return super(Model, self).load_weights(filepath, by_name, skip_mismatch)
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def compile(self,
               optimizer='rmsprop',
               loss=None,
@@ -320,7 +320,7 @@ class Model(training_lib.Model):
       self._experimental_run_tf_function = False
 
     if distribute is not None:
-      if tf.__internal__.tf2.enabled() or self._experimental_run_tf_function:
+      if tf.compat.v2.__internal__.tf2.enabled() or self._experimental_run_tf_function:
         raise ValueError(
             'Distribute argument in compile is not available in TF 2.0 please '
             'create the model under the distribution strategy scope.')
@@ -345,7 +345,7 @@ class Model(training_lib.Model):
           'currently only works with the tf.Estimator API')
 
     if isinstance(self._distribution_strategy,
-                  tf.distribute.experimental.ParameterServerStrategy):
+                  tf.compat.v2.distribute.experimental.ParameterServerStrategy):
       raise NotImplementedError(
           '`tf.distribute.experimental.ParameterServerStrategy` is only '
           'supported in TF2.')
@@ -357,7 +357,7 @@ class Model(training_lib.Model):
                                                              weighted_metrics)
     # We've disabled automatic dependency tracking for this method, but do want
     # to add a checkpoint dependency on the optimizer if it's trackable.
-    if isinstance(self.optimizer, tf.__internal__.tracking.Trackable):
+    if isinstance(self.optimizer, tf.compat.v2.__internal__.tracking.Trackable):
       self._track_trackable(
           self.optimizer, name='optimizer', overwrite=True)
     self.loss = loss or {}
@@ -384,7 +384,7 @@ class Model(training_lib.Model):
     # Clear any `_eager_losses` that was added.
     self._clear_losses()
 
-    if (not tf.executing_eagerly() and
+    if (not tf.compat.v2.executing_eagerly() and
         self._distribution_strategy is not None):
       # Ensures a Session is created and configured correctly for Distribution
       # Strategy.
@@ -467,7 +467,7 @@ class Model(training_lib.Model):
                 '  model=_create_model()\n'
                 '  model.compile(...)'% (v, strategy))
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _init_distributed_function_cache_if_not_compiled(self):
     if not hasattr(self, '_distributed_function_cache'):
       self._distributed_function_cache = {}
@@ -529,7 +529,7 @@ class Model(training_lib.Model):
     Returns:
       Boolean, whether the model should run eagerly.
     """
-    if self._run_eagerly is True and not tf.executing_eagerly():
+    if self._run_eagerly is True and not tf.compat.v2.executing_eagerly():
       raise ValueError('You can only set `run_eagerly=True` if eager execution '
                        'is enabled.')
     if not self.dynamic:
@@ -540,7 +540,7 @@ class Model(training_lib.Model):
       else:
         return self._run_eagerly
     else:
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         raise ValueError('Your model contains layers that can only be '
                          'successfully run in eager execution (layers '
                          'constructed with `dynamic=True`). '
@@ -552,7 +552,7 @@ class Model(training_lib.Model):
                          'successfully run in eager execution (layers '
                          'constructed with `dynamic=True`). '
                          'You cannot set `run_eagerly=False`.')
-      return tf.executing_eagerly()
+      return tf.compat.v2.executing_eagerly()
 
   @run_eagerly.setter
   def run_eagerly(self, value):
@@ -564,7 +564,7 @@ class Model(training_lib.Model):
     #  integrated into the data adapters in the v2 loop. We can't do this yet
     #  because we currently have to fall back for unhandled data types.
     if isinstance(inputs, (tf.compat.v1.data.Iterator,
-                           tf.data.Iterator)):
+                           tf.compat.v2.data.Iterator)):
       raise ValueError('For performance reasons Keras `fit`, `evaluate` and'
                        '`predict` accept tf.data `Datasets` as input but not '
                        'iterators that have been manually generated from '
@@ -1493,7 +1493,7 @@ class Model(training_lib.Model):
       self._compile_weights_loss_and_weighted_metrics()
     return recompile
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _compile_weights_loss_and_weighted_metrics(self, sample_weights=None):
     """Compiles the model loss and weighted metric sub-graphs.
 
@@ -1657,7 +1657,7 @@ class Model(training_lib.Model):
       return self.callback_model
     return self
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _make_callback_model(self, grouped_model):
     first_replicated_model = self._distribution_strategy.unwrap(
         grouped_model)[0]
@@ -1687,7 +1687,7 @@ class Model(training_lib.Model):
       provided.
     """
     if (isinstance(x, (tf.compat.v1.data.Dataset,
-                       tf.data.Dataset,
+                       tf.compat.v2.data.Dataset,
                        data_utils.Sequence)) or
         tf_inspect.isgenerator(x)):
       if batch_size is not None:
@@ -1729,8 +1729,8 @@ class Model(training_lib.Model):
                                  per_replica_batch_size, static_batch_size))
 
         # Check Dataset/Iterator batch size is consistent with InputLayer.
-        if isinstance(x, (tf.data.Dataset, tf.compat.v1.data.Iterator,
-                          tf.data.Iterator)):
+        if isinstance(x, (tf.compat.v2.data.Dataset, tf.compat.v1.data.Iterator,
+                          tf.compat.v2.data.Iterator)):
           ds_batch_size = tf.compat.v1.Dimension(
               tf.nest.flatten(tf.compat.v1.data.get_output_shapes(x))[0][0]).value
           if ds_batch_size is not None:
@@ -2139,7 +2139,7 @@ class Model(training_lib.Model):
     # TODO(anjalisridhar): Remove this check once we refactor the
     # _standardize_user_data code path. This check is already present elsewhere
     # in the codebase.
-    if isinstance(x, tf.data.Dataset):
+    if isinstance(x, tf.compat.v2.data.Dataset):
       if shuffle:
         training_utils_v1.verify_dataset_shuffled(x)
 
@@ -2191,7 +2191,7 @@ class Model(training_lib.Model):
 
         x = ds.batch(batch_size, drop_remainder=drop_remainder)
       else:
-        assert isinstance(x, tf.data.Dataset)
+        assert isinstance(x, tf.compat.v2.data.Dataset)
         training_utils_v1.validate_dataset_input(x, y, sample_weight,
                                                  validation_split)
     return x
@@ -2266,7 +2266,7 @@ class Model(training_lib.Model):
       ValueError: In case of invalid user-provided data.
       RuntimeError: If the model was never compiled.
     """
-    if isinstance(x, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
+    if isinstance(x, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)):
       # Graph mode dataset. We'll pass the dataset as-is (unless
       # `extract_tensors_from_dataset` is True, in which case we extract
       # the tensors from the dataset and we output them.
@@ -2352,7 +2352,7 @@ class Model(training_lib.Model):
       feed_input_shapes = self._feed_input_shapes
 
     # Standardize the inputs.
-    if not isinstance(x, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
+    if not isinstance(x, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)):
       # TODO(fchollet): run static checks with dataset output shape(s).
       x = training_utils_v1.standardize_input_data(
           x,
@@ -2365,7 +2365,7 @@ class Model(training_lib.Model):
     # TODO(momernick): This should be capable of doing full input validation
     # at all times - validate that this is so and refactor the standardization
     # code.
-    if isinstance(x, tf.data.Dataset):
+    if isinstance(x, tf.compat.v2.data.Dataset):
       x_shapes = tf.data.experimental.get_structure(x)
       if isinstance(x_shapes, tuple):
         # If the output of a Dataset is a tuple, we assume it's either of the
@@ -2458,7 +2458,7 @@ class Model(training_lib.Model):
 
     # If dictionary inputs were provided, we return a dictionary as well.
     if dict_inputs and not isinstance(x, (tf.compat.v1.data.Dataset,
-                                          tf.data.Dataset)):
+                                          tf.compat.v2.data.Dataset)):
       x = dict(zip(feed_input_names, x))
     return x, y, sample_weights
 
@@ -2471,7 +2471,7 @@ class Model(training_lib.Model):
     # If input data is a dataset iterator in graph mode or if it is an eager
     # iterator and only one batch of samples is required, we fetch the data
     # tensors from the iterator and then standardize them.
-    if isinstance(inputs, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
+    if isinstance(inputs, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)):
       inputs, targets, _ = training_utils_v1.extract_tensors_from_dataset(
           inputs)
     # We type-check that `inputs` and `targets` are either single arrays
@@ -2507,7 +2507,7 @@ class Model(training_lib.Model):
     # Build the model using the retrieved inputs (value or symbolic).
     # If values are generated from a dataset, then in symbolic-mode
     # placeholders will be created to match the value shapes.
-    if isinstance(orig_inputs, (tf.compat.v1.data.Dataset, tf.data.Dataset,
+    if isinstance(orig_inputs, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset,
                                 tf.compat.v1.data.Iterator)):
       if not self.inputs:
         # For subclassed models, a robust input spec is not available so we
@@ -2546,9 +2546,9 @@ class Model(training_lib.Model):
                          'You passed: x=' + str(orig_inputs) +
                          '; y=' + str(orig_target))
     is_dataset = isinstance(orig_inputs, (tf.compat.v1.data.Dataset,
-                                          tf.data.Dataset,
+                                          tf.compat.v2.data.Dataset,
                                           tf.compat.v1.data.Iterator))
-    if is_dataset or tf.executing_eagerly():
+    if is_dataset or tf.compat.v2.executing_eagerly():
       target_tensors = None
     else:
       # Handle target tensors if any passed.
@@ -2618,7 +2618,7 @@ class Model(training_lib.Model):
 
     self._set_output_attrs(outputs)
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _set_input_attrs(self, inputs):
     """Sets attributes related to the inputs of the Model."""
     if self.inputs:
@@ -2663,7 +2663,7 @@ class Model(training_lib.Model):
 
     return inputs
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _set_output_attrs(self, outputs):
     """Sets attributes related to the outputs of the Model."""
     # NOTE(taylorrobie): This convention cannot be changed without updating the
@@ -3074,7 +3074,7 @@ class _TrainingEndpoint(object):
     """Populate the sample weight and based on the sample weight mode."""
     if (sample_weight is None and
         (self.should_skip_target_weights() or sample_weight_mode is None or
-         tf.executing_eagerly())):
+         tf.compat.v2.executing_eagerly())):
       self._sample_weight = None
       return
 
@@ -3094,7 +3094,7 @@ class _TrainingEndpoint(object):
       self._sample_weight = sample_weight
     else:
       self._sample_weight = tf.compat.v1.placeholder_with_default(
-          tf.constant(default_value, dtype=backend.floatx()),
+          tf.compat.v2.constant(default_value, dtype=backend.floatx()),
           shape=shape,
           name=self.output_name + '_sample_weights')
 
@@ -3160,7 +3160,7 @@ def _convert_scipy_sparse_tensor(value, expected_input):
       data, shape = sparse_coo.data, sparse_coo.shape
       indices = np.concatenate((np.expand_dims(row, 1), np.expand_dims(col, 1)),
                                1)
-      return tf.SparseTensor(indices, data, shape)
+      return tf.sparse.SparseTensor(indices, data, shape)
     else:
       if tf.compat.v1.executing_eagerly_outside_functions():
         # In TF2 we do not silently densify sparse matrices.

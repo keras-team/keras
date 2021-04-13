@@ -14,7 +14,7 @@
 # ==============================================================================
 """Training state management."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 from keras import backend
@@ -41,8 +41,8 @@ class WorkerTrainingState(object):
 
     # The epoch at which the checkpoint is saved. Used for fault-tolerance.
     # GPU device only has int64 dtype registered VarHandleOp.
-    self._ckpt_saved_epoch = tf.Variable(
-        initial_value=tf.constant(
+    self._ckpt_saved_epoch = tf.compat.v2.Variable(
+        initial_value=tf.compat.v2.constant(
             CKPT_SAVED_EPOCH_UNUSED_VALUE, dtype=tf.int64),
         name='ckpt_saved_epoch')
 
@@ -51,7 +51,7 @@ class WorkerTrainingState(object):
 
     # _ckpt_saved_epoch gets tracked and is included in the checkpoint file
     # when backing up.
-    checkpoint = tf.train.Checkpoint(
+    checkpoint = tf.compat.v2.train.Checkpoint(
         model=self._model, ckpt_saved_epoch=self._ckpt_saved_epoch)
 
     # If this is single-worker training, checkpoint_dir are the same for

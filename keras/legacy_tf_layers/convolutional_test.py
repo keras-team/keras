@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras.legacy_tf_layers import convolutional as conv_layers
@@ -55,7 +55,7 @@ class ConvTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2D(32, [3, 3], activation=tf.nn.relu)
     output = layer.apply(images)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'conv2d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height - 2, width - 2, 32])
@@ -92,14 +92,14 @@ class ConvTest(tf.test.TestCase):
 
   def testUnknownInputChannels(self):
     with tf.Graph().as_default():
-      images = tf.compat.v1.placeholder(tf.float32, (5, 7, 9, None))
+      images = tf.compat.v1.placeholder(tf.dtypes.float32, (5, 7, 9, None))
       layer = conv_layers.Conv2D(32, [3, 3], activation=tf.nn.relu)
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. Found `None`.'):
         _ = layer.apply(images)
 
-      images = tf.compat.v1.placeholder(tf.float32, (5, None, 7, 9))
+      images = tf.compat.v1.placeholder(tf.dtypes.float32, (5, None, 7, 9))
       layer = conv_layers.Conv2D(32, [3, 3], data_format='channels_first')
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
@@ -139,7 +139,7 @@ class ConvTest(tf.test.TestCase):
     data = tf.random.uniform((5, width, 4))
     layer = conv_layers.Conv1D(32, 3, activation=tf.nn.relu)
     output = layer.apply(data)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'conv1d/Relu')
     self.assertListEqual(output.get_shape().as_list(), [5, width - 2, 32])
     self.assertListEqual(layer.kernel.get_shape().as_list(), [3, 4, 32])
@@ -163,14 +163,14 @@ class ConvTest(tf.test.TestCase):
 
   def testUnknownInputChannelsConv1D(self):
     with tf.Graph().as_default():
-      data = tf.compat.v1.placeholder(tf.float32, (5, 4, None))
+      data = tf.compat.v1.placeholder(tf.dtypes.float32, (5, 4, None))
       layer = conv_layers.Conv1D(32, 3, activation=tf.nn.relu)
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
           'should be defined. Found `None`.'):
         _ = layer.apply(data)
 
-      data = tf.compat.v1.placeholder(tf.float32, (5, None, 4))
+      data = tf.compat.v1.placeholder(tf.dtypes.float32, (5, None, 4))
       layer = conv_layers.Conv1D(32, 3, data_format='channels_first')
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
@@ -182,7 +182,7 @@ class ConvTest(tf.test.TestCase):
     volumes = tf.random.uniform((5, depth, height, width, 4))
     layer = conv_layers.Conv3D(32, [3, 3, 3], activation=tf.nn.relu)
     output = layer.apply(volumes)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'conv3d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth - 2, height - 2, width - 2, 32])
@@ -191,7 +191,7 @@ class ConvTest(tf.test.TestCase):
 
   def testUnknownInputChannelsConv3D(self):
     with tf.Graph().as_default():
-      volumes = tf.compat.v1.placeholder(tf.float32, (5, 6, 7, 9, None))
+      volumes = tf.compat.v1.placeholder(tf.dtypes.float32, (5, 6, 7, 9, None))
       layer = conv_layers.Conv3D(32, [3, 3, 3], activation=tf.nn.relu)
       with self.assertRaisesRegex(
           ValueError, 'The channel dimension of the inputs '
@@ -202,7 +202,7 @@ class ConvTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.Conv2D(32, [3, 3], kernel_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -215,7 +215,7 @@ class ConvTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.Conv2D(32, [3, 3], bias_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -230,7 +230,7 @@ class ConvTest(tf.test.TestCase):
     layer = conv_layers.Conv2D(
         32, [3, 3], activation=tf.nn.relu, use_bias=False)
     output = layer.apply(images)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'conv2d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height - 2, width - 2, 32])
@@ -282,7 +282,7 @@ class ConvTest(tf.test.TestCase):
         # Check the names of weights in order.
         self.assertTrue('kernel' in weights[0].name)
         self.assertTrue('bias' in weights[1].name)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         weights = self.evaluate(weights)
         # Check that the kernel weights got initialized to ones (from scope)
         self.assertAllClose(weights[0], np.ones((3, 3, 3, 32)))
@@ -300,8 +300,8 @@ class ConvTest(tf.test.TestCase):
 
   def testConstraints(self):
     # Conv1D
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     conv1d = conv_layers.Conv1D(2, 3,
                                 kernel_constraint=k_constraint,
                                 bias_constraint=b_constraint)
@@ -311,8 +311,8 @@ class ConvTest(tf.test.TestCase):
     self.assertEqual(conv1d.bias_constraint, b_constraint)
 
     # Conv2D
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     conv2d = conv_layers.Conv2D(2, 3,
                                 kernel_constraint=k_constraint,
                                 bias_constraint=b_constraint)
@@ -322,8 +322,8 @@ class ConvTest(tf.test.TestCase):
     self.assertEqual(conv2d.bias_constraint, b_constraint)
 
     # Conv3D
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     conv3d = conv_layers.Conv3D(2, 3,
                                 kernel_constraint=k_constraint,
                                 bias_constraint=b_constraint)
@@ -336,7 +336,7 @@ class ConvTest(tf.test.TestCase):
     # Test case for GitHub issue 15655
     with tf.Graph().as_default():
       images = tf.compat.v1.placeholder(
-          dtype=tf.float32, shape=[None, 1, 32, 32, 32])
+          dtype=tf.dtypes.float32, shape=[None, 1, 32, 32, 32])
       conv_layers.conv3d(images, 32, 9, data_format='channels_first')
 
 
@@ -371,7 +371,7 @@ class SeparableConv1DTest(tf.test.TestCase):
     data = tf.random.uniform((5, length, 4))
     layer = conv_layers.SeparableConv1D(32, 3, activation=tf.nn.relu)
     output = layer.apply(data)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'separable_conv1d/Relu')
     self.assertEqual(output.get_shape().as_list(), [5, length - 2, 32])
     self.assertEqual(layer.depthwise_kernel.get_shape().as_list(), [3, 4, 1])
@@ -457,7 +457,7 @@ class SeparableConv1DTest(tf.test.TestCase):
     with tf.Graph().as_default():
       length = 9
       data = tf.random.uniform((5, length, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.SeparableConv1D(32, 3, depthwise_regularizer=reg)
       layer.apply(data)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -470,7 +470,7 @@ class SeparableConv1DTest(tf.test.TestCase):
     with tf.Graph().as_default():
       length = 9
       data = tf.random.uniform((5, length, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.SeparableConv1D(32, 3, pointwise_regularizer=reg)
       layer.apply(data)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -483,7 +483,7 @@ class SeparableConv1DTest(tf.test.TestCase):
     with tf.Graph().as_default():
       length = 9
       data = tf.random.uniform((5, length, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.SeparableConv1D(32, 3, bias_regularizer=reg)
       layer.apply(data)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -503,9 +503,9 @@ class SeparableConv1DTest(tf.test.TestCase):
       self.assertEqual(layer.bias, None)
 
   def testConstraints(self):
-    d_constraint = lambda x: x / tf.reduce_sum(x)
-    p_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    d_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    p_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     layer = conv_layers.SeparableConv1D(2, 3,
                                         depthwise_constraint=d_constraint,
                                         pointwise_constraint=p_constraint,
@@ -548,7 +548,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.SeparableConv2D(32, [3, 3], activation=tf.nn.relu)
     output = layer.apply(images)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'separable_conv2d/Relu')
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height - 2, width - 2, 32])
@@ -690,7 +690,7 @@ class SeparableConv2DTest(tf.test.TestCase):
         self.assertTrue('depthwise_kernel' in weights[0].name)
         self.assertTrue('pointwise_kernel' in weights[1].name)
         self.assertTrue('bias' in weights[2].name)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         weights = self.evaluate(weights)
         # Check that the kernel weights got initialized to ones (from scope)
         self.assertAllClose(weights[0], np.ones((3, 3, 3, 1)))
@@ -711,7 +711,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.SeparableConv2D(32, [3, 3], depthwise_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -724,7 +724,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.SeparableConv2D(32, [3, 3], pointwise_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -737,7 +737,7 @@ class SeparableConv2DTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.SeparableConv2D(32, [3, 3], bias_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -763,9 +763,9 @@ class SeparableConv2DTest(tf.test.TestCase):
       self.assertEqual(layer.bias, None)
 
   def testConstraints(self):
-    d_constraint = lambda x: x / tf.reduce_sum(x)
-    p_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    d_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    p_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     layer = conv_layers.SeparableConv2D(2, 3,
                                         depthwise_constraint=d_constraint,
                                         pointwise_constraint=p_constraint,
@@ -808,7 +808,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     images = tf.random.uniform((5, height, width, 4))
     layer = conv_layers.Conv2DTranspose(32, [3, 3], activation=tf.nn.relu)
     output = layer.apply(images)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'conv2d_transpose/Relu')
     self.assertListEqual(output.get_shape().as_list(),
                          [5, height + 2, width + 2, 32])
@@ -879,7 +879,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.Conv2DTranspose(32, [3, 3], kernel_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -892,7 +892,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
     with tf.Graph().as_default():
       height, width = 7, 9
       images = tf.random.uniform((5, height, width, 4))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.Conv2DTranspose(32, [3, 3], bias_regularizer=reg)
       layer.apply(images)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -946,7 +946,7 @@ class Conv2DTransposeTest(tf.test.TestCase):
         # Check the names of weights in order.
         self.assertTrue('kernel' in weights[0].name)
         self.assertTrue('bias' in weights[1].name)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         weights = self.evaluate(weights)
         # Check that the kernel weights got initialized to ones (from scope)
         self.assertAllClose(weights[0], np.ones((3, 3, 32, 3)))
@@ -963,8 +963,8 @@ class Conv2DTransposeTest(tf.test.TestCase):
       self.assertEqual(len(tf.compat.v1.trainable_variables()), 4)
 
   def testConstraints(self):
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     layer = conv_layers.Conv2DTranspose(2, 3,
                                         kernel_constraint=k_constraint,
                                         bias_constraint=b_constraint)
@@ -1005,7 +1005,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
     volumes = tf.random.uniform((5, depth, height, width, 32))
     layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], activation=tf.nn.relu)
     output = layer.apply(volumes)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(output.op.name, 'conv3d_transpose/Relu')
     self.assertListEqual(output.get_shape().as_list(),
                          [5, depth + 2, height + 2, width + 2, 4])
@@ -1070,7 +1070,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
     with tf.Graph().as_default():
       depth, height, width = 5, 7, 9
       volumes = tf.random.uniform((5, depth, height, width, 32))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], kernel_regularizer=reg)
       layer.apply(volumes)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -1083,7 +1083,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
     with tf.Graph().as_default():
       depth, height, width = 5, 7, 9
       volumes = tf.random.uniform((5, depth, height, width, 32))
-      reg = lambda x: 0.1 * tf.reduce_sum(x)
+      reg = lambda x: 0.1 * tf.compat.v2.reduce_sum(x)
       layer = conv_layers.Conv3DTranspose(4, [3, 3, 3], bias_regularizer=reg)
       layer.apply(volumes)
       loss_keys = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
@@ -1139,7 +1139,7 @@ class Conv3DTransposeTest(tf.test.TestCase):
         # Check the names of weights in order.
         self.assertTrue('kernel' in weights[0].name)
         self.assertTrue('bias' in weights[1].name)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         weights = self.evaluate(weights)
         # Check that the kernel weights got initialized to ones (from scope)
         self.assertAllClose(weights[0], np.ones((3, 3, 3, 4, 32)))
@@ -1156,8 +1156,8 @@ class Conv3DTransposeTest(tf.test.TestCase):
       self.assertEqual(len(tf.compat.v1.trainable_variables()), 4)
 
   def testConstraints(self):
-    k_constraint = lambda x: x / tf.reduce_sum(x)
-    b_constraint = lambda x: x / tf.reduce_max(x)
+    k_constraint = lambda x: x / tf.compat.v2.reduce_sum(x)
+    b_constraint = lambda x: x / tf.compat.v2.reduce_max(x)
     layer = conv_layers.Conv3DTranspose(2, 3,
                                         kernel_constraint=k_constraint,
                                         bias_constraint=b_constraint)

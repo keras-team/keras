@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utility object to handler partial batches for TPUStrategy."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=protected-access
 
 import numpy as np

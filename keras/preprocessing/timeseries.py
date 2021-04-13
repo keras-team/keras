@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras timeseries dataset utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -199,14 +199,14 @@ def timeseries_dataset_from_array(
               positions[i],
               positions[i] + sequence_length * sampling_rate,
               sampling_rate),
-          num_parallel_calls=tf.data.AUTOTUNE)
+          num_parallel_calls=tf.data.experimental.AUTOTUNE)
 
   dataset = sequences_from_indices(data, indices, start_index, end_index)
   if targets is not None:
     indices = tf.data.Dataset.zip(
         (tf.data.Dataset.range(len(start_positions)), positions_ds)).map(
             lambda i, positions: positions[i],
-            num_parallel_calls=tf.data.AUTOTUNE)
+            num_parallel_calls=tf.data.experimental.AUTOTUNE)
     target_ds = sequences_from_indices(
         targets, indices, start_index, end_index)
     dataset = tf.data.Dataset.zip((dataset, target_ds))
@@ -221,5 +221,5 @@ def sequences_from_indices(array, indices_ds, start_index, end_index):
   dataset = tf.data.Dataset.from_tensors(array[start_index : end_index])
   dataset = tf.data.Dataset.zip((dataset.repeat(), indices_ds)).map(
       lambda steps, inds: tf.compat.v1.gather(steps, inds),  # pylint: disable=unnecessary-lambda
-      num_parallel_calls=tf.data.AUTOTUNE)
+      num_parallel_calls=tf.data.experimental.AUTOTUNE)
   return dataset

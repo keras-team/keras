@@ -17,7 +17,7 @@
 See also: lstm_v2_test.py, gru_v2_test.py.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 from absl.testing import parameterized
@@ -98,7 +98,7 @@ class RNNV2Test(keras_parameterized.TestCase):
     ])
 
   def test_recurrent_dropout_saved_model(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('v2-only test')
     inputs = keras.Input(shape=(784, 3), name='digits')
     x = keras.layers.GRU(64, activation='relu', name='GRU', dropout=0.1)(inputs)

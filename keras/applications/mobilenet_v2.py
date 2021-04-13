@@ -74,7 +74,7 @@ MACs stands for Multiply Adds
       https://arxiv.org/abs/1801.04381) (CVPR 2018)
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras.applications import imagenet_utils

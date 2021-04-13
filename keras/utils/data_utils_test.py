@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for data_utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from itertools import cycle
 import os

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for locally-connected layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -420,7 +420,7 @@ def get_inputs(data_format, filters, height, num_samples, width):
 def xent(y_true, y_pred):
   y_true = keras.backend.cast(
       keras.backend.reshape(y_true, (-1,)),
-      tf.int32)
+      tf.dtypes.int32)
 
   return tf.compat.v1.nn.sparse_softmax_cross_entropy_with_logits(
       labels=y_true,

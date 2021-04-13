@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for model.fit calls with a Dataset object passed as validation_data."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import io
 import sys

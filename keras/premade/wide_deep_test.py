@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras Premade WideNDeep models."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras import keras_parameterized
@@ -65,7 +65,7 @@ class WideDeepModelTest(keras_parameterized.TestCase):
           loss='mse',
           metrics=[],
           run_eagerly=testing_utils.should_run_eagerly())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       wide_deep_model.fit(inputs, output, epochs=1)
       self.assertAllClose(
           [[0.6]],

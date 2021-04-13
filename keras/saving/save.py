@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras model saving code."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.saving import hdf5_format
 from keras.saving import saving_utils
 from keras.saving.saved_model import load as saved_model_load
@@ -119,7 +119,7 @@ def save_model(model,
   # pylint: enable=line-too-long
   from keras.engine import sequential  # pylint: disable=g-import-not-at-top
 
-  default_format = 'tf' if tf.__internal__.tf2.enabled() else 'h5'
+  default_format = 'tf' if tf.compat.v2.__internal__.tf2.enabled() else 'h5'
   save_format = save_format or default_format
 
   filepath = path_to_string(filepath)
@@ -210,4 +210,4 @@ def load_model(filepath, custom_objects=None, compile=True, options=None):  # py
 
 # Inject the load_model function to keras_deps to remove the dependency
 # from TFLite to Keras.
-tf.__internal__.register_load_model_function(load_model)
+tf.compat.v2.__internal__.register_load_model_function(load_model)

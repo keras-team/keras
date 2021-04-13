@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for keras.layers.preprocessing.normalization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 

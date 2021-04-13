@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests add_loss API correctness."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras import Input
@@ -41,7 +41,7 @@ def get_ctl_train_step(model):
         model([x, y, w])
       else:
         model([x, y])
-      loss = tf.reduce_sum(model.losses)
+      loss = tf.compat.v2.reduce_sum(model.losses)
     gradients = tape.gradient(loss, model.trainable_weights)
     optimizer.apply_gradients(zip(gradients, model.trainable_weights))
     return loss
@@ -68,7 +68,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
     outputs = testing_utils.Bias()(inputs)
     model = Model([inputs, targets], outputs)
     model.add_loss(MAE()(targets, outputs))
-    model.add_loss(tf.reduce_mean(mae(targets, outputs)))
+    model.add_loss(tf.compat.v2.reduce_mean(mae(targets, outputs)))
     model.compile(
         optimizer_v2.gradient_descent.SGD(0.05),
         run_eagerly=testing_utils.should_run_eagerly())
@@ -83,7 +83,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
                                                 input_shape=(1,))
 
     def callable_loss():
-      return tf.reduce_sum(model.weights)
+      return tf.compat.v2.reduce_sum(model.weights)
 
     model.add_loss(callable_loss)
     model.compile(
@@ -101,7 +101,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
       outputs = testing_utils.Bias()(inputs)
       model = Model([inputs, targets], outputs)
       model.add_loss(MAE()(targets, outputs))
-      model.add_loss(tf.reduce_mean(mae(targets, outputs)))
+      model.add_loss(tf.compat.v2.reduce_mean(mae(targets, outputs)))
       return get_ctl_train_step(model)
 
     train_step = get_model_and_train_step()
@@ -121,7 +121,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
       model = Model([inputs, targets], outputs)
 
       def callable_loss():
-        return tf.reduce_sum(model.weights)
+        return tf.compat.v2.reduce_sum(model.weights)
 
       model.add_loss(callable_loss)
       return get_ctl_train_step(model)
@@ -142,7 +142,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
     outputs = testing_utils.Bias()(inputs)
     model = Model([inputs, targets, sw], outputs)
     model.add_loss(MAE()(targets, outputs, sw))
-    model.add_loss(3 * tf.reduce_mean(sw * mae(targets, outputs)))
+    model.add_loss(3 * tf.compat.v2.reduce_mean(sw * mae(targets, outputs)))
     model.compile(
         optimizer_v2.gradient_descent.SGD(0.025),
         run_eagerly=testing_utils.should_run_eagerly())
@@ -159,7 +159,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
       outputs = testing_utils.Bias()(inputs)
       model = Model([inputs, targets, sw], outputs)
       model.add_loss(MAE()(targets, outputs, sw))
-      model.add_loss(tf.reduce_mean(sw * mae(targets, outputs)))
+      model.add_loss(tf.compat.v2.reduce_mean(sw * mae(targets, outputs)))
       return get_ctl_train_step(model)
 
     train_step = get_model_and_train_step()
@@ -182,7 +182,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
       def call(self, inputs):
         outputs = self.bias(inputs[0])
         self.add_loss(MAE()(inputs[1], outputs, inputs[2]))
-        self.add_loss(tf.reduce_mean(inputs[2] * mae(inputs[1], outputs)))
+        self.add_loss(tf.compat.v2.reduce_mean(inputs[2] * mae(inputs[1], outputs)))
         return outputs
 
     model = MyModel()
@@ -210,7 +210,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
       def call(self, inputs):
         out = self.bias(inputs[0])
         self.add_loss(MAE()(inputs[1], out, inputs[2]))
-        self.add_loss(tf.reduce_mean(inputs[2] * mae(inputs[1], out)))
+        self.add_loss(tf.compat.v2.reduce_mean(inputs[2] * mae(inputs[1], out)))
         return out
 
     inputs = Input(shape=(1,))
@@ -239,7 +239,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
     class MyLayer(layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs))
+        self.add_loss(tf.compat.v2.reduce_sum(inputs))
         return inputs
 
     inputs = Input((3,))
@@ -329,14 +329,14 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
     class LayerWithLoss(layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+        self.add_loss(tf.compat.v2.reduce_sum(inputs), inputs=inputs)
         return inputs * 2
 
     shared_layer = LayerWithLoss()
 
     m = Sequential([shared_layer])
     m2 = Sequential([shared_layer, m])
-    m2(tf.constant([1, 2, 3]))
+    m2(tf.compat.v2.constant([1, 2, 3]))
     self.assertEqual(len(m2.losses), 2)
     self.assertAllClose(m2.losses, [6, 12])
 
@@ -346,7 +346,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
     class LayerWithLoss(layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs), inputs=inputs)
+        self.add_loss(tf.compat.v2.reduce_sum(inputs), inputs=inputs)
         return inputs * 2
 
     class LayerWithNestedLayerWithLoss(layers.Layer):
@@ -362,7 +362,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
 
     m = Sequential([shared_layer])
     m2 = Sequential([shared_layer, m])
-    m2(tf.constant([1, 2, 3]))
+    m2(tf.compat.v2.constant([1, 2, 3]))
     self.assertEqual(len(m2.losses), 2)
     self.assertAllClose(m2.losses, [6, 12])
 
@@ -385,20 +385,20 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
 
     x1 = tf.ones((1, 1))
     _ = l(x1)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(len(l.get_losses_for(x1)), 2)
       self.assertEqual(len(l.get_losses_for(None)), 1)
 
     x2 = tf.ones((1, 1))
     _ = l(x2)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(len(l.get_losses_for(x1)), 2)
       self.assertEqual(len(l.get_losses_for(x2)), 2)
       self.assertEqual(len(l.get_losses_for(None)), 1)
 
     outputs = l(inputs)
     model = Model(inputs, outputs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(len(model.losses), 7)
       self.assertEqual(len(l.get_losses_for(x1)), 2)
       self.assertEqual(len(l.get_losses_for(x2)), 2)
@@ -408,7 +408,7 @@ class TestAddLossCorrectness(keras_parameterized.TestCase):
     model(x3)
     x4 = tf.ones((1, 1))
     model(x4)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # Eager losses are cleared every `__call__`.
       self.assertEqual(len(model.losses), 3)
     else:

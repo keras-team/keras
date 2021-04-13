@@ -202,7 +202,7 @@ POOLING_LAYERS = [
 
 class KerasLayerBenchmarks(  # pylint: disable=undefined-variable
     layer_benchmarks_test_base.LayerBenchmarksBase,
-    metaclass=tf.__internal__.test.ParameterizedBenchmark):
+    metaclass=tf.compat.v2.__internal__.test.ParameterizedBenchmark):
 
   # The parameter of each layer benchmark is a tuple, and the first one is
   # the benchmark name. It must follow the convention of

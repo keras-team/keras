@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Utilities related to layer/model functionality."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import functools
 import weakref

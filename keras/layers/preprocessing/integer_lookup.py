@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras string lookup preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
 from keras.layers.preprocessing import table_utils

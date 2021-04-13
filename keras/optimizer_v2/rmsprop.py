@@ -14,7 +14,7 @@
 # ==============================================================================
 """RMSprop optimizer implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -159,7 +159,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
     apply_state[(var_device, var_dtype)].update(
         dict(
             neg_lr_t=-apply_state[(var_device, var_dtype)]["lr_t"],
-            epsilon=tf.convert_to_tensor(
+            epsilon=tf.compat.v2.convert_to_tensor(
                 self.epsilon, var_dtype),
             rho=rho,
             momentum=tf.identity(self._get_hyper("momentum", var_dtype)),
@@ -208,7 +208,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
         mg_t = tf.compat.v1.assign(mg, mg_t, use_locking=self._use_locking)
         denom_t = rms_t - tf.square(mg_t)
       var_t = var - coefficients["lr_t"] * grad / (
-          tf.sqrt(denom_t) + coefficients["epsilon"])
+          tf.math.sqrt(denom_t) + coefficients["epsilon"])
       return tf.compat.v1.assign(var, var_t, use_locking=self._use_locking).op
 
   def _resource_apply_sparse(self, grad, var, indices, apply_state=None):
@@ -264,7 +264,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
           denom_slice = rms_slice - tf.square(mg_slice)
       var_update = self._resource_scatter_add(
           var, indices, coefficients["neg_lr_t"] * grad / (
-              tf.sqrt(denom_slice) + coefficients["epsilon"]))
+              tf.math.sqrt(denom_slice) + coefficients["epsilon"]))
       if self.centered:
         return tf.group(*[var_update, rms_t, mg_t])
       return tf.group(*[var_update, rms_t])

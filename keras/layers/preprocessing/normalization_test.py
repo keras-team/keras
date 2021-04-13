@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for keras.layers.preprocessing.normalization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 
@@ -123,8 +123,8 @@ class NormalizationTest(keras_parameterized.TestCase,
   def test_broadcasting_during_direct_setting_with_tensors(self):
     layer = normalization.Normalization(
         axis=-1,
-        mean=tf.constant([1.0]),
-        variance=tf.constant([2.0]))
+        mean=tf.compat.v2.constant([1.0]),
+        variance=tf.compat.v2.constant([2.0]))
     layer.build((None, 2))
     weights = layer.get_weights()
     self.assertAllClose([1.0, 1.0], weights[0])
@@ -134,8 +134,8 @@ class NormalizationTest(keras_parameterized.TestCase,
     with self.assertRaisesRegex(ValueError, "passing a Variable"):
       _ = normalization.Normalization(
           axis=-1,
-          mean=tf.Variable([1.0]),
-          variance=tf.Variable([2.0]))
+          mean=tf.compat.v2.Variable([1.0]),
+          variance=tf.compat.v2.Variable([2.0]))
 
   @parameterized.parameters(
       {"axis": 0},
@@ -217,11 +217,11 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     layer.adapt(data)
     output = layer(data)
     self.assertListEqual(output.shape.as_list(), [4, 1])
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(output.numpy(), [[-1], [1], [-1], [1]])
 
   def test_0d_data(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest("Only supported in TF2.")
 
     data = [0, 2, 0, 2]
@@ -260,9 +260,6 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
     model.summary()
 
   def test_merge_state(self):
-    if not tf.executing_eagerly():
-      self.skipTest("`merge_state` only supported in TF2")
-
     data = np.random.rand(30, 10, 2)
     ds = tf.data.Dataset.from_tensor_slices(data).batch(2)
     norm = normalization.Normalization(axis=(1, 2))

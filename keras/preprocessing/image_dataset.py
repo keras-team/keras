@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras image dataset loading utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -241,12 +241,12 @@ def load_image(path, image_size, num_channels, interpolation,
                smart_resize=False):
   """Load an image from a path and resize it."""
   img = tf.io.read_file(path)
-  img = tf.image.decode_image(
+  img = tf.io.decode_image(
       img, channels=num_channels, expand_animations=False)
   if smart_resize:
     img = keras_image_ops.smart_resize(img, image_size,
                                        interpolation=interpolation)
   else:
-    img = tf.image.resize(img, image_size, method=interpolation)
+    img = tf.compat.v2.image.resize(img, image_size, method=interpolation)
   img.set_shape((image_size[0], image_size[1], num_channels))
   return img

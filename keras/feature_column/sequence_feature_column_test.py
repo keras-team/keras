@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 
 from absl.testing import parameterized
@@ -32,7 +32,7 @@ from keras.saving import model_config
 
 def _initialized_session(config=None):
   sess = tf.compat.v1.Session(config=config)
-  sess.run(tf.compat.v1.global_variables_initializer())
+  sess.run(tf.compat.v1.initializers.global_variables())
   sess.run(tf.compat.v1.tables_initializer())
   return sess
 
@@ -105,7 +105,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
       def _initializer(shape, dtype, partition_info=None):
         self.assertAllEqual((vocabulary_size, embedding_dimension), shape)
-        self.assertEqual(tf.float32, dtype)
+        self.assertEqual(tf.dtypes.float32, dtype)
         self.assertIsNone(partition_info)
         return embedding_values
       return _initializer
@@ -129,7 +129,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     input_layer, sequence_length = sequence_input_layer({
         'aaa': sparse_input_a, 'bbb': sparse_input_b,})
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     weights = sequence_input_layer.weights
     self.assertCountEqual(
         ('sequence_features/aaa_embedding/embedding_weights:0',
@@ -189,7 +189,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
 
         def _initializer(shape, dtype, partition_info=None):
           self.assertAllEqual((vocabulary_size, embedding_dimension), shape)
-          self.assertEqual(tf.float32, dtype)
+          self.assertEqual(tf.dtypes.float32, dtype)
           self.assertIsNone(partition_info)
           return embedding_values
 
@@ -208,7 +208,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
       categorical_column_b = tf.feature_column.sequence_categorical_column_with_identity(
           key='bbb', num_buckets=vocabulary_size)
       # Test that columns are reordered alphabetically.
-      shared_embedding_columns = tf.feature_column.shared_embeddings(
+      shared_embedding_columns = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_b, categorical_column_a],
           dimension=embedding_dimension,
           initializer=_get_initializer(embedding_dimension, embedding_values))
@@ -250,7 +250,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
           key='aaa', num_buckets=vocabulary_size)
       categorical_column_b = tf.feature_column.categorical_column_with_identity(
           key='bbb', num_buckets=vocabulary_size)
-      shared_embedding_columns = tf.feature_column.shared_embeddings(
+      shared_embedding_columns = tf.compat.v2.feature_column.shared_embeddings(
           [categorical_column_a, categorical_column_b], dimension=2)
 
       sequence_input_layer = ksfc.SequenceFeatures(shared_embedding_columns)
@@ -528,7 +528,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     price1 = tf.feature_column.sequence_numeric_column('price1', shape=2)
     price2 = tf.feature_column.sequence_numeric_column('price2')
     features = {
-        'price1': tf.SparseTensor(
+        'price1': tf.sparse.SparseTensor(
             indices=[[0, 0, 0], [0, 0, 1],
                      [0, 1, 0], [0, 1, 1],
                      [1, 0, 0], [1, 0, 1],
@@ -536,7 +536,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
                      [3, 0, 0], [3, 0, 1]],
             values=[0., 1., 10., 11., 100., 101., 200., 201., 300., 301.],
             dense_shape=(4, 3, 2)),
-        'price2': tf.SparseTensor(
+        'price2': tf.sparse.SparseTensor(
             indices=[[0, 0],
                      [0, 1],
                      [1, 0],
@@ -549,7 +549,7 @@ class SequenceFeaturesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(
         sequence_features.compute_output_shape((None, None)),
         (None, None, 3))
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.evaluate(tf.compat.v1.tables_initializer())
 
     self.assertAllClose([[[0., 1., 10.], [10., 11., 11.], [0., 0., 0.]],
@@ -643,18 +643,18 @@ class SequenceFeaturesSavingTest(tf.test.TestCase, parameterized.TestCase):
     values_a = np.arange(10, dtype=np.float32)
     indices_a = np.zeros((10, 3), dtype=np.int64)
     indices_a[:, 0] = np.arange(10)
-    inputs_a = tf.SparseTensor(indices_a, values_a,
+    inputs_a = tf.sparse.SparseTensor(indices_a, values_a,
                                           (batch_size, timesteps, 1))
 
     values_b = np.zeros(10, dtype=np.str)
     indices_b = np.zeros((10, 3), dtype=np.int64)
     indices_b[:, 0] = np.arange(10)
-    inputs_b = tf.SparseTensor(indices_b, values_b,
+    inputs_b = tf.sparse.SparseTensor(indices_b, values_b,
                                           (batch_size, timesteps, 1))
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertLen(

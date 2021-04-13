@@ -40,7 +40,7 @@ def tensor_gen(batch, num_elements):
       batch_element.append(tok)
     batch_element.append("")  # Explicitly test the empty string.
     data.append(batch_element)
-  return tf.constant(data)
+  return tf.compat.v2.constant(data)
 
 
 def get_vocab():

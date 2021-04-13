@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utility functions shared between SavedModel saving/loading implementations."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import itertools
 import threading
@@ -75,14 +75,14 @@ def use_wrapped_call(layer, call_fn, default_training_value=None,
     # whenever eager losses are added to one layer, add eager losses to all
     # child layers. This causes `.losses` to only return eager losses.
     # pylint: disable=protected-access
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       for i in layer._flatten_layers():
         if i is not layer:
           i._eager_losses = [base_layer_utils.REVIVED_LOSS_PLACEHOLDER]
     # pylint: enable=protected-access
     return outputs
 
-  decorated = tf.__internal__.decorator.make_decorator(
+  decorated = tf.compat.v2.__internal__.decorator.make_decorator(
       target=call_fn,
       decorator_func=return_outputs_and_add_losses,
       decorator_argspec=arg_spec)

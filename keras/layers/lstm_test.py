@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for LSTM layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 
@@ -375,7 +375,7 @@ class LSTMLayerTest(keras_parameterized.TestCase):
     self.assertEqual(len(layer.losses), 3)
     x = keras.backend.variable(np.ones((2, 3, 2)))
     layer(x)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(len(layer.losses), 4)
     else:
       self.assertEqual(len(layer.get_losses_for(x)), 1)

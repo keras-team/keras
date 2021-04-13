@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for custom training loops."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -24,8 +24,8 @@ from keras.distribute import strategy_combinations
 
 class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies +
           strategy_combinations.multiworker_strategies,
           mode=["eager"]
@@ -38,7 +38,7 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
     @tf.function
     def train_step():
       def step_fn():
-        loss = tf.constant(5.0, dtype=np.float32)
+        loss = tf.compat.v2.constant(5.0, dtype=np.float32)
         loss_metric.update_state(loss)
         loss_metric_2.update_state(loss)
 
@@ -49,8 +49,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
                      loss_metric_2.result().numpy())
     self.assertEqual(loss_metric.result().numpy(), 5.0)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies+
           strategy_combinations.multiworker_strategies,
           mode=["eager"]
@@ -73,8 +73,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
     # of 10 resulting in mean of 4.5.
     self.assertEqual(metric.result().numpy(), 4.5)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies,
           mode=["eager"]
       ))
@@ -90,8 +90,8 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
     # of 10 resulting in mean of 4.5.
     self.assertEqual(metric.result().numpy(), 4.5)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies, mode=["eager"]))
   def test_update_keras_metrics_dynamic_shape(self, distribution):
     with distribution.scope():
@@ -101,7 +101,7 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
     @tf.function
     def train_fn(dataset):
-      weights = tf.constant([0.1, 0.1])
+      weights = tf.compat.v2.constant([0.1, 0.1])
 
       def step_fn(i):
         metric.update_state(i, weights)
@@ -117,4 +117,4 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
 
 if __name__ == "__main__":
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

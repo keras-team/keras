@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Model subclassing."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 import os
@@ -113,7 +113,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
         'mse',
         run_eagerly=testing_utils.should_run_eagerly())
 
-    data = tf.data.Dataset.from_tensor_slices(({
+    data = tf.compat.v2.data.Dataset.from_tensor_slices(({
         'a': np.ones((32, 10)),
         'b': np.ones((32, 20))
     }, np.ones((32, 1)))).batch(2)
@@ -359,7 +359,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
         self.isdep = keras.layers.Dense(1)
         self.notdep = data_structures.NoDependency(keras.layers.Dense(2))
         self.notdep_var = data_structures.NoDependency(
-            tf.Variable(1., name='notdep_var'))
+            tf.compat.v2.Variable(1., name='notdep_var'))
 
     m = Foo()
     self.assertEqual([m.isdep, m.notdep], m.layers)
@@ -374,8 +374,8 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
       def __init__(self):
         super(ExtraVar, self).__init__()
         self.dense = keras.layers.Dense(1)
-        self.var = tf.Variable(1.)
-        self.not_trainable_var = tf.Variable(2., trainable=False)
+        self.var = tf.compat.v2.Variable(1.)
+        self.not_trainable_var = tf.compat.v2.Variable(2., trainable=False)
 
       def call(self, inputs):
         return self.dense(inputs + self.var)
@@ -427,7 +427,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
       def call(self, inputs):
         return inputs + self.b + self.c
 
-    x = tf.convert_to_tensor(np.ones((10, 10), 'float32'))
+    x = tf.compat.v2.convert_to_tensor(np.ones((10, 10), 'float32'))
     model = MyModel()
     model(x)
     self.assertEqual(1, len(model.trainable_weights))
@@ -443,7 +443,7 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
       def call(self, inputs):
         return inputs + self.b + self.c
 
-    x = tf.convert_to_tensor(np.ones((10, 10), 'float32'))
+    x = tf.compat.v2.convert_to_tensor(np.ones((10, 10), 'float32'))
     model = MyModelCustomBuild()
     model(x)
     self.assertEqual(1, len(model.trainable_weights))
@@ -466,11 +466,11 @@ class ModelSubclassingTest(keras_parameterized.TestCase):
         self.add_update(self.c.assign(inputs[1, :]))
         return inputs + self.b + self.c
 
-    x = tf.convert_to_tensor(np.ones((10, 10), 'float32'))
+    x = tf.compat.v2.convert_to_tensor(np.ones((10, 10), 'float32'))
     model = MyModel()
     model(x)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(0, len(model.updates))
     else:
       self.assertEqual(2, len(model.updates))
@@ -665,13 +665,13 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
     model = HasKwargs()
     arg = tf.ones([1])
     model(arg, a=3)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertLen(model.inputs, 1)
 
   @test_util.assert_no_new_tensors
   @test_util.assert_no_garbage_created
   def test_training_no_default(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       return
     model = model_util.TrainingNoDefaultModel()
     arg = tf.ones([1, 1])
@@ -705,14 +705,14 @@ class CustomCallSignatureTests(tf.test.TestCase, parameterized.TestCase):
       m.predict_on_batch(x)
 
   def test_deepcopy(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Run in eager mode only.')
 
     class MyModel(keras.Model):
 
       def __init__(self):
         super(MyModel, self).__init__()
-        self.my_variable = tf.Variable(0.0, trainable=False)
+        self.my_variable = tf.compat.v2.Variable(0.0, trainable=False)
         self.layer = keras.layers.Dense(4)
 
       def call(self, obs):

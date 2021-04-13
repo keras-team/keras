@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests Policies."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 from keras import combinations
@@ -186,20 +186,20 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
 
   @testing_utils.enable_v2_dtype_behavior
   def test_device_compatibility_warning(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Run in eager mode only.')
 
     device_compatibility_check._logged_compatibility_check = False
     with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
       mp_policy.Policy('mixed_float16')
-    if tf.config.list_physical_devices('GPU'):
+    if tf.config.experimental.list_physical_devices('GPU'):
       mock_warn.assert_not_called()
     else:
       self.assertRegex(
           mock_warn.call_args[0][0],
           r'Mixed precision compatibility check \(mixed_float16\): WARNING.*')
 
-    if tf.config.list_physical_devices('GPU'):
+    if tf.config.experimental.list_physical_devices('GPU'):
       # Assert message is only logged once
       with tf.compat.v1.test.mock.patch.object(tf_logging, 'warning') as mock_warn:
         mp_policy.Policy('mixed_float16')
@@ -295,7 +295,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
   @testing_utils.enable_v2_dtype_behavior
   def test_error_if_graph_rewrite_enabled(self):
     try:
-      tf.compat.v1.mixed_precision.enable_mixed_precision_graph_rewrite(
+      tf.compat.v1.train.experimental.enable_mixed_precision_graph_rewrite(
           gradient_descent.SGD(1.))
       with self.assertRaisesRegex(
           ValueError, 'cannot be set to "mixed_float16", .* the mixed '
@@ -304,7 +304,7 @@ class PolicyTest(tf.test.TestCase, parameterized.TestCase):
       with mp_policy.policy_scope('float64'):
         pass  # Non-mixed policies are allowed
     finally:
-      tf.compat.v1.mixed_precision.disable_mixed_precision_graph_rewrite()
+      tf.compat.v1.train.experimental.disable_mixed_precision_graph_rewrite()
 
   @testing_utils.disable_v2_dtype_behavior
   def test_v1_dtype_behavior(self):

@@ -20,7 +20,7 @@ saved_model's load() API is used. Keras's export_save_model() when used with
 tf.saved_model.save().
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import testing_utils
 from keras.distribute import saved_model_test_base as test_base
 from keras.saving import save
@@ -48,23 +48,23 @@ class SavedModelSaveAndLoadTest(test_base.TestSavedModelBase):
                                                        predict_dataset,
                                                        output_name)
 
-  @tf.__internal__.distribute.combinations.generate(test_base.simple_models_with_strategies())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(test_base.simple_models_with_strategies())
   def test_save_no_strategy_restore_strategy(self, model_and_input,
                                              distribution):
     self.run_test_save_no_strategy_restore_strategy(
         model_and_input, distribution)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.simple_models_with_strategies(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.simple_models_with_strategies(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_save_strategy_restore_no_strategy(self, model_and_input,
                                              distribution, save_in_scope):
     self.run_test_save_strategy_restore_no_strategy(
         model_and_input, distribution, save_in_scope)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(test_base.simple_models_with_strategy_pairs(),
-                         tf.__internal__.test.combinations.combine(save_in_scope=[True, False])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(test_base.simple_models_with_strategy_pairs(),
+                         tf.compat.v2.__internal__.test.combinations.combine(save_in_scope=[True, False])))
   def test_save_strategy_restore_strategy(self, model_and_input,
                                           distribution_for_saving,
                                           distribution_for_restoring,

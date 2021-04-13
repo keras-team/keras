@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for categorical preprocessing layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras import keras_parameterized
@@ -29,11 +29,11 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_sparse_inputs(self):
     layer = category_crossing.CategoryCrossing()
-    inputs_0 = tf.SparseTensor(
+    inputs_0 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [1, 1]],
         values=['a', 'b', 'c'],
         dense_shape=[2, 2])
-    inputs_1 = tf.SparseTensor(
+    inputs_1 = tf.sparse.SparseTensor(
         indices=[[0, 1], [1, 2]], values=['d', 'e'], dense_shape=[2, 3])
     output = layer([inputs_0, inputs_1])
     self.assertAllClose(np.asarray([[0, 0], [1, 0], [1, 1]]), output.indices)
@@ -41,11 +41,11 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_sparse_inputs_custom_sep(self):
     layer = category_crossing.CategoryCrossing(separator='_Y_')
-    inputs_0 = tf.SparseTensor(
+    inputs_0 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [1, 1]],
         values=['a', 'b', 'c'],
         dense_shape=[2, 2])
-    inputs_1 = tf.SparseTensor(
+    inputs_1 = tf.sparse.SparseTensor(
         indices=[[0, 1], [1, 2]], values=['d', 'e'], dense_shape=[2, 3])
     output = layer([inputs_0, inputs_1])
     self.assertAllClose(np.asarray([[0, 0], [1, 0], [1, 1]]), output.indices)
@@ -53,11 +53,11 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_sparse_inputs_empty_sep(self):
     layer = category_crossing.CategoryCrossing(separator='')
-    inputs_0 = tf.SparseTensor(
+    inputs_0 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [1, 1]],
         values=['a', 'b', 'c'],
         dense_shape=[2, 2])
-    inputs_1 = tf.SparseTensor(
+    inputs_1 = tf.sparse.SparseTensor(
         indices=[[0, 1], [1, 2]], values=['d', 'e'], dense_shape=[2, 3])
     output = layer([inputs_0, inputs_1])
     self.assertAllClose(np.asarray([[0, 0], [1, 0], [1, 1]]), output.indices)
@@ -65,31 +65,31 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_sparse_inputs_depth_int(self):
     layer = category_crossing.CategoryCrossing(depth=1)
-    inputs_0 = tf.SparseTensor(
+    inputs_0 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [2, 0]],
         values=['a', 'b', 'c'],
         dense_shape=[3, 1])
-    inputs_1 = tf.SparseTensor(
+    inputs_1 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [2, 0]],
         values=['d', 'e', 'f'],
         dense_shape=[3, 1])
     output = layer([inputs_0, inputs_1])
-    self.assertIsInstance(output, tf.SparseTensor)
+    self.assertIsInstance(output, tf.sparse.SparseTensor)
     output = tf.sparse.to_dense(output)
     expected_out = [[b'a', b'd'], [b'b', b'e'], [b'c', b'f']]
     self.assertAllEqual(expected_out, output)
 
   def test_crossing_sparse_inputs_depth_tuple(self):
     layer = category_crossing.CategoryCrossing(depth=(2, 3))
-    inputs_0 = tf.SparseTensor(
+    inputs_0 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [2, 0]],
         values=['a', 'b', 'c'],
         dense_shape=[3, 1])
-    inputs_1 = tf.SparseTensor(
+    inputs_1 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [2, 0]],
         values=['d', 'e', 'f'],
         dense_shape=[3, 1])
-    inputs_2 = tf.SparseTensor(
+    inputs_2 = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [2, 0]],
         values=['g', 'h', 'i'],
         dense_shape=[3, 1])
@@ -99,7 +99,7 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
     out_t = layer([inp_0_t, inp_1_t, inp_2_t])
     model = training.Model([inp_0_t, inp_1_t, inp_2_t], out_t)
     output = model.predict([inputs_0, inputs_1, inputs_2])
-    self.assertIsInstance(output, tf.SparseTensor)
+    self.assertIsInstance(output, tf.sparse.SparseTensor)
     output = tf.sparse.to_dense(output)
     expected_outputs_0 = [[b'a_X_d', b'a_X_g', b'd_X_g', b'a_X_d_X_g']]
     expected_outputs_1 = [[b'b_X_e', b'b_X_h', b'e_X_h', b'b_X_e_X_h']]
@@ -185,8 +185,8 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_dense_inputs_depth_int(self):
     layer = category_crossing.CategoryCrossing(depth=1)
-    inputs_0 = tf.constant([['a'], ['b'], ['c']])
-    inputs_1 = tf.constant([['d'], ['e'], ['f']])
+    inputs_0 = tf.compat.v2.constant([['a'], ['b'], ['c']])
+    inputs_1 = tf.compat.v2.constant([['d'], ['e'], ['f']])
     output = layer([inputs_0, inputs_1])
     expected_output = [[b'a', b'd'], [b'b', b'e'], [b'c', b'f']]
     self.assertAllEqual(expected_output, output)
@@ -203,9 +203,9 @@ class CategoryCrossingTest(keras_parameterized.TestCase):
 
   def test_crossing_dense_inputs_depth_tuple(self):
     layer = category_crossing.CategoryCrossing(depth=[2, 3])
-    inputs_0 = tf.constant([['a'], ['b'], ['c']])
-    inputs_1 = tf.constant([['d'], ['e'], ['f']])
-    inputs_2 = tf.constant([['g'], ['h'], ['i']])
+    inputs_0 = tf.compat.v2.constant([['a'], ['b'], ['c']])
+    inputs_1 = tf.compat.v2.constant([['d'], ['e'], ['f']])
+    inputs_2 = tf.compat.v2.constant([['g'], ['h'], ['i']])
     inp_0_t = input_layer.Input(shape=(1,), dtype=tf.string)
     inp_1_t = input_layer.Input(shape=(1,), dtype=tf.string)
     inp_2_t = input_layer.Input(shape=(1,), dtype=tf.string)

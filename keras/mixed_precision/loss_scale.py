@@ -18,7 +18,7 @@ This functions cannot be in the non-keras loss_scale.py file since they depend
 on keras, and files outside of keras should not depend on files inside keras.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras.utils import generic_utils
 

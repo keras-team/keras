@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras activation functions."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -50,7 +50,7 @@ class KerasActivationsTest(tf.test.TestCase, parameterized.TestCase):
       assert fn == ref_fn
 
   def test_serialization_v2(self):
-    activation_map = {tf.math.softmax: 'softmax'}
+    activation_map = {tf.compat.v2.nn.softmax: 'softmax'}
     for fn_v2_key in activation_map:
       fn_v2 = activations.get(fn_v2_key)
       config = activations.serialize(fn_v2)

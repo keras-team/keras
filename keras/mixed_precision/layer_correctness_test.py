@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests various Layer subclasses have correct outputs with mixed precision."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -42,7 +42,7 @@ from keras.mixed_precision import policy
 def create_mirrored_strategy():
   # The test creates two virtual CPUs, and we use both of them to test with
   # multiple devices.
-  return tf.distribute.MirroredStrategy(['cpu:0', 'cpu:1'])
+  return tf.compat.v2.distribute.MirroredStrategy(['cpu:0', 'cpu:1'])
 
 
 class LayerCorrectnessTest(keras_parameterized.TestCase):
@@ -50,8 +50,8 @@ class LayerCorrectnessTest(keras_parameterized.TestCase):
   def setUp(self):
     super(LayerCorrectnessTest, self).setUp()
     # Set two virtual CPUs to test MirroredStrategy with multiple devices
-    cpus = tf.config.list_physical_devices('CPU')
-    tf.config.set_logical_device_configuration(cpus[0], [
+    cpus = tf.config.experimental.list_physical_devices('CPU')
+    tf.config.experimental.set_virtual_device_configuration(cpus[0], [
         tf.config.LogicalDeviceConfiguration(),
         tf.config.LogicalDeviceConfiguration(),
     ])

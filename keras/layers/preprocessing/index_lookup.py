@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras index lookup preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import collections
@@ -71,7 +71,7 @@ class _NullInitializer(tf.lookup.TextFileInitializer):
   def _shared_name(self):
     """Returns a shared name to be used by the table."""
     shared_name = "NULL_INITIALIZER_"
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # Ensure a unique name when eager execution is enabled to avoid spurious
       # sharing issues..
       shared_name += str(backend.get_uid(shared_name))
@@ -188,7 +188,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
     # strings here, because they have only one dtype.
     if mask_token is not None:
       dtype = kwargs["dtype"]
-      if dtype == tf.int32:
+      if dtype == tf.dtypes.int32:
         mask_token = np.int32(mask_token)
       elif dtype == tf.int64:
         mask_token = np.int64(mask_token)
@@ -273,7 +273,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
             value_index=value_index,
             value_index_offset=self._token_start_index())
 
-      self._table = tf.lookup.StaticHashTable(
+      self._table = tf.compat.v2.lookup.StaticHashTable(
           initializer, default_value=default_value)
       self._table_handler = table_utils.TableHandler(
           table=self._table,
@@ -592,7 +592,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
                        "Either pass a `vocabulary` argument to the layer, or "
                        "call `layer.adapt(dataset)` with some sample data.")
     self._called = True
-    if self._key_dtype == tf.int64 and inputs.dtype == tf.int32:
+    if self._key_dtype == tf.int64 and inputs.dtype == tf.dtypes.int32:
       inputs = tf.cast(inputs, tf.int64)
     lookup_result = self._table_handler.lookup(inputs)
 
@@ -612,7 +612,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
                                                    binary_output)
 
     if self.output_mode == TFIDF:
-      return tf.multiply(bincounts, self.tf_idf_weights)
+      return tf.math.multiply(bincounts, self.tf_idf_weights)
 
     return bincounts
 

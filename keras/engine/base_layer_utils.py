@@ -14,7 +14,7 @@
 # ==============================================================================
 """Contains private utilities used mainly by the base Layer class."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import functools
 import threading
@@ -37,7 +37,7 @@ def create_mean_metric(value, name=None):
 
 def make_variable(name,
                   shape=None,
-                  dtype=tf.float32,
+                  dtype=tf.dtypes.float32,
                   initializer=None,
                   trainable=None,
                   caching_device=None,
@@ -214,7 +214,7 @@ def _create_keras_history_helper(tensors, processed_ops, created_layers):
     if getattr(tensor, '_keras_history', None) is not None:
       continue
     if isinstance(
-        tensor, (tf.SparseTensor, tf.compat.v1.SparseTensorValue)):
+        tensor, (tf.sparse.SparseTensor, tf.compat.v1.SparseTensorValue)):
       sparse_ops.append(tensor.op)
       continue
     if tf_utils.is_ragged(tensor):
@@ -324,7 +324,7 @@ def is_in_keras_graph():
 
 def is_in_eager_or_tf_function():
   """Returns if in eager mode or inside of a tf.function."""
-  return tf.executing_eagerly() or is_in_tf_function()
+  return tf.compat.v2.executing_eagerly() or is_in_tf_function()
 
 
 def is_in_tf_function():
@@ -332,7 +332,7 @@ def is_in_tf_function():
   # Check if running in V1 graph mode.
   if not tf.compat.v1.executing_eagerly_outside_functions():
     return False
-  if not tf.inside_function():
+  if not tf.compat.v2.inside_function():
     return False
   # Check if inside Keras FuncGraph.
   if is_in_keras_graph():
@@ -417,7 +417,7 @@ def call_context():
 
 # Inject the call_context function to keras_deps to remove the dependency
 # from TFLite to Keras.
-tf.__internal__.register_call_context_function(call_context)
+tf.compat.v2.__internal__.register_call_context_function(call_context)
 
 
 class CallContext(object):
@@ -503,7 +503,7 @@ class CallContext(object):
   def in_keras_graph(self):
     # Returns True even if in a subgraph of the Keras graph, such as those
     # created by control flow ops.
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       return False
     return (self._in_keras_graph or
             getattr(backend.get_graph(), 'name', None) == 'keras_graph')
@@ -762,7 +762,7 @@ def disable_v2_dtype_behavior():
 def v2_dtype_behavior_enabled():
   """Returns True if the V2 dtype behavior is enabled."""
   if V2_DTYPE_BEHAVIOR is None:
-    return tf.__internal__.tf2.enabled()
+    return tf.compat.v2.__internal__.tf2.enabled()
   return V2_DTYPE_BEHAVIOR
 
 
@@ -779,7 +779,7 @@ class TrackableWeightHandler(object):
   """
 
   def __init__(self, trackable):
-    if not isinstance(trackable, tf.__internal__.tracking.Trackable):
+    if not isinstance(trackable, tf.compat.v2.__internal__.tracking.Trackable):
       raise ValueError('%s is not a Trackable object.' % (trackable,))
     self._trackable = trackable
     self._distribute_strategy = tf.distribute.get_strategy()

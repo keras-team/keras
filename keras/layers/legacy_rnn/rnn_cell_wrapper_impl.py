@@ -17,7 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import hashlib
 import numbers
@@ -105,10 +105,10 @@ class DropoutWrapperBase(object):
       raise TypeError("dropout_state_filter_visitor must be callable")
     self._dropout_state_filter = (
         dropout_state_filter_visitor or _default_dropout_state_filter_visitor)
-    with tf.name_scope("DropoutWrapperInit"):
+    with tf.compat.v2.name_scope("DropoutWrapperInit"):
 
       def tensor_and_const_value(v):
-        tensor_value = tf.convert_to_tensor(v)
+        tensor_value = tf.compat.v2.convert_to_tensor(v)
         const_value = tf.get_static_value(tensor_value)
         return (tensor_value, const_value)
 
@@ -191,7 +191,7 @@ class DropoutWrapperBase(object):
     self.built = True
 
   def zero_state(self, batch_size, dtype):
-    with tf.name_scope(type(self).__name__ + "ZeroState"):
+    with tf.compat.v2.name_scope(type(self).__name__ + "ZeroState"):
       return self.cell.zero_state(batch_size, dtype)
 
   def _variational_recurrent_dropout_value(
@@ -201,7 +201,7 @@ class DropoutWrapperBase(object):
     random_tensor = keep_prob + noise
 
     # 0. if [keep_prob, 1.0) and 1. if [1.0, 1.0 + keep_prob)
-    binary_tensor = tf.floor(random_tensor)
+    binary_tensor = tf.math.floor(random_tensor)
     ret = tf.divide(value, keep_prob) * binary_tensor
     ret.set_shape(value.get_shape())
     return ret
@@ -223,7 +223,7 @@ class DropoutWrapperBase(object):
 
       def dropout(i, do_dropout, v):
         if not isinstance(do_dropout, bool) or do_dropout:
-          return tf.nn.dropout(
+          return tf.compat.v2.nn.dropout(
               v, rate=1. - keep_prob, seed=self._gen_seed(salt_prefix, i))
         else:
           return v
@@ -270,7 +270,7 @@ class DropoutWrapperBase(object):
     if _should_dropout(self._state_keep_prob):
       # Identify which subsets of the state to perform dropout on and
       # which ones to keep.
-      shallow_filtered_substructure = tf.__internal__.nest.get_traverse_shallow_structure(
+      shallow_filtered_substructure = tf.compat.v2.__internal__.nest.get_traverse_shallow_structure(
           self._dropout_state_filter, new_state)
       new_state = self._dropout(new_state, "state", self._recurrent_state_noise,
                                 self._state_keep_prob,
@@ -338,7 +338,7 @@ class ResidualWrapperBase(object):
     return self.cell.output_size
 
   def zero_state(self, batch_size, dtype):
-    with tf.name_scope(type(self).__name__ + "ZeroState"):
+    with tf.compat.v2.name_scope(type(self).__name__ + "ZeroState"):
       return self.cell.zero_state(batch_size, dtype)
 
   def _call_wrapped_cell(self, inputs, state, cell_call_fn, **kwargs):
@@ -425,7 +425,7 @@ class DeviceWrapperBase(object):
     return self.cell.output_size
 
   def zero_state(self, batch_size, dtype):
-    with tf.name_scope(type(self).__name__ + "ZeroState"):
+    with tf.compat.v2.name_scope(type(self).__name__ + "ZeroState"):
       with tf.compat.v1.device(self._device):
         return self.cell.zero_state(batch_size, dtype)
 
@@ -504,5 +504,5 @@ def _enumerated_map_structure_up_to(shallow_structure, map_fn, *args, **kwargs):
     ix[0] += 1
     return r
 
-  return tf.__internal__.nest.map_structure_up_to(shallow_structure, enumerated_fn, *args,
+  return tf.compat.v2.__internal__.nest.map_structure_up_to(shallow_structure, enumerated_fn, *args,
                                   **kwargs)

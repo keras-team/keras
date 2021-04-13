@@ -14,7 +14,7 @@
 # ==============================================================================
 """Training-related utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import abc
 import atexit
@@ -42,7 +42,7 @@ def is_composite_or_composite_value(tensor):
   # isinstance(CompositeTensorValue) once we support that.
   return isinstance(
       tensor,
-      (tf.__internal__.CompositeTensor, tf.compat.v1.SparseTensorValue,
+      (tf.compat.v2.__internal__.CompositeTensor, tf.compat.v1.SparseTensorValue,
        tf.compat.v1.ragged.RaggedTensorValue))
 
 
@@ -226,7 +226,7 @@ def _append_composite_tensor(target, to_append):
   # the result any further. If not - that is, if we're seeing a
   # SparseTensorValue or a RaggedTensorValue - we need to hand-update it
   # since we're outside of the graph anyways.
-  if isinstance(target, tf.SparseTensor):
+  if isinstance(target, tf.sparse.SparseTensor):
     # We need to invoke the sparse version of concatenate here - tf.concat
     # won't work.
     return tf.compat.v1.sparse_concat(sp_inputs=[target, to_append], axis=0)
@@ -409,9 +409,9 @@ class OutputsAggregator(Aggregator):
   def create(self, batch_outs):
     # SparseTensorValue is a named tuple which nest will flatten, so we need
     # to guard it to properly handle the structure.
-    self._structure = tf.__internal__.nest.get_traverse_shallow_structure(
+    self._structure = tf.compat.v2.__internal__.nest.get_traverse_shallow_structure(
         lambda x: not is_composite_or_composite_value(x), batch_outs)
-    batch_outs = tf.__internal__.nest.flatten_up_to(self._structure, batch_outs)
+    batch_outs = tf.compat.v2.__internal__.nest.flatten_up_to(self._structure, batch_outs)
 
     for batch_element in batch_outs:
       if is_composite_or_composite_value(batch_element):
@@ -432,7 +432,7 @@ class OutputsAggregator(Aggregator):
       self.results[-1].create(batch_element)
 
   def aggregate(self, batch_outs, batch_start=None, batch_end=None):
-    batch_outs = tf.__internal__.nest.flatten_up_to(self._structure, batch_outs)
+    batch_outs = tf.compat.v2.__internal__.nest.flatten_up_to(self._structure, batch_outs)
     for batch_element, result in zip(batch_outs, self.results):
       result.aggregate(batch_element, batch_start, batch_end)
 
@@ -1010,7 +1010,7 @@ def standardize_weights(y,
       weight_vector[:] = np.nan
       weight_vector[keys] = values
 
-      y_classes = tf.__internal__.smart_cond.smart_cond(
+      y_classes = tf.compat.v2.__internal__.smart_cond.smart_cond(
           len(y.shape.as_list()) == 2 and backend.shape(y)[1] > 1,
           lambda: backend.argmax(y, axis=1),
           lambda: tf.cast(backend.reshape(y, (-1,)), tf.int64))
@@ -1022,7 +1022,7 @@ def standardize_weights(y,
       class_sample_weight = tf.cast(class_sample_weight, backend.floatx())
       if sample_weight is not None:
         sample_weight = tf.cast(
-            tf.convert_to_tensor(sample_weight),
+            tf.compat.v2.convert_to_tensor(sample_weight),
             backend.floatx())
     else:
       y_classes = y
@@ -1055,7 +1055,7 @@ def standardize_weights(y,
 
 
 def has_symbolic_tensors(ls):
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     return False
   return has_tensors(ls)
 
@@ -1088,7 +1088,7 @@ def get_metric_name(metric, weighted=False):
   Returns:
       The metric name.
   """
-  if tf.__internal__.tf2.enabled():
+  if tf.compat.v2.__internal__.tf2.enabled():
     # We keep the string that the user has set in compile as the metric name.
     if isinstance(metric, str):
       return metric
@@ -1307,7 +1307,7 @@ def check_steps_argument(input_data, steps, steps_name):
         but not provided.
   """
   is_x_iterator = isinstance(
-      input_data, (tf.compat.v1.data.Iterator, tf.data.Iterator))
+      input_data, (tf.compat.v1.data.Iterator, tf.compat.v2.data.Iterator))
   if (input_data is None or is_x_iterator or has_symbolic_tensors(input_data) or
       (isinstance(input_data, list) and not input_data)):
     if steps is None:
@@ -1317,7 +1317,7 @@ def check_steps_argument(input_data, steps, steps_name):
                            input_type=input_type_str, steps_name=steps_name))
     return True
 
-  if isinstance(input_data, (tf.compat.v1.data.Dataset, tf.data.Dataset)):
+  if isinstance(input_data, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset)):
     return True
 
   if steps is not None:
@@ -1333,7 +1333,7 @@ def check_steps_argument(input_data, steps, steps_name):
 
 def cast_single_tensor(x, dtype=None):
   if isinstance(x, np.ndarray):
-    x = tf.convert_to_tensor(x)
+    x = tf.compat.v2.convert_to_tensor(x)
   dtype = dtype or backend.floatx()
   if x.dtype.is_floating:
     return tf.cast(x, dtype=dtype)
@@ -1359,7 +1359,7 @@ def cast_if_floating_dtype_and_mismatch(targets, outputs):
   new_targets = []
   for target, out in zip(targets, outputs):
     if isinstance(target, np.ndarray):
-      target = tf.convert_to_tensor(target)
+      target = tf.compat.v2.convert_to_tensor(target)
     if target.dtype != out.dtype:
       new_targets.append(cast_single_tensor(target, dtype=out.dtype))
     else:
@@ -1529,14 +1529,14 @@ def is_feature_layer(layer):
 
 
 def is_eager_dataset_or_iterator(data):
-  return tf.executing_eagerly() and isinstance(
-      data, (tf.compat.v1.data.Dataset, tf.data.Dataset,
-             tf.data.Iterator))
+  return tf.compat.v2.executing_eagerly() and isinstance(
+      data, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset,
+             tf.compat.v2.data.Iterator))
 
 
 # pylint: disable=protected-access
 def get_dataset_graph_def(dataset):
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     graph_def_str = dataset._as_serialized_graph().numpy()
   else:
     graph_def_str = backend.get_value(dataset._as_serialized_graph())
@@ -1552,7 +1552,7 @@ def verify_dataset_shuffled(x):
   Returns:
     boolean, whether the input dataset is shuffled or not.
   """
-  assert isinstance(x, tf.data.Dataset)
+  assert isinstance(x, tf.compat.v2.data.Dataset)
   graph_def = get_dataset_graph_def(x)
   for node in graph_def.node:
     if node.op.startswith('ShuffleDataset'):
@@ -1568,13 +1568,13 @@ def verify_dataset_shuffled(x):
 
 
 def is_dataset_or_iterator(data):
-  return isinstance(data, (tf.compat.v1.data.Dataset, tf.data.Dataset,
-                           tf.compat.v1.data.Iterator, tf.data.Iterator))
+  return isinstance(data, (tf.compat.v1.data.Dataset, tf.compat.v2.data.Dataset,
+                           tf.compat.v1.data.Iterator, tf.compat.v2.data.Iterator))
 
 
 def get_iterator(dataset):
   """Create and initialize an iterator from a dataset."""
-  if tf.executing_eagerly():
+  if tf.compat.v2.executing_eagerly():
     iterator = tf.compat.v1.data.make_one_shot_iterator(dataset)
   else:
     iterator = tf.compat.v1.data.make_initializable_iterator(dataset)
@@ -1583,7 +1583,7 @@ def get_iterator(dataset):
 
 
 def initialize_iterator(iterator):
-  if not tf.executing_eagerly():
+  if not tf.compat.v2.executing_eagerly():
     init_op = iterator.initializer
     backend.get_session((init_op,)).run(init_op)
 
@@ -1661,7 +1661,7 @@ def infer_steps_for_dataset(model,
   Raises:
     ValueError: In case of invalid argument values.
   """
-  assert isinstance(dataset, tf.data.Dataset)
+  assert isinstance(dataset, tf.compat.v2.data.Dataset)
   if (model._in_multi_worker_mode() and
       (dataset.options().experimental_distribute.auto_shard_policy !=
        tf.data.experimental.AutoShardPolicy.OFF)):
@@ -1854,8 +1854,8 @@ def unpack_validation_data(validation_data, raise_if_ambiguous=True):
     tuple of 3, (x, y, sample_weights) for numpy and tensor input.
   """
   if (isinstance(validation_data, (tf.compat.v1.data.Iterator,
-                                   tf.data.Iterator,
-                                   tf.data.Dataset,
+                                   tf.compat.v2.data.Iterator,
+                                   tf.compat.v2.data.Dataset,
                                    data_utils.Sequence))
       or not hasattr(validation_data, '__len__')):
     val_x = validation_data

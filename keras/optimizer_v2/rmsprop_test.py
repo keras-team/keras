@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for rmsprop."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 import itertools
@@ -29,8 +29,8 @@ from keras.optimizer_v2 import learning_rate_schedule
 from keras.optimizer_v2 import rmsprop
 
 _DATA_TYPES = [
-    tf.half, tf.float32, tf.float64, tf.complex64,
-    tf.complex128
+    tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64, tf.dtypes.complex64,
+    tf.dtypes.complex128
 ]
 
 _TEST_PARAM_VALUES = [
@@ -101,10 +101,10 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.2], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np, dtype=dtype)
-        var1 = tf.Variable(var1_np, dtype=dtype)
-        grads0 = tf.constant(grads0_np, dtype=dtype)
-        grads1 = tf.constant(grads1_np, dtype=dtype)
+        var0 = tf.compat.v2.Variable(var0_np, dtype=dtype)
+        var1 = tf.compat.v2.Variable(var1_np, dtype=dtype)
+        grads0 = tf.compat.v2.constant(grads0_np, dtype=dtype)
+        grads1 = tf.compat.v2.constant(grads1_np, dtype=dtype)
         opt = rmsprop.RMSprop(
             learning_rate=learning_rate,
             rho=rho,
@@ -113,7 +113,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             centered=centered)
 
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         if centered:
           mg0 = opt.get_slot(var0, "mg")
@@ -176,10 +176,10 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       var1_np = np.array([3.0, 4.0])
       grads1_np = np.array([0.01, 0.2])
 
-      var0 = tf.Variable(var0_np)
-      var1 = tf.Variable(var1_np)
-      grads0 = tf.constant(grads0_np)
-      grads1 = tf.constant(grads1_np)
+      var0 = tf.compat.v2.Variable(var0_np)
+      var1 = tf.compat.v2.Variable(var1_np)
+      grads0 = tf.compat.v2.constant(grads0_np)
+      grads1 = tf.compat.v2.constant(grads1_np)
       learning_rate = 0.01
       rho = 0.9
       momentum = 0.0
@@ -195,7 +195,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           decay=decay)
 
       update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       rms0 = opt.get_slot(var0, "rms")
       self.assertIsNotNone(rms0)
@@ -248,10 +248,10 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
       var1_np = np.array([3.0, 4.0])
       grads1_np = np.array([0.01, 0.2])
 
-      var0 = tf.Variable(var0_np)
-      var1 = tf.Variable(var1_np)
-      grads0 = tf.constant(grads0_np)
-      grads1 = tf.constant(grads1_np)
+      var0 = tf.compat.v2.Variable(var0_np)
+      var1 = tf.compat.v2.Variable(var1_np)
+      grads0 = tf.compat.v2.constant(grads0_np)
+      grads1 = tf.compat.v2.constant(grads1_np)
       learning_rate = 0.01
       rho = 0.9
       momentum = 0.0
@@ -268,7 +268,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
           centered=centered)
 
       update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       rms0 = opt.get_slot(var0, "rms")
       self.assertIsNotNone(rms0)
@@ -317,18 +317,18 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
       for dtype in _DATA_TYPES:
-        var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-        x = tf.constant([[4.0], [5.0]], dtype=dtype)
+        var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+        x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
         def loss():
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
           return pred * pred
 
         sgd_op = rmsprop.RMSprop(
             learning_rate=1.0, rho=0.0, momentum=0.0, epsilon=0.0,
             centered=False).minimize(
                 loss, var_list=[var0])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllCloseAccordingToType([[1.0, 2.0]], self.evaluate(var0))
         # Run 1 step of sgd
@@ -342,11 +342,11 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     with tf.Graph().as_default():
       for dtype in _DATA_TYPES:
-        var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-        x = tf.constant([[4.0], [5.0]], dtype=dtype)
+        var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+        x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
         def loss():
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
           return pred * pred
 
         # loss = lambda: pred * pred  # pylint: disable=cell-var-from-loop
@@ -354,7 +354,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             learning_rate=1.0, rho=0.0, momentum=0.0, epsilon=1.0,
             centered=True).minimize(
                 loss, var_list=[var0])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllCloseAccordingToType([[1.0, 2.0]], self.evaluate(var0))
         # Run 1 step of sgd
@@ -374,16 +374,16 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
         grads0_np_indices = np.array([0], dtype=np.int32)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np),
-            tf.constant(grads0_np_indices), tf.constant([1]))
+            tf.compat.v2.constant(grads0_np),
+            tf.compat.v2.constant(grads0_np_indices), tf.compat.v2.constant([1]))
         grads1_np_indices = np.array([1], dtype=np.int32)
         grads1 = tf.IndexedSlices(
-            tf.constant(grads1_np),
-            tf.constant(grads1_np_indices), tf.constant([1]))
+            tf.compat.v2.constant(grads1_np),
+            tf.compat.v2.constant(grads1_np_indices), tf.compat.v2.constant([1]))
         opt = rmsprop.RMSprop(
             learning_rate=learning_rate,
             rho=rho,
@@ -391,7 +391,7 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
             epsilon=epsilon,
             centered=centered)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         if centered:
           mg0 = opt.get_slot(var0, "mg")
@@ -449,10 +449,10 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=["eager"]))
   def testCallableParams(self):
     for dtype in _DATA_TYPES:
-      var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-      var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-      grads0 = tf.constant([0.1, 0.1], dtype=dtype)
-      grads1 = tf.constant([0.01, 0.01], dtype=dtype)
+      var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+      var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+      grads0 = tf.compat.v2.constant([0.1, 0.1], dtype=dtype)
+      grads1 = tf.compat.v2.constant([0.01, 0.01], dtype=dtype)
 
       learning_rate = lambda: 2.0
       rho = lambda: 0.9
@@ -499,19 +499,19 @@ class RMSpropOptimizerTest(tf.test.TestCase, parameterized.TestCase):
     opt = rmsprop.RMSprop(lr=1.0)
     opt_2 = rmsprop.RMSprop(learning_rate=0.1, lr=1.0)
     opt_3 = rmsprop.RMSprop(learning_rate=0.1)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_2.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_3.lr), (0.1))
 
   @combinations.generate(combinations.combine(mode=["eager"]))
   def testSlotsUniqueEager(self):
-    v1 = tf.Variable(1.)
-    v2 = tf.Variable(1.)
+    v1 = tf.compat.v2.Variable(1.)
+    v2 = tf.compat.v2.Variable(1.)
 
     opt = rmsprop.RMSprop(1., momentum=0., centered=False)
     opt.minimize(lambda: v1 + v2, var_list=[v1, v2])
@@ -543,11 +543,11 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
   def testRunMinimizeOnGPUForCPUVariables(self, use_resource):
     with tf.compat.v1.device("/device:CPU:0"):
       if use_resource:
-        var0 = tf.Variable([1.0, 2.0], dtype=tf.float32)
-        var1 = tf.Variable([3.0, 4.0], dtype=tf.float32)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=tf.dtypes.float32)
       else:
-        var0 = tf.Variable([1.0, 2.0], dtype=tf.float32)
-        var1 = tf.Variable([3.0, 4.0], dtype=tf.float32)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=tf.dtypes.float32)
 
     def loss():
       return 5 * var0 + 3 * var1
@@ -556,7 +556,7 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
         learning_rate=1.0, decay=0.9, momentum=0.5, epsilon=1.0)
 
     # Fetch params to validate initial values
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose([1.0, 2.0], self.evaluate(var0))
     self.assertAllClose([3.0, 4.0], self.evaluate(var1))
 
@@ -568,7 +568,7 @@ class SlotColocationTest(tf.test.TestCase, parameterized.TestCase):
       # Note that for eager execution, minimize expects a function instead of a
       # Tensor.
       opt_op = opt.minimize(loss, [var0, var1])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
 
     # Validate updated params, All variables should have decreased.

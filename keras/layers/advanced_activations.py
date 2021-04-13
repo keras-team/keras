@@ -14,7 +14,7 @@
 # ==============================================================================
 """Layers that act as activation functions."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 from keras import constraints
 from keras import initializers
@@ -260,7 +260,7 @@ class ThresholdedReLU(Layer):
 
   def call(self, inputs):
     theta = tf.cast(self.theta, inputs.dtype)
-    return inputs * tf.cast(tf.greater(inputs, theta), inputs.dtype)
+    return inputs * tf.cast(tf.math.greater(inputs, theta), inputs.dtype)
 
   def get_config(self):
     config = {'theta': float(self.theta)}
@@ -341,7 +341,7 @@ class Softmax(Layer):
       inputs += adder
     if isinstance(self.axis, (tuple, list)):
       if len(self.axis) > 1:
-        return tf.exp(inputs - tf.reduce_logsumexp(
+        return tf.exp(inputs - tf.compat.v2.reduce_logsumexp(
             inputs, axis=self.axis, keepdims=True))
       else:
         return backend.softmax(inputs, axis=self.axis[0])

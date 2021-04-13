@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for distributed_file_utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 

@@ -48,7 +48,7 @@ def embedding_varlen(batch_size, max_length):
   # Wrap the FC implementation in a tf.function for a fair comparison
   @tf_function()
   def fc_fn(tensors):
-    fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
+    fc.transform_feature(tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(tensors), None)
 
   # Benchmark runs
   keras_data = {

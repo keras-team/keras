@@ -52,7 +52,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.dtypes.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())
@@ -69,7 +69,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
 
   def bm_adapt_implementation(self, num_elements, batch_size):
     """Test the KPL adapt implementation."""
-    input_t = keras.Input(shape=(1,), dtype=tf.float32)
+    input_t = keras.Input(shape=(1,), dtype=tf.dtypes.float32)
     layer = discretization.Discretization()
     _ = layer(input_t)
 
@@ -79,7 +79,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.dtypes.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())

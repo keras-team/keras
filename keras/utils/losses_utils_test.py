@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for losses_utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import combinations
 from keras.utils import losses_utils
 
@@ -49,8 +49,8 @@ class RemoveSqueezableTest(tf.test.TestCase):
     self.assertEqual(x_p.shape.ndims, 3)
 
   def test_dense_2d_3d_squeezable(self):
-    x = tf.constant([[1, 2], [3, 4]])
-    y = tf.constant([[[1], [2]], [[3], [4]]])
+    x = tf.compat.v2.constant([[1, 2], [3, 4]])
+    y = tf.compat.v2.constant([[[1], [2]], [[3], [4]]])
     _, y_p = losses_utils.remove_squeezable_dimensions(x, y)
     y_p.shape.assert_is_compatible_with(x.shape)
     self.assertEqual(y_p.shape.ndims, x.shape.ndims)

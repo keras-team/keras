@@ -15,7 +15,7 @@
 # pylint: disable=g-classes-have-attributes
 """Recurrent layers for TF 2."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import uuid
 from tensorflow.python.eager.context import get_device_name
@@ -76,7 +76,7 @@ class _DefunWrapper(object):
     else:
       layer_func = gru_with_backend_selection
 
-    self.defun_layer = tf.__internal__.function.defun_with_attributes(
+    self.defun_layer = tf.compat.v2.__internal__.function.defun_with_attributes(
         layer_func,
         attributes=supportive_attributes,
         autograph=False)
@@ -390,7 +390,7 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
         self.recurrent_activation in (activations.sigmoid, tf.sigmoid) and
         recurrent_dropout == 0 and not unroll and use_bias and
         reset_after and tf.compat.v1.executing_eagerly_outside_functions())
-    if tf.config.list_logical_devices('GPU'):
+    if tf.config.experimental.list_logical_devices('GPU'):
       # Only show the message when there is GPU available, user will not care
       # about the cuDNN if there isn't any GPU.
       if self._could_use_gpu_kernel:
@@ -503,12 +503,12 @@ class GRU(recurrent.DropoutRNNCellMixin, recurrent.GRU):
           'zero_output_for_mask': self.zero_output_for_mask,
       })
 
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         device_type = _get_context_device_type()
         can_use_gpu = (
             # Either user specified GPU or unspecified but GPU is available.
             (device_type == _GPU_DEVICE_NAME or
-             (device_type is None and tf.config.list_logical_devices('GPU'))) and
+             (device_type is None and tf.config.experimental.list_logical_devices('GPU'))) and
             (mask is None or is_cudnn_supported_inputs(mask, self.time_major)))
         # Under eager context, check the device placement and prefer the
         if can_use_gpu:
@@ -641,7 +641,7 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
   params = _canonical_to_params(
       weights=weights,
       biases=bias,
-      shape=tf.constant([-1]),
+      shape=tf.compat.v2.constant([-1]),
       transpose_weights=True)
 
   if mask is not None:
@@ -654,7 +654,7 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
       # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
       # output_from_cudnn = [6, 5, 4, 0, 0]
       # expected_output = [0, 0, 6, 5 ,4]
-      inputs = tf.reverse_sequence(
+      inputs = tf.compat.v2.reverse_sequence(
           inputs, sequence_lengths, seq_axis=seq_axis, batch_axis=batch_axis)
     outputs, h, _, _, _ = tf.raw_ops.CudnnRNNV3(
         input=inputs,
@@ -666,7 +666,7 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
         sequence_lengths=sequence_lengths,
         time_major=time_major)
     if go_backwards:
-      outputs = tf.reverse_sequence(
+      outputs = tf.compat.v2.reverse_sequence(
           outputs, sequence_lengths, seq_axis=seq_axis, batch_axis=batch_axis)
       outputs = tf.reverse(outputs, axis=[seq_axis])
   else:
@@ -793,7 +793,7 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
   if _use_new_code():
     # Chooses the implementation dynamically based on the running device.
     (last_output, outputs, new_h,
-     runtime) = tf.__internal__.execute_fn_for_device(
+     runtime) = tf.compat.v2.__internal__.execute_fn_for_device(
          {
              _CPU_DEVICE_NAME: lambda: standard_gru(**params),
              _GPU_DEVICE_NAME: lambda: gpu_gru_with_fallback(**params)
@@ -1117,7 +1117,7 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
         self.recurrent_activation in (activations.sigmoid, tf.sigmoid) and
         recurrent_dropout == 0 and not unroll and use_bias and
         tf.compat.v1.executing_eagerly_outside_functions())
-    if tf.config.list_logical_devices('GPU'):
+    if tf.config.experimental.list_logical_devices('GPU'):
       # Only show the message when there is GPU available, user will not care
       # about the cuDNN if there isn't any GPU.
       if self._could_use_gpu_kernel:
@@ -1231,12 +1231,12 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
             'zero_output_for_mask': self.zero_output_for_mask,
         })
 
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           device_type = _get_context_device_type()
           can_use_gpu = (
               # Either user specified GPU or unspecified but GPU is available.
               (device_type == _GPU_DEVICE_NAME or
-               (device_type is None and tf.config.list_logical_devices('GPU'))) and
+               (device_type is None and tf.config.experimental.list_logical_devices('GPU'))) and
               (mask is None or
                is_cudnn_supported_inputs(mask, self.time_major)))
           # Under eager context, check the device placement and prefer the
@@ -1459,7 +1459,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
   params = _canonical_to_params(
       weights=weights,
       biases=tf.split(full_bias, 8),
-      shape=tf.constant([-1]),
+      shape=tf.compat.v2.constant([-1]),
       transpose_weights=True)
 
   if mask is not None:
@@ -1472,7 +1472,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
       # reversed_input_to_cudnn = [3, 2, 1, 0, 0]
       # output_from_cudnn = [6, 5, 4, 0, 0]
       # expected_output = [0, 0, 6, 5 ,4]
-      inputs = tf.reverse_sequence(
+      inputs = tf.compat.v2.reverse_sequence(
           inputs, sequence_lengths, seq_axis=seq_axis, batch_axis=batch_axis)
     outputs, h, c, _, _ = tf.raw_ops.CudnnRNNV3(
         input=inputs,
@@ -1484,7 +1484,7 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
         sequence_lengths=sequence_lengths,
         time_major=time_major)
     if go_backwards:
-      outputs = tf.reverse_sequence(
+      outputs = tf.compat.v2.reverse_sequence(
           outputs, sequence_lengths, seq_axis=seq_axis, batch_axis=batch_axis)
       outputs = tf.reverse(outputs, axis=[seq_axis])
   else:
@@ -1620,7 +1620,7 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
   if _use_new_code():
     # Chooses the implementation dynamically based on the running device.
     (last_output, outputs, new_h, new_c,
-     runtime) = tf.__internal__.execute_fn_for_device(
+     runtime) = tf.compat.v2.__internal__.execute_fn_for_device(
          {
              _CPU_DEVICE_NAME: lambda: standard_lstm(**params),
              _GPU_DEVICE_NAME: lambda: gpu_lstm_with_fallback(**params)
@@ -1673,10 +1673,10 @@ def is_sequence_right_padded(mask):
     boolean scalar tensor, whether the mask is strictly right padded.
   """
   max_seq_length = tf.compat.v1.shape(mask)[1]
-  count_of_true = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
+  count_of_true = tf.compat.v2.reduce_sum(tf.cast(mask, tf.dtypes.int32), axis=1)
   right_padded_mask = tf.sequence_mask(
       count_of_true, maxlen=max_seq_length)
-  return tf.reduce_all(tf.equal(mask, right_padded_mask))
+  return tf.compat.v2.reduce_all(tf.math.equal(mask, right_padded_mask))
 
 
 def has_fully_masked_sequence(mask):
@@ -1686,9 +1686,9 @@ def has_fully_masked_sequence(mask):
   # kernel, until the issue on cudnn side has been fixed.
   # For a fully masked sequence, it will contain all Falses. To make it easy to
   # check, we inverse the boolean, check if any of the sequence has all True.
-  return tf.reduce_any(
-      tf.reduce_all(
-          tf.logical_not(mask),
+  return tf.compat.v2.reduce_any(
+      tf.compat.v2.reduce_all(
+          tf.math.logical_not(mask),
           axis=1))
 
 
@@ -1696,9 +1696,9 @@ def is_cudnn_supported_inputs(mask, time_major):
   if time_major:
     mask = tf.compat.v1.transpose(mask)
 
-  return tf.logical_and(
+  return tf.math.logical_and(
       is_sequence_right_padded(mask),
-      tf.logical_not(has_fully_masked_sequence(mask)))
+      tf.math.logical_not(has_fully_masked_sequence(mask)))
 
 
 def calculate_sequence_by_mask(mask, time_major):
@@ -1722,7 +1722,7 @@ def calculate_sequence_by_mask(mask, time_major):
     sequence_length: 1D int32 tensor.
   """
   timestep_index = 0 if time_major else 1
-  return tf.reduce_sum(tf.cast(mask, tf.int32),
+  return tf.compat.v2.reduce_sum(tf.cast(mask, tf.dtypes.int32),
                              axis=timestep_index)
 
 
@@ -1733,7 +1733,7 @@ def _generate_defun_backend(unique_api_name, preferred_device, func,
       _FUNCTION_DEVICE_ATTRIBUTE: preferred_device,
   }
   function_attributes.update(supportive_attributes)
-  return tf.__internal__.function.defun_with_attributes(func=func,
+  return tf.compat.v2.__internal__.function.defun_with_attributes(func=func,
                                         attributes=function_attributes,
                                         autograph=False)
 
@@ -1748,13 +1748,13 @@ def _get_context_device_type():
 
 def _runtime(runtime_name):
   with tf.compat.v1.device('/cpu:0'):
-    return tf.constant(
-        runtime_name, dtype=tf.float32, name='runtime')
+    return tf.compat.v2.constant(
+        runtime_name, dtype=tf.dtypes.float32, name='runtime')
 
 
 def _read_variable_value(v):
   """Read the value of a variable if it is variable."""
-  if isinstance(v, tf.Variable):
+  if isinstance(v, tf.compat.v2.Variable):
     return v.read_value()
   return v
 

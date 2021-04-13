@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras layers API."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from tensorflow.python import tf2
 
@@ -148,7 +148,7 @@ from keras.layers.noise import GaussianDropout
 from keras.layers.normalization import LayerNormalization
 from keras.layers.normalization_v2 import SyncBatchNormalization
 
-if tf.__internal__.tf2.enabled():
+if tf.compat.v2.__internal__.tf2.enabled():
   from keras.layers.normalization_v2 import BatchNormalization
   from keras.layers.normalization import BatchNormalization as BatchNormalizationV1
   BatchNormalizationV2 = BatchNormalization
@@ -196,7 +196,7 @@ from keras.layers.recurrent import SimpleRNNCell
 from keras.layers.recurrent import PeepholeLSTMCell
 from keras.layers.recurrent import SimpleRNN
 
-if tf.__internal__.tf2.enabled():
+if tf.compat.v2.__internal__.tf2.enabled():
   from keras.layers.recurrent_v2 import GRU
   from keras.layers.recurrent_v2 import GRUCell
   from keras.layers.recurrent_v2 import LSTM

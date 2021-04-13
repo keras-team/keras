@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for CollectiveAllReduceStrategy."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 from keras import layers
@@ -22,11 +22,11 @@ from keras.engine import training
 from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         strategy=[
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
-            tf.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
+            tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_cpu,
+            tf.compat.v2.__internal__.distribute.combinations.multi_worker_mirrored_2x1_gpu,
         ],
         mode=['eager']))
 class MultiWorkerMirroredStrategyTest(tf.test.TestCase, parameterized.TestCase):
@@ -40,10 +40,10 @@ class MultiWorkerMirroredStrategyTest(tf.test.TestCase, parameterized.TestCase):
       return model
 
     def _get_dataset():
-      inputs = tf.expand_dims(
-          tf.constant(range(10)), axis=1)
-      targets = tf.expand_dims(
-          tf.constant(range(10)), axis=1)
+      inputs = tf.compat.v2.expand_dims(
+          tf.compat.v2.constant(range(10)), axis=1)
+      targets = tf.compat.v2.expand_dims(
+          tf.compat.v2.constant(range(10)), axis=1)
       # Make global batch size 12 for 2 replicas and a non-repeated dataset
       # with 10 elements so that we have partial batch
       dataset = tf.data.Dataset.from_tensor_slices(
@@ -68,4 +68,4 @@ class MultiWorkerMirroredStrategyTest(tf.test.TestCase, parameterized.TestCase):
 
 if __name__ == '__main__':
   tf.compat.v1.enable_v2_behavior()
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

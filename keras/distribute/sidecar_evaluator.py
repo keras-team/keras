@@ -15,7 +15,7 @@
 # ==============================================================================
 """Python module for evaluation loop."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import re
 from tensorflow.python.platform import tf_logging as logging
@@ -165,7 +165,7 @@ class SidecarEvaluator(object):
     self.model = model
     self.data = data
     self.checkpoint_dir = checkpoint_dir
-    self._iterations = tf.Variable(
+    self._iterations = tf.compat.v2.Variable(
         name='iterations',
         initial_value=_ITERATIONS_UNINITIALIZED,
         dtype=tf.int64)
@@ -175,8 +175,8 @@ class SidecarEvaluator(object):
 
   def start(self):
     """Starts the evaluation loop."""
-    optimizer_checkpoint = tf.train.Checkpoint(iter=self._iterations)
-    checkpoint = tf.train.Checkpoint(
+    optimizer_checkpoint = tf.compat.v2.train.Checkpoint(iter=self._iterations)
+    checkpoint = tf.compat.v2.train.Checkpoint(
         model=self.model, optimizer=optimizer_checkpoint)
 
     for latest_checkpoint in tf.train.checkpoints_iterator(

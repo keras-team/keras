@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import abc
 
@@ -96,7 +96,7 @@ class SavedModelSaver(object, metaclass=abc.ABCMeta):
     # returns them in _list_functions_for_serialization(). Add these functions
     # to the dict.
     fns.update(
-        tf.__internal__.tracking.AutoTrackable._list_functions_for_serialization(  # pylint:disable=protected-access
+        tf.compat.v2.__internal__.tracking.AutoTrackable._list_functions_for_serialization(  # pylint:disable=protected-access
             self.obj, serialization_cache))
     return fns
 

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Functional tests for Ftrl operations."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras.optimizer_v2 import ftrl
@@ -24,23 +24,23 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def doTestFtrlwithoutRegularization(self, use_resource=False):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.float32]:
+    for dtype in [tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
         if use_resource:
-          var0 = tf.Variable([0.0, 0.0], dtype=dtype)
-          var1 = tf.Variable([0.0, 0.0], dtype=dtype)
+          var0 = tf.compat.v2.Variable([0.0, 0.0], dtype=dtype)
+          var1 = tf.compat.v2.Variable([0.0, 0.0], dtype=dtype)
         else:
-          var0 = tf.Variable([0.0, 0.0], dtype=dtype)
-          var1 = tf.Variable([0.0, 0.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+          var0 = tf.compat.v2.Variable([0.0, 0.0], dtype=dtype)
+          var1 = tf.compat.v2.Variable([0.0, 0.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
         opt = ftrl.Ftrl(
             3.0,
             initial_accumulator_value=0.1,
             l1_regularization_strength=0.0,
             l2_regularization_strength=0.0)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllClose([0.0, 0.0], v0_val)
@@ -64,12 +64,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testFtrlwithoutRegularization2(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([4.0, 3.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([4.0, 3.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
         opt = ftrl.Ftrl(
             3.0,
@@ -77,7 +77,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l1_regularization_strength=0.0,
             l2_regularization_strength=0.0)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -94,17 +94,17 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testMinimizeSparseResourceVariable(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([[1.0, 2.0]], dtype=dtype)
-        x = tf.constant([[4.0], [5.0]], dtype=dtype)
+        var0 = tf.compat.v2.Variable([[1.0, 2.0]], dtype=dtype)
+        x = tf.compat.v2.constant([[4.0], [5.0]], dtype=dtype)
 
         def loss():
-          pred = tf.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
+          pred = tf.linalg.matmul(tf.compat.v1.nn.embedding_lookup([var0], [0]), x)  # pylint: disable=cell-var-from-loop
           return pred * pred
 
         sgd_op = ftrl.Ftrl(1.0).minimize(loss, var_list=[var0])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllCloseAccordingToType([[1.0, 2.0]], self.evaluate(var0))
         # Run 1 step of sgd
@@ -116,12 +116,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testFtrlWithL1(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([4.0, 3.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([4.0, 3.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
         opt = ftrl.Ftrl(
             3.0,
@@ -129,7 +129,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l1_regularization_strength=0.001,
             l2_regularization_strength=0.0)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -146,16 +146,16 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testFtrlWithBeta(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([4.0, 3.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([4.0, 3.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
         opt = ftrl.Ftrl(3.0, initial_accumulator_value=0.1, beta=0.1)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -172,12 +172,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testFtrlWithL2_Beta(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([4.0, 3.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([4.0, 3.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
         opt = ftrl.Ftrl(
             3.0,
@@ -186,7 +186,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l2_regularization_strength=0.1,
             beta=0.1)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -203,12 +203,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testFtrlWithL1_L2(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([4.0, 3.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([4.0, 3.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
         opt = ftrl.Ftrl(
             3.0,
@@ -216,7 +216,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l1_regularization_strength=0.001,
             l2_regularization_strength=2.0)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -240,12 +240,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
     weights will tend to have smaller magnitudes with this parameter set.
     """
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([4.0, 3.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([4.0, 3.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
         opt = ftrl.Ftrl(
             3.0,
@@ -254,7 +254,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l2_regularization_strength=2.0,
             l2_shrinkage_regularization_strength=0.1)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -273,16 +273,16 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlWithL1_L2_L2ShrinkageSparse(self):
     """Tests the new FTRL op with support for l2 shrinkage on sparse grads."""
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
-        var0 = tf.Variable([[1.0], [2.0]], dtype=dtype)
-        var1 = tf.Variable([[4.0], [3.0]], dtype=dtype)
+        var0 = tf.compat.v2.Variable([[1.0], [2.0]], dtype=dtype)
+        var1 = tf.compat.v2.Variable([[4.0], [3.0]], dtype=dtype)
         grads0 = tf.IndexedSlices(
-            tf.constant([0.1], shape=[1, 1], dtype=dtype),
-            tf.constant([0]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.1], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([0]), tf.compat.v2.constant([2, 1]))
         grads1 = tf.IndexedSlices(
-            tf.constant([0.02], shape=[1, 1], dtype=dtype),
-            tf.constant([1]), tf.constant([2, 1]))
+            tf.compat.v2.constant([0.02], shape=[1, 1], dtype=dtype),
+            tf.compat.v2.constant([1]), tf.compat.v2.constant([2, 1]))
 
         opt = ftrl.Ftrl(
             3.0,
@@ -291,7 +291,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l2_regularization_strength=2.0,
             l2_shrinkage_regularization_strength=0.1)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([[1.0], [2.0]], v0_val)
@@ -308,12 +308,12 @@ class FtrlOptimizerTest(tf.test.TestCase):
   def testFtrlWithL2ShrinkageDoesNotChangeLrSchedule(self):
     """Verifies that l2 shrinkage in FTRL does not change lr schedule."""
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session() as sess:
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([1.0, 2.0], dtype=dtype)
-        grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-        grads1 = tf.constant([0.1, 0.2], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+        grads1 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
 
         opt0 = ftrl.Ftrl(
             3.0,
@@ -328,7 +328,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
             l2_regularization_strength=2.0)
         update0 = opt0.apply_gradients([(grads0, var0)])
         update1 = opt1.apply_gradients([(grads1, var1)])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         v0_val, v1_val = self.evaluate([var0, var1])
         self.assertAllCloseAccordingToType([1.0, 2.0], v0_val)
@@ -350,22 +350,22 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def applyOptimizer(self, opt, dtype, steps=5, is_sparse=False):
     if is_sparse:
-      var0 = tf.Variable([[0.0], [0.0]], dtype=dtype)
-      var1 = tf.Variable([[0.0], [0.0]], dtype=dtype)
+      var0 = tf.compat.v2.Variable([[0.0], [0.0]], dtype=dtype)
+      var1 = tf.compat.v2.Variable([[0.0], [0.0]], dtype=dtype)
       grads0 = tf.IndexedSlices(
-          tf.constant([0.1], shape=[1, 1], dtype=dtype),
-          tf.constant([0]), tf.constant([2, 1]))
+          tf.compat.v2.constant([0.1], shape=[1, 1], dtype=dtype),
+          tf.compat.v2.constant([0]), tf.compat.v2.constant([2, 1]))
       grads1 = tf.IndexedSlices(
-          tf.constant([0.02], shape=[1, 1], dtype=dtype),
-          tf.constant([1]), tf.constant([2, 1]))
+          tf.compat.v2.constant([0.02], shape=[1, 1], dtype=dtype),
+          tf.compat.v2.constant([1]), tf.compat.v2.constant([2, 1]))
     else:
-      var0 = tf.Variable([0.0, 0.0], dtype=dtype)
-      var1 = tf.Variable([0.0, 0.0], dtype=dtype)
-      grads0 = tf.constant([0.1, 0.2], dtype=dtype)
-      grads1 = tf.constant([0.01, 0.02], dtype=dtype)
+      var0 = tf.compat.v2.Variable([0.0, 0.0], dtype=dtype)
+      var1 = tf.compat.v2.Variable([0.0, 0.0], dtype=dtype)
+      grads0 = tf.compat.v2.constant([0.1, 0.2], dtype=dtype)
+      grads1 = tf.compat.v2.constant([0.01, 0.02], dtype=dtype)
 
     update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
 
     v0_val, v1_val = self.evaluate([var0, var1])
     if is_sparse:
@@ -391,7 +391,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
   # FTRL-Proximal performs same updates as Adagrad or GradientDescent.
   def testEquivAdagradwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(
@@ -412,7 +412,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testEquivSparseAdagradwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(
@@ -436,7 +436,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testEquivSparseGradientDescentwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(
@@ -460,7 +460,7 @@ class FtrlOptimizerTest(tf.test.TestCase):
 
   def testEquivGradientDescentwithoutRegularization(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32]:
       with tf.Graph().as_default(), self.cached_session():
         val0, val1 = self.applyOptimizer(
             ftrl.Ftrl(

@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes
 """Contains the `Node` class."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import copy

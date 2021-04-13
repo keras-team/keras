@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import gc
 import os
@@ -272,7 +272,7 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     if kwargs.get("output_mode") == text_vectorization.INT:
       expected_output_dtype = tf.int64
     else:
-      expected_output_dtype = tf.float32
+      expected_output_dtype = tf.dtypes.float32
     input_shape = input_data.shape
 
     if use_dataset:
@@ -310,25 +310,25 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
     layer.set_vocabulary(["two", "three", "four", "five"])
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   def test_tensor_inputs(self):
-    vocab_data = tf.constant(
+    vocab_data = tf.compat.v2.constant(
         ["two two two", "two three three", "three four four five"])
-    input_data = tf.constant(["two three", "four five"])
+    input_data = tf.compat.v2.constant(["two three", "four five"])
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
     layer.set_vocabulary(["two", "three", "four", "five"])
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   def test_list_inputs_2d(self):
@@ -338,11 +338,11 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_data)
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
     layer.set_vocabulary(["two", "three", "four", "five"])
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   def test_dataset_of_single_strings(self):
@@ -352,7 +352,7 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     layer = text_vectorization.TextVectorization()
     layer.adapt(vocab_ds)
     out = layer(input_data)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertAllClose(out.numpy(), [[2, 3], [4, 5]])
 
   @parameterized.named_parameters(
@@ -517,7 +517,7 @@ class TextVectorizationPreprocessingTest(
     expected_output = [[b"earth", b"wind", b"and fire"],
                        [b"\tfire", b"and\nearth", b"michigan"]]
 
-    custom_split = lambda x: tf.strings.split(x, sep=">")
+    custom_split = lambda x: tf.compat.v2.strings.split(x, sep=">")
     input_data = keras.Input(shape=(1,), dtype=tf.string)
     layer = text_vectorization.TextVectorization(
         max_tokens=None,
@@ -763,7 +763,7 @@ class TextVectorizationDistributionTest(
                             ["fire", "and", "earth", "michigan"]])
     expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    strategy = tf.distribute.OneDeviceStrategy("/cpu:0")
+    strategy = tf.compat.v2.distribute.OneDeviceStrategy("/cpu:0")
     with strategy.scope():
       input_data = keras.Input(shape=(None,), dtype=tf.string)
       layer = text_vectorization.TextVectorization(
@@ -1502,7 +1502,7 @@ def custom_standardize_fn(x):
 
 @generic_utils.register_keras_serializable(package="Test")
 def custom_split_fn(x):
-  return tf.strings.split(x, sep=">")
+  return tf.compat.v2.strings.split(x, sep=">")
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1540,7 +1540,7 @@ class TextVectorizationSavingTest(
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(output_path)
@@ -1574,7 +1574,7 @@ class TextVectorizationSavingTest(
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
     # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(output_path)

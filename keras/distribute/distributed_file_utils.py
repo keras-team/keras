@@ -44,7 +44,7 @@ remove_temp_dirpath(self.log_dir, get_distribution_strategy())
 Experimental. API is subject to change.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 

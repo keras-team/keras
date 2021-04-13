@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Nadam."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras.optimizer_v2 import nadam
@@ -66,7 +66,7 @@ class NadamOptimizerTest(tf.test.TestCase):
   def testSparse(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
     sparse_epsilon = 1e-7
-    for dtype in [tf.half, tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
       with tf.Graph().as_default(), self.cached_session():
         # Initialize variables for numpy implementation.
         m0, v0, m1, v1, mcache = 0.0, 0.0, 0.0, 0.0, 1.0
@@ -75,19 +75,19 @@ class NadamOptimizerTest(tf.test.TestCase):
         var1_np = np.array([3.0, 3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
         grads0_np_indices = np.array([0, 2], dtype=np.int32)
         grads0 = tf.IndexedSlices(
-            tf.constant(grads0_np[grads0_np_indices]),
-            tf.constant(grads0_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads0_np[grads0_np_indices]),
+            tf.compat.v2.constant(grads0_np_indices), tf.compat.v2.constant([3]))
         grads1_np_indices = np.array([0, 2], dtype=np.int32)
         grads1 = tf.IndexedSlices(
-            tf.constant(grads1_np[grads1_np_indices]),
-            tf.constant(grads1_np_indices), tf.constant([3]))
+            tf.compat.v2.constant(grads1_np[grads1_np_indices]),
+            tf.compat.v2.constant(grads1_np_indices), tf.compat.v2.constant([3]))
         opt = nadam.Nadam(epsilon=sparse_epsilon)
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 1.0, 2.0], var0)
@@ -113,7 +113,7 @@ class NadamOptimizerTest(tf.test.TestCase):
 
   def testBasic(self):
     # TODO(tanzheny, omalleyt): Fix test in eager mode.
-    for dtype in [tf.half, tf.float32, tf.float64]:
+    for dtype in [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]:
       with tf.Graph().as_default(), self.cached_session():
         # Initialize variables for numpy implementation.
         m0, v0, m1, v1, mcache = 0.0, 0.0, 0.0, 0.0, 1.0
@@ -122,13 +122,13 @@ class NadamOptimizerTest(tf.test.TestCase):
         var1_np = np.array([3.0, 4.0], dtype=dtype.as_numpy_dtype)
         grads1_np = np.array([0.01, 0.01], dtype=dtype.as_numpy_dtype)
 
-        var0 = tf.Variable(var0_np)
-        var1 = tf.Variable(var1_np)
-        grads0 = tf.constant(grads0_np)
-        grads1 = tf.constant(grads1_np)
+        var0 = tf.compat.v2.Variable(var0_np)
+        var1 = tf.compat.v2.Variable(var1_np)
+        grads0 = tf.compat.v2.constant(grads0_np)
+        grads1 = tf.compat.v2.constant(grads1_np)
         opt = nadam.Nadam()
         update = opt.apply_gradients(zip([grads0, grads1], [var0, var1]))
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 2.0], var0)
@@ -152,19 +152,19 @@ class NadamOptimizerTest(tf.test.TestCase):
     opt = nadam.Nadam(lr=1.0)
     opt_2 = nadam.Nadam(learning_rate=0.1, lr=1.0)
     opt_3 = nadam.Nadam(learning_rate=0.1)
-    self.assertIsInstance(opt.lr, tf.Variable)
-    self.assertIsInstance(opt_2.lr, tf.Variable)
-    self.assertIsInstance(opt_3.lr, tf.Variable)
+    self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_2.lr, tf.compat.v2.Variable)
+    self.assertIsInstance(opt_3.lr, tf.compat.v2.Variable)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(self.evaluate(opt.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_2.lr), (1.0))
     self.assertAllClose(self.evaluate(opt_3.lr), (0.1))
 
   def testConstructNAdamWithScheduleDecay(self):
     opt = nadam.Nadam(schedule_decay=0.2)
-    self.assertIsInstance(opt.decay, tf.Variable)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.assertIsInstance(opt.decay, tf.compat.v2.Variable)
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose(self.evaluate(opt.decay), (0.2))
 
 

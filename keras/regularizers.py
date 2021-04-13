@@ -14,7 +14,7 @@
 # ==============================================================================
 """Built-in regularizers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=invalid-name
 
 import math
@@ -243,9 +243,9 @@ class L1L2(Regularizer):
   def __call__(self, x):
     regularization = backend.constant(0., dtype=x.dtype)
     if self.l1:
-      regularization += self.l1 * tf.reduce_sum(tf.abs(x))
+      regularization += self.l1 * tf.compat.v2.reduce_sum(tf.math.abs(x))
     if self.l2:
-      regularization += self.l2 * tf.reduce_sum(tf.square(x))
+      regularization += self.l2 * tf.compat.v2.reduce_sum(tf.square(x))
     return regularization
 
   def get_config(self):
@@ -280,7 +280,7 @@ class L1(Regularizer):
     self.l1 = backend.cast_to_floatx(l1)
 
   def __call__(self, x):
-    return self.l1 * tf.reduce_sum(tf.abs(x))
+    return self.l1 * tf.compat.v2.reduce_sum(tf.math.abs(x))
 
   def get_config(self):
     return {'l1': float(self.l1)}
@@ -314,7 +314,7 @@ class L2(Regularizer):
     self.l2 = backend.cast_to_floatx(l2)
 
   def __call__(self, x):
-    return self.l2 * tf.reduce_sum(tf.square(x))
+    return self.l2 * tf.compat.v2.reduce_sum(tf.square(x))
 
   def get_config(self):
     return {'l2': float(self.l2)}

@@ -16,7 +16,7 @@
 # pylint: disable=g-doc-return-or-yield
 """Built-in metrics."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import abc
 import types
@@ -148,11 +148,11 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
       obj_update_state = obj.update_state
 
       def update_state_fn(*args, **kwargs):
-        control_status = tf.__internal__.autograph.control_status_ctx()
-        ag_update_state = tf.__internal__.autograph.tf_convert(obj_update_state, control_status)
+        control_status = tf.compat.v2.__internal__.autograph.control_status_ctx()
+        ag_update_state = tf.compat.v2.__internal__.autograph.tf_convert(obj_update_state, control_status)
         return ag_update_state(*args, **kwargs)
     else:
-      if isinstance(obj.update_state, tf.__internal__.function.Function):
+      if isinstance(obj.update_state, tf.compat.v2.__internal__.function.Function):
         update_state_fn = obj.update_state
       else:
         update_state_fn = tf.function(obj.update_state)
@@ -163,8 +163,8 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
     obj_result = obj.result
 
     def result_fn(*args, **kwargs):
-      control_status = tf.__internal__.autograph.control_status_ctx()
-      ag_result = tf.__internal__.autograph.tf_convert(obj_result, control_status)
+      control_status = tf.compat.v2.__internal__.autograph.control_status_ctx()
+      ag_result = tf.compat.v2.__internal__.autograph.tf_convert(obj_result, control_status)
       return ag_result(*args, **kwargs)
 
     obj.result = types.MethodType(metrics_utils.result_wrapper(result_fn), obj)
@@ -382,21 +382,21 @@ class Reduce(Metric):
           values, sample_weight=sample_weight)
       try:
         # Broadcast weights if possible.
-        sample_weight = tf.__internal__.ops.broadcast_weights(
+        sample_weight = tf.compat.v2.__internal__.ops.broadcast_weights(
             sample_weight, values)
       except ValueError:
         # Reduce values to same ndim as weight array
         ndim = backend.ndim(values)
         weight_ndim = backend.ndim(sample_weight)
         if self.reduction == metrics_utils.Reduction.SUM:
-          values = tf.reduce_sum(
+          values = tf.compat.v2.reduce_sum(
               values, axis=list(range(weight_ndim, ndim)))
         else:
-          values = tf.reduce_mean(
+          values = tf.compat.v2.reduce_mean(
               values, axis=list(range(weight_ndim, ndim)))
-      values = tf.multiply(values, sample_weight)
+      values = tf.math.multiply(values, sample_weight)
 
-    value_sum = tf.reduce_sum(values)
+    value_sum = tf.compat.v2.reduce_sum(values)
     with tf.control_dependencies([value_sum]):
       update_total_op = self.total.assign_add(value_sum)
 
@@ -411,7 +411,7 @@ class Reduce(Metric):
       if sample_weight is None:
         num_values = tf.cast(tf.compat.v1.size(values), self._dtype)
       else:
-        num_values = tf.reduce_sum(sample_weight)
+        num_values = tf.compat.v2.reduce_sum(sample_weight)
     else:
       raise NotImplementedError(
           'reduction [%s] not implemented' % self.reduction)
@@ -579,7 +579,7 @@ class MeanRelativeError(Mean):
         y_pred, self.normalizer)
     y_pred.shape.assert_is_compatible_with(y_true.shape)
     relative_errors = tf.math.divide_no_nan(
-        tf.abs(y_true - y_pred), self.normalizer)
+        tf.math.abs(y_true - y_pred), self.normalizer)
 
     return super(MeanRelativeError, self).update_state(
         relative_errors, sample_weight=sample_weight)
@@ -636,7 +636,7 @@ class MeanMetricWrapper(Mean):
     y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
         y_pred, y_true)
 
-    ag_fn = tf.__internal__.autograph.tf_convert(self._fn, tf.__internal__.autograph.control_status_ctx())
+    ag_fn = tf.compat.v2.__internal__.autograph.tf_convert(self._fn, tf.compat.v2.__internal__.autograph.control_status_ctx())
     matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
     return super(MeanMetricWrapper, self).update_state(
         matches, sample_weight=sample_weight)
@@ -985,7 +985,7 @@ class _ConfusionMatrixConditionCount(Metric):
       result = self.accumulator[0]
     else:
       result = self.accumulator
-    return tf.convert_to_tensor(result)
+    return tf.compat.v2.convert_to_tensor(result)
 
   def reset_state(self):
     num_thresholds = len(to_list(self.thresholds))
@@ -1551,11 +1551,11 @@ class SensitivitySpecificityBase(Metric, metaclass=abc.ABCMeta):
 
     Returns maximal dependent value, if no value satiesfies the constraint 0.0.
     """
-    feasible = tf.where(predicate(constrained, self.value))
-    feasible_exists = tf.greater(tf.compat.v1.size(feasible), 0)
-    max_dependent = tf.reduce_max(tf.compat.v1.gather(dependent, feasible))
+    feasible = tf.compat.v2.where(predicate(constrained, self.value))
+    feasible_exists = tf.math.greater(tf.compat.v1.size(feasible), 0)
+    max_dependent = tf.compat.v2.reduce_max(tf.compat.v1.gather(dependent, feasible))
 
-    return tf.where(feasible_exists, max_dependent, 0.0)
+    return tf.compat.v2.where(feasible_exists, max_dependent, 0.0)
 
 
 @keras_export('keras.metrics.SensitivityAtSpecificity')
@@ -2085,9 +2085,9 @@ class AUC(Metric):
     # Handle multilabel arguments.
     self.multi_label = multi_label
     if label_weights is not None:
-      label_weights = tf.constant(label_weights, dtype=self.dtype)
+      label_weights = tf.compat.v2.constant(label_weights, dtype=self.dtype)
       checks = [
-          tf.compat.v1.assert_non_negative(
+          tf.compat.v1.debugging.assert_non_negative(
               label_weights,
               message='All values of `label_weights` must be non-negative.')
       ]
@@ -2152,7 +2152,7 @@ class AUC(Metric):
         # This should only be necessary for handling v1 behavior. In v2, AUC
         # should be initialized outside of any tf.functions, and therefore in
         # eager mode.
-        if not tf.executing_eagerly():
+        if not tf.compat.v2.executing_eagerly():
           backend._initialize_variables(backend._get_session())  # pylint: disable=protected-access
 
     self._built = True
@@ -2270,37 +2270,37 @@ class AUC(Metric):
     p = self.true_positives + self.false_positives
     dp = p[:self.num_thresholds - 1] - p[1:]
     prec_slope = tf.math.divide_no_nan(
-        dtp, tf.maximum(dp, 0), name='prec_slope')
-    intercept = self.true_positives[1:] - tf.multiply(prec_slope, p[1:])
+        dtp, tf.math.maximum(dp, 0), name='prec_slope')
+    intercept = self.true_positives[1:] - tf.math.multiply(prec_slope, p[1:])
 
     safe_p_ratio = tf.compat.v1.where(
-        tf.logical_and(p[:self.num_thresholds - 1] > 0, p[1:] > 0),
+        tf.math.logical_and(p[:self.num_thresholds - 1] > 0, p[1:] > 0),
         tf.math.divide_no_nan(
             p[:self.num_thresholds - 1],
-            tf.maximum(p[1:], 0),
+            tf.math.maximum(p[1:], 0),
             name='recall_relative_ratio'),
         tf.compat.v1.ones_like(p[1:]))
 
     pr_auc_increment = tf.math.divide_no_nan(
         prec_slope * (dtp + intercept * tf.math.log(safe_p_ratio)),
-        tf.maximum(self.true_positives[1:] + self.false_negatives[1:], 0),
+        tf.math.maximum(self.true_positives[1:] + self.false_negatives[1:], 0),
         name='pr_auc_increment')
 
     if self.multi_label:
-      by_label_auc = tf.reduce_sum(
+      by_label_auc = tf.compat.v2.reduce_sum(
           pr_auc_increment, name=self.name + '_by_label', axis=0)
       if self.label_weights is None:
         # Evenly weighted average of the label AUCs.
-        return tf.reduce_mean(by_label_auc, name=self.name)
+        return tf.compat.v2.reduce_mean(by_label_auc, name=self.name)
       else:
         # Weighted average of the label AUCs.
         return tf.math.divide_no_nan(
-            tf.reduce_sum(
-                tf.multiply(by_label_auc, self.label_weights)),
-            tf.reduce_sum(self.label_weights),
+            tf.compat.v2.reduce_sum(
+                tf.math.multiply(by_label_auc, self.label_weights)),
+            tf.compat.v2.reduce_sum(self.label_weights),
             name=self.name)
     else:
-      return tf.reduce_sum(pr_auc_increment, name='interpolate_pr_auc')
+      return tf.compat.v2.reduce_sum(pr_auc_increment, name='interpolate_pr_auc')
 
   def result(self):
     if (self.curve == metrics_utils.AUCCurve.PR and
@@ -2328,30 +2328,30 @@ class AUC(Metric):
       # Note: the case ('PR', 'interpolation') has been handled above.
       heights = (y[:self.num_thresholds - 1] + y[1:]) / 2.
     elif self.summation_method == metrics_utils.AUCSummationMethod.MINORING:
-      heights = tf.minimum(y[:self.num_thresholds - 1], y[1:])
+      heights = tf.math.minimum(y[:self.num_thresholds - 1], y[1:])
     else:  # self.summation_method = metrics_utils.AUCSummationMethod.MAJORING:
-      heights = tf.maximum(y[:self.num_thresholds - 1], y[1:])
+      heights = tf.math.maximum(y[:self.num_thresholds - 1], y[1:])
 
     # Sum up the areas of all the rectangles.
     if self.multi_label:
-      riemann_terms = tf.multiply(x[:self.num_thresholds - 1] - x[1:],
+      riemann_terms = tf.math.multiply(x[:self.num_thresholds - 1] - x[1:],
                                         heights)
-      by_label_auc = tf.reduce_sum(
+      by_label_auc = tf.compat.v2.reduce_sum(
           riemann_terms, name=self.name + '_by_label', axis=0)
 
       if self.label_weights is None:
         # Unweighted average of the label AUCs.
-        return tf.reduce_mean(by_label_auc, name=self.name)
+        return tf.compat.v2.reduce_mean(by_label_auc, name=self.name)
       else:
         # Weighted average of the label AUCs.
         return tf.math.divide_no_nan(
-            tf.reduce_sum(
-                tf.multiply(by_label_auc, self.label_weights)),
-            tf.reduce_sum(self.label_weights),
+            tf.compat.v2.reduce_sum(
+                tf.math.multiply(by_label_auc, self.label_weights)),
+            tf.compat.v2.reduce_sum(self.label_weights),
             name=self.name)
     else:
-      return tf.reduce_sum(
-          tf.multiply(x[:self.num_thresholds - 1] - x[1:], heights),
+      return tf.compat.v2.reduce_sum(
+          tf.math.multiply(x[:self.num_thresholds - 1] - x[1:], heights),
           name=self.name)
 
   def reset_state(self):
@@ -2738,7 +2738,7 @@ class RootMeanSquaredError(Mean):
         error_sq, sample_weight=sample_weight)
 
   def result(self):
-    return tf.sqrt(tf.math.divide_no_nan(self.total, self.count))
+    return tf.math.sqrt(tf.math.divide_no_nan(self.total, self.count))
 
 
 @keras_export('keras.metrics.LogCoshError')
@@ -2939,7 +2939,7 @@ class MeanIoU(Metric):
         sample_weight = tf.reshape(sample_weight, [-1])
 
     # Accumulate the prediction to current confusion matrix.
-    current_cm = tf.math.confusion_matrix(
+    current_cm = tf.compat.v2.math.confusion_matrix(
         y_true,
         y_pred,
         self.num_classes,
@@ -2950,9 +2950,9 @@ class MeanIoU(Metric):
   def result(self):
     """Compute the mean intersection-over-union via the confusion matrix."""
     sum_over_row = tf.cast(
-        tf.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
+        tf.compat.v2.reduce_sum(self.total_cm, axis=0), dtype=self._dtype)
     sum_over_col = tf.cast(
-        tf.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
+        tf.compat.v2.reduce_sum(self.total_cm, axis=1), dtype=self._dtype)
     true_positives = tf.cast(
         tf.linalg.tensor_diag_part(self.total_cm), dtype=self._dtype)
 
@@ -2963,13 +2963,13 @@ class MeanIoU(Metric):
     # The mean is only computed over classes that appear in the
     # label or prediction tensor. If the denominator is 0, we need to
     # ignore the class.
-    num_valid_entries = tf.reduce_sum(
+    num_valid_entries = tf.compat.v2.reduce_sum(
         tf.cast(tf.not_equal(denominator, 0), dtype=self._dtype))
 
     iou = tf.math.divide_no_nan(true_positives, denominator)
 
     return tf.math.divide_no_nan(
-        tf.reduce_sum(iou, name='mean_iou'), num_valid_entries)
+        tf.compat.v2.reduce_sum(iou, name='mean_iou'), num_valid_entries)
 
   def reset_state(self):
     backend.set_value(
@@ -3036,7 +3036,7 @@ class MeanTensor(Metric):
     self._count = self.add_weight(
         'count', shape=shape, initializer=tf.compat.v1.zeros_initializer)
     with tf.init_scope():
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         backend._initialize_variables(backend._get_session())  # pylint: disable=protected-access
     self._built = True
 
@@ -3075,17 +3075,17 @@ class MeanTensor(Metric):
           values, sample_weight=sample_weight)
       try:
         # Broadcast weights if possible.
-        sample_weight = tf.__internal__.ops.broadcast_weights(
+        sample_weight = tf.compat.v2.__internal__.ops.broadcast_weights(
             sample_weight, values)
       except ValueError:
         # Reduce values to same ndim as weight array
         ndim = backend.ndim(values)
         weight_ndim = backend.ndim(sample_weight)
-        values = tf.reduce_mean(
+        values = tf.compat.v2.reduce_mean(
             values, axis=list(range(weight_ndim, ndim)))
 
-      num_values = tf.multiply(num_values, sample_weight)
-      values = tf.multiply(values, sample_weight)
+      num_values = tf.math.multiply(num_values, sample_weight)
+      values = tf.math.multiply(values, sample_weight)
 
     update_total_op = self._total.assign_add(values)
     with tf.control_dependencies([update_total_op]):
@@ -3338,7 +3338,7 @@ class SumOverBatchSizeMetricWrapper(SumOverBatchSize):
     y_pred, y_true = losses_utils.squeeze_or_expand_dimensions(
         y_pred, y_true)
 
-    ag_fn = tf.__internal__.autograph.tf_convert(self._fn, tf.__internal__.autograph.control_status_ctx())
+    ag_fn = tf.compat.v2.__internal__.autograph.tf_convert(self._fn, tf.compat.v2.__internal__.autograph.control_status_ctx())
     matches = ag_fn(y_true, y_pred, **self._fn_kwargs)
     return super(SumOverBatchSizeMetricWrapper, self).update_state(
         matches, sample_weight=sample_weight)
@@ -3358,11 +3358,11 @@ def accuracy(y_true, y_pred):
   y_pred.shape.assert_is_compatible_with(y_true.shape)
   if y_true.dtype != y_pred.dtype:
     y_pred = tf.cast(y_pred, y_true.dtype)
-  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
+  return tf.cast(tf.math.equal(y_true, y_pred), backend.floatx())
 
 
 @keras_export('keras.metrics.binary_accuracy')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def binary_accuracy(y_true, y_pred, threshold=0.5):
   """Calculates how often predictions match binary labels.
 
@@ -3383,14 +3383,14 @@ def binary_accuracy(y_true, y_pred, threshold=0.5):
   Returns:
     Binary accuracy values. shape = `[batch_size, d0, .. dN-1]`
   """
-  y_pred = tf.convert_to_tensor(y_pred)
+  y_pred = tf.compat.v2.convert_to_tensor(y_pred)
   threshold = tf.cast(threshold, y_pred.dtype)
   y_pred = tf.cast(y_pred > threshold, y_pred.dtype)
-  return backend.mean(tf.equal(y_true, y_pred), axis=-1)
+  return backend.mean(tf.math.equal(y_true, y_pred), axis=-1)
 
 
 @keras_export('keras.metrics.categorical_accuracy')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def categorical_accuracy(y_true, y_pred):
   """Calculates how often predictions match one-hot labels.
 
@@ -3413,13 +3413,13 @@ def categorical_accuracy(y_true, y_pred):
     Categorical accuracy values.
   """
   return tf.cast(
-      tf.equal(
-          tf.compat.v1.argmax(y_true, axis=-1), tf.compat.v1.argmax(y_pred, axis=-1)),
+      tf.math.equal(
+          tf.compat.v1.math.argmax(y_true, axis=-1), tf.compat.v1.math.argmax(y_pred, axis=-1)),
       backend.floatx())
 
 
 @keras_export('keras.metrics.sparse_categorical_accuracy')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def sparse_categorical_accuracy(y_true, y_pred):
   """Calculates how often predictions match integer labels.
 
@@ -3441,26 +3441,26 @@ def sparse_categorical_accuracy(y_true, y_pred):
   Returns:
     Sparse categorical accuracy values.
   """
-  y_pred = tf.convert_to_tensor(y_pred)
-  y_true = tf.convert_to_tensor(y_true)
+  y_pred = tf.compat.v2.convert_to_tensor(y_pred)
+  y_true = tf.compat.v2.convert_to_tensor(y_true)
   y_pred_rank = y_pred.shape.ndims
   y_true_rank = y_true.shape.ndims
   # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
       backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
     y_true = tf.compat.v1.squeeze(y_true, [-1])
-  y_pred = tf.compat.v1.argmax(y_pred, axis=-1)
+  y_pred = tf.compat.v1.math.argmax(y_pred, axis=-1)
 
   # If the predicted output and actual output types don't match, force cast them
   # to match.
   if backend.dtype(y_pred) != backend.dtype(y_true):
     y_pred = tf.cast(y_pred, backend.dtype(y_true))
 
-  return tf.cast(tf.equal(y_true, y_pred), backend.floatx())
+  return tf.cast(tf.math.equal(y_true, y_pred), backend.floatx())
 
 
 @keras_export('keras.metrics.top_k_categorical_accuracy')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def top_k_categorical_accuracy(y_true, y_pred, k=5):
   """Computes how often targets are in the top `K` predictions.
 
@@ -3482,12 +3482,12 @@ def top_k_categorical_accuracy(y_true, y_pred, k=5):
     Top K categorical accuracy value.
   """
   return tf.cast(
-      tf.compat.v1.math.in_top_k(
-          y_pred, tf.compat.v1.argmax(y_true, axis=-1), k), backend.floatx())
+      tf.compat.v1.nn.in_top_k(
+          y_pred, tf.compat.v1.math.argmax(y_true, axis=-1), k), backend.floatx())
 
 
 @keras_export('keras.metrics.sparse_top_k_categorical_accuracy')
-@tf.__internal__.dispatch.add_dispatch_support
+@tf.compat.v2.__internal__.dispatch.add_dispatch_support
 def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   """Computes how often integer targets are in the top `K` predictions.
 
@@ -3509,8 +3509,8 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
   Returns:
     Sparse top K categorical accuracy value.
   """
-  y_pred_rank = tf.convert_to_tensor(y_pred).shape.ndims
-  y_true_rank = tf.convert_to_tensor(y_true).shape.ndims
+  y_pred_rank = tf.compat.v2.convert_to_tensor(y_pred).shape.ndims
+  y_true_rank = tf.compat.v2.convert_to_tensor(y_true).shape.ndims
   # Flatten y_pred to (batch_size, num_samples) and y_true to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None):
     if y_pred_rank > 2:
@@ -3519,7 +3519,7 @@ def sparse_top_k_categorical_accuracy(y_true, y_pred, k=5):
       y_true = tf.reshape(y_true, [-1])
 
   return tf.cast(
-      tf.compat.v1.math.in_top_k(y_pred, tf.cast(y_true, 'int32'), k), backend.floatx())
+      tf.compat.v1.nn.in_top_k(y_pred, tf.cast(y_true, 'int32'), k), backend.floatx())
 
 
 def cosine_proximity(y_true, y_pred, axis=-1):
@@ -3534,9 +3534,9 @@ def cosine_proximity(y_true, y_pred, axis=-1):
   Returns:
     Cosine similarity value.
   """
-  y_true = tf.linalg.l2_normalize(y_true, axis=axis)
-  y_pred = tf.linalg.l2_normalize(y_pred, axis=axis)
-  return tf.reduce_sum(y_true * y_pred, axis=axis)
+  y_true = tf.nn.l2_normalize(y_true, axis=axis)
+  y_pred = tf.nn.l2_normalize(y_pred, axis=axis)
+  return tf.compat.v2.reduce_sum(y_true * y_pred, axis=axis)
 
 # Aliases
 

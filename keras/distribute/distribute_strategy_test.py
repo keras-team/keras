@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for tf.keras models using tf.distribute.Strategy."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 
@@ -202,21 +202,21 @@ def multi_input_output_model():
 
 
 def strategy_minus_tpu_combinations():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       distribution=strategies_minus_tpu, mode=['graph', 'eager'])
 
 
 def tpu_strategy_combinations():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       distribution=tpu_strategies, mode=['graph', 'eager'])
 
 
 def tpu_strategy_combinations_graph_only():
-  return tf.__internal__.test.combinations.combine(distribution=tpu_strategies, mode=['graph'])
+  return tf.compat.v2.__internal__.test.combinations.combine(distribution=tpu_strategies, mode=['graph'])
 
 
 def multi_worker_strategy_combinations_eager_only():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       distribution=multi_worker_mirrored_strategies, mode=['eager'])
 
 
@@ -226,13 +226,13 @@ def all_strategy_combinations():
 
 
 def all_strategy_minus_default_and_tpu_combinations():
-  return tf.__internal__.test.combinations.combine(
+  return tf.compat.v2.__internal__.test.combinations.combine(
       distribution=[
-          tf.__internal__.distribute.combinations.one_device_strategy,
-          tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
+          tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+          tf.compat.v2.__internal__.distribute.combinations.one_device_strategy_gpu,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+          tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus_no_merge_call,
       ],
       mode=['graph', 'eager'])
 
@@ -244,9 +244,9 @@ def all_strategy_combinations_minus_default():
 
 
 def strategy_and_optimizer_combinations():
-  non_tpu_strategies = tf.__internal__.test.combinations.times(
+  non_tpu_strategies = tf.compat.v2.__internal__.test.combinations.times(
       strategy_minus_tpu_combinations(),
-      tf.__internal__.test.combinations.combine(
+      tf.compat.v2.__internal__.test.combinations.combine(
           optimizer=[
               optimizer_combinations.adagrad_optimizer_v1_fn,
               optimizer_combinations.adam_optimizer_v1_fn,
@@ -261,7 +261,7 @@ def strategy_and_optimizer_combinations():
               optimizer_combinations.rmsprop_optimizer_keras_v2_fn,
               optimizer_combinations.ftrl_optimizer_keras_v2_fn
           ]))
-  tpu_strategies_graph = tf.__internal__.test.combinations.combine(
+  tpu_strategies_graph = tf.compat.v2.__internal__.test.combinations.combine(
       distribution=tpu_strategies,
       mode=['graph'],
       optimizer=[
@@ -274,7 +274,7 @@ def strategy_and_optimizer_combinations():
           optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
           optimizer_combinations.rmsprop_optimizer_keras_v2_fn
       ])
-  tpu_strategies_eager = tf.__internal__.test.combinations.combine(
+  tpu_strategies_eager = tf.compat.v2.__internal__.test.combinations.combine(
       distribution=tpu_strategies,
       mode=['eager'],
       optimizer=[
@@ -283,7 +283,7 @@ def strategy_and_optimizer_combinations():
           optimizer_combinations.gradient_descent_optimizer_keras_v2_fn,
           optimizer_combinations.rmsprop_optimizer_keras_v2_fn
       ])
-  multi_worker_eager = tf.__internal__.test.combinations.combine(
+  multi_worker_eager = tf.compat.v2.__internal__.test.combinations.combine(
       distribution=multi_worker_mirrored_strategies,
       mode=['eager'],
       optimizer=[
@@ -333,7 +333,7 @@ class BatchCountingCB(keras.callbacks.Callback):
 class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
                                               parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calculating_input_params_no_steps_no_batch_size(self, distribution):
     # Calculate the per_replica_batch_size scaling factor for strategies
     # that use per_core_batch_size
@@ -354,7 +354,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       self.assertEqual(batch_size, 20 // replica_scale_factor)
       self.assertEqual(steps, 1)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calculating_input_params_with_steps_no_batch_size(
       self, distribution):
     # Calculate the per_replica_batch_size scaling factor for strategies
@@ -397,7 +397,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
           distributed_training_utils_v1.get_input_params(
               distribution, 63, steps=1, batch_size=None)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calculating_input_params_no_steps_with_batch_size(
       self, distribution):
     # Calculate the per_replica_batch_size scaling factor for strategies
@@ -419,7 +419,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       self.assertEqual(batch_size, 32)
       self.assertEqual(steps, 2 // replica_scale_factor)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calculating_input_params_with_steps_with_batch_size(
       self, distribution):
     with self.cached_session():
@@ -434,7 +434,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
         distributed_training_utils_v1.get_input_params(
             distribution, 64, steps=10, batch_size=13)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calling_model_with_numpy_arrays(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -468,12 +468,12 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
         model.predict(inputs)
         model.predict(inputs, batch_size=8)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calling_model_with_mixed_precision(self, distribution):
     if isinstance(distribution,
                   (tf.compat.v1.distribute.experimental.ParameterServerStrategy,
-                   tf.distribute.experimental.ParameterServerStrategy,
-                   tf.distribute.experimental.CentralStorageStrategy,
+                   tf.compat.v2.distribute.experimental.ParameterServerStrategy,
+                   tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('b/152097775')
     if backend.is_tpu_strategy(distribution):
@@ -516,7 +516,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       model.predict(inputs)
       model.predict(inputs, batch_size=8)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_operator_overload_mixed_precision(self, distribution):
     # Regression test that tests a fixed bug does not reoccur. Adding an
     # AutoCastVariable to a tensor on a TPU, where the variable was the LHS of
@@ -524,8 +524,8 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
     # None.
     if isinstance(distribution,
                   (tf.compat.v1.distribute.experimental.ParameterServerStrategy,
-                   tf.distribute.experimental.ParameterServerStrategy,
-                   tf.distribute.experimental.CentralStorageStrategy,
+                   tf.compat.v2.distribute.experimental.ParameterServerStrategy,
+                   tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('b/152097775')
 
@@ -552,16 +552,16 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
           y = layer(x)
         grad_v1, grad_v2 = tape.gradient(y, [layer.v1, layer.v2])
         return grad_v1, grad_v2
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
         run_fn = tf.function(run_fn)
 
       grad_v1, grad_v2 = distribution.run(run_fn)
       self.assertIsNotNone(grad_v1)
       self.assertIsNotNone(grad_v2)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
-          distribution=[tf.__internal__.distribute.combinations.one_device_strategy],
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
+          distribution=[tf.compat.v2.__internal__.distribute.combinations.one_device_strategy],
           mode=['graph', 'eager']))
   def test_optimizer_in_cross_replica_context_raises_error(self, distribution):
 
@@ -577,7 +577,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
                                   'cannot be called in cross-replica context'):
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calling_model_with_nested_numpy_arrays(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -608,10 +608,10 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       model.predict(inputs)
       model.predict(inputs, batch_size=8)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategies_minus_tpu, mode=['graph', 'eager']) +
-      tf.__internal__.test.combinations.combine(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=multi_worker_mirrored_strategies, mode=['eager']))
   def test_numpy_with_sample_weights(self, distribution):
     with self.cached_session(), distribution.scope():
@@ -650,7 +650,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       result = model.evaluate(inputs, targets, batch_size=2, verbose=1)
       self.assertAllClose(result, 13.5)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_flatten_predict_outputs(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -677,9 +677,9 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       self.assertAllEqual([6, 7], outs[0].shape)
       self.assertAllEqual([6, 7], outs[1].shape)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(tpu_strategy_combinations_graph_only(),
-                         tf.__internal__.test.combinations.combine(batch_size=[4, 6])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(tpu_strategy_combinations_graph_only(),
+                         tf.compat.v2.__internal__.test.combinations.combine(batch_size=[4, 6])))
   def test_evaluate_with_partial_batch(self, distribution, batch_size):
     with self.cached_session():
       optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.001)
@@ -720,8 +720,8 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
           atol=1e-5,
           rtol=1e-5)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           tpu_strategy_combinations_graph_only()))
   def test_predict_with_partial_batch(self, distribution):
     with self.cached_session():
@@ -757,7 +757,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
           atol=1e-5,
           rtol=1e-5)
 
-  @tf.__internal__.distribute.combinations.generate(tpu_strategy_combinations_graph_only())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tpu_strategy_combinations_graph_only())
   def test_no_target_model(self, distribution):
     with self.cached_session():
       optimizer = tf.compat.v1.train.GradientDescentOptimizer(0.001)
@@ -765,7 +765,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
       class MyLayer(keras.layers.Layer):
 
         def call(self, inputs, training=None):
-          self.add_loss(tf.reduce_sum(inputs), inputs=True)
+          self.add_loss(tf.compat.v2.reduce_sum(inputs), inputs=True)
           return inputs
 
       with distribution.scope():
@@ -782,8 +782,8 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
         model.predict(inputs, steps=1)
         model.evaluate(inputs, steps=1)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           tpu_strategy_combinations_graph_only()))
   def test_predict_multi_output_model_with_partial_batch(
       self, distribution):
@@ -817,10 +817,10 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
           atol=1e-4,
           rtol=1e-4)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_gradients_are_none(self, distribution):
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('None gradients are not supported in graph mode')
 
     class DenseWithExtraWeight(keras.layers.Dense):
@@ -848,7 +848,7 @@ class TestDistributionStrategyWithNumpyArrays(tf.test.TestCase,
 class TestDistributionStrategyWithDatasets(tf.test.TestCase,
                                            parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_calling_model_on_same_dataset(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -881,7 +881,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           validation_steps=2)
       model.predict(get_predict_dataset(distribution), steps=2)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_model_interleaved_eval_same_as_direct_eval(
       self, distribution):
     with self.cached_session():
@@ -932,7 +932,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       self.assertEqual(interleaved_output.history['val_categorical_accuracy'],
                        [x[2] for x in user_controlled_output])
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_fit_with_tuple_and_dict_dataset_inputs(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -969,7 +969,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
 
       model.fit(dataset_dict, epochs=1, steps_per_epoch=2, verbose=1)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_fit_with_dictionary_in_the_dataset_b135161171(
       self, distribution):
 
@@ -978,7 +978,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
 
     def custom_loss(predict, label, weight):
       bce = keras.losses.binary_crossentropy(label, predict)
-      return tf.reduce_mean(bce * weight)
+      return tf.compat.v2.reduce_mean(bce * weight)
 
     with self.cached_session():
       with distribution.scope():
@@ -996,7 +996,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
         model.compile(
             optimizer='adam')
 
-      if tf.executing_eagerly():
+      if tf.compat.v2.executing_eagerly():
 
         def map_fn(img, lbl, weight):
           inputs = {'img': img, 'lbl': lbl, 'weight': weight}
@@ -1016,7 +1016,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
 
       model.fit(data)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_fit_eval_and_predict_methods_on_dataset_without_steps(
       self, distribution):
     with self.cached_session():
@@ -1052,7 +1052,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       self.assertAllClose(
           predict_with_numpy, predict_with_ds, atol=1e-4, rtol=1e-4)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_predict_on_dataset_with_unknown_cardinality_without_steps(
       self, distribution, mode):
 
@@ -1084,7 +1084,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       self.assertAllClose(
           predict_with_numpy, predict_with_ds, atol=1e-4, rtol=1e-4)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_on_dataset_with_unknown_cardinality_without_steps(
       self, distribution, mode):
     # TODO(b/155867206): Investigate why this test occasionally segfaults on TPU
@@ -1145,7 +1145,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           atol=1e-4,
           rtol=1e-4)
 
-  @tf.__internal__.distribute.combinations.generate(tpu_strategy_combinations_graph_only())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tpu_strategy_combinations_graph_only())
   def test_on_dataset_with_unknown_cardinality(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -1186,7 +1186,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
                                   'Number of steps could not be inferred'):
         model.fit(dataset, epochs=1)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_fit_eval_and_predict_methods_on_dataset(
       self, distribution):
     with self.cached_session():
@@ -1207,7 +1207,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       model.evaluate(dataset, steps=2, verbose=1)
       model.predict(get_predict_dataset(distribution), steps=2)
 
-  @tf.__internal__.distribute.combinations.generate(strategy_and_optimizer_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(strategy_and_optimizer_combinations())
   def test_fit_eval_and_predict_with_optimizer(self, distribution, optimizer):
     with self.cached_session():
 
@@ -1225,11 +1225,11 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       model.evaluate(dataset, steps=2, verbose=1)
       model.predict(get_predict_dataset(distribution), steps=2)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.one_device_strategy
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.one_device_strategy
           ],
           mode=['graph', 'eager']))
   def test_dataset_wrong_input_shape(self, distribution, mode):
@@ -1257,10 +1257,10 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       with self.assertRaisesRegex(ValueError, 'is incompatible with'):
         model.fit(dataset, epochs=1, steps_per_epoch=2, verbose=0)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu
           ],
           mode=['graph', 'eager']))
   def test_dataset_external_batch_input_validation(
@@ -1283,12 +1283,12 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
 
       model.fit(dataset, epochs=1, steps_per_epoch=2, verbose=1)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+              tf.compat.v2.__internal__.distribute.combinations
               .mirrored_strategy_with_two_gpus_no_merge_call,
           ],
           mode=['graph', 'eager']))
@@ -1314,7 +1314,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
             metrics=metrics)
 
       batch_size = 8
-      if isinstance(distribution, (tf.distribute.MirroredStrategy,
+      if isinstance(distribution, (tf.compat.v2.distribute.MirroredStrategy,
                                    tf.compat.v1.distribute.MirroredStrategy)):
         # MirroredStrategy uses global batch size.
         batch_size = 8 * distribution.num_replicas_in_sync
@@ -1341,7 +1341,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
       ref_output = np.ones((160, 1), dtype=np.float32)
       self.assertArrayNear(output, ref_output, 1e-1)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def testOptimizerWithCallbacks(self, distribution):
     with self.cached_session():
       with distribution.scope():
@@ -1365,9 +1365,9 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           callbacks=[keras.callbacks.LearningRateScheduler(schedule)])
       self.assertAllClose(0.001, keras.backend.get_value(model.optimizer.lr))
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(tpu_strategy_combinations_graph_only(),
-                         tf.__internal__.test.combinations.combine(batch_size=[4, 6])))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(tpu_strategy_combinations_graph_only(),
+                         tf.compat.v2.__internal__.test.combinations.combine(batch_size=[4, 6])))
   def test_evaluate_with_dataset_with_partial_batch(self, distribution,
                                                     batch_size):
     with self.cached_session():
@@ -1406,8 +1406,8 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           atol=1e-5,
           rtol=1e-5)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           tpu_strategy_combinations_graph_only()))
   def test_predict_with_dataset_with_partial_batch(
       self, distribution):
@@ -1438,8 +1438,8 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           atol=1e-5,
           rtol=1e-5)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           tpu_strategy_combinations_graph_only()))
   def test_predict_multi_output_model_with_dataset_with_partial_batch(
       self, distribution):
@@ -1475,7 +1475,7 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
           atol=1e-4,
           rtol=1e-4)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations_minus_default())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations_minus_default())
   def test_match_model_input_matches_with_dataset_tensors(self, distribution):
 
     def _create_model_input_output_tensors():
@@ -1528,10 +1528,10 @@ class TestDistributionStrategyWithDatasets(tf.test.TestCase,
             atol=1e-4,
             rtol=1e-4)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategies_minus_tpu, mode=['graph', 'eager']) +
-      tf.__internal__.test.combinations.combine(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=multi_worker_mirrored_strategies, mode=['eager']))
   def test_dataset_with_sample_weights(self, distribution):
     with self.cached_session(), distribution.scope():
@@ -1581,7 +1581,7 @@ class TestDistributionStrategyWithDatasetsFile(tf.test.TestCase,
     writer.write(input_dataset)
 
   # TODO(wxinyi): add a multi-worker test for TPU
-  @tf.__internal__.distribute.combinations.generate(multi_worker_strategy_combinations_eager_only())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(multi_worker_strategy_combinations_eager_only())
   def test_predict_on_dataset_shard_options_file_multi_worker_mirrored(
       self, distribution, mode):
     # This test is to verify if we successfully switch auto_shard_policy of a
@@ -1599,7 +1599,7 @@ class TestDistributionStrategyWithDatasetsFile(tf.test.TestCase,
       model.compile(optimizer, loss)
 
     dataset = tf.data.TFRecordDataset(self.input_file_name)
-    dataset = dataset.map(lambda x: tf.io.parse_tensor(x, tf.float32))
+    dataset = dataset.map(lambda x: tf.io.parse_tensor(x, tf.dtypes.float32))
 
     dummy_op = lambda inp: True
 
@@ -1633,10 +1633,10 @@ class TestRegularizerLoss(tf.test.TestCase, parameterized.TestCase):
 
   @staticmethod
   def loss_fn(_, y_pred):
-    return tf.reduce_mean(y_pred)
+    return tf.compat.v2.reduce_mean(y_pred)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(all_strategy_combinations_minus_default()))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(all_strategy_combinations_minus_default()))
   def test_regularizer_loss(self, distribution):
     batch_size = 2
     if not distributed_training_utils.global_batch_size_supported(distribution):
@@ -1672,7 +1672,7 @@ class TestRegularizerLoss(tf.test.TestCase, parameterized.TestCase):
 class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
                                               parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_distribution_strategy_on_sequential_model(
       self, distribution):
     with distribution.scope():
@@ -1691,7 +1691,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     model.predict(inputs, batch_size=10)
     model.evaluate(inputs, targets, batch_size=10)
 
-  @tf.__internal__.distribute.combinations.generate(all_strategy_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_combinations())
   def test_distribution_strategy_on_functional_model(
       self, distribution):
     with distribution.scope():
@@ -1710,8 +1710,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     model.predict(inputs)
     model.evaluate(inputs, targets)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_distributed_dataset(self, distribution):
     with distribution.scope():
 
@@ -1736,11 +1736,11 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       cb_counter = CBCounter()
 
       x, y = np.ones((100, 10)), np.ones((100, 1))
-      ds = tf.data.Dataset.from_tensor_slices((x, y))
+      ds = tf.compat.v2.data.Dataset.from_tensor_slices((x, y))
       ds = ds.batch(10).repeat(2)
       ds = distribution.experimental_distribute_dataset(ds)
 
-      val_ds = tf.data.Dataset.from_tensor_slices((x, y))
+      val_ds = tf.compat.v2.data.Dataset.from_tensor_slices((x, y))
       val_ds = val_ds.batch(20)
       val_ds = distribution.experimental_distribute_dataset(val_ds)
 
@@ -1762,8 +1762,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
                                     'distributed dataset, you must specify'):
           model.fit(ds, epochs=2)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_distributed_datasets_from_function(self, distribution):
     with distribution.scope():
 
@@ -1789,7 +1789,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
       def make_dataset(_):
         x, y = np.ones((100, 10)), np.ones((100, 1))
-        ds = tf.data.Dataset.from_tensor_slices((x, y))
+        ds = tf.compat.v2.data.Dataset.from_tensor_slices((x, y))
         ds = ds.batch(5).repeat()
         return ds
 
@@ -1814,11 +1814,11 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
                                     'distributed dataset, you must specify'):
           model.fit(ds, epochs=2)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_host_training_loop(self, distribution):
     if isinstance(distribution,
-                  tf.distribute.MultiWorkerMirroredStrategy):
+                  tf.compat.v2.distribute.MultiWorkerMirroredStrategy):
       self.skipTest('b/172032817')
     with distribution.scope():
       inputs = keras.Input((10, 10, 3))
@@ -1843,11 +1843,11 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertEqual(bc.predict_begin_batches, [0, 10, 20, 30, 40])
     self.assertEqual(bc.predict_end_batches, [9, 19, 29, 39, 49])
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_host_training_loop_last_partial_execution(self, distribution):
     if isinstance(distribution,
-                  tf.distribute.MultiWorkerMirroredStrategy):
+                  tf.compat.v2.distribute.MultiWorkerMirroredStrategy):
       self.skipTest('b/172032817')
     with distribution.scope():
       inputs = keras.Input(10)
@@ -1870,11 +1870,11 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertEqual(bc.predict_begin_batches, [0, 20, 40])
     self.assertEqual(bc.predict_end_batches, [19, 39, 49])
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_host_training_loop_dataset_unknown_size(self, distribution):
     if isinstance(distribution,
-                  tf.distribute.MultiWorkerMirroredStrategy):
+                  tf.compat.v2.distribute.MultiWorkerMirroredStrategy):
       self.skipTest('b/172032817')
     with distribution.scope():
       inputs = keras.Input(10)
@@ -1884,7 +1884,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     model.compile('sgd', 'mse', steps_per_execution=20)
 
     x, y = np.ones((100, 10)), np.ones((100, 1))
-    ds = tf.data.Dataset.from_tensor_slices((x, y)).batch(2)
+    ds = tf.compat.v2.data.Dataset.from_tensor_slices((x, y)).batch(2)
     ds = ds.filter(lambda *args, **kwargs: True)  # Makes the size UNKNOWN.
     bc = BatchCountingCB()
 
@@ -1909,11 +1909,11 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertEqual(bc.predict_begin_batches, [0, 20, 40])
     self.assertEqual(bc.predict_end_batches, [19, 39, 49])
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_host_training_loop_truncate_to_epoch(self, distribution):
     if isinstance(distribution,
-                  tf.distribute.MultiWorkerMirroredStrategy):
+                  tf.compat.v2.distribute.MultiWorkerMirroredStrategy):
       self.skipTest('b/172032817')
     with distribution.scope():
       inputs = keras.Input(10)
@@ -1938,15 +1938,15 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertEqual(bc.predict_begin_batches, [0])
     self.assertEqual(bc.predict_end_batches, [24])
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_gradient_clipping(self, distribution):
 
     class MyLayer(keras.layers.Layer):
 
       def build(self, _):
-        self.v1 = tf.Variable(1.)
-        self.v2 = tf.Variable(1.)
+        self.v1 = tf.compat.v2.Variable(1.)
+        self.v2 = tf.compat.v2.Variable(1.)
 
       def call(self, x):
         return 3 * self.v1 - 3 * self.v2
@@ -1960,7 +1960,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     model.compile(optimizer, 'mae')
 
     if isinstance(distribution,
-                  (tf.distribute.experimental.CentralStorageStrategy,
+                  (tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       with self.assertRaisesRegex(ValueError, 'not supported'):
         model.fit(x, y, batch_size=10, epochs=1)
@@ -1969,19 +1969,19 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       self.assertAllClose(self.evaluate(layer.v1), 3.)
       self.assertAllClose(self.evaluate(layer.v2), -1.)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_custom_gradient_transformation(self, distribution):
     if isinstance(distribution,
-                  (tf.distribute.experimental.CentralStorageStrategy,
+                  (tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       self.skipTest('Not supported with `CentralStorageStrategy`')
 
     class MyLayer(keras.layers.Layer):
 
       def build(self, _):
-        self.v1 = tf.Variable(1.)
-        self.v2 = tf.Variable(-1.)
+        self.v1 = tf.compat.v2.Variable(1.)
+        self.v2 = tf.compat.v2.Variable(-1.)
 
       def call(self, x):
         return x + self.v1 + self.v2
@@ -2003,8 +2003,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertAllClose(self.evaluate(layer.v1), 0.)
     self.assertAllClose(self.evaluate(layer.v2), -2.)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           all_strategy_combinations_minus_default()))
   def test_distribution_strategy_one_dimensional(self, distribution):
     with distribution.scope():
@@ -2021,12 +2021,12 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
       model.fit(x, y, epochs=1, steps_per_epoch=2)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+              tf.compat.v2.__internal__.distribute.combinations
               .mirrored_strategy_with_two_gpus_no_merge_call,
           ],
           mode=['graph', 'eager'],
@@ -2067,8 +2067,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertArrayNear(history.history['loss'], ds_history.history['loss'],
                          1e-5)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           all_strategy_combinations_minus_default()))
   def test_distribution_strategy_with_symbolic_add_loss(
       self, mode, distribution):
@@ -2079,8 +2079,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       x2 = keras.layers.Dense(10, kernel_initializer='zeros')(x1)
       outputs = keras.layers.Dense(1, kernel_initializer='zeros')(x2)
       model = keras.Model(inputs, outputs)
-      model.add_loss(tf.reduce_mean(x1))
-      model.add_loss(tf.reduce_mean(outputs))
+      model.add_loss(tf.compat.v2.reduce_mean(x1))
+      model.add_loss(tf.compat.v2.reduce_mean(outputs))
       return model
 
     x = np.ones((64, 10)).astype('float32')
@@ -2098,7 +2098,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertAllClose(history.history, ds_history.history)
 
   # TODO(omalleyt): Investigate flakiness and re-enable.
-  @tf.__internal__.distribute.combinations.generate(all_strategy_minus_default_and_tpu_combinations())
+  @tf.compat.v2.__internal__.distribute.combinations.generate(all_strategy_minus_default_and_tpu_combinations())
   def DISABLED_test_distribution_strategy_with_callable_add_loss(
       self, distribution):
 
@@ -2109,7 +2109,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       d = keras.layers.Dense(1, kernel_initializer='zeros')
       outputs = d(x2)
       model = keras.Model(inputs, outputs)
-      model.add_loss(lambda: 100. * tf.reduce_mean(d.kernel))
+      model.add_loss(lambda: 100. * tf.compat.v2.reduce_mean(d.kernel))
       return model
 
     x = np.ones((64, 10)).astype('float32')
@@ -2129,8 +2129,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
     self.assertAllClose(history.history, ds_history.history)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           all_strategy_minus_default_and_tpu_combinations()))
   def test_distribution_strategy_with_add_metric_in_call(
       self, distribution):
@@ -2142,7 +2142,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
       def call(self, inputs):
         self.add_metric(
-            tf.reduce_mean(inputs), name='bias', aggregation='mean')
+            tf.compat.v2.reduce_mean(inputs), name='bias', aggregation='mean')
         return inputs + self.bias
 
     def _make_model_with_add_metric():
@@ -2172,19 +2172,19 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       ds_history = ds_model.fit(
           x, y, validation_data=(x, y), validation_steps=2, epochs=2)
       # includes stateful loss metric in eager.
-      metrics_len = 2 if tf.executing_eagerly() else 1
+      metrics_len = 2 if tf.compat.v2.executing_eagerly() else 1
       self.assertLen(ds_model.metrics, metrics_len)
 
     self.assertAllClose(history.history, ds_history.history)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.one_device_strategy,
-              tf.__internal__.distribute.combinations.one_device_strategy_gpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations
+              tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+              tf.compat.v2.__internal__.distribute.combinations.one_device_strategy_gpu,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+              tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+              tf.compat.v2.__internal__.distribute.combinations
               .mirrored_strategy_with_two_gpus_no_merge_call,
           ],
           mode=['eager']))
@@ -2228,14 +2228,14 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       ds_history = ds_model.fit(
           x, y, validation_data=(x, y), validation_steps=2, epochs=2)
       # includes stateful loss metric in eager.
-      metrics_len = 2 if tf.executing_eagerly() else 1
+      metrics_len = 2 if tf.compat.v2.executing_eagerly() else 1
       self.assertLen(ds_model.metrics, metrics_len)
 
     self.assertAllClose(history.history, ds_history.history)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       # TODO(phillypham): Why does validation_steps > 1 not work on TPUs?
-      tf.__internal__.test.combinations.times(
+      tf.compat.v2.__internal__.test.combinations.times(
           all_strategy_minus_default_and_tpu_combinations()))
   def test_distribution_strategy_with_add_metric_outside_call(
       self, distribution):
@@ -2246,7 +2246,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       outputs = keras.layers.Dense(1, kernel_initializer='zeros')(x1)
       model = keras.Model(inputs, outputs)
       model.add_metric(
-          tf.reduce_mean(x1), name='mid_mean', aggregation='mean')
+          tf.compat.v2.reduce_mean(x1), name='mid_mean', aggregation='mean')
       return model
 
     x = np.ones((64, 10)).astype('float32')
@@ -2268,13 +2268,13 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       ds_history = ds_model.fit(
           x, y, validation_data=(x, y), validation_steps=2, epochs=2)
       # includes stateful loss metric in eager.
-      metrics_len = 2 if tf.executing_eagerly() else 1
+      metrics_len = 2 if tf.compat.v2.executing_eagerly() else 1
       self.assertLen(ds_model.metrics, metrics_len)
 
     self.assertAllClose(history.history, ds_history.history)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategies_minus_tpu + multi_worker_mirrored_strategies,
           mode=['eager']))
   def test_sparse_tensor_outputs(self, distribution):
@@ -2283,10 +2283,10 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       """Create a sparse tensor based on a given dense tensor."""
 
       def call(self, inputs):
-        indices = tf.where(tf.not_equal(inputs, 0))
-        values = tf.compat.v1.gather_nd(inputs, indices)
+        indices = tf.compat.v2.where(tf.not_equal(inputs, 0))
+        values = tf.compat.v1.manip.gather_nd(inputs, indices)
         shape = tf.compat.v1.shape(inputs, out_type='int64')
-        return tf.SparseTensor(indices, values, dense_shape=shape)
+        return tf.sparse.SparseTensor(indices, values, dense_shape=shape)
 
     model = keras.Sequential([ToSparse()])
 
@@ -2302,8 +2302,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     self.assertAllEqual(output.values, expected_values)
     self.assertAllEqual(output.dense_shape, expected_dense_shape)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategies_minus_tpu + multi_worker_mirrored_strategies,
           mode=['eager']))
   def test_ragged_tensor_outputs(self, distribution):
@@ -2329,8 +2329,8 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
     expected_values = [[1], [2, 3]]
     self.assertAllEqual(expected_values, output)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategies_minus_default_minus_tpu + tpu_strategies +
           multi_worker_mirrored_strategies,
           mode=['eager']))
@@ -2351,7 +2351,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
       y_train = 3 * x_train
       x_train = x_train.astype('float32')
       y_train = y_train.astype('float32')
-      dataset = tf.data.Dataset.from_tensor_slices((x_train, y_train))
+      dataset = tf.compat.v2.data.Dataset.from_tensor_slices((x_train, y_train))
       dataset = dataset.batch(batch_size)
       return dataset
 
@@ -2372,7 +2372,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
             # Verify that there is only one loss on the model.
             assert len(model.losses) == 1
-            loss_from_model = tf.reduce_sum(
+            loss_from_model = tf.compat.v2.reduce_sum(
                 model.losses) * 1.0 / batch_size
 
             # Compute loss in this loop.
@@ -2381,7 +2381,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
 
             # Verify that the loss computed in this loop is equivalent to the
             # loss from the model that was added via add_loss.
-            tf.compat.v1.assert_equal(loss, loss_from_model)
+            tf.compat.v1.debugging.assert_equal(loss, loss_from_model)
 
           grads = tape.gradient(loss, model.trainable_variables)
           optimizer.apply_gradients(zip(grads, model.trainable_variables))
@@ -2396,7 +2396,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
         for x in dataset:
           train_step(x)
 
-  @tf.__internal__.distribute.combinations.generate(tf.__internal__.test.combinations.combine(mode=['graph', 'eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(tf.compat.v2.__internal__.test.combinations.combine(mode=['graph', 'eager']))
   def test_unimplemented_parameter_server_strategy(self):
     cluster_spec = multi_worker_testing_utils.create_in_process_cluster(
         num_workers=3, num_ps=2)
@@ -2430,11 +2430,11 @@ def _functional_with_add_loss_and_metric(input_shape, num_classes, l1, l2):
   # Apply L2 regularization to embedding. Use a mix of TensorFlow ops and layers
   # to exercise all code paths.
   x = keras.layers.Flatten(name='embedding')(x)
-  l2_loss = tf.reduce_mean(tf.reduce_sum(tf.square(x), -1))
+  l2_loss = tf.compat.v2.reduce_mean(tf.compat.v2.reduce_sum(tf.square(x), -1))
   # Apply L1 regularization to next layer.
   x = keras.layers.Dense(1024, activation='relu', name='sparse_embedding')(x)
   l1_loss = keras.layers.Lambda(
-      lambda x: tf.reduce_mean(tf.reduce_sum(x, -1)),
+      lambda x: tf.compat.v2.reduce_mean(tf.compat.v2.reduce_sum(x, -1)),
       name='l1_loss')(
           x)
   outputs = keras.layers.Dense(num_classes, name='logits')(x)
@@ -2461,7 +2461,7 @@ def _sequential_with_add_loss_and_metric(input_shape, num_classes, l1, l2):
   # Extract layer outputs, add regularization terms, and rescale the metric.
   # Use a mix of TensorFlow ops and layers to exercise all code paths.
   x = model.get_layer('sparse_embedding').get_output_at(-1)
-  l1_loss = l1 * tf.reduce_mean(tf.reduce_sum(x, -1))
+  l1_loss = l1 * tf.compat.v2.reduce_mean(tf.compat.v2.reduce_sum(x, -1))
   model.add_loss(l1_loss)
   model.add_metric(
       keras.layers.Lambda(lambda x: tf.divide(x, l1))(l1_loss),
@@ -2469,7 +2469,7 @@ def _sequential_with_add_loss_and_metric(input_shape, num_classes, l1, l2):
       name='l1_loss')
   x = model.get_layer('embedding').get_output_at(-1)
   l2_loss = keras.layers.Lambda(
-      lambda x: l2 * tf.reduce_mean(tf.reduce_sum(x * x, -1)),
+      lambda x: l2 * tf.compat.v2.reduce_mean(tf.compat.v2.reduce_sum(x * x, -1)),
       name='l2_loss')(
           x)
   model.add_loss(l2_loss)
@@ -2495,13 +2495,13 @@ def _functional_with_layer_reuse(input_shape, num_classes, l1, l2):
   zero_logits = base_model(tf.compat.v1.zeros_like(inputs))
   one_logits = base_model(tf.compat.v1.ones_like(inputs))
   # L2 loss.
-  l2_loss = tf.reduce_mean(
-      tf.reduce_sum(tf.square(logits - zero_logits), -1))
+  l2_loss = tf.compat.v2.reduce_mean(
+      tf.compat.v2.reduce_sum(tf.square(logits - zero_logits), -1))
   model.add_loss(l2_loss * l2)
   model.add_metric(l2_loss, aggregation='mean', name='l2_loss')
   # L1 loss.
-  l1_loss = tf.reduce_mean(
-      tf.reduce_sum(tf.abs(logits - one_logits), -1))
+  l1_loss = tf.compat.v2.reduce_mean(
+      tf.compat.v2.reduce_sum(tf.math.abs(logits - one_logits), -1))
   model.add_loss(l1_loss * l1)
   model.add_metric(l1_loss, aggregation='mean', name='l1_loss')
   return model
@@ -2511,10 +2511,10 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
     tf.test.TestCase, parameterized.TestCase):
   """Tests complex models with multiple add loss and metric calls."""
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           all_strategy_combinations_minus_default(),
-          tf.__internal__.test.combinations.combine(
+          tf.compat.v2.__internal__.test.combinations.combine(
               model_fn=[
                   _functional_with_add_loss_and_metric,
                   _sequential_with_add_loss_and_metric,
@@ -2525,7 +2525,7 @@ class TestDistributionStrategyWithMultipleAddLossAndMetricCalls(
   def test_fit_and_evaluate(self, distribution, model_fn, l1, l2):
     # Make fake MNIST-like image data.
     np.random.seed(_RANDOM_SEED)
-    dataset = tf.data.Dataset.from_tensor_slices(
+    dataset = tf.compat.v2.data.Dataset.from_tensor_slices(
         (np.random.uniform(size=(64, 28, 28, 1)).astype(np.float32),
          np.random.randint(0, 10, size=(64,))))
     dataset = dataset.shuffle(64).batch(
@@ -2570,7 +2570,7 @@ class DeterministicModel(keras.Model):
     self.strategy = strategy
 
   def build(self, input_shape):
-    self.x = tf.Variable(tf.ones(shape=()))
+    self.x = tf.compat.v2.Variable(tf.ones(shape=()))
 
   def call(self, inputs, training=None, mask=None):
     active_strategy = tf.distribute.get_strategy()
@@ -2582,10 +2582,10 @@ class DeterministicModel(keras.Model):
 class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
   """Tests that model creation captures the strategy."""
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=['eager']))
   def test_fit_and_evaluate(self, distribution):
-    dataset = tf.data.Dataset.from_tensor_slices(
+    dataset = tf.compat.v2.data.Dataset.from_tensor_slices(
         (tf.ones(shape=(64,)), tf.ones(shape=(64,))))
     dataset = dataset.batch(8 * distribution.num_replicas_in_sync)
     # Make model with distribution strategy
@@ -2643,9 +2643,9 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
             loss=keras.losses.MeanSquaredError(),
             metrics=[keras.metrics.BinaryAccuracy()])
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
-          distribution=tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
+          distribution=tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
           mode=['eager']))
   def test_optimizer(self, distribution):
     temp_dir = os.path.join(self.get_temp_dir(), 'ckpt')
@@ -2684,4 +2684,4 @@ class TestModelCapturesStrategy(tf.test.TestCase, parameterized.TestCase):
 
 if __name__ == '__main__':
   base_layer_utils.enable_v2_dtype_behavior()
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for layer serialization utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 
@@ -50,7 +50,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(new_layer.activation, keras.activations.relu)
     self.assertEqual(new_layer.bias_regularizer.__class__,
                      keras.regularizers.L2)
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertEqual(new_layer.kernel_initializer.__class__,
                        keras.initializers.OnesV2)
     else:
@@ -85,7 +85,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(new_layer.activation, keras.activations.relu)
     self.assertEqual(new_layer.bias_regularizer.__class__,
                      keras.regularizers.L2)
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertEqual(new_layer.kernel_initializer.__class__,
                        keras.initializers.OnesV2)
     else:
@@ -103,7 +103,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     self.assertEqual(config['class_name'], 'BatchNormalization')
     new_layer = keras.layers.deserialize(config)
     self.assertEqual(new_layer.momentum, 0.9)
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertIsInstance(new_layer, batchnorm_v2.BatchNormalization)
       self.assertEqual(new_layer.beta_initializer.__class__,
                        keras.initializers.ZerosV2)
@@ -122,7 +122,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     config = keras.layers.serialize(layer)
     new_layer = keras.layers.deserialize(config)
     self.assertEqual(new_layer.momentum, 0.9)
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertIsInstance(new_layer, batchnorm_v2.BatchNormalization)
       self.assertEqual(new_layer.beta_initializer.__class__,
                        keras.initializers.ZerosV2)
@@ -141,7 +141,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     new_layer = keras.layers.deserialize(config)
     self.assertEqual(new_layer.units, 5)
     self.assertEqual(new_layer.return_sequences, True)
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertIsInstance(new_layer, rnn_v2.LSTM)
     else:
       self.assertIsInstance(new_layer, rnn_v1.LSTM)
@@ -155,7 +155,7 @@ class LayerSerializationTest(parameterized.TestCase, tf.test.TestCase):
     new_layer = keras.layers.deserialize(config)
     self.assertEqual(new_layer.units, 5)
     self.assertEqual(new_layer.return_sequences, True)
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       self.assertIsInstance(new_layer, rnn_v2.GRU)
     else:
       self.assertIsInstance(new_layer, rnn_v1.GRU)

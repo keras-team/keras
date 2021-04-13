@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras convolution layers and image transformation layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import functools
 from keras import activations
@@ -228,7 +228,7 @@ class Conv(Layer):
       tf_op_name = 'conv1d'  # Backwards compat.
 
     self._convolution_op = functools.partial(
-        tf.nn.convolution,
+        tf.compat.v2.nn.convolution,
         strides=tf_strides,
         padding=tf_padding,
         dilations=tf_dilations,
@@ -263,7 +263,7 @@ class Conv(Layer):
           outputs = tf.nn.bias_add(
               outputs, self.bias, data_format=self._tf_data_format)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Infer the static output shape:
       out_shape = self.compute_output_shape(input_shape)
       outputs.set_shape(out_shape)
@@ -1025,7 +1025,7 @@ class Conv1DTranspose(Conv1D):
         data_format=data_format,
         dilations=self.dilation_rate)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Infer the static output shape:
       out_shape = self.compute_output_shape(inputs.shape)
       outputs.set_shape(out_shape)
@@ -1317,7 +1317,7 @@ class Conv2DTranspose(Conv2D):
         data_format=self.data_format,
         dilation_rate=self.dilation_rate)
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Infer the static output shape:
       out_shape = self.compute_output_shape(inputs.shape)
       outputs.set_shape(out_shape)
@@ -1625,7 +1625,7 @@ class Conv3DTranspose(Conv3D):
         data_format=conv_utils.convert_data_format(self.data_format, ndim=5),
         padding=self.padding.upper())
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Infer the static output shape:
       out_shape = self.compute_output_shape(inputs.shape)
       outputs.set_shape(out_shape)

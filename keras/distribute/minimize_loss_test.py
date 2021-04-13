@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for running legacy optimizer code with DistributionStrategy."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy
@@ -52,21 +52,21 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
     self.evaluate(iterator.initializer)
     return iterator
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           optimizer_combinations.distributions_and_v1_optimizers(),
-          tf.__internal__.test.combinations.combine(mode=["graph"], use_callable_loss=[True, False])
-          + tf.__internal__.test.combinations.combine(mode=["eager"], use_callable_loss=[True])) +
-      tf.__internal__.test.combinations.times(
+          tf.compat.v2.__internal__.test.combinations.combine(mode=["graph"], use_callable_loss=[True, False])
+          + tf.compat.v2.__internal__.test.combinations.combine(mode=["eager"], use_callable_loss=[True])) +
+      tf.compat.v2.__internal__.test.combinations.times(
           optimizer_combinations.distributions_and_v2_optimizers(),
-          tf.__internal__.test.combinations.combine(
+          tf.compat.v2.__internal__.test.combinations.combine(
               mode=["graph", "eager"], use_callable_loss=[True])) +
-      tf.__internal__.test.combinations.combine(
-          distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+      tf.compat.v2.__internal__.test.combinations.combine(
+          distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
           optimizer_fn=optimizer_combinations.optimizers_v2,
           mode=["graph"],
-          use_callable_loss=[True]) + tf.__internal__.test.combinations.combine(
-              distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+          use_callable_loss=[True]) + tf.compat.v2.__internal__.test.combinations.combine(
+              distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
               optimizer_fn=optimizer_combinations.optimizers_v1,
               mode=["graph"],
               use_callable_loss=[True, False]))
@@ -88,10 +88,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
         return distribution.extended.experimental_run_steps_on_iterator(
             step_fn, iterator, iterations=2).run_op
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           run_step = sess.make_callable(run_step())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       weights, biases = [], []
       for _ in range(5):
@@ -103,14 +103,14 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
       is_not_increasing = all(y <= x for x, y in zip(error, error[1:]))
       self.assertTrue(is_not_increasing)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           optimizer_combinations.distributions_and_v1_optimizers(),
-          tf.__internal__.test.combinations.combine(mode=["graph"], use_callable_loss=[True, False])
-          + tf.__internal__.test.combinations.combine(mode=["eager"], use_callable_loss=[True])) +
-      tf.__internal__.test.combinations.times(
+          tf.compat.v2.__internal__.test.combinations.combine(mode=["graph"], use_callable_loss=[True, False])
+          + tf.compat.v2.__internal__.test.combinations.combine(mode=["eager"], use_callable_loss=[True])) +
+      tf.compat.v2.__internal__.test.combinations.times(
           optimizer_combinations.distributions_and_v2_optimizers(),
-          tf.__internal__.test.combinations.combine(
+          tf.compat.v2.__internal__.test.combinations.combine(
               mode=["graph", "eager"], use_callable_loss=[True])))
   def testTrainNetworkByCallForEachReplica(self, distribution, optimizer_fn,
                                            use_callable_loss):
@@ -126,10 +126,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
             distribution.extended.call_for_each_replica(
                 model_fn, args=(iterator.get_next(),)))
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           run_step = sess.make_callable(run_step())
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
 
       weights, biases = [], []
       for _ in range(10):
@@ -142,15 +142,15 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
       is_not_increasing = all(y <= x for x, y in zip(error, error[1:]))
       self.assertTrue(is_not_increasing)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           optimizer_combinations.distributions_and_v1_and_v2_optimizers(),
-          tf.__internal__.test.combinations.combine(mode=["graph", "eager"])) + tf.__internal__.test.combinations.combine(
-              distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+          tf.compat.v2.__internal__.test.combinations.combine(mode=["graph", "eager"])) + tf.compat.v2.__internal__.test.combinations.combine(
+              distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
               optimizer_fn=optimizer_combinations.optimizers_v1_and_v2,
               mode=["graph"]))
   def testOptimizerInsideModelFn(self, distribution, optimizer_fn):
-    if (not tf.executing_eagerly() and
+    if (not tf.compat.v2.executing_eagerly() and
         tf.compat.v1.control_flow_v2_enabled()):
       self.skipTest("b/138751864")
     created_variables = []
@@ -165,7 +165,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
 
     # Creator scope needs to be set before it's used inside
     # `distribution.scope`.
-    with tf.variable_creator_scope(
+    with tf.compat.v2.variable_creator_scope(
         appending_creator), distribution.scope():
       optimizer = optimizer_fn()
       model_fn, dataset_fn, _ = minimize_loss_example(
@@ -183,10 +183,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
         return distribution.extended.experimental_run_steps_on_iterator(
             step_fn, iterator, iterations=1).run_op
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           run_step = sess.make_callable(run_step())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       run_step()
 
       def get_expected_variables(num_parameter_devices):
@@ -209,18 +209,18 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
           get_expected_variables(len(distribution.extended.parameter_devices)),
           set(created_variables))
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
-          tf.__internal__.test.combinations.combine(momentum=[0.8, 0.9, 0.99], renorm=[False, True]),
-          tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
+          tf.compat.v2.__internal__.test.combinations.combine(momentum=[0.8, 0.9, 0.99], renorm=[False, True]),
+          tf.compat.v2.__internal__.test.combinations.times(
               optimizer_combinations.distributions_and_v1_and_v2_optimizers(),
-              tf.__internal__.test.combinations.combine(
+              tf.compat.v2.__internal__.test.combinations.combine(
                   mode=["graph", "eager"],
                   # TODO(isaprykin):  Allow False here.  Currently subsequent
                   # replicas will re-execute UPDATE_OPS of previous replicas.
                   update_ops_in_cross_replica_mode=[True])) +
-          tf.__internal__.test.combinations.combine(
-              distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+          tf.compat.v2.__internal__.test.combinations.combine(
+              distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
               optimizer_fn=optimizer_combinations.optimizers_v1_and_v2,
               mode=["graph"],
               update_ops_in_cross_replica_mode=[False])))
@@ -251,10 +251,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
         return distribution.extended.experimental_run_steps_on_iterator(
             step_fn, iterator, iterations=1).run_op
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           run_step = sess.make_callable(run_step())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       expected_moving_means = [0.] * 8
 
@@ -276,40 +276,40 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
               expected_moving_mean - averaged_batch_mean(i)) * (1.0 - momentum))
           self.assertNear(expected_moving_means[i], moving_means[i], 0.0001)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
-          tf.__internal__.test.combinations.combine(loss_reduction=[
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
+          tf.compat.v2.__internal__.test.combinations.combine(loss_reduction=[
               tf.compat.v1.losses.Reduction.SUM, tf.compat.v1.losses.Reduction.MEAN,
               tf.compat.v1.losses.Reduction.SUM_OVER_BATCH_SIZE,
               tf.compat.v1.losses.Reduction.SUM_OVER_NONZERO_WEIGHTS
           ]),
-          tf.__internal__.test.combinations.times(
-              tf.__internal__.test.combinations.combine(distribution=[
-                  tf.__internal__.distribute.combinations.one_device_strategy,
-                  tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-                  tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-                  tf.__internal__.distribute.combinations
+          tf.compat.v2.__internal__.test.combinations.times(
+              tf.compat.v2.__internal__.test.combinations.combine(distribution=[
+                  tf.compat.v2.__internal__.distribute.combinations.one_device_strategy,
+                  tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
+                  tf.compat.v2.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
+                  tf.compat.v2.__internal__.distribute.combinations
                   .mirrored_strategy_with_two_gpus_no_merge_call,
               ]),
-              tf.__internal__.test.combinations.times(
-                  tf.__internal__.test.combinations.combine(optimizer_fn=optimizer_combinations
+              tf.compat.v2.__internal__.test.combinations.times(
+                  tf.compat.v2.__internal__.test.combinations.combine(optimizer_fn=optimizer_combinations
                                        .gradient_descent_optimizer_v1_fn),
-                  tf.__internal__.test.combinations.combine(
+                  tf.compat.v2.__internal__.test.combinations.combine(
                       mode=["graph"], use_callable_loss=[True, False]) +
-                  tf.__internal__.test.combinations.combine(
+                  tf.compat.v2.__internal__.test.combinations.combine(
                       mode=["eager"], use_callable_loss=[True])) +
-              tf.__internal__.test.combinations.times(
-                  tf.__internal__.test.combinations.combine(optimizer_fn=optimizer_combinations
+              tf.compat.v2.__internal__.test.combinations.times(
+                  tf.compat.v2.__internal__.test.combinations.combine(optimizer_fn=optimizer_combinations
                                        .gradient_descent_optimizer_keras_v2_fn),
-                  tf.__internal__.test.combinations.combine(
+                  tf.compat.v2.__internal__.test.combinations.combine(
                       mode=["graph", "eager"], use_callable_loss=[True]))) +
-          tf.__internal__.test.combinations.combine(
-              distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+          tf.compat.v2.__internal__.test.combinations.combine(
+              distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
               optimizer_fn=optimizer_combinations
               .gradient_descent_optimizer_v1_fn,
               mode=["graph"],
-              use_callable_loss=[True, False]) + tf.__internal__.test.combinations.combine(
-                  distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+              use_callable_loss=[True, False]) + tf.compat.v2.__internal__.test.combinations.combine(
+                  distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
                   optimizer_fn=optimizer_combinations
                   .gradient_descent_optimizer_keras_v2_fn,
                   mode=["graph"],
@@ -326,7 +326,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
 
         def loss_fn():
           # Use fixed initialization to make the steps deterministic.
-          predict = tf.matmul(x, w)
+          predict = tf.linalg.matmul(x, w)
           loss = tf.compat.v1.losses.mean_squared_error(
               y, predict, reduction=loss_reduction)
           if loss_reduction == tf.compat.v1.losses.Reduction.SUM:
@@ -360,10 +360,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
         return distribution.extended.experimental_run_steps_on_iterator(
             step_fn, iterator, iterations=1).run_op
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           run_step = sess.make_callable(run_step())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       run_step()
 
@@ -394,12 +394,12 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
         # One of the mean loss reductions.
         self.assertNear(weight, 2 + 0.053, 0.0001)
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.times(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.times(
           optimizer_combinations.distributions_and_v1_and_v2_optimizers(),
-          tf.__internal__.test.combinations.combine(mode=["graph", "eager"]),
-          tf.__internal__.test.combinations.combine(is_tpu=[False])) + tf.__internal__.test.combinations.combine(
-              distribution=[tf.__internal__.distribute.combinations.tpu_strategy],
+          tf.compat.v2.__internal__.test.combinations.combine(mode=["graph", "eager"]),
+          tf.compat.v2.__internal__.test.combinations.combine(is_tpu=[False])) + tf.compat.v2.__internal__.test.combinations.combine(
+              distribution=[tf.compat.v2.__internal__.distribute.combinations.tpu_strategy],
               optimizer_fn=optimizer_combinations.optimizers_v1_and_v2,
               mode=["graph"],
               is_tpu=[True]))
@@ -420,7 +420,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
       def model_fn(output_context, x):
         """A very simple model written by the user."""
         def loss_fn():
-          y = tf.reshape(layer(x), []) - tf.constant(1.)
+          y = tf.reshape(layer(x), []) - tf.compat.v2.constant(1.)
           return y * y
 
         if isinstance(optimizer, optimizer_v2.OptimizerV2):
@@ -451,7 +451,7 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
       iterator = self._get_iterator(distribution, dataset_fn)
 
       def run_step():
-        initial_loss = lambda: tf.constant(1e7)
+        initial_loss = lambda: tf.compat.v2.constant(1e7)
         # Initial values corresponding to reduced losses are just single
         # tensors. But for non reduced losses, we need to have initial
         # values that are of the same structure as non reduced losses. In
@@ -485,10 +485,10 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
             reduced=False, distribution=distribution)
         return (ctx.run_op, ctx.last_step_outputs["replica_loss_reduced"])
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         with self.cached_session() as sess:
           run_step = sess.make_callable(run_step())
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
 
       weights, biases, losses = [], [], []
       for _ in range(5):
@@ -519,14 +519,14 @@ class MinimizeLossStepTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(initial_loss.dtype, loss_tensor.dtype)
     self.assertEqual(initial_loss.shape, loss_tensor.shape)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
       optimizer_combinations.distributions_and_v2_optimizers())
   def test_empty_var_list(self, distribution, optimizer_fn):
     opt = optimizer_fn()
     with distribution.scope():
 
       def run_fn():
-        opt.minimize(lambda: tf.constant(1.), [])
+        opt.minimize(lambda: tf.compat.v2.constant(1.), [])
         opt.apply_gradients([])
 
       distribution.run(run_fn)

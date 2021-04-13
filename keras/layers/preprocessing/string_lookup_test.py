@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 from absl.testing import parameterized

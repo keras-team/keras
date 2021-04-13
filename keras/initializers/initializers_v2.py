@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras initializers for TF 2."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import math
@@ -223,7 +223,7 @@ class Constant(Initializer):
       **kwargs: Additional keyword arguments.
     """
     del kwargs
-    return tf.constant(
+    return tf.compat.v2.constant(
         self.value, dtype=_get_dtype(dtype), shape=shape)
 
   def get_config(self):
@@ -600,7 +600,7 @@ class Orthogonal(Initializer):
     q, r = tf.linalg.qr(a, full_matrices=False)
     # Make Q uniform
     d = tf.linalg.tensor_diag_part(r)
-    q *= tf.sign(d)
+    q *= tf.math.sign(d)
     if num_rows < num_cols:
       q = tf.linalg.matrix_transpose(q)
     return self.gain * tf.reshape(q, shape)
@@ -652,7 +652,7 @@ class Identity(Initializer):
     if len(shape) != 2:
       raise ValueError(
           'Identity matrix initializer can only be used for 2D matrices.')
-    initializer = tf.eye(*shape, dtype=dtype)
+    initializer = tf.linalg.eye(*shape, dtype=dtype)
     return self.gain * initializer
 
   def get_config(self):
@@ -954,7 +954,7 @@ class _RandomGenerator(object):
     else:
       self.seed = None
 
-  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.float32):
+  def random_normal(self, shape, mean=0.0, stddev=1, dtype=tf.dtypes.float32):
     """A deterministic random normal if seed is passed."""
     if self.seed:
       op = tf.random.stateless_normal

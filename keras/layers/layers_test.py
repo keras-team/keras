@@ -15,14 +15,14 @@
 # pylint: disable=g-classes-have-attributes
 """Tests for layers.__init__."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import layers
 
 
 class LayersTest(tf.test.TestCase):
 
   def test_keras_private_symbol(self):
-    if tf.__internal__.tf2.enabled():
+    if tf.compat.v2.__internal__.tf2.enabled():
       normalization_parent = layers.Normalization.__module__.split('.')[-1]
       self.assertEqual('normalization', normalization_parent)
       self.assertTrue(layers.BatchNormalization._USE_V2_BEHAVIOR)

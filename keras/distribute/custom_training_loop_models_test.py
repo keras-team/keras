@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for custom training loops."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 
@@ -43,8 +43,8 @@ class CustomModel(tf.Module):
     return x
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         distribution=(strategy_combinations.all_strategies +
                       strategy_combinations.multiworker_strategies),
         mode=["eager"]
@@ -229,7 +229,7 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
         inps, targ = inputs
         with tf.GradientTape() as tape:
           output = model(inps)
-          loss = tf.reduce_mean(
+          loss = tf.compat.v2.reduce_mean(
               keras.losses.binary_crossentropy(
                   y_true=targ, y_pred=output, from_logits=False))
         grads = tape.gradient(loss, model.variables)
@@ -437,8 +437,8 @@ class KerasModelsTest(tf.test.TestCase, parameterized.TestCase):
 
 class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(
           distribution=strategy_combinations.tpu_strategies, mode=["eager"]))
   def test_tf_function_jit_compile(self, distribution):
     dataset = _get_dataset()
@@ -456,7 +456,7 @@ class KerasModelsXLATest(tf.test.TestCase, parameterized.TestCase):
 
       @tf.function(jit_compile=True)
       def call(self, inputs):
-        return tf.matmul(inputs, self.kernel)
+        return tf.linalg.matmul(inputs, self.kernel)
 
     with distribution.scope():
       x = keras.layers.Input(shape=(3,))
@@ -497,4 +497,4 @@ def _get_model():
 
 
 if __name__ == "__main__":
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for `models.py` (model cloning, mainly)."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import functools
 import os
@@ -38,7 +38,7 @@ class TestModel(keras.Model):
     """A test class with one dense layer and number of outputs as a variable."""
     super(TestModel, self).__init__()
     self.layer1 = keras.layers.Dense(n_outputs)
-    self.n_outputs = tf.Variable(n_outputs, trainable=trainable)
+    self.n_outputs = tf.compat.v2.Variable(n_outputs, trainable=trainable)
 
   def call(self, x):
     return self.layer1(x)
@@ -130,7 +130,7 @@ class TestModelCloning(keras_parameterized.TestCase):
 
     # On top of new, non-Keras tensor  -- clone model should always have an
     # InputLayer.
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # TODO(b/121277734):Skip Eager contexts, as Input() layers raise an error
       # saying they should not be used with EagerTensors
       input_a = keras.backend.variable(val_a)
@@ -194,7 +194,7 @@ class TestModelCloning(keras_parameterized.TestCase):
     new_model.train_on_batch([val_a, val_b], val_out)
 
     # On top of new, non-Keras tensors
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # TODO(b/121277734):Skip Eager contexts, as Input() layers raise an error
       # saying they should not be used with EagerTensors
       input_a = keras.backend.variable(val_a)
@@ -318,19 +318,19 @@ class TestModelCloning(keras_parameterized.TestCase):
 
       def call(self, inputs, tensor=None):
         if tensor is not None:
-          return inputs * tf.cast(tensor, tf.float32)
+          return inputs * tf.cast(tensor, tf.dtypes.float32)
         else:
           return inputs
 
     inputs = keras.layers.Input(shape=(3))
     t = tf.sequence_mask(tf.compat.v1.shape(inputs)[1])
     model = keras.models.Model(inputs, LayerWithTensorKwarg()(inputs, t))
-    model.add_loss(tf.reduce_sum(model.outputs))
+    model.add_loss(tf.compat.v2.reduce_sum(model.outputs))
 
     input_arr = np.random.random((1, 3)).astype(np.float32)
     clone = clone_fn(model)
 
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       clone(input_arr)
       loss = clone.losses[0]
     else:
@@ -528,7 +528,7 @@ class TestCloneAndBuildModel(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   @keras_parameterized.run_all_keras_modes
   def test_replace_tf_optimizer_iterations_variable(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('v1 optimizers not supported with eager.')
     self.assert_optimizer_iterations_increases(tf.compat.v1.train.AdamOptimizer(0.01))
 

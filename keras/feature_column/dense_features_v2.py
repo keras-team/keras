@@ -18,7 +18,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.feature_column import base_feature_layer as kfc
 from keras.feature_column import dense_features
 from keras.utils import tf_contextlib
@@ -89,14 +89,14 @@ class DenseFeatures(dense_features.DenseFeatures):
 
   def build(self, _):
     for column in self._feature_columns:
-      with tf.name_scope(column.name):
+      with tf.compat.v2.name_scope(column.name):
         column.create_state(self._state_manager)
     # We would like to call Layer.build and not _DenseFeaturesHelper.build.
     # pylint: disable=protected-access
     super(kfc._BaseFeaturesLayer, self).build(None)  # pylint: disable=bad-super-call
 
 
-class _StateManagerImplV2(tf.__internal__.feature_column.StateManager):  # pylint: disable=protected-access
+class _StateManagerImplV2(tf.compat.v2.__internal__.feature_column.StateManager):  # pylint: disable=protected-access
   """Manages the state of DenseFeatures."""
 
   def create_variable(self,
@@ -120,7 +120,7 @@ class _StateManagerImplV2(tf.__internal__.feature_column.StateManager):  # pylin
           initializer=initializer,
           trainable=self._trainable and trainable,
           use_resource=use_resource)
-    if isinstance(var, tf.__internal__.tracking.Trackable):
+    if isinstance(var, tf.compat.v2.__internal__.tracking.Trackable):
       self._layer._track_trackable(var, feature_column.name + '/' + name)  # pylint: disable=protected-access
     self._cols_to_vars_map[feature_column][name] = var
     return var

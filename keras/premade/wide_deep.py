@@ -14,7 +14,7 @@
 # ==============================================================================
 """Built-in WideNDeep model classes."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import activations
 from keras import backend
 from keras import layers as layer_module

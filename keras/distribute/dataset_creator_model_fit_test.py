@@ -15,7 +15,7 @@
 # ==============================================================================
 """Tests for `DatasetCreator` with `Model.fit` across usages and strategies."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl import logging
 from absl.testing import parameterized
@@ -71,13 +71,13 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
     # TODO(b/182193218): Use ParameterServerStrategy as a proper strategy
     # combination.
     if strategy == "ParameterServerStrategy":
-      gpu_devices = tf.config.list_physical_devices("GPU")
+      gpu_devices = tf.config.experimental.list_physical_devices("GPU")
       if len(gpu_devices) > 1:
         self.skipTest("b/178452835: Multi-GPUs not supported in "
                       "ParameterServerStrategy.")
-      strategy = tf.distribute.experimental.ParameterServerStrategy(
+      strategy = tf.compat.v2.distribute.experimental.ParameterServerStrategy(
           multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-          variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(2))
+          variable_partitioner=tf.compat.v2.distribute.experimental.partitioners.FixedShardsPartitioner(2))
 
     with strategy.scope():
       model = sequential.Sequential([core_layers.Dense(10)])
@@ -115,7 +115,7 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
       del input_context
       x = tf.random.uniform((10, 10))
       y = tf.random.uniform((10,))
-      return tf.data.Dataset.from_tensor_slices(
+      return tf.compat.v2.data.Dataset.from_tensor_slices(
           (x, y)).shuffle(10).repeat().batch(2)
 
     x = x or dataset_creator.DatasetCreator(dataset_fn)
@@ -129,8 +129,8 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
     return model
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(
         strategy=strategy_combinations.all_strategies +
         strategy_combinations.multi_worker_mirrored_strategies +
         ["ParameterServerStrategy"],
@@ -159,8 +159,8 @@ class DatasetCreatorModelFitTest(DatasetCreatorModelFitTestBase):
       self._model_fit(strategy, steps_per_epoch=None)
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(strategy=["ParameterServerStrategy"], mode="eager"))
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.combine(strategy=["ParameterServerStrategy"], mode="eager"))
 class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     DatasetCreatorModelFitTestBase):
 
@@ -176,34 +176,34 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
         "`ParameterServerStrategy` is not yet supported."):
       self._model_fit(
           strategy,
-          validation_data=tf.data.Dataset.from_tensor_slices([1, 1]))
+          validation_data=tf.compat.v2.data.Dataset.from_tensor_slices([1, 1]))
 
   def testModelFitWithDatasetInstance(self, strategy):
     with self.assertRaisesRegex(
         NotImplementedError, "Only `DatasetCreator` input is supported in "
         "`ParameterServerStrategy` at this time."):
       self._model_fit(
-          strategy, x=tf.data.Dataset.from_tensor_slices([1, 1]))
+          strategy, x=tf.compat.v2.data.Dataset.from_tensor_slices([1, 1]))
 
   def testModelEvaluate(self, strategy):
     model, _ = self._model_compile(strategy)
     with self.assertRaisesRegex(
         NotImplementedError, "`model.evaluate` is not yet supported with "
         "`ParameterServerStrategy`."):
-      model.evaluate(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+      model.evaluate(x=tf.compat.v2.data.Dataset.from_tensor_slices([1, 1]))
 
   def testModelPredict(self, strategy):
     model, _ = self._model_compile(strategy)
     with self.assertRaisesRegex(
         NotImplementedError, "`model.predict` is not yet supported with "
         "`ParameterServerStrategy`."):
-      model.predict(x=tf.data.Dataset.from_tensor_slices([1, 1]))
+      model.predict(x=tf.compat.v2.data.Dataset.from_tensor_slices([1, 1]))
 
   def testClusterCoordinatorSingleInstance(self, strategy):
     model = self._model_fit(strategy)
     strategy = model.distribute_strategy
     self.assertIs(strategy._cluster_coordinator,
-                  tf.distribute.experimental.coordinator.ClusterCoordinator(strategy))
+                  tf.compat.v2.distribute.experimental.coordinator.ClusterCoordinator(strategy))
 
   def testModelFitErrorOnBatchLevelCallbacks(self, strategy):
 
@@ -227,7 +227,7 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
         self._supports_tf_logs = True
 
       def on_train_batch_end(self, batch, logs=None):
-        assert isinstance(logs, tf.distribute.experimental.coordinator.RemoteValue)
+        assert isinstance(logs, tf.compat.v2.distribute.experimental.coordinator.RemoteValue)
 
     my_callback = MyCallback()
     callbacks = [my_callback]
@@ -255,4 +255,4 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
 
 if __name__ == "__main__":
   tf.compat.v1.enable_v2_behavior()
-  tf.__internal__.distribute.multi_process_runner.test_main()
+  tf.compat.v2.__internal__.distribute.multi_process_runner.test_main()

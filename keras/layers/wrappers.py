@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes
 """Wrapper layers: layers that augment the functionality of another layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 from keras import backend
@@ -259,7 +259,7 @@ class TimeDistributed(Wrapper):
             lambda x: self._get_shape_tuple((-1,), x, 2), inputs)
         # Shape: (num_samples * timesteps, ...). And track the
         # transformation in self._input_map.
-        inputs = tf.__internal__.nest.map_structure_up_to(inputs, tf.reshape, inputs,
+        inputs = tf.compat.v2.__internal__.nest.map_structure_up_to(inputs, tf.reshape, inputs,
                                           inner_input_shape)
         # (num_samples * timesteps, ...)
         if generic_utils.has_arg(self.layer.call, 'mask') and mask is not None:
@@ -274,12 +274,12 @@ class TimeDistributed(Wrapper):
         output_shape = tf.nest.map_structure(
             lambda tensor, int_shape: self._get_shape_tuple(
                 (-1, input_length), tensor, 1, int_shape[2:]), y, output_shape)
-        y = tf.__internal__.nest.map_structure_up_to(y, tf.reshape, y, output_shape)
-        if not tf.executing_eagerly():
+        y = tf.compat.v2.__internal__.nest.map_structure_up_to(y, tf.reshape, y, output_shape)
+        if not tf.compat.v2.executing_eagerly():
           # Set the static shape for the result since it might be lost during
           # array_ops reshape, eg, some `None` dim in the result could be
           # inferred.
-          tf.__internal__.nest.map_structure_up_to(
+          tf.compat.v2.__internal__.nest.map_structure_up_to(
               y, lambda tensor, shape: tensor.set_shape(shape), y,
               self.compute_output_shape(input_shape))
 
@@ -340,7 +340,7 @@ class TimeDistributed(Wrapper):
       inner_mask = backend.reshape(inner_mask, inner_mask_shape)
     inner_input_shape = tf.nest.map_structure(
         lambda tensor: self._get_shape_tuple((-1,), tensor, 2), inputs)
-    inner_inputs = tf.__internal__.nest.map_structure_up_to(inputs, tf.reshape, inputs,
+    inner_inputs = tf.compat.v2.__internal__.nest.map_structure_up_to(inputs, tf.reshape, inputs,
                                             inner_input_shape)
     output_mask = self.layer.compute_mask(inner_inputs, inner_mask)
     if output_mask is None:

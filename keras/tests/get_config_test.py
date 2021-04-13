@@ -14,7 +14,7 @@
 #,============================================================================
 """Tests for `get_config` backwards compatibility."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import keras_parameterized
 from keras.engine import sequential

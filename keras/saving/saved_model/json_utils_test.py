@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Tests the JSON encoder and decoder."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import enum
 from keras.saving.saved_model import json_utils
@@ -48,7 +48,7 @@ class JsonUtilsTest(tf.test.TestCase):
     self.assertAllEqual(loaded['key2'], [(1, (3, 4)), (1,)])
 
   def test_encode_decode_type_spec(self):
-    spec = tf.TensorSpec((1, 5), tf.float32)
+    spec = tf.TensorSpec((1, 5), tf.dtypes.float32)
     string = json_utils.Encoder().encode(spec)
     loaded = json_utils.decode(string)
     self.assertEqual(spec, loaded)

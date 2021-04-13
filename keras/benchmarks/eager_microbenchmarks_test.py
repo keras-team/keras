@@ -79,7 +79,7 @@ class MicroBenchmarksBase(tf.test.Benchmark):
           break
     if name is None:
       raise ValueError("Unable to determine calling Benchmark function.")
-    if tf.__internal__.is_tfrt_enabled():
+    if tf.compat.v2.__internal__.is_tfrt_enabled():
       name = name + "_tfrt"
     return name
 
@@ -143,7 +143,7 @@ class MicroBenchmarksBase(tf.test.Benchmark):
 
 
 class KerasLayerCallOverheadBenchmarks(  # pylint: disable=undefined-variable
-    MicroBenchmarksBase, metaclass=tf.__internal__.test.ParameterizedBenchmark):
+    MicroBenchmarksBase, metaclass=tf.compat.v2.__internal__.test.ParameterizedBenchmark):
 
   # The set of layers for benchmarking. To add benchmarks for new layers,
   # please add the parameter configs to "_benchmark_paramters".

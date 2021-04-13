@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities related to distributed training."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 
 
@@ -58,5 +58,5 @@ def call_replica_local_fn(fn, *args, **kwargs):
 
 def is_distributed_variable(v):
   """Returns whether `v` is a distributed variable."""
-  return (isinstance(v, tf.distribute.DistributedValues) and
-          isinstance(v, tf.Variable))
+  return (isinstance(v, tf.compat.v2.distribute.DistributedValues) and
+          isinstance(v, tf.compat.v2.Variable))

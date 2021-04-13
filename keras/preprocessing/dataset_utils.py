@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras image dataset loading utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import multiprocessing

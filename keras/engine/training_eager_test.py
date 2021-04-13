@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for training routines."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -30,7 +30,7 @@ class TrainingTest(keras_parameterized.TestCase):
 
   @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
   def test_dynamic_model_has_trainable_weights(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Only test Eager modes, as Graph mode is not relevant for dynamic models.
       return
 
@@ -59,7 +59,7 @@ class TrainingTest(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types(exclude_models='sequential')
   @keras_parameterized.run_all_keras_modes
   def test_model_methods_with_eager_tensors_multi_io(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Only test V2 Function and V2 Eager modes, as V1 Graph mode with
       # symbolic tensors has different requirements.
       return
@@ -138,7 +138,7 @@ class TrainingTest(keras_parameterized.TestCase):
   @keras_parameterized.run_with_all_model_types
   @keras_parameterized.run_all_keras_modes
   def test_model_methods_with_eager_tensors_single_io(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Only test V2 Function and V2 Eager modes, as V1 Graph mode with
       # symbolic tensors has different requirements.
       return

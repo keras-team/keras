@@ -14,7 +14,7 @@
 # ==============================================================================
 """Classes and functions implementing Layer SavedModel serialization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras.mixed_precision import policy
 from keras.saving.saved_model import base_serialization
@@ -150,7 +150,7 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
     objects, functions = (
         super(RNNSavedModelSaver, self)._get_serialized_attributes_internal(
             serialization_cache))
-    states = tf.__internal__.tracking.wrap(self.obj.states)
+    states = tf.compat.v2.__internal__.tracking.wrap(self.obj.states)
     # SaveModel require all the objects to be Trackable when saving.
     # If the states is still a tuple after wrap_or_unwrap, it means it doesn't
     # contain any trackable item within it, eg empty tuple or (None, None) for
@@ -158,7 +158,7 @@ class RNNSavedModelSaver(LayerSavedModelSaver):
     # make it a Trackable again for saving. When loaded, ConvLSTM2D is
     # able to handle the tuple/list conversion.
     if isinstance(states, tuple):
-      states = tf.__internal__.tracking.wrap(list(states))
+      states = tf.compat.v2.__internal__.tracking.wrap(list(states))
     objects['states'] = states
     return objects, functions
 

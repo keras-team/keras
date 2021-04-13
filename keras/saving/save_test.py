@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras model saving code."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import os
@@ -65,7 +65,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
                       .format(path))
 
   def assert_saved_model(self, path):
-    tf.__internal__.saved_model.parse_saved_model(path)
+    tf.compat.v2.__internal__.saved_model.parse_saved_model(path)
 
   @testing_utils.run_v2_only
   def test_save_format_defaults(self):
@@ -171,7 +171,7 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertLen(loaded_model.predict({'a': inputs_a, 'b': inputs_b}), 10)
@@ -215,18 +215,18 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
     values_a = np.arange(10, dtype=np.float32)
     indices_a = np.zeros((10, 3), dtype=np.int64)
     indices_a[:, 0] = np.arange(10)
-    inputs_a = tf.SparseTensor(indices_a, values_a,
+    inputs_a = tf.sparse.SparseTensor(indices_a, values_a,
                                           (batch_size, timesteps, 1))
 
     values_b = np.zeros(10, dtype=np.str)
     indices_b = np.zeros((10, 3), dtype=np.int64)
     indices_b[:, 0] = np.arange(10)
-    inputs_b = tf.SparseTensor(indices_b, values_b,
+    inputs_b = tf.sparse.SparseTensor(indices_b, values_b,
                                           (batch_size, timesteps, 1))
 
     with self.cached_session():
       # Initialize tables for V1 lookup.
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         self.evaluate(tf.compat.v1.tables_initializer())
 
       self.assertLen(
@@ -361,7 +361,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     # In V1/Graph mode, the model isn't built, so the metrics are not loaded
     # immediately (requires model to be called on some data before building
     # metrics).
-    check_metrics = tf.__internal__.tf2.enabled() and tf.executing_eagerly()
+    check_metrics = tf.compat.v2.__internal__.tf2.enabled() and tf.compat.v2.executing_eagerly()
 
     if check_metrics:
       self.assertAllEqual([m.name for m in model.metrics],
@@ -393,12 +393,12 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
           metrics=[
               keras.metrics.categorical_accuracy,
               keras.metrics.CategoricalCrossentropy(
-                  name='cce', label_smoothing=tf.constant(0.2)),
+                  name='cce', label_smoothing=tf.compat.v2.constant(0.2)),
           ],
           weighted_metrics=[
               keras.metrics.categorical_crossentropy,
               keras.metrics.CategoricalCrossentropy(
-                  name='cce', label_smoothing=tf.constant(0.2)),
+                  name='cce', label_smoothing=tf.compat.v2.constant(0.2)),
           ],
           sample_weight_mode='temporal')
 
@@ -834,7 +834,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       # Set the model's optimizer but don't compile. This can happen if the
       # model is trained with a custom training loop.
       model.optimizer = keras.optimizer_v2.rmsprop.RMSprop(lr=0.0001)
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         session.run([v.initializer for v in model.variables])
       model.save(saved_model_dir, save_format=save_format)
 
@@ -892,7 +892,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
       # `cls` now inherits from `Functional` class.
       self.assertEqual(cls.__bases__[0], functional.Functional)
 
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         sess.run([v.initializer for v in model.variables])
 
       save_format = testing_utils.get_save_format()
@@ -937,7 +937,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
 
       def __init__(self):
         super(InnerLayer, self).__init__()
-        self.v = self.add_weight(name='v', shape=[], dtype=tf.float32)
+        self.v = self.add_weight(name='v', shape=[], dtype=tf.dtypes.float32)
 
       def call(self, inputs):
         return self.v + inputs
@@ -1043,7 +1043,7 @@ class TestWholeModelSaving(keras_parameterized.TestCase):
     """
     # This doesn't work at all, so we can't check whether metric names are
     # correct.
-    if not tf.executing_eagerly() and not fit:
+    if not tf.compat.v2.executing_eagerly() and not fit:
       self.skipTest('b/181767784')
 
     with self.cached_session():

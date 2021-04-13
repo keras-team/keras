@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests specific to deferred-build `Sequential` models."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import unittest
@@ -170,7 +170,7 @@ class TestDeferredSequential(keras_parameterized.TestCase):
     class LossLayer(keras.layers.Layer):
 
       def call(self, inputs):
-        self.add_loss(tf.reduce_sum(inputs))
+        self.add_loss(tf.compat.v2.reduce_sum(inputs))
         return inputs
 
     # Test loss layer alone

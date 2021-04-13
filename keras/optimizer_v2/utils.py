@@ -14,7 +14,7 @@
 # ==============================================================================
 """Optimizer utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from tensorflow.python.platform import tf_logging as logging
 
 
@@ -86,7 +86,7 @@ def make_gradient_clipnorm_fn(clipnorm):
   def gradient_clipnorm_fn(grads_and_vars):
 
     if isinstance(tf.distribute.get_strategy(),
-                  (tf.distribute.experimental.CentralStorageStrategy,
+                  (tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       raise ValueError(
           "`clipnorm` is not supported with `CenteralStorageStrategy`")
@@ -107,7 +107,7 @@ def make_global_gradient_clipnorm_fn(clipnorm):
   def gradient_clipnorm_fn(grads_and_vars):
 
     if isinstance(tf.distribute.get_strategy(),
-                  (tf.distribute.experimental.CentralStorageStrategy,
+                  (tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       raise ValueError(
           "`global_clipnorm` is not supported with `CenteralStorageStrategy`")
@@ -128,7 +128,7 @@ def make_gradient_clipvalue_fn(clipvalue):
   def gradient_clipvalue_fn(grads_and_vars):
 
     if isinstance(tf.distribute.get_strategy(),
-                  (tf.distribute.experimental.CentralStorageStrategy,
+                  (tf.compat.v2.distribute.experimental.CentralStorageStrategy,
                    tf.compat.v1.distribute.experimental.CentralStorageStrategy)):
       raise ValueError(
           "`clipvalue` is not supported with `CenteralStorageStrategy`")

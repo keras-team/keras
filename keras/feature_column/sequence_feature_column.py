@@ -21,7 +21,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 from keras.feature_column import base_feature_layer as kfc
 from tensorflow.python.util.tf_export import keras_export
@@ -103,7 +103,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
         feature_columns=feature_columns,
         trainable=trainable,
         name=name,
-        expected_column_type=tf.__internal__.feature_column.SequenceDenseColumn,
+        expected_column_type=tf.compat.v2.__internal__.feature_column.SequenceDenseColumn,
         **kwargs)
 
   @property
@@ -143,7 +143,7 @@ class SequenceFeatures(kfc._BaseFeaturesLayer):
                        features)
     if training is None:
       training = backend.learning_phase()
-    transformation_cache = tf.__internal__.feature_column.FeatureTransformationCache(features)
+    transformation_cache = tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(features)
     output_tensors = []
     sequence_lengths = []
 
@@ -174,6 +174,6 @@ def _assert_all_equal_and_return(tensors, name=None):
       return tensors[0]
     assert_equal_ops = []
     for t in tensors[1:]:
-      assert_equal_ops.append(tf.compat.v1.assert_equal(tensors[0], t))
+      assert_equal_ops.append(tf.compat.v1.debugging.assert_equal(tensors[0], t))
     with tf.control_dependencies(assert_equal_ops):
       return tf.identity(tensors[0])

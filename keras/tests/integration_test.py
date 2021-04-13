@@ -14,7 +14,7 @@
 # ==============================================================================
 """Integration tests for Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import random
@@ -35,7 +35,7 @@ class KerasIntegrationTest(keras_parameterized.TestCase):
     self.temp_dir = self.get_temp_dir()
     fpath = os.path.join(self.temp_dir,
                          'test_model_%s' % (random.randint(0, 1e7),))
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       save_format = 'tf'
     else:
       if (not isinstance(model, keras.Sequential) and
@@ -107,7 +107,7 @@ class VectorClassificationIntegrationTest(keras_parameterized.TestCase):
         metrics=['acc'],
         run_eagerly=testing_utils.should_run_eagerly())
     self.assertLen(model.losses, 2)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertLen(model.get_updates_for(x), 2)
     history = model.fit(x_train, y_train, epochs=10, batch_size=10,
                         validation_data=(x_train, y_train),
@@ -219,7 +219,7 @@ class TimeseriesClassificationIntegrationTest(keras_parameterized.TestCase):
                                  input_shape=x_train.shape[1:]))
       model.add(keras.layers.RNN(rnn_cell.GRUCell(y_train.shape[-1],
                                                   activation='softmax',
-                                                  dtype=tf.float32)))
+                                                  dtype=tf.dtypes.float32)))
       model.compile(
           loss='categorical_crossentropy',
           optimizer=keras.optimizer_v2.adam.Adam(0.005),
@@ -296,7 +296,7 @@ class ActivationV2IntegrationTest(keras_parameterized.TestCase):
         keras.layers.Flatten(input_shape=x_train.shape[1:]),
         keras.layers.Dense(10, activation=tf.nn.relu),
         # To mimic 'tf.nn.softmax' used in TF 2.x.
-        keras.layers.Dense(y_train.shape[-1], activation=tf.math.softmax),
+        keras.layers.Dense(y_train.shape[-1], activation=tf.compat.v2.nn.softmax),
     ])
 
     # Check if 'softmax' is in model.get_config().

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for image_dataset."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import shutil

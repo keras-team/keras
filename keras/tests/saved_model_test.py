@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for trackable object SavedModel save."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 from tensorflow.python.framework import test_util
@@ -22,19 +22,19 @@ from keras.layers import core
 from keras.optimizer_v2 import adam
 
 
-class _ModelWithOptimizerUsingDefun(tf.train.Checkpoint):
+class _ModelWithOptimizerUsingDefun(tf.compat.v2.train.Checkpoint):
 
   def __init__(self):
     self.dense = core.Dense(1)
     self.optimizer = adam.Adam(0.01)
 
   @tf.function(
-      input_signature=(tf.TensorSpec([None, 2], tf.float32),
-                       tf.TensorSpec([None], tf.float32)),
+      input_signature=(tf.TensorSpec([None, 2], tf.dtypes.float32),
+                       tf.TensorSpec([None], tf.dtypes.float32)),
   )
   def call(self, x, y):
     with tf.GradientTape() as tape:
-      loss = tf.reduce_mean((self.dense(x) - y) ** 2.)
+      loss = tf.compat.v2.reduce_mean((self.dense(x) - y) ** 2.)
     trainable_variables = self.dense.trainable_variables
     gradients = tape.gradient(loss, trainable_variables)
     self.optimizer.apply_gradients(zip(gradients, trainable_variables))
@@ -49,8 +49,8 @@ class MemoryTests(tf.test.TestCase):
 
   @test_util.assert_no_garbage_created
   def test_no_reference_cycles(self):
-    x = tf.constant([[3., 4.]])
-    y = tf.constant([2.])
+    x = tf.compat.v2.constant([[3., 4.]])
+    y = tf.compat.v2.constant([2.])
     self._model.call(x, y)
     save_dir = os.path.join(self.get_temp_dir(), "saved_model")
     tf.saved_model.save(self._model, save_dir, self._model.call)

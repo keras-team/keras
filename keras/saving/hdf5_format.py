@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Functions for saving and loading a Keras Model from HDF5 format."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import json
 import os
@@ -891,7 +891,7 @@ def _legacy_weights(layer):
       non_trainable_weights.
   """
   weights = layer.trainable_weights + layer.non_trainable_weights
-  if any(not isinstance(w, tf.Variable) for w in weights):
+  if any(not isinstance(w, tf.compat.v2.Variable) for w in weights):
     raise NotImplementedError(
         'Save or restore weights that is not an instance of `tf.Variable` is '
         'not supported in h5, use `save_format=\'tf\'` instead. Got a model '

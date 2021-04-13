@@ -16,7 +16,7 @@
 # pylint: disable=missing-function-docstring
 """MobileNet v3 models for Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras import models

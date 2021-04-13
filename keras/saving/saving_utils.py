@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utils related to keras model saving."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections.abc as collections_abc
 import copy
@@ -108,7 +108,7 @@ def trace_model_call(model, input_signature=None):
     ValueError: if input signature cannot be inferred from the model.
   """
   if input_signature is None:
-    if isinstance(model.call, tf.__internal__.function.Function):
+    if isinstance(model.call, tf.compat.v2.__internal__.function.Function):
       input_signature = model.call.input_signature
 
   if input_signature is None:

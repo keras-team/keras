@@ -34,17 +34,17 @@ def embedding_varlen(batch_size, max_length):
   embedding_size = 32768
   data = fc_bm.create_data(
       max_length, batch_size * NUM_REPEATS, embedding_size - 1, dtype=int)
-  weight = tf.ones_like(data, dtype=tf.float32)
+  weight = tf.compat.v2.ones_like(data, dtype=tf.dtypes.float32)
 
   # Keras implementation
   data_input = keras.Input(
       shape=(None,), ragged=True, name="data", dtype=tf.int64)
   weight_input = keras.Input(
-      shape=(None,), ragged=True, name="weight", dtype=tf.float32)
+      shape=(None,), ragged=True, name="weight", dtype=tf.dtypes.float32)
   embedded_data = keras.layers.Embedding(embedding_size, 256)(data_input)
-  weighted_embedding = tf.multiply(
+  weighted_embedding = tf.math.multiply(
       embedded_data, tf.compat.v1.expand_dims(weight_input, -1))
-  reduced_embedding = tf.reduce_sum(weighted_embedding, axis=1)
+  reduced_embedding = tf.compat.v2.reduce_sum(weighted_embedding, axis=1)
   model = keras.Model([data_input, weight_input], reduced_embedding)
 
   # FC implementation
@@ -58,7 +58,7 @@ def embedding_varlen(batch_size, max_length):
   # Wrap the FC implementation in a tf.function for a fair comparison
   @tf_function()
   def fc_fn(tensors):
-    fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
+    fc.transform_feature(tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(tensors), None)
 
   # Benchmark runs
   keras_data = {"data": data, "weight": weight}

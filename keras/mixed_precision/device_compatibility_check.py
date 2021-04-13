@@ -14,7 +14,7 @@
 # ==============================================================================
 """Contains function to log if devices are compatible with mixed precision."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import itertools
 from tensorflow.python.platform import tf_logging
@@ -142,6 +142,6 @@ def log_device_compatibility_check(policy_name):
   if _logged_compatibility_check:
     return
   _logged_compatibility_check = True
-  gpus = tf.config.list_physical_devices('GPU')
+  gpus = tf.config.experimental.list_physical_devices('GPU')
   gpu_details_list = [tf.config.experimental.get_device_details(g) for g in gpus]
   _log_device_compatibility_check(policy_name, gpu_details_list)

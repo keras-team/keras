@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for RNN cell wrapper v2 implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 import numpy as np
@@ -31,13 +31,13 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
 
   def testResidualWrapper(self):
     wrapper_type = rnn_cell_wrapper_v2.ResidualWrapper
-    x = tf.convert_to_tensor(
+    x = tf.compat.v2.convert_to_tensor(
         np.array([[1., 1., 1.]]), dtype="float32")
-    m = tf.convert_to_tensor(
+    m = tf.compat.v2.convert_to_tensor(
         np.array([[0.1, 0.1, 0.1]]), dtype="float32")
     base_cell = rnn_cell_impl.GRUCell(
-        3, kernel_initializer=tf.compat.v1.constant_initializer(0.5),
-        bias_initializer=tf.compat.v1.constant_initializer(0.5))
+        3, kernel_initializer=tf.compat.v1.initializers.constant(0.5),
+        bias_initializer=tf.compat.v1.initializers.constant(0.5))
     g, m_new = base_cell(x, m)
     wrapper_object = wrapper_type(base_cell)
     (name, dep), = wrapper_object._checkpoint_dependencies
@@ -46,7 +46,7 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual("cell", name)
 
     g_res, m_new_res = wrapper_object(x, m)
-    self.evaluate([tf.compat.v1.global_variables_initializer()])
+    self.evaluate([tf.compat.v1.initializers.global_variables()])
     res = self.evaluate([g, g_res, m_new, m_new_res])
     # Residual connections
     self.assertAllClose(res[1], res[0] + [1., 1., 1.])
@@ -55,13 +55,13 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
 
   def testResidualWrapperWithSlice(self):
     wrapper_type = rnn_cell_wrapper_v2.ResidualWrapper
-    x = tf.convert_to_tensor(
+    x = tf.compat.v2.convert_to_tensor(
         np.array([[1., 1., 1., 1., 1.]]), dtype="float32")
-    m = tf.convert_to_tensor(
+    m = tf.compat.v2.convert_to_tensor(
         np.array([[0.1, 0.1, 0.1]]), dtype="float32")
     base_cell = rnn_cell_impl.GRUCell(
-        3, kernel_initializer=tf.compat.v1.constant_initializer(0.5),
-        bias_initializer=tf.compat.v1.constant_initializer(0.5))
+        3, kernel_initializer=tf.compat.v1.initializers.constant(0.5),
+        bias_initializer=tf.compat.v1.initializers.constant(0.5))
     g, m_new = base_cell(x, m)
 
     def residual_with_slice_fn(inp, out):
@@ -70,7 +70,7 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
 
     g_res, m_new_res = wrapper_type(
         base_cell, residual_with_slice_fn)(x, m)
-    self.evaluate([tf.compat.v1.global_variables_initializer()])
+    self.evaluate([tf.compat.v1.initializers.global_variables()])
     res_g, res_g_res, res_m_new, res_m_new_res = self.evaluate(
         [g, g_res, m_new, m_new_res])
     # Residual connections
@@ -110,8 +110,8 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
     base_cell = layers.SimpleRNNCell(1, name="basic_rnn_cell")
     rnn_cell = wrapper(base_cell)
     rnn_layer = layers.RNN(rnn_cell)
-    inputs = tf.convert_to_tensor([[[1]]],
-                                                    dtype=tf.float32)
+    inputs = tf.compat.v2.convert_to_tensor([[[1]]],
+                                                    dtype=tf.dtypes.float32)
     rnn_layer(inputs)
 
     wrapper_name = generic_utils.to_snake_case(wrapper.__name__)
@@ -135,8 +135,8 @@ class RNNCellWrapperTest(tf.test.TestCase, parameterized.TestCase):
       base_cell = rnn_cell_impl.MultiRNNCell(
           [rnn_cell_impl.BasicRNNCell(1) for _ in range(2)])
     rnn_cell = wrapper(base_cell)
-    inputs = tf.convert_to_tensor([[1]], dtype=tf.float32)
-    state = tf.convert_to_tensor([[1]], dtype=tf.float32)
+    inputs = tf.compat.v2.convert_to_tensor([[1]], dtype=tf.dtypes.float32)
+    state = tf.compat.v2.convert_to_tensor([[1]], dtype=tf.dtypes.float32)
     _ = rnn_cell(inputs, [state, state])
     weights = base_cell._cells[0].weights
     self.assertLen(weights, expected_len=2)

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Deprecated experimental Keras SavedModel implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import warnings
@@ -171,7 +171,7 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
           'Subclassed models can only be exported for serving. Please set '
           'argument serving_only=True.')
 
-  builder = tf.__internal__.saved_model.SavedModelBuilder(path)  # pylint: disable=protected-access
+  builder = tf.compat.v2.__internal__.saved_model.SavedModelBuilder(path)  # pylint: disable=protected-access
 
   # Manually save variables to export them in an object-based checkpoint. This
   # skips the `builder.add_meta_graph_and_variables()` step, which saves a
@@ -212,7 +212,7 @@ def _save_v1_format(model, path, custom_objects, as_text, input_signature):
 
 def _get_var_list(model):
   """Returns list of all checkpointed saveable objects in the model."""
-  var_list, _, _ = tf.__internal__.tracking.ObjectGraphView(model).serialize_object_graph()
+  var_list, _, _ = tf.compat.v2.__internal__.tracking.ObjectGraphView(model).serialize_object_graph()
   return var_list
 
 

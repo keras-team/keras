@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """A `Network` is way to compose layers: the topological form of a `Model`."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import copy
@@ -94,7 +94,7 @@ class Functional(training_lib.Model):
       training_lib.Model._TF_MODULE_IGNORED_PROPERTIES
   ))
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self, inputs, outputs, name=None, trainable=True,
                **kwargs):
     # This is used by the Model class, since we have some logic to swap the
@@ -108,7 +108,7 @@ class Functional(training_lib.Model):
     super(Functional, self).__init__(name=name, trainable=trainable)
     self._init_graph_network(inputs, outputs)
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _init_graph_network(self, inputs, outputs):
     base_layer.keras_api_gauge.get_cell('Functional').set(True)
     # This method is needed for Sequential to reinitialize graph network when
@@ -360,7 +360,7 @@ class Functional(training_lib.Model):
   @property
   def _checkpoint_dependencies(self):
     dependencies = [
-        tf.__internal__.tracking.TrackableReference(name=name, ref=layer)
+        tf.compat.v2.__internal__.tracking.TrackableReference(name=name, ref=layer)
         for name, layer in self._layer_checkpoint_dependencies.items()]
     dependencies.extend(super(Functional, self)._checkpoint_dependencies)
     return dependencies
@@ -609,17 +609,17 @@ class Functional(training_lib.Model):
         # Should squeeze last dimension.
         # True if tensor is (BATCH, ..., 1) and reference is (BATCH, ...).
         if (t_rank == ref_rank + 1 and t_shape[-1] == 1):
-          tensor = tf.squeeze(tensor, axis=-1)
+          tensor = tf.compat.v2.squeeze(tensor, axis=-1)
         # Should expand last_dimension.
         # True if tensor is (BATCH, ...) and reference is (BATCH, ..., 1).
         elif (t_rank == ref_rank - 1 and ref_shape[-1] == 1):
-          tensor = tf.expand_dims(tensor, axis=-1)
+          tensor = tf.compat.v2.expand_dims(tensor, axis=-1)
       if keras_history is not None:  # Restore keras history.
         tensor._keras_history = keras_history
 
       # Add shape hints to Tensors that may have None shape dims but have shapes
       # defined by the `keras.Input` (not applicable in eager mode).
-      if not tf.executing_eagerly():
+      if not tf.compat.v2.executing_eagerly():
         try:
           tensor.set_shape(tensor.shape.merge_with(ref_input.shape))
         except ValueError:

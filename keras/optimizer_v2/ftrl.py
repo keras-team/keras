@@ -14,7 +14,7 @@
 # ==============================================================================
 """Ftrl-proximal optimizer implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 from keras.optimizer_v2 import optimizer_v2
@@ -143,7 +143,7 @@ class Ftrl(optimizer_v2.OptimizerV2):
     # Create the "accum" and "linear" slots.
     for var in var_list:
       dtype = var.dtype.base_dtype
-      init = tf.compat.v1.constant_initializer(
+      init = tf.compat.v1.initializers.constant(
           self._initial_accumulator_value, dtype=dtype)
       self.add_slot(var, 'accumulator', init)
       self.add_slot(var, 'linear')

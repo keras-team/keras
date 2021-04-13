@@ -14,7 +14,7 @@
 # ==============================================================================
 """Embedding layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 from keras import backend
@@ -188,7 +188,7 @@ class Embedding(Layer):
     dtype = backend.dtype(inputs)
     if dtype != 'int32' and dtype != 'int64':
       inputs = tf.cast(inputs, 'int32')
-    out = tf.nn.embedding_lookup(self.embeddings, inputs)
+    out = tf.compat.v2.nn.embedding_lookup(self.embeddings, inputs)
     if self._dtype_policy.compute_dtype != self._dtype_policy.variable_dtype:
       # Instead of casting the variable as in most layers, cast the output, as
       # this is mathematically equivalent but is faster.

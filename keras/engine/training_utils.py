@@ -14,7 +14,7 @@
 # ==============================================================================
 """Training-related utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 from keras.utils import generic_utils

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilites for `Model.compile`."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 from keras import losses as losses_mod
@@ -348,22 +348,22 @@ class MetricsContainer(Container):
                                                       self._weighted_metrics)
 
     # Standardize on tuple since `tf.data` turns lists into `Tensor`s.
-    y_pred = tf.__internal__.nest.list_to_tuple(y_pred)
-    y_true = tf.__internal__.nest.list_to_tuple(y_true)
-    self._metrics = tf.__internal__.nest.list_to_tuple(self._metrics)
-    self._weighted_metrics = tf.__internal__.nest.list_to_tuple(self._weighted_metrics)
+    y_pred = tf.compat.v2.__internal__.nest.list_to_tuple(y_pred)
+    y_true = tf.compat.v2.__internal__.nest.list_to_tuple(y_true)
+    self._metrics = tf.compat.v2.__internal__.nest.list_to_tuple(self._metrics)
+    self._weighted_metrics = tf.compat.v2.__internal__.nest.list_to_tuple(self._weighted_metrics)
 
     # Convert to `Metric` objects, potentially disambiguating based on output
     # properties.
-    self._metrics = tf.__internal__.nest.map_structure_up_to(y_pred, self._get_metric_objects,
+    self._metrics = tf.compat.v2.__internal__.nest.map_structure_up_to(y_pred, self._get_metric_objects,
                                              self._metrics, y_true, y_pred)
-    self._weighted_metrics = tf.__internal__.nest.map_structure_up_to(y_pred,
+    self._weighted_metrics = tf.compat.v2.__internal__.nest.map_structure_up_to(y_pred,
                                                       self._get_metric_objects,
                                                       self._weighted_metrics,
                                                       y_true, y_pred)
 
-    self._metrics = tf.__internal__.nest.flatten_up_to(y_pred, self._metrics, check_types=False)
-    self._weighted_metrics = tf.__internal__.nest.flatten_up_to(
+    self._metrics = tf.compat.v2.__internal__.nest.flatten_up_to(y_pred, self._metrics, check_types=False)
+    self._weighted_metrics = tf.compat.v2.__internal__.nest.flatten_up_to(
         y_pred, self._weighted_metrics, check_types=False)
 
     # Assumes metrics, weighted_metrics have been flattened up to outputs.
@@ -595,7 +595,7 @@ def _create_pseudo_names(tensors, prefix):
       return ele + 1
     return ele
 
-  flat_paths = list(tf.__internal__.nest.yield_flat_paths(tensors))
+  flat_paths = list(tf.compat.v2.__internal__.nest.yield_flat_paths(tensors))
   flat_paths = tf.nest.map_structure(one_index, flat_paths)
   names = []
   for path in flat_paths:
@@ -669,10 +669,10 @@ def map_missing_dict_keys(y_pred, struct):
 def match_dtype_and_rank(y_t, y_p, sw):
   """Match dtype and rank of predictions."""
   if y_t.shape.rank == 1 and y_p.shape.rank == 2:
-    y_t = tf.expand_dims(y_t, axis=-1)
+    y_t = tf.compat.v2.expand_dims(y_t, axis=-1)
   if sw is not None:
     if sw.shape.rank == 1 and y_p.shape.rank == 2:
-      sw = tf.expand_dims(sw, axis=-1)
+      sw = tf.compat.v2.expand_dims(sw, axis=-1)
 
   # Dtype.
   # This is required mainly for custom loss functions which do not take care

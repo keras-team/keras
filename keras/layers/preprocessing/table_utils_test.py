@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras lookup table utils."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import tempfile
@@ -58,7 +58,7 @@ def get_static_table(tmpdir,
       tf.int64,
       tf.lookup.TextFileIndex.LINE_NUMBER,
       value_index_offset=offset)
-  table = tf.lookup.StaticHashTable(init, default_value=-7)
+  table = tf.compat.v2.lookup.StaticHashTable(init, default_value=-7)
   return table_utils.TableHandler(
       table,
       oov_tokens,
@@ -72,7 +72,7 @@ class CategoricalEncodingInputTest(
 
   def test_sparse_string_input(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=["fire", "michigan"],
         dense_shape=[3, 4])
@@ -91,7 +91,7 @@ class CategoricalEncodingInputTest(
 
   def test_sparse_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 32], dtype=np.int64),
         dense_shape=[3, 4])
@@ -149,7 +149,7 @@ class CategoricalEncodingMultiOOVTest(
 
   def test_sparse_string_input_multi_bucket(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]], values=["fire", "ohio"], dense_shape=[3, 4])
 
     expected_indices = [[0, 0], [1, 2]]
@@ -166,7 +166,7 @@ class CategoricalEncodingMultiOOVTest(
 
   def test_sparse_int_input_multi_bucket(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 132], dtype=np.int64),
         dense_shape=[3, 4])
@@ -323,7 +323,7 @@ class CategoricalEncodingStaticInputTest(
 
   def test_sparse_string_input(self):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=["fire", "michigan"],
         dense_shape=[3, 4])
@@ -345,7 +345,7 @@ class CategoricalEncodingStaticInputTest(
 
   def test_sparse_int_input(self):
     vocab_data = np.array([10, 11, 12, 13], dtype=np.int64)
-    input_array = tf.SparseTensor(
+    input_array = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 2]],
         values=np.array([13, 32], dtype=np.int64),
         dense_shape=[3, 4])

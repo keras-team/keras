@@ -15,7 +15,7 @@
 """Layer serialization/deserialization functions.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=wildcard-import
 # pylint: disable=unused-import
 
@@ -76,13 +76,13 @@ def populate_deserializable_objects():
     LOCAL.ALL_OBJECTS = {}
     LOCAL.GENERATED_WITH_V2 = None
 
-  if LOCAL.ALL_OBJECTS and LOCAL.GENERATED_WITH_V2 == tf.__internal__.tf2.enabled():
+  if LOCAL.ALL_OBJECTS and LOCAL.GENERATED_WITH_V2 == tf.compat.v2.__internal__.tf2.enabled():
     # Objects dict is already generated for the proper TF version:
     # do nothing.
     return
 
   LOCAL.ALL_OBJECTS = {}
-  LOCAL.GENERATED_WITH_V2 = tf.__internal__.tf2.enabled()
+  LOCAL.GENERATED_WITH_V2 = tf.compat.v2.__internal__.tf2.enabled()
 
   base_cls = base_layer.Layer
   generic_utils.populate_dict_with_module_objects(
@@ -91,7 +91,7 @@ def populate_deserializable_objects():
       obj_filter=lambda x: inspect.isclass(x) and issubclass(x, base_cls))
 
   # Overwrite certain V1 objects with V2 versions
-  if tf.__internal__.tf2.enabled():
+  if tf.compat.v2.__internal__.tf2.enabled():
     generic_utils.populate_dict_with_module_objects(
         LOCAL.ALL_OBJECTS,
         ALL_V2_MODULES,
@@ -120,7 +120,7 @@ def populate_deserializable_objects():
   LOCAL.ALL_OBJECTS['LinearModel'] = LinearModel
   LOCAL.ALL_OBJECTS['WideDeepModel'] = WideDeepModel
 
-  if tf.__internal__.tf2.enabled():
+  if tf.compat.v2.__internal__.tf2.enabled():
     from keras.feature_column.dense_features_v2 import DenseFeatures  # pylint: disable=g-import-not-at-top
     LOCAL.ALL_OBJECTS['DenseFeatures'] = DenseFeatures
   else:

@@ -15,7 +15,7 @@
 
 import numpy as np
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import keras
 from keras import backend
@@ -34,7 +34,7 @@ class TrackableWeightHandlerTest(keras_parameterized.TestCase):
     # to graph building), so we have to use a called setup instead of a setUp()
     # call.
     table = lookup_ops.MutableHashTable(
-        key_dtype=tf.string, value_dtype=tf.int32, default_value=0)
+        key_dtype=tf.string, value_dtype=tf.dtypes.int32, default_value=0)
     return base_layer_utils.TrackableWeightHandler(table)
 
   def test_get_num_tensors(self):
@@ -70,8 +70,8 @@ class TrackableWeightHandlerTest(keras_parameterized.TestCase):
 class OpLayerTest(keras_parameterized.TestCase):
 
   def test_tensor_op_layer(self):
-    int_values = keras.Input(shape=(2,), dtype=tf.int32)
-    float_values = tf.cast(int_values, tf.float32)
+    int_values = keras.Input(shape=(2,), dtype=tf.dtypes.int32)
+    float_values = tf.cast(int_values, tf.dtypes.float32)
     model = keras.Model(int_values, float_values)
     model.compile(loss='mse')
 
@@ -81,8 +81,8 @@ class OpLayerTest(keras_parameterized.TestCase):
     self.assertAllClose(expected, output)
 
   def test_ragged_op_layer_keras_tensors(self):
-    int_values = keras.Input(shape=(None,), dtype=tf.int32, ragged=True)
-    float_values = tf.cast(int_values, tf.float32)
+    int_values = keras.Input(shape=(None,), dtype=tf.dtypes.int32, ragged=True)
+    float_values = tf.cast(int_values, tf.dtypes.float32)
     model = keras.Model(int_values, float_values)
     model.compile(loss='mse')
 
@@ -94,8 +94,8 @@ class OpLayerTest(keras_parameterized.TestCase):
     self.assertAllClose(expected, output)
 
   def test_sparse_op_layer_keras_tensors(self):
-    int_values = keras.Input(shape=(None,), dtype=tf.int32, sparse=True)
-    float_values = tf.cast(int_values, tf.float32)
+    int_values = keras.Input(shape=(None,), dtype=tf.dtypes.int32, sparse=True)
+    float_values = tf.cast(int_values, tf.dtypes.float32)
     _ = keras.Model(int_values, float_values)
     model = keras.Model(int_values, float_values)
     model.compile(loss='mse')
@@ -104,7 +104,7 @@ class OpLayerTest(keras_parameterized.TestCase):
         np.array([[1, 2], [3, 4]], dtype=np.int32))
     expected = [[1.0, 2.0], [3.0, 4.0]]
     output = model.predict(input_data)
-    self.assertIsInstance(output, tf.SparseTensor)
+    self.assertIsInstance(output, tf.sparse.SparseTensor)
     self.assertAllClose(expected, tf.sparse.to_dense(output))
 
 

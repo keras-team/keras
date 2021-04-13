@@ -16,7 +16,7 @@
 # pylint: disable=redefined-builtin
 """Layers that can merge several inputs into one."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras.engine import base_layer_utils
@@ -144,7 +144,7 @@ class _Merge(Layer):
             x_transposed = tf.reshape(
                 x,
                 tf.stack(
-                    [batch_size, tf.reduce_prod(x_shape[1:])], axis=0))
+                    [batch_size, tf.compat.v2.reduce_prod(x_shape[1:])], axis=0))
             x_transposed = tf.compat.v1.transpose(x_transposed, perm=(1, 0))
             x_transposed = tf.reshape(x_transposed, new_shape)
             reshaped_inputs.append(x_transposed)
@@ -382,7 +382,7 @@ class Maximum(_Merge):
   def _merge_function(self, inputs):
     output = inputs[0]
     for i in range(1, len(inputs)):
-      output = tf.maximum(output, inputs[i])
+      output = tf.math.maximum(output, inputs[i])
     return output
 
 
@@ -412,7 +412,7 @@ class Minimum(_Merge):
   def _merge_function(self, inputs):
     output = inputs[0]
     for i in range(1, len(inputs)):
-      output = tf.minimum(output, inputs[i])
+      output = tf.math.minimum(output, inputs[i])
     return output
 
 
@@ -694,8 +694,8 @@ class Dot(_Merge):
         else:
           axes.append(self.axes[i])
     if self.normalize:
-      x1 = tf.linalg.l2_normalize(x1, axis=axes[0])
-      x2 = tf.linalg.l2_normalize(x2, axis=axes[1])
+      x1 = tf.nn.l2_normalize(x1, axis=axes[0])
+      x2 = tf.nn.l2_normalize(x2, axis=axes[1])
     output = backend.batch_dot(x1, x2, axes)
     return output
 

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras composite tensor support."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from absl.testing import parameterized
 
@@ -47,7 +47,7 @@ class ToDense(Layer):
 
     if isinstance(inputs, tf.RaggedTensor):
       output = inputs.to_tensor(default_value=self._default_value)
-    elif isinstance(inputs, tf.SparseTensor):
+    elif isinstance(inputs, tf.sparse.SparseTensor):
       output = tf.sparse.to_dense(
           inputs, default_value=self._default_value)
     elif isinstance(inputs, tf.Tensor):
@@ -56,7 +56,7 @@ class ToDense(Layer):
       raise TypeError("Unexpected tensor type %s" % type(inputs).__name__)
 
     # Return a float so that we can compile models with this as the final layer.
-    return tf.cast(output, tf.float32)
+    return tf.cast(output, tf.dtypes.float32)
 
 
 class ToRagged(Layer):
@@ -76,10 +76,10 @@ class ToSparse(Layer):
   """Create a sparse tensor based on a given dense tensor."""
 
   def call(self, inputs):
-    indices = tf.where(tf.not_equal(inputs, 0))
-    values = tf.compat.v1.gather_nd(inputs, indices)
+    indices = tf.compat.v2.where(tf.not_equal(inputs, 0))
+    values = tf.compat.v1.manip.gather_nd(inputs, indices)
     shape = tf.compat.v1.shape(inputs, out_type=tf.int64)
-    return tf.SparseTensor(indices, values, dense_shape=shape)
+    return tf.sparse.SparseTensor(indices, values, dense_shape=shape)
 
 
 class _SubclassModel(keras.Model):
@@ -281,7 +281,7 @@ def get_input_name(use_dict):
 
 
 def get_kwargs(use_dataset, action="predict"):
-  if use_dataset or not tf.executing_eagerly():
+  if use_dataset or not tf.compat.v2.executing_eagerly():
     if action == "fit":
       return {"steps_per_epoch": 1}
     return {"steps": 1}
@@ -297,10 +297,10 @@ def prepare_inputs(data, use_dict, use_dataset, action, input_name):
     input_data = {input_name: input_data}
   if use_dataset:
     if action == "predict":
-      input_data = tf.data.Dataset.from_tensor_slices(input_data).batch(
+      input_data = tf.compat.v2.data.Dataset.from_tensor_slices(input_data).batch(
           batch_size)
     else:
-      input_data = tf.data.Dataset.from_tensor_slices(
+      input_data = tf.compat.v2.data.Dataset.from_tensor_slices(
           (input_data, expected_output)).batch(batch_size)
       expected_output = None
   return (input_data, expected_output)
@@ -316,10 +316,10 @@ def prepare_inputs(data, use_dict, use_dataset, action, input_name):
 class SparseTensorInputTest(keras_parameterized.TestCase):
 
   def test_sparse_tensors(self, use_dict, use_dataset, action):
-    data = [(tf.SparseTensor([[0, 0, 0], [1, 0, 0], [1, 0, 1]],
+    data = [(tf.sparse.SparseTensor([[0, 0, 0], [1, 0, 0], [1, 0, 1]],
                                         [1, 2, 3], [2, 1, 3]),
              np.array([[[1, -1, -1]], [[2, 3, -1]]])),
-            (tf.SparseTensor(
+            (tf.sparse.SparseTensor(
                 [[0, 0, 0], [1, 0, 0], [1, 0, 1], [2, 0, 1]], [5, 6, 7, 8],
                 [3, 1, 4]),
              np.array([[[5, -1, -1, -1]], [[6, 7, -1, -1]], [[-1, 8, -1,
@@ -327,7 +327,7 @@ class SparseTensorInputTest(keras_parameterized.TestCase):
     # Prepare the model to test.
     input_name = get_input_name(use_dict)
     model_input = input_layer.Input(
-        shape=(1, None), sparse=True, name=input_name, dtype=tf.int32)
+        shape=(1, None), sparse=True, name=input_name, dtype=tf.dtypes.int32)
     layers = [ToDense(default_value=-1)]
     model = get_model_from_layers_with_input(layers, model_input=model_input)
     model.compile(
@@ -488,7 +488,7 @@ class RaggedTensorInputTest(keras_parameterized.TestCase,
     # Prepare the model to test.
     input_name = get_input_name(use_dict)
     model_input = input_layer.Input(
-        shape=(None, None), ragged=True, name=input_name, dtype=tf.int32,
+        shape=(None, None), ragged=True, name=input_name, dtype=tf.dtypes.int32,
         batch_size=2)
     self.assertIsInstance(model_input._type_spec,
                           tf.RaggedTensorSpec)
@@ -536,7 +536,7 @@ class RaggedTensorInputValidationTest(keras_parameterized.TestCase,
     input_shape = (None, 2)  # RaggedTensorInputTest uses (None, None).
     input_name = get_input_name(use_dict)
     model_input = input_layer.Input(
-        shape=input_shape, ragged=True, name=input_name, dtype=tf.int32)
+        shape=input_shape, ragged=True, name=input_name, dtype=tf.dtypes.int32)
     layers = [ToDense(default_value=-1)]
     model = get_model_from_layers_with_input(layers, model_input=model_input)
     model.compile(
@@ -565,7 +565,7 @@ class RaggedTensorInputValidationTest(keras_parameterized.TestCase,
     input_shape = (1, 2)  # RaggedTensorInputTest uses (None, None).
     input_name = get_input_name(use_dict)
     model_input = input_layer.Input(
-        shape=input_shape, ragged=True, name=input_name, dtype=tf.int32)
+        shape=input_shape, ragged=True, name=input_name, dtype=tf.dtypes.int32)
     layers = [ToDense(default_value=-1)]
     model = get_model_from_layers_with_input(layers, model_input=model_input)
     model.compile(
@@ -598,14 +598,14 @@ class CompositeTensorModelPredictTest(keras_parameterized.TestCase):
   def test_sparse_tensor_model_predict(self):
     # Create a model that accepts a sparse input and runs a "Dense" layer on it.
     model_input = input_layer.Input(
-        shape=(3,), sparse=True, dtype=tf.float32)
+        shape=(3,), sparse=True, dtype=tf.dtypes.float32)
 
     self.assertEqual([None, 3], model_input.shape.as_list())
 
     layers = [Dense(2)]
     model = get_model_from_layers_with_input(layers, model_input=model_input)
 
-    sparse_input = tf.SparseTensor(
+    sparse_input = tf.sparse.SparseTensor(
         # A two-row matrix
         indices=[(0, 0), (0, 1), (0, 2), (5, 0), (5, 1), (5, 2)],
         values=[1., 1., 1., 1., 1., 1.],

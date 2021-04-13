@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras text vectorization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 # pylint: disable=g-classes-have-attributes
 
 import numpy as np
@@ -359,14 +359,14 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
     # on an implicit call to `build` in the base layer's `adapt`, since
     # preprocessing changes the input shape.
     if isinstance(data, (list, tuple, np.ndarray)):
-      data = tf.convert_to_tensor(data)
+      data = tf.compat.v2.convert_to_tensor(data)
 
     if isinstance(data, tf.Tensor):
       if data.shape.rank == 1:
         data = tf.compat.v1.expand_dims(data, axis=-1)
       self.build(data.shape)
       preprocessed_inputs = self._preprocess(data)
-    elif isinstance(data, tf.data.Dataset):
+    elif isinstance(data, tf.compat.v2.data.Dataset):
       # TODO(momernick): Replace this with a more V2-friendly API.
       shape = tf.compat.v1.data.get_output_shapes(data)
       if not isinstance(shape, tf.TensorShape):
@@ -500,7 +500,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
       if self._split == SPLIT_ON_WHITESPACE:
         # This treats multiple whitespaces as one whitespace, and strips leading
         # and trailing whitespace.
-        inputs = tf.strings.split(inputs)
+        inputs = tf.compat.v2.strings.split(inputs)
       elif callable(self._split):
         inputs = self._split(inputs)
       else:
@@ -520,7 +520,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   def call(self, inputs):
     if isinstance(inputs, (list, tuple, np.ndarray)):
-      inputs = tf.convert_to_tensor(inputs)
+      inputs = tf.compat.v2.convert_to_tensor(inputs)
 
     inputs = self._preprocess(inputs)
 

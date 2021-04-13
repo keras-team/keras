@@ -14,7 +14,7 @@
 # ==============================================================================
 """DataAdapter tests."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import math
 
@@ -63,11 +63,11 @@ class DataAdapterTestBase(keras_parameterized.TestCase):
     self.batch_size = 5
     self.numpy_input = np.zeros((50, 10))
     self.numpy_target = np.ones(50)
-    self.tensor_input = tf.constant(2.0, shape=(50, 10))
+    self.tensor_input = tf.compat.v2.constant(2.0, shape=(50, 10))
     self.tensor_target = tf.ones((50,))
     self.arraylike_input = DummyArrayLike(self.numpy_input)
     self.arraylike_target = DummyArrayLike(self.numpy_target)
-    self.dataset_input = tf.data.Dataset.from_tensor_slices(
+    self.dataset_input = tf.compat.v2.data.Dataset.from_tensor_slices(
         (self.numpy_input, self.numpy_target)).shuffle(50).batch(
             self.batch_size)
 
@@ -441,7 +441,7 @@ class GenericArrayLikeDataAdapterTest(DataAdapterTestBase):
   def test_training(self):
     # First verify that DummyArrayLike can't be converted to a Tensor
     with self.assertRaises(TypeError):
-      tf.convert_to_tensor(self.arraylike_input)
+      tf.compat.v2.convert_to_tensor(self.arraylike_input)
 
     # Then train on the array like.
     # It should not be converted to a tensor directly (which would force it into
@@ -835,7 +835,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
     self.assertEqual(returned_data, [[0, 1, 2], [0, 1, 2]])
 
   def test_unknown_cardinality_dataset_with_steps_per_epoch(self):
-    ds = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3, 4, 5, 6])
+    ds = tf.compat.v2.data.Dataset.from_tensor_slices([0, 1, 2, 3, 4, 5, 6])
     filtered_ds = ds.filter(lambda x: x < 4)
     self.assertEqual(
         tf.data.experimental.cardinality(filtered_ds).numpy(), tf.data.experimental.UNKNOWN_CARDINALITY)
@@ -855,7 +855,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
     self.assertEqual(data_handler.inferred_steps, 2)
 
   def test_unknown_cardinality_dataset_without_steps_per_epoch(self):
-    ds = tf.data.Dataset.from_tensor_slices([0, 1, 2, 3, 4, 5, 6])
+    ds = tf.compat.v2.data.Dataset.from_tensor_slices([0, 1, 2, 3, 4, 5, 6])
     filtered_ds = ds.filter(lambda x: x < 4)
     self.assertEqual(
         tf.data.experimental.cardinality(filtered_ds).numpy(), tf.data.experimental.UNKNOWN_CARDINALITY)
@@ -876,7 +876,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
     self.assertEqual(data_handler.inferred_steps, 4)
 
   def test_insufficient_data(self):
-    ds = tf.data.Dataset.from_tensor_slices([0, 1])
+    ds = tf.compat.v2.data.Dataset.from_tensor_slices([0, 1])
     ds = ds.filter(lambda *args, **kwargs: True)
     data_handler = data_adapter.DataHandler(
         ds, initial_epoch=0, epochs=2, steps_per_epoch=3)
@@ -913,7 +913,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
     def generator():
       for _ in range(2):
         for step in range(3):
-          yield (tf.convert_to_tensor([step]),)
+          yield (tf.compat.v2.convert_to_tensor([step]),)
 
     data_handler = data_adapter.DataHandler(
         generator(), epochs=2, steps_per_epoch=3)
@@ -928,7 +928,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
                                       ([2],)], [([0],), ([1],), ([2],)]])
 
   def test_composite_tensor(self):
-    st = tf.SparseTensor(
+    st = tf.sparse.SparseTensor(
         indices=[[0, 0], [1, 0], [2, 0]], values=[0, 1, 2], dense_shape=[3, 1])
     data_handler = data_adapter.DataHandler(st, epochs=2, steps_per_epoch=3)
     returned_data = []
@@ -946,7 +946,7 @@ class DataHandlerTest(keras_parameterized.TestCase):
     def generator():
       for _ in range(2):
         for step in range(3):
-          yield (tf.convert_to_tensor([step]),)
+          yield (tf.compat.v2.convert_to_tensor([step]),)
 
     it = iter(tf.data.Dataset.from_generator(
         generator, output_types=('float32',)))
@@ -1025,20 +1025,20 @@ class TestValidationSplit(keras_parameterized.TestCase):
       y = np.array([0, 2, 4, 6, 8])
       sw = np.array([0, 4, 8, 12, 16])
     else:
-      x = tf.convert_to_tensor([0, 1, 2, 3, 4])
-      y = tf.convert_to_tensor([0, 2, 4, 6, 8])
-      sw = tf.convert_to_tensor([0, 4, 8, 12, 16])
+      x = tf.compat.v2.convert_to_tensor([0, 1, 2, 3, 4])
+      y = tf.compat.v2.convert_to_tensor([0, 2, 4, 6, 8])
+      sw = tf.compat.v2.convert_to_tensor([0, 4, 8, 12, 16])
 
     (train_x, train_y, train_sw), (val_x, val_y, val_sw) = (
         data_adapter.train_validation_split((x, y, sw), validation_split=0.2))
 
     if use_numpy:
-      train_x = tf.convert_to_tensor(train_x)
-      train_y = tf.convert_to_tensor(train_y)
-      train_sw = tf.convert_to_tensor(train_sw)
-      val_x = tf.convert_to_tensor(val_x)
-      val_y = tf.convert_to_tensor(val_y)
-      val_sw = tf.convert_to_tensor(val_sw)
+      train_x = tf.compat.v2.convert_to_tensor(train_x)
+      train_y = tf.compat.v2.convert_to_tensor(train_y)
+      train_sw = tf.compat.v2.convert_to_tensor(train_sw)
+      val_x = tf.compat.v2.convert_to_tensor(val_x)
+      val_y = tf.compat.v2.convert_to_tensor(val_y)
+      val_sw = tf.compat.v2.convert_to_tensor(val_sw)
 
     self.assertEqual(train_x.numpy().tolist(), [0, 1, 2, 3])
     self.assertEqual(train_y.numpy().tolist(), [0, 2, 4, 6])
@@ -1091,7 +1091,7 @@ class ListsOfScalarsDataAdapterTest(DataAdapterTestBase):
 class TestUtils(keras_parameterized.TestCase):
 
   def test_expand_1d_sparse_tensors_untouched(self):
-    st = tf.SparseTensor(
+    st = tf.sparse.SparseTensor(
         indices=[[0], [10]], values=[1, 2], dense_shape=[10])
     st = data_adapter.expand_1d(st)
     self.assertEqual(st.shape.rank, 1)

@@ -14,7 +14,7 @@
 # ==============================================================================
 """SGD optimizer implementation."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.optimizer_v2 import optimizer_v2
 from tensorflow.python.util.tf_export import keras_export
 

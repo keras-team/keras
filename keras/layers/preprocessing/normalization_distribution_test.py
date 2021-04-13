@@ -14,7 +14,7 @@
 # ==============================================================================
 """Distribution tests for keras.layers.preprocessing.normalization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 
@@ -90,9 +90,9 @@ def _get_layer_computation_test_cases():
   return crossed_test_cases
 
 
-@tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.times(
-        tf.__internal__.test.combinations.combine(distribution=all_strategies, mode=["eager"]),
+@tf.compat.v2.__internal__.distribute.combinations.generate(
+    tf.compat.v2.__internal__.test.combinations.times(
+        tf.compat.v2.__internal__.test.combinations.combine(distribution=all_strategies, mode=["eager"]),
         _get_layer_computation_test_cases()))
 class NormalizationTest(keras_parameterized.TestCase,
                         preprocessing_test_utils.PreprocessingLayerTest):

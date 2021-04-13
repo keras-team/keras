@@ -14,7 +14,7 @@
 # ==============================================================================
 """Pooling layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import functools
 from keras import backend
@@ -636,7 +636,7 @@ class AveragePooling2D(Pooling2D):
                data_format=None,
                **kwargs):
     super(AveragePooling2D, self).__init__(
-        tf.compat.v1.nn.avg_pool,
+        tf.compat.v1.nn.avg_pool2d,
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, **kwargs)
 
@@ -954,7 +954,7 @@ class GlobalAveragePooling1D(GlobalPooling1D):
       mask = tf.compat.v1.expand_dims(
           mask, 2 if self.data_format == 'channels_last' else 1)
       inputs *= mask
-      return backend.sum(inputs, axis=steps_axis) / tf.reduce_sum(
+      return backend.sum(inputs, axis=steps_axis) / tf.compat.v2.reduce_sum(
           mask, axis=steps_axis)
     else:
       return backend.mean(inputs, axis=steps_axis)

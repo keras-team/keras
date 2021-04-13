@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras' base preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections.abc as collections_abc
 import numpy as np

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras backend."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import gc
 import warnings
@@ -123,7 +123,7 @@ class BackendResetTest(tf.test.TestCase, parameterized.TestCase):
   # We can't use the normal parameterized decorator because the test session
   # will block graph clearing.
   @parameterized.named_parameters(('_v1', context.graph_mode),
-                                  ('_v2', tf.__internal__.eager_context.eager_mode))
+                                  ('_v2', tf.compat.v2.__internal__.eager_context.eager_mode))
   def test_new_graph(self, test_context):
     with test_context():
       g_old = backend.get_graph()
@@ -155,8 +155,8 @@ class BackendUtilsTest(tf.test.TestCase):
       with backend.learning_phase_scope(0):
         x = input_layer.Input((3,))
         y = normalization.BatchNormalization()(x)
-        if not tf.executing_eagerly():
-          self.evaluate(tf.compat.v1.global_variables_initializer())
+        if not tf.compat.v2.executing_eagerly():
+          self.evaluate(tf.compat.v1.initializers.global_variables())
           sess.run(y, feed_dict={x: np.random.random((2, 3))})
 
   def test_learning_phase_name(self):
@@ -207,14 +207,14 @@ class BackendUtilsTest(tf.test.TestCase):
     x = backend.ones(shape=(3, 4))
     self.assertEqual(backend.int_shape(x), (3, 4))
 
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       x = backend.placeholder(shape=(None, 4))
       self.assertEqual(backend.int_shape(x), (None, 4))
 
   def test_in_train_phase(self):
     y1 = backend.variable(1)
     y2 = backend.variable(2)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       with backend.learning_phase_scope(0):
         y_val_test = backend.in_train_phase(y1, y2).numpy()
       with backend.learning_phase_scope(1):
@@ -242,12 +242,12 @@ class BackendUtilsTest(tf.test.TestCase):
   def test_stop_gradient(self):
     x = backend.variable(1)
     y = backend.stop_gradient(x)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertEqual(y.op.name[:12], 'StopGradient')
 
     xs = [backend.variable(1) for _ in range(3)]
     ys = backend.stop_gradient(xs)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       for y in ys:
         self.assertEqual(y.op.name[:12], 'StopGradient')
 
@@ -269,7 +269,7 @@ class BackendUtilsTest(tf.test.TestCase):
     # we cannot test correctness.
     # The message gets correctly printed in practice.
     x = backend.placeholder(shape=())
-    y = backend.print_tensor(x, 'eager=%s' % tf.executing_eagerly())
+    y = backend.print_tensor(x, 'eager=%s' % tf.compat.v2.executing_eagerly())
     f = backend.function(x, y)
     f(0)
 
@@ -338,7 +338,7 @@ class BackendVariableTest(tf.test.TestCase):
   def test_sparse_variable(self):
     val = scipy.sparse.eye(10)
     x = backend.variable(val)
-    self.assertTrue(isinstance(x, tf.SparseTensor))
+    self.assertTrue(isinstance(x, tf.sparse.SparseTensor))
 
     y = backend.to_dense(x)
     self.assertFalse(backend.is_sparse(y))
@@ -492,7 +492,7 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
           keras_op, np_op, input_shape_a=(4, 7), input_shape_b=(4, 7))
 
   def test_relu(self):
-    x = tf.convert_to_tensor([[-4, 0], [2, 7]], 'float32')
+    x = tf.compat.v2.convert_to_tensor([[-4, 0], [2, 7]], 'float32')
 
     # standard relu
     relu_op = backend.relu(x)
@@ -500,7 +500,7 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
 
     # alpha (leaky relu used)
     relu_op = backend.relu(x, alpha=0.5)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertTrue('LeakyRelu' in relu_op.name)
     self.assertAllClose(backend.eval(relu_op), [[-2, 0], [2, 7]])
 
@@ -510,7 +510,7 @@ class BackendLinearAlgebraTest(tf.test.TestCase, parameterized.TestCase):
 
     # nn.relu6 used
     relu_op = backend.relu(x, max_value=6)
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.assertTrue('Relu6' in relu_op.name)  # uses tf.nn.relu6
     self.assertAllClose(backend.eval(relu_op), [[0, 0], [2, 6]])
 
@@ -598,7 +598,7 @@ class BackendShapeOpsTest(tf.test.TestCase):
     self.assertEqual(y.shape.as_list(), [1, 3, 4, 4])
 
     # Use with a dynamic axis:
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       x = backend.placeholder(shape=(1, 3, None, None))
       y = backend.resize_images(x, height_factor, width_factor, data_format)
       self.assertEqual(y.shape.as_list(), [1, 3, None, None])
@@ -635,7 +635,7 @@ class BackendShapeOpsTest(tf.test.TestCase):
     self.assertEqual(y.shape.as_list(), [1, 9, 2])
 
     # Use with a dynamic axis:
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       x = backend.placeholder(shape=(2, None, 2))
       y = backend.repeat_elements(x, 3, axis=1)
       self.assertEqual(y.shape.as_list(), [2, None, 2])
@@ -1318,7 +1318,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     inputs = backend.variable(input_val)
     initial_states = [
         backend.variable(init_state_val),
-        tf.convert_to_tensor(
+        tf.compat.v2.convert_to_tensor(
             np.concatenate([init_state_val, init_state_val], axis=-1))
     ]
     mask = backend.variable(np_mask)
@@ -1545,7 +1545,7 @@ class BackendNNOpsTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(normed.shape.as_list(), [10, 5, 5, 3])
 
     # 4D NCHW case
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       # Eager CPU kernel for NCHW does not exist.
       val = np.random.random((10, 3, 5, 5))
       x = backend.variable(val)
@@ -1646,9 +1646,9 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     p = backend.placeholder()
     o = backend.categorical_crossentropy(t, p)
 
-    t_val = tf.convert_to_tensor([[1., 0., 0.], [0., 1., 0.],
+    t_val = tf.compat.v2.convert_to_tensor([[1., 0., 0.], [0., 1., 0.],
                                                     [0., 0., 1.]])
-    p_val = tf.convert_to_tensor([[.9, .05, .05],
+    p_val = tf.compat.v2.convert_to_tensor([[.9, .05, .05],
                                                     [.05, .89, .06],
                                                     [.05, .01, .94]])
     f = backend.function([t, p], o)
@@ -1664,7 +1664,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     self.assertArrayNear(result, [.105, .065, .111], 1e-3)
 
     # from logits
-    p_val = tf.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
+    p_val = tf.compat.v2.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
                                                     [2., 3., 5.]])
     o = backend.categorical_crossentropy(t, p, from_logits=True)
     f = backend.function([t, p], o)
@@ -1717,8 +1717,8 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
     p = backend.placeholder()
     o = backend.sparse_categorical_crossentropy(t, p)
 
-    t_val = tf.convert_to_tensor([0, 1, 2])
-    p_val = tf.convert_to_tensor([[.9, .05, .05],
+    t_val = tf.compat.v2.convert_to_tensor([0, 1, 2])
+    p_val = tf.compat.v2.convert_to_tensor([[.9, .05, .05],
                                                     [.05, .89, .06],
                                                     [.05, .01, .94]])
     f = backend.function([t, p], o)
@@ -1736,7 +1736,7 @@ class BackendCrossEntropyLossesTest(tf.test.TestCase, parameterized.TestCase):
       _ = f([t_val, p_val])
 
     # from logits
-    p_val = tf.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
+    p_val = tf.compat.v2.convert_to_tensor([[8., 1., 1.], [0., 9., 1.],
                                                     [2., 3., 5.]])
     o = backend.sparse_categorical_crossentropy(t, p, from_logits=True)
     f = backend.function([t, p], o)
@@ -1953,7 +1953,7 @@ class TestRandomOps(tf.test.TestCase):
 class FunctionTest(tf.test.TestCase):
 
   def test_function_basics(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('eager backend.function does not support updates')
     x1 = backend.placeholder(shape=(), dtype='float32')
     x2 = backend.placeholder(shape=(), dtype='int32')
@@ -2001,7 +2001,7 @@ class FunctionTest(tf.test.TestCase):
     self.assertEqual(result, 4.)
 
   def test_tuple_updates(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest('eager backend.function does not support updates')
 
     x_ph = backend.placeholder(ndim=2)
@@ -2186,8 +2186,8 @@ class BackendGraphTests(tf.test.TestCase, parameterized.TestCase):
 class ControlOpsTests(tf.test.TestCase):
 
   def test_function_switch_basics(self):
-    x = tf.constant(2.0)
-    y = tf.constant(3.0)
+    x = tf.compat.v2.constant(2.0)
+    y = tf.compat.v2.constant(3.0)
 
     def xpowy():
       return backend.pow(x, y)
@@ -2202,9 +2202,9 @@ class ControlOpsTests(tf.test.TestCase):
     self.assertEqual(backend.eval(tensor), [9.0])
 
   def test_unequal_rank(self):
-    x = tf.convert_to_tensor(
+    x = tf.compat.v2.convert_to_tensor(
         np.array([[1, 2, 3], [4, 5, 6]]), dtype='float32')
-    y = tf.convert_to_tensor(
+    y = tf.compat.v2.convert_to_tensor(
         np.array([1, 2, 3]), dtype='float32')
 
     def true_func():
@@ -2236,7 +2236,7 @@ class ContextValueCacheTest(tf.test.TestCase):
     self.assertAllEqual(cache[graph1], [1, 2])
     self.assertAllEqual(cache[graph2], [3, 4])
 
-    with tf.__internal__.eager_context.eager_mode():
+    with tf.compat.v2.__internal__.eager_context.eager_mode():
       cache[None].append(5)
       cache[None].append(6)
       self.assertAllEqual(cache[None], [5, 6])

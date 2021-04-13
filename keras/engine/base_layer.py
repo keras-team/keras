@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Contains the base Layer class, from which all layers inherit."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import copy
@@ -65,16 +65,16 @@ _TF_OP_LAYER_NAME_PREFIX = 'tf_op_layer_'
 
 # TODO(mdan): Should we have a single generic type for types that can be passed
 # to tf.cast?
-_AUTOCAST_TYPES = (tf.Tensor, tf.SparseTensor,
+_AUTOCAST_TYPES = (tf.Tensor, tf.sparse.SparseTensor,
                    tf.RaggedTensor)
 
-keras_layers_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras/layers',
+keras_layers_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras/layers',
                                           'keras layers usage', 'method')
-keras_models_gauge = tf.__internal__.monitoring.BoolGauge(
+keras_models_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/models', 'keras model usage', 'method')
-keras_api_gauge = tf.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras',
+keras_api_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge('/tensorflow/api/oss-keras',
                                        'keras api usage', 'method')
-keras_premade_model_gauge = tf.__internal__.monitoring.BoolGauge(
+keras_premade_model_gauge = tf.compat.v2.__internal__.monitoring.BoolGauge(
     '/tensorflow/api/oss-keras/premade_models', 'premade keras model usage', 'type')
 
 
@@ -294,7 +294,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         keras_layers_gauge.get_cell(self._get_cell_name()).set(True)
         self._instrumented_keras_layer_class = True
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
                trainable=True,
                name=None,
@@ -428,7 +428,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # a list with one element.
     self._preserve_input_structure_in_config = False
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   @generic_utils.default
   def build(self, input_shape):
     """Creates the variables of the layer (optional, for subclass implementers).
@@ -730,7 +730,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     Returns:
         An input shape tuple.
     """
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # In this case we build the model first in order to do shape inference.
       # This is acceptable because the framework only calls
       # `compute_output_shape` on shape values that the layer would later be
@@ -739,7 +739,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       # with the shape the Layer will be called on (these users will have to
       # implement `compute_output_shape` themselves).
       self._maybe_build(input_shape)
-      with tf.__internal__.FuncGraph(str(self.name) + '_scratch_graph').as_default():
+      with tf.compat.v2.__internal__.FuncGraph(str(self.name) + '_scratch_graph').as_default():
         input_shape = tf_utils.convert_shapes(input_shape, to_tuples=False)
         def _make_placeholder_like(shape):
           ph = backend.placeholder(shape=shape, dtype=self.dtype)
@@ -826,14 +826,14 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      call_fn = tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
+      call_fn = tf.compat.v2.__internal__.autograph.tf_convert(self.call, tf.compat.v2.__internal__.autograph.control_status_ctx())
 
     # We enter a scratch graph and build placeholder inputs inside of it that
     # match the input args.
     # We then call the layer inside of the scratch graph to identify the
     # output signatures, then we build KerasTensors corresponding to those
     # outputs.
-    scratch_graph = tf.__internal__.FuncGraph(str(self.name) + '_scratch_graph')
+    scratch_graph = tf.compat.v2.__internal__.FuncGraph(str(self.name) + '_scratch_graph')
     with scratch_graph.as_default():
       inputs = tf.nest.map_structure(
           keras_tensor.keras_tensor_to_placeholder, inputs)
@@ -978,7 +978,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     if not call_context.in_call:
       self._clear_losses()
 
-    eager = tf.executing_eagerly()
+    eager = tf.compat.v2.executing_eagerly()
     with call_context.enter(
         layer=self,
         inputs=inputs,
@@ -993,7 +993,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         name_scope = self._name_scope()  # Avoid autoincrementing.
         call_fn = self._autographed_call()
 
-      with tf.name_scope(name_scope):
+      with tf.compat.v2.name_scope(name_scope):
         if not self.built:
           self._maybe_build(inputs)
 
@@ -1024,7 +1024,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Don't call `ops.convert_to_tensor` on all `inputs` because
         # `SparseTensors` can't be converted to `Tensor`.
         if isinstance(x, (tf.Tensor, np.ndarray, float, int)):
-          return tf.convert_to_tensor(x)
+          return tf.compat.v2.convert_to_tensor(x)
         return x
 
       inputs = tf.nest.map_structure(_convert_non_tensor, inputs)
@@ -1148,7 +1148,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # enclosing tf.function, if any.
     if (base_layer_utils.is_subclassed(self) and
         not base_layer_utils.from_saved_model(self)):
-      return tf.__internal__.autograph.tf_convert(self.call, tf.__internal__.autograph.control_status_ctx())
+      return tf.compat.v2.__internal__.autograph.tf_convert(self.call, tf.compat.v2.__internal__.autograph.control_status_ctx())
     else:
       return self.call
 
@@ -1247,7 +1247,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   @input_spec.setter
   # Must be decorated to prevent tracking, since the input_spec can be nested
   # InputSpec objects.
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def input_spec(self, value):
     for v in tf.nest.flatten(value):
       if v is not None and not isinstance(v, InputSpec):
@@ -1445,7 +1445,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       if loss is None:
         return None  # Will be filtered out when computing the .losses property
       if not tf.is_tensor(loss):
-        loss = tf.convert_to_tensor(
+        loss = tf.compat.v2.convert_to_tensor(
             loss, dtype=backend.floatx())
       loss._unconditional_loss = True  # pylint: disable=protected-access
       return loss
@@ -1463,7 +1463,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         continue
       if not tf.is_tensor(loss) and not isinstance(
           loss, keras_tensor.KerasTensor):
-        loss = tf.convert_to_tensor(
+        loss = tf.compat.v2.convert_to_tensor(
             loss, dtype=backend.floatx())
       # TF Functions should take the eager path.
       if ((tf_utils.is_symbolic_tensor(loss) or
@@ -2202,7 +2202,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return self._inbound_nodes_value
 
   @_inbound_nodes.setter
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _inbound_nodes(self, value):
     self._inbound_nodes_value = value
 
@@ -2211,7 +2211,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     return self._outbound_nodes_value
 
   @_outbound_nodes.setter
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _outbound_nodes(self, value):
     self._outbound_nodes_value = value
 
@@ -2349,10 +2349,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     self._set_dtype_policy(policy.Policy(value))
 
   def _name_scope(self):
-    if not tf.__internal__.tf2.enabled():
+    if not tf.compat.v2.__internal__.tf2.enabled():
       return self.name
     name_scope = self.name
-    current_name_scope = tf.__internal__.get_name_scope()
+    current_name_scope = tf.compat.v2.__internal__.get_name_scope()
     if current_name_scope:
       name_scope = current_name_scope + '/' + name_scope
     if name_scope:
@@ -2648,7 +2648,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                                  object_identity.ObjectIdentityDictionary())
     return self._obj_reference_counts_dict
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _maybe_create_attribute(self, name, default_value):
     """Create the attribute with the default value if it hasn't been created.
 
@@ -2680,7 +2680,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # other attributes referencing it.
     reference_counts = self._obj_reference_counts
     if existing_value not in reference_counts:
-      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__delattr__(name)
       return
 
     reference_count = reference_counts[existing_value]
@@ -2688,24 +2688,24 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       # There are other remaining references. We can't remove this object from
       # _layers etc.
       reference_counts[existing_value] = reference_count - 1
-      super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__delattr__(name)
       return
     else:
       # This is the last remaining reference.
       del reference_counts[existing_value]
 
-    super(tf.__internal__.tracking.AutoTrackable, self).__delattr__(name)
+    super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__delattr__(name)
 
     if (isinstance(existing_value, Layer)
         or base_layer_utils.has_weights(existing_value)):
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(
           '_self_tracked_trackables',
           [l for l in self._self_tracked_trackables if l is not existing_value])
-    if isinstance(existing_value, tf.Variable):
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+    if isinstance(existing_value, tf.compat.v2.Variable):
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(
           '_trainable_weights',
           [w for w in self._trainable_weights if w is not existing_value])
-      super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(
+      super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(
           '_non_trainable_weights',
           [w for w in self._non_trainable_weights if w is not existing_value])
 
@@ -2715,7 +2715,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         # Exclude @property.setters from tracking
         hasattr(self.__class__, name)):
       try:
-        super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
+        super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
       except AttributeError:
         raise AttributeError(
             ('Can\'t set the attribute "{}", likely because it conflicts with '
@@ -2724,7 +2724,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       return
 
     # Wraps data structures in `Trackable`, unwraps `NoDependency` objects.
-    value = tf.__internal__.tracking.sticky_attribute_assignment(
+    value = tf.compat.v2.__internal__.tracking.sticky_attribute_assignment(
         trackable=self, value=value, name=name)
 
     reference_counts = self._obj_reference_counts
@@ -2760,7 +2760,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # TODO(b/125122625): This won't pick up on any variables added to a
     # list/dict after creation.
     for val in tf.nest.flatten(value, expand_composites=True):
-      if not isinstance(val, tf.Variable):
+      if not isinstance(val, tf.compat.v2.Variable):
         continue
 
       # Users may add extra weights/variables
@@ -2780,7 +2780,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     # TODO(b/180760306) Skip the auto trackable from tf.Module to keep status
     # quo. See the comment at __delattr__.
-    super(tf.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
+    super(tf.compat.v2.__internal__.tracking.AutoTrackable, self).__setattr__(name, value)
 
   def _gather_children_attribute(self, attribute):
     assert attribute in {
@@ -2834,7 +2834,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                                     None)
             if subtrackables:
               deque.extendleft(reversed(subtrackables))
-        elif isinstance(trackable_obj, tf.__internal__.tracking.TrackableDataStructure):
+        elif isinstance(trackable_obj, tf.compat.v2.__internal__.tracking.TrackableDataStructure):
           # Data structures are introspected even with `recursive=False`.
           tracked_values = trackable_obj._values
           if tracked_values:
@@ -2955,7 +2955,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
   # SavedModel properties. Please see keras/saving/saved_model for details.
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def _set_save_spec(self, inputs):
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
@@ -3048,7 +3048,7 @@ class TensorFlowOpLayer(Layer):
       effect on this class, however is used in `get_config`.
   """
 
-  @tf.__internal__.tracking.no_automatic_dependency_tracking
+  @tf.compat.v2.__internal__.tracking.no_automatic_dependency_tracking
   def __init__(self,
                node_def,
                name,
@@ -3078,7 +3078,7 @@ class TensorFlowOpLayer(Layer):
     self._must_restore_from_config = True
 
   def call(self, inputs):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       return self._defun_call(inputs)
     return self._make_op(inputs)
 
@@ -3100,11 +3100,11 @@ class TensorFlowOpLayer(Layer):
         # Recreate constant in graph to add distribution context.
         value = tf.get_static_value(constant)
         if value is not None:
-          constant = tf.constant(value, name=node_def.input[index])
+          constant = tf.compat.v2.constant(value, name=node_def.input[index])
         inputs.insert(index, constant)
       # TODO(b/183990973): We should drop or consolidate these private api calls
       # for adding an op to the graph and recording its gradient.
-      c_op = tf.__internal__.create_c_op(graph, node_def, inputs, control_inputs=[])
+      c_op = tf.compat.v2.__internal__.create_c_op(graph, node_def, inputs, control_inputs=[])
       op = graph._create_op_from_tf_operation(c_op)
       op._control_flow_post_processing()
 
@@ -3117,7 +3117,7 @@ class TensorFlowOpLayer(Layer):
         attrs.append(attr_name)
         attrs.append(op.get_attr(attr_name))
       attrs = tuple(attrs)
-      tf.__internal__.record_gradient(op_type, op.inputs, attrs, op.outputs)
+      tf.compat.v2.__internal__.record_gradient(op_type, op.inputs, attrs, op.outputs)
 
       if len(op.outputs) == 1:
         return op.outputs[0]
@@ -3202,7 +3202,7 @@ def _in_functional_construction_mode(layer, inputs, args, kwargs, input_list):  
 
 def _convert_numpy_or_python_types(x):
   if isinstance(x, (tf.Tensor, np.ndarray, float, int)):
-    return tf.convert_to_tensor(x)
+    return tf.compat.v2.convert_to_tensor(x)
   return x
 
 

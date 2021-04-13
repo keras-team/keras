@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for backend_config."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 from keras import backend
 from keras import backend_config

@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Input layer code (`Input` and `InputLayer`)."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 from keras.distribute import distributed_training_utils
 from keras.engine import base_layer

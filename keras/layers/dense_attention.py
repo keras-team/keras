@@ -18,7 +18,7 @@ This file follows the terminology of https://arxiv.org/abs/1706.03762 Figure 2.
 Attention is formed by three tensors: Query, Key and Value.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 from keras.engine.base_layer import Layer
 from keras.utils import control_flow_util
@@ -114,7 +114,7 @@ class BaseDenseAttention(Layer):
         `[batch_size, Tq, Tv]`.
     """
     if scores_mask is not None:
-      padding_mask = tf.logical_not(scores_mask)
+      padding_mask = tf.math.logical_not(scores_mask)
       # Bias so padding positions do not contribute to attention distribution.
       # Note 65504. is the max float16 value.
       if scores.dtype is tf.float16:
@@ -123,14 +123,14 @@ class BaseDenseAttention(Layer):
         scores -= 1.e9 * tf.cast(padding_mask, dtype=scores.dtype)
     if training is None:
       training = backend.learning_phase()
-    weights = tf.compat.v1.math.softmax(scores)
+    weights = tf.compat.v1.nn.softmax(scores)
 
     def dropped_weights():
       return tf.compat.v1.nn.dropout(weights, rate=self.dropout)
 
     weights = control_flow_util.smart_cond(training, dropped_weights,
                                            lambda: tf.identity(weights))
-    return tf.matmul(weights, value), weights
+    return tf.linalg.matmul(weights, value), weights
 
   # TODO(b/125916026): Consider exposing a __call__ method with named args.
   def call(self,
@@ -177,7 +177,7 @@ class BaseDenseAttention(Layer):
       q_mask = mask[0]
       if q_mask is None:
         return None
-      return tf.convert_to_tensor(q_mask)
+      return tf.compat.v2.convert_to_tensor(q_mask)
     return None
 
   def _validate_call_args(self, inputs, mask):
@@ -338,7 +338,7 @@ class Attention(BaseDenseAttention):
     Returns:
       Tensor of shape `[batch_size, Tq, Tv]`.
     """
-    scores = tf.matmul(query, key, transpose_b=True)
+    scores = tf.linalg.matmul(query, key, transpose_b=True)
     if self.scale is not None:
       scores *= self.scale
     return scores
@@ -465,7 +465,7 @@ class AdditiveAttention(BaseDenseAttention):
       self.scale = self.add_weight(
           name='scale',
           shape=[dim],
-          initializer=tf.compat.v1.glorot_uniform_initializer(),
+          initializer=tf.compat.v1.initializers.glorot_uniform(),
           dtype=self.dtype,
           trainable=True)
     else:
@@ -490,7 +490,7 @@ class AdditiveAttention(BaseDenseAttention):
       scale = self.scale
     else:
       scale = 1.
-    return tf.reduce_sum(
+    return tf.compat.v2.reduce_sum(
         scale * tf.tanh(q_reshaped + k_reshaped), axis=-1)
 
   def get_config(self):
@@ -501,10 +501,10 @@ class AdditiveAttention(BaseDenseAttention):
 
 def _lower_triangular_mask(shape):
   """Creates a lower-triangular boolean mask over the last 2 dimensions."""
-  row_index = tf.cumsum(
-      tf.ones(shape=shape, dtype=tf.int32), axis=-2)
-  col_index = tf.cumsum(
-      tf.ones(shape=shape, dtype=tf.int32), axis=-1)
+  row_index = tf.math.cumsum(
+      tf.ones(shape=shape, dtype=tf.dtypes.int32), axis=-2)
+  col_index = tf.math.cumsum(
+      tf.ones(shape=shape, dtype=tf.dtypes.int32), axis=-1)
   return tf.greater_equal(row_index, col_index)
 
 
@@ -513,4 +513,4 @@ def _merge_masks(x, y):
     return y
   if y is None:
     return x
-  return tf.logical_and(x, y)
+  return tf.math.logical_and(x, y)

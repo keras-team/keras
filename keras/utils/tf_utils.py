@@ -14,7 +14,7 @@
 # ==============================================================================
 """TensorFlow-related utilities."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import copy
@@ -63,7 +63,7 @@ def get_reachable_from_inputs(inputs, targets=None):
     if isinstance(x, tf.Operation):
       outputs = x.outputs[:] or []
       outputs += x._control_outputs  # pylint: disable=protected-access
-    elif isinstance(x, tf.Variable):
+    elif isinstance(x, tf.compat.v2.Variable):
       try:
         outputs = [x.op]
       except AttributeError:
@@ -112,16 +112,16 @@ def map_structure_with_atomic(is_atomic_fn, map_fn, nested):
   if not tf.nest.is_nested(nested):
     raise ValueError(
         'Received non-atomic and non-sequence element: {}'.format(nested))
-  if tf.__internal__.nest.is_mapping(nested):
+  if tf.compat.v2.__internal__.nest.is_mapping(nested):
     values = [nested[k] for k in sorted(nested.keys())]
-  elif tf.__internal__.nest.is_attrs(nested):
+  elif tf.compat.v2.__internal__.nest.is_attrs(nested):
     values = _astuple(nested)
   else:
     values = nested
   mapped_values = [
       map_structure_with_atomic(is_atomic_fn, map_fn, ele) for ele in values
   ]
-  return tf.__internal__.nest.sequence_like(nested, mapped_values)
+  return tf.compat.v2.__internal__.nest.sequence_like(nested, mapped_values)
 
 
 def get_shapes(tensors):
@@ -285,7 +285,7 @@ def is_extension_type(tensor):
   Returns:
     True if the tensor is an extension type object, false if not.
   """
-  return isinstance(tensor, tf.__internal__.CompositeTensor)
+  return isinstance(tensor, tf.compat.v2.__internal__.CompositeTensor)
 
 
 def is_symbolic_tensor(tensor):
@@ -305,14 +305,14 @@ def is_symbolic_tensor(tensor):
   elif is_extension_type(tensor):
     component_tensors = tf.nest.flatten(tensor, expand_composites=True)
     return any(hasattr(t, 'graph') for t in component_tensors)
-  elif isinstance(tensor, tf.Variable):
+  elif isinstance(tensor, tf.compat.v2.Variable):
     # Variables that are output of a Keras Layer in Functional API mode
     # should be considered symbolic.
     # TODO(omalleyt): We need a better way to check this in order to
     # enable `run_eagerly=True` for Models containing Layers that
     # return Variables as outputs.
     return (getattr(tensor, '_keras_history', False) or
-            not tf.executing_eagerly())
+            not tf.compat.v2.executing_eagerly())
   elif isinstance(tensor, tuple(_user_convertible_tensor_types)):
     tensor = ops.convert_to_tensor_or_composite(tensor)
     return is_symbolic_tensor(tensor)
@@ -376,7 +376,7 @@ def is_ragged(tensor):
 
 
 def is_tensor_or_variable(x):
-  return tf.is_tensor(x) or isinstance(x, tf.Variable)
+  return tf.is_tensor(x) or isinstance(x, tf.compat.v2.Variable)
 
 
 def assert_no_legacy_layers(layers):
@@ -436,7 +436,7 @@ def graph_context_for_symbolic_tensors(*args, **kwargs):
 def dataset_is_infinite(dataset):
   """True if the passed dataset is infinite."""
   if tf.compat.v1.executing_eagerly_outside_functions():
-    return tf.equal(
+    return tf.math.equal(
         tf.data.experimental.cardinality(dataset), tf.data.experimental.INFINITE_CARDINALITY)
   else:
     dataset_size = K.get_session().run(tf.data.experimental.cardinality(dataset))
@@ -495,7 +495,7 @@ def sync_to_numpy_or_python_type(tensors):
     `tensors`, but scalar tensors are converted to Python types and non-scalar
     tensors are converted to Numpy arrays.
   """
-  if isinstance(tensors, tf.distribute.experimental.coordinator.RemoteValue):
+  if isinstance(tensors, tf.compat.v2.distribute.experimental.coordinator.RemoteValue):
     return tensors.fetch()
 
   def _to_single_numpy_or_python_type(t):

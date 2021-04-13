@@ -18,7 +18,7 @@ TODO (kathywu): Move to layer_serialization.py. Some model-specific logic should
 go to model_serialization.py.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import functools
 import threading
@@ -107,19 +107,19 @@ def wrap_layer_objects(layer, serialization_cache):
   wrapped_layer_losses = [keras_loss_cache[fn]
                           for fn in layer._callable_losses[:]]  # pylint: disable=protected-access
 
-  layer_metrics = tf.__internal__.tracking.wrap(
+  layer_metrics = tf.compat.v2.__internal__.tracking.wrap(
       {m.name: m for m in layer._metrics})  # pylint: disable=protected-access
   return dict(
-      variables=tf.__internal__.tracking.wrap(layer.variables),
-      trainable_variables=tf.__internal__.tracking.wrap(
+      variables=tf.compat.v2.__internal__.tracking.wrap(layer.variables),
+      trainable_variables=tf.compat.v2.__internal__.tracking.wrap(
           layer.trainable_variables),
-      non_trainable_variables=tf.__internal__.tracking.wrap(
+      non_trainable_variables=tf.compat.v2.__internal__.tracking.wrap(
           layer.non_trainable_variables),
-      layers=tf.__internal__.tracking.wrap(utils.list_all_layers(layer)),
-      metrics=tf.__internal__.tracking.wrap(layer.metrics),
-      regularization_losses=tf.__internal__.tracking.wrap(
+      layers=tf.compat.v2.__internal__.tracking.wrap(utils.list_all_layers(layer)),
+      metrics=tf.compat.v2.__internal__.tracking.wrap(layer.metrics),
+      regularization_losses=tf.compat.v2.__internal__.tracking.wrap(
           wrapped_loss_functions),
-      layer_regularization_losses=tf.__internal__.tracking.wrap(
+      layer_regularization_losses=tf.compat.v2.__internal__.tracking.wrap(
           wrapped_layer_losses),
       layer_metrics=layer_metrics)
   # pylint: disable=protected-access
@@ -422,7 +422,7 @@ class LayerCallCollection(object):
       List of possibly nested TensorSpecs of the layer call function inputs.
       The list does not contain the `training` argument.
     """
-    if (isinstance(layer.call, tf.__internal__.function.Function) and
+    if (isinstance(layer.call, tf.compat.v2.__internal__.function.Function) and
         layer.call.input_signature is not None):
       return layer.call.input_signature
     elif isinstance(layer, training_lib.Model):
@@ -532,7 +532,7 @@ class LayerCallCollection(object):
           utils.remove_training_arg(self._training_arg_index, args, kwargs)
         return call_fn(*args, **kwargs)
 
-      return tf.__internal__.decorator.make_decorator(
+      return tf.compat.v2.__internal__.decorator.make_decorator(
           target=call_fn,
           decorator_func=wrap_with_training_arg,
           decorator_argspec=new_arg_spec)
@@ -598,7 +598,7 @@ def layer_call_wrapper(call_collection, method, name):
   # Rename to `name`, since tf.function doesn't have a name argument. Without
   # this, all functions returned by this method will be named "call", which
   # would be a nightmare to debug.
-  fn = tf.__internal__.decorator.make_decorator(target=method, decorator_func=wrapper)
+  fn = tf.compat.v2.__internal__.decorator.make_decorator(target=method, decorator_func=wrapper)
   fn.__name__ = name
   return fn
 
@@ -692,7 +692,7 @@ def _create_call_fn_decorator(layer, wrapped_call):
   fn, arg_spec = utils.maybe_add_training_arg(
       call_fn, wrapped_call, layer._expects_training_arg,  # pylint: disable=protected-access
       default_training_value=False)
-  return tf.__internal__.decorator.make_decorator(
+  return tf.compat.v2.__internal__.decorator.make_decorator(
       target=call_fn,
       decorator_func=fn,
       decorator_argspec=arg_spec)
@@ -702,19 +702,19 @@ def _wrap_unconditional_loss(loss_fn, index):
   """Wraps callable/unconditional loss, returning a serializable function."""
   # Extract original loss function from partial function
   fn = loss_fn.args[0] if isinstance(loss_fn, functools.partial) else loss_fn
-  if isinstance(fn, tf.__internal__.function.Function):
+  if isinstance(fn, tf.compat.v2.__internal__.function.Function):
     return fn
   else:
-    return tf.__internal__.function.Function(
+    return tf.compat.v2.__internal__.function.Function(
         fn, 'loss_fn_{}'.format(index), input_signature=[])
 
 
 def _wrap_activity_regularizer(layer):
   """Wraps the activity regularizer."""
   # pylint: disable=protected-access
-  if isinstance(layer._activity_regularizer, tf.__internal__.function.Function):
+  if isinstance(layer._activity_regularizer, tf.compat.v2.__internal__.function.Function):
     return layer._activity_regularizer
-  return tf.__internal__.function.Function(
+  return tf.compat.v2.__internal__.function.Function(
       layer._activity_regularizer,
       '{}_activity_regularizer'.format(layer.name),
       input_signature=[
@@ -724,6 +724,6 @@ def _wrap_activity_regularizer(layer):
 
 
 def _get_layer_call_method(layer):
-  if isinstance(layer.call, (tf.__internal__.function.Function)):
+  if isinstance(layer.call, (tf.compat.v2.__internal__.function.Function)):
     return layer.call.python_function
   return layer.call

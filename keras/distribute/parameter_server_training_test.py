@@ -15,7 +15,7 @@
 # ==============================================================================
 """Tests for ClusterCoordinator and Keras models."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import random
 import tempfile
@@ -39,8 +39,8 @@ LABEL_VOCAB = ["yes", "no"]
 
 
 def make_coordinator(num_workers, num_ps, variable_partitioner=None):
-  return tf.distribute.experimental.coordinator.ClusterCoordinator(
-      tf.distribute.experimental.ParameterServerStrategy(
+  return tf.compat.v2.distribute.experimental.coordinator.ClusterCoordinator(
+      tf.compat.v2.distribute.experimental.ParameterServerStrategy(
           multi_worker_testing_utils.make_parameter_server_cluster(
               num_workers, num_ps),
           variable_partitioner=variable_partitioner))
@@ -94,8 +94,8 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         num_oov_indices=0, mask_token=None, vocabulary=LABEL_VOCAB, invert=True)
     return label_inverse_lookup_layer
 
-  @tf.__internal__.distribute.combinations.generate(
-      tf.__internal__.test.combinations.combine(mode=["eager"], use_adapt=[True, False]))
+  @tf.compat.v2.__internal__.distribute.combinations.generate(
+      tf.compat.v2.__internal__.test.combinations.combine(mode=["eager"], use_adapt=[True, False]))
   def testTrainAndServe(self, use_adapt):
 
     with self.coordinator.strategy.scope():
@@ -132,7 +132,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
       emb_output = keras.layers.Embedding(
           input_dim=len(FEATURE_VOCAB) + 2, output_dim=20)(
               model_input)
-      emb_output = tf.reduce_mean(emb_output, axis=1)
+      emb_output = tf.compat.v2.reduce_mean(emb_output, axis=1)
       dense_output = keras.layers.Dense(
           units=1, activation="sigmoid")(
               emb_output)
@@ -155,7 +155,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
         optimizer.apply_gradients(zip(gradients, model.trainable_variables))
 
-        actual_pred = tf.cast(tf.greater(pred, 0.5), tf.int64)
+        actual_pred = tf.cast(tf.math.greater(pred, 0.5), tf.int64)
         accuracy.update_state(labels, actual_pred)
 
       self.coordinator.strategy.run(replica_fn, args=(iterator,))
@@ -182,7 +182,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
         transformed_features = model.feature_ps(raw_features)
         outputs = model(transformed_features)
         outputs = tf.compat.v1.squeeze(outputs, axis=0)
-        outputs = tf.cast(tf.greater(outputs, 0.5), tf.int64)
+        outputs = tf.cast(tf.math.greater(outputs, 0.5), tf.int64)
         decoded_outputs = model.label_inverse_lookup_layer(outputs)
         return tf.compat.v1.squeeze(decoded_outputs, axis=0)
 
@@ -202,11 +202,11 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
     # check the result w/ and w/o avenger.
     prediction0 = loaded_serving_fn(
-        tf.constant(["avenger", "ironman", "avenger"]))["output_0"]
+        tf.compat.v2.constant(["avenger", "ironman", "avenger"]))["output_0"]
     self.assertIn(prediction0, ("yes", "no"))
 
     prediction1 = loaded_serving_fn(
-        tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
+        tf.compat.v2.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
     self.assertIn(prediction1, ("yes", "no"))
 
 
@@ -215,9 +215,9 @@ class ShardedVariableTest(tf.test.TestCase):
   @classmethod
   def setUpClass(cls):
     super().setUpClass()
-    cls.strategy = tf.distribute.experimental.ParameterServerStrategy(
+    cls.strategy = tf.compat.v2.distribute.experimental.ParameterServerStrategy(
         multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-        variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(2))
+        variable_partitioner=tf.compat.v2.distribute.experimental.partitioners.FixedShardsPartitioner(2))
 
   def assert_list_all_equal(self, list1, list2):
     """Used in lieu of `assertAllEqual`.
@@ -241,8 +241,8 @@ class ShardedVariableTest(tf.test.TestCase):
 
       def __init__(self):
         super().__init__()
-        self.w = tf.Variable([0, 1])
-        self.b = tf.Variable([2, 3], trainable=False)
+        self.w = tf.compat.v2.Variable([0, 1])
+        self.b = tf.compat.v2.Variable([2, 3], trainable=False)
 
     with self.strategy.scope():
       layer = Layer()
@@ -270,11 +270,11 @@ class ShardedVariableTest(tf.test.TestCase):
         super().__init__()
         self.w = self.add_weight(
             shape=(2,),
-            initializer=lambda shape, dtype: tf.constant([0., 1.],),
+            initializer=lambda shape, dtype: tf.compat.v2.constant([0., 1.],),
             trainable=True)
         self.b = self.add_weight(
             shape=(2,),
-            initializer=lambda shape, dtype: tf.constant([2., 3.]),
+            initializer=lambda shape, dtype: tf.compat.v2.constant([2., 3.]),
             trainable=False)
 
     with self.strategy.scope():

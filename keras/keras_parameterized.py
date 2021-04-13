@@ -14,7 +14,7 @@
 # ==============================================================================
 """Utilities for unit-testing Keras."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections.abc as collections_abc
 import functools
@@ -385,7 +385,7 @@ def run_all_keras_modes(test_or_class=None,
   params = [('_v2_function', 'v2_function')]
   if not always_skip_eager:
     params.append(('_v2_eager', 'v2_eager'))
-  if not (always_skip_v1 or tf.__internal__.tf2.enabled()):
+  if not (always_skip_v1 or tf.compat.v2.__internal__.tf2.enabled()):
     params.append(('_v1_session', 'v1_session'))
 
   def single_method_decorator(f):
@@ -418,13 +418,13 @@ def _v1_session_test(f, test_or_class, config, *args, **kwargs):
 
 
 def _v2_eager_test(f, test_or_class, *args, **kwargs):
-  with tf.__internal__.eager_context.eager_mode():
+  with tf.compat.v2.__internal__.eager_context.eager_mode():
     with testing_utils.run_eagerly_scope(True):
       f(test_or_class, *args, **kwargs)
 
 
 def _v2_function_test(f, test_or_class, *args, **kwargs):
-  with tf.__internal__.eager_context.eager_mode():
+  with tf.compat.v2.__internal__.eager_context.eager_mode():
     with testing_utils.run_eagerly_scope(False):
       f(test_or_class, *args, **kwargs)
 

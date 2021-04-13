@@ -14,7 +14,7 @@
 # ==============================================================================
 """Contains testing utilities related to mixed precision."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import regularizers
 from keras.engine import base_layer
 
@@ -45,13 +45,13 @@ def create_identity_with_grad_check_fn(expected_gradient, expected_dtype=None):
       if expected_dtype:
         assert dx.dtype == expected_dtype, (
             'dx.dtype should be %s but is: %s' % (expected_dtype, dx.dtype))
-      expected_tensor = tf.convert_to_tensor(
+      expected_tensor = tf.compat.v2.convert_to_tensor(
           expected_gradient, dtype=dx.dtype, name='expected_gradient')
       # Control dependency is to ensure input is available. It's possible the
       # dataset will throw a StopIteration to indicate there is no more data, in
       # which case we don't want to run the assertion.
       with tf.control_dependencies([x]):
-        assert_op = tf.compat.v1.assert_equal(dx, expected_tensor)
+        assert_op = tf.compat.v1.debugging.assert_equal(dx, expected_tensor)
       with tf.control_dependencies([assert_op]):
         dx = tf.identity(dx)
       return dx
@@ -163,7 +163,7 @@ class MultiplyLayer(AssertTypeLayer):
     if self._use_operator:
       return x * y
     else:
-      return tf.multiply(x, y)
+      return tf.math.multiply(x, y)
 
   def get_config(self):
     config = super(MultiplyLayer, self).get_config()
@@ -179,7 +179,7 @@ class MultiplyLayer(AssertTypeLayer):
 class IdentityRegularizer(regularizers.Regularizer):
 
   def __call__(self, x):
-    assert x.dtype == tf.float32
+    assert x.dtype == tf.dtypes.float32
     return tf.identity(x)
 
   def get_config(self):
@@ -189,7 +189,7 @@ class IdentityRegularizer(regularizers.Regularizer):
 class ReduceSumRegularizer(regularizers.Regularizer):
 
   def __call__(self, x):
-    return tf.reduce_sum(x)
+    return tf.compat.v2.reduce_sum(x)
 
   def get_config(self):
     return {}

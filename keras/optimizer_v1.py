@@ -19,7 +19,7 @@
 For more examples see the base class `tf.compat.v1.keras.optimizers.Optimizer`.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 
 
@@ -533,7 +533,7 @@ class Adam(Optimizer):
       m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
       v_t = (self.beta_2 * v) + (1. - self.beta_2) * tf.square(g)
       if self.amsgrad:
-        vhat_t = tf.maximum(vhat, v_t)
+        vhat_t = tf.math.maximum(vhat, v_t)
         p_t = p - lr_t * m_t / (backend.sqrt(vhat_t) + self.epsilon)
         self.updates.append(tf.compat.v1.assign(vhat, vhat_t))
       else:
@@ -627,7 +627,7 @@ class Adamax(Optimizer):
     for p, g, m, u in zip(params, grads, ms, us):
 
       m_t = (self.beta_1 * m) + (1. - self.beta_1) * g
-      u_t = tf.maximum(self.beta_2 * u, tf.abs(g))
+      u_t = tf.math.maximum(self.beta_2 * u, tf.math.abs(g))
       p_t = p - lr_t * m_t / (u_t + self.epsilon)
 
       self.updates.append(tf.compat.v1.assign(m, m_t))
@@ -753,7 +753,7 @@ class Nadam(Optimizer):
     return dict(list(base_config.items()) + list(config.items()))
 
 
-class TFOptimizer(Optimizer, tf.__internal__.tracking.Trackable):
+class TFOptimizer(Optimizer, tf.compat.v2.__internal__.tracking.Trackable):
   """Wrapper class for native TensorFlow optimizers."""
 
   def __init__(self, optimizer, iterations=None):  # pylint: disable=super-init-not-called

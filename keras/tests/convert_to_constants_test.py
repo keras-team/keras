@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for convert_to_constants.py."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 
@@ -93,7 +93,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
   @testing_utils.run_v2_only
   def testKerasModel(self):
     """Test a basic Keras model with Variables."""
-    input_data = {"x": tf.constant(1., shape=[1, 1])}
+    input_data = {"x": tf.compat.v2.constant(1., shape=[1, 1])}
 
     # Create a simple Keras model.
     x = [-1, 0, 1, 2, 3, 4]
@@ -105,7 +105,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     model.fit(x, y, epochs=1)
 
     @tf.function(input_signature=[
-        tf.TensorSpec(shape=[1, 1], dtype=tf.float32)
+        tf.TensorSpec(shape=[1, 1], dtype=tf.dtypes.float32)
     ])
     def to_save(x):
       return model(x)
@@ -118,7 +118,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     """Test a Keras LSTM containing dynamic_rnn ops."""
     input_data = {
         "x":
-            tf.constant(
+            tf.compat.v2.constant(
                 np.array(
                     np.random.random_sample((10, 10, 10)), dtype=np.float32))
     }
@@ -127,7 +127,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
         [keras.layers.LSTM(units=10, input_shape=(10, 10))])
 
     @tf.function(input_signature=[
-        tf.TensorSpec(shape=[10, 10, 10], dtype=tf.float32)
+        tf.TensorSpec(shape=[10, 10, 10], dtype=tf.dtypes.float32)
     ])
     def to_save(x):
       return model(x)
@@ -140,7 +140,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
     """Test model with embeddings."""
     input_data = {
         "x":
-            tf.constant(
+            tf.compat.v2.constant(
                 np.array(np.random.random_sample((20)), dtype=np.int32))
     }
 
@@ -151,12 +151,12 @@ class VariablesToConstantsTest(tf.test.TestCase):
         self.shared_weights = self.add_weight(
             "weights",
             shape=(2000, 300),
-            dtype=tf.float32,
+            dtype=tf.dtypes.float32,
             initializer=tf.compat.v1.random_normal_initializer(
                 mean=0.0, stddev=300**(-0.5)))
 
       @tf.function(input_signature=[
-          tf.TensorSpec(shape=(20), dtype=tf.int32)
+          tf.TensorSpec(shape=(20), dtype=tf.dtypes.int32)
       ])
       def func(self, x):
         return tf.compat.v1.gather(self.shared_weights, x)

@@ -64,7 +64,7 @@ class BenchmarkLayer(tf.test.TestCase, fc_bm.LayerBenchmark):
     # Wrap the FC implementation in a tf.function for a fair comparison
     @tf_function()
     def fc_fn(tensors):
-      fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
+      fc.transform_feature(tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(tensors), None)
 
     # Benchmark runs
     keras_data = {

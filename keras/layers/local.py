@@ -15,7 +15,7 @@
 # pylint: disable=g-classes-have-attributes
 """Locally-connected layers."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import numpy as np
 
@@ -800,7 +800,7 @@ def make_2d(tensor, split_dim):
   in_dims = shape[:split_dim]
   out_dims = shape[split_dim:]
 
-  in_size = tf.reduce_prod(in_dims)
-  out_size = tf.reduce_prod(out_dims)
+  in_size = tf.compat.v2.reduce_prod(in_dims)
+  out_size = tf.compat.v2.reduce_prod(out_dims)
 
   return tf.reshape(tensor, (in_size, out_size))

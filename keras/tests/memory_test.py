@@ -20,7 +20,7 @@ helpful for finding memory leaks since not all PyObject leaks are found by
 introspection (test_util decorators). Please be careful adding new tests here.
 """
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import keras
 from tensorflow.python.eager.memory_tests import memory_test_util
@@ -43,7 +43,7 @@ class MemoryTest(tf.test.TestCase):
     if not memory_test_util.memory_profiler_is_available():
       self.skipTest("memory_profiler required to run this test")
 
-    inputs = tf.zeros([32, 100], tf.float32)
+    inputs = tf.zeros([32, 100], tf.dtypes.float32)
     net = SingleLayerNet()
 
     def f():
@@ -56,7 +56,7 @@ class MemoryTest(tf.test.TestCase):
     if not memory_test_util.memory_profiler_is_available():
       self.skipTest("memory_profiler required to run this test")
 
-    inputs = tf.zeros([32, 100], tf.float32)
+    inputs = tf.zeros([32, 100], tf.dtypes.float32)
     net = SingleLayerNet()
 
     def f():

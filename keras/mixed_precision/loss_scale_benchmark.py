@@ -14,7 +14,7 @@
 # ==============================================================================
 """Benchmarks for LossScaleOptimizer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import time
 from keras.mixed_precision import loss_scale_optimizer
@@ -23,7 +23,7 @@ from keras.optimizer_v2 import adam
 
 def _get_strategy(num_gpus):
   if num_gpus > 1:
-    return tf.distribute.MirroredStrategy(
+    return tf.compat.v2.distribute.MirroredStrategy(
         ['/GPU:%d' % i for i in range(num_gpus)])
   else:
     return tf.distribute.get_strategy()  # The default strategy
@@ -53,7 +53,7 @@ class LossScaleBenchmark(tf.test.Benchmark):
     """
     ls_str = loss_scaling or 'no_loss_scaling'
     name = '%s_%d_GPU_%s_%s' % (gradient_type, num_gpus, mode, ls_str)
-    with tf.__internal__.eager_context.eager_mode(), _get_strategy(num_gpus).scope() as strategy:
+    with tf.compat.v2.__internal__.eager_context.eager_mode(), _get_strategy(num_gpus).scope() as strategy:
       opt = adam.Adam()
       if loss_scaling == 'fixed':
         loss_scale = tf.mixed_precision.experimental.FixedLossScale(2.)
@@ -84,7 +84,7 @@ class LossScaleBenchmark(tf.test.Benchmark):
       # tf.while_loop based on whether gradients are NaNs. Currently, these
       # other overheads are much more significant than the GPU work.
       var_list = [
-          tf.Variable(i, dtype='float32') for i in range(num_vars)]
+          tf.compat.v2.Variable(i, dtype='float32') for i in range(num_vars)]
 
       def get_loss():
         return tf.add_n(var_list)
@@ -125,7 +125,7 @@ class LossScaleBenchmark(tf.test.Benchmark):
                             wall_time=(end - start) / num_iters, name=name)
 
   def _gpus_to_test_with(self):
-    num_gpus = len(tf.config.list_logical_devices('GPU'))
+    num_gpus = len(tf.config.experimental.list_logical_devices('GPU'))
     gpus_to_test_with = []
     if num_gpus >= 1:
       gpus_to_test_with.append(1)

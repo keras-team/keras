@@ -15,7 +15,7 @@
 # pylint: disable=protected-access
 """Tests for saving/loading function for keras Model."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import shutil

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for V2 LSTM layer."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import copy
 import os
@@ -207,7 +207,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
 
     self.assertEqual(initial_weight_count, len(layer.weights))
     # Variables in "states" shouldn't show up in .weights
-    layer.states = tf.nest.map_structure(tf.Variable, values)
+    layer.states = tf.nest.map_structure(tf.compat.v2.Variable, values)
     layer.reset_states()
     self.assertEqual(initial_weight_count, len(layer.weights))
 
@@ -329,7 +329,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
     y_train[-2:] = 0
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
     masked_input = keras.layers.Masking()(inputs)
     lstm_layer = rnn_v1.LSTM(rnn_state_size,
                              recurrent_activation='sigmoid')
@@ -432,7 +432,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
 
     def build_model(layer_cls):
       inputs = keras.layers.Input(
-          shape=[timestep, input_shape], dtype=tf.float32)
+          shape=[timestep, input_shape], dtype=tf.dtypes.float32)
       layer = layer_cls(rnn_state_size,
                         recurrent_activation='sigmoid',
                         time_major=time_major,
@@ -475,7 +475,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
     layer = rnn.LSTM(rnn_state_size)
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
 
     outputs = layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -504,7 +504,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
 
     def build_model():
       inputs = keras.layers.Input(
-          shape=[timestep, input_dim], dtype=tf.float32)
+          shape=[timestep, input_dim], dtype=tf.dtypes.float32)
       layer = rnn.LSTM(
           units,
           use_bias=use_bias,
@@ -532,7 +532,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
     x_train = np.random.random((batch, timestep, input_shape))
 
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
     with testing_utils.device(should_use_gpu=False):
       layer = rnn.LSTM(rnn_state_size)
       output = layer(inputs)
@@ -609,7 +609,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
     self.assertEqual(len(layer.losses), 3)
     x = keras.backend.variable(np.ones((2, 3, 2)))
     layer(x)
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.assertEqual(len(layer.losses), 4)
     else:
       self.assertEqual(len(layer.get_losses_for(x)), 1)
@@ -766,14 +766,14 @@ class LSTMV2Test(keras_parameterized.TestCase):
     # Test for V1 behavior.
     lstm_v1 = rnn_v1.LSTM(units, return_sequences=True, go_backwards=True)
     with testing_utils.device(should_use_gpu=True):
-      outputs_masked_v1 = lstm_v1(inputs, mask=tf.constant(mask))
+      outputs_masked_v1 = lstm_v1(inputs, mask=tf.compat.v2.constant(mask))
       outputs_trimmed_v1 = lstm_v1(inputs[:, :masksteps])
     self.assertAllClose(outputs_masked_v1[:, -masksteps:], outputs_trimmed_v1)
 
     # Test for V2 behavior.
     lstm = rnn.LSTM(units, return_sequences=True, go_backwards=True)
     with testing_utils.device(should_use_gpu=True):
-      outputs_masked = lstm(inputs, mask=tf.constant(mask))
+      outputs_masked = lstm(inputs, mask=tf.compat.v2.constant(mask))
       outputs_trimmed = lstm(inputs[:, :masksteps])
     self.assertAllClose(outputs_masked[:, -masksteps:], outputs_trimmed)
 
@@ -825,7 +825,7 @@ class LSTMV2Test(keras_parameterized.TestCase):
 
   # TODO (b/169895267): test with xla_gpu is disabled.
   def test_deepcopy(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('v2-only test')
     original_layer = rnn.LSTM(5)
     copied_layer = copy.deepcopy(original_layer)
@@ -892,7 +892,7 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     layer = rnn.LSTM(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
-        shape=[self.timestep, self.input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.dtypes.float32)
 
     outputs, runtime = layer(inputs)
     # Expand the runtime so that it is a 1D tensor instead of scalar.
@@ -913,7 +913,7 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     layer = rnn.LSTM(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
-        shape=[self.timestep, self.input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.dtypes.float32)
     masked_inputs = keras.layers.Masking()(inputs)
 
     outputs, runtime = layer(masked_inputs)
@@ -969,15 +969,15 @@ class LSTMGraphRewriteTest(keras_parameterized.TestCase):
     layer = rnn.LSTM(self.rnn_state_size, return_runtime=True)
 
     inputs = keras.layers.Input(
-        shape=[self.timestep, self.input_shape], dtype=tf.float32)
+        shape=[self.timestep, self.input_shape], dtype=tf.dtypes.float32)
 
     zeros = tf.zeros([self.batch, self.output_shape])
     dummy_runtime = rnn._runtime(rnn._RUNTIME_UNKNOWN)
-    a = tf.constant(0)
-    b = tf.constant(1)
+    a = tf.compat.v2.constant(0)
+    b = tf.compat.v2.constant(1)
     # Will always run the lstm layer.
     outputs, runtime = tf.compat.v1.cond(
-        tf.less(a, b),
+        tf.math.less(a, b),
         lambda: layer(inputs),
         lambda: (zeros, dummy_runtime))
 
@@ -1012,7 +1012,7 @@ class LSTMPerformanceTest(tf.test.Benchmark):
 
     cudnn_lstm_layer = keras.layers.CuDNNLSTM(rnn_state_size)
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
 
     outputs = cudnn_lstm_layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -1033,7 +1033,7 @@ class LSTMPerformanceTest(tf.test.Benchmark):
 
     layer = rnn.LSTM(rnn_state_size)
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
 
     outputs = layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -1054,7 +1054,7 @@ class LSTMPerformanceTest(tf.test.Benchmark):
 
     layer = rnn_v1.LSTM(rnn_state_size)
     inputs = keras.layers.Input(
-        shape=[timestep, input_shape], dtype=tf.float32)
+        shape=[timestep, input_shape], dtype=tf.dtypes.float32)
 
     outputs = layer(inputs)
     model = keras.models.Model(inputs, outputs)
@@ -1070,7 +1070,7 @@ class LSTMPerformanceTest(tf.test.Benchmark):
     if not tf.test.is_gpu_available():
       self.skipTest('performance test will only run on GPU')
 
-    mode = 'eager' if tf.executing_eagerly() else 'graph'
+    mode = 'eager' if tf.compat.v2.executing_eagerly() else 'graph'
     batch = 64
     num_batch = 10
     test_config = {
@@ -1124,7 +1124,7 @@ class LSTMPerformanceTest(tf.test.Benchmark):
         self._benchmark_performance_with_standard_cudnn_impl()
 
   def benchmark_performance_eager(self):
-    with tf.__internal__.eager_context.eager_mode():
+    with tf.compat.v2.__internal__.eager_context.eager_mode():
       self._benchmark_performance_with_standard_cudnn_impl()
 
 

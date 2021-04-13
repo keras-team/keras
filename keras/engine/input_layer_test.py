@@ -14,7 +14,7 @@
 #,============================================================================
 """Tests for InputLayer construction."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from tensorflow.python.framework import type_spec
 from keras import backend
 from keras import combinations
@@ -25,7 +25,7 @@ from keras.layers import core
 from keras.saving import model_config
 
 
-class TwoTensors(tf.__internal__.CompositeTensor):
+class TwoTensors(tf.compat.v2.__internal__.CompositeTensor):
   """A simple value type to test TypeSpec.
 
   Contains two tensors (x, y) and a string (color).  The color value is a
@@ -36,8 +36,8 @@ class TwoTensors(tf.__internal__.CompositeTensor):
 
   def __init__(self, x, y, color='red', assign_variant_dtype=False):
     assert isinstance(color, str)
-    self.x = tf.convert_to_tensor(x)
-    self.y = tf.convert_to_tensor(y)
+    self.x = tf.compat.v2.convert_to_tensor(x)
+    self.y = tf.compat.v2.convert_to_tensor(y)
     self.color = color
     self.shape = tf.TensorShape(None)
     self._shape = tf.TensorShape(None)
@@ -222,33 +222,33 @@ class InputLayerTest(keras_parameterized.TestCase):
         ValueError, 'all other args except `name` must be None'):
       input_layer_lib.Input(
           shape=(4, 7),
-          type_spec=tf.TensorSpec((2, 7, 32), tf.float32))
+          type_spec=tf.TensorSpec((2, 7, 32), tf.dtypes.float32))
     with self.assertRaisesRegexp(
         ValueError, 'all other args except `name` must be None'):
       input_layer_lib.Input(
           batch_size=4,
-          type_spec=tf.TensorSpec((7, 32), tf.float32))
+          type_spec=tf.TensorSpec((7, 32), tf.dtypes.float32))
     with self.assertRaisesRegexp(
         ValueError, 'all other args except `name` must be None'):
       input_layer_lib.Input(
           dtype=tf.int64,
-          type_spec=tf.TensorSpec((7, 32), tf.float32))
+          type_spec=tf.TensorSpec((7, 32), tf.dtypes.float32))
     with self.assertRaisesRegexp(
         ValueError, 'all other args except `name` must be None'):
       input_layer_lib.Input(
           sparse=True,
-          type_spec=tf.TensorSpec((7, 32), tf.float32))
+          type_spec=tf.TensorSpec((7, 32), tf.dtypes.float32))
     with self.assertRaisesRegexp(
         ValueError, 'all other args except `name` must be None'):
       input_layer_lib.Input(
           ragged=True,
-          type_spec=tf.TensorSpec((7, 32), tf.float32))
+          type_spec=tf.TensorSpec((7, 32), tf.dtypes.float32))
 
   @combinations.generate(combinations.combine(mode=['eager']))
   def testTypeSpecArg(self):
     # Create a Keras Input
     x = input_layer_lib.Input(
-        type_spec=tf.TensorSpec((7, 32), tf.float32))
+        type_spec=tf.TensorSpec((7, 32), tf.dtypes.float32))
     self.assertAllEqual(x.shape.as_list(), [7, 32])
 
     # Verify you can construct and use a model w/ this input
@@ -276,7 +276,7 @@ class InputLayerTest(keras_parameterized.TestCase):
       if not model_container:
         # Create a Keras Input
         x = input_layer_lib.Input(
-            type_spec=tf.TensorSpec((10, 16), tf.float32))
+            type_spec=tf.TensorSpec((10, 16), tf.dtypes.float32))
         self.assertAllEqual(x.shape.as_list(), [10, 16])
 
         # Verify you can construct and use a model w/ this input
@@ -335,13 +335,13 @@ class InputLayerTest(keras_parameterized.TestCase):
     for assign_variant_dtype in [False, True]:
       # Create a Keras Input
       spec = TwoTensorsSpecNoOneDtype(
-          (1, 2, 3), tf.float32, (1, 2, 3), tf.int64,
+          (1, 2, 3), tf.dtypes.float32, (1, 2, 3), tf.int64,
           assign_variant_dtype=assign_variant_dtype)
       x = input_layer_lib.Input(type_spec=spec)
 
       def lambda_fn(tensors):
-        return (tf.cast(tensors.x, tf.float64)
-                + tf.cast(tensors.y, tf.float64))
+        return (tf.cast(tensors.x, tf.dtypes.float64)
+                + tf.cast(tensors.y, tf.dtypes.float64))
       # Verify you can construct and use a model w/ this input
       model = functional.Functional(x, core.Lambda(lambda_fn)(x))
 

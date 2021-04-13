@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes
 """Constraints: functions that impose constraints on weight values."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import backend
 from keras.utils.generic_utils import deserialize_keras_object
 from keras.utils.generic_utils import serialize_keras_object
@@ -108,7 +108,7 @@ class MaxNorm(Constraint):
   @doc_controls.do_not_generate_docs
   def __call__(self, w):
     norms = backend.sqrt(
-        tf.reduce_sum(tf.square(w), axis=self.axis, keepdims=True))
+        tf.compat.v2.reduce_sum(tf.square(w), axis=self.axis, keepdims=True))
     desired = backend.clip(norms, 0, self.max_value)
     return w * (desired / (backend.epsilon() + norms))
 
@@ -155,7 +155,7 @@ class UnitNorm(Constraint):
   def __call__(self, w):
     return w / (
         backend.epsilon() + backend.sqrt(
-            tf.reduce_sum(
+            tf.compat.v2.reduce_sum(
                 tf.square(w), axis=self.axis, keepdims=True)))
 
   @doc_controls.do_not_generate_docs
@@ -204,7 +204,7 @@ class MinMaxNorm(Constraint):
   @doc_controls.do_not_generate_docs
   def __call__(self, w):
     norms = backend.sqrt(
-        tf.reduce_sum(tf.square(w), axis=self.axis, keepdims=True))
+        tf.compat.v2.reduce_sum(tf.square(w), axis=self.axis, keepdims=True))
     desired = (
         self.rate * backend.clip(norms, self.min_value, self.max_value) +
         (1 - self.rate) * norms)
@@ -277,12 +277,12 @@ class RadialConstraint(Constraint):
     start = backend.cast(kernel_shape / 2, 'int32')
 
     kernel_new = backend.switch(
-        backend.cast(tf.math.floormod(kernel_shape, 2), 'bool'),
+        backend.cast(tf.math.mod(kernel_shape, 2), 'bool'),
         lambda: kernel[start - 1:start, start - 1:start],
         lambda: kernel[start - 1:start, start - 1:start] + backend.zeros(  # pylint: disable=g-long-lambda
             (2, 2), dtype=kernel.dtype))
     index = backend.switch(
-        backend.cast(tf.math.floormod(kernel_shape, 2), 'bool'),
+        backend.cast(tf.math.mod(kernel_shape, 2), 'bool'),
         lambda: backend.constant(0, dtype='int32'),
         lambda: backend.constant(1, dtype='int32'))
     while_condition = lambda index, *args: backend.less(index, start)

@@ -16,7 +16,7 @@
 # pylint: disable=g-import-not-at-top
 """Utilities related to model visualization."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import sys

@@ -16,7 +16,7 @@
 # pylint: disable=g-classes-have-attributes
 """Callbacks: utilities called at certain points during model training."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import os
 import numpy as np
@@ -120,7 +120,7 @@ class TensorBoard(callbacks.TensorBoard):
     callbacks.Callback.__init__(self)
     self.log_dir = log_dir
     self.histogram_freq = histogram_freq
-    if self.histogram_freq and tf.executing_eagerly():
+    if self.histogram_freq and tf.compat.v2.executing_eagerly():
       logging.warning(
           UserWarning('Weight and gradient histograms not supported for eager'
                       'execution, setting `histogram_freq` to `0`.'))
@@ -156,11 +156,11 @@ class TensorBoard(callbacks.TensorBoard):
 
   def _init_writer(self, model):
     """Sets file writer."""
-    if tf.executing_eagerly():
-      self.writer = tf.summary.create_file_writer(self.log_dir)
+    if tf.compat.v2.executing_eagerly():
+      self.writer = tf.compat.v2.summary.create_file_writer(self.log_dir)
       if not model.run_eagerly and self.write_graph:
         with self.writer.as_default():
-          tf.summary.graph(K.get_graph())
+          tf.compat.v2.summary.graph(K.get_graph())
     elif self.write_graph:
       self.writer = tf.compat.v1.summary.FileWriter(self.log_dir, K.get_graph())
     else:
@@ -227,7 +227,7 @@ class TensorBoard(callbacks.TensorBoard):
     self.model = model
     self._init_writer(model)
     # histogram summaries only enabled in graph mode
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self._make_histogram_ops(model)
       self.merged = tf.compat.v1.summary.merge_all()
 
@@ -252,8 +252,8 @@ class TensorBoard(callbacks.TensorBoard):
       self.assign_embeddings = []
       embeddings_vars = {}
 
-      self.batch_id = batch_id = tf.compat.v1.placeholder(tf.int32)
-      self.step = step = tf.compat.v1.placeholder(tf.int32)
+      self.batch_id = batch_id = tf.compat.v1.placeholder(tf.dtypes.int32)
+      self.step = step = tf.compat.v1.placeholder(tf.dtypes.int32)
 
       for layer in self.model.layers:
         if layer.name in embeddings_layer_names:
@@ -262,7 +262,7 @@ class TensorBoard(callbacks.TensorBoard):
           embedding_input = tf.reshape(embedding_input,
                                               (step, int(embedding_size)))
           shape = (self.embeddings_data[0].shape[0], int(embedding_size))
-          embedding = tf.Variable(
+          embedding = tf.compat.v2.Variable(
               tf.zeros(shape), name=layer.name + '_embedding')
           embeddings_vars[layer.name] = embedding
           batch = tf.compat.v1.assign(embedding[batch_id:batch_id + step],
@@ -315,9 +315,9 @@ class TensorBoard(callbacks.TensorBoard):
 
     """
     logs = logs or {}
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       # use v2 summary ops
-      with self.writer.as_default(), tf.summary.record_if(True):
+      with self.writer.as_default(), tf.compat.v2.summary.record_if(True):
         for name, value in logs.items():
           if isinstance(value, np.ndarray):
             value = value.item()
@@ -327,7 +327,7 @@ class TensorBoard(callbacks.TensorBoard):
       for name, value in logs.items():
         if isinstance(value, np.ndarray):
           value = value.item()
-        summary = tf.compat.v1.Summary()
+        summary = tf.compat.v1.summary.Summary()
         summary_value = summary.value.add()
         summary_value.simple_value = value
         summary_value.tag = name
@@ -455,7 +455,7 @@ class TensorBoard(callbacks.TensorBoard):
     if self._profiler_started:
       return
     try:
-      tf.profiler.experimental.start(logdir=self.log_dir)
+      tf.compat.v2.profiler.experimental.start(logdir=self.log_dir)
       self._profiler_started = True
     except tf.errors.AlreadyExistsError as e:
       # Profiler errors should not be fatal.
@@ -466,7 +466,7 @@ class TensorBoard(callbacks.TensorBoard):
     if not self._profiler_started:
       return
     try:
-      tf.profiler.experimental.stop()
+      tf.compat.v2.profiler.experimental.stop()
     except tf.errors.UnavailableError as e:
       # Profiler errors should not be fatal.
       logging.error('Failed to stop profiler: %s', e.message)

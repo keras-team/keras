@@ -14,7 +14,7 @@
 # ==============================================================================
 """Tests for Keras callbacks."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 import csv
@@ -147,7 +147,7 @@ class CallbackCountsTest(keras_parameterized.TestCase):
   @parameterized.named_parameters(('with_numpy', _get_numpy()),
                                   ('with_sequence', _get_sequence()))
   def test_callback_hooks_are_called_in_fit(self, data):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Behavior changed in v2.')
     x, y = data
     val_x, val_y = np.ones((4, 10)), np.ones((4, 1))
@@ -964,7 +964,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
                                            steps=10,
                                            verbose=0)
 
-    tensor = tf.convert_to_tensor(1.)
+    tensor = tf.compat.v2.convert_to_tensor(1.)
 
     def mock_numpy():
       raise RuntimeError(
@@ -1004,7 +1004,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
                                            steps=10,
                                            verbose=2)
 
-    tensor = tf.convert_to_tensor(1.)
+    tensor = tf.compat.v2.convert_to_tensor(1.)
 
     def mock_numpy():
       raise RuntimeError(
@@ -1625,7 +1625,7 @@ class KerasCallbacksTest(keras_parameterized.TestCase):
 
   def test_progbar_infers_steps(self):
     x, y = np.ones((10, 1)), np.ones((10, 1))
-    data = tf.data.Dataset.from_tensor_slices((x, y)).batch(2)
+    data = tf.compat.v2.data.Dataset.from_tensor_slices((x, y)).batch(2)
     data = data.filter(lambda x, y: True)  # Unknown cardinality.
 
     progbar = keras.callbacks.ProgbarLogger('steps')
@@ -2309,7 +2309,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
       ])
 
   def test_custom_summary(self):
-    if not tf.executing_eagerly():
+    if not tf.compat.v2.executing_eagerly():
       self.skipTest('Custom summaries only supported in V2 code path.')
 
     def scalar_v2_mock(name, data, step=None):
@@ -2317,9 +2317,9 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
       metadata = tf.compat.v1.SummaryMetadata()
       # Should match value in tensorboard/plugins/scalar/metadata.py.
       metadata.plugin_data.plugin_name = 'scalars'
-      with tf.summary.experimental.summary_scope(
+      with tf.compat.v2.summary.experimental.summary_scope(
           name, 'scalar_summary', values=[data, step]) as (tag, _):
-        return tf.summary.write(
+        return tf.compat.v2.summary.write(
             tag=tag,
             tensor=tf.cast(data, 'float32'),
             step=step,
@@ -2328,7 +2328,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
     class LayerWithSummary(keras.layers.Layer):
 
       def call(self, x):
-        scalar_v2_mock('custom_summary', tf.reduce_sum(x))
+        scalar_v2_mock('custom_summary', tf.compat.v2.reduce_sum(x))
         return x
 
     model = testing_utils.get_model_from_layers([LayerWithSummary()],
@@ -2398,7 +2398,7 @@ class TestTensorBoardV2(keras_parameterized.TestCase):
                                            steps=100,
                                            verbose=0)
 
-    tensor = tf.convert_to_tensor(1.)
+    tensor = tf.compat.v2.convert_to_tensor(1.)
 
     def mock_numpy():
       raise RuntimeError(
@@ -2546,7 +2546,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
     The callback will not generate a profile but execution will proceed without
     crashing due to unhandled exceptions.
     """
-    tf.profiler.experimental.start(logdir='')
+    tf.compat.v2.profiler.experimental.start(logdir='')
     model = self._get_seq_model()
     x, y = np.ones((10, 10, 10, 1)), np.ones((10, 1))
     tb_cbk = keras.callbacks.TensorBoard(
@@ -2560,7 +2560,7 @@ class TestTensorBoardV2NonParameterizedTest(keras_parameterized.TestCase):
         validation_data=(x, y),
         callbacks=[tb_cbk])
     summary_file = list_summaries(self.logdir)
-    tf.profiler.experimental.stop(save=False)
+    tf.compat.v2.profiler.experimental.stop(save=False)
 
     self.assertEqual(
         summary_file.tensors,
@@ -2812,7 +2812,7 @@ class MostRecentlyModifiedFileMatchingPatternTest(tf.test.TestCase):
     ckpt_file_path = os.path.join(test_dir, ckpt_file_name)
     with open(ckpt_file_path, 'w') as f:
       f.write('dummy ckpt')
-    tf.__internal__.train.update_checkpoint_state(
+    tf.compat.v2.__internal__.train.update_checkpoint_state(
         test_dir, ckpt_file_path)
 
     file_paths = [
@@ -2835,11 +2835,11 @@ class SummaryOpsTest(tf.test.TestCase):
 
   def tearDown(self):
     super(SummaryOpsTest, self).tearDown()
-    tf.summary.trace_off()
+    tf.compat.v2.summary.trace_off()
 
   def keras_model(self, *args, **kwargs):
     logdir = self.get_temp_dir()
-    writer = tf.summary.create_file_writer(logdir)
+    writer = tf.compat.v2.summary.create_file_writer(logdir)
     with writer.as_default():
       keras.callbacks.keras_model_summary(*args, **kwargs)
     writer.close()
@@ -2863,12 +2863,12 @@ class SummaryOpsTest(tf.test.TestCase):
         [Dense(10, input_shape=(100,)),
          Activation('relu', name='my_relu')])
     try:
-      tf.summary.experimental.set_step(42)
+      tf.compat.v2.summary.experimental.set_step(42)
       event = self.keras_model(name='my_name', data=model)
       self.assertEqual(42, event.step)
     finally:
       # Reset to default state for other tests.
-      tf.summary.experimental.set_step(None)
+      tf.compat.v2.summary.experimental.set_step(None)
 
   @testing_utils.run_v2_only
   def testKerasModel_subclass(self):
@@ -2917,9 +2917,9 @@ def events_from_file(filepath):
     A list of all tf.Event protos in the event file.
   """
   result = []
-  raw_dataset = tf.data.TFRecordDataset([filepath])
+  raw_dataset = tf.compat.v2.data.TFRecordDataset([filepath])
   for raw_record in raw_dataset.take(10):
-    event = tf.compat.v1.Event()
+    event = tf.compat.v1.summary.Event()
     event.ParseFromString(raw_record.numpy())
     result.append(event)
   return result

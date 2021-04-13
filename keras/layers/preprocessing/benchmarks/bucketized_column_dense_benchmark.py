@@ -41,7 +41,7 @@ def embedding_varlen(batch_size, max_length):
 
   # Keras implementation
   model = keras.Sequential()
-  model.add(keras.Input(shape=(max_length,), name="data", dtype=tf.float32))
+  model.add(keras.Input(shape=(max_length,), name="data", dtype=tf.dtypes.float32))
   model.add(discretization.Discretization(bins))
 
   # FC implementation
@@ -51,7 +51,7 @@ def embedding_varlen(batch_size, max_length):
   # Wrap the FC implementation in a tf.function for a fair comparison
   @tf_function()
   def fc_fn(tensors):
-    fc.transform_feature(tf.__internal__.feature_column.FeatureTransformationCache(tensors), None)
+    fc.transform_feature(tf.compat.v2.__internal__.feature_column.FeatureTransformationCache(tensors), None)
 
   # Benchmark runs
   keras_data = {"data": data.to_tensor(default_value=0.0)}

@@ -14,7 +14,7 @@
 # ==============================================================================
 """Functional test for OptimizerV2."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 
 import collections
 
@@ -47,10 +47,10 @@ from keras.optimizer_v2 import rmsprop
 from keras.utils import np_utils
 
 
-_DATA_TYPES = [tf.half, tf.float32, tf.float64]
+_DATA_TYPES = [tf.dtypes.half, tf.dtypes.float32, tf.dtypes.float64]
 # TODO(b/141710709): complex support in NVCC and ROCM.
 if (not test_util.IsBuiltWithNvcc() and not tf.test.is_built_with_rocm()):
-  _DATA_TYPES += [tf.complex64, tf.complex128]
+  _DATA_TYPES += [tf.dtypes.complex64, tf.dtypes.complex128]
 
 
 class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
@@ -59,18 +59,18 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testBasic(self):
     for dtype in _DATA_TYPES:
       with testing_utils.use_gpu():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
         sgd = gradient_descent.SGD(3.0)
 
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 2.0], self.evaluate(var0))
         self.assertAllClose([3.0, 4.0], self.evaluate(var1))
         # Run 1 step of sgd through optimizer
         opt_op = sgd.minimize(loss, var_list=[var0, var1])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.evaluate(opt_op)
         # Validate updated params
         self.assertAllClose([-14., -13.], self.evaluate(var0))
@@ -80,21 +80,21 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testAdaptiveLearningRate(self):
     for dtype in _DATA_TYPES:
       with self.test_session():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
 
         def loss():
           return 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
 
         sgd = gradient_descent.SGD(1.0)
 
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 2.0], self.evaluate(var0))
         self.assertAllClose([3.0, 4.0], self.evaluate(var1))
         # Run 1 step of sgd through optimizer
         opt_op = sgd.minimize(loss, [var0, var1])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.evaluate(opt_op)
         # Validate updated params
         # var0 = [1., 2.] - 1.0 * [5, 5]
@@ -103,7 +103,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         self.assertAllClose([0., 1.], self.evaluate(var1))
 
         sgd.learning_rate = 0.5
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           sgd.minimize(loss, [var0, var1])
         else:
           self.evaluate(opt_op)
@@ -115,7 +115,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
         sgd.learning_rate = learning_rate_schedule.InverseTimeDecay(
             0.5, decay_steps=1.0, decay_rate=0.5)
-        if tf.executing_eagerly():
+        if tf.compat.v2.executing_eagerly():
           sgd.minimize(loss, [var0, var1])
         else:
           self.evaluate(opt_op)
@@ -124,19 +124,19 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testPrecomputedGradient(self):
     for dtype in _DATA_TYPES:
       with testing_utils.use_gpu():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
-        grad_loss = tf.constant([42, -42], dtype=dtype)
+        grad_loss = tf.compat.v2.constant([42, -42], dtype=dtype)
         sgd = gradient_descent.SGD(3.0)
 
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 2.0], self.evaluate(var0))
         self.assertAllClose([3.0, 4.0], self.evaluate(var1))
         # Run 1 step of sgd through optimizer
         opt_op = sgd.minimize(loss, var_list=[var0, var1], grad_loss=grad_loss)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.evaluate(opt_op)
         # Validate updated params
         self.assertAllClose([1.0 - 3 * 5 * 42.0, 2.0 - 3 * 5 * (-42.0)],
@@ -148,8 +148,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testNoGradients(self):
     for dtype in _DATA_TYPES:
       with testing_utils.use_gpu():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0  # pylint: disable=cell-var-from-loop
         sgd_op = gradient_descent.SGD(3.0)
         with self.assertRaisesRegex(ValueError, 'No gradients'):
@@ -160,9 +160,9 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testNoGradientsForAnyVariables_Minimize(self):
     for dtype in _DATA_TYPES:
       with testing_utils.use_gpu():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
-        loss = lambda: tf.constant(5.0)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
+        loss = lambda: tf.compat.v2.constant(5.0)
 
         sgd_op = gradient_descent.SGD(3.0)
         with self.assertRaisesRegex(ValueError,
@@ -173,8 +173,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testNoGradientsForAnyVariables_ApplyGradients(self):
     for dtype in _DATA_TYPES:
       with testing_utils.use_gpu():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
         sgd_op = gradient_descent.SGD(3.0)
         with self.assertRaisesRegex(ValueError,
                                     'No gradients provided for any variable'):
@@ -184,15 +184,15 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testGradientsAsVariables(self):
     for i, dtype in enumerate(_DATA_TYPES):
       with testing_utils.use_gpu():
-        var0 = tf.Variable([1.0, 2.0], dtype=dtype)
-        var1 = tf.Variable([3.0, 4.0], dtype=dtype)
+        var0 = tf.compat.v2.Variable([1.0, 2.0], dtype=dtype)
+        var1 = tf.compat.v2.Variable([3.0, 4.0], dtype=dtype)
         loss = lambda: 5 * var0 + 3 * var1  # pylint: disable=cell-var-from-loop
 
         sgd = gradient_descent.SGD(3.0)
         grads_and_vars = sgd._compute_gradients(loss, [var0, var1])
         # Convert gradients to tf.Variables
         converted_grads = [
-            tf.Variable(
+            tf.compat.v2.Variable(
                 tf.zeros([2], dtype), name='c_%d_%d' % (i, j))
             for j, gv in enumerate(grads_and_vars)
         ]
@@ -202,7 +202,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         ]
 
         # Run convert_ops to achieve the gradients converting
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.evaluate(convert_ops)
         # Fetch params to validate initial values
         self.assertAllClose([1.0, 2.0], self.evaluate(var0))
@@ -211,7 +211,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         # Run 1 step of sgd through optimizer
         converted_grads_and_vars = list(zip(converted_grads, [var0, var1]))
         opt_op = sgd.apply_gradients(converted_grads_and_vars)
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         self.evaluate(convert_ops)
         self.evaluate(opt_op)
 
@@ -222,7 +222,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testComputeGradientsWithTensors(self):
     with testing_utils.use_gpu():
-      x = tf.convert_to_tensor(1.0)
+      x = tf.compat.v2.convert_to_tensor(1.0)
 
       def f():
         return x * x
@@ -242,20 +242,20 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     constraint_01 = lambda x: tf.clip_by_value(x, -0.1, 0.)
     constraint_0 = lambda x: tf.clip_by_value(x, 0., 1.)
     with testing_utils.use_gpu():
-      var0 = tf.Variable([1.0, 2.0],
+      var0 = tf.compat.v2.Variable([1.0, 2.0],
                                 constraint=constraint_01)
-      var1 = tf.Variable([3.0, 4.0],
+      var1 = tf.compat.v2.Variable([3.0, 4.0],
                                 constraint=constraint_0)
       loss = lambda: 5 * var0 + 3 * var1
       sgd = gradient_descent.SGD(3.0)
 
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       # Fetch params to validate initial values
       self.assertAllClose([1.0, 2.0], self.evaluate(var0))
       self.assertAllClose([3.0, 4.0], self.evaluate(var1))
       # Run 1 step of sgd through optimizer
       opt_op = sgd.minimize(loss, var_list=[var0, var1])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
       # Validate updated params
       self.assertAllClose([-0.1, -0.1], self.evaluate(var0))
@@ -276,22 +276,22 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       opt2 = gradient_descent.SGD.from_config(config)
       lr = opt._get_hyper('learning_rate')
       lr2 = opt2._get_hyper('learning_rate')
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       # assert both are equal float values.
       self.assertEqual(self.evaluate(lr), self.evaluate(lr2))
-      var0 = tf.Variable([[1.0], [2.0]], dtype=tf.float32)
+      var0 = tf.compat.v2.Variable([[1.0], [2.0]], dtype=tf.dtypes.float32)
       loss = lambda: 3 * var0
       # learning rate variable created when calling minimize.
       opt.minimize(loss, [var0])
       opt3 = gradient_descent.SGD.from_config(config)
       lr3 = opt3._get_hyper('learning_rate')
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertEqual(self.evaluate(lr), self.evaluate(lr3))
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testConfigWithLearningRateDecay(self):
     with testing_utils.use_gpu():
-      var0 = tf.Variable([[1.0], [2.0]], dtype=tf.float32)
+      var0 = tf.compat.v2.Variable([[1.0], [2.0]], dtype=tf.dtypes.float32)
       for decay_schedule in [
           learning_rate_schedule.InverseTimeDecay(
               0.5, decay_steps=1.0, decay_rate=0.1),
@@ -312,7 +312,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         loss = lambda: 3 * var0
         # learning rate variable is created when calling minimize.
         opt.minimize(loss, [var0])
-        self.evaluate(tf.compat.v1.global_variables_initializer())
+        self.evaluate(tf.compat.v1.initializers.global_variables())
         config = opt.get_config()
         opt3 = gradient_descent.SGD.from_config(config)
         self.assertAllEqual(
@@ -322,22 +322,22 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testGradClipValue(self):
     with testing_utils.use_gpu():
-      var = tf.Variable([1.0, 2.0])
+      var = tf.compat.v2.Variable([1.0, 2.0])
       loss = lambda: 3 * var
       opt = gradient_descent.SGD(learning_rate=1.0, clipvalue=1.0)
       opt_op = opt.minimize(loss, [var])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
       self.assertAllClose([0., 1.], self.evaluate(var))
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testGradClipNorm(self):
     with testing_utils.use_gpu():
-      var = tf.Variable([1.0])
+      var = tf.compat.v2.Variable([1.0])
       loss = lambda: 3 * var
       opt = gradient_descent.SGD(learning_rate=1.0, clipnorm=1.0)
       opt_op = opt.minimize(loss, [var])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
       self.assertAllClose([0.], self.evaluate(var))
 
@@ -345,12 +345,12 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testGradGlobalClipNorm(self):
     with testing_utils.use_gpu():
       # l2 norm is 5.0
-      var1 = tf.Variable([1.0])
-      var2 = tf.Variable([2.0])
+      var1 = tf.compat.v2.Variable([1.0])
+      var2 = tf.compat.v2.Variable([2.0])
       loss = lambda: 3 * var1 + 4 * var2
       opt = gradient_descent.SGD(learning_rate=1.0, global_clipnorm=2.0)
       opt_op = opt.minimize(loss, [var1, var2])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
       # grad1 = 3.0 * 2.0 / 5.0 = 1.2
       self.assertAllClose([-.2], self.evaluate(var1))
@@ -381,42 +381,42 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testWeights(self):
     with testing_utils.use_gpu():
       opt1 = adam.Adam(learning_rate=1.0)
-      var1 = tf.Variable([1.0, 2.0], dtype=tf.float32)
+      var1 = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
       loss1 = lambda: 3 * var1
       opt_op_1 = opt1.minimize(loss1, [var1])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       config = opt1.get_config()
       opt2 = adam.Adam.from_config(config)
-      var2 = tf.Variable([1.0, 2.0], dtype=tf.float32)
+      var2 = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
       loss2 = lambda: 3 * var2
       opt_op_2 = opt2.minimize(loss2, [var2])
       weights = opt1.get_weights()
 
       # Assert set_weights and both variables get updated to same value.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       opt2.set_weights(weights)
       self.evaluate([opt_op_1, opt_op_2])
       self.assertAllClose(self.evaluate(var1), self.evaluate(var2))
       self.assertEqual(1, self.evaluate(opt1.iterations))
       self.assertEqual(1, self.evaluate(opt2.iterations))
 
-      var3 = tf.Variable([1.0, 2.0, 3.0], dtype=tf.float32)
-      var4 = tf.Variable([4.0, 5.0, 6.0], dtype=tf.float32)
+      var3 = tf.compat.v2.Variable([1.0, 2.0, 3.0], dtype=tf.dtypes.float32)
+      var4 = tf.compat.v2.Variable([4.0, 5.0, 6.0], dtype=tf.dtypes.float32)
       loss3 = lambda: 3 * var3 + 5 * var4
       opt_op_3 = opt1.minimize(loss3, [var3, var4])
 
       # Assert set_weights with ValueError since weight list does not match.
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       weights = opt1.get_weights()
       with self.assertRaisesRegex(ValueError, 'but the optimizer was'):
         opt2.set_weights(weights)
 
       # Assert set_weights and variables get updated to same value.
-      var5 = tf.Variable([1.0, 2.0, 3.0], dtype=tf.float32)
-      var6 = tf.Variable([4.0, 5.0, 6.0], dtype=tf.float32)
+      var5 = tf.compat.v2.Variable([1.0, 2.0, 3.0], dtype=tf.dtypes.float32)
+      var6 = tf.compat.v2.Variable([4.0, 5.0, 6.0], dtype=tf.dtypes.float32)
       loss4 = lambda: 3 * var5 + 5 * var6
       opt_op_4 = opt2.minimize(loss4, [var5, var6])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       opt2.set_weights(weights)
       self.evaluate([opt_op_3, opt_op_4])
       self.assertAllClose(
@@ -426,10 +426,10 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testGettingHyperParameters(self):
     with self.test_session():
       opt = adam.Adam(learning_rate=1.0)
-      var = tf.Variable([1.0, 2.0], dtype=tf.float32)
+      var = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
       loss = lambda: 3 * var
       opt_op = opt.minimize(loss, [var])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
 
       lr = self.evaluate(opt.lr)
@@ -450,14 +450,14 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testGettingHyperParametersWithLrInConstructor(self):
     with self.test_session():
       opt = gradient_descent.SGD(lr=3.0)
-      var = tf.Variable([1.0, 2.0], dtype=tf.float32)
+      var = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
       loss = lambda: 3 * var
       opt_op = opt.minimize(loss, [var])
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.evaluate(opt_op)
 
-      self.assertIsInstance(opt.lr, tf.Variable)
-      self.assertIsInstance(opt.learning_rate, tf.Variable)
+      self.assertIsInstance(opt.lr, tf.compat.v2.Variable)
+      self.assertIsInstance(opt.learning_rate, tf.compat.v2.Variable)
 
       lr = self.evaluate(opt.lr)
       self.assertEqual(3.0, lr)
@@ -558,12 +558,12 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
     global_step = tf.compat.v1.train.get_or_create_global_step()
     opt = adam.Adam(learning_rate=1.0)
     opt.iterations = global_step
-    var = tf.Variable([1.0, 2.0], dtype=tf.float32)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    var = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     init_step_value = self.evaluate(global_step)
     loss = lambda: 3 * var
     opt_op = opt.minimize(loss, [var])
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.evaluate(opt_op)
     new_step_value = self.evaluate(global_step)
     self.assertEqual(new_step_value, init_step_value + 1)
@@ -592,8 +592,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         ValueError, 'Weights for model .* have not yet been created'):
       var_list()
     train_op = opt.minimize(loss, var_list)
-    if not tf.executing_eagerly():
-      self.evaluate(tf.compat.v1.global_variables_initializer())
+    if not tf.compat.v2.executing_eagerly():
+      self.evaluate(tf.compat.v1.initializers.global_variables())
       self.assertEqual(
           [[0.]], self.evaluate(opt.get_slot(var_list()[0], 'm')))
       self.evaluate(train_op)
@@ -603,8 +603,8 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testVarKey(self):
     with tf.compat.v1.get_default_graph().as_default():
-      a = tf.Variable([1., 2.], name='var')
-      b = tf.Variable([1.], name='var')
+      a = tf.compat.v2.Variable([1., 2.], name='var')
+      b = tf.compat.v2.Variable([1.], name='var')
       self.assertTrue(a._in_graph_mode)
       self.assertTrue(b._in_graph_mode)
       var_key = optimizer_v2._var_key(a)
@@ -614,7 +614,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testVarName(self):
     with tf.compat.v1.get_default_graph().as_default():
-      var = tf.Variable([1., 2.], name='var')
+      var = tf.compat.v2.Variable([1., 2.], name='var')
       loss = var + 1.
       opt = adam.Adam()
       opt.get_updates(loss, [var])
@@ -622,7 +622,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       self.assertLen(opt_vars, 3)
       self.assertEqual('Adam/iter:0', opt_vars[0].name)
       self.assertEqual('Adam/var/m:0', opt_vars[1].name)
-      var_2 = tf.Variable([1., 2.], name='var_2')
+      var_2 = tf.compat.v2.Variable([1., 2.], name='var_2')
       loss = var_2 + 1.
       with backend.name_scope('outter'):
         opt.get_updates(loss, [var_2])
@@ -633,21 +633,21 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testEmptyVarList(self):
     opt = gradient_descent.SGD(1.)
-    opt.minimize(lambda: tf.constant(1.), [])
+    opt.minimize(lambda: tf.compat.v2.constant(1.), [])
     opt.apply_gradients([])
 
   @combinations.generate(combinations.combine(mode=['graph', 'eager']))
   def testAggregationTrue(self):
     # Test that experimental_aggregate_gradients=True works without distributed
     # strategy.
-    var = tf.Variable([1., 2.])
+    var = tf.compat.v2.Variable([1., 2.])
     opt = gradient_descent.SGD(3.0)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose([1., 2.], self.evaluate(var))
     opt_op = opt.apply_gradients([([0.1, 0.1], var)],
                                  experimental_aggregate_gradients=True)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.evaluate(opt_op)
     self.assertAllClose([0.7, 1.7], self.evaluate(var))
 
@@ -655,14 +655,14 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testAggregationFalse(self):
     # Test that experimental_aggregate_gradients=False works without distributed
     # strategy.
-    var = tf.Variable([1., 2.])
+    var = tf.compat.v2.Variable([1., 2.])
     opt = gradient_descent.SGD(3.0)
 
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.assertAllClose([1., 2.], self.evaluate(var))
     opt_op = opt.apply_gradients([([0.1, 0.1], var)],
                                  experimental_aggregate_gradients=False)
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.evaluate(opt_op)
     self.assertAllClose([0.7, 1.7], self.evaluate(var))
 
@@ -670,14 +670,14 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   def testRestoringIterationsWithoutAnOptimizer(self):
     opt = gradient_descent.SGD(3.0)
     opt.iterations.assign(5)
-    checkpoint = tf.train.Checkpoint(optimizer=opt)
+    checkpoint = tf.compat.v2.train.Checkpoint(optimizer=opt)
     path = checkpoint.save(self.get_temp_dir())
 
     # Following verifies that the `iterations` can be restored with the absence
     # of an `Optimizer` object (using a `Checkpoint` as a placeholder).
-    iterations_var = tf.Variable(0, dtype=tf.int64)
-    optimizer_checkpoint = tf.train.Checkpoint(iter=iterations_var)
-    checkpoint_to_restore = tf.train.Checkpoint(
+    iterations_var = tf.compat.v2.Variable(0, dtype=tf.int64)
+    optimizer_checkpoint = tf.compat.v2.train.Checkpoint(iter=iterations_var)
+    checkpoint_to_restore = tf.compat.v2.train.Checkpoint(
         optimizer=optimizer_checkpoint)
     checkpoint_to_restore.restore(path)
 
@@ -686,18 +686,18 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
   @combinations.generate(combinations.combine(mode=['eager']))
   def testSlotWithNonstandardShapeRestoresBasedOnCheckpoint(self):
     # First create an optimizer and a slot variable with a non-standard shape.
-    x = tf.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.float32)
+    x = tf.compat.v2.Variable([[1.0, 2.0], [3.0, 4.0]], dtype=tf.dtypes.float32)
     slot_shape = [2, 1]
     optimizer_1 = optimizer_v2.OptimizerV2(name='test')
     optimizer_1.add_slot(x, 'test_slot', 'ones', shape=slot_shape)
 
     # Then save the variable and optimizer to a checkpoint.
-    checkpoint_1 = tf.train.Checkpoint(var=x, optimizer=optimizer_1)
+    checkpoint_1 = tf.compat.v2.train.Checkpoint(var=x, optimizer=optimizer_1)
     checkpoint_path = checkpoint_1.save(self.get_temp_dir())
 
     # Create a new optimizer and call restore on it (and x)
     optimizer_2 = optimizer_v2.OptimizerV2(name='test')
-    checkpoint_2 = tf.train.Checkpoint(var=x, optimizer=optimizer_2)
+    checkpoint_2 = tf.compat.v2.train.Checkpoint(var=x, optimizer=optimizer_2)
     checkpoint_2.restore(checkpoint_path)
 
     self.assertEqual(slot_shape,
@@ -713,11 +713,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
       all_reduced_grads = [g / 2 for g in grads]
       return list(zip(all_reduced_grads, vars))
 
-    var = tf.Variable(2.0)
+    var = tf.compat.v2.Variable(2.0)
     sgd = gradient_descent.SGD(1.0, gradient_aggregator=gradient_aggregator)
     loss = lambda: 2 * var
     opt_op = sgd.minimize(loss, var_list=[var])
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.evaluate(opt_op)
     self.assertEqual(self.evaluate(var), 1.0)
 
@@ -733,11 +733,11 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
         all_reduced_grads = [g / 2 for g in grads]
         return list(zip(all_reduced_grads, vars))
 
-    var = tf.Variable(2.0)
+    var = tf.compat.v2.Variable(2.0)
     sgd = MyOptimizer(1.0)
     loss = lambda: 2 * var
     opt_op = sgd.minimize(loss, var_list=[var])
-    self.evaluate(tf.compat.v1.global_variables_initializer())
+    self.evaluate(tf.compat.v1.initializers.global_variables())
     self.evaluate(opt_op)
     self.assertEqual(self.evaluate(var), 1.0)
 
@@ -746,7 +746,7 @@ class OptimizerTest(tf.test.TestCase, parameterized.TestCase):
 class OptimizersCompatibilityTest(keras_parameterized.TestCase):
 
   def _testOptimizersCompatibility(self, opt_v1, opt_v2, test_weights=True):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1331)
@@ -832,7 +832,7 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
     self._testOptimizersCompatibility(opt_v1, opt_v2, False)
 
   def testNumericEquivalenceForNesterovMomentum(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1331)
@@ -889,7 +889,7 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
       self.assertAllClose(hist_k_v1.history['loss'], hist_k_v2.history['loss'])
 
   def testNumericEquivalenceForAmsgrad(self):
-    if tf.executing_eagerly():
+    if tf.compat.v2.executing_eagerly():
       self.skipTest(
           'v1 optimizer does not run in eager mode')
     np.random.seed(1331)
@@ -939,7 +939,7 @@ class OptimizersCompatibilityTest(keras_parameterized.TestCase):
 class OptimizerWithFunctionTest(tf.test.TestCase, parameterized.TestCase):
 
   def testBasic(self):
-    var = tf.Variable([1.0, 2.0], dtype=tf.float32)
+    var = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
     loss = lambda: 3 * var
     opt = adam.Adam(learning_rate=1.0)
 
@@ -952,7 +952,7 @@ class OptimizerWithFunctionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([-1, 0.], fn(), atol=1e-4)
 
   def testBasicWithConstantDecay(self):
-    var = tf.Variable([1.0, 2.0], dtype=tf.float32)
+    var = tf.compat.v2.Variable([1.0, 2.0], dtype=tf.dtypes.float32)
     loss = lambda: 3 * var
     opt = adam.Adam(learning_rate=1.0)
 
@@ -965,8 +965,8 @@ class OptimizerWithFunctionTest(tf.test.TestCase, parameterized.TestCase):
     self.assertAllClose([-1, 0.], fn(), atol=1e-4)
 
   def testVarKeyWithVarCreatedInEager(self):
-    a = tf.Variable([1., 2.], name='var')
-    b = tf.Variable([1.], name='var')
+    a = tf.compat.v2.Variable([1., 2.], name='var')
+    b = tf.compat.v2.Variable([1.], name='var')
 
     @test_util.also_run_as_tf_function
     def var_key_test():
@@ -981,8 +981,8 @@ class OptimizerWithFunctionTest(tf.test.TestCase, parameterized.TestCase):
     var_key_test()
 
   def testLearningRateDecayUsedInTwoFunctions(self):
-    a = tf.Variable([1., 2.], name='var')
-    b = tf.Variable([1.], name='var')
+    a = tf.compat.v2.Variable([1., 2.], name='var')
+    b = tf.compat.v2.Variable([1.], name='var')
 
     learning_rate_decay = learning_rate_schedule.InverseTimeDecay(
         0.5, decay_steps=1.0, decay_rate=0.5)
@@ -1184,7 +1184,7 @@ def make_model():
   inputs = []
   intermediates = []
   for _ in range(_NUM_LEARNERS):
-    inp = keras.layers.Input(shape=(1,), dtype=tf.int32)
+    inp = keras.layers.Input(shape=(1,), dtype=tf.dtypes.int32)
     layer = keras.layers.Embedding(1, 4)(inp)
     layer = keras.layers.Dense(1)(layer)
 

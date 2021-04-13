@@ -14,7 +14,7 @@
 # ==============================================================================
 """Keras Input Tensor used to track functional API Topology."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras.utils import object_identity
 
 # pylint: disable=g-classes-have-attributes
@@ -137,7 +137,7 @@ class KerasTensor(object):
       name = getattr(tensor, 'name', None)
       type_spec = tf.type_spec_from_value(tensor)
       inferred_value = None
-      if (type_spec.dtype == tf.int32 and type_spec.shape.rank is not None
+      if (type_spec.dtype == tf.dtypes.int32 and type_spec.shape.rank is not None
           and type_spec.shape.rank < 2):
         # If this tensor might be representing shape information,
         # (dtype=int32, rank of 0 or 1, not too large to represent a shape)
@@ -190,7 +190,7 @@ class KerasTensor(object):
       # See the comment on value extraction inside `from_tensor` for more info.
       inferred_value = tf.compat.v1.shape(
           tf.compat.v1.placeholder(
-              shape=self._inferred_value, dtype=tf.int32))
+              shape=self._inferred_value, dtype=tf.dtypes.int32))
       if self.type_spec.shape.rank == 0:
         # `tf.shape` always returns a rank-1, we may need to turn it back to a
         # scalar.
@@ -443,7 +443,7 @@ class RaggedKerasTensor(KerasTensor):
         result = tf.RaggedTensor.from_row_splits(
             result, splits, validate=False)
       else:
-        rowlen = tf.constant(axis_size, ragged_spec.row_splits_dtype)
+        rowlen = tf.compat.v2.constant(axis_size, ragged_spec.row_splits_dtype)
         result = tf.RaggedTensor.from_uniform_row_length(
             result, rowlen, validate=False)
     return result
@@ -547,7 +547,7 @@ class _KerasTensorIterator(object):
 # We can re-visit these choices in the future as needed.
 keras_tensor_classes = [
     (tf.Tensor, KerasTensor),
-    (tf.SparseTensor, SparseKerasTensor),
+    (tf.sparse.SparseTensor, SparseKerasTensor),
     (tf.RaggedTensor, RaggedKerasTensor),
     (object, KerasTensor)
 ]

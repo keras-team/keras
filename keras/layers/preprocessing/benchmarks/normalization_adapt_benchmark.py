@@ -32,18 +32,18 @@ def reduce_fn(state, values):
   # If this is the first iteration, we pick the first value to be 'k',
   # which helps with precision - we assume that k is close to an average
   # value and calculate mean and variance with respect to that.
-  k = tf.compat.v1.cond(tf.equal(n, 0), lambda: values[0], lambda: k)
+  k = tf.compat.v1.cond(tf.math.equal(n, 0), lambda: values[0], lambda: k)
 
-  sum_v = tf.reduce_sum(values, axis=0)
-  sum_v2 = tf.reduce_sum(tf.square(values), axis=0)
-  ones = tf.compat.v1.ones_like(values, dtype=tf.int32)
-  batch_size = tf.reduce_sum(ones, axis=0)
-  batch_size_f = tf.cast(batch_size, tf.float32)
+  sum_v = tf.compat.v2.reduce_sum(values, axis=0)
+  sum_v2 = tf.compat.v2.reduce_sum(tf.square(values), axis=0)
+  ones = tf.compat.v1.ones_like(values, dtype=tf.dtypes.int32)
+  batch_size = tf.compat.v2.reduce_sum(ones, axis=0)
+  batch_size_f = tf.cast(batch_size, tf.dtypes.float32)
 
-  ex = 0 + sum_v - tf.multiply(batch_size_f, k)
-  ex2 = 0 + sum_v2 + tf.multiply(
+  ex = 0 + sum_v - tf.math.multiply(batch_size_f, k)
+  ex2 = 0 + sum_v2 + tf.math.multiply(
       batch_size_f, (tf.square(k) -
-                     tf.multiply(tf.multiply(2.0, k), sum_v)))
+                     tf.math.multiply(tf.math.multiply(2.0, k), sum_v)))
 
   return (k, n + batch_size, ex, ex2)
 
@@ -62,7 +62,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.dtypes.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())
@@ -80,7 +80,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
 
   def bm_adapt_implementation(self, num_elements, batch_size):
     """Test the KPL adapt implementation."""
-    input_t = keras.Input(shape=(1,), dtype=tf.float32)
+    input_t = keras.Input(shape=(1,), dtype=tf.dtypes.float32)
     layer = normalization.Normalization()
     _ = layer(input_t)
 
@@ -90,7 +90,7 @@ class BenchmarkAdapt(tf.test.Benchmark):
     for _ in range(num_repeats):
       ds = tf.data.Dataset.range(num_elements)
       ds = ds.map(
-          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.float32), -1))
+          lambda x: tf.compat.v1.expand_dims(tf.cast(x, tf.dtypes.float32), -1))
       ds = ds.batch(batch_size)
 
       starts.append(time.time())

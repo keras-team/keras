@@ -14,7 +14,7 @@
 # ==============================================================================
 """Built-in linear model classes."""
 
-import tensorflow.compat.v2 as tf
+import tensorflow as tf
 from keras import activations
 from keras import initializers
 from keras import regularizers
