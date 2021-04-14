@@ -21,7 +21,6 @@ import tensorflow.compat.v2 as tf
 import collections
 import copy
 import csv
-import io
 import json
 import os
 import re
@@ -2718,21 +2717,17 @@ class CSVLogger(Callback):
     self.writer = None
     self.keys = None
     self.append_header = True
-    self.file_flags = ''
-    self._open_args = {'newline': '\n'}
     super(CSVLogger, self).__init__()
 
   def on_train_begin(self, logs=None):
     if self.append:
       if tf.io.gfile.exists(self.filename):
-        with open(self.filename, 'r' + self.file_flags) as f:
+        with tf.io.gfile.GFile(self.filename, 'r') as f:
           self.append_header = not bool(len(f.readline()))
       mode = 'a'
     else:
       mode = 'w'
-    self.csv_file = io.open(self.filename,
-                            mode + self.file_flags,
-                            **self._open_args)
+    self.csv_file = tf.io.gfile.GFile(self.filename, mode)
 
   def on_epoch_end(self, epoch, logs=None):
     logs = logs or {}
