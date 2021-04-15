@@ -4,6 +4,10 @@
 KERAS_API_INIT_FILES = [
     "__init__.py",
     "keras/__init__.py",
+    "keras/__internal__/__init__.py",
+    "keras/__internal__/backend/__init__.py",
+    "keras/__internal__/losses/__init__.py",
+    "keras/__internal__/models/__init__.py",
     "keras/activations/__init__.py",
     "keras/applications/__init__.py",
     "keras/applications/densenet/__init__.py",
