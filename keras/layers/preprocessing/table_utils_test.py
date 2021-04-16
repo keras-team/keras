@@ -23,11 +23,10 @@ import numpy as np
 from keras import keras_parameterized
 from keras.layers.preprocessing import preprocessing_test_utils
 from keras.layers.preprocessing import table_utils
-from tensorflow.python.ops import lookup_ops
 
 
 def get_table(dtype=tf.string, oov_tokens=None):
-  table = lookup_ops.MutableHashTable(
+  table = tf.lookup.experimental.MutableHashTable(
       key_dtype=dtype,
       value_dtype=tf.int64,
       default_value=-7,

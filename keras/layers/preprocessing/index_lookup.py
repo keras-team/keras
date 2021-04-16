@@ -28,7 +28,6 @@ from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import table_utils
 from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
-from tensorflow.python.ops import lookup_ops
 from tensorflow.python.platform import tf_logging as logging
 
 INT = "int"
@@ -285,7 +284,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
 
     else:
       self._has_static_table = False
-      self._table = lookup_ops.MutableHashTable(
+      self._table = tf.lookup.experimental.MutableHashTable(
           key_dtype=self._key_dtype,
           value_dtype=self._value_dtype,
           default_value=default_value,

@@ -20,7 +20,6 @@ import collections
 import os
 import numpy as np
 from keras.utils import tf_utils
-from tensorflow.python.ops import lookup_ops
 
 
 class TableHandler(object):
@@ -32,7 +31,7 @@ class TableHandler(object):
                mask_token=None,
                mask_value=0):
     self.table = table
-    self.mutable = isinstance(table, lookup_ops.MutableHashTable)
+    self.mutable = isinstance(table, tf.lookup.experimental.MutableHashTable)
     self.mask_token = mask_token
     self.mask_value = mask_value
 
