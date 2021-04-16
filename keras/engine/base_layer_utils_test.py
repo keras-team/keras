@@ -22,7 +22,6 @@ from keras import backend
 from keras import combinations
 from keras import keras_parameterized
 from keras.engine import base_layer_utils
-from tensorflow.python.ops import lookup_ops
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
@@ -33,7 +32,7 @@ class TrackableWeightHandlerTest(keras_parameterized.TestCase):
     # does not play nicely with a separate setUp() call (causing errors related
     # to graph building), so we have to use a called setup instead of a setUp()
     # call.
-    table = lookup_ops.MutableHashTable(
+    table = tf.lookup.experimental.MutableHashTable(
         key_dtype=tf.string, value_dtype=tf.int32, default_value=0)
     return base_layer_utils.TrackableWeightHandler(table)
 
