@@ -18,11 +18,10 @@ import tensorflow.compat.v2 as tf
 # pylint: disable=protected-access
 
 import numpy as np
-
-from tensorflow.python.distribute import distribute_coordinator as dc
 from tensorflow.python.distribute import input_lib
 from keras import backend
 from keras import callbacks as cbks
+from keras.distribute import distribute_coordinator_utils as dc
 from keras.distribute import distributed_training_utils_v1 as dist_utils
 from keras.engine import partial_batch_padding_handler as padding_util
 from keras.engine import training_arrays_v1
@@ -765,8 +764,7 @@ def _train_with_multi_worker(method):
 
     return dc.run_distribute_coordinator(
         _worker_fn,
-        model._distribution_strategy,
-        mode='independent_worker')
+        model._distribution_strategy)
 
   return wrapper
 

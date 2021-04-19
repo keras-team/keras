@@ -18,8 +18,8 @@ import tensorflow.compat.v2 as tf
 
 import collections
 import os
+import pathlib
 import shutil
-import sys
 import tempfile
 import warnings
 
@@ -43,8 +43,6 @@ from keras.saving import save
 from keras.utils import generic_utils
 
 
-if sys.version_info >= (3, 6):
-  import pathlib  # pylint:disable=g-import-not-at-top
 try:
   import h5py  # pylint:disable=g-import-not-at-top
 except ImportError:
@@ -75,8 +73,6 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
   @testing_utils.run_v2_only
   def test_save_format_defaults_pathlib(self):
-    if sys.version_info < (3, 6):
-      self.skipTest('pathlib is only available for python version >= 3.6')
     path = pathlib.Path(self.get_temp_dir()) / 'model_path'
     save.save_model(self.model, path)
     self.assert_saved_model(path)
@@ -93,8 +89,6 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
   @testing_utils.run_v2_only
   def test_save_load_hdf5_pathlib(self):
-    if sys.version_info < (3, 6):
-      self.skipTest('pathlib is only available for python version >= 3.6')
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     save.save_model(self.model, path, save_format='h5')
     save.load_model(path)
@@ -118,24 +112,18 @@ class TestSaveModel(tf.test.TestCase, parameterized.TestCase):
 
   @testing_utils.run_v2_only
   def test_save_load_tf_pathlib(self):
-    if sys.version_info < (3, 6):
-      self.skipTest('pathlib is only available for python version >= 3.6')
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     save.save_model(self.model, path, save_format='tf')
     save.load_model(path)
 
   @testing_utils.run_v2_only
   def test_save_load_weights_tf_pathlib(self):
-    if sys.version_info < (3, 6):
-      self.skipTest('pathlib is only available for python version >= 3.6')
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     self.model.save_weights(path, save_format='tf')
     self.model.load_weights(path)
 
   @testing_utils.run_v2_only
   def test_save_load_weights_hdf5_pathlib(self):
-    if sys.version_info < (3, 6):
-      self.skipTest('pathlib is only available for python version >= 3.6')
     path = pathlib.Path(self.get_temp_dir()) / 'model'
     self.model.save_weights(path, save_format='h5')
     self.model.load_weights(path)

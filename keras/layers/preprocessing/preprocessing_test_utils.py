@@ -16,7 +16,7 @@
 
 import tensorflow.compat.v2 as tf
 
-import collections.abc as collections_abc
+import collections
 import numpy as np
 
 
@@ -33,7 +33,7 @@ class PreprocessingLayerTest(tf.test.TestCase):
       self.assertEqual(len(a), len(b))
       for a_value, b_value in zip(a, b):
         self.assertAllCloseOrEqual(a_value, b_value, msg=msg)
-    elif isinstance(a, collections_abc.Mapping):
+    elif isinstance(a, collections.abc.Mapping):
       self.assertEqual(len(a), len(b))
       for key, a_value in a.items():
         b_value = b[key]

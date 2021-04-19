@@ -17,9 +17,11 @@
 
 import tensorflow.compat.v2 as tf
 
+import enum
 import os
 
 from absl import logging
+from absl.testing import parameterized
 import numpy as np
 
 import keras
@@ -29,6 +31,16 @@ from keras.optimizer_v2 import gradient_descent
 _BATCH_SIZE = 32
 
 
+class TestModel(keras.Model):
+
+  def __init__(self):
+    super().__init__(name='test_model')
+    self.dense = keras.layers.Dense(10)
+
+  def call(self, inputs):
+    return self.dense(inputs)
+
+
 class DictMetric(keras.metrics.MeanSquaredError):
 
   def result(self):
@@ -36,17 +48,30 @@ class DictMetric(keras.metrics.MeanSquaredError):
     return {'mean_squared_error_1': res, 'mean_squared_error_2': res}
 
 
-class SidecarEvaluatorTest(tf.test.TestCase):
+class ModelType(enum.Enum):
+  SEQUENTIAL = 'sequential'
+  SUBCLASS = 'subclass'
 
-  def createTestModel(self, compile_model):
+
+def _test_model_builder(model_type: ModelType, compile_model, build_model):
+  if model_type == ModelType.SEQUENTIAL:
     model = keras.Sequential([keras.layers.Dense(10)])
-    if compile_model:
-      model.compile(
-          gradient_descent.SGD(),
-          loss='mse',
-          metrics=[keras.metrics.CategoricalAccuracy(),
-                   DictMetric()])
-    return model
+  elif model_type == ModelType.SUBCLASS:
+    model = TestModel()
+
+  if compile_model:
+    model.compile(
+        gradient_descent.SGD(),
+        loss='mse',
+        metrics=[keras.metrics.CategoricalAccuracy(),
+                 DictMetric()])
+  if build_model:
+    model.build((None, 32))
+
+  return model
+
+
+class SidecarEvaluatorTest(tf.test.TestCase, parameterized.TestCase):
 
   def assertSummaryEventsWritten(self, log_dir):
     # Asserts summary files do get written when log_dir is provided.
@@ -83,8 +108,13 @@ class SidecarEvaluatorTest(tf.test.TestCase):
     for var_a, var_b in zip(model_a.variables, model_b.variables):
       self.assertAllEqual(var_a.numpy(), var_b.numpy())
 
-  def testIterationsNotSavedWillRaiseError(self):
-    model = self.createTestModel(compile_model=False)
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'], model_type=[ModelType.SEQUENTIAL,
+                                      ModelType.SUBCLASS]))
+  def testIterationsNotSavedWillRaiseError(self, model_type):
+    model = _test_model_builder(
+        model_type=model_type, compile_model=False, build_model=True)
 
     checkpoint_dir = self.get_temp_dir()
     checkpoint = tf.train.Checkpoint(model=model)
@@ -94,14 +124,39 @@ class SidecarEvaluatorTest(tf.test.TestCase):
 
     sidecar_evaluator = sidecar_evaluator_lib.SidecarEvaluator(
         model, data=None, checkpoint_dir=checkpoint_dir)
-    with self.assertRaisesRegexp(
+    with self.assertRaisesRegex(
         RuntimeError, '`iterations` cannot be loaded '
         'from the checkpoint file.'):
       sidecar_evaluator.start()
 
-  def testSidecarEvaluatorOutputsSummary(self):
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'], model_type=[ModelType.SEQUENTIAL,
+                                      ModelType.SUBCLASS]))
+  def testModelNotBuiltRaiseError(self, model_type):
+    model = _test_model_builder(
+        model_type=model_type, compile_model=False, build_model=False)
+
+    checkpoint_dir = self.get_temp_dir()
+    checkpoint = tf.train.Checkpoint(model=model)
+    checkpoint_manager = tf.train.CheckpointManager(
+        checkpoint, checkpoint_dir, max_to_keep=2)
+    checkpoint_manager.save()
+
+    sidecar_evaluator = sidecar_evaluator_lib.SidecarEvaluator(
+        model, data=None, checkpoint_dir=checkpoint_dir)
+    with self.assertRaisesRegex(AssertionError, 'Nothing to load.'):
+      sidecar_evaluator.start()
+
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'],
+          model_type=[ModelType.SEQUENTIAL, ModelType.SUBCLASS],
+          build_model=[True, False]))
+  def testSidecarEvaluatorOutputsSummary(self, model_type, build_model):
     # Create a model with synthetic data, and fit for one epoch.
-    model = self.createTestModel(compile_model=True)
+    model = _test_model_builder(
+        model_type=model_type, compile_model=True, build_model=False)
     data = np.random.random((1000, 32))
     labels = np.random.random((1000, 10))
     dataset = tf.data.Dataset.from_tensor_slices((data, labels))
@@ -123,7 +178,8 @@ class SidecarEvaluatorTest(tf.test.TestCase):
         'checkpoint_dir should not be empty.')
 
     # Create a new model used for evaluation.
-    eval_model = self.createTestModel(compile_model=True)
+    eval_model = _test_model_builder(
+        model_type=model_type, compile_model=True, build_model=build_model)
     # Have a sidecar_evaluator evaluate once.
     sidecar_evaluator = sidecar_evaluator_lib.SidecarEvaluator(
         eval_model,
@@ -139,11 +195,18 @@ class SidecarEvaluatorTest(tf.test.TestCase):
 
     self.assertSummaryEventsWritten(os.path.join(log_dir, 'validation'))
 
-  def testSidecarEvaluatorOutputsSummarySavedWithCallback(self):
+  @tf.__internal__.distribute.combinations.generate(
+      tf.__internal__.test.combinations.combine(
+          mode=['eager'],
+          model_type=[ModelType.SEQUENTIAL, ModelType.SUBCLASS],
+          build_model=[True, False]))
+  def testSidecarEvaluatorOutputsSummarySavedWithCallback(
+      self, model_type, build_model):
     checkpoint_dir = os.path.join(self.get_temp_dir(), 'checkpoints')
     log_dir = os.path.join(self.get_temp_dir(), 'summary')
     # Create a model with synthetic data, and fit for one epoch.
-    model = self.createTestModel(compile_model=True)
+    model = _test_model_builder(
+        model_type=model_type, compile_model=True, build_model=False)
     data = np.random.random((1000, 32))
     labels = np.random.random((1000, 10))
     dataset = tf.data.Dataset.from_tensor_slices((data, labels))
@@ -158,8 +221,9 @@ class SidecarEvaluatorTest(tf.test.TestCase):
         'checkpoint_dir should not be empty.')
 
     # Create a new model used for evaluation.
-    eval_model = self.createTestModel(compile_model=True)
-    # Have a sidecar_evaluator evaluate once.
+    eval_model = _test_model_builder(
+        model_type=model_type, compile_model=True, build_model=build_model)
+    # Have an sidecar_evaluator evaluate once.
     sidecar_evaluator = sidecar_evaluator_lib.SidecarEvaluator(
         eval_model,
         data=dataset,

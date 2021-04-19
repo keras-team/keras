@@ -65,6 +65,7 @@ py_library(
         "//keras:optimizers",
         "//keras:regularizers",
         "//keras/distribute",
+        "//keras/distribute:distribute_coordinator_utils",
         "//keras/mixed_precision:autocast_variable",
         "//keras/mixed_precision:loss_scale_optimizer",
         "//keras/mixed_precision:policy",
