@@ -74,6 +74,7 @@ py_library(
         ":backend_config",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
+        "//keras/distribute:distribute_coordinator_utils",
         "//keras/engine:keras_tensor",
         "//keras/utils:control_flow_util",
         "//keras/utils:object_identity",

@@ -32,11 +32,11 @@ import weakref
 import numpy as np
 
 from tensorflow.core.protobuf import config_pb2
-from tensorflow.python.distribute import distribute_coordinator as dc
-from tensorflow.python.distribute import distribute_coordinator_context as dc_context
+from tensorflow.python.eager import context
 from tensorflow.python.eager.context import get_config
 from tensorflow.python.framework import config
 from keras import backend_config
+from keras.distribute import distribute_coordinator_utils as dc
 from keras.engine import keras_tensor
 from keras.utils import control_flow_util
 from keras.utils import object_identity
@@ -276,6 +276,9 @@ def clear_session():
     _GRAPH_LEARNING_PHASES.setdefault(graph)
     _GRAPH_VARIABLES.pop(graph, None)
     _GRAPH_TF_OPTIMIZERS.pop(graph, None)
+  if tf.executing_eagerly():
+    # Clear pending nodes in eager executors, kernel caches and step_containers.
+    context.context().clear_kernel_cache()
 
 # Inject the clear_session function to keras_deps to remove the dependency
 # from TFLite to Keras.
@@ -6411,7 +6414,7 @@ def configure_and_create_distributed_session(distribution_strategy):
       master = distribution_strategy.extended._tpu_cluster_resolver.master()  # pylint: disable=protected-access
       session = tf.compat.v1.Session(config=session_config, target=master)
     else:
-      worker_context = dc_context.get_current_worker_context()
+      worker_context = dc.get_current_worker_context()
       if worker_context:
         dc_session_config = worker_context.session_config
         # Merge the default session config to the one from distribute
@@ -6429,8 +6432,7 @@ def configure_and_create_distributed_session(distribution_strategy):
   if distribution_strategy.extended._in_multi_worker_mode():
     dc.run_distribute_coordinator(
         _create_session,
-        distribution_strategy,
-        mode='independent_worker')
+        distribution_strategy)
   else:
     _create_session(distribution_strategy)
 

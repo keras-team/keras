@@ -20,11 +20,11 @@ import tensorflow.compat.v2 as tf
 import functools
 
 import numpy as np
-from tensorflow.python.distribute import distribute_coordinator_context as dc_context
 from keras import backend
 from keras import callbacks
 from keras import metrics as metrics_module
 from keras import optimizers
+from keras.distribute import distribute_coordinator_utils as dc
 from keras.distribute import distributed_training_utils as dist_utils
 from keras.engine import training_utils_v1
 from keras.optimizer_v2 import optimizer_v2
@@ -1066,7 +1066,7 @@ def distributed_scope(strategy, learning_phase):
 
 
 def is_current_worker_chief():
-  return dc_context.get_current_worker_context().is_chief
+  return dc.get_current_worker_context().is_chief
 
 
 def filter_distributed_callbacks(callbacks_list, model):
