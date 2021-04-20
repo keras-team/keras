@@ -23,7 +23,7 @@ input if the given shape is a tuple.
 
 import tensorflow.compat.v2 as tf
 
-import collections.abc as collections_abc
+import collections
 import enum
 import json
 import numpy as np
@@ -117,7 +117,7 @@ def get_json_type(obj):
   if isinstance(obj, tf.DType):
     return obj.name
 
-  if isinstance(obj, collections_abc.Mapping):
+  if isinstance(obj, collections.abc.Mapping):
     return dict(obj)
 
   if obj is Ellipsis:

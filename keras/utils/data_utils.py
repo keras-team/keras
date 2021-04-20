@@ -42,6 +42,7 @@ from keras.utils.generic_utils import Progbar
 from keras.utils.io_utils import path_to_string
 from tensorflow.python.util.tf_export import keras_export
 
+# Required to support google internal urlretrieve
 if True:  # This gets transformed to `if sys.version_info[0] == 2:` in OSS.  # pylint: disable=using-constant-test
 
   def urlretrieve(url, filename, reporthook=None, data=None):

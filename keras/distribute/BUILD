@@ -31,6 +31,7 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = [
+        ":distribute_coordinator_utils",
         ":sidecar_evaluator",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -804,6 +805,7 @@ tf_py_test(
     python_version = "PY3",
     deps = [
         ":sidecar_evaluator",
+        "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
     ],
@@ -825,4 +827,13 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
     ],
+)
+
+py_library(
+    name = "distribute_coordinator_utils",
+    srcs = [
+        "distribute_coordinator_utils.py",
+    ],
+    srcs_version = "PY3",
+    deps = ["//:expect_tensorflow_installed"],
 )
