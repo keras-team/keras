@@ -506,6 +506,14 @@ def serialize(activation):
   return serialize_keras_object(activation)
 
 
+# Add additional globals so that deserialize can find these common activation
+# functions
+leaky_relu = tf.nn.leaky_relu
+log_softmax = tf.compat.v1.math.log_softmax
+relu6 = tf.nn.relu6
+silu = tf.nn.silu
+
+
 @keras_export('keras.activations.deserialize')
 @tf.__internal__.dispatch.add_dispatch_support
 def deserialize(name, custom_objects=None):

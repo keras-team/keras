@@ -57,6 +57,7 @@ keras_packages = [
     "keras.feature_column.dense_features",
     "keras.feature_column.dense_features_v2",
     "keras.feature_column.sequence_feature_column",
+    # Placeholder for internal API
     "keras.initializers",
     "keras.initializers.initializers_v1",
     "keras.initializers.initializers_v2",
