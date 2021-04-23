@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import numpy as np
 from keras import backend
+from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.utils import layer_utils
 from tensorflow.python.platform import tf_logging as logging
@@ -30,7 +31,7 @@ COUNT = "count"
 
 
 @keras_export("keras.layers.experimental.preprocessing.CategoryEncoding")
-class CategoryEncoding(base_preprocessing_layer.PreprocessingLayer):
+class CategoryEncoding(base_layer.Layer):
   """Category encoding layer.
 
   This layer provides options for condensing data into a categorical encoding
@@ -101,6 +102,8 @@ class CategoryEncoding(base_preprocessing_layer.PreprocessingLayer):
       del kwargs["max_tokens"]
 
     super(CategoryEncoding, self).__init__(**kwargs)
+    base_preprocessing_layer.keras_kpl_gauge.get_cell("CategoryEncoding").set(
+        True)
 
     # 'output_mode' must be one of (COUNT, BINARY)
     layer_utils.validate_string_arg(

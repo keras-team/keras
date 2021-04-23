@@ -112,6 +112,7 @@ keras_packages = [
     "keras.utils.losses_utils",
     "keras.utils.multi_gpu_utils",
     "keras.utils.np_utils",
+    "keras.utils.tf_utils",
     "keras.utils.vis_utils",
     "keras.wrappers.scikit_learn",
 ]

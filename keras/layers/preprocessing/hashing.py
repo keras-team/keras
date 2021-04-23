@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 
 import functools
 import numpy as np
+from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from tensorflow.python.util.tf_export import keras_export
 
@@ -27,7 +28,7 @@ _DEFAULT_SALT_KEY = [0xDECAFCAFFE, 0xDECAFCAFFE]
 
 
 @keras_export('keras.layers.experimental.preprocessing.Hashing')
-class Hashing(base_preprocessing_layer.PreprocessingLayer):
+class Hashing(base_layer.Layer):
   """Implements categorical feature hashing, also known as "hashing trick".
 
   This layer transforms single or multiple categorical inputs to hashed output.
