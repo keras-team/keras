@@ -93,7 +93,7 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
 
   @parameterized.parameters(*MODEL_LIST)
   def test_application_notop(self, app, last_dim):
-    if 'NASNet' in app.__name__:
+    if 'NASNet' or 'MobileNetV3' in app.__name__:
       only_check_last_dim = True
     else:
       only_check_last_dim = False
@@ -119,7 +119,10 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
       input_shape = (None, None, 1)
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False, input_shape=input_shape))
-    self.assertShapeEqual(output_shape, (None, None, None, last_dim))
+    if 'MobileNetV3' in app.__name__:
+      self.assertShapeEqual(output_shape, (None, 1, 1, last_dim))
+    else:
+      self.assertShapeEqual(output_shape, (None, None, None, last_dim))
     backend.clear_session()
 
     if backend.image_data_format() == 'channels_first':
@@ -128,7 +131,10 @@ class ApplicationsTest(tf.test.TestCase, parameterized.TestCase):
       input_shape = (None, None, 4)
     output_shape = _get_output_shape(
         lambda: app(weights=None, include_top=False, input_shape=input_shape))
-    self.assertShapeEqual(output_shape, (None, None, None, last_dim))
+    if 'MobileNetV3' in app.__name__:
+      self.assertShapeEqual(output_shape, (None, 1, 1, last_dim))
+    else:
+      self.assertShapeEqual(output_shape, (None, None, None, last_dim))
     backend.clear_session()
 
 

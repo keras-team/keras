@@ -452,6 +452,10 @@ class RaggedKerasTensor(KerasTensor):
   def ragged_rank(self):
     return self.type_spec.ragged_rank
 
+# Overload slicing
+RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__getitem__')  # pylint: disable=protected-access
+
+# Overload math ops
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__add__')  # pylint: disable=protected-access
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__radd__')  # pylint: disable=protected-access
 RaggedKerasTensor._overload_operator(tf.RaggedTensor, '__mul__')  # pylint: disable=protected-access

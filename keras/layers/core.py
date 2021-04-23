@@ -1554,9 +1554,12 @@ class TFSlicingOpDispatcher(tf.__internal__.dispatch.OpDispatcher):
     else:
       return self.NOT_SUPPORTED
 
-for slicing_op in [tf.__operators__.getitem,  # pylint: disable=protected-access
-                   tf.compat.v1.boolean_mask,
-                   tf.boolean_mask]:
+for slicing_op in [
+    tf.__operators__.getitem,  # pylint: disable=protected-access
+    tf.compat.v1.boolean_mask,
+    tf.boolean_mask,
+    tf.__operators__.ragged_getitem
+]:
   TFSlicingOpDispatcher(slicing_op).register(slicing_op)
 
 

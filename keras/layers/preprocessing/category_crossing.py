@@ -19,13 +19,14 @@ import tensorflow.compat.v2 as tf
 
 import itertools
 import numpy as np
+from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.utils import tf_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
 @keras_export('keras.layers.experimental.preprocessing.CategoryCrossing')
-class CategoryCrossing(base_preprocessing_layer.PreprocessingLayer):
+class CategoryCrossing(base_layer.Layer):
   """Category crossing layer.
 
   This layer concatenates multiple categorical inputs into a single categorical
