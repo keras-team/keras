@@ -180,8 +180,11 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
 
   def testModelFitWithDatasetInstance(self, strategy):
     with self.assertRaisesRegex(
-        NotImplementedError, "Only `DatasetCreator` input is supported in "
-        "`ParameterServerStrategy` at this time."):
+        NotImplementedError,
+        "Only `tf.keras.utils.experimental.DatasetCreator` input is supported "
+        "with `ParameterServerStrategy` at this time. Please see "
+        "`tf.keras.utils.experimental.DatasetCreator` class docstring for "
+        "more information."):
       self._model_fit(
           strategy, x=tf.data.Dataset.from_tensor_slices([1, 1]))
 
