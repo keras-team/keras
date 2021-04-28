@@ -38,6 +38,9 @@ from keras import keras_parameterized
 from keras import regularizers
 from keras import testing_utils
 from keras.feature_column.dense_features import DenseFeatures
+from keras.protobuf import saved_metadata_pb2
+from keras.protobuf import versions_pb2
+from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import load as keras_load
 from keras.saving.saved_model import save_impl as keras_save
 from keras.utils import control_flow_util
@@ -879,35 +882,32 @@ class TestSavedModelFormatAllModes(keras_parameterized.TestCase):
     self.evaluate(tf.compat.v1.variables_initializer(loaded.variables))
     self.assertAllClose(model.predict(f), loaded.predict(f))
 
-  def testSaveLayerMultipleInputs(self):
+  def testSaveMultipleInputs(self):
     class CustomLayer(keras.layers.Layer):
 
       def call(self, *input_list):
         self.add_loss(input_list[-2] * 2, inputs=True)
         return sum(input_list[:-1])  # The test's last input is a non-tensor arg
 
-    # TODO(b/175902133): Models only support one input argument. Also, create a
-    # subclassed model because functional/sequential models still have funky
-    # behavior when calling with multiple non-nested arguments.
     class CustomModel(keras.Model):
 
       def build(self, _):
         self.layer = CustomLayer()
 
-      def call(self, inputs):
-        inputs = inputs[:]
+      def call(self, *inputs):
+        inputs = list(inputs)
         inputs.append(object())  # Test that the layer handles non-tensor inputs
         return self.layer(*inputs)
 
     model = CustomModel()
     inp = [tf.constant(i, shape=[1, 1], dtype=tf.float32)
            for i in range(1, 5)]
-    expected = model(inp)
+    expected = model(*inp)
     expected_loss = model.get_losses_for(inp)
     saved_model_dir = self._save_model_dir()
     model.save(saved_model_dir, save_format='tf')
     loaded = keras_load.load(saved_model_dir)
-    actual = loaded(inp)
+    actual = loaded(*inp)
     actual_loss = loaded.get_losses_for(inp)
     self.assertAllEqual(self.evaluate(expected),
                         self.evaluate(actual))
@@ -1320,6 +1320,26 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
 
     self.evaluate([v.initializer for v in loaded.variables])
     loaded.fit(x, y)
+
+
+class TestUpdateMetadata(tf.test.TestCase):
+
+  def testAddFullSaveSpec(self):
+    save_spec = tf.TensorSpec([3, 5], dtype=tf.int32)
+    node_metadata = json_utils.Encoder().encode({'save_spec': save_spec})
+
+    metadata = saved_metadata_pb2.SavedMetadata()
+    metadata.nodes.add(
+        version=versions_pb2.VersionDef(
+            producer=1, min_consumer=1, bad_consumers=[]),
+        identifier='_tf_keras_model',
+        metadata=node_metadata)  # pylint: disable=protected-access
+
+    new_metadata = keras_load._update_to_current_version(metadata)
+    node_metadata = json_utils.decode(new_metadata.nodes[0].metadata)
+    expected_full_spec = ([tf.TensorSpec(shape=(3, 5), dtype=tf.int32)], {})
+    self.assertAllEqual(expected_full_spec, node_metadata.get('full_save_spec'))
+
 
 if __name__ == '__main__':
   tf.test.main()

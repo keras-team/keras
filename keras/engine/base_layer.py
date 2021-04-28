@@ -341,6 +341,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # submitted.
     self._build_input_shape = None
     self._saved_model_inputs_spec = None
+    self._saved_model_arg_spec = None
 
     # `Layer.compute_mask` will be called at the end of `Layer.__call__` if
     # `Layer.compute_mask` is overridden, or if the `Layer` subclass sets
@@ -963,7 +964,6 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
     # - input_spec compatibility is only checked against `inputs`
     # - mixed precision casting (autocast) is only applied to `inputs`,
     #   not to any other argument.
-    # - setting the SavedModel saving spec.
     inputs, args, kwargs = self._split_out_first_arg(args, kwargs)
     input_list = tf.nest.flatten(inputs)
 
@@ -1041,7 +1041,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         if self._supports_masking:
           self._set_mask_metadata(inputs, outputs, input_masks, not eager)
         if self._saved_model_inputs_spec is None:
-          self._set_save_spec(inputs)
+          self._set_save_spec(inputs, args, kwargs)
 
         return outputs
 
@@ -3015,20 +3015,54 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
   # SavedModel properties. Please see keras/saving/saved_model for details.
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
-  def _set_save_spec(self, inputs):
+  def _set_save_spec(self, inputs, args=None, kwargs=None):
+    """Defines the save spec so that serialization is able to trace layer call.
+
+    The TensorSpecs of the call function `inputs`, `args`, and `kwargs` are
+    saved into a tuple of `([inputs] + args, kwargs)`.
+
+    Args:
+      inputs: possibly nested inputs passed into the call function.
+      args: a list of positional arguments passed into call.
+      kwargs: a dictionary of keyword arguments passed into call.
+    """
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
+    args = args or []
+    kwargs = kwargs or {}
 
-    self._saved_model_inputs_spec = tf.nest.map_structure(tf_utils.get_tensor_spec,
-                                                       inputs)
+    inputs_spec = tf.nest.map_structure(tf_utils.get_tensor_spec, inputs)
 
-  def _get_save_spec(self, dynamic_batch=True):
+    # Filter out non-tensor arguments from args and kwargs.
+    args_spec = []
+    for arg in args:
+      flat_arg = tf.nest.flatten(arg)
+      flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_arg]
+      if any(s is None for s in flat_specs):
+        break  # Stop recording positional args once a non-tensor has been found
+      args_spec.append(tf.nest.pack_sequence_as(arg, flat_specs))
+    kwargs_spec = {}
+    for key, kwarg in kwargs.items():
+      if key == 'training':
+        continue
+      flat_kwarg = tf.nest.flatten(kwarg)
+      flat_specs = [tf_utils.get_tensor_spec(x) for x in flat_kwarg]
+      if any(s is None for s in flat_specs):
+        continue
+      kwargs[key] = args_spec.append(
+          tf.nest.pack_sequence_as(kwarg, flat_specs))
+
+    self._saved_model_inputs_spec = inputs_spec
+    self._saved_model_arg_spec = ([inputs_spec] + args_spec, kwargs_spec)
+
+  def _get_save_spec(self, dynamic_batch=True, inputs_only=True):
     if self._saved_model_inputs_spec is None:
       return None
 
-    return tf.nest.map_structure(
+    spec = tf.nest.map_structure(
         lambda t: tf_utils.get_tensor_spec(t, dynamic_batch=dynamic_batch),
-        self._saved_model_inputs_spec)
+        self._saved_model_arg_spec)
+    return spec[0][0] if inputs_only else spec
 
   @property
   def _trackable_saved_model_saver(self):
