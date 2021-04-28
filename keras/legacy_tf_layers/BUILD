@@ -19,6 +19,18 @@ filegroup(
 )
 
 py_library(
+    name = "layers",
+    srcs = ["__init__.py"],
+    deps = [
+        ":convolutional",
+        ":core",
+        ":layers_base",
+        ":normalization",
+        ":pooling",
+    ],
+)
+
+py_library(
     name = "layers_base",
     srcs = [
         "__init__.py",
