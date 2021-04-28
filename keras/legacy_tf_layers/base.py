@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
+# pylint: disable=g-classes-have-attributes
 """Contains the base Layer class, from which all layers inherit."""
 from __future__ import absolute_import
 from __future__ import division
@@ -28,6 +29,7 @@ from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
 from keras.utils import tf_contextlib
 from keras.utils import tf_inspect
+from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 # Avoid breaking users who directly import this symbol from this file.
@@ -37,6 +39,8 @@ InputSpec = base_layer.InputSpec  # pylint: disable=invalid-name
 _KERAS_STYLE_SCOPE = False
 
 
+@keras_export(
+    v1=['keras.__internal__.legacy.layers.experimental.keras_style_scope'])
 @tf_export(v1=['layers.experimental.keras_style_scope'])
 @tf_contextlib.contextmanager
 def keras_style_scope():
@@ -106,6 +110,8 @@ def keras_style_scope():
     _KERAS_STYLE_SCOPE = stack
 
 
+@keras_export(
+    v1=['keras.__internal__.legacy.layers.experimental.set_keras_style'])
 @tf_export(v1=['layers.experimental.set_keras_style'])
 def set_keras_style():
   """Use Keras-style variable management.
@@ -149,6 +155,7 @@ def _is_in_keras_style_scope():
   return _KERAS_STYLE_SCOPE
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Layer'])
 @tf_export(v1=['layers.Layer'])
 class Layer(base_layer.Layer):
   """Base layer class.

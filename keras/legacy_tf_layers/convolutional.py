@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-
-"""Contains the convolutional layer classes and their functional aliases.
-"""
+# pylint: disable=g-classes-have-attributes
+"""Contains the convolutional layer classes and their functional aliases."""
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -25,9 +24,11 @@ import warnings
 
 from keras import layers as keras_layers
 from keras.legacy_tf_layers import base
+from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Conv1D'])
 @tf_export(v1=['layers.Conv1D'])
 class Conv1D(keras_layers.Conv1D, base.Layer):
   """1D convolution layer (e.g. temporal convolution).
@@ -48,8 +49,8 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -120,6 +121,7 @@ class Conv1D(keras_layers.Conv1D, base.Layer):
         name=name, **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.conv1d'])
 @tf_export(v1=['layers.conv1d'])
 def conv1d(inputs,
            filters,
@@ -159,8 +161,8 @@ def conv1d(inputs,
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -226,6 +228,7 @@ def conv1d(inputs,
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Conv2D'])
 @tf_export(v1=['layers.Conv2D'])
 class Conv2D(keras_layers.Conv2D, base.Layer):
   """2D convolution layer (e.g. spatial convolution over images).
@@ -250,8 +253,8 @@ class Conv2D(keras_layers.Conv2D, base.Layer):
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -325,6 +328,7 @@ class Conv2D(keras_layers.Conv2D, base.Layer):
         name=name, **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.conv2d'])
 @tf_export(v1=['layers.conv2d'])
 def conv2d(inputs,
            filters,
@@ -368,8 +372,8 @@ def conv2d(inputs,
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -438,6 +442,7 @@ def conv2d(inputs,
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Conv3D'])
 @tf_export(v1=['layers.Conv3D'])
 class Conv3D(keras_layers.Conv3D, base.Layer):
   """3D convolution layer (e.g. spatial convolution over volumes).
@@ -463,8 +468,8 @@ class Conv3D(keras_layers.Conv3D, base.Layer):
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -538,6 +543,7 @@ class Conv3D(keras_layers.Conv3D, base.Layer):
         name=name, **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.conv3d'])
 @tf_export(v1=['layers.conv3d'])
 def conv3d(inputs,
            filters,
@@ -582,8 +588,8 @@ def conv3d(inputs,
       Specifying any stride value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -652,6 +658,7 @@ def conv3d(inputs,
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.SeparableConv1D'])
 @tf_export(v1=['layers.SeparableConv1D'])
 class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
   """Depthwise separable 1D convolution.
@@ -672,8 +679,8 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
       Specifying any `stride` value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -762,6 +769,7 @@ class SeparableConv1D(keras_layers.SeparableConv1D, base.Layer):
         **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.SeparableConv2D'])
 @tf_export(v1=['layers.SeparableConv2D'])
 class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
   """Depthwise separable 2D convolution.
@@ -784,8 +792,8 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
       Specifying any `stride` value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -877,6 +885,7 @@ class SeparableConv2D(keras_layers.SeparableConv2D, base.Layer):
         **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.separable_conv1d'])
 @tf_export(v1=['layers.separable_conv1d'])
 def separable_conv1d(inputs,
                      filters,
@@ -920,8 +929,8 @@ def separable_conv1d(inputs,
       Specifying any `stride` value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -1000,6 +1009,7 @@ def separable_conv1d(inputs,
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.separable_conv2d'])
 @tf_export(v1=['layers.separable_conv2d'])
 def separable_conv2d(inputs,
                      filters,
@@ -1045,8 +1055,8 @@ def separable_conv2d(inputs,
       Specifying any `stride` value != 1 is incompatible with specifying
       any `dilation_rate` value != 1.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -1128,6 +1138,7 @@ def separable_conv2d(inputs,
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Conv2DTranspose'])
 @tf_export(v1=['layers.Conv2DTranspose'])
 class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
   """Transposed 2D convolution layer (sometimes called 2D Deconvolution).
@@ -1149,8 +1160,8 @@ class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
       of the convolution. Can be a single integer to specify the same value for
       all spatial dimensions.
     padding: one of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -1216,6 +1227,7 @@ class Conv2DTranspose(keras_layers.Conv2DTranspose, base.Layer):
         **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.conv2d_transpose'])
 @tf_export(v1=['layers.conv2d_transpose'])
 def conv2d_transpose(inputs,
                      filters,
@@ -1255,8 +1267,8 @@ def conv2d_transpose(inputs,
       of the convolution. Can be a single integer to specify the same value for
       all spatial dimensions.
     padding: one of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -1317,6 +1329,7 @@ def conv2d_transpose(inputs,
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Conv3DTranspose'])
 @tf_export(v1=['layers.Conv3DTranspose'])
 class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
   """Transposed 3D convolution layer (sometimes called 3D Deconvolution).
@@ -1333,8 +1346,8 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
       Can be a single integer to specify the same value for all spatial
       dimensions.
     padding: One of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.
@@ -1402,6 +1415,7 @@ class Conv3DTranspose(keras_layers.Conv3DTranspose, base.Layer):
         **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.conv3d_transpose'])
 @tf_export(v1=['layers.conv3d_transpose'])
 def conv3d_transpose(inputs,
                      filters,
@@ -1434,8 +1448,8 @@ def conv3d_transpose(inputs,
       of the convolution. Can be a single integer to specify the same value for
       all spatial dimensions.
     padding: one of `"valid"` or `"same"` (case-insensitive).
-      `"valid"` means no padding. `"same"` results in padding evenly to 
-      the left/right or up/down of the input such that output has the same 
+      `"valid"` means no padding. `"same"` results in padding evenly to
+      the left/right or up/down of the input such that output has the same
       height/width dimension as the input.
     data_format: A string, one of `channels_last` (default) or `channels_first`.
       The ordering of the dimensions in the inputs.

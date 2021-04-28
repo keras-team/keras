@@ -55,6 +55,7 @@ py_library(
         "//keras/distribute",
         "//keras/feature_column",
         "//keras/layers",
+        "//keras/legacy_tf_layers:layers",
         "//keras/mixed_precision:mixed_precision_experimental",
         "//keras/optimizer_v2",
         "//keras/premade",

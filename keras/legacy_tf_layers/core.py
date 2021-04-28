@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =============================================================================
-
+# pylint: disable=g-classes-have-attributes
 """Contains the core layers: Dense, Dropout.
 
 Also contains their functional aliases.
@@ -27,9 +27,11 @@ import warnings
 
 from keras import layers as keras_layers
 from keras.legacy_tf_layers import base
+from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Dense'])
 @tf_export(v1=['layers.Dense'])
 class Dense(keras_layers.Dense, base.Layer):
   """Densely-connected layer class.
@@ -111,6 +113,7 @@ class Dense(keras_layers.Dense, base.Layer):
                                 **kwargs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.dense'])
 @tf_export(v1=['layers.dense'])
 def dense(
     inputs, units,
@@ -189,6 +192,7 @@ def dense(
   return layer.apply(inputs)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Dropout'])
 @tf_export(v1=['layers.Dropout'])
 class Dropout(keras_layers.Dropout, base.Layer):
   """Applies Dropout to the input.
@@ -228,6 +232,7 @@ class Dropout(keras_layers.Dropout, base.Layer):
     return super(Dropout, self).call(inputs, training=training)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.dropout'])
 @tf_export(v1=['layers.dropout'])
 def dropout(inputs,
             rate=0.5,
@@ -273,6 +278,7 @@ def dropout(inputs,
   return layer.apply(inputs, training=training)
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.Flatten'])
 @tf_export(v1=['layers.Flatten'])
 class Flatten(keras_layers.Flatten, base.Layer):
   """Flattens an input tensor while preserving the batch axis (axis 0).
@@ -299,6 +305,7 @@ class Flatten(keras_layers.Flatten, base.Layer):
   pass
 
 
+@keras_export(v1=['keras.__internal__.legacy.layers.flatten'])
 @tf_export(v1=['layers.flatten'])
 def flatten(inputs, name=None, data_format='channels_last'):
   """Flattens an input tensor while preserving the batch axis (axis 0).

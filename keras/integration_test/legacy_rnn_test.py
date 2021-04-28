@@ -342,6 +342,10 @@ class LegacyRNNTest(tf.test.TestCase):
         self.assertAllClose(y_np, y_np_2, atol=1e-4)
 
   def testRNNCellActsLikeKerasRNNCellInProperScope(self):
+    # TODO(scottzhu): Reenable after we switch the tf.nn.rnn_cells to
+    # use from keras.legacy_rnn.*
+    self.skipTest("Skip for now")
+
     with tf.layers.experimental.keras_style_scope():
       kn1 = KerasNetworkTFRNNs(name="kn1")
       kn2 = KerasNetworkKerasRNNs(name="kn2")
