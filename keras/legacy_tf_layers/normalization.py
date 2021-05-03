@@ -22,7 +22,7 @@ import tensorflow.compat.v2 as tf
 
 import warnings
 
-from keras.layers import normalization as keras_normalization
+from keras.layers.normalization import batch_normalization_v1
 from keras.legacy_tf_layers import base
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.python.util.tf_export import tf_export
@@ -30,7 +30,7 @@ from tensorflow.python.util.tf_export import tf_export
 
 @keras_export(v1=['keras.__internal__.legacy.layers.BatchNormalization'])
 @tf_export(v1=['layers.BatchNormalization'])
-class BatchNormalization(keras_normalization.BatchNormalization, base.Layer):
+class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
   """Batch Normalization layer from (Ioffe et al., 2015).
 
   Keras APIs handle BatchNormalization updates to the moving_mean and

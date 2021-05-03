@@ -391,7 +391,7 @@ class IntegerLookupVocabularyTest(
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(
-        vocabulary=vocab_data, output_mode="binary")
+        vocabulary=vocab_data, output_mode="multi_hot")
     res = layer(input_data)
     model = keras.Model(inputs=input_data, outputs=res)
     output_data = model.predict(input_array)
@@ -415,7 +415,7 @@ class IntegerLookupVocabularyTest(
 
     input_data = keras.Input(shape=(None,), dtype=tf.int64)
     layer = integer_lookup.IntegerLookup(
-        vocabulary=vocab_data, output_mode="binary", sparse=True)
+        vocabulary=vocab_data, output_mode="multi_hot", sparse=True)
     res = layer(input_data)
     self.assertTrue(res.__class__.__name__, "SparseKerasTensor")
 

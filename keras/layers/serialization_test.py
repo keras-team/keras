@@ -20,10 +20,10 @@ from absl.testing import parameterized
 
 import keras
 from keras import combinations
-from keras.layers import normalization as batchnorm_v1
-from keras.layers import normalization_v2 as batchnorm_v2
 from keras.layers import recurrent as rnn_v1
 from keras.layers import recurrent_v2 as rnn_v2
+from keras.layers.normalization import batch_normalization as batchnorm_v2
+from keras.layers.normalization import batch_normalization_v1 as batchnorm_v1
 
 
 class SerializableInt(int):

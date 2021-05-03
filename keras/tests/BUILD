@@ -315,7 +315,7 @@ tf_py_test(
         "//keras/api:keras_api",
         "//keras/engine",
         "//keras/layers:core",
-        "//keras/layers:normalization",
+        "//keras/layers/normalization",
     ],
 )
 

@@ -662,18 +662,10 @@ def transform(images,
     fill_value = tf.convert_to_tensor(
         fill_value, tf.float32, name='fill_value')
 
-    if tf.compat.forward_compatible(2020, 8, 5):
-      return tf.raw_ops.ImageProjectiveTransformV3(
-          images=images,
-          output_shape=output_shape,
-          fill_value=fill_value,
-          transforms=transforms,
-          fill_mode=fill_mode.upper(),
-          interpolation=interpolation.upper())
-
-    return tf.raw_ops.ImageProjectiveTransformV2(
+    return tf.raw_ops.ImageProjectiveTransformV3(
         images=images,
         output_shape=output_shape,
+        fill_value=fill_value,
         transforms=transforms,
         fill_mode=fill_mode.upper(),
         interpolation=interpolation.upper())

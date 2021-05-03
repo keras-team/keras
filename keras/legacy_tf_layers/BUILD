@@ -74,7 +74,7 @@ py_library(
     deps = [
         ":layers_base",
         "//:expect_tensorflow_installed",
-        "//keras/layers:normalization",
+        "//keras/layers/normalization",
     ],
 )
 

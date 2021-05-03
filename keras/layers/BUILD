@@ -46,14 +46,13 @@ py_library(
         ":merge",
         ":multi_head_attention",
         ":noise",
-        ":normalization",
-        ":normalization_v2",
         ":pooling",
         ":recurrent",
         ":recurrent_v2",
         ":rnn_cell_wrapper_v2",
         ":wrappers",
         "//keras/feature_column",
+        "//keras/layers/normalization",
         "//keras/layers/preprocessing",
         "//keras/premade",
         "//keras/utils:tf_utils",
@@ -263,33 +262,6 @@ py_library(
         "//keras:backend",
         "//keras:base_layer",
         "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "normalization",
-    srcs = ["normalization.py"],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_tensorflow_installed",
-        "//keras:backend",
-        "//keras:base_layer",
-        "//keras:constraints",
-        "//keras:initializers",
-        "//keras:regularizers",
-        "//keras/engine:base_layer_utils",
-        "//keras/engine:input_spec",
-        "//keras/utils:tf_utils",
-    ],
-)
-
-py_library(
-    name = "normalization_v2",
-    srcs = ["normalization_v2.py"],
-    srcs_version = "PY3",
-    deps = [
-        ":normalization",
-        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -589,24 +561,6 @@ tf_py_test(
         "//:expect_absl_installed",
         "//:expect_tensorflow_installed",
         "//keras",
-    ],
-)
-
-cuda_py_test(
-    name = "normalization_test",
-    size = "medium",
-    srcs = ["normalization_test.py"],
-    python_version = "PY3",
-    shard_count = 4,
-    tags = [
-        "notsan",
-    ],
-    deps = [
-        "//:expect_absl_installed",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras:combinations",
     ],
 )
 
