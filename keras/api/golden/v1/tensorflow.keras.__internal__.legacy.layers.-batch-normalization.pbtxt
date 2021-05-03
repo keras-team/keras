@@ -1,8 +1,8 @@
 path: "tensorflow.keras.__internal__.legacy.layers.BatchNormalization"
 tf_class {
   is_instance: "<class \'keras.legacy_tf_layers.normalization.BatchNormalization\'>"
-  is_instance: "<class \'keras.layers.normalization.BatchNormalization\'>"
-  is_instance: "<class \'keras.layers.normalization.BatchNormalizationBase\'>"
+  is_instance: "<class \'keras.layers.normalization.batch_normalization_v1.BatchNormalization\'>"
+  is_instance: "<class \'keras.layers.normalization.batch_normalization.BatchNormalizationBase\'>"
   is_instance: "<class \'keras.legacy_tf_layers.base.Layer\'>"
   is_instance: "<class \'keras.engine.base_layer.Layer\'>"
   is_instance: "<class \'tensorflow.python.module.module.Module\'>"

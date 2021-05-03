@@ -145,16 +145,16 @@ from keras.layers.noise import GaussianNoise
 from keras.layers.noise import GaussianDropout
 
 # Normalization layers.
-from keras.layers.normalization import LayerNormalization
-from keras.layers.normalization_v2 import SyncBatchNormalization
+from keras.layers.normalization.layer_normalization import LayerNormalization
+from keras.layers.normalization.batch_normalization import SyncBatchNormalization
 
 if tf.__internal__.tf2.enabled():
-  from keras.layers.normalization_v2 import BatchNormalization
-  from keras.layers.normalization import BatchNormalization as BatchNormalizationV1
+  from keras.layers.normalization.batch_normalization import BatchNormalization
+  from keras.layers.normalization.batch_normalization_v1 import BatchNormalization as BatchNormalizationV1
   BatchNormalizationV2 = BatchNormalization
 else:
-  from keras.layers.normalization import BatchNormalization
-  from keras.layers.normalization_v2 import BatchNormalization as BatchNormalizationV2
+  from keras.layers.normalization.batch_normalization_v1 import BatchNormalization
+  from keras.layers.normalization.batch_normalization import BatchNormalization as BatchNormalizationV2
   BatchNormalizationV1 = BatchNormalization
 
 # Kernelized layers.
