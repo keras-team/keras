@@ -69,6 +69,7 @@ keras_packages = [
     "keras.layers.dense_attention",
     "keras.layers.embeddings",
     "keras.layers.local",
+    "keras.layers.legacy_rnn.rnn_cell_impl",
     "keras.layers.merge",
     "keras.layers.noise",
     "keras.layers.normalization.batch_normalization",
