@@ -49,6 +49,10 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "InputSpec"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "Layer"
     mtype: "<type \'type\'>"
   }
