@@ -30,6 +30,7 @@ from keras import testing_utils
 from keras.engine import base_layer_utils
 from keras.layers import recurrent as rnn_v1
 from keras.layers import recurrent_v2 as rnn_v2
+from keras.layers.legacy_rnn import rnn_cell_impl
 from keras.utils import generic_utils
 from tensorflow.python.training.tracking import util as trackable_util
 
@@ -1276,7 +1277,7 @@ class RNNTest(keras_parameterized.TestCase):
         recurrent_activation='sigmoid',
         implementation=2)
     tf_lstm_cell_output = _run_cell(
-        tf.compat.v1.nn.rnn_cell.LSTMCell,
+        rnn_cell_impl.LSTMCell,
         use_peepholes=True,
         initializer=tf.compat.v1.ones_initializer)
     self.assertNotAllClose(first_implementation_output, no_peephole_output)
