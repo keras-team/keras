@@ -57,9 +57,6 @@ def update_state_wrapper(update_state_fn):
   def decorated(metric_obj, *args, **kwargs):
     """Decorated function with `add_update()`."""
     strategy = tf.distribute.get_strategy()
-    # TODO(b/142574744): Remove this check if a better solution is found for
-    # declaring keras Metric outside of TPUStrategy and then updating it per
-    # replica.
 
     for weight in metric_obj.weights:
       if (backend.is_tpu_strategy(strategy) and
