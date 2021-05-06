@@ -1762,6 +1762,10 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
 
     backend.batch_set_value(weight_value_tuples)
 
+    # Perform any layer defined finalization of the layer state.
+    for layer in self._flatten_layers():
+      layer.finalize_state()
+
   def get_weights(self):
     """Returns the current weights of the layer, as NumPy arrays.
 
@@ -1805,6 +1809,16 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
       else:
         output_weights.append(weight)
     return backend.batch_get_value(output_weights)
+
+  @doc_controls.do_not_generate_docs
+  def finalize_state(self):
+    """Finalizes the layers state after updating layer weights.
+
+    This function can be subclassed in a layer and will be called after updating
+    a layer weights. It can be overridden to finalize any additional layer state
+    after a weight update.
+    """
+    pass
 
   @doc_controls.do_not_generate_docs
   def get_updates_for(self, inputs):

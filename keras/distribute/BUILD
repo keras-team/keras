@@ -770,19 +770,32 @@ distribute_py_test(
         "notsan",  # TODO(b/184542721)
     ],
     deps = [
-        ":multi_worker_testing_utils",
+        ":dataset_creator_model_fit_test_base",
         ":strategy_combinations",
         "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
-        "//keras",
         "//keras:callbacks",
-        "//keras/engine",
-        "//keras/engine:base_layer",
-        "//keras/layers:core",
-        "//keras/layers/preprocessing:string_lookup",
-        "//keras/optimizer_v2",
-        "//keras/utils:dataset_creator",
-        "//keras/utils:engine_utils",
+    ],
+)
+
+distribute_py_test(
+    name = "dataset_creator_model_fit_ps_only_test",
+    srcs = ["dataset_creator_model_fit_ps_only_test.py"],
+    disable_mlir_bridge = True,  # TODO(b/170352626)
+    full_precision = True,
+    main = "dataset_creator_model_fit_ps_only_test.py",
+    shard_count = 9,
+    tags = [
+        "multi_gpu",
+        "no_oss",  # TODO(b/183640564): Reenable
+        "no_rocm",
+        "nomultivm",  # TODO(b/170502145)
+        "notsan",  # TODO(b/184542721)
+    ],
+    deps = [
+        ":dataset_creator_model_fit_test_base",
+        "//:expect_tensorflow_installed",
+        "//keras:callbacks",
     ],
 )
 
@@ -856,4 +869,25 @@ py_library(
     ],
     srcs_version = "PY3",
     deps = ["//:expect_tensorflow_installed"],
+)
+
+py_library(
+    name = "dataset_creator_model_fit_test_base",
+    srcs = [
+        "dataset_creator_model_fit_test_base.py",
+    ],
+    srcs_version = "PY3",
+    deps = [
+        ":multi_worker_testing_utils",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:callbacks",
+        "//keras/engine",
+        "//keras/layers:core",
+        "//keras/layers/preprocessing:string_lookup",
+        "//keras/optimizer_v2",
+        "//keras/utils:dataset_creator",
+        "//third_party/py/absl/logging",
+    ],
 )

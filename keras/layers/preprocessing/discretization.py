@@ -182,7 +182,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       elif bin_boundaries is None:
         bin_boundaries = kwargs["bins"]
       del kwargs["bins"]
-    super().__init__(**kwargs)
+    super().__init__(streaming=True, **kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("Discretization").set(
         True)
     if num_bins is not None and num_bins < 0:
@@ -195,36 +195,36 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     self.bin_boundaries = bin_boundaries
     self.num_bins = num_bins
     self.epsilon = epsilon
-    # Bins only need to be `adapt`'d when `num_bins` is passed.
-    self.stateful = self.num_bins is not None
+
+    # If `bin_boundaries` is passed, we set up a constant `bins` tensor for use
+    # in `call` right away.
+    if self.bin_boundaries is not None:
+      boundaries = tf.convert_to_tensor(
+          self.bin_boundaries, dtype=tf.float32)
+      self.bins = tf.concat([boundaries, [np.inf]], axis=0)
 
   def build(self, input_shape):
+    super().build(input_shape)
+
     if self.bin_boundaries is not None:
-      initial_bins = np.append(self.bin_boundaries, [np.Inf])
-    else:
-      initial_bins = np.zeros(self.num_bins)
-    self.bins = self.add_weight(
-        name="bins",
-        shape=(initial_bins.size,),
+      return
+
+    # Summary contains two equal length vectors of bins at index 0 and weights
+    # at index 1.
+    self.summary = self.add_weight(
+        name="summary",
+        shape=(2, None),
         dtype=tf.float32,
-        initializer=tf.compat.v1.constant_initializer(initial_bins),
+        initializer=lambda shape, dtype: [[], []],  # pylint: disable=unused-arguments
         trainable=False)
-
-    if self.stateful:
-      # Summary contains two equal length vectors of bins at index 0 and weights
-      # at index 1.
-      self.summary = self.add_weight(
-          name="summary",
-          shape=(2, None),
-          dtype=tf.float32,
-          initializer=lambda shape, dtype: [[], []],  # pylint: disable=unused-arguments
-          trainable=False)
-
-    self.built = True
+    self.finalize_state()
 
   def update_state(self, data):
-    if not self.stateful:
-      return
+    if self.bin_boundaries is not None:
+      raise ValueError(
+          "Cannot adapt a Discretization layer that has been initialized with "
+          "`bin_boundaries`, use `num_bins` instead. You passed "
+          "`bin_boundaries={}`.".format(self.bin_boundaries))
 
     if not self.built:
       raise RuntimeError("`build` must be called before `update_state`.")
@@ -237,15 +237,15 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   def merge_state(self, layers):
     for l in layers + [self]:
-      if not l.stateful:
+      if l.bin_boundaries is not None:
         raise ValueError(
-            "Cannot merge non-stateful Discretization layer {}. All layers to "
-            "be adapted and merged should be initialized with `num_bins`."
-            .format(l.name))
+            "Cannot merge Discretization layer {} that has been initialized "
+            "with `bin_boundaries`, use `num_bins` instead. You passed "
+            "`bin_boundaries={}`.".format(l.name, l.bin_boundaries))
       if not l.built:
         raise ValueError(
-            "Cannot merge unbuilt Discretization layer {}. You need to call "
-            "`adapt` on this layer before merging.".format(l.name))
+            "Cannot merge Discretization layer {}, it has no state. You need "
+            "to call `adapt` on this layer before merging.".format(l.name))
 
     summary = self.summary
     for l in layers:
@@ -254,21 +254,28 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     self.finalize_state()
 
   def finalize_state(self):
-    if not self.stateful:
+    if self.bin_boundaries is not None or not self.built:
       return
 
+    # In the adapt case, we finalize our summary to a constant tensor `bins`
+    # each time `finalize_state` is called.
     boundaries = get_bin_boundaries(self.summary, self.num_bins)
-    boundaries = tf.concat([boundaries, [np.inf]], axis=0)
-    self.bins.assign(boundaries)
+    self.bins = tf.concat([boundaries, [np.inf]], axis=0)
+
+  def reset_state(self):  # pylint: disable=method-hidden
+    if self.bin_boundaries is not None or not self.built:
+      return
+
+    self.summary.assign([[], []])
 
   def get_config(self):
-    config = {
+    config = super().get_config()
+    config.update({
         "bin_boundaries": self.bin_boundaries,
         "num_bins": self.num_bins,
         "epsilon": self.epsilon,
-    }
-    base_config = super(Discretization, self).get_config()
-    return dict(list(base_config.items()) + list(config.items()))
+    })
+    return config
 
   def compute_output_shape(self, input_shape):
     return input_shape

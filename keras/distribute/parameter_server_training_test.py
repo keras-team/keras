@@ -17,11 +17,12 @@
 
 import tensorflow.compat.v2 as tf
 
+import os
 import random
 import tempfile
 
 from absl.testing import parameterized
-
+import numpy as np
 import keras
 from keras.distribute import multi_worker_testing_utils
 from keras.engine import base_layer
@@ -208,6 +209,66 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
     prediction1 = loaded_serving_fn(
         tf.constant(["ironman", "ironman", "unkonwn"]))["output_0"]
     self.assertIn(prediction1, ("yes", "no"))
+
+
+class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,
+                                           parameterized.TestCase):
+
+  @classmethod
+  def setUpClass(cls):
+    super(KPLCreatedInDatasetsFromFunctionTest, cls).setUpClass()
+    cls.coordinator = tf.distribute.experimental.coordinator.ClusterCoordinator(
+        tf.distribute.experimental.ParameterServerStrategy(
+            multi_worker_testing_utils.make_parameter_server_cluster(3, 2)))
+
+  def testKPLCreatedInDatasetsFromFunction(self):
+
+    filepath = os.path.join(self.get_temp_dir(), "vocab")
+    with open(filepath, "w") as f:
+      f.write("\n".join(["earth", "wind", "and", "fire"]))
+
+    def per_worker_dataset_fn():
+
+      def dataset_fn(input_context):
+        del input_context
+        lookup_layer = string_lookup.StringLookup(
+            num_oov_indices=1, vocabulary=filepath)
+        x = np.array([["earth", "wind", "and", "fire"],
+                      ["fire", "and", "earth", "michigan"]])
+        y = np.array([0, 1])
+        map_fn = lambda x, y: (lookup_layer(x), y)
+        return tf.data.Dataset.from_tensor_slices(
+            (x, y)).shuffle(10).repeat().batch(2).map(map_fn)
+
+      def wrapped_dataset_fn(input_context):
+        # TODO(b/186692679): Currently we need to remove the device scope
+        # imposed in `distribute_datasets_from_function` lib so the
+        # `StaticHashTable` is placed on the coordinator. Remove this workaround
+        # once resolved.
+        with tf.device(None):
+          return dataset_fn(input_context)
+
+      return self.coordinator.strategy.distribute_datasets_from_function(
+          wrapped_dataset_fn)
+
+    per_worker_distribute_dataset = self.coordinator.create_per_worker_dataset(
+        per_worker_dataset_fn)
+    per_worker_iter = iter(per_worker_distribute_dataset)
+
+    @tf.function
+    def worker_fn(iterator):
+
+      def replica_fn(data):
+        return data
+
+      return self.coordinator.strategy.run(replica_fn, args=(next(iterator),))
+
+    result = []
+    for _ in range(10):
+      result.append(
+          self.coordinator.schedule(worker_fn, args=(per_worker_iter,)))
+
+    self.coordinator.join()
 
 
 class ShardedVariableTest(tf.test.TestCase):
