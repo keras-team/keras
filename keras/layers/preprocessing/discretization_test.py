@@ -16,6 +16,8 @@
 
 import tensorflow.compat.v2 as tf
 
+import os
+
 from absl.testing import parameterized
 
 import numpy as np
@@ -253,6 +255,109 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
     layer2 = discretization.Discretization(num_bins=2, name="layer2")
     with self.assertRaisesRegex(ValueError, "Cannot merge.*layer2"):
       layer1.merge_state([layer2])
+
+  def test_multiple_adapts(self):
+    first_adapt = [[1], [2], [3]]
+    second_adapt = [[4], [5], [6]]
+    predict_input = [[2], [2]]
+    expected_first_output = [[1], [1]]
+    expected_second_output = [[0], [0]]
+
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = discretization.Discretization(num_bins=3)
+    layer.adapt(first_adapt)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    actual_output = model.predict(predict_input)
+    self.assertAllClose(actual_output, expected_first_output)
+
+    # Re-adapt the layer on new inputs.
+    layer.adapt(second_adapt)
+    # Re-compile the model.
+    model.compile()
+    # `predict` should now use the new model state.
+    actual_output = model.predict(predict_input)
+    self.assertAllClose(actual_output, expected_second_output)
+
+  def test_saved_model_tf(self):
+    input_data = [[1], [2], [3]]
+    expected_output = [[0], [1], [2]]
+
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = discretization.Discretization(num_bins=3)
+    layer.adapt(input_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(input_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_saved_model")
+    tf.saved_model.save(model, output_path)
+    loaded_model = tf.saved_model.load(output_path)
+    f = loaded_model.signatures["serving_default"]
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = f(tf.constant(input_data))["discretization"]
+    self.assertAllClose(new_output_data, expected_output)
+
+  def test_saved_model_keras(self):
+    input_data = [[1], [2], [3]]
+    expected_output = [[0], [1], [2]]
+
+    cls = discretization.Discretization
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = cls(num_bins=3)
+    layer.adapt(input_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(input_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_model")
+    model.save(output_path, save_format="tf")
+    loaded_model = keras.models.load_model(
+        output_path, custom_objects={"Discretization": cls})
+
+    # Ensure that the loaded model is unique (so that the save/load is real)
+    self.assertIsNot(model, loaded_model)
+
+    # Validate correctness of the new model.
+    new_output_data = loaded_model.predict(input_data)
+    self.assertAllClose(new_output_data, expected_output)
+
+  def test_saved_weights_keras(self):
+    input_data = [[1], [2], [3]]
+    expected_output = [[0], [1], [2]]
+
+    cls = discretization.Discretization
+    inputs = keras.Input(shape=(1,), dtype=tf.int32)
+    layer = cls(num_bins=3)
+    layer.adapt(input_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+
+    output_data = model.predict(input_data)
+    self.assertAllClose(output_data, expected_output)
+
+    # Save the model to disk.
+    output_path = os.path.join(self.get_temp_dir(), "tf_keras_saved_weights")
+    model.save_weights(output_path, save_format="tf")
+    new_model = keras.Model.from_config(
+        model.get_config(), custom_objects={"Discretization": cls})
+    new_model.load_weights(output_path)
+
+    # Validate correctness of the new model.
+    new_output_data = new_model.predict(input_data)
+    self.assertAllClose(new_output_data, expected_output)
+
 
 if __name__ == "__main__":
   tf.test.main()
