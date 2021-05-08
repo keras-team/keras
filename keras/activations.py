@@ -191,7 +191,7 @@ def selu(x):
         `tf.keras.layers.AlphaDropout` (not regular dropout).
 
   References:
-      - [backendlambauer et al., 2017](https://arxiv.org/abs/1706.02515)
+      - [Klambauer et al., 2017](https://arxiv.org/abs/1706.02515)
   """
   return tf.nn.selu(x)
 
