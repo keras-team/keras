@@ -888,6 +888,5 @@ py_library(
         "//keras/layers/preprocessing:string_lookup",
         "//keras/optimizer_v2",
         "//keras/utils:dataset_creator",
-        "//third_party/py/absl/logging",
     ],
 )
