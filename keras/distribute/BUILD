@@ -52,6 +52,7 @@ py_library(
     name = "distribute_test_lib_pip",
     srcs_version = "PY3",
     deps = [
+        ":dataset_creator_model_fit_test_base",
         ":distribute_strategy_test_lib",
         ":keras_correctness_test_lib",
         ":keras_test_lib",
