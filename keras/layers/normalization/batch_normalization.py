@@ -49,7 +49,7 @@ class BatchNormalizationBase(Layer):
   - `beta` is a learned offset factor (initialized as 0), which
   can be disabled by passing `center=False` to the constructor.
 
-  **During inference** (i.e. when using `evaluate()` or `predict()` or when
+  **During inference** (i.e. when using `evaluate()` or `predict()`) or when
   calling the layer/model with the argument `training=False` (which is the
   default), the layer normalizes its output using a moving average of the
   mean and standard deviation of the batches it has seen during training. That
