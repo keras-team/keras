@@ -94,7 +94,7 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.combine(
           distribution=strategy_combinations.all_strategies, mode=["eager"]))
-  @test_util.disable_mlir_bridge("TODO(b/68036682): Support dynamic padder")
+  @test_util.disable_mlir_bridge("TODO(b/168036682): Support dynamic padder")
   def test_update_keras_metrics_dynamic_shape(self, distribution):
     with distribution.scope():
       metric = metrics.Mean("test_metric", dtype=np.float32)

@@ -240,16 +240,8 @@ class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,
         return tf.data.Dataset.from_tensor_slices(
             (x, y)).shuffle(10).repeat().batch(2).map(map_fn)
 
-      def wrapped_dataset_fn(input_context):
-        # TODO(b/186692679): Currently we need to remove the device scope
-        # imposed in `distribute_datasets_from_function` lib so the
-        # `StaticHashTable` is placed on the coordinator. Remove this workaround
-        # once resolved.
-        with tf.device(None):
-          return dataset_fn(input_context)
-
       return self.coordinator.strategy.distribute_datasets_from_function(
-          wrapped_dataset_fn)
+          dataset_fn)
 
     per_worker_distribute_dataset = self.coordinator.create_per_worker_dataset(
         per_worker_dataset_fn)

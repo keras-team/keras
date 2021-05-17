@@ -18,10 +18,13 @@
 import tensorflow.compat.v2 as tf
 from keras import callbacks as callbacks_lib
 from keras.distribute import dataset_creator_model_fit_test_base as test_base
+from keras.distribute import strategy_combinations
 
 
 @tf.__internal__.distribute.combinations.generate(
-    tf.__internal__.test.combinations.combine(strategy=["ParameterServerStrategy"], mode="eager"))
+    tf.__internal__.test.combinations.combine(
+        strategy=strategy_combinations.parameter_server_strategies_multi_worker,
+        mode="eager"))
 class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     test_base.DatasetCreatorModelFitTestBase):
 
@@ -100,6 +103,29 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
     self.assertTrue(tf.compat.v1.gfile.Exists(log_dir))
     files = tf.compat.v1.gfile.ListDirectory(log_dir)
     self.assertGreaterEqual(len(files), 1)
+
+  def testModelEvaluateWithDatasetInstance(self, strategy):
+    with self.assertRaisesRegex(
+        NotImplementedError,
+        "Only `tf.keras.utils.experimental.DatasetCreator` input is supported "
+        "with `ParameterServerStrategy` at this time. Please see "
+        "`tf.keras.utils.experimental.DatasetCreator` class docstring for more "
+        "information."):
+      self._model_evaluate(
+          strategy,
+          validation_data=tf.data.Dataset.from_tensor_slices([1, 1]))
+
+  def testModelEvaluateErrorOnBatchLevelCallbacks(self, strategy):
+
+    class BatchLevelCallback(callbacks_lib.Callback):
+
+      def on_train_batch_end(self, batch, logs=None):
+        pass
+
+    with self.assertRaisesRegex(ValueError,
+                                "Batch-level `Callback`s are not supported"):
+      callbacks = [BatchLevelCallback()]
+      self._model_evaluate(strategy, callbacks=callbacks)
 
 
 if __name__ == "__main__":

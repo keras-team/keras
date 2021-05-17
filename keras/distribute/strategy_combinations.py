@@ -61,4 +61,14 @@ tpu_strategies = [
     tf.__internal__.distribute.combinations.tpu_strategy,
 ]
 
+parameter_server_strategies_single_worker = [
+    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_cpu,
+    tf.__internal__.distribute.combinations.parameter_server_strategy_1worker_2ps_1gpu,
+]
+
+parameter_server_strategies_multi_worker = [
+    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_cpu,
+    tf.__internal__.distribute.combinations.parameter_server_strategy_3worker_2ps_1gpu,
+]
+
 all_strategies = strategies_minus_tpu + tpu_strategies

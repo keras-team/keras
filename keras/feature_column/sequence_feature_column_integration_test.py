@@ -26,9 +26,9 @@ from google.protobuf import text_format
 from tensorflow.core.example import example_pb2
 from tensorflow.core.example import feature_pb2
 from tensorflow.python.framework import test_util
+from keras import backend
 from keras.feature_column import dense_features
 from keras.feature_column import sequence_feature_column as ksfc
-from keras import backend
 from keras.layers import merge
 from keras.layers import recurrent
 
