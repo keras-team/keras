@@ -222,15 +222,33 @@ py_library(
 )
 
 cuda_py_test(
-    name = "keras_test",
+    name = "layer_test",
     size = "medium",
-    srcs = ["keras_test.py"],
+    srcs = ["layer_test.py"],
+    python_version = "PY3",
+    tags = [
+        "no_pip",
+        "no_windows",  # b/139083295: bfloat16 tests fail on Windows
+    ],
+    deps = [
+        ":test_util",
+        "//:expect_absl_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+        "//keras:combinations",
+    ],
+)
+
+cuda_py_test(
+    name = "model_test",
+    size = "medium",
+    srcs = ["model_test.py"],
     data = [
         "//keras/mixed_precision/testdata:lso_ckpt_tf2.2",
         "//keras/mixed_precision/testdata:lso_savedmodel_tf2.2",
     ],
     python_version = "PY3",
-    shard_count = 10,
+    shard_count = 5,
     tags = [
         "no_pip",
         "no_windows",  # b/139083295: bfloat16 tests fail on Windows

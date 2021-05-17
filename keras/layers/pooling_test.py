@@ -22,10 +22,19 @@ import numpy as np
 import keras
 from keras import combinations
 from keras import testing_utils
+from keras.mixed_precision import policy
 
 
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class GlobalPoolingTest(tf.test.TestCase, parameterized.TestCase):
+
+  @testing_utils.enable_v2_dtype_behavior
+  def test_mixed_float16_policy(self):
+    with policy.policy_scope('mixed_float16'):
+      inputs1 = keras.Input(shape=(36, 512), dtype='float16')
+      inputs2 = keras.Input(shape=(36,), dtype='bool')
+      average_layer = keras.layers.pooling.GlobalAveragePooling1D()
+      _ = average_layer(inputs1, inputs2)
 
   def test_globalpooling_1d(self):
     testing_utils.layer_test(

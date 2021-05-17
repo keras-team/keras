@@ -22,7 +22,6 @@ from absl.testing import parameterized
 import numpy as np
 import keras
 from keras import callbacks as callbacks_lib
-from keras.distribute import multi_worker_testing_utils
 from keras.engine import sequential
 from keras.layers import core as core_layers
 from keras.layers.preprocessing import string_lookup
@@ -92,17 +91,6 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
         if self._prev_epoch != 9:
           raise RuntimeError("Unexpected last epoch: {}".format(
               self._prev_epoch))
-
-    # TODO(b/182193218): Use ParameterServerStrategy as a proper strategy
-    # combination.
-    if strategy == "ParameterServerStrategy":
-      gpu_devices = tf.config.list_physical_devices("GPU")
-      if len(gpu_devices) > 1:
-        self.skipTest("b/178452835: Multi-GPUs not supported in "
-                      "ParameterServerStrategy.")
-      strategy = tf.distribute.experimental.ParameterServerStrategy(
-          multi_worker_testing_utils.make_parameter_server_cluster(3, 2),
-          variable_partitioner=tf.distribute.experimental.partitioners.FixedShardsPartitioner(2))
 
     with strategy.scope():
       model = sequential.Sequential([core_layers.Dense(10)])
