@@ -1615,7 +1615,9 @@ def categorical_crossentropy(y_true,
                              y_pred,
                              from_logits=False,
                              label_smoothing=0):
-  """Computes the categorical crossentropy loss.
+  """ Computes the categorical crossentropy loss. This `Loss` should be used
+  when the `Targets/Labels` are `One-Hot-Encoded`. If the `targets` are not
+  `One-Hot-Encoded`, we should use `sparse_categorical_crossentropy`.
 
   Standalone usage:
 
@@ -1647,8 +1649,8 @@ def categorical_crossentropy(y_true,
     num_classes = tf.cast(tf.compat.v1.shape(y_true)[-1], y_pred.dtype)
     return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
 
-  y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing, _smooth_labels,
-                                 lambda: y_true)
+  y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing,
+                                                 _smooth_labels,lambda: y_true)
   return backend.categorical_crossentropy(
       y_true, y_pred, from_logits=from_logits)
 
@@ -1694,7 +1696,9 @@ def _ragged_tensor_categorical_crossentropy(y_true,
               'keras.losses.sparse_categorical_crossentropy')
 @tf.__internal__.dispatch.add_dispatch_support
 def sparse_categorical_crossentropy(y_true, y_pred, from_logits=False, axis=-1):
-  """Computes the sparse categorical crossentropy loss.
+  """Computes the sparse categorical crossentropy loss. Unlike
+  `categorical_crossentropy`, this `Loss` should be used when the Labels are
+  not `One-Hot-Encoded`.
 
   Standalone usage:
 
