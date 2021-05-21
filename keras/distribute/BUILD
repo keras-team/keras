@@ -38,10 +38,10 @@ py_library(
         "//keras:callbacks",
         "//keras:callbacks_v1",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:losses",
         "//keras:optimizers",
         "//keras:regularizers",
+        "//keras/initializers",
         "//keras/mixed_precision:policy",
         "//keras/utils:engine_utils",
         "//keras/utils:mode_keys",
@@ -709,6 +709,7 @@ distribute_py_test(
     shard_count = 7,
     tags = [
         "multi_and_single_gpu",
+        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
@@ -719,21 +720,19 @@ distribute_py_test(
 )
 
 distribute_py_test(
-    name = "parameter_server_training_test",
-    srcs = ["parameter_server_training_test.py"],
+    name = "sharded_variable_test",
+    srcs = ["sharded_variable_test.py"],
     python_version = "PY3",
-    shard_count = 4,  # TODO(b/184290570): Investigate why only 1 shard times out.
+    shard_count = 2,
     tags = [
         "multi_and_single_gpu",
+        "no_rocm",
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [
         ":multi_worker_testing_utils",
-        "//:expect_absl_installed",
-        "//:expect_portpicker_installed",
         "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/utils:dataset_creator",
+        "//keras/engine:base_layer",
     ],
 )
 
@@ -759,7 +758,6 @@ distribute_py_test(
 
 distribute_py_test(
     name = "dataset_creator_model_fit_test",
-    size = "small",
     srcs = ["dataset_creator_model_fit_test.py"],
     disable_mlir_bridge = True,  # TODO(b/170352626)
     full_precision = True,
