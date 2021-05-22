@@ -42,13 +42,12 @@ py_library(
     deps = [
         ":backend",
         ":engine",
-        # TODO(scottzhu): Stop exporting the test_utils after removing all
-        # callers that using it.
-        ":testing_utils",
+        ":testing_utils",  # TODO(scottzhu): Stop exporting the test_utils after removing all the callers.
         "//:expect_h5py_installed",
         "//:expect_numpy_installed",
         "//:expect_pydot_installed",
         "//:expect_scipy_installed",
+        "//:expect_tensorflow_installed",
         "//:expect_yaml_installed",
         "//keras/applications",
         "//keras/datasets",
@@ -64,7 +63,6 @@ py_library(
         "//keras/saving",
         "//keras/utils",
         "//keras/wrappers",
-        "//:expect_tensorflow_installed",
     ],
 )
 
@@ -183,22 +181,6 @@ py_library(
     deps = [
         ":backend",
         "//keras/utils:engine_utils",
-    ],
-)
-
-py_library(
-    name = "initializers",
-    srcs = [
-        "initializers/__init__.py",
-        "initializers/initializers_v1.py",
-        "initializers/initializers_v2.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        ":backend",
-        "//:expect_tensorflow_installed",
-        "//keras/utils:generic_utils",
-        "//keras/utils:tf_inspect",
     ],
 )
 
@@ -351,22 +333,6 @@ tf_py_test(
         ":constraints",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
-    ],
-)
-
-tf_py_test(
-    name = "initializers_test",
-    size = "small",
-    srcs = ["initializers_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":backend",
-        ":combinations",
-        ":initializers",
-        ":models",
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/engine",
     ],
 )
 
@@ -585,18 +551,6 @@ tf_py_test(
 #     python_version = "PY3",
 #     deps = [
 #         ":url_utils",
-#         "//:expect_tensorflow_installed",
-#         "//testing/pymocks:matchers",
-#     ],
-# )
-#
-# tf_py_test(
-#     name = "gfile_utils_test",
-#     size = "small",
-#     srcs = ["google_utils/gfile_utils_test.py"],
-#     python_version = "PY3",
-#     deps = [
-#         ":keras",
 #         "//:expect_tensorflow_installed",
 #         "//testing/pymocks:matchers",
 #     ],

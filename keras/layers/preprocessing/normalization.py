@@ -284,11 +284,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     return inputs
 
   def _make_json_serializable(self, inputs):
-    if inputs is None:
-      return None
-
     if tf.is_tensor(inputs):
       inputs = inputs.numpy()
     if isinstance(inputs, (np.ndarray)):
       inputs = inputs.tolist()
-    return list(inputs)
+      inputs = list(inputs)
+    return inputs

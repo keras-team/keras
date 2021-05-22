@@ -242,7 +242,6 @@ py_library(
 
 cuda_py_test(
     name = "category_crossing_test",
-    size = "medium",
     srcs = ["category_crossing_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -261,7 +260,6 @@ cuda_py_test(
 
 tf_py_test(
     name = "category_encoding_test",
-    size = "medium",
     srcs = ["category_encoding_test.py"],
     python_version = "PY3",
     deps = [
@@ -322,6 +320,7 @@ distribute_py_test(
     srcs = ["image_preprocessing_distribution_test.py"],
     main = "image_preprocessing_distribution_test.py",
     python_version = "PY3",
+    shard_count = 4,
     tags = [
         "multi_and_single_gpu",
         "nomultivm",  # TODO(b/170502145)
@@ -341,7 +340,6 @@ distribute_py_test(
 
 tf_py_test(
     name = "discretization_test",
-    size = "small",
     srcs = ["discretization_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -375,7 +373,6 @@ distribute_py_test(
 
 cuda_py_test(
     name = "hashing_test",
-    size = "medium",
     srcs = ["hashing_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -409,7 +406,6 @@ distribute_py_test(
 
 tf_py_test(
     name = "index_lookup_test",
-    size = "medium",
     srcs = ["index_lookup_test.py"],
     python_version = "PY3",
     tags = ["noasan"],  # TODO(b/183961255)
@@ -444,7 +440,6 @@ distribute_py_test(
 
 cuda_py_test(
     name = "image_preprocessing_test",
-    size = "medium",
     srcs = ["image_preprocessing_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -480,7 +475,6 @@ tf_py_test(
 
 tf_py_test(
     name = "integer_lookup_test",
-    size = "medium",
     srcs = ["integer_lookup_test.py"],
     python_version = "PY3",
     tags = ["noasan"],  # TODO(b/183961255)
@@ -527,7 +521,6 @@ tf_py_test(
 
 tf_py_test(
     name = "text_vectorization_test",
-    size = "medium",
     srcs = ["text_vectorization_test.py"],
     python_version = "PY3",
     shard_count = 4,
@@ -566,6 +559,7 @@ tf_py_test(
     name = "reduction_test",
     srcs = ["reduction_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = ["notsan"],  # TODO(b/170783154)
     deps = [
         ":reduction",
@@ -577,7 +571,6 @@ tf_py_test(
 
 tf_py_test(
     name = "string_lookup_test",
-    size = "medium",
     srcs = ["string_lookup_test.py"],
     python_version = "PY3",
     tags = [

@@ -43,10 +43,10 @@ py_library(
         "//:expect_tensorflow_installed",
         "//keras:backend",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:base_layer",
         "//keras/engine:input_spec",
+        "//keras/initializers",
         "//keras/utils:control_flow_util",
     ],
 )
@@ -68,9 +68,9 @@ py_library(
     deps = [
         "//:expect_tensorflow_installed",
         "//keras:constraints",
-        "//keras:initializers",
         "//keras:regularizers",
         "//keras/engine:base_layer",
+        "//keras/initializers",
     ],
 )
 
