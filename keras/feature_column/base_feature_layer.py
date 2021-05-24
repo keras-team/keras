@@ -23,7 +23,7 @@ from __future__ import print_function
 
 import tensorflow.compat.v2 as tf
 
-import collections
+import collections.abc
 import re
 from keras.engine.base_layer import Layer
 from keras.utils import generic_utils
@@ -191,7 +191,7 @@ def _normalize_feature_columns(feature_columns):
   if isinstance(feature_columns, tf.__internal__.feature_column.FeatureColumn):
     feature_columns = [feature_columns]
 
-  if isinstance(feature_columns, collections.Iterator):
+  if isinstance(feature_columns, collections.abc.Iterator):
     feature_columns = list(feature_columns)
 
   if isinstance(feature_columns, dict):
