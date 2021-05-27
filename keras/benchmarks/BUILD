@@ -158,3 +158,14 @@ py_binary(
     tags = ["no_oss"],
     deps = ["//:expect_tensorflow_installed"],
 )
+
+py_test(
+    name = "metrics_memory_benchmark_test",
+    srcs = ["metrics_memory_benchmark_test.py"],
+    python_version = "PY3",
+    deps = [
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras/api:keras_api",
+    ],
+)
