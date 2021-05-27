@@ -19,6 +19,7 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 
 import keras
+from keras import backend
 from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import preprocessing_test_utils
@@ -35,6 +36,10 @@ class TextVectorizationDistributionTest(
     preprocessing_test_utils.PreprocessingLayerTest):
 
   def test_distribution_strategy_output(self, strategy):
+    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
+    if backend.is_tpu_strategy(strategy):
+      self.skipTest("This test needs MLIR bridge on TPU.")
+
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],
                             ["fire", "and", "earth", "michigan"]])
@@ -60,6 +65,10 @@ class TextVectorizationDistributionTest(
     self.assertAllEqual(expected_output, output_dataset)
 
   def test_distribution_strategy_output_with_adapt(self, strategy):
+    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
+    if backend.is_tpu_strategy(strategy):
+      self.skipTest("This test needs MLIR bridge on TPU.")
+
     vocab_data = [[
         "earth", "earth", "earth", "earth", "wind", "wind", "wind", "and",
         "and", "fire"

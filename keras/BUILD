@@ -30,7 +30,6 @@ py_library(
     name = "keras",
     srcs = [
         "__init__.py",
-        "estimator/__init__.py",
         "keras_parameterized.py",
     ],
     srcs_version = "PY3",
@@ -52,6 +51,7 @@ py_library(
         "//keras/applications",
         "//keras/datasets",
         "//keras/distribute",
+        "//keras/estimator",
         "//keras/feature_column",
         "//keras/layers",
         "//keras/layers/legacy_rnn:rnn_cell_impl",

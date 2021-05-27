@@ -448,7 +448,7 @@ class AutoCastVariable(tf.Variable, tf.__internal__.types.Tensor):
     return pow(o, self.read_value())
 
   def __neg__(self):
-    return -self.read_value()
+    return -self.read_value()  # pylint: disable=invalid-unary-operand-type
 
   def __abs__(self):
     return abs(self.read_value())
