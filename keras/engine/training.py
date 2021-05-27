@@ -458,6 +458,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               weighted_metrics=None,
               run_eagerly=None,
               steps_per_execution=None,
+              jit_compile=None,
               **kwargs):
     """Configures the model for training.
 
@@ -536,6 +537,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           `Callback.on_batch_begin` and `Callback.on_batch_end` methods
           will only be called every `N` batches
           (i.e. before/after each `tf.function` execution).
+        jit_compile: Bool. Defaults to `None`. If `True`, then it compiles the
+        function using [XLA](https://tensorflow.org/xla). For more information
+        about this parameter, please see [jit_compile explanation](https://www.tensorflow.org/api_docs/python/tf/function#args_1).  # pylint: disable=line-too-long
         **kwargs: Arguments supported for backwards compatibility only.
 
     Raises:
@@ -572,6 +576,8 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       self._reset_compile_cache()
       self._is_compiled = True
 
+      self._jit_compile = jit_compile
+
       self.loss = loss or {}  # Backwards compat.
 
   def _get_optimizer(self, optimizer):
@@ -604,6 +610,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     self.train_function = None
     self.test_function = None
     self.predict_function = None
+    self.ds_train_function = None
     # Used to cache the `tf.function`'ed `train_function` to be logged in
     # TensorBoard, since the original `train_function` is not necessarily
     # a `tf.function` (e.g., with ParameterServerStrategy, the `train_function`
@@ -804,6 +811,79 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         return_metrics[metric.name] = result
     return return_metrics
 
+  def make_ds_train_function(self, force=False):
+    """Creates a function that executes one step of training.
+
+    This method can be overridden to support custom training logic.
+    This method is called by `Model.fit` and `Model.train_on_batch`.
+
+    Typically, this method directly controls `tf.function` and
+    `tf.distribute.Strategy` settings, and delegates the actual training
+    logic to `Model.train_step`.
+
+    This function is cached the first time `Model.fit` or
+    `Model.train_on_batch` is called. The cache is cleared whenever
+    `Model.compile` is called. You can skip the cache and generate again the
+    function with `force=True`.
+
+    Args:
+      force: Whether to regenerate the train function and skip the cached
+        function if available.
+
+    Returns:
+      Function. The function created by this method should accept a
+      `tf.data.Iterator`, and return a `dict` containing values that will
+      be passed to `tf.keras.Callbacks.on_train_batch_end`, such as
+      `{'loss': 0.2, 'accuracy': 0.7}`.
+    """
+    if self.ds_train_function is not None and not force:
+      return self.ds_train_function
+
+    def step_function(model, iterator):
+      """Runs a single training step."""
+
+      def run_step(data):
+        outputs = model.train_step(data)
+        # Ensure counter is updated only if `train_step` succeeds.
+        with tf.control_dependencies(_minimum_control_deps(outputs)):
+          model._train_counter.assign_add(1)  # pylint: disable=protected-access
+        return outputs
+
+      data = next(iterator)
+      outputs = model.distribute_strategy.run(run_step, args=(data,))
+      outputs = reduce_per_replica(
+          outputs, self.distribute_strategy, reduction='first')
+      write_scalar_summaries(outputs, step=model._train_counter)  # pylint: disable=protected-access
+      return outputs
+
+    if (self._steps_per_execution is None or
+        self._steps_per_execution.numpy().item() == 1):
+
+      def ds_train_function(iterator):
+        """Runs a training execution with one step."""
+        return step_function(self, iterator)
+
+    else:
+
+      def ds_train_function(iterator):
+        """Runs a training execution with multiple steps."""
+        for _ in tf.range(self._steps_per_execution):
+          outputs = step_function(self, iterator)
+        return outputs
+
+    if not self.run_eagerly:
+      ds_train_function = tf.function(
+          ds_train_function, experimental_relax_shapes=True)
+      self.train_tf_function = ds_train_function
+
+    self.ds_train_function = ds_train_function
+
+    if self._cluster_coordinator:
+      self.ds_train_function = lambda iterator: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
+          ds_train_function, args=(iterator,))
+
+    return self.ds_train_function
+
   def make_train_function(self, force=False):
     """Creates a function that executes one step of training.
 
@@ -832,7 +912,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if self.train_function is not None and not force:
       return self.train_function
 
-    def step_function(model, iterator):
+    def step_function(model, data):
       """Runs a single training step."""
 
       def run_step(data):
@@ -842,7 +922,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
           model._train_counter.assign_add(1)  # pylint: disable=protected-access
         return outputs
 
-      data = next(iterator)
       outputs = model.distribute_strategy.run(run_step, args=(data,))
       outputs = reduce_per_replica(
           outputs, self.distribute_strategy, reduction='first')
@@ -852,28 +931,27 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if (self._steps_per_execution is None or
         self._steps_per_execution.numpy().item() == 1):
 
-      def train_function(iterator):
+      def train_function(data):
         """Runs a training execution with one step."""
-        return step_function(self, iterator)
+        return step_function(self, data)
 
     else:
 
-      def train_function(iterator):
+      def train_function(data):
         """Runs a training execution with multiple steps."""
         for _ in tf.range(self._steps_per_execution):
-          outputs = step_function(self, iterator)
+          outputs = step_function(self, data)
         return outputs
 
     if not self.run_eagerly:
       train_function = tf.function(
-          train_function, experimental_relax_shapes=True)
+          train_function,
+          experimental_relax_shapes=True,
+          jit_compile=self._jit_compile,
+      )
       self.train_tf_function = train_function
 
     self.train_function = train_function
-
-    if self._cluster_coordinator:
-      self.train_function = lambda iterator: self._cluster_coordinator.schedule(  # pylint: disable=g-long-lambda
-          train_function, args=(iterator,))
 
     return self.train_function
 
@@ -1164,6 +1242,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
 
       self.stop_training = False
       self.train_function = self.make_train_function()
+      self.ds_train_function = self.make_ds_train_function()
       self._train_counter.assign(0)
       callbacks.on_train_begin()
       training_logs = None
@@ -1185,7 +1264,20 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                 batch_size=batch_size,
                 _r=1):
               callbacks.on_train_batch_begin(step)
-              tmp_logs = self.train_function(iterator)
+              if isinstance(
+                  self.distribute_strategy,
+                  (
+                      tf.distribute.MultiWorkerMirroredStrategy,
+                      tf.distribute.MirroredStrategy,
+                      tf.distribute.TPUStrategy,
+                      tf.distribute.experimental.ParameterServerStrategy,
+                      tf.distribute.experimental.CentralStorageStrategy,
+                  ),
+              ):
+                tmp_logs = self.ds_train_function(iterator)
+              else:
+                data = next(iterator)
+                tmp_logs = self.train_function(data)
               if data_handler.should_sync:
                 context.async_wait()
               logs = tmp_logs  # No error, now safe to assign to logs.
@@ -2752,16 +2844,19 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     test_function = self.test_function
     predict_function = self.predict_function
     train_tf_function = self.train_tf_function
+    ds_train_function = self.ds_train_function
     self.train_function = None
     self.test_function = None
     self.predict_function = None
     self.train_tf_function = None
+    self.ds_train_function = None
     functions = super(
         Model, self)._list_functions_for_serialization(serialization_cache)
     self.train_function = train_function
     self.test_function = test_function
     self.predict_function = predict_function
     self.train_tf_function = train_tf_function
+    self.ds_train_function = ds_train_function
     return functions
 
   def _should_eval(self, epoch, validation_freq):

@@ -75,6 +75,7 @@ py_library(
         "//keras/utils:mode_keys",
         "//keras/utils:tf_utils",
         "//keras/utils:version_utils",
+        "//third_party/tensorflow/compiler/jit:xla_cpu_jit",
     ],
 )
 

@@ -81,6 +81,42 @@ class TestTrainingWithDataset(keras_parameterized.TestCase):
 
   @keras_parameterized.run_with_all_model_types
   @keras_parameterized.run_all_keras_modes
+  def test_calling_model_on_same_dataset_jit_compile(self):
+    model = testing_utils.get_small_mlp(1, 4, input_dim=3)
+    optimizer = 'rmsprop'
+    loss = 'mse'
+    metrics = ['mae']
+    model.compile(
+        optimizer,
+        loss,
+        metrics=metrics,
+        jit_compile=True,
+        run_eagerly=testing_utils.should_run_eagerly())
+
+    inputs = np.zeros((10, 3), np.float32)
+    targets = np.zeros((10, 4), np.float32)
+    dataset = tf.data.Dataset.from_tensor_slices((inputs, targets))
+    dataset = dataset.repeat(100)
+    dataset = dataset.batch(10)
+
+    # Call fit with validation data
+    model.fit(
+        dataset,
+        epochs=1,
+        steps_per_epoch=2,
+        verbose=0,
+        validation_data=dataset,
+        validation_steps=2)
+    model.fit(
+        dataset,
+        epochs=1,
+        steps_per_epoch=2,
+        verbose=0,
+        validation_data=dataset,
+        validation_steps=2)
+
+  @keras_parameterized.run_with_all_model_types
+  @keras_parameterized.run_all_keras_modes
   def test_training_and_eval_methods_on_dataset(self):
     model = testing_utils.get_small_mlp(1, 4, input_dim=3)
     optimizer = 'rmsprop'
