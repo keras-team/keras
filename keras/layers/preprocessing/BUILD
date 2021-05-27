@@ -443,6 +443,9 @@ cuda_py_test(
     srcs = ["image_preprocessing_test.py"],
     python_version = "PY3",
     shard_count = 4,
+    tags = [
+        "no_windows",  # TODO(b/184424727): Re-enable this.
+    ],
     deps = [
         ":image_preprocessing",
         "//:expect_absl_installed",

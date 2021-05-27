@@ -119,7 +119,7 @@ class Nadam(optimizer_v2.OptimizerV2):
 
     apply_state[(var_device, var_dtype)] = dict(
         lr_t=lr_t,
-        neg_lr_t=-lr_t,
+        neg_lr_t=-lr_t,  # pylint: disable=invalid-unary-operand-type
         epsilon=tf.convert_to_tensor(self.epsilon, var_dtype),
         beta_1_t=beta_1_t,
         beta_2_t=beta_2_t,

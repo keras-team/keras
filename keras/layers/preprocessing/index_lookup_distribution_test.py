@@ -20,6 +20,7 @@ import os
 import numpy as np
 
 import keras
+from keras import backend
 from keras import keras_parameterized
 from keras.distribute import strategy_combinations
 from keras.layers.preprocessing import index_lookup
@@ -45,6 +46,10 @@ class IndexLookupDistributionTest(
     return vocab_path
 
   def test_strategy(self, strategy):
+    # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
+    if backend.is_tpu_strategy(strategy):
+      self.skipTest("This test needs MLIR bridge on TPU.")
+
     vocab_data = [[
         "earth", "earth", "earth", "earth", "wind", "wind", "wind", "and",
         "and", "fire"
@@ -75,7 +80,7 @@ class IndexLookupDistributionTest(
 
   def test_strategy_with_file(self, strategy):
     # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
-    if "TPU" in type(strategy).__name__:
+    if backend.is_tpu_strategy(strategy):
       self.skipTest("This test needs MLIR bridge on TPU.")
 
     vocab_data = ["earth", "wind", "and", "fire"]
@@ -106,7 +111,7 @@ class IndexLookupDistributionTest(
 
   def test_tpu_with_multiple_oov(self, strategy):
     # TODO(b/180614455): remove this check when MLIR bridge is always enabled.
-    if "TPU" in type(strategy).__name__:
+    if backend.is_tpu_strategy(strategy):
       self.skipTest("This test needs MLIR bridge on TPU.")
 
     vocab_data = [[

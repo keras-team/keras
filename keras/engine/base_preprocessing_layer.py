@@ -87,7 +87,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
-  def reset_state(self):
+  def reset_state(self):  # pylint: disable=method-hidden
     """Resets the statistics of the preprocessing layer."""
     raise NotImplementedError
 
@@ -331,7 +331,7 @@ class CombinerPreprocessingLayer(PreprocessingLayer):
     self._combiner = combiner
     self._adapt_accumulator = None
 
-  def reset_state(self):
+  def reset_state(self):  # pylint: disable=method-hidden
     self._adapt_accumulator = None
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
