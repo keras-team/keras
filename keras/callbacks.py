@@ -1265,6 +1265,7 @@ class ModelCheckpoint(Callback):
                mode='auto',
                save_freq='epoch',
                options=None,
+               custom_objects=None,
                **kwargs):
     super(ModelCheckpoint, self).__init__()
     self._supports_tf_logs = True
@@ -1275,6 +1276,7 @@ class ModelCheckpoint(Callback):
     self.save_weights_only = save_weights_only
     self.save_freq = save_freq
     self.epochs_since_last_save = 0
+    self.custom_objects = custom_objects
     self._batches_seen_since_last_saving = 0
     self._last_batch_seen = 0
 
@@ -1420,7 +1422,7 @@ class ModelCheckpoint(Callback):
                 self.model.save_weights(
                     filepath, overwrite=True, options=self._options)
               else:
-                self.model.save(filepath, overwrite=True, options=self._options)
+                self.model.save(filepath, overwrite=True, options=self._options, custom_objects = self.custom_objects)
             else:
               if self.verbose > 0:
                 print('\nEpoch %05d: %s did not improve from %0.5f' %
