@@ -95,6 +95,7 @@ py_library(
         "//keras:backend",
         "//keras/engine",
         "//keras/engine:input_spec",
+        "//keras/preprocessing:image",
         "//keras/utils:control_flow_util",
     ],
 )
@@ -280,6 +281,8 @@ distribute_py_test(
     python_version = "PY3",
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # b/189866692
+        "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
     ],
     tpu_tags = [
@@ -360,6 +363,8 @@ distribute_py_test(
     python_version = "PY3",
     tags = [
         "multi_and_single_gpu",
+        "no_oss",  # TODO(b/189956080)
+        "noguitar",  # b/190034522
         "nomultivm",  # TODO(b/170502145)
     ],
     deps = [

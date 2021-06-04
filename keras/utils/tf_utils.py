@@ -377,6 +377,13 @@ def is_ragged(tensor):
       (tf.RaggedTensor, tf.compat.v1.ragged.RaggedTensorValue))
 
 
+def is_sparse(tensor):
+  """Returns true if `tensor` is a sparse tensor or sparse tensor value."""
+  return isinstance(
+      tensor,
+      (tf.SparseTensor, tf.compat.v1.SparseTensorValue))
+
+
 def is_tensor_or_variable(x):
   return tf.is_tensor(x) or isinstance(x, tf.Variable)
 
