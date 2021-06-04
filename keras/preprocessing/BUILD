@@ -45,7 +45,6 @@ py_library(
         "//:expect_scipy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
-        "//keras/layers/preprocessing:image_preprocessing",
         "//keras/utils:data_utils",
     ],
 )

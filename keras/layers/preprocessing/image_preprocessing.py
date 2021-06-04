@@ -22,6 +22,7 @@ from keras import backend
 from keras.engine import base_layer
 from keras.engine import base_preprocessing_layer
 from keras.engine.input_spec import InputSpec
+from keras.preprocessing import image as image_preprocessing
 from keras.utils import control_flow_util
 from tensorflow.python.ops import stateless_random_ops
 from tensorflow.python.util.tf_export import keras_export
@@ -66,26 +67,40 @@ class Resizing(base_layer.Layer):
     interpolation: String, the interpolation method. Defaults to `bilinear`.
       Supports `bilinear`, `nearest`, `bicubic`, `area`, `lanczos3`, `lanczos5`,
       `gaussian`, `mitchellcubic`
+    crop_to_aspect_ratio: If True, resize the images without aspect
+      ratio distortion. When the original aspect ratio differs from the target
+      aspect ratio, the output image will be cropped so as to return the largest
+      possible window in the image (of size `(height, width)`) that matches
+      the target aspect ratio. By default (`crop_to_aspect_ratio=False`),
+      aspect ratio may not be preserved.
   """
 
   def __init__(self,
                height,
                width,
                interpolation='bilinear',
+               crop_to_aspect_ratio=False,
                **kwargs):
     self.target_height = height
     self.target_width = width
     self.interpolation = interpolation
+    self.crop_to_aspect_ratio = crop_to_aspect_ratio
     self._interpolation_method = get_interpolation(interpolation)
     self.input_spec = InputSpec(ndim=4)
     super(Resizing, self).__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Resizing').set(True)
 
   def call(self, inputs):
-    outputs = tf.image.resize(
-        images=inputs,
-        size=[self.target_height, self.target_width],
-        method=self._interpolation_method)
+    if self.crop_to_aspect_ratio:
+      outputs = image_preprocessing.smart_resize(
+          inputs,
+          size=[self.target_height, self.target_width],
+          interpolation=self._interpolation_method)
+    else:
+      outputs = tf.image.resize(
+          inputs,
+          size=[self.target_height, self.target_width],
+          method=self._interpolation_method)
     return outputs
 
   def compute_output_shape(self, input_shape):
@@ -98,6 +113,7 @@ class Resizing(base_layer.Layer):
         'height': self.target_height,
         'width': self.target_width,
         'interpolation': self.interpolation,
+        'crop_to_aspect_ratio': self.crop_to_aspect_ratio,
     }
     base_config = super(Resizing, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))

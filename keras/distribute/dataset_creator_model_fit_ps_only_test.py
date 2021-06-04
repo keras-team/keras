@@ -37,10 +37,9 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
   def testModelFitWithDatasetInstance(self, strategy):
     with self.assertRaisesRegex(
         NotImplementedError,
-        "Only `tf.keras.utils.experimental.DatasetCreator` input is supported "
-        "with `ParameterServerStrategy` at this time. Please see "
-        "`tf.keras.utils.experimental.DatasetCreator` class docstring for "
-        "more information."):
+        "Only `tf.keras.utils.experimental.DatasetCreator`, `tf.Tensor`, "
+        "numpy arrays and pandas dataframes are supported types at this "
+        "time."):
       self._model_fit(
           strategy, x=tf.data.Dataset.from_tensor_slices([1, 1]))
 
@@ -106,13 +105,11 @@ class DatasetCreatorModelFitParameterServerStrategyOnlyTest(
   def testModelEvaluateWithDatasetInstance(self, strategy):
     with self.assertRaisesRegex(
         NotImplementedError,
-        "Only `tf.keras.utils.experimental.DatasetCreator` input is supported "
-        "with `ParameterServerStrategy` at this time. Please see "
-        "`tf.keras.utils.experimental.DatasetCreator` class docstring for more "
-        "information."):
+        "Only `tf.keras.utils.experimental.DatasetCreator`, `tf.Tensor`, "
+        "numpy arrays and pandas dataframes are supported types at this "
+        "time."):
       self._model_evaluate(
-          strategy,
-          validation_data=tf.data.Dataset.from_tensor_slices([1, 1]))
+          strategy, x=tf.data.Dataset.from_tensor_slices([1, 1]))
 
   def testModelEvaluateErrorOnBatchLevelCallbacks(self, strategy):
 
