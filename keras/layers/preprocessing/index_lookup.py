@@ -28,6 +28,7 @@ from keras.layers.preprocessing import category_encoding
 from keras.layers.preprocessing import table_utils
 from keras.saving.saved_model import layer_serialization
 from keras.utils import layer_utils
+from keras.utils import tf_utils
 from tensorflow.python.platform import tf_logging as logging
 
 INT = "int"
@@ -617,12 +618,21 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
     lookup_checks = []
 
     if self.num_oov_indices == 0 and not self.invert:
-      oov_indices = tf.where(tf.equal(lookup_result, -1))
-      oov_inputs = tf.compat.v1.gather_nd(inputs, oov_indices)
+      if tf_utils.is_sparse(inputs):
+        lookup_values = lookup_result.values
+        input_values = inputs.values
+      elif tf_utils.is_ragged(inputs):
+        lookup_values = lookup_result.flat_values
+        input_values = inputs.flat_values
+      else:
+        lookup_values = lookup_result
+        input_values = inputs
+      oov_indices = tf.where(tf.equal(lookup_values, -1))
+      oov_inputs = tf.compat.v1.gather_nd(input_values, oov_indices)
       msg = tf.strings.format(
           "When `num_oov_indices=0` all inputs should be in vocabulary, "
-          "found OOV values {} at indices {}, consider setting "
-          "`num_oov_indices=1`.", (oov_inputs, oov_indices))
+          "found OOV values {}, consider setting `num_oov_indices=1`.",
+          (oov_inputs,))
       assertion = tf.Assert(
           tf.equal(tf.compat.v1.size(oov_indices), 0), [msg])
       lookup_checks.append(assertion)

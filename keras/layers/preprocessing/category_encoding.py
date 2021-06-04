@@ -169,14 +169,17 @@ class CategoryEncoding(base_layer.Layer):
             tf.cast(out_depth, max_value.dtype), max_value),
         tf.greater_equal(
             min_value, tf.cast(0, min_value.dtype)))
-    tf.Assert(condition, [
+    assertion = tf.Assert(condition, [
         "Input values must be in the range 0 <= values < num_tokens"
         " with num_tokens={}".format(out_depth)
     ])
-    if self.sparse:
-      return sparse_bincount(inputs, out_depth, multi_hot_output, count_weights)
-    else:
-      return dense_bincount(inputs, out_depth, multi_hot_output, count_weights)
+    with tf.control_dependencies([assertion]):
+      if self.sparse:
+        return sparse_bincount(inputs, out_depth, multi_hot_output,
+                               count_weights)
+      else:
+        return dense_bincount(inputs, out_depth, multi_hot_output,
+                              count_weights)
 
 
 def sparse_bincount(inputs, out_depth, multi_hot_output, count_weights=None):

@@ -761,6 +761,59 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
                                 "found OOV values.*michigan"):
       _ = model.predict(invalid_input)
 
+  def test_int_output_no_oov_ragged(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    valid_input = np.array([["earth", "wind", "and", "fire"],
+                            ["fire", "and", "earth", ""]])
+    invalid_input = np.array([["earth", "wind", "and", "michigan"],
+                              ["fire", "and", "earth", "michigan"]])
+    valid_input = tf.RaggedTensor.from_tensor(valid_input)
+    invalid_input = tf.RaggedTensor.from_tensor(invalid_input)
+    expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
+
+    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=0,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_data = model.predict(valid_input)
+    self.assertAllEqual(expected_output, output_data)
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                "found OOV values.*michigan"):
+      _ = model.predict(invalid_input)
+
+  def test_int_output_no_oov_sparse(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    valid_input = np.array([["earth", "wind", "and", "fire"],
+                            ["fire", "and", "earth", ""]])
+    invalid_input = np.array([["earth", "wind", "and", "michigan"],
+                              ["fire", "and", "earth", "michigan"]])
+    valid_input = tf.sparse.from_dense(valid_input)
+    invalid_input = tf.sparse.from_dense(invalid_input)
+    expected_output = [[1, 2, 3, 4], [4, 3, 1, 0]]
+
+    input_data = keras.Input(shape=(None,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=0,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    int_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=int_data)
+    output_data = model.predict(valid_input)
+    self.assertAllEqual(expected_output,
+                        tf.sparse.to_dense(output_data))
+    with self.assertRaisesRegex(tf.errors.InvalidArgumentError,
+                                "found OOV values.*michigan"):
+      _ = model.predict(invalid_input)
+
   def test_int_output_explicit_vocab(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire"],

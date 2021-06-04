@@ -116,6 +116,9 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                  steps_per_execution=1,
                  validation_data=None,
                  x=None,
+                 y=None,
+                 shuffle=True,
+                 batch_size=None,
                  steps_per_epoch=10,
                  run_eagerly=False,
                  with_normalization_layer=False,
@@ -131,14 +134,18 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
                                                    use_lookup_layer)
     callbacks += default_callbacks
 
-    x = x or dataset_creator.DatasetCreator(
-        self._get_dataset_fn(use_lookup_layer))
-    validation_data = (
-        validation_data or
-        dataset_creator.DatasetCreator(self._get_dataset_fn(use_lookup_layer)))
+    if x is None:
+      x = dataset_creator.DatasetCreator(self._get_dataset_fn(use_lookup_layer))
+
+    if validation_data is None:
+      validation_data = dataset_creator.DatasetCreator(
+          self._get_dataset_fn(use_lookup_layer))
 
     model.fit(
         x,
+        y,
+        shuffle=shuffle,
+        batch_size=batch_size,
         epochs=10,
         steps_per_epoch=steps_per_epoch,
         callbacks=callbacks,
@@ -149,7 +156,9 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
   def _model_evaluate(self,
                       strategy,
                       steps_per_execution=1,
-                      validation_data=None,
+                      x=None,
+                      y=None,
+                      batch_size=None,
                       steps=10,
                       run_eagerly=False,
                       with_normalization_layer=False,
@@ -172,9 +181,11 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
       return tf.data.Dataset.from_tensor_slices(
           (x, y)).shuffle(10).repeat().batch(8)
 
-    validation_data = (
-        validation_data or dataset_creator.DatasetCreator(dataset_fn))
-    model.evaluate(x=validation_data, steps=steps, callbacks=callbacks)
+    if x is None:
+      x = dataset_creator.DatasetCreator(dataset_fn)
+
+    model.evaluate(
+        x=x, y=y, steps=steps, callbacks=callbacks, batch_size=batch_size)
     return model
 
   def _model_predict(
@@ -199,7 +210,9 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
     def create_test_data():
       x = tf.constant([1., 2., 3., 1., 5., 1.])
       return tf.data.Dataset.from_tensor_slices(x).repeat().batch(2)
-    test_data = test_data or create_test_data()
+
+    if test_data is None:
+      test_data = create_test_data()
 
     predictions = model.predict(x=test_data, steps=steps, callbacks=callbacks)
     predictions = np.around(predictions, 4)
