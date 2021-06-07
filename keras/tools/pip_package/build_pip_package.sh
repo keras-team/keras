@@ -35,6 +35,7 @@ function prepare_src() {
   fi
   cp -r "bazel-bin/keras/tools/pip_package/build_pip_package.runfiles/org_keras/keras" "$TMPDIR"
   cp keras/tools/pip_package/setup.py "$TMPDIR"
+  cp LICENSE "$TMPDIR"
 
   # Verifies all expected files are in pip.
   # Creates init files in all directory in pip.
