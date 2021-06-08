@@ -146,10 +146,10 @@ class AutoCastVariableTest(tf.test.TestCase, parameterized.TestCase):
     # underlying variable.
     with self.test_session(), distribution.scope():
       for read_dtype in (tf.float32, tf.float16):
-        if tf.distribute.has_strategy():
+        if tf.distribute.has_strategy() and not tf.executing_eagerly():
           # MirroredVariable.assign will (incorrectly) return a Mirrored value
-          # instead of a MirroredVariable. So we cannot properly wrap it in an
-          # AutoCastVariable.
+          # instead of a MirroredVariable in graph mode.
+          # So we cannot properly wrap it in an AutoCastVariable.
           evaluate = self.evaluate
         else:
 

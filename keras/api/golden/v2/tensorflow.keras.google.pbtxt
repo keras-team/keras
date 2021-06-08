@@ -9,6 +9,10 @@ tf_module {
     argspec: "args=[\'filepath\', \'custom_objects\', \'compile\'], varargs=None, keywords=None, defaults=[\'None\', \'True\'], "
   }
   member_method {
+    name: "load_weights"
+    argspec: "args=[\'model\', \'filepath\'], varargs=None, keywords=load_weights_kwargs, defaults=None"
+  }
+  member_method {
     name: "save_model"
     argspec: "args=[\'model\', \'filepath\', \'overwrite\'], varargs=None, keywords=saved_model_kwargs, defaults=[\'False\'], "
   }
