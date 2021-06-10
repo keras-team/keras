@@ -162,8 +162,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       variance = self.input_variance * np.ones(mean_and_var_shape)
       mean = tf.reshape(mean, self._broadcast_shape)
       variance = tf.reshape(variance, self._broadcast_shape)
-      self.mean = tf.cast(mean, self.dtype)
-      self.variance = tf.cast(variance, self.dtype)
+      self.mean = tf.cast(mean, self.compute_dtype)
+      self.variance = tf.cast(variance, self.compute_dtype)
 
   def update_state(self, data):
     if self.input_mean is not None:
@@ -176,6 +176,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       raise RuntimeError('`build` must be called before `update_state`.')
 
     data = self._standardize_inputs(data)
+    data = tf.cast(data, self.adapt_mean.dtype)
     batch_mean, batch_variance = tf.nn.moments(
         data, axes=self._reduce_axis)
     batch_shape = tf.compat.v1.shape(data, out_type=self.count.dtype)
@@ -247,13 +248,18 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       return
 
     # In the adapt case, we make constant tensors for mean and variance with
-    # proper broadcast shape each time `finalize_state` is called.
+    # proper broadcast shape and dtype each time `finalize_state` is called.
     self.mean = tf.reshape(self.adapt_mean, self._broadcast_shape)
+    self.mean = tf.cast(self.mean, self.compute_dtype)
     self.variance = tf.reshape(self.adapt_variance,
                                       self._broadcast_shape)
+    self.variance = tf.cast(self.variance, self.compute_dtype)
 
   def call(self, inputs):
     inputs = self._standardize_inputs(inputs)
+    # The base layer automatically casts floating-point inputs, but we
+    # explicitly cast here to also allow integer inputs to be passed
+    inputs = tf.cast(inputs, self.compute_dtype)
     return ((inputs - self.mean) /
             tf.maximum(tf.sqrt(self.variance), backend.epsilon()))
 
@@ -278,9 +284,6 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       inputs = tf.reshape(inputs, [1, 1])
     elif inputs.shape.rank == 1:
       inputs = tf.compat.v1.expand_dims(inputs, 1)
-
-    if inputs.dtype != self.dtype:
-      inputs = tf.cast(inputs, self.dtype)
     return inputs
 
   def _make_json_serializable(self, inputs):

@@ -28,6 +28,15 @@ from keras import layers
 from keras import models
 from keras import optimizer_v1
 from keras import testing_utils
+from keras.applications import densenet
+from keras.applications import efficientnet
+from keras.applications import inception_resnet_v2
+from keras.applications import inception_v3
+from keras.applications import mobilenet
+from keras.applications import nasnet
+from keras.applications import resnet
+from keras.applications import vgg16
+from keras.applications import xception
 from keras.engine import base_layer_utils
 from keras.engine import input_spec
 from keras.engine import sequential
@@ -825,6 +834,30 @@ class KerasModelTest(keras_parameterized.TestCase):
     self.assertEqual(model.optimizer.dynamic_growth_steps, 2.)
     self.assertEqual(type(model.optimizer),
                      loss_scale_optimizer.LossScaleOptimizer)
+
+
+class ApplicationModelTest(keras_parameterized.TestCase):
+  """Tests that application models can be built with mixed precision.
+
+  This does not test that such models can be trained in mixed precision, as
+  doing so takes too much time for a unit test.
+  """
+
+  @parameterized.named_parameters(
+      ('densenet', densenet.DenseNet121),
+      ('efficientnet', efficientnet.EfficientNetB0),
+      ('inception_resnet_v2', inception_resnet_v2.InceptionResNetV2),
+      ('inception_v3', inception_v3.InceptionV3),
+      ('mobilenet', mobilenet.MobileNet),
+      ('nasnet', nasnet.NASNetMobile),
+      ('vgg16', vgg16.VGG16),
+      ('xception', xception.Xception),
+      ('resnet50', resnet.ResNet50),
+  )
+  def test_application_model(self, app):
+    self.skipTest('b/190747991: OOMs when a GPU is used')
+    with policy.policy_scope('mixed_float16'):
+      app(weights=None)
 
 
 if __name__ == '__main__':
