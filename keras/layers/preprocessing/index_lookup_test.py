@@ -833,7 +833,75 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_binary_output_hard_maximum(self):
+  def test_one_hot_output_hard_maximum(self):
+    """Check binary output when pad_to_max_tokens=True."""
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_array = np.array(["earth", "wind", "and", "fire", "michigan", ""])
+    expected_output = [
+        [0, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 1, 0],
+        [1, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
+    ]
+
+    input_data = keras.Input(shape=(1,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=6,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        output_mode=index_lookup.ONE_HOT,
+        pad_to_max_tokens=True,
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    binary_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=binary_data)
+    output_dataset = model.predict(input_array)
+    self.assertAllEqual(expected_output, output_dataset)
+
+  def test_one_hot_output_soft_maximum(self):
+    """Check binary output when pad_to_max_tokens=False."""
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_array = np.array(["earth", "wind", "and", "fire", "michigan", ""])
+    expected_output = [
+        [0, 1, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]
+
+    input_data = keras.Input(shape=(1,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        output_mode=index_lookup.ONE_HOT,
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    binary_data = layer(input_data)
+    model = keras.Model(inputs=input_data, outputs=binary_data)
+    output_dataset = model.predict(input_array)
+    self.assertAllEqual(expected_output, output_dataset)
+
+  def test_one_hot_output_shape(self):
+    inputs = keras.Input(batch_size=16, shape=(1,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        vocabulary=["earth"],
+        max_tokens=2,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        output_mode=index_lookup.ONE_HOT,
+        dtype=tf.string)
+    outputs = layer(inputs)
+    self.assertAllEqual(outputs.shape.as_list(), [16, 2])
+
+  def test_multi_hot_output_hard_maximum(self):
     """Check binary output when pad_to_max_tokens=True."""
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire", ""],
@@ -858,7 +926,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_binary_output_no_oov(self):
+  def test_multi_hot_output_no_oov(self):
     """Check binary output when pad_to_max_tokens=True."""
     vocab_data = ["earth", "wind", "and", "fire"]
     valid_input = np.array([["earth", "wind", "and", "fire"],
@@ -888,7 +956,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
                                 "found OOV values.*michigan"):
       _ = model.predict(invalid_input)
 
-  def test_binary_output_hard_maximum_multiple_adapts(self):
+  def test_multi_hot_output_hard_maximum_multiple_adapts(self):
     input_array = np.array([["earth", "wind", "and", "earth"],
                             ["ohio", "and", "earth", "michigan"]])
     adapt_data = ["earth", "earth", "earth", "earth", "wind", "wind", "wind"]
@@ -926,8 +994,8 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     self.assertAllEqual(first_expected_output, first_output)
     self.assertAllEqual(second_expected_output, second_output)
 
-  def test_binary_output_soft_maximum(self):
-    """Check binary output when pad_to_max_tokens=False."""
+  def test_multi_hot_output_soft_maximum(self):
+    """Check multi_hot output when pad_to_max_tokens=False."""
     vocab_data = ["earth", "wind", "and", "fire"]
     input_array = np.array([["earth", "wind", "and", "fire", ""],
                             ["fire", "and", "earth", "michigan", ""]])
@@ -950,7 +1018,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_binary_output_shape(self):
+  def test_multi_hot_output_shape(self):
     input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
     layer = index_lookup.IndexLookup(
         max_tokens=2,
