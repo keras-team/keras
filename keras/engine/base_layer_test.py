@@ -1314,6 +1314,77 @@ class NameScopingTest(keras_parameterized.TestCase):
     self.assertEqual(layer.bias.name, 'MyName3/bias:0')
     self.assertEqual(layer.kernel.name, 'MyName3/kernel:0')
 
+  @testing_utils.run_v2_only
+  def test_apply_name_scope_on_model_declaration(self):
+    if not tf.executing_eagerly():
+      self.skipTest('`apply_name_scope_on_model_declaration` API is supported'
+                    ' only for V2 eager')
+
+    base_layer._apply_name_scope_on_model_declaration(True)
+
+    inputs = input_layer.Input((3,))
+    x = layers.Dense(10, name='Dense1')(inputs)
+    with tf.name_scope('outer'):
+      x = layers.Dense(10, name='Dense2')(x)
+      with tf.name_scope('inner'):
+        x = layers.Dense(10, name='Dense3')(x)
+      x = layers.Dense(10, name='Dense4')(x)
+    outputs = layers.Dense(10, name='Dense5')(x)
+
+    model = training_lib.Model(inputs, outputs)
+    node_names = self._get_model_node_names(model, np.random.random((1, 3)),
+                                            'call_scope')
+    self.assertListEqual(node_names, [
+        'call_scope/Const',
+        'call_scope/model/Cast',
+        'call_scope/model/Dense1/MatMul/ReadVariableOp/resource',
+        'call_scope/model/Dense1/MatMul/ReadVariableOp',
+        'call_scope/model/Dense1/MatMul',
+        'call_scope/model/Dense1/BiasAdd/ReadVariableOp/resource',
+        'call_scope/model/Dense1/BiasAdd/ReadVariableOp',
+        'call_scope/model/Dense1/BiasAdd',
+        'call_scope/model/outer/Dense2/MatMul/ReadVariableOp/resource',
+        'call_scope/model/outer/Dense2/MatMul/ReadVariableOp',
+        'call_scope/model/outer/Dense2/MatMul',
+        'call_scope/model/outer/Dense2/BiasAdd/ReadVariableOp/resource',
+        'call_scope/model/outer/Dense2/BiasAdd/ReadVariableOp',
+        'call_scope/model/outer/Dense2/BiasAdd',
+        'call_scope/model/outer/inner/Dense3/MatMul/ReadVariableOp/resource',
+        'call_scope/model/outer/inner/Dense3/MatMul/ReadVariableOp',
+        'call_scope/model/outer/inner/Dense3/MatMul',
+        'call_scope/model/outer/inner/Dense3/BiasAdd/ReadVariableOp/resource',
+        'call_scope/model/outer/inner/Dense3/BiasAdd/ReadVariableOp',
+        'call_scope/model/outer/inner/Dense3/BiasAdd',
+        'call_scope/model/outer/Dense4/MatMul/ReadVariableOp/resource',
+        'call_scope/model/outer/Dense4/MatMul/ReadVariableOp',
+        'call_scope/model/outer/Dense4/MatMul',
+        'call_scope/model/outer/Dense4/BiasAdd/ReadVariableOp/resource',
+        'call_scope/model/outer/Dense4/BiasAdd/ReadVariableOp',
+        'call_scope/model/outer/Dense4/BiasAdd',
+        'call_scope/model/Dense5/MatMul/ReadVariableOp/resource',
+        'call_scope/model/Dense5/MatMul/ReadVariableOp',
+        'call_scope/model/Dense5/MatMul',
+        'call_scope/model/Dense5/BiasAdd/ReadVariableOp/resource',
+        'call_scope/model/Dense5/BiasAdd/ReadVariableOp',
+        'call_scope/model/Dense5/BiasAdd',
+        'Identity',
+        'NoOp'
+    ])
+    base_layer._apply_name_scope_on_model_declaration(False)
+
+  def _get_model_node_names(self, model, inputs, call_name_scope):
+    """Returns a list of model's node names."""
+
+    @tf.function()
+    def wrapper():
+      with tf.name_scope(call_name_scope):
+        return model(inputs)
+
+    return [
+        node.name
+        for node in wrapper.get_concrete_function().graph.as_graph_def().node
+    ]
+
 
 @combinations.generate(combinations.keras_mode_combinations(mode=['eager']))
 class AutographControlFlowTest(keras_parameterized.TestCase):
