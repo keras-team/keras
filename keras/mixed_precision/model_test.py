@@ -855,8 +855,8 @@ class ApplicationModelTest(keras_parameterized.TestCase):
       ('resnet50', resnet.ResNet50),
   )
   def test_application_model(self, app):
-    self.skipTest('b/190747991: OOMs when a GPU is used')
-    with policy.policy_scope('mixed_float16'):
+    # Run on CPU since model weights may exhaust GPU memory
+    with policy.policy_scope('mixed_float16'), tf.compat.v1.device('/CPU:0'):
       app(weights=None)
 
 

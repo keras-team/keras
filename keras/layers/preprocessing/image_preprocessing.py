@@ -401,11 +401,13 @@ class RandomFlip(base_layer.Layer):
     def random_flipped_inputs():
       flipped_outputs = inputs
       if self.horizontal:
-        flipped_outputs = tf.image.random_flip_left_right(
-            flipped_outputs, self.seed)
+        flipped_outputs = tf.image.stateless_random_flip_left_right(
+            flipped_outputs,
+            self._rng.make_seeds()[:, 0])
       if self.vertical:
-        flipped_outputs = tf.image.random_flip_up_down(flipped_outputs,
-                                                        self.seed)
+        flipped_outputs = tf.image.stateless_random_flip_up_down(
+            flipped_outputs,
+            self._rng.make_seeds()[:, 0])
       return flipped_outputs
 
     output = control_flow_util.smart_cond(training, random_flipped_inputs,
@@ -1072,6 +1074,7 @@ class RandomContrast(base_layer.Layer):
       raise ValueError('Factor cannot have negative values or greater than 1.0,'
                        ' got {}'.format(factor))
     self.seed = seed
+    self._rng = make_generator(self.seed)
     self.input_spec = InputSpec(ndim=4)
     super(RandomContrast, self).__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('RandomContrast').set(
@@ -1082,8 +1085,9 @@ class RandomContrast(base_layer.Layer):
       training = backend.learning_phase()
 
     def random_contrasted_inputs():
-      return tf.image.random_contrast(inputs, 1. - self.lower, 1. + self.upper,
-                                       self.seed)
+      return tf.image.stateless_random_contrast(inputs, 1. - self.lower,
+                                                 1. + self.upper,
+                                                 self._rng.make_seeds()[:, 0])
 
     output = control_flow_util.smart_cond(training, random_contrasted_inputs,
                                           lambda: inputs)
@@ -1303,7 +1307,7 @@ def make_generator(seed=None):
   Returns:
     A generator object.
   """
-  if seed:
+  if seed is not None:
     return tf.random.Generator.from_seed(seed)
   else:
     return tf.random.Generator.from_non_deterministic_state()
