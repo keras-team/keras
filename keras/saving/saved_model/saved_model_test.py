@@ -1123,6 +1123,16 @@ class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
     self.assertAllEqual(previous_losses, layer.losses)
 
 
+@generic_utils.register_keras_serializable('Testing')
+class CustomMeanMetric(keras.metrics.Mean):
+
+  def update_state(self, *args):  # pylint: disable=useless-super-delegation
+    # Sometimes built-in metrics return an op in update_state. Custom
+    # metrics don't support returning ops, so wrap the update_state method
+    # while returning nothing.
+    super(CustomMeanMetric, self).update_state(*args)
+
+
 @combinations.generate(combinations.combine(mode=['graph', 'eager']))
 class MetricTest(tf.test.TestCase, parameterized.TestCase):
 
@@ -1238,15 +1248,6 @@ class MetricTest(tf.test.TestCase, parameterized.TestCase):
             test_sample_weight=False)
 
   def test_registered_custom_metric(self):
-
-    @generic_utils.register_keras_serializable('Testing')
-    class CustomMeanMetric(keras.metrics.Mean):
-
-      def update_state(self, *args):  # pylint: disable=useless-super-delegation
-        # Sometimes built-in metrics return an op in update_state. Custom
-        # metrics don't support returning ops, so wrap the update_state method
-        # while returning nothing.
-        super(CustomMeanMetric, self).update_state(*args)
 
     with self.cached_session():
       metric = CustomMeanMetric()
