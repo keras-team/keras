@@ -309,15 +309,14 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       return
 
     if all(
-        isinstance(v, (base_layer.Layer,
-                       tf.__internal__.tracking.TrackableDataStructure)) or
+        isinstance(v, (base_layer.Layer, tf.Variable)) or
         base_layer_utils.has_weights(v) for v in tf.nest.flatten(value)):
       try:
         self._base_model_initialized
       except AttributeError:
         raise RuntimeError(
             'It looks like you are subclassing `Model` and you '
-            'forgot to call `super(YourClass, self).__init__()`.'
+            'forgot to call `super().__init__()`.'
             ' Always start with this line.')
 
     super(Model, self).__setattr__(name, value)

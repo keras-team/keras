@@ -24,6 +24,7 @@ from google.protobuf import message
 from keras import backend
 from keras import regularizers
 from keras.engine import input_spec
+from keras.optimizer_v2 import optimizer_v2
 from keras.protobuf import saved_metadata_pb2
 from keras.protobuf import versions_pb2
 from keras.saving import saving_utils
@@ -153,6 +154,12 @@ def load(path, compile=True, options=None):  # pylint: disable=redefined-builtin
       model.compile(**saving_utils.compile_args_from_training_config(
           training_config), from_serialized=True)
       saving_utils.try_build_compiled_arguments(model)
+      if isinstance(model.optimizer, optimizer_v2.OptimizerV2):
+        if (model.optimizer.get_slot_names()):
+          logging.warning('Your optimizer uses slots. '
+                          'Slots cannot be restored from saved_model, '
+                          'as a result, your model is starting with  '
+                          'a new initialized optimizer.')
     else:
       logging.warning('No training configuration found in save file, so the '
                       'model was *not* compiled. Compile it manually.')
