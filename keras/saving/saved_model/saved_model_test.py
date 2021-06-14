@@ -1025,6 +1025,13 @@ class TestSavedModelFormat(tf.test.TestCase):
     with self.assertRaisesRegex(ValueError, 'I said do not trace'):
       loaded.attached_layer(tf.constant([1.]))
 
+  def test_load_non_keras_saved_model(self):
+    model = testing_utils.get_small_functional_mlp(1, 4, input_dim=3)
+    saved_model_dir = self._save_model_dir()
+    tf.saved_model.save(model, saved_model_dir)
+    with self.assertRaisesRegex(ValueError, 'Unable to create a Keras model'):
+      keras_load.load(saved_model_dir)
+
 
 class TestLayerCallTracing(tf.test.TestCase, parameterized.TestCase):
 
