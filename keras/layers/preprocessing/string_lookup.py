@@ -263,7 +263,7 @@ class StringLookup(index_lookup.IndexLookup):
                vocabulary=None,
                encoding=None,
                invert=False,
-               output_mode=index_lookup.INT,
+               output_mode="int",
                sparse=False,
                pad_to_max_tokens=False,
                **kwargs):
