@@ -20,7 +20,6 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 from keras.engine import base_preprocessing_layer
 from keras.utils import tf_utils
-from tensorflow.python.ops.parallel_for.control_flow_ops import vectorized_map
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -153,8 +152,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
   ...          bin_boundaries=[0., 1., 2.])
   >>> layer(input)
   <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
-  array([[0, 1, 3, 1],
-         [0, 3, 2, 0]], dtype=int32)>
+  array([[0, 2, 3, 1],
+         [1, 3, 2, 1]], dtype=int32)>
 
   Bucketize float values based on a number of buckets to compute.
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
@@ -163,8 +162,8 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
   >>> layer.adapt(input)
   >>> layer(input)
   <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
-  array([[0, 2, 3, 1],
-         [0, 3, 2, 0]], dtype=int32)>
+  array([[0, 2, 3, 2],
+         [1, 3, 3, 1]], dtype=int32)>
   """
 
   def __init__(self,
@@ -192,21 +191,16 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
       raise ValueError("Both `num_bins` and `bin_boundaries` should not be "
                        "set. You passed `num_bins={}` and "
                        "`bin_boundaries={}`".format(num_bins, bin_boundaries))
-    self.bin_boundaries = bin_boundaries
+    bin_boundaries = self._convert_to_list(bin_boundaries)
+    self.input_bin_boundaries = bin_boundaries
+    self.bin_boundaries = bin_boundaries if bin_boundaries is not None else []
     self.num_bins = num_bins
     self.epsilon = epsilon
-
-    # If `bin_boundaries` is passed, we set up a constant `bins` tensor for use
-    # in `call` right away.
-    if self.bin_boundaries is not None:
-      boundaries = tf.convert_to_tensor(
-          self.bin_boundaries, dtype=tf.float32)
-      self.bins = tf.concat([boundaries, [np.inf]], axis=0)
 
   def build(self, input_shape):
     super().build(input_shape)
 
-    if self.bin_boundaries is not None:
+    if self.input_bin_boundaries is not None:
       return
 
     # Summary contains two equal length vectors of bins at index 0 and weights
@@ -217,14 +211,13 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
         dtype=tf.float32,
         initializer=lambda shape, dtype: [[], []],  # pylint: disable=unused-arguments
         trainable=False)
-    self.finalize_state()
 
   def update_state(self, data):
-    if self.bin_boundaries is not None:
+    if self.input_bin_boundaries is not None:
       raise ValueError(
           "Cannot adapt a Discretization layer that has been initialized with "
           "`bin_boundaries`, use `num_bins` instead. You passed "
-          "`bin_boundaries={}`.".format(self.bin_boundaries))
+          "`bin_boundaries={}`.".format(self.input_bin_boundaries))
 
     if not self.built:
       raise RuntimeError("`build` must be called before `update_state`.")
@@ -237,11 +230,11 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   def merge_state(self, layers):
     for l in layers + [self]:
-      if l.bin_boundaries is not None:
+      if l.input_bin_boundaries is not None:
         raise ValueError(
             "Cannot merge Discretization layer {} that has been initialized "
             "with `bin_boundaries`, use `num_bins` instead. You passed "
-            "`bin_boundaries={}`.".format(l.name, l.bin_boundaries))
+            "`bin_boundaries={}`.".format(l.name, l.input_bin_boundaries))
       if not l.built:
         raise ValueError(
             "Cannot merge Discretization layer {}, it has no state. You need "
@@ -254,16 +247,15 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     self.finalize_state()
 
   def finalize_state(self):
-    if self.bin_boundaries is not None or not self.built:
+    if self.input_bin_boundaries is not None or not self.built:
       return
 
-    # In the adapt case, we finalize our summary to a constant tensor `bins`
-    # each time `finalize_state` is called.
-    boundaries = get_bin_boundaries(self.summary, self.num_bins)
-    self.bins = tf.concat([boundaries, [np.inf]], axis=0)
+    # The bucketize op only support list boundaries.
+    self.bin_boundaries = self._convert_to_list(
+        get_bin_boundaries(self.summary, self.num_bins))
 
   def reset_state(self):  # pylint: disable=method-hidden
-    if self.bin_boundaries is not None or not self.built:
+    if self.input_bin_boundaries is not None or not self.built:
       return
 
     self.summary.assign([[], []])
@@ -271,7 +263,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
   def get_config(self):
     config = super().get_config()
     config.update({
-        "bin_boundaries": self.bin_boundaries,
+        "bin_boundaries": self.input_bin_boundaries,
         "num_bins": self.num_bins,
         "epsilon": self.epsilon,
     })
@@ -289,35 +281,28 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
   def call(self, inputs):
-    bins = [tf.cast(tf.compat.v1.squeeze(self.bins), tf.float32)]
-
-    def _bucketize_fn(inputs):
-      return tf.raw_ops.BoostedTreesBucketize(
-          float_values=[tf.cast(inputs, tf.float32)],
-          bucket_boundaries=bins)[0]
+    def bucketize(inputs):
+      return tf.raw_ops.Bucketize(
+          input=inputs, boundaries=self.bin_boundaries)
 
     if tf_utils.is_ragged(inputs):
-      integer_buckets = tf.ragged.map_flat_values(
-          _bucketize_fn, inputs)
+      integer_buckets = tf.ragged.map_flat_values(bucketize, inputs)
       # Ragged map_flat_values doesn't touch the non-values tensors in the
       # ragged composite tensor. If this op is the only op a Keras model,
       # this can cause errors in Graph mode, so wrap the tensor in an identity.
       return tf.identity(integer_buckets)
-    elif isinstance(inputs, tf.SparseTensor):
+    elif tf_utils.is_sparse(inputs):
       return tf.SparseTensor(
           indices=tf.identity(inputs.indices),
-          values=_bucketize_fn(inputs.values),
+          values=bucketize(inputs.values),
           dense_shape=tf.identity(inputs.dense_shape))
     else:
-      static_shape = inputs.get_shape()
-      if any(dim is None for dim in static_shape.as_list()[1:]):
-        raise NotImplementedError(
-            "Discretization Layer requires known non-batch shape,"
-            "found {}".format(static_shape))
+      return bucketize(inputs)
 
-      dynamic_shape = tf.shape(inputs)
-      # BoostedTreesBucketize only handles rank 1 inputs. We need to flatten our
-      # inputs after batch size and vectorized_map over each sample.
-      reshaped = tf.reshape(inputs, [dynamic_shape[0], -1])
-      return tf.reshape(
-          vectorized_map(_bucketize_fn, reshaped), dynamic_shape)
+  def _convert_to_list(self, inputs):
+    if tf.is_tensor(inputs):
+      inputs = inputs.numpy()
+    if isinstance(inputs, (np.ndarray)):
+      inputs = inputs.tolist()
+      inputs = list(inputs)
+    return inputs
