@@ -133,7 +133,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
                oov_token,
                vocabulary=None,
                invert=False,
-               output_mode=INT,
+               output_mode="int",
                sparse=False,
                pad_to_max_tokens=False,
                **kwargs):

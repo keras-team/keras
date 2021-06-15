@@ -217,15 +217,14 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   def __init__(self,
                max_tokens=None,
-               standardize=LOWER_AND_STRIP_PUNCTUATION,
-               split=SPLIT_ON_WHITESPACE,
+               standardize="lower_and_strip_punctuation",
+               split="whitespace",
                ngrams=None,
-               output_mode=INT,
+               output_mode="int",
                output_sequence_length=None,
                pad_to_max_tokens=False,
                vocabulary=None,
                **kwargs):
-
     # This layer only applies to string processing, and so should only have
     # a dtype of 'string'.
     if "dtype" in kwargs and kwargs["dtype"] != tf.string:

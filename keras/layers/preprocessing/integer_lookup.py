@@ -265,7 +265,7 @@ class IntegerLookup(index_lookup.IndexLookup):
                oov_token=-1,
                vocabulary=None,
                invert=False,
-               output_mode=index_lookup.INT,
+               output_mode="int",
                sparse=False,
                pad_to_max_tokens=False,
                **kwargs):
