@@ -153,6 +153,39 @@ class ResizingTest(keras_parameterized.TestCase):
       expected_output = np.reshape(expected_output, (1, 4, 2, 1))
       self.assertAllEqual(expected_output, output_image)
 
+  @parameterized.named_parameters(
+      ('batch_crop_to_aspect_ratio', True, True),
+      ('batch_dont_crop_to_aspect_ratio', False, True),
+      ('single_sample_crop_to_aspect_ratio', True, False),
+      ('single_sample_dont_crop_to_aspect_ratio', False, False),
+  )
+  def test_static_shape_inference(self, crop_to_aspect_ratio, batch):
+    channels = 3
+    input_height = 8
+    input_width = 8
+    target_height = 4
+    target_width = 6
+    layer = image_preprocessing.Resizing(
+        target_height, target_width, crop_to_aspect_ratio=crop_to_aspect_ratio)
+    unit_test = self
+
+    @tf.function
+    def tf_function(img):
+      unit_test.assertListEqual([input_height, input_width, channels],
+                                img.shape.as_list()[-3:])
+      img = layer(img)
+      unit_test.assertListEqual([target_height, target_width, channels],
+                                img.shape.as_list()[-3:])
+      return img
+
+    with testing_utils.use_gpu():
+      if batch:
+        input_shape = (2, input_height, input_width, channels)
+      else:
+        input_shape = (input_height, input_width, channels)
+      img_data = np.random.random(size=input_shape).astype('float32')
+      tf_function(img_data)
+
 
 def get_numpy_center_crop(images, expected_height, expected_width):
   orig_height = images.shape[1]
