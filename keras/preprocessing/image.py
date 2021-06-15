@@ -117,6 +117,8 @@ def smart_resize(x, size, interpolation='bilinear'):
   target_height, target_width = size
   if img.shape.rank is not None:
     static_num_channels = img.shape[-1]
+  else:
+    static_num_channels = None
 
   crop_height = tf.cast(
       tf.cast(width * target_height, 'float32') / target_width, 'int32')
