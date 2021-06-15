@@ -465,7 +465,8 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
     # expression to evaluate to False instead of True if the shape is undefined;
     # the expression needs to evaluate to True in that case.
     if self._split is not None:
-      if input_shape.ndims > 1 and not input_shape[-1] == 1:  # pylint: disable=g-comparison-negation
+      if (input_shape is not None and input_shape.ndims > 1 and
+          not input_shape[-1] == 1):  # pylint: disable=g-comparison-negation
         raise RuntimeError(
             "When using TextVectorization to tokenize strings, the innermost "
             "dimension of the input array must be 1, got shape "

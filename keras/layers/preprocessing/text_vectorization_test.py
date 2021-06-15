@@ -453,6 +453,12 @@ class TextVectorizationLayerTest(keras_parameterized.TestCase,
     output = vectorization(tf.ragged.constant(data, inner_shape=(1,)))
     self.assertAllEqual(expected, output)
 
+  def test_layer_list_input(self):
+    layer = text_vectorization.TextVectorization(vocabulary=["a", "b", "c"])
+    output = layer(["a", "b", "c"])
+    expected_output = [[2], [3], [4]]
+    self.assertEqual(output.numpy().tolist(), expected_output)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class TextVectorizationPreprocessingTest(
