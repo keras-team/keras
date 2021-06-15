@@ -18,7 +18,6 @@
 import tensorflow.compat.v2 as tf
 
 import copy
-import warnings
 from keras import layers as layer_module
 from keras.engine import base_layer
 from keras.engine import functional
@@ -168,10 +167,6 @@ class Sequential(functional.Functional):
       origin_layer = layer._keras_history[0]
       if isinstance(origin_layer, input_layer.InputLayer):
         layer = origin_layer
-        logging.warning(
-            'Please add `keras.layers.InputLayer` instead of `keras.Input` to '
-            'Sequential model. `keras.Input` is intended to be used by '
-            'Functional model.')
 
     if isinstance(layer, tf.Module):
       if not isinstance(layer, base_layer.Layer):
@@ -406,60 +401,6 @@ class Sequential(functional.Functional):
     # mode by `call`ing the Layers again.
     outputs = self.call(inputs, mask=mask)  # pylint: disable=unexpected-keyword-arg
     return getattr(outputs, '_keras_mask', None)
-
-  def predict_proba(self, x, batch_size=32, verbose=0):
-    """Generates class probability predictions for the input samples.
-
-    The input samples are processed batch by batch.
-
-    Args:
-        x: input data, as a Numpy array or list of Numpy arrays
-            (if the model has multiple inputs).
-        batch_size: integer.
-        verbose: verbosity mode, 0 or 1.
-
-    Returns:
-        A Numpy array of probability predictions.
-    """
-    warnings.warn('`model.predict_proba()` is deprecated and '
-                  'will be removed after 2021-01-01. '
-                  'Please use `model.predict()` instead.')
-    preds = self.predict(x, batch_size, verbose)
-    if preds.min() < 0. or preds.max() > 1.:
-      logging.warning('Network returning invalid probability values. '
-                      'The last layer might not normalize predictions '
-                      'into probabilities '
-                      '(like softmax or sigmoid would).')
-    return preds
-
-  def predict_classes(self, x, batch_size=32, verbose=0):
-    """Generate class predictions for the input samples.
-
-    The input samples are processed batch by batch.
-
-    Args:
-        x: input data, as a Numpy array or list of Numpy arrays
-            (if the model has multiple inputs).
-        batch_size: integer.
-        verbose: verbosity mode, 0 or 1.
-
-    Returns:
-        A numpy array of class predictions.
-    """
-    warnings.warn('`model.predict_classes()` is deprecated and '
-                  'will be removed after 2021-01-01. '
-                  'Please use instead:'
-                  '* `np.argmax(model.predict(x), axis=-1)`, '
-                  '  if your model does multi-class classification '
-                  '  (e.g. if it uses a `softmax` last-layer activation).'
-                  '* `(model.predict(x) > 0.5).astype("int32")`, '
-                  '  if your model does binary classification '
-                  '  (e.g. if it uses a `sigmoid` last-layer activation).')
-    proba = self.predict(x, batch_size=batch_size, verbose=verbose)
-    if proba.shape[-1] > 1:
-      return proba.argmax(axis=-1)
-    else:
-      return (proba > 0.5).astype('int32')
 
   def get_config(self):
     layer_configs = []

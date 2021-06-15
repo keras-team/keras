@@ -60,7 +60,7 @@ class BaseWrapper(object):
   `fit`, `predict`, `predict_proba`, and `score` methods
   2. Values passed to `sk_params`
   3. The default values of the `keras.models.Sequential`
-  `fit`, `predict`, `predict_proba` and `score` methods
+  `fit`, `predict` methods.
 
   When using scikit-learn's `grid_search` API, legal tunable parameters are
   those you could pass to `sk_params`, including fitting parameters.
@@ -83,8 +83,7 @@ class BaseWrapper(object):
         ValueError: if any member of `params` is not a valid argument.
     """
     legal_params_fns = [
-        Sequential.fit, Sequential.predict, Sequential.predict_classes,
-        Sequential.evaluate
+        Sequential.fit, Sequential.predict, Sequential.evaluate
     ]
     if self.build_fn is None:
       legal_params_fns.append(self.__call__)
@@ -228,14 +227,17 @@ class KerasClassifier(BaseWrapper):
             and `n_features` is the number of features.
         **kwargs: dictionary arguments
             Legal arguments are the arguments
-            of `Sequential.predict_classes`.
+            of `Sequential.predict`.
 
     Returns:
         preds: array-like, shape `(n_samples,)`
             Class predictions.
     """
-    kwargs = self.filter_sk_params(Sequential.predict_classes, kwargs)
-    classes = self.model.predict_classes(x, **kwargs)
+    proba = self.model.predict(x, **kwargs)
+    if proba.shape[-1] > 1:
+      classes = proba.argmax(axis=-1)
+    else:
+      classes = (proba > 0.5).astype('int32')
     return self.classes_[classes]
 
   def predict_proba(self, x, **kwargs):
@@ -247,7 +249,7 @@ class KerasClassifier(BaseWrapper):
             and `n_features` is the number of features.
         **kwargs: dictionary arguments
             Legal arguments are the arguments
-            of `Sequential.predict_classes`.
+            of `Sequential.predict`.
 
     Returns:
         proba: array-like, shape `(n_samples, n_outputs)`
@@ -257,7 +259,6 @@ class KerasClassifier(BaseWrapper):
             will return an array of shape `(n_samples, 2)`
             (instead of `(n_sample, 1)` as in Keras).
     """
-    kwargs = self.filter_sk_params(Sequential.predict_proba, kwargs)
     probs = self.model.predict(x, **kwargs)
 
     # check if binary classification
