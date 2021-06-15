@@ -113,12 +113,10 @@ def smart_resize(x, size, interpolation='bilinear'):
           'or `(batch_size, height, width, channels)` but '
           'got input with incorrect rank, of shape %s' % (img.shape,))
   shape = tf.compat.v1.shape(img)
-  if img.shape.rank == 4:
-    height, width = shape[1], shape[2]
-    static_num_channels = img.shape[-1]
-  else:
-    height, width = shape[0], shape[1]
+  height, width = shape[-3], shape[-2]
   target_height, target_width = size
+  if img.shape.rank is not None:
+    static_num_channels = img.shape[-1]
 
   crop_height = tf.cast(
       tf.cast(width * target_height, 'float32') / target_width, 'int32')
@@ -146,9 +144,12 @@ def smart_resize(x, size, interpolation='bilinear'):
       images=img,
       size=size,
       method=interpolation)
-  if img.shape.rank == 4:
-    # Apparent bug in resize_images_v2 may cause shape to be lost
-    img.set_shape((None, None, None, static_num_channels))
+  # Apparent bug in resize_images_v2 may cause shape to be lost
+  if img.shape.rank is not None:
+    if img.shape.rank == 4:
+      img.set_shape((None, None, None, static_num_channels))
+    if img.shape.rank == 3:
+      img.set_shape((None, None, static_num_channels))
   if isinstance(x, np.ndarray):
     return img.numpy()
   return img
