@@ -1,11 +1,11 @@
-# Keras: Deep Learning for Python
+# Keras: Deep Learning for humans
 
 ![Keras logo](https://s3.amazonaws.com/keras.io/img/keras-logo-2018-large-1200.png)
 
-## Under Construction
+This repository hosts the development of the Keras library.
+Read the documentation at [keras.io](https://keras.io/).
 
-In the near future, this repository will be used once again
-for developing the Keras codebase. For the time being, the Keras codebase
-is being developed at
-[tensorflow/tensorflow](https://github.com/tensorflow/tensorflow/), and any
-PR or issue should be directed there.
+## Getting started
+
+- [Introduction to Keras for engineers](https://keras.io/getting_started/intro_to_keras_for_engineers/)
+- [Introduction to Keras for researchers](https://keras.io/getting_started/intro_to_keras_for_researchers/)
