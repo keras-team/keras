@@ -598,8 +598,9 @@ class Bidirectional(Wrapper):
 
       kwargs['initial_state'] = initial_state
       additional_inputs += initial_state
-      state_specs = [InputSpec(shape=backend.int_shape(state))
-                     for state in initial_state]
+      state_specs = tf.nest.map_structure(
+          lambda state: InputSpec(shape=backend.int_shape(state)),
+          initial_state)
       self.forward_layer.state_spec = state_specs[:num_states // 2]
       self.backward_layer.state_spec = state_specs[num_states // 2:]
       additional_specs += state_specs
@@ -616,8 +617,9 @@ class Bidirectional(Wrapper):
       self.forward_layer._num_constants = self._num_constants
       self.backward_layer._num_constants = self._num_constants
 
-    is_keras_tensor = backend.is_keras_tensor(additional_inputs[0])
-    for tensor in additional_inputs:
+    is_keras_tensor = backend.is_keras_tensor(
+        tf.nest.flatten(additional_inputs)[0])
+    for tensor in tf.nest.flatten(additional_inputs):
       if backend.is_keras_tensor(tensor) != is_keras_tensor:
         raise ValueError('The initial state of a Bidirectional'
                          ' layer cannot be specified with a mix of'

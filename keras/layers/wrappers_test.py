@@ -1302,6 +1302,18 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
       y_merged = convert_ragged_tensor_value(y_merged)
       self.assertAllClose(y_merged.flat_values, y_expected.flat_values)
 
+  def test_Bidirectional_nested_state_reuse(self):
+    if not tf.executing_eagerly():
+      self.skipTest('Only test eager mode.')
+    x = tf.random.normal([4, 8, 16])
+    layer = keras.layers.Bidirectional(
+        keras.layers.RNN([keras.layers.LSTMCell(5),
+                          keras.layers.LSTMCell(5)],
+                         return_sequences=True,
+                         return_state=True))
+    y = layer(x)
+    self.assertAllClose(layer([x] + y[1:]), layer(x, initial_state=y[1:]))
+
   def test_full_input_spec(self):
     # See https://github.com/tensorflow/tensorflow/issues/38403
     inputs = keras.layers.Input(batch_shape=(1, 1, 1))
