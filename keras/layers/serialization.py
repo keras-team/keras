@@ -144,6 +144,25 @@ def populate_deserializable_objects():
 
 @keras_export('keras.layers.serialize')
 def serialize(layer):
+  """Serializes a `Layer` object into a JSON-compatible representation.
+
+  Args:
+    layer: The `Layer` object to serialize.
+
+  Returns:
+    A JSON-serializable dict representing the object's config.
+
+  Example:
+
+  ```python
+  from pprint import pprint
+  model = tf.keras.models.Sequential()
+  model.add(tf.keras.Input(shape=(16,)))
+  model.add(tf.keras.layers.Dense(32, activation='relu'))
+
+  pprint(tf.keras.layers.serialize(model))
+  # prints the configuration of the model, as a dict.
+  """
   return generic_utils.serialize_keras_object(layer)
 
 
@@ -158,6 +177,32 @@ def deserialize(config, custom_objects=None):
 
   Returns:
       Layer instance (may be Model, Sequential, Network, Layer...)
+
+  Example:
+
+  ```python
+  # Configuration of Dense(32, activation='relu')
+  config = {
+    'class_name': 'Dense',
+    'config': {
+      'activation': 'relu',
+      'activity_regularizer': None,
+      'bias_constraint': None,
+      'bias_initializer': {'class_name': 'Zeros', 'config': {}},
+      'bias_regularizer': None,
+      'dtype': 'float32',
+      'kernel_constraint': None,
+      'kernel_initializer': {'class_name': 'GlorotUniform',
+                             'config': {'seed': None}},
+      'kernel_regularizer': None,
+      'name': 'dense',
+      'trainable': True,
+      'units': 32,
+      'use_bias': True
+    }
+  }
+  dense_layer = tf.keras.layers.deserialize(config)
+  ```
   """
   populate_deserializable_objects()
   return generic_utils.deserialize_keras_object(
