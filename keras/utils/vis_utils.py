@@ -20,6 +20,7 @@ import tensorflow.compat.v2 as tf
 
 import os
 import sys
+import re
 from keras.utils.io_utils import path_to_string
 from tensorflow.python.util.tf_export import keras_export
 
@@ -64,6 +65,30 @@ def add_edge(dot, src, dst):
     dot.add_edge(pydot.Edge(src, dst))
 
 
+def get_layer_index_bound_by_layer_name(model, layer_names):
+  """Return specific range of layers to plot, mainly for sub-graph plot models.
+
+  Args:
+    model: tf.keras.Model
+    layer_names: unique name of layer of the model, type(str)
+
+  Returns:
+    retun the index value of layer based on its unique name (layer_names)
+  """
+  lower_index = []
+  upper_index = []
+  for idx, layer in enumerate(model.layers):
+    if re.match(layer_names[0], layer.name):
+      lower_index.append(idx)
+    if re.match(layer_names[1], layer.name):
+      upper_index.append(idx)
+  if len(lower_index) == 0 or len(upper_index) == 0:
+    raise ValueError('Passed layer_range does not match to model layers')
+  if min(lower_index) > max(upper_index):
+    return [min(upper_index), max(lower_index)]
+  return [min(lower_index), max(upper_index)]
+
+
 @keras_export('keras.utils.model_to_dot')
 def model_to_dot(model,
                  show_shapes=False,
@@ -72,7 +97,8 @@ def model_to_dot(model,
                  rankdir='TB',
                  expand_nested=False,
                  dpi=96,
-                 subgraph=False):
+                 subgraph=False,
+                 layer_range=None):
   """Convert a Keras model to dot format.
 
   Args:
@@ -87,6 +113,15 @@ def model_to_dot(model,
     expand_nested: whether to expand nested models into clusters.
     dpi: Dots per inch.
     subgraph: whether to return a `pydot.Cluster` instance.
+    layer_range: input of `list` containing two `str` items, which is the
+        starting layer name and ending layer name (both inclusive) indicating
+        the range of layers for which the `pydot.Dot` will be generated. It
+        also accepts regex patterns instead of exact name. In such case, start
+        predicate will be the first element it matches to `layer_range[0]`
+        and the end predicate will be the last element it matches to
+        `layer_range[1]`. By default `None` which considers all layers of
+        model. Note that you must pass range such that the resultant subgraph
+        must be complete.
 
   Returns:
     A `pydot.Dot` instance representing the Keras model or
@@ -125,6 +160,17 @@ def model_to_dot(model,
     dot.set('dpi', dpi)
     dot.set_node_defaults(shape='record')
 
+  if layer_range:
+    if len(layer_range) != 2:
+      raise ValueError('layer_range must be of shape (2,)')
+    if (not isinstance(layer_range[0], str) or
+        not isinstance(layer_range[1], str)):
+      raise ValueError('layer_range should contain string type only')
+    layer_range = get_layer_index_bound_by_layer_name(model, layer_range)
+    if layer_range[0] < 0 or layer_range[1] > len(model.layers):
+      raise ValueError('Both values in layer_range should be in',
+                       'range (%d, %d)' % (0, len(model.layers)))
+
   sub_n_first_node = {}
   sub_n_last_node = {}
   sub_w_first_node = {}
@@ -142,6 +188,9 @@ def model_to_dot(model,
 
   # Create graph nodes.
   for i, layer in enumerate(layers):
+    if (layer_range) and (i < layer_range[0] or i > layer_range[1]):
+      continue
+
     layer_id = str(id(layer))
 
     # Append a wrapped layer's label to node's label, if it exists.
@@ -228,7 +277,9 @@ def model_to_dot(model,
       dot.add_node(node)
 
   # Connect nodes with edges.
-  for layer in layers:
+  for i, layer in enumerate(layers):
+    if (layer_range) and (i <= layer_range[0] or i > layer_range[1]):
+      continue
     layer_id = str(id(layer))
     for i, node in enumerate(layer._inbound_nodes):
       node_key = layer.name + '_ib-' + str(i)
@@ -284,7 +335,8 @@ def plot_model(model,
                show_layer_names=True,
                rankdir='TB',
                expand_nested=False,
-               dpi=96):
+               dpi=96,
+               layer_range=None):
   """Converts a Keras model to dot format and save to a file.
 
   Example:
@@ -315,6 +367,15 @@ def plot_model(model,
         'LR' creates a horizontal plot.
     expand_nested: Whether to expand nested models into clusters.
     dpi: Dots per inch.
+    layer_range: input of `list` containing two `str` items, which is the
+        starting layer name and ending layer name (both inclusive) indicating
+        the range of layers for which the plot will be generated. It also
+        accepts regex patterns instead of exact name. In such case, start
+        predicate will be the first element it matches to `layer_range[0]`
+        and the end predicate will be the last element it matches to
+        `layer_range[1]`. By default `None` which considers all layers of
+        model. Note that you must pass range such that the resultant subgraph
+        must be complete.
 
   Returns:
     A Jupyter notebook Image object if Jupyter is installed.
@@ -327,7 +388,8 @@ def plot_model(model,
       show_layer_names=show_layer_names,
       rankdir=rankdir,
       expand_nested=expand_nested,
-      dpi=dpi)
+      dpi=dpi,
+      layer_range=layer_range)
   to_file = path_to_string(to_file)
   if dot is None:
     return
