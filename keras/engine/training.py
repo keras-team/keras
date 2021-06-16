@@ -461,19 +461,33 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
               **kwargs):
     """Configures the model for training.
 
+    Example:
+
+    ```python
+    model.compile(optimizer=tf.keras.optimizer.Adam(learning_rate=1e-3),
+                  loss=tf.keras.losses.BinaryCrossentropy(),
+                  metrics=[tf.keras.metrics.BinaryAccuracy(),
+                           tf.keras.metrics.FalseNegatives()])
+    ```
+
     Args:
         optimizer: String (name of optimizer) or optimizer instance. See
           `tf.keras.optimizers`.
-        loss: String (name of objective function), objective function or
-          `tf.keras.losses.Loss` instance. See `tf.keras.losses`. An objective
+        loss: Loss function. Maybe be a string (name of loss function), or
+          a `tf.keras.losses.Loss` instance. See `tf.keras.losses`. A loss
           function is any callable with the signature `loss = fn(y_true,
-          y_pred)`, where y_true = ground truth values with shape =
-          `[batch_size, d0, .. dN]`, except sparse loss functions such as sparse
-          categorical crossentropy where shape = `[batch_size, d0, .. dN-1]`.
-          y_pred = predicted values with shape = `[batch_size, d0, .. dN]`. It
-          returns a weighted loss float tensor. If a custom `Loss` instance is
-          used and reduction is set to `None`, return value has the shape
-          `[batch_size, d0, .. dN-1]` i.e. per-sample or per-timestep loss
+          y_pred)`, where `y_true` are the ground truth values, and
+          `y_pred` are the model's predictions.
+          `y_true` should have shape
+          `(batch_size, d0, .. dN)` (except in the case of
+          sparse loss functions such as
+          sparse categorical crossentropy which expects integer arrays of shape
+          `(batch_size, d0, .. dN-1)`).
+          `y_pred` should have shape `(batch_size, d0, .. dN)`.
+          The loss function should return a float tensor.
+          If a custom `Loss` instance is
+          used and reduction is set to `None`, return value has shape
+          `(batch_size, d0, .. dN-1)` i.e. per-sample or per-timestep loss
           values; otherwise, it is a scalar. If the model has multiple outputs,
           you can use a different loss on each output by passing a dictionary
           or a list of losses. The loss value that will be minimized by the
@@ -1918,6 +1932,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
       outputs = self.predict_function(iterator)
     return tf_utils.sync_to_numpy_or_python_type(outputs)
 
+  @doc_controls.do_not_generate_docs
   def fit_generator(self,
                     generator,
                     steps_per_epoch=None,
@@ -1958,6 +1973,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         shuffle=shuffle,
         initial_epoch=initial_epoch)
 
+  @doc_controls.do_not_generate_docs
   def evaluate_generator(self,
                          generator,
                          steps=None,
@@ -1986,6 +2002,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         verbose=verbose,
         callbacks=callbacks)
 
+  @doc_controls.do_not_generate_docs
   def predict_generator(self,
                         generator,
                         steps=None,
