@@ -164,6 +164,18 @@ class NormalizationTest(keras_parameterized.TestCase,
     with self.assertRaisesRegex(ValueError, r"in the range"):
       layer.build([None, 2, 3])
 
+  def test_list_input(self):
+    with self.assertRaisesRegex(
+        ValueError, ("Normalization only accepts a single input. If you are "
+                     "passing a python list or tuple as a single input, "
+                     "please convert to a numpy array or `tf.Tensor`.")):
+      normalization.Normalization()([1, 2, 3])
+
+  def test_scalar_input(self):
+    with self.assertRaisesRegex(ValueError,
+                                "axis.*values must be in the range"):
+      normalization.Normalization()(1)
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class NormalizationAdaptTest(keras_parameterized.TestCase,
