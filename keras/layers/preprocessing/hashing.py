@@ -143,22 +143,13 @@ class Hashing(base_layer.Layer):
     else:
       self.salt = _DEFAULT_SALT_KEY
 
-  def _preprocess_single_input(self, inp):
+  def _preprocess_input(self, inp):
     if isinstance(inp, (list, tuple, np.ndarray)):
       inp = tf.convert_to_tensor(inp)
     return inp
 
-  def _preprocess_inputs(self, inputs):
-    if isinstance(inputs, (tuple, list)):
-      # If any of them is tensor or ndarray, then treat as list
-      if any(
-          tf.is_tensor(inp) or isinstance(inp, np.ndarray)
-          for inp in inputs):
-        return [self._preprocess_single_input(inp) for inp in inputs]
-    return self._preprocess_single_input(inputs)
-
   def call(self, inputs):
-    inputs = self._preprocess_inputs(inputs)
+    inputs = self._preprocess_input(inputs)
     if isinstance(inputs, tf.SparseTensor):
       return tf.SparseTensor(
           indices=inputs.indices,

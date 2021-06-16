@@ -14,6 +14,8 @@
 # ==============================================================================
 """Tests for hashing layer."""
 
+from absl.testing import parameterized
+
 import tensorflow.compat.v2 as tf
 
 import numpy as np
@@ -267,6 +269,22 @@ class HashingTest(keras_parameterized.TestCase):
     config = layer.get_config()
     layer_1 = hashing.Hashing.from_config(config)
     self.assertEqual(layer_1.name, layer.name)
+
+  @parameterized.named_parameters(
+      ('list_input', [1, 2, 3], [1, 1, 1]),
+      ('list_input_2d', [[1], [2], [3]], [[1], [1], [1]]),
+      ('tf_constant_2d', [
+          tf.constant(x) for x in [['aa', 'bb'], ['bb', 'cc'], ['cc', 'dd']]
+      ], [[0, 0], [0, 0], [0, 0]]),
+      ('tf_constant_3d', [
+          tf.constant(x)
+          for x in [[['aa'], ['bb']], [['bb'], ['cc']], [['cc'], ['dd']]]
+      ], [[[0], [0]], [[0], [0]], [[0], [0]]]),
+  )
+  def test_hash_list_input(self, input_data, expected):
+    layer = hashing.Hashing(num_bins=2)
+    out_data = layer(input_data)
+    self.assertAllEqual(expected, out_data.numpy().tolist())
 
 
 if __name__ == '__main__':
