@@ -111,7 +111,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
       {'layer_range': [r'block*', 'block2a_se_excite']},
       {'layer_range': [r'block\da_activation', r'block\da_project_bn']})
   def test_dot_layer_range(self, layer_range):
-    model = efficientnet.EfficientNetB0()
+    model = efficientnet.EfficientNetB0(weights=None)
     layer_ids_from_model = get_layer_ids_from_model(model, layer_range)
     try:
       dot = vis_utils.model_to_dot(model, layer_range=layer_range)
@@ -128,7 +128,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
       {'layer_range': [r'block*', 'block2a_se_excite']},
       {'layer_range': [r'block\da_activation', r'block\da_project_bn']})
   def test_plot_layer_range(self, layer_range):
-    model = efficientnet.EfficientNetB0()
+    model = efficientnet.EfficientNetB0(weights=None)
     effnet_subplot = 'model_effnet.png'
     try:
       vis_utils.plot_model(
@@ -144,7 +144,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
       {'layer_range': ['block1a_se_squeeze', 'block2a_project_conv']},
       {'layer_range': [r'block\da_se_reshape', r'block*']})
   def test_layer_range_assertion_fail(self, layer_range):
-    model = efficientnet.EfficientNetB0()
+    model = efficientnet.EfficientNetB0(weights=None)
     try:
       with self.assertRaises(AssertionError):
         vis_utils.model_to_dot(model, layer_range=layer_range)
@@ -161,7 +161,7 @@ class ModelToDotFormatTest(tf.test.TestCase, parameterized.TestCase):
       {'layer_range': [29, 9]},
       {'layer_range': ['block8a_se_reshape', 'block*']})
   def test_layer_range_value_fail(self, layer_range):
-    model = efficientnet.EfficientNetB0()
+    model = efficientnet.EfficientNetB0(weights=None)
     try:
       with self.assertRaises(ValueError):
         vis_utils.model_to_dot(model, layer_range=layer_range)
