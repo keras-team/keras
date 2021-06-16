@@ -93,7 +93,15 @@ tf_module {
     mtype: "<type \'type\'>"
   }
   member {
+    name: "ConvLSTM1D"
+    mtype: "<type \'type\'>"
+  }
+  member {
     name: "ConvLSTM2D"
+    mtype: "<type \'type\'>"
+  }
+  member {
+    name: "ConvLSTM3D"
     mtype: "<type \'type\'>"
   }
   member {
