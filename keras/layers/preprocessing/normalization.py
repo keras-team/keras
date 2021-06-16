@@ -14,13 +14,15 @@
 # ==============================================================================
 """Normalization preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
-# pylint: disable=g-classes-have-attributes
-
-import numpy as np
 from keras import backend
 from keras.engine import base_preprocessing_layer
+import numpy as np
+import tensorflow.compat.v2 as tf
+
 from tensorflow.python.util.tf_export import keras_export
+
+# pylint: disable=g-classes-have-attributes
+
 
 
 @keras_export('keras.layers.experimental.preprocessing.Normalization')
@@ -109,6 +111,12 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   def build(self, input_shape):
     super().build(input_shape)
+
+    if (isinstance(input_shape, (list, tuple)) and
+        all(isinstance(shape, tf.TensorShape) for shape in input_shape)):
+      raise ValueError('Normalization only accepts a single input. If you are '
+                       'passing a python list or tuple as a single input, '
+                       'please convert to a numpy array or `tf.Tensor`.')
 
     input_shape = tf.TensorShape(input_shape).as_list()
     if len(input_shape) == 1:
