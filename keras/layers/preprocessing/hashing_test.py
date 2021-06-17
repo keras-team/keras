@@ -273,13 +273,14 @@ class HashingTest(keras_parameterized.TestCase):
   @parameterized.named_parameters(
       ('list_input', [1, 2, 3], [1, 1, 1]),
       ('list_input_2d', [[1], [2], [3]], [[1], [1], [1]]),
-      ('tf_constant_2d', [
-          tf.constant(x) for x in [['aa', 'bb'], ['bb', 'cc'], ['cc', 'dd']]
-      ], [[0, 0], [0, 0], [0, 0]]),
-      ('tf_constant_3d', [
-          tf.constant(x)
-          for x in [[['aa'], ['bb']], [['bb'], ['cc']], [['cc'], ['dd']]]
-      ], [[[0], [0]], [[0], [0]], [[0], [0]]]),
+      # TODO(b/191397026): Reenable after fix.
+      # ('tf_constant_2d', [
+      #     tf.constant(x) for x in [['aa', 'bb'], ['bb', 'cc'], ['cc', 'dd']]
+      # ], [[0, 0], [0, 0], [0, 0]]),
+      # ('tf_constant_3d', [
+      #     tf.constant(x)
+      #     for x in [[['aa'], ['bb']], [['bb'], ['cc']], [['cc'], ['dd']]]
+      # ], [[[0], [0]], [[0], [0]], [[0], [0]]]),
   )
   def test_hash_list_input(self, input_data, expected):
     layer = hashing.Hashing(num_bins=2)
