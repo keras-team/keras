@@ -24,7 +24,6 @@ from tensorflow.python.util.tf_export import keras_export
 # pylint: disable=g-classes-have-attributes
 
 
-
 @keras_export('keras.layers.experimental.preprocessing.Normalization')
 class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """Feature-wise normalization of the data.
@@ -38,14 +37,16 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     or `predict`.
 
   Args:
-      axis: Integer or tuple of integers, the axis or axes that should be
-        "kept". These axes are not be summed over when calculating the
-        normalization statistics. By default the last axis, the `features` axis
-        is kept and any `space` or `time` axes are summed. Each element in the
-        the axes that are kept is normalized independently. If `axis` is set to
-        'None', the layer will perform scalar normalization (dividing the input
-        by a single scalar value). The `batch` axis, 0, is always summed over
-        (`axis=0` is not allowed).
+      axis: Integer, tuple of integers, or None. The axis or axes that should
+        have a separate mean and variance for each index in the shape. For
+        example, if shape is (None, 5) and axis=1, the layer will track 5
+        separate mean and variance values for the last axis. If `axis` is set to
+        `None`, the layer will normalize all elements in the input by a scalar
+        mean and variance. Defaults to -1, where the last axis of the input is
+        assumed to be a feature dimension and is normalized per index. Note that
+        in the specific case of batched scalar inputs where the only axis is the
+        batch axis, the default will normalize each index in the batch
+        separately. In this case, consider passing `axis=None`.
       mean: The mean value(s) to use during normalization. The passed value(s)
         will be broadcast to the shape of the kept axes above; if the value(s)
         cannot be broadcast, an error will be raised when this layer's build()
@@ -57,21 +58,33 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   Examples:
 
-  Calculate the mean and variance by analyzing the dataset in `adapt`.
+  Calculate a global mean and variance by analyzing the dataset in `adapt`.
 
-  >>> adapt_data = np.array([[1.], [2.], [3.], [4.], [5.]], dtype=np.float32)
-  >>> input_data = np.array([[1.], [2.], [3.]], np.float32)
-  >>> layer = Normalization()
+  >>> adapt_data = np.array([1., 2., 3., 4., 5.], dtype='float32')
+  >>> input_data = np.array([1., 2., 3.], dtype='float32')
+  >>> layer = Normalization(axis=None)
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
-  <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
-  array([[-1.4142135 ],
-         [-0.70710677],
-         [ 0.        ]], dtype=float32)>
+  <tf.Tensor: shape=(3,), dtype=float32, numpy=
+  array([-1.4142135, -0.70710677, 0.], dtype=float32)>
+
+  Calculate a mean and variance for each index on the last axis.
+
+  >>> adapt_data = np.array([[0., 7., 4.],
+  ...                        [2., 9., 6.],
+  ...                        [0., 7., 4.],
+  ...                        [2., 9., 6.]], dtype='float32')
+  >>> input_data = np.array([[0., 7., 4.]], dtype='float32')
+  >>> layer = Normalization(axis=-1)
+  >>> layer.adapt(adapt_data)
+  >>> layer(input_data)
+  <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
+  array([0., 0., 0.], dtype=float32)>
+
 
   Pass the mean and variance directly.
 
-  >>> input_data = np.array([[1.], [2.], [3.]], np.float32)
+  >>> input_data = np.array([[1.], [2.], [3.]], dtype='float32')
   >>> layer = Normalization(mean=3., variance=2.)
   >>> layer(input_data)
   <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
@@ -91,8 +104,6 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
       axis = (axis,)
     else:
       axis = tuple(axis)
-    if 0 in axis:
-      raise ValueError('The argument \'axis\' may not be 0.')
     self.axis = axis
 
     # Set `mean` and `variance` if passed.
@@ -119,18 +130,22 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
                        'please convert to a numpy array or `tf.Tensor`.')
 
     input_shape = tf.TensorShape(input_shape).as_list()
-    if len(input_shape) == 1:
-      input_shape = input_shape + [1]
     ndim = len(input_shape)
 
-    if any(a < 1 - ndim or a >= ndim for a in self.axis):
-      raise ValueError('All `axis` values must be in the range '
-                       '[1 - ndim, ndim - 1]. Found '
-                       'ndim: `{}`, axis: {}'.format(ndim, self.axis))
+    if any(a < -ndim or a >= ndim for a in self.axis):
+      raise ValueError('All `axis` values must be in the range [-ndim, ndim). '
+                       'Found ndim: `{}`, axis: {}'.format(ndim, self.axis))
 
     # Axes to be kept, replacing negative values with positive equivalents.
     # Sorted to avoid transposing axes.
     self._keep_axis = sorted([d if d >= 0 else d + ndim for d in self.axis])
+    # All axes to be kept should have known shape.
+    for d in self._keep_axis:
+      if input_shape[d] is None:
+        raise ValueError(
+            'All `axis` values to be kept must have known shape. Got axis: {}, '
+            'input shape: {}, with unknown axis at index: {}'.format(
+                self.axis, input_shape, d))
     # Axes to be reduced.
     self._reduce_axis = [d for d in range(ndim) if d not in self._keep_axis]
     # 1 if an axis should be reduced, 0 otherwise.
@@ -185,11 +200,13 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
     data = self._standardize_inputs(data)
     data = tf.cast(data, self.adapt_mean.dtype)
-    batch_mean, batch_variance = tf.nn.moments(
-        data, axes=self._reduce_axis)
+    batch_mean, batch_variance = tf.nn.moments(data, axes=self._reduce_axis)
     batch_shape = tf.compat.v1.shape(data, out_type=self.count.dtype)
-    batch_reduce_shape = tf.compat.v1.gather(batch_shape, self._reduce_axis)
-    batch_count = tf.reduce_prod(batch_reduce_shape)
+    if self._reduce_axis:
+      batch_reduce_shape = tf.compat.v1.gather(batch_shape, self._reduce_axis)
+      batch_count = tf.reduce_prod(batch_reduce_shape)
+    else:
+      batch_count = 1
 
     total_count = batch_count + self.count
     batch_weight = (
@@ -227,8 +244,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
     total_count = tf.reduce_sum(layer_counts)
     layer_weightings = (
-        tf.cast(layer_counts, self.dtype) /
-        tf.cast(total_count, self.dtype))
+        tf.cast(layer_counts, self.dtype) / tf.cast(total_count, self.dtype))
     layer_weightings = tf.reshape(
         layer_weightings,
         shape=[len(layers)] + [1] * self.adapt_mean.shape.rank)
@@ -259,8 +275,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     # proper broadcast shape and dtype each time `finalize_state` is called.
     self.mean = tf.reshape(self.adapt_mean, self._broadcast_shape)
     self.mean = tf.cast(self.mean, self.compute_dtype)
-    self.variance = tf.reshape(self.adapt_variance,
-                                      self._broadcast_shape)
+    self.variance = tf.reshape(self.adapt_variance, self._broadcast_shape)
     self.variance = tf.cast(self.variance, self.compute_dtype)
 
   def call(self, inputs):
@@ -288,10 +303,8 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   def _standardize_inputs(self, inputs):
     inputs = tf.convert_to_tensor(inputs)
-    if inputs.shape.rank == 0:
-      inputs = tf.reshape(inputs, [1, 1])
-    elif inputs.shape.rank == 1:
-      inputs = tf.compat.v1.expand_dims(inputs, 1)
+    if inputs.dtype != self.dtype:
+      inputs = tf.cast(inputs, self.dtype)
     return inputs
 
   def _convert_to_list(self, inputs):
