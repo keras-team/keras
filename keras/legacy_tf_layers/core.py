@@ -83,6 +83,34 @@ class Dense(keras_layers.Dense, base.Layer):
     bias_constraint: Constraint function for the bias.
     kernel: Weight matrix (TensorFlow variable or tensor).
     bias: Bias vector, if applicable (TensorFlow variable or tensor).
+
+
+  @compatibility(TF2)
+  This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  layer is `tf.keras.layers.Dense`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   dense = tf.compat.v1.layers.Dense(units=3)
+  ```
+
+  After:
+
+  ```python
+   dense = tf.keras.layers.Dense(units=3)
+  ```
+
+  @end_compatibility
   """
 
   def __init__(self, units,
@@ -171,6 +199,34 @@ def dense(
 
   Raises:
     ValueError: if eager execution is enabled.
+
+
+  @compatibility(TF2)
+  This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  layer is `tf.keras.layers.Dense`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   y = tf.compat.v1.layers.dense(x, units=3)
+  ```
+
+  After:
+
+  ```python
+   y = tf.keras.layers.Dense(units=3)(x)
+  ```
+  @end_compatibility
+
   """
   warnings.warn('`tf.layers.dense` is deprecated and '
                 'will be removed in a future version. '
@@ -215,6 +271,33 @@ class Dropout(keras_layers.Dropout, base.Layer):
       `tf.compat.v1.set_random_seed`.
       for behavior.
     name: The name of the layer (string).
+
+
+  @compatibility(TF2)
+  This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  layer is `tf.keras.layers.Dropout`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   dropout = tf.compat.v1.layers.Dropout()
+  ```
+
+  After:
+
+  ```python
+   dropout = tf.keras.layers.Dropout()
+  ```
+  @end_compatibility
   """
 
   def __init__(self, rate=0.5,
@@ -270,6 +353,32 @@ def dropout(inputs,
 
   Raises:
     ValueError: if eager execution is enabled.
+
+  @compatibility(TF2)
+  This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  layer is `tf.keras.layers.Dropout`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   y = tf.compat.v1.layers.dropout(x)
+  ```
+
+  After:
+
+  ```python
+   y = tf.keras.layers.Dropout()(x)
+  ```
+  @end_compatibility
   """
   warnings.warn('`tf.layers.dropout` is deprecated and '
                 'will be removed in a future version. '
@@ -301,6 +410,32 @@ class Flatten(keras_layers.Flatten, base.Layer):
     y = Flatten()(x)
     # now `y` has shape `(None, None)`
   ```
+
+  @compatibility(TF2)
+  This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  layer is `tf.keras.layers.Flatten`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   flatten = tf.compat.v1.layers.Flatten()
+  ```
+
+  After:
+
+  ```python
+   flatten = tf.keras.layers.Flatten()
+  ```
+  @end_compatibility
   """
   pass
 
@@ -333,6 +468,32 @@ def flatten(inputs, name=None, data_format='channels_last'):
     y = flatten(x)
     # now `y` has shape `(None, None)`
   ```
+
+  @compatibility(TF2)
+  This API is not compatible with eager execution or`tf.function`.
+
+  Please refer to [migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  layer is `tf.keras.layers.Flatten`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   y = tf.compat.v1.layers.flatten(x)
+  ```
+
+  After:
+
+  ```python
+   y = tf.keras.layers.Flatten()(x)
+  ```
+  @end_compatibility
   """
   warnings.warn('`tf.layers.flatten` is deprecated and '
                 'will be removed in a future version. '
