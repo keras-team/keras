@@ -1459,7 +1459,7 @@ class RestoredOptimizer(OptimizerV2):
         "you.")
 
 tf.__internal__.saved_model.load.register_revived_type(
-    "oss_optimizer",  # TODO(scottzhu): Change this back after repo split.
+    "optimizer",
     lambda obj: isinstance(obj, OptimizerV2),
     versions=[tf.__internal__.saved_model.load.VersionedTypeRegistration(
         object_factory=lambda proto: RestoredOptimizer(),
