@@ -44,6 +44,31 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
     model = self._model_fit(strategy)
     self.assertEqual(model.optimizer.iterations, 100)
 
+  def testModelFitwithStepsPerEpochNegativeOne(self, strategy):
+    def dataset_fn(input_context):
+      del input_context
+      x = tf.random.uniform((10, 10))
+      y = tf.random.uniform((10,))
+      return tf.data.Dataset.from_tensor_slices(
+          (x, y)).shuffle(10).batch(2)
+
+    if strategy._should_use_with_coordinator:
+      with self.assertRaises((tf.errors.OutOfRangeError,
+                              tf.errors.CancelledError)):
+        self._model_fit(
+            strategy,
+            steps_per_epoch=-1,
+            x=dataset_creator.DatasetCreator(dataset_fn),
+            validation_data=dataset_creator.DatasetCreator(dataset_fn),
+        )
+    else:
+      self._model_fit(
+          strategy,
+          steps_per_epoch=-1,
+          x=dataset_creator.DatasetCreator(dataset_fn),
+          validation_data=dataset_creator.DatasetCreator(dataset_fn),
+      )
+
   def testModelFitWithNumpyData(self, strategy):
     x = np.random.rand(100, 10)
     y = np.random.rand(100, 1)
