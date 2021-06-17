@@ -89,11 +89,6 @@ class DatasetCreatorModelFitTestBase(tf.test.TestCase, parameterized.TestCase):
         if not is_loss_float:
           raise RuntimeError("loss is supposed to be in the logs and float.")
 
-      def on_train_end(self, logs=None):
-        if self._prev_epoch != 9:
-          raise RuntimeError("Unexpected last epoch: {}".format(
-              self._prev_epoch))
-
     with strategy.scope():
       model = sequential.Sequential([core_layers.Dense(10)])
       if with_normalization_layer:
