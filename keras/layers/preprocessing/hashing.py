@@ -33,8 +33,8 @@ class Hashing(base_layer.Layer):
 
   This layer transforms single or multiple categorical inputs to hashed output.
   It converts a sequence of int or string to a sequence of int. The stable hash
-  function uses tensorflow::ops::Fingerprint to produce universal output that
-  is consistent across platforms.
+  function uses `tensorflow::ops::Fingerprint` to produce the same output
+  consistently across all platforms.
 
   This layer uses [FarmHash64](https://github.com/google/farmhash) by default,
   which provides a consistent hashed output across different platforms and is
@@ -46,7 +46,7 @@ class Hashing(base_layer.Layer):
   [SipHash64](https://github.com/google/highwayhash) hash function, with
   the `salt` value serving as additional input to the hash function.
 
-  Example (FarmHash64):
+  **Example (FarmHash64)**
 
   >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3)
   >>> inp = [['A'], ['B'], ['C'], ['D'], ['E']]
@@ -58,7 +58,7 @@ class Hashing(base_layer.Layer):
            [1],
            [2]])>
 
-  Example (FarmHash64) with a mask value:
+  **Example (FarmHash64) with a mask value**
 
   >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
   ...    mask_value='')
@@ -71,7 +71,7 @@ class Hashing(base_layer.Layer):
            [2],
            [2]])>
 
-  Example (SipHash64):
+  **Example (SipHash64)**
 
   >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
   ...    salt=[133, 137])
@@ -84,7 +84,7 @@ class Hashing(base_layer.Layer):
            [0],
            [2]])>
 
-  Example (Siphash64 with a single integer, same as `salt=[133, 133]`
+  **Example (Siphash64 with a single integer, same as `salt=[133, 133]`)**
 
   >>> layer = tf.keras.layers.experimental.preprocessing.Hashing(num_bins=3,
   ...    salt=133)
@@ -96,8 +96,6 @@ class Hashing(base_layer.Layer):
            [2],
            [1],
            [0]])>
-
-  Reference: [SipHash with salt](https://www.131002.net/siphash/siphash.pdf)
 
   Args:
     num_bins: Number of hash bins. Note that this includes the `mask_value` bin,
@@ -114,13 +112,18 @@ class Hashing(base_layer.Layer):
       tuple/list of 2 unsigned integer numbers, see reference paper for details.
     **kwargs: Keyword arguments to construct a layer.
 
-  Input shape: A single or list of string, int32 or int64 `Tensor`,
-    `SparseTensor` or `RaggedTensor` of shape `[batch_size, ...,]`
+  Input shape:
+    A single or list of string, int32 or int64 `Tensor`,
+    `SparseTensor` or `RaggedTensor` of shape `(batch_size, ...,)`
 
-  Output shape: An int64 `Tensor`, `SparseTensor` or `RaggedTensor` of shape
-    `[batch_size, ...]`. If any input is `RaggedTensor` then output is
+  Output shape:
+    An int64 `Tensor`, `SparseTensor` or `RaggedTensor` of shape
+    `(batch_size, ...)`. If any input is `RaggedTensor` then output is
     `RaggedTensor`, otherwise if any input is `SparseTensor` then output is
     `SparseTensor`, otherwise the output is `Tensor`.
+
+  Reference:
+    - [SipHash with salt](https://www.131002.net/siphash/siphash.pdf)
 
   """
 
