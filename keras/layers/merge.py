@@ -126,7 +126,7 @@ class _Merge(Layer):
         for x in inputs:
           x_ndim = backend.ndim(x)
           for _ in range(max_ndim - x_ndim):
-            x = tf.compat.v1.expand_dims(x, axis=1)
+            x = tf.expand_dims(x, axis=1)
           reshaped_inputs.append(x)
         return self._merge_function(reshaped_inputs)
       else:
@@ -136,22 +136,22 @@ class _Merge(Layer):
         for x in inputs:
           x_ndim = backend.ndim(x)
           if x_ndim is None:
-            x_shape = tf.compat.v1.shape(x)
+            x_shape = tf.shape(x)
             batch_size = x_shape[0]
             new_shape = backend.concatenate(
                 [x_shape[1:],
-                 tf.compat.v1.expand_dims(batch_size, axis=-1)])
+                 tf.expand_dims(batch_size, axis=-1)])
             x_transposed = tf.reshape(
                 x,
                 tf.stack(
                     [batch_size, tf.reduce_prod(x_shape[1:])], axis=0))
-            x_transposed = tf.compat.v1.transpose(x_transposed, perm=(1, 0))
+            x_transposed = tf.transpose(x_transposed, perm=(1, 0))
             x_transposed = tf.reshape(x_transposed, new_shape)
             reshaped_inputs.append(x_transposed)
             transposed = True
           elif x_ndim > 1:
             dims = list(range(1, x_ndim)) + [0]
-            reshaped_inputs.append(tf.compat.v1.transpose(x, perm=dims))
+            reshaped_inputs.append(tf.transpose(x, perm=dims))
             transposed = True
           else:
             # We don't transpose inputs if they are 1D vectors or scalars.
@@ -161,18 +161,18 @@ class _Merge(Layer):
         if transposed:
           # If inputs have been transposed, we have to transpose the output too.
           if y_ndim is None:
-            y_shape = tf.compat.v1.shape(y)
-            y_ndim = tf.compat.v1.shape(y_shape)[0]
+            y_shape = tf.shape(y)
+            y_ndim = tf.shape(y_shape)[0]
             batch_size = y_shape[y_ndim - 1]
             new_shape = backend.concatenate([
-                tf.compat.v1.expand_dims(batch_size, axis=-1), y_shape[:y_ndim - 1]
+                tf.expand_dims(batch_size, axis=-1), y_shape[:y_ndim - 1]
             ])
             y = tf.reshape(y, (-1, batch_size))
-            y = tf.compat.v1.transpose(y, perm=(1, 0))
+            y = tf.transpose(y, perm=(1, 0))
             y = tf.reshape(y, new_shape)
           elif y_ndim > 1:
             dims = [y_ndim - 1] + list(range(y_ndim - 1))
-            y = tf.compat.v1.transpose(y, perm=dims)
+            y = tf.transpose(y, perm=dims)
         return y
     else:
       return self._merge_function(inputs)
@@ -208,7 +208,7 @@ class _Merge(Layer):
                        'should have the same length.')
     if all(m is None for m in mask):
       return None
-    masks = [tf.compat.v1.expand_dims(m, axis=0) for m in mask if m is not None]
+    masks = [tf.expand_dims(m, axis=0) for m in mask if m is not None]
     return backend.all(
         backend.concatenate(masks, axis=0), axis=0, keepdims=False)
 
@@ -554,10 +554,10 @@ class Concatenate(_Merge):
     for input_i, mask_i in zip(inputs, mask):
       if mask_i is None:
         # Input is unmasked. Append all 1s to masks,
-        masks.append(tf.compat.v1.ones_like(input_i, dtype='bool'))
+        masks.append(tf.ones_like(input_i, dtype='bool'))
       elif backend.ndim(mask_i) < backend.ndim(input_i):
         # Mask is smaller than the input, expand it
-        masks.append(tf.compat.v1.expand_dims(mask_i, axis=-1))
+        masks.append(tf.expand_dims(mask_i, axis=-1))
       else:
         masks.append(mask_i)
     concatenated = backend.concatenate(masks, axis=self.axis)

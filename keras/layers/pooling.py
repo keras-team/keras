@@ -64,14 +64,14 @@ class Pooling1D(Layer):
 
   def call(self, inputs):
     pad_axis = 2 if self.data_format == 'channels_last' else 3
-    inputs = tf.compat.v1.expand_dims(inputs, pad_axis)
+    inputs = tf.expand_dims(inputs, pad_axis)
     outputs = self.pool_function(
         inputs,
         self.pool_size + (1,),
         strides=self.strides + (1,),
         padding=self.padding,
         data_format=self.data_format)
-    return tf.compat.v1.squeeze(outputs, pad_axis)
+    return tf.squeeze(outputs, pad_axis)
 
   def compute_output_shape(self, input_shape):
     input_shape = tf.TensorShape(input_shape).as_list()
@@ -636,7 +636,7 @@ class AveragePooling2D(Pooling2D):
                data_format=None,
                **kwargs):
     super(AveragePooling2D, self).__init__(
-        tf.compat.v1.nn.avg_pool,
+        tf.nn.avg_pool,
         pool_size=pool_size, strides=strides,
         padding=padding, data_format=data_format, **kwargs)
 
@@ -691,7 +691,7 @@ class Pooling3D(Layer):
       # TF does not support `channels_first` with 3D pooling operations,
       # so we must handle this case manually.
       # TODO(fchollet): remove this when TF pooling is feature-complete.
-      inputs = tf.compat.v1.transpose(inputs, (0, 2, 3, 4, 1))
+      inputs = tf.transpose(inputs, (0, 2, 3, 4, 1))
 
     outputs = self.pool_function(
         inputs,
@@ -700,7 +700,7 @@ class Pooling3D(Layer):
         padding=self.padding.upper())
 
     if self.data_format == 'channels_first':
-      outputs = tf.compat.v1.transpose(outputs, (0, 4, 1, 2, 3))
+      outputs = tf.transpose(outputs, (0, 4, 1, 2, 3))
     return outputs
 
   def compute_output_shape(self, input_shape):
@@ -970,7 +970,7 @@ class GlobalAveragePooling1D(GlobalPooling1D):
     steps_axis = 1 if self.data_format == 'channels_last' else 2
     if mask is not None:
       mask = tf.cast(mask, inputs[0].dtype)
-      mask = tf.compat.v1.expand_dims(
+      mask = tf.expand_dims(
           mask, 2 if self.data_format == 'channels_last' else 1)
       inputs *= mask
       return backend.sum(

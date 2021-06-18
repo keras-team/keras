@@ -41,7 +41,7 @@ class ControlFlowLayer2(base_layer.Layer):
 
   def call(self, inputs):
     samples = tf.TensorArray(
-        dtype=tf.float32, size=tf.compat.v1.shape(inputs)[0])
+        dtype=tf.float32, size=tf.shape(inputs)[0])
     i = 0
     for sample in inputs:
       samples = samples.write(i, tf.square(sample))

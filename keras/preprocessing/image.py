@@ -112,7 +112,7 @@ def smart_resize(x, size, interpolation='bilinear'):
           'Expected an image array with shape `(height, width, channels)`, '
           'or `(batch_size, height, width, channels)` but '
           'got input with incorrect rank, of shape %s' % (img.shape,))
-  shape = tf.compat.v1.shape(img)
+  shape = tf.shape(img)
   height, width = shape[-3], shape[-2]
   target_height, target_width = size
   if img.shape.rank is not None:

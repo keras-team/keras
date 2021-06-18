@@ -24,7 +24,7 @@ def _to_matrix(u):
     raise ValueError('The input tensor should have rank 1 or 2. Given rank: {}'
                      .format(u_rank))
   if u_rank == 1:
-    return tf.compat.v1.expand_dims(u, 0)
+    return tf.expand_dims(u, 0)
   return u
 
 
@@ -40,9 +40,9 @@ def _align_matrices(x, y):
         'vs {}.'.format(y_shape[1], x_shape[1]))
 
   x_tile = tf.tile(
-      tf.compat.v1.expand_dims(x_matrix, 1), [1, y_shape[0], 1])
+      tf.expand_dims(x_matrix, 1), [1, y_shape[0], 1])
   y_tile = tf.tile(
-      tf.compat.v1.expand_dims(y_matrix, 0), [x_shape[0], 1, 1])
+      tf.expand_dims(y_matrix, 0), [x_shape[0], 1, 1])
   return x_tile, y_tile
 
 

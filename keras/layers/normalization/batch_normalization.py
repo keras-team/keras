@@ -433,7 +433,7 @@ class BatchNormalizationBase(Layer):
           initializer=self.moving_mean_initializer,
           synchronization=tf.VariableSynchronization.ON_READ,
           trainable=False,
-          aggregation=tf.compat.v1.VariableAggregation.MEAN,
+          aggregation=tf.VariableAggregation.MEAN,
           experimental_autocast=False)
 
       self.moving_variance = self.add_weight(
@@ -443,7 +443,7 @@ class BatchNormalizationBase(Layer):
           initializer=self.moving_variance_initializer,
           synchronization=tf.VariableSynchronization.ON_READ,
           trainable=False,
-          aggregation=tf.compat.v1.VariableAggregation.MEAN,
+          aggregation=tf.VariableAggregation.MEAN,
           experimental_autocast=False)
 
       if self.renorm:
@@ -462,7 +462,7 @@ class BatchNormalizationBase(Layer):
               initializer=moving_stddev_initializer,
               synchronization=tf.VariableSynchronization.ON_READ,
               trainable=False,
-              aggregation=tf.compat.v1.VariableAggregation.MEAN,
+              aggregation=tf.VariableAggregation.MEAN,
               experimental_autocast=False)
 
         # Create variables to maintain the moving mean and standard deviation.
@@ -483,7 +483,7 @@ class BatchNormalizationBase(Layer):
               initializer=initializer,
               synchronization=tf.VariableSynchronization.ON_READ,
               trainable=False,
-              aggregation=tf.compat.v1.VariableAggregation.MEAN,
+              aggregation=tf.VariableAggregation.MEAN,
               experimental_autocast=False)
           return var
 
@@ -509,8 +509,8 @@ class BatchNormalizationBase(Layer):
         decay = tf.cast(decay, variable.dtype.base_dtype)
       update_delta = (variable - tf.cast(value, variable.dtype)) * decay
       if inputs_size is not None:
-        update_delta = tf.compat.v1.where(inputs_size > 0, update_delta,
-                                       backend.zeros_like(update_delta))
+        update_delta = tf.where(inputs_size > 0, update_delta,
+                                backend.zeros_like(update_delta))
       return update_delta
 
     with backend.name_scope('AssignMovingAvg') as scope:
@@ -539,7 +539,7 @@ class BatchNormalizationBase(Layer):
     if self._support_zero_size_input():
       # Keras assumes that batch dimension is the first dimension for Batch
       # Normalization.
-      input_batch_size = tf.compat.v1.shape(inputs)[0]
+      input_batch_size = tf.shape(inputs)[0]
     else:
       input_batch_size = None
 
@@ -564,7 +564,7 @@ class BatchNormalizationBase(Layer):
       if self._bessels_correction_test_only:
         return variance
       sample_size = tf.cast(
-          tf.compat.v1.size(inputs) / tf.compat.v1.size(variance), variance.dtype)
+          tf.size(inputs) / tf.size(variance), variance.dtype)
       if remove:
         factor = (sample_size -
                   tf.cast(1.0, variance.dtype)) / sample_size
@@ -651,8 +651,7 @@ class BatchNormalizationBase(Layer):
     # initialized with this batch's moments.
     renorm_mean = self.renorm_mean
     # Avoid divide by zero early on in training.
-    renorm_stddev = tf.maximum(self.renorm_stddev,
-                                     tf.sqrt(self.epsilon))
+    renorm_stddev = tf.maximum(self.renorm_stddev, tf.sqrt(self.epsilon))
     # Compute the corrections for batch renorm.
     r = stddev / renorm_stddev
     d = (mean - renorm_mean) / renorm_stddev
@@ -672,9 +671,9 @@ class BatchNormalizationBase(Layer):
       d = tf.minimum(d, dmax)
     # When not training, use r=1, d=0.
     r = control_flow_util.smart_cond(training, lambda: r,
-                                     lambda: tf.compat.v1.ones_like(r))
+                                     lambda: tf.ones_like(r))
     d = control_flow_util.smart_cond(training, lambda: d,
-                                     lambda: tf.compat.v1.zeros_like(d))
+                                     lambda: tf.zeros_like(d))
 
     def _update_renorm_variable(var, value, inputs_size):
       """Updates a moving average and weight, returns the unbiased value."""
@@ -705,7 +704,7 @@ class BatchNormalizationBase(Layer):
     return (r, d, out_mean, out_variance)
 
   def _calculate_mean_and_var(self, inputs, reduction_axes, keep_dims):
-    return tf.compat.v1.nn.moments(inputs, reduction_axes, keep_dims=keep_dims)
+    return tf.nn.moments(inputs, reduction_axes, keepdims=keep_dims)
 
   def _moments(self, inputs, reduction_axes, keep_dims):
     mean, variance = self._calculate_mean_and_var(inputs, reduction_axes,
@@ -713,11 +712,10 @@ class BatchNormalizationBase(Layer):
     # TODO(b/129279393): Support zero batch input in non DistributionStrategy
     # code as well.
     if self._support_zero_size_input():
-      input_batch_size = tf.compat.v1.shape(inputs)[0]
-      mean = tf.compat.v1.where(input_batch_size > 0, mean,
-                             backend.zeros_like(mean))
-      variance = tf.compat.v1.where(input_batch_size > 0, variance,
-                                 backend.zeros_like(variance))
+      input_batch_size = tf.shape(inputs)[0]
+      mean = tf.where(input_batch_size > 0, mean, backend.zeros_like(mean))
+      variance = tf.where(input_batch_size > 0, variance,
+                          backend.zeros_like(variance))
     return mean, variance
 
   def _get_training_value(self, training=None):
@@ -738,14 +736,13 @@ class BatchNormalizationBase(Layer):
     if self.virtual_batch_size is not None:
       # Virtual batches (aka ghost batches) can be simulated by reshaping the
       # Tensor and reusing the existing batch norm implementation
-      original_shape = tf.compat.v1.shape(inputs)
+      original_shape = tf.shape(inputs)
       original_shape = tf.concat(
           [tf.constant([-1]), original_shape[1:]], axis=0)
       expanded_shape = tf.concat([
           tf.constant([self.virtual_batch_size, -1]),
           original_shape[1:]
-      ],
-                                        axis=0)
+      ], axis=0)
 
       # Will cause errors if virtual_batch_size does not divide the batch size
       inputs = tf.reshape(inputs, expanded_shape)
@@ -803,12 +800,12 @@ class BatchNormalizationBase(Layer):
       mean, variance = self.moving_mean, self.moving_variance
     else:
       if self.adjustment:
-        adj_scale, adj_bias = self.adjustment(tf.compat.v1.shape(inputs))
+        adj_scale, adj_bias = self.adjustment(tf.shape(inputs))
         # Adjust only during training.
         adj_scale = control_flow_util.smart_cond(
-            training, lambda: adj_scale, lambda: tf.compat.v1.ones_like(adj_scale))
+            training, lambda: adj_scale, lambda: tf.ones_like(adj_scale))
         adj_bias = control_flow_util.smart_cond(
-            training, lambda: adj_bias, lambda: tf.compat.v1.zeros_like(adj_bias))
+            training, lambda: adj_bias, lambda: tf.zeros_like(adj_bias))
         scale, offset = _compose_transforms(adj_scale, adj_bias, scale, offset)
 
       # Some of the computations here are not necessary when training==False
@@ -843,7 +840,7 @@ class BatchNormalizationBase(Layer):
       if self._support_zero_size_input():
         # Keras assumes that batch dimension is the first dimension for Batch
         # Normalization.
-        input_batch_size = tf.compat.v1.shape(inputs)[0]
+        input_batch_size = tf.shape(inputs)[0]
       else:
         input_batch_size = None
 
@@ -899,8 +896,8 @@ class BatchNormalizationBase(Layer):
     if scale is not None:
       scale = tf.cast(scale, inputs.dtype)
     outputs = tf.nn.batch_normalization(inputs, _broadcast(mean),
-                                     _broadcast(variance), offset, scale,
-                                     self.epsilon)
+                                        _broadcast(variance), offset, scale,
+                                        self.epsilon)
     if inputs_dtype in (tf.float16, tf.bfloat16):
       outputs = tf.cast(outputs, inputs_dtype)
 
@@ -916,32 +913,21 @@ class BatchNormalizationBase(Layer):
 
   def get_config(self):
     config = {
-        'axis':
-            self.axis,
-        'momentum':
-            self.momentum,
-        'epsilon':
-            self.epsilon,
-        'center':
-            self.center,
-        'scale':
-            self.scale,
-        'beta_initializer':
-            initializers.serialize(self.beta_initializer),
-        'gamma_initializer':
-            initializers.serialize(self.gamma_initializer),
+        'axis': self.axis,
+        'momentum': self.momentum,
+        'epsilon': self.epsilon,
+        'center': self.center,
+        'scale': self.scale,
+        'beta_initializer': initializers.serialize(self.beta_initializer),
+        'gamma_initializer': initializers.serialize(self.gamma_initializer),
         'moving_mean_initializer':
             initializers.serialize(self.moving_mean_initializer),
         'moving_variance_initializer':
             initializers.serialize(self.moving_variance_initializer),
-        'beta_regularizer':
-            regularizers.serialize(self.beta_regularizer),
-        'gamma_regularizer':
-            regularizers.serialize(self.gamma_regularizer),
-        'beta_constraint':
-            constraints.serialize(self.beta_constraint),
-        'gamma_constraint':
-            constraints.serialize(self.gamma_constraint)
+        'beta_regularizer': regularizers.serialize(self.beta_regularizer),
+        'gamma_regularizer': regularizers.serialize(self.gamma_regularizer),
+        'beta_constraint': constraints.serialize(self.beta_constraint),
+        'gamma_constraint': constraints.serialize(self.gamma_constraint)
     }
     # Only add TensorFlow-specific parameters if they are set, so as to preserve
     # model compatibility with external Keras.
@@ -1114,8 +1100,8 @@ class SyncBatchNormalization(BatchNormalizationBase):
             keepdims=True,
             name='variance')
       if not keep_dims:
-        mean = tf.compat.v1.squeeze(mean, axes)
-        variance = tf.compat.v1.squeeze(variance, axes)
+        mean = tf.squeeze(mean, axes)
+        variance = tf.squeeze(variance, axes)
       if x.dtype == tf.float16:
         return (tf.cast(mean, tf.float16),
                 tf.cast(variance, tf.float16))

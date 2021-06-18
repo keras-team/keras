@@ -58,7 +58,7 @@ def _deduplicate_indexed_slices(values, indices):
   unique_indices, new_index_positions = tf.unique(indices)
   summed_values = tf.math.unsorted_segment_sum(
       values, new_index_positions,
-      tf.compat.v1.shape(unique_indices)[0])
+      tf.shape(unique_indices)[0])
   return (summed_values, unique_indices)
 
 
@@ -87,7 +87,7 @@ def name_scope_only_in_function_or_graph(name):
     `name_scope*` context manager.
   """
   if not tf.executing_eagerly():
-    return tf.compat.v1.name_scope(name)
+    return tf.name_scope(name)
   else:
     return NullContextmanager()
 
@@ -930,7 +930,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
     apply_state = {}
     for var_device, var_dtype in keys:
       apply_state[(var_device, var_dtype)] = {}
-      with tf.compat.v1.device(var_device):
+      with tf.device(var_device):
         self._prepare_local(var_device, var_dtype, apply_state)
 
     return apply_state
@@ -964,7 +964,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
               shape=[],
               trainable=False,
               initializer=value,
-              aggregation=tf.compat.v1.VariableAggregation.ONLY_FIRST_REPLICA)
+              aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
     self._hypers_created = True
 
   @property
@@ -977,7 +977,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
             shape=[],
             dtype=tf.int64,
             trainable=False,
-            aggregation=tf.compat.v1.VariableAggregation.ONLY_FIRST_REPLICA)
+            aggregation=tf.VariableAggregation.ONLY_FIRST_REPLICA)
       self._weights.append(self._iterations)
     return self._iterations
 
@@ -1153,7 +1153,7 @@ class OptimizerV2(tf.__internal__.tracking.Trackable):
                  initializer="zeros",
                  trainable=None,
                  synchronization=tf.VariableSynchronization.AUTO,
-                 aggregation=tf.compat.v1.VariableAggregation.NONE):
+                 aggregation=tf.VariableAggregation.NONE):
 
     if dtype is None:
       dtype = tf.float32

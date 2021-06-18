@@ -634,7 +634,7 @@ class RNN(Layer):
       # batch size and dtype.
       inputs = tf.nest.flatten(inputs)[0]
 
-    input_shape = tf.compat.v1.shape(inputs)
+    input_shape = tf.shape(inputs)
     batch_size = input_shape[1] if self.time_major else input_shape[0]
     dtype = inputs.dtype
     if get_initial_state_fn:
@@ -847,12 +847,12 @@ class RNN(Layer):
         # recorded state is same as the default value (zeros). Use the recorded
         # state if it is not same as the default.
         non_zero_count = tf.add_n([tf.math.count_nonzero(s)
-                                         for s in tf.nest.flatten(self.states)])
+                                   for s in tf.nest.flatten(self.states)])
         # Set strict = True to keep the original structure of the state.
         initial_state = tf.compat.v1.cond(non_zero_count > 0,
-                                              true_fn=lambda: self.states,
-                                              false_fn=lambda: initial_state,
-                                              strict=True)
+                                          true_fn=lambda: self.states,
+                                          false_fn=lambda: initial_state,
+                                          strict=True)
       else:
         initial_state = self.states
     elif initial_state is None:
@@ -933,7 +933,7 @@ class RNN(Layer):
       flat_states_variables = tf.nest.map_structure(
           backend.variable, flat_init_state_values)
       self.states = tf.nest.pack_sequence_as(self.cell.state_size,
-                                          flat_states_variables)
+                                             flat_states_variables)
       if not tf.nest.is_nested(self.states):
         self.states = [self.states]
     elif states is None:
@@ -1150,14 +1150,14 @@ class DropoutRNNCellMixin(object):
 
   def _create_dropout_mask(self, inputs, training, count=1):
     return _generate_dropout_mask(
-        tf.compat.v1.ones_like(inputs),
+        tf.ones_like(inputs),
         self.dropout,
         training=training,
         count=count)
 
   def _create_recurrent_dropout_mask(self, inputs, training, count=1):
     return _generate_dropout_mask(
-        tf.compat.v1.ones_like(inputs),
+        tf.ones_like(inputs),
         self.recurrent_dropout,
         training=training,
         count=count)
@@ -2993,7 +2993,7 @@ def _is_multiple_state(state_size):
 
 def _generate_zero_filled_state_for_cell(cell, inputs, batch_size, dtype):
   if inputs is not None:
-    batch_size = tf.compat.v1.shape(inputs)[0]
+    batch_size = tf.shape(inputs)[0]
     dtype = inputs.dtype
   return _generate_zero_filled_state(batch_size, cell.state_size, dtype)
 

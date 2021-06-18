@@ -67,10 +67,10 @@ class SparseDense(keras.layers.Dense):
 
   def call(self, inputs):
     input_shape = tf.stack(
-        (tf.reduce_prod(tf.compat.v1.shape(inputs)[:-1]),
+        (tf.reduce_prod(tf.shape(inputs)[:-1]),
          self.kernel.shape[0]))
     output_shape = tf.concat(
-        (tf.compat.v1.shape(inputs)[:-1], [self.kernel.shape[1]]), -1)
+        (tf.shape(inputs)[:-1], [self.kernel.shape[1]]), -1)
     x = tf.sparse.reshape(inputs, input_shape)
     return tf.reshape(
         self.activation(

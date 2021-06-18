@@ -804,7 +804,7 @@ def make_2d(tensor, split_dim):
     Tensor of shape
     `(d0 * ... * d(split_dim-1), d(split_dim) * ... * d(N-1))`.
   """
-  shape = tf.compat.v1.shape(tensor)
+  shape = tf.shape(tensor)
   in_dims = shape[:split_dim]
   out_dims = shape[split_dim:]
 

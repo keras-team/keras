@@ -37,7 +37,7 @@ class RemoveSqueezableTest(tf.test.TestCase):
         y: (2, (sequence={1, 2}), 3, 1)
     """
     x = tf.ragged.constant([[[1, 2, 3]], [[4, 5, 6], [7, 8, 9]]])
-    y = tf.compat.v1.expand_dims(x, axis=-1)
+    y = tf.expand_dims(x, axis=-1)
     self.assertEqual(x.shape.ndims, 3)
     self.assertEqual(y.shape.ndims, 4)
     _, y_p = losses_utils.remove_squeezable_dimensions(x, y)
@@ -68,7 +68,7 @@ class RemoveSqueezableTestGraphOnly(tf.test.TestCase):
       y = tf.compat.v1.placeholder_with_default([[1.], [2.], [3.]], shape=None)
       _, y_p = losses_utils.remove_squeezable_dimensions(x, y)
       y_p.shape.assert_is_compatible_with(x.shape)
-      self.assertAllEqual(tf.compat.v1.shape(x), tf.compat.v1.shape(y_p))
+      self.assertAllEqual(tf.shape(x), tf.shape(y_p))
       x_p, _ = losses_utils.remove_squeezable_dimensions(y, x)
       x_p.shape.assert_is_compatible_with(x.shape)
 

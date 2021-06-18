@@ -108,7 +108,7 @@ class _BaseFeaturesLayer(Layer):
       Reshaped dense tensor.
     """
     num_elements = column.variable_shape.num_elements()
-    target_shape = self._target_shape(tf.compat.v1.shape(tensor), num_elements)
+    target_shape = self._target_shape(tf.shape(tensor), num_elements)
     return tf.reshape(tensor, shape=target_shape)
 
   def _verify_and_concat_tensors(self, output_tensors):

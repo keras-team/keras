@@ -2004,7 +2004,7 @@ def keras_model_summary(name, data, step=None):
 
   with tf.summary.experimental.summary_scope(name, 'graph_keras_model',
                                     [data, step]) as (tag, _):
-    with tf.compat.v1.device('cpu:0'):
+    with tf.device('cpu:0'):
       tensor = tf.constant(json_string, dtype=tf.string)
     return tf.summary.write(
         tag=tag, tensor=tensor, step=step, metadata=summary_metadata)
@@ -2521,20 +2521,20 @@ class TensorBoard(Callback, version_utils.TensorBoardVersionSelector):
 
   def _log_weight_as_image(self, weight, weight_name, epoch):
     """Logs a weight as a TensorBoard image."""
-    w_img = tf.compat.v1.squeeze(weight)
+    w_img = tf.squeeze(weight)
     shape = backend.int_shape(w_img)
     if len(shape) == 1:  # Bias case
       w_img = tf.reshape(w_img, [1, shape[0], 1, 1])
     elif len(shape) == 2:  # Dense layer kernel case
       if shape[0] > shape[1]:
-        w_img = tf.compat.v1.transpose(w_img)
+        w_img = tf.transpose(w_img)
         shape = backend.int_shape(w_img)
       w_img = tf.reshape(w_img, [1, shape[0], shape[1], 1])
     elif len(shape) == 3:  # ConvNet case
       if backend.image_data_format() == 'channels_last':
         # Switch to channels_first to display every kernel as a separate
         # image.
-        w_img = tf.compat.v1.transpose(w_img, perm=[2, 0, 1])
+        w_img = tf.transpose(w_img, perm=[2, 0, 1])
         shape = backend.int_shape(w_img)
       w_img = tf.reshape(w_img, [shape[0], shape[1], shape[2], 1])
 

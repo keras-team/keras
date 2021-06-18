@@ -2893,7 +2893,7 @@ def _multi_worker_concat(v, strategy):
   # v might not have the same shape on different replicas
   if _is_per_replica_instance(v):
     shapes = tf.concat([
-        tf.expand_dims(tf.compat.v1.shape(single_value)[0], axis=0)
+        tf.expand_dims(tf.shape(single_value)[0], axis=0)
         for single_value in v.values
     ],
                               axis=0)
@@ -2901,7 +2901,7 @@ def _multi_worker_concat(v, strategy):
   else:
     # v is a tensor. This may happen when, say, we have 2x1 multi-worker.
     all_shapes = strategy.gather(
-        tf.expand_dims(tf.compat.v1.shape(v)[0], axis=0), axis=0)
+        tf.expand_dims(tf.shape(v)[0], axis=0), axis=0)
 
   replicas = tf.split(
       replicas,

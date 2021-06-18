@@ -1276,7 +1276,7 @@ class MeanRelativeErrorTest(tf.test.TestCase):
     y_pred = tf.constant([2, 4], dtype=tf.float32)
     y_true = tf.constant([1, 3])
 
-    mre_obj = metrics.MeanRelativeError(normalizer=tf.compat.v1.zeros_like(y_true))
+    mre_obj = metrics.MeanRelativeError(normalizer=tf.zeros_like(y_true))
     self.evaluate(tf.compat.v1.variables_initializer(mre_obj.variables))
 
     result = mre_obj(y_true, y_pred)

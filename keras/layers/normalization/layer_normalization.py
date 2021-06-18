@@ -280,7 +280,7 @@ class LayerNormalization(Layer):
         inputs = tf.cast(inputs, 'float32')
 
       # Calculate the moments on the last axis (layer activations).
-      mean, variance = tf.compat.v1.nn.moments(inputs, self.axis, keep_dims=True)
+      mean, variance = tf.nn.moments(inputs, self.axis, keepdims=True)
 
       scale, offset = _broadcast(self.gamma), _broadcast(self.beta)
 
@@ -297,7 +297,7 @@ class LayerNormalization(Layer):
       # Collapse dims before self.axis, and dims in self.axis
       pre_dim, in_dim = (1, 1)
       axis = sorted(self.axis)
-      tensor_shape = tf.compat.v1.shape(inputs)
+      tensor_shape = tf.shape(inputs)
       for dim in range(0, ndims):
         dim_tensor = tensor_shape[dim]
         if dim < axis[0]:

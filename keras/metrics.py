@@ -270,7 +270,7 @@ class Metric(base_layer.Layer, metaclass=abc.ABCMeta):
       self,
       name,
       shape=(),
-      aggregation=tf.compat.v1.VariableAggregation.SUM,
+      aggregation=tf.VariableAggregation.SUM,
       synchronization=tf.VariableSynchronization.ON_READ,
       initializer=None,
       dtype=None):
@@ -347,11 +347,11 @@ class Reduce(Metric):
     super(Reduce, self).__init__(name=name, dtype=dtype)
     self.reduction = reduction
     self.total = self.add_weight(
-        'total', initializer=tf.compat.v1.zeros_initializer)
+        'total', initializer='zeros')
     if reduction in [metrics_utils.Reduction.SUM_OVER_BATCH_SIZE,
                      metrics_utils.Reduction.WEIGHTED_MEAN]:
       self.count = self.add_weight(
-          'count', initializer=tf.compat.v1.zeros_initializer)
+          'count', initializer='zeros')
 
   def update_state(self, values, sample_weight=None):
     """Accumulates statistics for computing the metric.
@@ -406,10 +406,10 @@ class Reduce(Metric):
 
     # Update `count` for reductions that require a denominator.
     if self.reduction == metrics_utils.Reduction.SUM_OVER_BATCH_SIZE:
-      num_values = tf.cast(tf.compat.v1.size(values), self._dtype)
+      num_values = tf.cast(tf.size(values), self._dtype)
     elif self.reduction == metrics_utils.Reduction.WEIGHTED_MEAN:
       if sample_weight is None:
-        num_values = tf.cast(tf.compat.v1.size(values), self._dtype)
+        num_values = tf.cast(tf.size(values), self._dtype)
       else:
         num_values = tf.reduce_sum(sample_weight)
     else:
@@ -1586,8 +1586,8 @@ class SensitivitySpecificityBase(Metric, metaclass=abc.ABCMeta):
     Returns maximal dependent value, if no value satiesfies the constraint 0.0.
     """
     feasible = tf.where(predicate(constrained, self.value))
-    feasible_exists = tf.greater(tf.compat.v1.size(feasible), 0)
-    max_dependent = tf.reduce_max(tf.compat.v1.gather(dependent, feasible))
+    feasible_exists = tf.greater(tf.size(feasible), 0)
+    max_dependent = tf.reduce_max(tf.gather(dependent, feasible))
 
     return tf.where(feasible_exists, max_dependent, 0.0)
 
@@ -2312,13 +2312,13 @@ class AUC(Metric):
         dtp, tf.maximum(dp, 0), name='prec_slope')
     intercept = self.true_positives[1:] - tf.multiply(prec_slope, p[1:])
 
-    safe_p_ratio = tf.compat.v1.where(
+    safe_p_ratio = tf.where(
         tf.logical_and(p[:self.num_thresholds - 1] > 0, p[1:] > 0),
         tf.math.divide_no_nan(
             p[:self.num_thresholds - 1],
             tf.maximum(p[1:], 0),
             name='recall_relative_ratio'),
-        tf.compat.v1.ones_like(p[1:]))
+        tf.ones_like(p[1:]))
 
     pr_auc_increment = tf.math.divide_no_nan(
         prec_slope * (dtp + intercept * tf.math.log(safe_p_ratio)),
@@ -3107,7 +3107,7 @@ class MeanTensor(Metric):
                        'shape. Expected shape (set during the first call): {}. '
                        'Got: {}'.format(self._shape, values.shape))
 
-    num_values = tf.compat.v1.ones_like(values)
+    num_values = tf.ones_like(values)
     if sample_weight is not None:
       sample_weight = tf.cast(sample_weight, self._dtype)
 
@@ -3489,7 +3489,7 @@ def sparse_categorical_accuracy(y_true, y_pred):
   # If the shape of y_true is (num_samples, 1), squeeze to (num_samples,)
   if (y_true_rank is not None) and (y_pred_rank is not None) and (len(
       backend.int_shape(y_true)) == len(backend.int_shape(y_pred))):
-    y_true = tf.compat.v1.squeeze(y_true, [-1])
+    y_true = tf.squeeze(y_true, [-1])
   y_pred = tf.compat.v1.argmax(y_pred, axis=-1)
 
   # If the predicted output and actual output types don't match, force cast them

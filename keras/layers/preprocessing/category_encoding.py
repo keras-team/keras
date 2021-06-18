@@ -179,7 +179,7 @@ class CategoryEncoding(base_layer.Layer):
       if tf_utils.is_sparse(inputs):
         return tf.sparse.expand_dims(inputs, axis)
       else:
-        return tf.compat.v1.expand_dims(inputs, axis)
+        return tf.expand_dims(inputs, axis)
 
     original_shape = inputs.shape
     # In all cases, we should uprank scalar input to a single sample.
@@ -241,7 +241,7 @@ def sparse_bincount(inputs, out_depth, binary_output, count_weights=None):
     output_shape = (out_depth,)
   else:
     result = tf.cast(result, backend.floatx())
-    batch_size = tf.compat.v1.shape(result)[0]
+    batch_size = tf.shape(result)[0]
     output_shape = (batch_size, out_depth)
   result = tf.SparseTensor(
       indices=result.indices,

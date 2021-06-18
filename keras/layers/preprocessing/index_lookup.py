@@ -271,7 +271,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
         # the actual data.
         initializer = _NullInitializer(self._key_dtype, self._value_dtype)
       else:
-        if not tf.compat.v1.gfile.Exists(vocabulary):
+        if not tf.io.gfile.exists(vocabulary):
           raise ValueError("Vocabulary file %s does not exist." % (vocabulary,))
         self._static_vocabulary_path = vocabulary
         num_tokens = table_utils.num_tokens_in_file(vocabulary)
@@ -319,7 +319,7 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
       if not self.pad_to_max_tokens or max_tokens is None:
         initializer = lambda shape, dtype: [0]
       else:
-        initializer = tf.compat.v1.zeros_initializer
+        initializer = "zeros"
 
       # We are adding these here instead of in build() since they do not depend
       # on the input shape at all.
@@ -653,13 +653,13 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
         input_values = self._expand_dims(input_values, -1)
         lookup_values = self._expand_dims(lookup_values, -1)
       oov_indices = tf.where(tf.equal(lookup_values, -1))
-      oov_inputs = tf.compat.v1.gather_nd(input_values, oov_indices)
+      oov_inputs = tf.gather_nd(input_values, oov_indices)
       msg = tf.strings.format(
           "When `num_oov_indices=0` all inputs should be in vocabulary, "
           "found OOV values {}, consider setting `num_oov_indices=1`.",
           (oov_inputs,))
       assertion = tf.Assert(
-          tf.equal(tf.compat.v1.size(oov_indices), 0), [msg])
+          tf.equal(tf.size(oov_indices), 0), [msg])
       lookup_checks.append(assertion)
 
     with tf.control_dependencies(lookup_checks):

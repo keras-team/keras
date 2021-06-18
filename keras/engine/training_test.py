@@ -125,8 +125,8 @@ class TrainingTest(keras_parameterized.TestCase):
     class ReturnTraining(layers_module.Layer):
 
       def call(self, inputs):
-        return backend.in_train_phase(lambda: tf.compat.v1.ones_like(inputs),
-                                      lambda: tf.compat.v1.zeros_like(inputs))
+        return backend.in_train_phase(lambda: tf.ones_like(inputs),
+                                      lambda: tf.zeros_like(inputs))
 
     model = sequential.Sequential([ReturnTraining(input_shape=(2,))])
     model.compile(
@@ -157,8 +157,8 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         return backend.in_train_phase(
-            lambda: tf.compat.v1.ones_like(inputs),
-            lambda: tf.compat.v1.zeros_like(inputs),
+            lambda: tf.ones_like(inputs),
+            lambda: tf.zeros_like(inputs),
             training=training)
 
     model = sequential.Sequential([ReturnTraining(input_shape=(2,))])
@@ -213,8 +213,8 @@ class TrainingTest(keras_parameterized.TestCase):
 
       def call(self, inputs, training=None):
         return backend.in_train_phase(
-            lambda: tf.compat.v1.ones_like(inputs),
-            lambda: tf.compat.v1.zeros_like(inputs),
+            lambda: tf.ones_like(inputs),
+            lambda: tf.zeros_like(inputs),
             training=training)
 
     class ReturnTraining(layers_module.Layer):
@@ -3543,7 +3543,7 @@ class TestTrainingWithMetrics(keras_parameterized.TestCase):
       def update_state(self, y_true, y_pred, sample_weight=None):
         self.l2_sum.assign_add(
             tf.reduce_sum(tf.square(y_true - y_pred)))
-        self.sample_count.assign_add(tf.compat.v1.shape(y_true)[0])
+        self.sample_count.assign_add(tf.shape(y_true)[0])
 
       def reset_state(self):
         self.sample_count.assign(0)

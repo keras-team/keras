@@ -100,7 +100,7 @@ def smart_cond(pred, true_fn=None, false_fn=None, name=None):  # pylint: disable
     TypeError: If `true_fn` or `false_fn` is not callable.
   """
   if isinstance(pred, tf.Variable):
-    return tf.compat.v1.cond(
+    return tf.cond(
         pred, true_fn=true_fn, false_fn=false_fn, name=name)
   return tf.__internal__.smart_cond.smart_cond(
       pred, true_fn=true_fn, false_fn=false_fn, name=name)
