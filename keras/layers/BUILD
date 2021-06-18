@@ -8,6 +8,7 @@ package(
     # TODO(scottzhu): Remove non-keras deps from TF.
     default_visibility = [
         "//keras:__subpackages__",
+        "//third_party/py/tensorflow_gnn:__subpackages__",
         "//third_party/tensorflow/python/distribute:__pkg__",
         "//third_party/tensorflow/python/feature_column:__pkg__",
         "//third_party/tensorflow/python/training/tracking:__pkg__",
