@@ -40,7 +40,7 @@ https://cla.developers.google.com/about/google-corporate).
 ### Tools needed for development
 
 1. [Bazel](https://bazel.build/) is the tool to build and test Keras project.
-   See [installtation guild](https://docs.bazel.build/versions/4.0.0/install.html)
+   See [installation guild](https://docs.bazel.build/versions/4.0.0/install.html)
    for how to install and config bazel for your local environment.
 2. [git](https://github.com/) for code repository management.
 3. [python](https://www.python.org/) for build and test Keras project.
