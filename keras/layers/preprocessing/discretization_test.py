@@ -218,44 +218,6 @@ class DiscretizationAdaptTest(keras_parameterized.TestCase,
     output_data = model.predict(test_data)
     self.assertAllClose(expected, output_data)
 
-  def test_merge_state(self):
-    data = np.arange(300)
-    partial_ds_1 = tf.data.Dataset.from_tensor_slices(data[:100])
-    partial_ds_2 = tf.data.Dataset.from_tensor_slices(data[100:200])
-    partial_ds_3 = tf.data.Dataset.from_tensor_slices(data[200:])
-    full_ds = partial_ds_1.concatenate(partial_ds_2).concatenate(partial_ds_3)
-
-    # Use a higher epsilon to avoid any discrepencies from the quantile
-    # approximation.
-    full_layer = discretization.Discretization(num_bins=3, epsilon=0.001)
-    full_layer.adapt(full_ds.batch(2))
-
-    partial_layer_1 = discretization.Discretization(num_bins=3, epsilon=0.001)
-    partial_layer_1.adapt(partial_ds_1.batch(2))
-    partial_layer_2 = discretization.Discretization(num_bins=3, epsilon=0.001)
-    partial_layer_2.adapt(partial_ds_2.batch(2))
-    partial_layer_3 = discretization.Discretization(num_bins=3, epsilon=0.001)
-    partial_layer_3.adapt(partial_ds_3.batch(2))
-    partial_layer_1.merge_state([partial_layer_2, partial_layer_3])
-    merged_layer = partial_layer_1
-
-    data = np.arange(300)
-    self.assertAllClose(full_layer(data), merged_layer(data))
-
-  def test_merge_with_stateless_layers_fails(self):
-    layer1 = discretization.Discretization(num_bins=2, name="layer1")
-    layer1.adapt([1, 2, 3])
-    layer2 = discretization.Discretization(bin_boundaries=[0, 1], name="layer2")
-    with self.assertRaisesRegex(ValueError, "Cannot merge.*layer2"):
-      layer1.merge_state([layer2])
-
-  def test_merge_with_unadapted_layers_fails(self):
-    layer1 = discretization.Discretization(num_bins=2, name="layer1")
-    layer1.adapt([1, 2, 3])
-    layer2 = discretization.Discretization(num_bins=2, name="layer2")
-    with self.assertRaisesRegex(ValueError, "Cannot merge.*layer2"):
-      layer1.merge_state([layer2])
-
   def test_multiple_adapts(self):
     first_adapt = [[1], [2], [3]]
     second_adapt = [[4], [5], [6]]

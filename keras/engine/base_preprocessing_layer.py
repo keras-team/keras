@@ -91,17 +91,6 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     """Resets the statistics of the preprocessing layer."""
     raise NotImplementedError
 
-  def merge_state(self, layers):
-    """Merge the statistics of multiple preprocessing layers.
-
-    This layer will contain the merged state.
-
-    Arguments:
-      layers: Layers whose statistics should be merge with the statistics of
-        this layer.
-    """
-    raise NotImplementedError
-
   def finalize_state(self):
     """Finalize the statistics for the preprocessing layer.
 

@@ -228,24 +228,6 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
     summary = summarize(data, self.epsilon)
     self.summary.assign(merge_summaries(summary, self.summary, self.epsilon))
 
-  def merge_state(self, layers):
-    for l in layers + [self]:
-      if l.input_bin_boundaries is not None:
-        raise ValueError(
-            "Cannot merge Discretization layer {} that has been initialized "
-            "with `bin_boundaries`, use `num_bins` instead. You passed "
-            "`bin_boundaries={}`.".format(l.name, l.input_bin_boundaries))
-      if not l.built:
-        raise ValueError(
-            "Cannot merge Discretization layer {}, it has no state. You need "
-            "to call `adapt` on this layer before merging.".format(l.name))
-
-    summary = self.summary
-    for l in layers:
-      summary = merge_summaries(summary, l.summary, self.epsilon)
-    self.summary.assign(summary)
-    self.finalize_state()
-
   def finalize_state(self):
     if self.input_bin_boundaries is not None or not self.built:
       return
