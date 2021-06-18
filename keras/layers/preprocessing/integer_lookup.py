@@ -244,7 +244,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   **Inverse lookup**
 
   This example demonstrates how to map indices to tokens using this layer. (You
-  can also use adapt() with inverse=True, but for simplicity we'll pass the
+  can also use `adapt()` with `inverse=True`, but for simplicity we'll pass the
   vocab in this example.)
 
   >>> vocab = [12, 36, 1138, 42]
