@@ -136,6 +136,9 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
           batch item.
         - `"tf_idf"`: Like `"multi_hot"`, but the TF-IDF algorithm is applied to
           find the value in each token slot.
+      For `"int"` output, any shape of input and output is supported. For all
+      other output modes, currently only rank 1 inputs (and rank 2 outputs after
+      splitting) are supported.
     output_sequence_length: Only valid in INT mode. If set, the output will have
       its time dimension padded or truncated to exactly `output_sequence_length`
       values, resulting in a tensor of shape

@@ -97,19 +97,20 @@ class CategoryEncoding(base_layer.Layer):
           `(..., num_tokens)`.
         - `"count"`: Like `"multi_hot"`, but the int array contains a count of
           the number of times the token at that index appeared in the sample.
+      For all output modes, currently only output up to rank 2 is supported.
     sparse: Boolean. If true, returns a `SparseTensor` instead of a dense
       `Tensor`. Defaults to `False`.
 
   Call arguments:
-    inputs: A 2D tensor `(samples, timesteps)`.
-    count_weights: A 2D tensor in the same shape as `inputs` indicating the
+    inputs: A 1D or 2D tensor of integer inputs.
+    count_weights: A tensor in the same shape as `inputs` indicating the
       weight for each sample value when summing up in `count` mode. Not used in
-      `"multi_hot"` mode.
+      `"multi_hot"` or `"one_hot"` modes.
   """
 
   def __init__(self,
                num_tokens=None,
-               output_mode=MULTI_HOT,
+               output_mode="multi_hot",
                sparse=False,
                **kwargs):
     # max_tokens is an old name for the num_tokens arg we continue to support
