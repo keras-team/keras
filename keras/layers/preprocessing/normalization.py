@@ -225,40 +225,6 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     self.adapt_variance.assign(total_variance)
     self.count.assign(total_count)
 
-  def merge_state(self, layers):
-    layers = layers + [self]
-    for l in layers:
-      if l.input_mean is not None:
-        raise ValueError(
-            'Cannot merge Normalization layer {} that has initialized with '
-            '`mean` and `variance`, you passed `mean={}` and `variance={}`.'
-            .format(l.name, l.input_mean, l.input_variance))
-      if not l.built:
-        raise ValueError(
-            'Cannot merge Normalization layer {}, it has no state. You need to '
-            'call `adapt` on this layer before merging.'.format(l.name))
-
-    layer_counts = [l.count for l in layers]
-    layer_means = [l.adapt_mean for l in layers]
-    layer_variances = [l.adapt_variance for l in layers]
-
-    total_count = tf.reduce_sum(layer_counts)
-    layer_weightings = (
-        tf.cast(layer_counts, self.dtype) / tf.cast(total_count, self.dtype))
-    layer_weightings = tf.reshape(
-        layer_weightings,
-        shape=[len(layers)] + [1] * self.adapt_mean.shape.rank)
-
-    total_mean = tf.reduce_sum(layer_means * layer_weightings, axis=0)
-    inter_layer_variances = (layer_means - total_mean)**2
-    total_variance = tf.reduce_sum(
-        ((layer_variances + inter_layer_variances) * layer_weightings), axis=0)
-
-    self.adapt_mean.assign(total_mean)
-    self.adapt_variance.assign(total_variance)
-    self.count.assign(total_count)
-    self.finalize_state()
-
   def reset_state(self):  # pylint: disable=method-hidden
     if self.input_mean is not None or not self.built:
       return

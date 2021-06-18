@@ -273,29 +273,6 @@ class NormalizationAdaptTest(keras_parameterized.TestCase,
          keras.layers.Dense(1)])
     model.summary()
 
-  def test_merge_state(self):
-    data = np.random.rand(30, 10, 2)
-    ds = tf.data.Dataset.from_tensor_slices(data).batch(2)
-    norm = normalization.Normalization(axis=(1, 2))
-    norm.adapt(ds)
-
-    partial_ds_1 = ds.shard(3, 0)
-    partial_ds_2 = ds.shard(3, 1)
-    partial_ds_3 = ds.shard(3, 2)
-
-    norm_1 = normalization.Normalization(axis=(1, 2))
-    norm_2 = normalization.Normalization(axis=(1, 2))
-    norm_3 = normalization.Normalization(axis=(1, 2))
-
-    norm_1.adapt(partial_ds_1)
-    norm_2.adapt(partial_ds_2)
-    norm_3.adapt(partial_ds_3)
-
-    norm_1.merge_state([norm_2, norm_3])
-    merged_norm = norm_1
-
-    self.assertAllClose(norm(data), merged_norm(data))
-
   def test_multiple_adapts(self):
     first_adapt = [[0], [2], [0], [2]]
     second_adapt = [[2], [4], [2], [4]]

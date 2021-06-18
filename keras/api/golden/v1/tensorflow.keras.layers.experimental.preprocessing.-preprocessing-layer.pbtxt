@@ -248,10 +248,6 @@ tf_class {
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
   member_method {
-    name: "merge_state"
-    argspec: "args=[\'self\', \'layers\'], varargs=None, keywords=None, defaults=None"
-  }
-  member_method {
     name: "reset_state"
     argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
   }
