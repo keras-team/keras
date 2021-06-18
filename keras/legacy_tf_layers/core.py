@@ -88,7 +88,7 @@ class Dense(keras_layers.Dense, base.Layer):
   @compatibility(TF2)
   This API is not compatible with eager execution or `tf.function`.
 
-  Please refer to [migration guide]
+  Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
   for more details on migrating a TF1 model to Keras. In TF2 the corresponding
   layer is `tf.keras.layers.Dense`.
@@ -204,7 +204,7 @@ def dense(
   @compatibility(TF2)
   This API is not compatible with eager execution or `tf.function`.
 
-  Please refer to [migration guide]
+  Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
   for more details on migrating a TF1 model to Keras. In TF2 the corresponding
   layer is `tf.keras.layers.Dense`.
@@ -276,7 +276,7 @@ class Dropout(keras_layers.Dropout, base.Layer):
   @compatibility(TF2)
   This API is not compatible with eager execution or `tf.function`.
 
-  Please refer to [migration guide]
+  Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
   for more details on migrating a TF1 model to Keras. In TF2 the corresponding
   layer is `tf.keras.layers.Dropout`.
@@ -357,7 +357,7 @@ def dropout(inputs,
   @compatibility(TF2)
   This API is not compatible with eager execution or `tf.function`.
 
-  Please refer to [migration guide]
+  Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
   for more details on migrating a TF1 model to Keras. In TF2 the corresponding
   layer is `tf.keras.layers.Dropout`.
@@ -414,7 +414,7 @@ class Flatten(keras_layers.Flatten, base.Layer):
   @compatibility(TF2)
   This API is not compatible with eager execution or `tf.function`.
 
-  Please refer to [migration guide]
+  Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
   for more details on migrating a TF1 model to Keras. In TF2 the corresponding
   layer is `tf.keras.layers.Flatten`.
@@ -472,7 +472,7 @@ def flatten(inputs, name=None, data_format='channels_last'):
   @compatibility(TF2)
   This API is not compatible with eager execution or`tf.function`.
 
-  Please refer to [migration guide]
+  Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
   for more details on migrating a TF1 model to Keras. In TF2 the corresponding
   layer is `tf.keras.layers.Flatten`.
