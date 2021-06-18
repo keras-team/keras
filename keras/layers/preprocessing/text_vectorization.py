@@ -68,7 +68,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
   representation (one example = 1D tensor of float values representing data
   about the example's tokens).
 
-  If desired, the user can call this layer's adapt() method on a dataset.
+  If desired, the user can call this layer's `adapt()` method on a dataset.
   When this layer is adapted, it will analyze the dataset, determine the
   frequency of individual string values, and create a 'vocabulary' from them.
   This vocabulary can have unlimited size or be capped, depending on the
@@ -78,37 +78,37 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   The processing of each example contains the following steps:
 
-    1. standardize each example (usually lowercasing + punctuation stripping)
-    2. split each example into substrings (usually words)
-    3. recombine substrings into tokens (usually ngrams)
-    4. index tokens (associate a unique int value with each token)
-    5. transform each example using this index, either into a vector of ints or
-       a dense float vector.
+  1. Standardize each example (usually lowercasing + punctuation stripping)
+  2. Split each example into substrings (usually words)
+  3. Recombine substrings into tokens (usually ngrams)
+  4. Index tokens (associate a unique int value with each token)
+  5. Transform each example using this index, either into a vector of ints or
+     a dense float vector.
 
-  Some notes on passing Callables to customize splitting and normalization for
+  Some notes on passing callables to customize splitting and normalization for
   this layer:
 
-    1. Any callable can be passed to this Layer, but if you want to serialize
-       this object you should only pass functions that are registered Keras
-       serializables (see `tf.keras.utils.register_keras_serializable` for more
-       details).
-    2. When using a custom callable for `standardize`, the data received
-       by the callable will be exactly as passed to this layer. The callable
-       should return a tensor of the same shape as the input.
-    3. When using a custom callable for `split`, the data received by the
-       callable will have the 1st dimension squeezed out - instead of
-       `[["string to split"], ["another string to split"]]`, the Callable will
-       see `["string to split", "another string to split"]`. The callable should
-       return a Tensor with the first dimension containing the split tokens -
-       in this example, we should see something like `[["string", "to",
-       "split"], ["another", "string", "to", "split"]]`. This makes the callable
-       site natively compatible with `tf.strings.split()`.
+  1. Any callable can be passed to this Layer, but if you want to serialize
+     this object you should only pass functions that are registered Keras
+     serializables (see `tf.keras.utils.register_keras_serializable` for more
+     details).
+  2. When using a custom callable for `standardize`, the data received
+     by the callable will be exactly as passed to this layer. The callable
+     should return a tensor of the same shape as the input.
+  3. When using a custom callable for `split`, the data received by the
+     callable will have the 1st dimension squeezed out - instead of
+     `[["string to split"], ["another string to split"]]`, the Callable will
+     see `["string to split", "another string to split"]`. The callable should
+     return a Tensor with the first dimension containing the split tokens -
+     in this example, we should see something like `[["string", "to",
+     "split"], ["another", "string", "to", "split"]]`. This makes the callable
+     site natively compatible with `tf.strings.split()`.
 
   Args:
     max_tokens: The maximum size of the vocabulary for this layer. If None,
       there is no cap on the size of the vocabulary. Note that this vocabulary
       contains 1 OOV token, so the effective number of tokens is `(max_tokens -
-      1 - (1 if output == `"int"` else 0))`.
+      1 - (1 if output_mode == "int" else 0))`.
     standardize: Optional specification for standardization to apply to the
       input text. Values can be None (no standardization),
       `"lower_and_strip_punctuation"` (lowercase and remove punctuation) or a
@@ -125,24 +125,26 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
       be `"int"`, `"multi_hot"`, `"count"` or `"tf_idf"`, configuring the layer
       as follows:
         - `"int"`: Outputs integer indices, one integer index per split string
-          token. When output == `"int"`, 0 is reserved for masked locations;
-          this reduces the vocab size to max_tokens-2 instead of max_tokens-1
+          token. When `output_mode == "int"`, 0 is reserved for masked
+          locations; this reduces the vocab size to
+          `max_tokens - 2` instead of `max_tokens - 1`.
         - `"multi_hot"`: Outputs a single int array per batch, of either
           vocab_size or max_tokens size, containing 1s in all elements where the
           token mapped to that index exists at least once in the batch item.
-        - `"count"`: As `"multi_hot"`, but the int array contains a count of the
-          number of times the token at that index appeared in the batch item.
-        - `"tf_idf"`: As `"multi_hot"`, but the TF-IDF algorithm is applied to
+        - `"count"`: Like `"multi_hot"`, but the int array contains a count of
+          the number of times the token at that index appeared in the
+          batch item.
+        - `"tf_idf"`: Like `"multi_hot"`, but the TF-IDF algorithm is applied to
           find the value in each token slot.
     output_sequence_length: Only valid in INT mode. If set, the output will have
       its time dimension padded or truncated to exactly `output_sequence_length`
-      values, resulting in a tensor of shape [batch_size,
-      output_sequence_length] regardless of how many tokens resulted from the
-      splitting step. Defaults to None.
+      values, resulting in a tensor of shape
+      `(batch_size, output_sequence_length)` regardless of how many tokens
+      resulted from the splitting step. Defaults to None.
     pad_to_max_tokens: Only valid in  `"multi_hot"`, `"count"`, and `"tf_idf"`
       modes. If True, the output will have its feature axis padded to
       `max_tokens` even if the number of unique tokens in the vocabulary is less
-      than max_tokens, resulting in a tensor of shape [batch_size, max_tokens]
+      than max_tokens, resulting in a tensor of shape `(batch_size, max_tokens)`
       regardless of vocabulary size. Defaults to False.
     vocabulary: An optional list of vocabulary terms, or a path to a text file
       containing a vocabulary to load into this layer. The file should contain
@@ -151,7 +153,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   Example:
 
-  This example instantiates a TextVectorization layer that lowercases text,
+  This example instantiates a `TextVectorization` layer that lowercases text,
   splits on whitespace, strips punctuation, and outputs integer vocab indices.
 
   >>> text_dataset = tf.data.Dataset.from_tensor_slices(["foo", "bar", "baz"])
@@ -191,8 +193,8 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   Example:
 
-  This example instantiates a TextVectorization layer by passing a list
-  of vocabulary terms to the layer's __init__ method.
+  This example instantiates a `TextVectorization` layer by passing a list
+  of vocabulary terms to the layer's `__init__()` method.
 
   >>> vocab_data = ["earth", "wind", "and", "fire"]
   >>> max_len = 4  # Sequence length to pad the outputs to.

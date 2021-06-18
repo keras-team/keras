@@ -38,10 +38,9 @@ class CategoryEncoding(base_layer.Layer):
 
   This layer provides options for condensing data into a categorical encoding
   when the total number of tokens are known in advance. It accepts integer
-  values as inputs and outputs a dense representation (one sample = 1-index
-  tensor of float values representing data about the sample's tokens) of those
-  inputs. For integer inputs where the total number of tokens is not known, see
-  `tf.keras.layers.experimental.preprocessing.IntegerLookup`.
+  values as inputs, and it outputs a dense representation of those
+  inputs. For integer inputs where the total number of tokens is not known,
+  use instead `tf.keras.layers.experimental.preprocessing.IntegerLookup`.
 
   Examples:
 
@@ -81,7 +80,7 @@ class CategoryEncoding(base_layer.Layer):
 
   Args:
     num_tokens: The total number of tokens the layer should support. All inputs
-      to the layer must integers in the range 0 <= value < num_tokens or an
+      to the layer must integers in the range `0 <= value < num_tokens`, or an
       error will be thrown.
     output_mode: Specification for the output of the layer.
       Defaults to `"multi_hot"`. Values can be `"one_hot"`, `"multi_hot"` or
@@ -94,10 +93,10 @@ class CategoryEncoding(base_layer.Layer):
         - `"multi_hot"`: Encodes each sample in the input into a single array
           of `num_tokens` size, containing a 1 for each vocabulary term present
           in the sample. Treats the last dimension as the sample dimension, if
-          input shape is (..., sample_length), output shape will be
-          (..., num_tokens).
-        - `"count"`: As `"multi_hot"`, but the int array contains a count of the
-          number of times the token at that index appeared in the sample.
+          input shape is `(..., sample_length)`, output shape will be
+          `(..., num_tokens)`.
+        - `"count"`: Like `"multi_hot"`, but the int array contains a count of
+          the number of times the token at that index appeared in the sample.
     sparse: Boolean. If true, returns a `SparseTensor` instead of a dense
       `Tensor`. Defaults to `False`.
 

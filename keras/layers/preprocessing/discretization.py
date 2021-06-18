@@ -36,11 +36,11 @@ def summarize(values, epsilon):
   returned (with weights of 1).
 
   Args:
-      values: 1-D `np.ndarray` to be summarized.
-      epsilon: A `'float32'` that determines the approxmiate desired precision.
+      values: 1D `np.ndarray` to be summarized.
+      epsilon: A `'float32'` that determines the approximate desired precision.
 
   Returns:
-      A 2-D `np.ndarray` that is a summary of the inputs. First column is the
+      A 2D `np.ndarray` that is a summary of the inputs. First column is the
       interpolated partition values, the second is the weights (counts).
   """
 
@@ -67,11 +67,11 @@ def compress(summary, epsilon):
   cumulative weight will give the new weight for that bin.
 
   Args:
-      summary: 2-D `np.ndarray` summary to be compressed.
+      summary: 2D `np.ndarray` summary to be compressed.
       epsilon: A `'float32'` that determines the approxmiate desired precision.
 
   Returns:
-      A 2-D `np.ndarray` that is a compressed summary. First column is the
+      A 2D `np.ndarray` that is a compressed summary. First column is the
       interpolated partition values, the second is the weights (counts).
   """
   # TODO(b/184863356): remove the numpy escape hatch here.
@@ -101,8 +101,8 @@ def merge_summaries(prev_summary, next_summary, epsilon):
   them to stay within `epsilon` error tolerance.
 
   Args:
-      prev_summary: 2-D `np.ndarray` summary to be merged with `next_summary`.
-      next_summary: 2-D `np.ndarray` summary to be merged with `prev_summary`.
+      prev_summary: 2D `np.ndarray` summary to be merged with `next_summary`.
+      next_summary: 2D `np.ndarray` summary to be merged with `prev_summary`.
       epsilon: A float that determines the approxmiate desired precision.
 
   Returns:
