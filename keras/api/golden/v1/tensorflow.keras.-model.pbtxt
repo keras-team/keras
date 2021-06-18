@@ -278,15 +278,15 @@ tf_class {
   }
   member_method {
     name: "make_predict_function"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'force\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "make_test_function"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'force\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "make_train_function"
-    argspec: "args=[\'self\'], varargs=None, keywords=None, defaults=None"
+    argspec: "args=[\'self\', \'force\'], varargs=None, keywords=None, defaults=[\'False\'], "
   }
   member_method {
     name: "predict"
