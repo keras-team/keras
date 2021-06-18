@@ -15,13 +15,14 @@
 """Saving utilities to support Python's Pickle protocol.
 """
 
+import tensorflow.compat.v2 as tf
+
 import os
 import tarfile
 from io import BytesIO
 from uuid import uuid4
 
 from numpy import asarray
-import tensorflow.compat.v2 as tf
 
 from keras.saving.save import load_model
 
