@@ -695,9 +695,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.train_step`. Typically,
-          the values of the `Model`'s metrics are returned.  Example:
-          `{'loss': 0.2, 'accuracy': 0.7}`.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
     # For backwards compatibility.
     self.on_batch_begin(batch, logs=logs)
@@ -736,9 +735,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.test_step`. Typically,
-          the values of the `Model`'s metrics are returned.  Example:
-          `{'loss': 0.2, 'accuracy': 0.7}`.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
 
   @doc_controls.for_subclass_implementers
@@ -773,9 +771,8 @@ class Callback:
 
     Args:
         batch: Integer, index of batch within the current epoch.
-        logs: Dict, contains the return value of `model.predict_step`,
-          it typically returns a dict with a key 'outputs' containing
-          the model's outputs.
+        logs: Dict. Currently no data is passed to this argument for this method
+          but that may change in the future.
     """
 
   @doc_controls.for_subclass_implementers
