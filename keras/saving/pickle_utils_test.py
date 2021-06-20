@@ -31,7 +31,6 @@ class TestPickleProtocol(keras_parameterized.TestCase):
   """Tests pickle protoocol support.
   """
 
-  @keras_parameterized.run_all_keras_modes
   def test_pickle_model(self):
     """Test copy.copy, copy.deepcopy and pickle on Functional Model."""
 
