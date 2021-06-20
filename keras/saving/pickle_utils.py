@@ -28,13 +28,13 @@ from keras.saving.save import load_model
 
 
 def deserialize_model_from_bytecode(serialized_model):
-  """Reconstruct a Model from the result of serialize_model_as_bytecode.
+  """Reconstruct a Model from the output of `serialize_model_as_bytecode`.
 
   Args:
-      packed_keras_model (np.array): return value from serialize_model_as_bytecode.
+      serialized_model (np.array): return value from `serialize_model_as_bytecode`.
 
   Returns:
-      keras.Model: a Keras Model instance.
+      keras.Model: Keras Model instance.
   """
   temp_dir = f"ram://{uuid4()}"
   b = BytesIO(serialized_model)
@@ -50,13 +50,14 @@ def deserialize_model_from_bytecode(serialized_model):
 
 
 def serialize_model_as_bytecode(model):
-  """Pack a Keras Model into a bytes for pickling.
+  """Convert a Keras Model into a bytecode representation for pickling.
 
   Args:
-      model (tf.keras.Model): a Keras Model instance.
+      model (tf.keras.Model): Keras Model instance.
 
   Returns:
-      tuple: a tuple of arguments for deserialize_from_bytecode.
+      tuple: tuple of arguments that can be sent to
+          `deserialize_from_bytecode`.
   """
   temp_dir = f"ram://{uuid4()}"
   model.save(temp_dir)
