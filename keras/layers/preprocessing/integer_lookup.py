@@ -95,6 +95,8 @@ class IntegerLookup(index_lookup.IndexLookup):
           number of times the token at that index appeared in the sample.
         - `"tf_idf"`: As `"multi_hot"`, but the TF-IDF algorithm is applied to
           find the value in each token slot.
+      For `"int"` output, any shape of input and output is supported. For all
+      other output modes, currently only output up to rank 2 is supported.
     pad_to_max_tokens: Only applicable when `output_mode` is `"multi_hot"`,
       `"count"`, or `"tf_idf"`. If True, the output will have its feature axis
       padded to `max_tokens` even if the number of unique tokens in the
@@ -244,7 +246,7 @@ class IntegerLookup(index_lookup.IndexLookup):
   **Inverse lookup**
 
   This example demonstrates how to map indices to tokens using this layer. (You
-  can also use adapt() with inverse=True, but for simplicity we'll pass the
+  can also use `adapt()` with `inverse=True`, but for simplicity we'll pass the
   vocab in this example.)
 
   >>> vocab = [12, 36, 1138, 42]
