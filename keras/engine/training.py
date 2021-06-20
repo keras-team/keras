@@ -323,7 +323,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     super(Model, self).__setattr__(name, value)
 
   def __reduce__(self):
-    return (deserialize_model_from_bytecode, *serialize_model_as_bytecode(self))
+    return (deserialize_model_from_bytecode, serialize_model_as_bytecode(self))
 
   def __deepcopy__(self, memo):
     if self.built:
