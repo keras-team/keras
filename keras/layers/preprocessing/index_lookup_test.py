@@ -707,6 +707,42 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
+  def test_int_output_rank_one(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_data = np.array(["earth", "wind", "and", "fire"])
+    expected_output = [2, 3, 4, 5]
+
+    inputs = keras.Input(shape=(None,), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    output_dataset = model(input_data)
+    self.assertAllEqual(expected_output, output_dataset)
+
+  def test_int_output_rank_zero(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_data = tf.constant("earth")
+    expected_output = 2
+
+    inputs = keras.Input(shape=(), dtype=tf.string)
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=1,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    outputs = layer(inputs)
+    model = keras.Model(inputs=inputs, outputs=outputs)
+    output_dataset = model(input_data)
+    self.assertAllEqual(expected_output, output_dataset)
+
   def test_int_output_shape(self):
     input_data = keras.Input(batch_size=16, shape=(4,), dtype=tf.string)
     layer = index_lookup.IndexLookup(
@@ -887,6 +923,23 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     model = keras.Model(inputs=input_data, outputs=binary_data)
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
+
+  def test_one_hot_output_rank_zero_no_oov(self):
+    """Check binary output when pad_to_max_tokens=False."""
+    vocab_data = ["earth", "wind", "and", "fire"]
+    input_data = tf.constant("earth")
+    expected_output = [1, 0, 0, 0]
+
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=0,
+        mask_token="",
+        oov_token="[OOV]",
+        output_mode=index_lookup.ONE_HOT,
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    output_data = layer(input_data)
+    self.assertAllEqual(expected_output, output_data)
 
   def test_one_hot_output_shape(self):
     inputs = keras.Input(batch_size=16, shape=(1,), dtype=tf.string)

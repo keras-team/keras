@@ -648,6 +648,10 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
       else:
         lookup_values = lookup_result
         input_values = inputs
+      # tf.where needs rank > 0.
+      if input_values.shape.rank == 0:
+        input_values = self._expand_dims(input_values, -1)
+        lookup_values = self._expand_dims(lookup_values, -1)
       oov_indices = tf.where(tf.equal(lookup_values, -1))
       oov_inputs = tf.compat.v1.gather_nd(input_values, oov_indices)
       msg = tf.strings.format(
@@ -665,20 +669,14 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
         return self._encode_output(lookup_result)
 
   def _encode_output(self, lookup_result):
-    def expand_dims(inputs, axis):
-      if tf_utils.is_sparse(inputs):
-        return tf.sparse.expand_dims(inputs, axis)
-      else:
-        return tf.compat.v1.expand_dims(inputs, axis)
-
     original_shape = lookup_result.shape
     # In all cases, we should uprank scalar input to a single sample.
     if lookup_result.shape.rank == 0:
-      lookup_result = expand_dims(lookup_result, -1)
+      lookup_result = self._expand_dims(lookup_result, -1)
     # One hot will unprank only if the final output dimension is not already 1.
     if self.output_mode == ONE_HOT:
       if lookup_result.shape[-1] != 1:
-        lookup_result = expand_dims(lookup_result, -1)
+        lookup_result = self._expand_dims(lookup_result, -1)
 
     # TODO(b/190445202): remove output rank restriction.
     if lookup_result.shape.rank > 2:
@@ -707,6 +705,12 @@ class IndexLookup(base_preprocessing_layer.CombinerPreprocessingLayer):
 
   def _convert_to_ndarray(self, x):
     return np.array(x) if isinstance(x, (list, tuple)) else x
+
+  def _expand_dims(self, inputs, axis):
+    if tf_utils.is_sparse(inputs):
+      return tf.sparse.expand_dims(inputs, axis)
+    else:
+      return tf.compat.v1.expand_dims(inputs, axis)
 
   def _oov_start_index(self):
     return 1 if self.mask_token is not None and self.output_mode == INT else 0

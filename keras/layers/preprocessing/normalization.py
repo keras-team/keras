@@ -30,16 +30,16 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   This layer will coerce its inputs into a distribution centered around
   0 with standard deviation 1. It accomplishes this by precomputing the mean and
-  variance of the data, and calling (input-mean)/sqrt(var) at runtime.
+  variance of the data, and calling `(input - mean) / sqrt(var)` at runtime.
 
-  What happens in `adapt`: Compute mean and variance of the data and store them
-    as the layer's weights. `adapt` should be called before `fit`, `evaluate`,
-    or `predict`.
+  What happens in `adapt()`: Compute mean and variance of the data and store
+  them as the layer's weights. `adapt()` should be called before `fit()`,
+  `evaluate()`, or `predict()`.
 
   Args:
       axis: Integer, tuple of integers, or None. The axis or axes that should
         have a separate mean and variance for each index in the shape. For
-        example, if shape is (None, 5) and axis=1, the layer will track 5
+        example, if shape is `(None, 5)` and `axis=1`, the layer will track 5
         separate mean and variance values for the last axis. If `axis` is set to
         `None`, the layer will normalize all elements in the input by a scalar
         mean and variance. Defaults to -1, where the last axis of the input is
@@ -49,16 +49,16 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
         separately. In this case, consider passing `axis=None`.
       mean: The mean value(s) to use during normalization. The passed value(s)
         will be broadcast to the shape of the kept axes above; if the value(s)
-        cannot be broadcast, an error will be raised when this layer's build()
+        cannot be broadcast, an error will be raised when this layer's `build()`
         method is called.
       variance: The variance value(s) to use during normalization. The passed
         value(s) will be broadcast to the shape of the kept axes above; if the
         value(s) cannot be broadcast, an error will be raised when this layer's
-        build() method is called.
+        `build()` method is called.
 
   Examples:
 
-  Calculate a global mean and variance by analyzing the dataset in `adapt`.
+  Calculate a global mean and variance by analyzing the dataset in `adapt()`.
 
   >>> adapt_data = np.array([1., 2., 3., 4., 5.], dtype='float32')
   >>> input_data = np.array([1., 2., 3.], dtype='float32')
@@ -80,7 +80,6 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   >>> layer(input_data)
   <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
   array([0., 0., 0.], dtype=float32)>
-
 
   Pass the mean and variance directly.
 

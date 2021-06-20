@@ -94,6 +94,8 @@ class StringLookup(index_lookup.IndexLookup):
           number of times the token at that index appeared in the sample.
         - `"tf_idf"`: As `"multi_hot"`, but the TF-IDF algorithm is applied to
           find the value in each token slot.
+      For `"int"` output, any shape of input and output is supported. For all
+      other output modes, currently only output up to rank 2 is supported.
     pad_to_max_tokens: Only applicable when `output_mode` is `"multi_hot"`,
       `"count"`, or `"tf_idf"`. If True, the output will have its feature axis
       padded to `max_tokens` even if the number of unique tokens in the
@@ -128,9 +130,9 @@ class StringLookup(index_lookup.IndexLookup):
   >>> layer.get_vocabulary()
   ['[UNK]', 'd', 'z', 'c', 'b', 'a']
 
-  Note that the OOV token [UNK] has been added to the vocabulary. The remaining
-  tokens are sorted by frequency ('d', which has 2 occurrences, is first) then
-  by inverse sort order.
+  Note that the OOV token `"[UNK]"` has been added to the vocabulary.
+  The remaining tokens are sorted by frequency
+  (`"d"`, which has 2 occurrences, is first) then by inverse sort order.
 
   >>> data = tf.constant([["a", "c", "d"], ["d", "z", "b"]])
   >>> layer = StringLookup()
@@ -204,7 +206,7 @@ class StringLookup(index_lookup.IndexLookup):
 
   **TF-IDF output**
 
-  Configure the layer with `output_mode='tf_idf'`. As with multi_hot output, the
+  Configure the layer with `output_mode="tf_idf"`. As with multi_hot output, the
   first `num_oov_indices` dimensions in the output represent OOV values.
 
   Each token bin will output `token_count * idf_weight`, where the idf weights
@@ -215,7 +217,7 @@ class StringLookup(index_lookup.IndexLookup):
   >>> vocab = ["a", "b", "c", "d"]
   >>> idf_weights = [0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([["a", "c", "d", "d"], ["d", "z", "b", "z"]])
-  >>> layer = StringLookup(output_mode='tf_idf')
+  >>> layer = StringLookup(output_mode="tf_idf")
   >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
@@ -228,21 +230,21 @@ class StringLookup(index_lookup.IndexLookup):
   >>> vocab = ["[UNK]", "a", "b", "c", "d"]
   >>> idf_weights = [0.9, 0.25, 0.75, 0.6, 0.4]
   >>> data = tf.constant([["a", "c", "d", "d"], ["d", "z", "b", "z"]])
-  >>> layer = StringLookup(output_mode='tf_idf')
+  >>> layer = StringLookup(output_mode="tf_idf")
   >>> layer.set_vocabulary(vocab, idf_weights=idf_weights)
   >>> layer(data)
   <tf.Tensor: shape=(2, 5), dtype=float32, numpy=
     array([[0.  , 0.25, 0.  , 0.6 , 0.8 ],
            [1.8 , 0.  , 0.75, 0.  , 0.4 ]], dtype=float32)>
 
-  When adapting the layer in tf_idf mode, each input sample will be considered a
-  document, and idf weight per token will be calculated as
+  When adapting the layer in `"tf_idf"` mode, each input sample will be
+  considered a document, and IDF weight per token will be calculated as
   `log(1 + num_documents / (1 + token_document_count))`.
 
   **Inverse lookup**
 
   This example demonstrates how to map indices to strings using this layer. (You
-  can also use adapt() with inverse=True, but for simplicity we'll pass the
+  can also use `adapt()` with `inverse=True`, but for simplicity we'll pass the
   vocab in this example.)
 
   >>> vocab = ["a", "b", "c", "d"]
@@ -271,11 +273,11 @@ class StringLookup(index_lookup.IndexLookup):
   array([[b'a', b'c', b'd'],
          [b'd', b'[UNK]', b'b']], dtype=object)>
 
-  In this example, the input value 'z' resulted in an output of '[UNK]', since
-  1000 was not in the vocabulary - it got represented as an OOV, and all OOV
-  values are returned as '[OOV}' in the inverse layer. Also, note that for the
-  inverse to work, you must have already set the forward layer vocabulary
-  either directly or via adapt() before calling get_vocabulary().
+  In this example, the input value `"z"` resulted in an output of `"[UNK]"`,
+  since 1000 was not in the vocabulary - it got represented as an OOV, and all
+  OOV values are returned as `"[UNK]"` in the inverse layer. Also, note that
+  for the inverse to work, you must have already set the forward layer
+  vocabulary either directly or via `adapt()` before calling `get_vocabulary()`.
   """
 
   def __init__(self,
