@@ -23,7 +23,6 @@ import numpy as np
 
 from keras import keras_parameterized
 from keras import testing_utils
-from keras import layers as layers_module
 
 
 class TestPickleProtocol(keras_parameterized.TestCase):
@@ -37,13 +36,14 @@ class TestPickleProtocol(keras_parameterized.TestCase):
     def roundtrip(model):
       model = copy.copy(model)
       model = copy.deepcopy(model)
-      for protocol in range(pickle.HIGHEST_PROTOCOL):
+      for protocol in range(pickle.HIGHEST_PROTOCOL+1):
         model = pickle.loads(pickle.dumps(model, protocol=protocol))
       return model
 
     # create model
-    layers = [layers_module.Dense(2)]
-    original_model = testing_utils.get_model_from_layers(layers, input_shape=(3,))
+    original_model = testing_utils.get_small_mlp(
+      num_hidden=1, num_classes=2, input_dim=3
+    )
     original_weights = original_model.get_weights()
 
     # roundtrip without compiling
