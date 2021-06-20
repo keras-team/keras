@@ -27,7 +27,7 @@ from numpy import asarray
 from keras.saving.save import load_model
 
 
-def unpack_model(packed_keras_model):
+def deserialize_model_from_bytecode(packed_keras_model):
   """Reconstruct a Model from the result of pack_model.
 
   Args:
@@ -49,15 +49,14 @@ def unpack_model(packed_keras_model):
   return model
 
 
-def pack_model(model):
-  """Pack a Keras Model into a numpy array for pickling.
+def serialize_model_as_bytecode(model):
+  """Pack a Keras Model into a bytes for pickling.
 
   Args:
       model (tf.keras.Model): a Keras Model instance.
 
   Returns:
-      tuple: an unpacking function (unpack_model) and it's arguments,
-      as per Python's pickle protocol.
+      tuple: a tuple of arguments for deserialize_from_bytecode.
   """
   temp_dir = f"ram://{uuid4()}"
   model.save(temp_dir)
@@ -72,4 +71,4 @@ def pack_model(model):
           archive.addfile(tarinfo=info, fileobj=f)
   tf.io.gfile.rmtree(temp_dir)
   b.seek(0)
-  return unpack_model, (asarray(memoryview(b.read())), )
+  return (asarray(memoryview(b.read())), )

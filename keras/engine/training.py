@@ -37,7 +37,7 @@ from keras.mixed_precision import policy
 from keras.saving import hdf5_format
 from keras.saving import save
 from keras.saving import saving_utils
-from keras.saving.pickle_utils import pack_model
+from keras.saving.pickle_utils import deserialize_model_from_bytecode, serialize_model_as_bytecode
 from keras.saving.saved_model import json_utils
 from keras.saving.saved_model import model_serialization
 from keras.utils import generic_utils
@@ -323,12 +323,11 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     super(Model, self).__setattr__(name, value)
 
   def __reduce__(self):
-    return pack_model(self)
+    return (deserialize_model_from_bytecode, *serialize_model_as_bytecode(self))
 
   def __deepcopy__(self, memo):
     if self.built:
-      deserializer, serialized = pack_model(self)
-      new = deserializer(*serialized)
+      new = deserialize_model_from_bytecode(*serialize_model_as_bytecode(self))
       memo[id(self)] = new
     else:
       deserializer, serialized, *rest = super(Model, self).__reduce__()
