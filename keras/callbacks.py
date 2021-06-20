@@ -482,8 +482,8 @@ class CallbackList:
     """Calls the `on_train_begin` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -493,8 +493,8 @@ class CallbackList:
     """Calls the `on_train_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -515,8 +515,8 @@ class CallbackList:
     """Calls the `on_test_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
@@ -537,8 +537,8 @@ class CallbackList:
     """Calls the `on_predict_end` methods of its callbacks.
 
     Args:
-        logs: Dict. Currently no data is passed to this argument for this method
-          but that may change in the future.
+        logs: Dict. Currently, no data is passed via this argument
+          for this method, but that may change in the future.
     """
     logs = self._process_logs(logs)
     for callback in self.callbacks:
