@@ -27,6 +27,7 @@ py_library(
         "__init__.py",
         "hdf5_format.py",
         "model_config.py",
+        "pickle_utils.py",
         "save.py",
         "saved_model_experimental.py",
         "saving_utils.py",
@@ -72,6 +73,20 @@ tf_py_test(
     name = "losses_serialization_test",
     size = "medium",
     srcs = ["losses_serialization_test.py"],
+    python_version = "PY3",
+    shard_count = 4,
+    deps = [
+        "//:expect_absl_installed",
+        "//:expect_numpy_installed",
+        "//:expect_tensorflow_installed",
+        "//keras",
+    ],
+)
+
+tf_py_test(
+    name = "pickle_utils_test",
+    size = "medium",
+    srcs = ["pickle_utils_test.py"],
     python_version = "PY3",
     shard_count = 4,
     deps = [
