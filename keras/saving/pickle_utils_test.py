@@ -22,15 +22,15 @@ import pickle
 import numpy as np
 
 from keras import keras_parameterized
+from keras import testing_utils
 from keras import layers as layers_module
-from keras.engine import input_layer
-from keras.engine import training as training_module
 
 
 class TestPickleProtocol(keras_parameterized.TestCase):
   """Tests pickle protoocol support.
   """
 
+  @keras_parameterized.run_with_all_model_types
   def test_pickle_model(self):
     """Test copy.copy, copy.deepcopy and pickle on Functional Model."""
 
@@ -42,13 +42,12 @@ class TestPickleProtocol(keras_parameterized.TestCase):
       return model
 
     # create model
-    x = input_layer.Input((3,))
-    y = layers_module.Dense(2)(x)
-    original_model = training_module.Model(x, y)
-    model = original_model
-    original_weights = model.get_weights()
+    layers = [layers_module.Dense(2)]
+    original_model = testing_utils.get_model_from_layers(layers, input_shape=(3,))
+    original_weights = original_model.get_weights()
+
     # roundtrip without compiling
-    model = roundtrip(model)
+    model = roundtrip(original_model)
     # compile
     model.compile(optimizer='sgd', loss='mse')
     # roundtrip compiled but not trained
@@ -65,6 +64,7 @@ class TestPickleProtocol(keras_parameterized.TestCase):
     # check that the original model has not been changed
     final_weights = original_model.get_weights()
     self.assertAllClose(original_weights, final_weights)
+    # but that the weights on the trained model are different
     self.assertNotAllClose(original_weights, model.get_weights())
 
 if __name__ == '__main__':
