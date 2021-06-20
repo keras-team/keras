@@ -27,17 +27,17 @@ from numpy import asarray
 from keras.saving.save import load_model
 
 
-def deserialize_model_from_bytecode(packed_keras_model):
-  """Reconstruct a Model from the result of pack_model.
+def deserialize_model_from_bytecode(serialized_model):
+  """Reconstruct a Model from the result of serialize_model_as_bytecode.
 
   Args:
-      packed_keras_model (np.array): return value from pack_model.
+      packed_keras_model (np.array): return value from serialize_model_as_bytecode.
 
   Returns:
       keras.Model: a Keras Model instance.
   """
   temp_dir = f"ram://{uuid4()}"
-  b = BytesIO(packed_keras_model)
+  b = BytesIO(serialized_model)
   with tarfile.open(fileobj=b, mode="r") as archive:
     for fname in archive.getnames():
       dest_path = os.path.join(temp_dir, fname)
