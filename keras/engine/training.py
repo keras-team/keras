@@ -326,14 +326,18 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     if self.built:
       return (deserialize_model_from_bytecode, serialize_model_as_bytecode(self))
     else:
-      deserializer, serialized, *_ = super(Model, self).__reduce__()
-      return (deserializer, serialized)
+      # SavedModel (and hence serialize_model_as_bytecode) only support built models
+      # but if the model is not built, it can be serialized as a plain Python object
+      # so call up the MRO to get an implementation of __reduce__,
+      # possibly landing at object.__reduce__
+      return super(Model, self).__reduce__()
 
   def __deepcopy__(self, memo):
     if self.built:
       new = deserialize_model_from_bytecode(*serialize_model_as_bytecode(self))
       memo[id(self)] = new
     else:
+      # See comment in __reduce__ for explanation 
       deserializer, serialized, *rest = super(Model, self).__reduce__()
       new = deserializer(*serialized)
       memo[id(self)] = new
