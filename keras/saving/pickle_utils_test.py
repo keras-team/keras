@@ -37,7 +37,7 @@ class TestPickleProtocol(keras_parameterized.TestCase):
     def roundtrip(model):
       model = copy.copy(model)
       model = copy.deepcopy(model)
-      for protocol in range(5):  # support up to protocol version 5
+      for protocol in range(pickle.HIGHEST_PROTOCOL):
         model = pickle.loads(pickle.dumps(model, protocol=protocol))
       return model
 
