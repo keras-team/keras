@@ -170,6 +170,11 @@ class IndexLookupLayerSavedModelSaver(LayerSavedModelSaver):
   def python_properties(self):
     # TODO(kathywu): Add python property validator
     metadata = self._python_properties_internal()
-    if metadata['config'].get('has_static_table', False):
-      metadata['config']['vocabulary'] = None
+    # Clear the vocabulary from the config during saving. The vocab will be
+    # saved as part of the lookup table directly, which correctly handle saving
+    # vocabulary files as a SavedModel asset.
+    metadata['config']['vocabulary'] = None
+    # Keep a separate config property to track that a vocabulary was passed in
+    # and not adapted.
+    metadata['config']['has_input_vocabulary'] = self.obj._has_input_vocabulary  # pylint: disable=protected-access
     return metadata

@@ -59,7 +59,7 @@ _ACCUMULATOR_NUM_DOCUMENTS = "num_documents"
 
 @keras_export(
     "keras.layers.experimental.preprocessing.TextVectorization", v1=[])
-class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
+class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   """Text vectorization layer.
 
   This layer has basic options for managing text in a Keras model. It
@@ -149,10 +149,11 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
       `max_tokens` even if the number of unique tokens in the vocabulary is less
       than max_tokens, resulting in a tensor of shape `(batch_size, max_tokens)`
       regardless of vocabulary size. Defaults to False.
-    vocabulary: An optional list of vocabulary terms, or a path to a text file
-      containing a vocabulary to load into this layer. The file should contain
-      one token per line. If the list or file contains the same token multiple
-      times, an error will be thrown.
+    vocabulary: Optional. Either an array of strings or a string path to a text
+      file. If passing an array, can pass a tuple, list, 1D numpy array, or 1D
+      tensor containing the string vocbulary terms. If passing a file path, the
+      file should contain one line per term in the vocabulary. If this argument
+      is set, there is no need to `adapt` the layer.
 
   Example:
 
@@ -230,6 +231,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
                pad_to_max_tokens=False,
                vocabulary=None,
                **kwargs):
+
     # This layer only applies to string processing, and so should only have
     # a dtype of 'string'.
     if "dtype" in kwargs and kwargs["dtype"] != tf.string:
@@ -299,49 +301,30 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
     self._output_mode = output_mode
     self._output_sequence_length = output_sequence_length
-    vocabulary_size = 0
-    # IndexLookup needs to keep track the current vocab size outside of its
-    # layer weights. We persist it as a hidden part of the config during
-    # serialization.
-    if "vocabulary_size" in kwargs:
-      vocabulary_size = kwargs["vocabulary_size"]
-      del kwargs["vocabulary_size"]
+    # Drop deprecated config options.
+    kwargs.pop("vocabulary_size", None)
 
-    super(TextVectorization, self).__init__(
-        combiner=None,
-        **kwargs)
-    base_preprocessing_layer.keras_kpl_gauge.get_cell(
-        "TextVectorization").set(True)
+    super().__init__(streaming=False, **kwargs)
+    base_preprocessing_layer.keras_kpl_gauge.get_cell("TextVectorization").set(
+        True)
 
     self._index_lookup_layer = string_lookup.StringLookup(
         max_tokens=max_tokens,
         vocabulary=vocabulary,
         pad_to_max_tokens=pad_to_max_tokens,
         mask_token="",
-        output_mode=output_mode if output_mode is not None else INT,
-        vocabulary_size=vocabulary_size)
-
-  def _assert_same_type(self, expected_type, values, value_name):
-    if tf.as_dtype(expected_type) != tf.as_dtype(values.dtype):
-      raise RuntimeError("Expected %s type %s, got %s" %
-                         (value_name, expected_type, values.dtype))
+        output_mode=output_mode if output_mode is not None else INT)
 
   def compute_output_shape(self, input_shape):
-    if self._output_mode != INT:
-      return tf.TensorShape([input_shape[0], self._max_tokens])
+    if self._output_mode == INT:
+      return tf.TensorShape([input_shape[0], self._output_sequence_length])
 
-    if self._output_mode == INT and self._split is None:
+    if self._split is None:
       if len(input_shape) <= 1:
         input_shape = tuple(input_shape) + (1,)
-      return tf.TensorShape(input_shape)
-
-    if self._output_mode == INT and self._split is not None:
-      input_shape = list(input_shape)
-      if len(input_shape) <= 1:
-        input_shape = input_shape + [self._output_sequence_length]
-      else:
-        input_shape[1] = self._output_sequence_length
-      return tf.TensorShape(input_shape)
+    else:
+      input_shape = tuple(input_shape) + (None,)
+    return self._index_lookup_layer.compute_output_shape(input_shape)
 
   def compute_output_signature(self, input_spec):
     output_shape = self.compute_output_shape(input_spec.shape.as_list())
@@ -349,52 +332,18 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
                     else backend.floatx())
     return tf.TensorSpec(shape=output_shape, dtype=output_dtype)
 
-  def adapt(self, data, reset_state=True):
-    """Fits the state of the preprocessing layer to the dataset.
-
-    Overrides the default adapt method to apply relevant preprocessing to the
-    inputs before passing to the combiner.
-
-    Args:
-      data: The data to train on. It can be passed either as a tf.data Dataset,
-        as a NumPy array, a string tensor, or as a list of texts.
-      reset_state: Optional argument specifying whether to clear the state of
-        the layer at the start of the call to `adapt`. This must be True for
-        this layer, which does not support repeated calls to `adapt`.
-    """
-    if not reset_state:
-      raise ValueError("TextVectorization does not support streaming adapts.")
-
-    # Build the layer explicitly with the original data shape instead of relying
-    # on an implicit call to `build` in the base layer's `adapt`, since
-    # preprocessing changes the input shape.
+  def update_state(self, data):
     if isinstance(data, (list, tuple, np.ndarray)):
       data = tf.convert_to_tensor(data)
+    if data.shape.rank == 1:
+      data = tf.expand_dims(data, axis=-1)
+    self._index_lookup_layer.update_state(self._preprocess(data))
 
-    if isinstance(data, tf.Tensor):
-      if data.shape.rank == 1:
-        data = tf.expand_dims(data, axis=-1)
-      self.build(data.shape)
-      preprocessed_inputs = self._preprocess(data)
-    elif isinstance(data, tf.data.Dataset):
-      # TODO(momernick): Replace this with a more V2-friendly API.
-      shape = tf.compat.v1.data.get_output_shapes(data)
-      if not isinstance(shape, tf.TensorShape):
-        raise ValueError("The dataset passed to 'adapt' must contain a single "
-                         "tensor value.")
-      if shape.rank == 0:
-        data = data.map(lambda tensor: tf.expand_dims(tensor, 0))
-        shape = tf.compat.v1.data.get_output_shapes(data)
-      if shape.rank == 1:
-        data = data.map(lambda tensor: tf.expand_dims(tensor, -1))
-      self.build(tf.compat.v1.data.get_output_shapes(data))
-      preprocessed_inputs = data.map(self._preprocess)
-    else:
-      raise ValueError(
-          "adapt() requires a Dataset or an array as input, got {}".format(
-              type(data)))
+  def finalize_state(self):
+    self._index_lookup_layer.finalize_state()
 
-    self._index_lookup_layer.adapt(preprocessed_inputs)
+  def reset_state(self):  # pylint: disable=method-hidden
+    self._index_lookup_layer.reset_state()
 
   def get_vocabulary(self, include_special_tokens=True):
     """Returns the current vocabulary of the layer.
@@ -427,17 +376,9 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
         "output_mode": self._output_mode,
         "output_sequence_length": self._output_sequence_length,
         "pad_to_max_tokens": self._index_lookup_layer.pad_to_max_tokens,
-        "vocabulary_size": self._index_lookup_layer.vocabulary_size(),
     }
     base_config = super(TextVectorization, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-
-  def count_params(self):
-    # This method counts the number of scalars in the weights of this layer.
-    # Since this layer doesn't have any /actual/ weights (in that there's
-    # nothing in this layer that can be trained - we only use the weight
-    # abstraction for ease of saving!) we return 0.
-    return 0
 
   def set_vocabulary(self, vocabulary, idf_weights=None):
     """Sets vocabulary (and optionally document frequency) data for this layer.
@@ -449,16 +390,19 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
     it.
 
     Args:
-      vocabulary: An array of string tokens, or a path to a file containing one
-        token per line.
-      idf_weights: An array of document frequency data with equal length to
-        vocab. Only necessary if the layer output_mode is TF_IDF.
+      vocabulary: Either an array or a string path to a text file. If passing an
+        array, can pass a tuple, list, 1D numpy array, or 1D tensor containing
+        the vocbulary terms. If passing a file path, the file should contain one
+        line per term in the vocabulary.
+      idf_weights: A tuple, list, 1D numpy array, or 1D tensor of inverse
+        document frequency weights with equal length to vocabulary. Must be set
+        if `output_mode` is `"tf_idf"`. Should not be set otherwise.
 
     Raises:
       ValueError: If there are too many inputs, the inputs do not match, or
         input data is missing.
       RuntimeError: If the vocabulary cannot be set when this function is
-        called. This happens when `"multi_hot"`, `"count"`, and "tfidf" modes,
+        called. This happens when `"multi_hot"`, `"count"`, and "tf_idf" modes,
         if `pad_to_max_tokens` is False and the layer itself has already been
         called.
     """
@@ -470,22 +414,13 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
     # expression to evaluate to False instead of True if the shape is undefined;
     # the expression needs to evaluate to True in that case.
     if self._split is not None:
-      if (input_shape is not None and input_shape.ndims > 1 and
-          not input_shape[-1] == 1):  # pylint: disable=g-comparison-negation
+      if input_shape.ndims > 1 and not input_shape[-1] == 1:  # pylint: disable=g-comparison-negation
         raise RuntimeError(
             "When using TextVectorization to tokenize strings, the innermost "
             "dimension of the input array must be 1, got shape "
             "{}".format(input_shape))
 
     super(TextVectorization, self).build(input_shape)
-
-  def _set_state_variables(self, updates):
-    if not self.built:
-      raise RuntimeError("_set_state_variables() must be called after build().")
-    if self._output_mode == TF_IDF:
-      self.set_vocabulary(updates[_VOCAB_NAME], idf_weights=updates[_IDF_NAME])
-    else:
-      self.set_vocabulary(updates[_VOCAB_NAME])
 
   def _preprocess(self, inputs):
     if self._standardize == LOWER_AND_STRIP_PUNCTUATION:

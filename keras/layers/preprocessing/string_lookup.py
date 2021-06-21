@@ -20,7 +20,6 @@ import tensorflow.compat.v2 as tf
 import numpy as np
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
-from keras.layers.preprocessing import table_utils
 from tensorflow.python.util.tf_export import keras_export
 
 
@@ -69,10 +68,11 @@ class StringLookup(index_lookup.IndexLookup):
       no mask term will be added. Defaults to `None`.
     oov_token: Only used when `invert` is True. The token to return for OOV
       indices. Defaults to `"[UNK]"`.
-    vocabulary: An optional list of tokens, or a path to a text file containing
-      a vocabulary to load into this layer. The file should contain one token
-      per line. If the list or file contains the same token multiple times, an
-      error will be thrown.
+    vocabulary: Optional. Either an array of strings or a string path to a text
+      file. If passing an array, can pass a tuple, list, 1D numpy array, or 1D
+      tensor containing the string vocbulary terms. If passing a file path, the
+      file should contain one line per term in the vocabulary. If this argument
+      is set, there is no need to `adapt` the layer.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -323,20 +323,6 @@ class StringLookup(index_lookup.IndexLookup):
     config = {"encoding": self.encoding}
     base_config = super(StringLookup, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
-
-  def set_vocabulary(self, vocabulary, idf_weights=None):
-    if isinstance(vocabulary, str):
-      if self.output_mode == index_lookup.TF_IDF:
-        raise RuntimeError("Setting vocabulary directly from a file is not "
-                           "supported in TF-IDF mode, since this layer cannot "
-                           "read files containing TF-IDF weight data. Please "
-                           "read the file using Python and set the vocabulary "
-                           "and weights by passing lists or arrays to the "
-                           "set_vocabulary function's `vocabulary` and "
-                           "`idf_weights` args.")
-      vocabulary = table_utils.get_vocabulary_from_file(vocabulary,
-                                                        self.encoding)
-    super().set_vocabulary(vocabulary, idf_weights=idf_weights)
 
   # Overriden methods from IndexLookup.
   def _tensor_vocab_to_numpy(self, vocabulary):

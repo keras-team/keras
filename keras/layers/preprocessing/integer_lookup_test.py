@@ -405,9 +405,9 @@ class IntegerLookupVocabularyTest(
     self.assertAllEqual(expected_output, output_dataset)
 
   def test_no_vocab(self):
-    with self.assertRaisesRegex(ValueError,
-                                "You must set the layer's vocabulary"):
-      layer = integer_lookup.IntegerLookup()
+    with self.assertRaisesRegex(RuntimeError,
+                                "you must set the layer's vocabulary"):
+      layer = integer_lookup.IntegerLookup(output_mode="binary")
       layer([[1]])
 
   def test_one_hot_output(self):
