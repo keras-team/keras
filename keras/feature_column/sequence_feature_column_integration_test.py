@@ -92,7 +92,7 @@ class SequenceFeatureColumnIntegrationTest(tf.test.TestCase):
     seq_input, _ = sequence_input_layer(features)
     dense_input_layer = dense_features.DenseFeatures(ctx_cols)
     ctx_input = dense_input_layer(features)
-    ctx_input = backend.repeat(ctx_input, tf.compat.v1.shape(seq_input)[1])
+    ctx_input = backend.repeat(ctx_input, tf.shape(seq_input)[1])
     concatenated_input = merge.concatenate([seq_input, ctx_input])
 
     rnn_layer = recurrent.RNN(recurrent.SimpleRNNCell(10))

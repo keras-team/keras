@@ -928,7 +928,7 @@ def device(should_use_gpu):
     dev = '/device:GPU:0'
   else:
     dev = '/device:CPU:0'
-  with tf.compat.v1.device(dev):
+  with tf.device(dev):
     yield
 
 

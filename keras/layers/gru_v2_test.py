@@ -286,10 +286,10 @@ class GRUV2Test(keras_parameterized.TestCase):
                         reset_after=True)
       if time_major:
         converted_input = keras.layers.Lambda(
-            lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(inputs)
+            lambda t: tf.transpose(t, [1, 0, 2]))(inputs)
         outputs = layer(converted_input)
         outputs = keras.layers.Lambda(
-            lambda t: tf.compat.v1.transpose(t, [1, 0, 2]))(outputs)
+            lambda t: tf.transpose(t, [1, 0, 2]))(outputs)
       else:
         outputs = layer(inputs)
       return keras.models.Model(inputs, outputs)
@@ -721,7 +721,7 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     # TF model does not work with scalar model output, specially during
     # aggregation.
     runtime = keras.layers.Lambda(
-        lambda x: tf.compat.v1.expand_dims(x, axis=-1))(runtime)
+        lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
     self._test_runtime_with_model(model)
 
@@ -743,7 +743,7 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     # TF model does not work with scalar model output, specially during
     # aggregation.
     runtime = keras.layers.Lambda(
-        lambda x: tf.compat.v1.expand_dims(x, axis=-1))(runtime)
+        lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
 
     (x_train, y_train), _ = testing_utils.get_test_data(
@@ -798,7 +798,7 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     a = tf.constant(0)
     b = tf.constant(1)
     # Will always run the GRU layer.
-    outputs, runtime = tf.compat.v1.cond(
+    outputs, runtime = tf.cond(
         tf.less(a, b),
         lambda: layer(inputs),
         lambda: (zeros, dummy_runtime))
@@ -807,7 +807,7 @@ class GRUGraphRewriteTest(keras_parameterized.TestCase):
     # TF model does not work with scalar model output, specially during
     # aggregation.
     runtime = keras.layers.Lambda(
-        lambda x: tf.compat.v1.expand_dims(x, axis=-1))(runtime)
+        lambda x: tf.expand_dims(x, axis=-1))(runtime)
     model = keras.models.Model(inputs=inputs, outputs=[outputs, runtime])
     self._test_runtime_with_model(model)
 

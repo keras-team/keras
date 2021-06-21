@@ -323,7 +323,7 @@ class TestModelCloning(keras_parameterized.TestCase):
           return inputs
 
     inputs = keras.layers.Input(shape=(3))
-    t = tf.sequence_mask(tf.compat.v1.shape(inputs)[1])
+    t = tf.sequence_mask(tf.shape(inputs)[1])
     model = keras.models.Model(inputs, LayerWithTensorKwarg()(inputs, t))
     model.add_loss(tf.reduce_sum(model.outputs))
 

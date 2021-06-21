@@ -134,7 +134,7 @@ class CategoryCrossing(base_layer.Layer):
     if isinstance(inp, (list, tuple, np.ndarray)):
       inp = tf.convert_to_tensor(inp)
     if inp.shape.rank == 1:
-      inp = tf.compat.v1.expand_dims(inp, axis=-1)
+      inp = tf.expand_dims(inp, axis=-1)
     return inp
 
   def call(self, inputs):

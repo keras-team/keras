@@ -284,7 +284,7 @@ class PiecewiseConstantDecay(LearningRateSchedule):
       # The default isn't needed here because our conditions are mutually
       # exclusive and exhaustive, but tf.case requires it.
       default = lambda: values[0]
-      return tf.compat.v1.case(pred_fn_pairs, default, exclusive=True)
+      return tf.case(pred_fn_pairs, default, exclusive=True)
 
   def get_config(self):
     return {
@@ -742,7 +742,7 @@ class CosineDecayRestarts(LearningRateSchedule):
 
         return i_restart, completed_fraction
 
-      i_restart, completed_fraction = tf.compat.v1.cond(
+      i_restart, completed_fraction = tf.cond(
           tf.equal(t_mul, 1.0),
           lambda: compute_step(completed_fraction, geometric=False),
           lambda: compute_step(completed_fraction, geometric=True))

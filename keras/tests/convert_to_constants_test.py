@@ -159,7 +159,7 @@ class VariablesToConstantsTest(tf.test.TestCase):
           tf.TensorSpec(shape=(20), dtype=tf.int32)
       ])
       def func(self, x):
-        return tf.compat.v1.gather(self.shared_weights, x)
+        return tf.gather(self.shared_weights, x)
 
     model = EmbeddingModel()
     root, output_func = self._freezeModel(model.func)

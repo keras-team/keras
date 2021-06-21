@@ -174,8 +174,8 @@ class Hashing(base_layer.Layer):
       values = tf.as_string(values)
     values = str_to_hash_bucket(values, num_available_bins, name='hash')
     if mask is not None:
-      values = tf.add(values, tf.compat.v1.ones_like(values))
-      values = tf.compat.v1.where(mask, tf.compat.v1.zeros_like(values), values)
+      values = tf.add(values, tf.ones_like(values))
+      values = tf.where(mask, tf.zeros_like(values), values)
     return values
 
   def _get_string_to_hash_bucket_fn(self):

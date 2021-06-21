@@ -466,7 +466,7 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
       ref_y_after_train = model.predict(train_x)
       for v in model.variables:
         self.evaluate(
-            v.assign(tf.random.normal(shape=tf.compat.v1.shape(v))))
+            v.assign(tf.random.normal(shape=tf.shape(v))))
 
       self.addCleanup(shutil.rmtree, temp_dir)
 
@@ -526,7 +526,7 @@ class TestWeightSavingAndLoadingTFFormat(tf.test.TestCase, parameterized.TestCas
           tf.train.latest_checkpoint(temp_dir))
       for v in model.variables:
         self.evaluate(
-            v.assign(tf.random.normal(shape=tf.compat.v1.shape(v))))
+            v.assign(tf.random.normal(shape=tf.shape(v))))
 
       self.addCleanup(shutil.rmtree, temp_dir)
 

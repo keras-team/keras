@@ -188,7 +188,7 @@ def _op_in_graph_mode(tensor):
 
 def _assign_if_finite(var, value):
   """Assigns a value to a variable if the value is finite."""
-  return tf.compat.v1.cond(
+  return tf.cond(
       tf.math.is_finite(value), lambda: _op_in_graph_mode(var.assign(value)),
       tf.no_op)
 
@@ -231,16 +231,15 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
     Raises:
       RuntimeError: If a weight with `name` has already been added.
     """
-    variable = tf.compat.v1.Variable(
+    variable = tf.Variable(
         initial_value=initial_value,
         name=name,
         dtype=dtype,
         trainable=False,
-        use_resource=True,
         synchronization=tf.VariableSynchronization.AUTO,
         # Set aggregation to NONE, as loss scaling variables should never be
         # aggregated.
-        aggregation=tf.compat.v1.VariableAggregation.NONE)
+        aggregation=tf.VariableAggregation.NONE)
     if tf.executing_eagerly():
       graph_key = None
     else:
@@ -343,7 +342,7 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
             _assign_if_finite(self.current_loss_scale, new_loss_scale),
             self.counter.assign(0))
 
-      return tf.compat.v1.cond(
+      return tf.cond(
           self.counter + 1 >= self.growth_steps,
           incr_loss_scale,
           lambda: _op_in_graph_mode(self.counter.assign_add(1)))
@@ -357,8 +356,9 @@ class _DynamicLossScaleState(tf.__internal__.tracking.Trackable):
           self.counter.assign(0),
           self.current_loss_scale.assign(new_loss_scale))
 
-    update_op = tf.compat.v1.cond(is_finite, update_if_finite_grads,
-                                      update_if_not_finite_grads)
+    update_op = tf.cond(is_finite,
+                        update_if_finite_grads,
+                        update_if_not_finite_grads)
     should_apply_gradients = is_finite
     return update_op, should_apply_gradients
 

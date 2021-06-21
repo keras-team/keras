@@ -84,7 +84,7 @@ def create_identity_with_nan_gradients_fn(have_nan_gradients):
     """Function whose gradient is NaN iff `have_nan_gradients` is True."""
     x = tf.identity(x)
     def grad(dx):
-      return tf.compat.v1.cond(
+      return tf.cond(
           have_nan_gradients,
           lambda: dx * float('NaN'),
           lambda: dx

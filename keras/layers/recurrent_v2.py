@@ -612,13 +612,13 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
             go_backwards, sequence_lengths):
   """GRU with CuDNN implementation which is only available for GPU."""
   if not time_major and mask is None:
-    inputs = tf.compat.v1.transpose(inputs, perm=(1, 0, 2))
+    inputs = tf.transpose(inputs, perm=(1, 0, 2))
     seq_axis, batch_axis = (0, 1)
   else:
     seq_axis, batch_axis = (0, 1) if time_major else (1, 0)
   # For init_h, cuDNN expects one more dim of num_layers before or after batch
   # dim for time major or batch major inputs respectively
-  init_h = tf.compat.v1.expand_dims(init_h, axis=seq_axis)
+  init_h = tf.expand_dims(init_h, axis=seq_axis)
 
   weights = tf.split(kernel, 3, axis=1)
   weights += tf.split(recurrent_kernel, 3, axis=1)
@@ -679,8 +679,8 @@ def gpu_gru(inputs, init_h, kernel, recurrent_kernel, bias, mask, time_major,
 
   last_output = outputs[-1]
   if not time_major and mask is None:
-    outputs = tf.compat.v1.transpose(outputs, perm=[1, 0, 2])
-  h = tf.compat.v1.squeeze(h, axis=seq_axis)
+    outputs = tf.transpose(outputs, perm=[1, 0, 2])
+  h = tf.squeeze(h, axis=seq_axis)
 
   # In the case of variable length input, the cudnn kernel will fill zeros for
   # the output, whereas the default keras behavior is to bring over the previous
@@ -785,7 +785,7 @@ def gru_with_backend_selection(inputs, init_h, kernel, recurrent_kernel, bias,
           sequence_lengths=sequence_lengths,
           zero_output_for_mask=zero_output_for_mask)
 
-    return tf.compat.v1.cond(
+    return tf.cond(
         is_cudnn_supported_inputs(mask, time_major),
         true_fn=cudnn_gru_fn,
         false_fn=standard_gru_fn)
@@ -1236,7 +1236,8 @@ class LSTM(recurrent.DropoutRNNCellMixin, recurrent.LSTM):
           can_use_gpu = (
               # Either user specified GPU or unspecified but GPU is available.
               (device_type == _GPU_DEVICE_NAME or
-               (device_type is None and tf.config.list_logical_devices('GPU'))) and
+               (device_type is None
+                and tf.config.list_logical_devices('GPU'))) and
               (mask is None or
                is_cudnn_supported_inputs(mask, self.time_major)))
           # Under eager context, check the device placement and prefer the
@@ -1298,7 +1299,7 @@ def _canonical_to_params(weights, biases, shape, transpose_weights=False):
     The converted weights that can be feed to CuDNN ops as param.
   """
   def convert(w):
-    return tf.compat.v1.transpose(w) if transpose_weights else w
+    return tf.transpose(w) if transpose_weights else w
 
   weights = [tf.reshape(convert(x), shape) for x in weights]
   biases = [tf.reshape(x, shape) for x in biases]
@@ -1428,20 +1429,20 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
       value is for testing purpose and should not be used by user.
   """
   if not time_major and mask is None:
-    inputs = tf.compat.v1.transpose(inputs, perm=(1, 0, 2))
+    inputs = tf.transpose(inputs, perm=(1, 0, 2))
     seq_axis, batch_axis = (0, 1)
   else:
     seq_axis, batch_axis = (0, 1) if time_major else (1, 0)
   # For init_h and init_c, cuDNN expects one more dim of num_layers before or
   # after batch dim for time major or batch major inputs respectively
-  init_h = tf.compat.v1.expand_dims(init_h, axis=seq_axis)
-  init_c = tf.compat.v1.expand_dims(init_c, axis=seq_axis)
+  init_h = tf.expand_dims(init_h, axis=seq_axis)
+  init_c = tf.expand_dims(init_c, axis=seq_axis)
 
   weights = tf.split(kernel, 4, axis=1)
   weights += tf.split(recurrent_kernel, 4, axis=1)
   # CuDNN has an extra set of bias for inputs, we disable them (setting to 0),
   # so that mathematically it is same as the canonical LSTM implementation.
-  full_bias = tf.concat((tf.compat.v1.zeros_like(bias), bias), 0)
+  full_bias = tf.concat((tf.zeros_like(bias), bias), 0)
 
   if tf.sysconfig.get_build_info()['is_rocm_build']:
     # ROCm MIOpen's weight sequence for LSTM is different from both canonical
@@ -1500,9 +1501,9 @@ def gpu_lstm(inputs, init_h, init_c, kernel, recurrent_kernel, bias, mask,
 
   last_output = outputs[-1]
   if not time_major and mask is None:
-    outputs = tf.compat.v1.transpose(outputs, perm=[1, 0, 2])
-  h = tf.compat.v1.squeeze(h, axis=seq_axis)
-  c = tf.compat.v1.squeeze(c, axis=seq_axis)
+    outputs = tf.transpose(outputs, perm=[1, 0, 2])
+  h = tf.squeeze(h, axis=seq_axis)
+  c = tf.squeeze(c, axis=seq_axis)
 
   # In the case of variable length input, the cudnn kernel will fill zeros for
   # the output, whereas the default keras behavior is to bring over the previous
@@ -1612,7 +1613,7 @@ def lstm_with_backend_selection(inputs, init_h, init_c, kernel,
           sequence_lengths=sequence_lengths,
           zero_output_for_mask=zero_output_for_mask)
 
-    return tf.compat.v1.cond(
+    return tf.cond(
         is_cudnn_supported_inputs(mask, time_major),
         true_fn=cudnn_lstm_fn,
         false_fn=stardard_lstm_fn)
@@ -1672,7 +1673,7 @@ def is_sequence_right_padded(mask):
   Returns:
     boolean scalar tensor, whether the mask is strictly right padded.
   """
-  max_seq_length = tf.compat.v1.shape(mask)[1]
+  max_seq_length = tf.shape(mask)[1]
   count_of_true = tf.reduce_sum(tf.cast(mask, tf.int32), axis=1)
   right_padded_mask = tf.sequence_mask(
       count_of_true, maxlen=max_seq_length)
@@ -1694,7 +1695,7 @@ def has_fully_masked_sequence(mask):
 
 def is_cudnn_supported_inputs(mask, time_major):
   if time_major:
-    mask = tf.compat.v1.transpose(mask)
+    mask = tf.transpose(mask)
 
   return tf.logical_and(
       is_sequence_right_padded(mask),
@@ -1747,7 +1748,7 @@ def _get_context_device_type():
 
 
 def _runtime(runtime_name):
-  with tf.compat.v1.device('/cpu:0'):
+  with tf.device('/cpu:0'):
     return tf.constant(
         runtime_name, dtype=tf.float32, name='runtime')
 

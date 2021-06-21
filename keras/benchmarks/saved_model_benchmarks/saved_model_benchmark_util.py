@@ -32,7 +32,7 @@ def save_and_load_benchmark(app):
   model_name = app.__name__
 
   tmp_dir = tf.compat.v1.test.get_temp_dir()
-  tf.compat.v1.gfile.MakeDirs(tmp_dir)
+  tf.io.gfile.makedirs(tmp_dir)
   save_dir = tempfile.mkdtemp(dir=tmp_dir)
 
   total_save_time = 0

@@ -1255,7 +1255,7 @@ def _ragged_tensor_apply_loss(loss_fn, y_true, y_pred, y_pred_extra_dim=False):
   def _wrapper(inputs, ragged_output):
     _, y_pred = inputs
     if isinstance(y_pred, tf.RaggedTensor):
-      return tf.compat.v1.cond(
+      return tf.cond(
           rt_is_equiv_dense(y_pred),
           lambda: _call_loss(_convert_to_dense(inputs), ragged_output),
           lambda: _call_loss(inputs, ragged_output))
@@ -1656,7 +1656,7 @@ def categorical_crossentropy(y_true,
       label_smoothing, dtype=backend.floatx())
 
   def _smooth_labels():
-    num_classes = tf.cast(tf.compat.v1.shape(y_true)[-1], y_pred.dtype)
+    num_classes = tf.cast(tf.shape(y_true)[-1], y_pred.dtype)
     return y_true * (1.0 - label_smoothing) + (label_smoothing / num_classes)
 
   y_true = tf.__internal__.smart_cond.smart_cond(label_smoothing, _smooth_labels,

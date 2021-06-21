@@ -38,7 +38,7 @@ maybe_distribute = tf.__internal__.test.combinations.combine(distribution=[
 
 
 def get_var(val, dtype, name=None):
-  return tf.compat.v1.Variable(val, use_resource=True, dtype=dtype, name=name)
+  return tf.Variable(val, dtype=dtype, name=name)
 
 
 def set_cpu_logical_devices_to_at_least(num):

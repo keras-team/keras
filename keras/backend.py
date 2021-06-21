@@ -1389,7 +1389,7 @@ def shape(x):
   <KerasTensor: shape=(3,) dtype=int32 inferred_value=[2, 4, 5] ...>
 
   """
-  return tf.compat.v1.shape(x)
+  return tf.shape(x)
 
 
 @keras_export('keras.backend.int_shape')
@@ -1655,7 +1655,7 @@ def zeros_like(x, dtype=None, name=None):
   # array([[ 0.,  0.,  0.], [ 0.,  0.,  0.]], dtype=float32)
   ```
   """
-  return tf.compat.v1.zeros_like(x, dtype=dtype, name=name)
+  return tf.zeros_like(x, dtype=dtype, name=name)
 
 
 @keras_export('keras.backend.ones_like')
@@ -1682,7 +1682,7 @@ def ones_like(x, dtype=None, name=None):
          [1.,  1.,  1.]], dtype=float32)
 
   """
-  return tf.compat.v1.ones_like(x, dtype=dtype, name=name)
+  return tf.ones_like(x, dtype=dtype, name=name)
 
 
 def identity(x, name=None):
@@ -1953,14 +1953,14 @@ def dot(x, y):
   """
   if ndim(x) is not None and (ndim(x) > 2 or ndim(y) > 2):
     x_shape = []
-    for i, s in zip(int_shape(x), tf.unstack(tf.compat.v1.shape(x))):
+    for i, s in zip(int_shape(x), tf.unstack(tf.shape(x))):
       if i is not None:
         x_shape.append(i)
       else:
         x_shape.append(s)
     x_shape = tuple(x_shape)
     y_shape = []
-    for i, s in zip(int_shape(y), tf.unstack(tf.compat.v1.shape(y))):
+    for i, s in zip(int_shape(y), tf.unstack(tf.shape(y))):
       if i is not None:
         y_shape.append(i)
       else:
@@ -2095,11 +2095,11 @@ def batch_dot(x, y, axes=None):
 
   # if rank is 2, expand to 3.
   if x_ndim == 2:
-    x = tf.compat.v1.expand_dims(x, 1)
+    x = tf.expand_dims(x, 1)
     a0 += 1
     x_ndim += 1
   if y_ndim == 2:
-    y = tf.compat.v1.expand_dims(y, 2)
+    y = tf.expand_dims(y, 2)
     y_ndim += 1
 
   # bring x's dimension to be reduced to last axis.
@@ -2144,7 +2144,7 @@ def batch_dot(x, y, axes=None):
   result = tf.matmul(x, y)
 
   # if inputs were squashed, we have to reshape the matmul output.
-  output_shape = tf.compat.v1.shape(result)
+  output_shape = tf.shape(result)
   do_reshape = False
 
   if x_squashed:
@@ -2163,9 +2163,9 @@ def batch_dot(x, y, axes=None):
 
   # if the inputs were originally rank 2, we remove the added 1 dim.
   if orig_x_ndim == 2:
-    result = tf.compat.v1.squeeze(result, 1)
+    result = tf.squeeze(result, 1)
   elif orig_y_ndim == 2:
-    result = tf.compat.v1.squeeze(result, -1)
+    result = tf.squeeze(result, -1)
 
   return result
 
@@ -2472,7 +2472,7 @@ def argmax(x, axis=-1):
   Returns:
       A tensor.
   """
-  return tf.compat.v1.argmax(x, axis)
+  return tf.argmax(x, axis)
 
 
 @keras_export('keras.backend.argmin')
@@ -2488,7 +2488,7 @@ def argmin(x, axis=-1):
   Returns:
       A tensor.
   """
-  return tf.compat.v1.argmin(x, axis)
+  return tf.argmin(x, axis)
 
 
 @keras_export('keras.backend.square')
@@ -2880,7 +2880,7 @@ def _broadcast_normalize_batch_in_training(x,
     if axis in reduction_axes:
       target_shape.append(1)
     else:
-      target_shape.append(tf.compat.v1.shape(x)[axis])
+      target_shape.append(tf.shape(x)[axis])
   target_shape = tf.stack(target_shape)
 
   broadcast_mean = tf.reshape(mean, target_shape)
@@ -3263,8 +3263,8 @@ def repeat_elements(x, rep, axis):
 
   # Repeating
   auxiliary_axis = axis + 1
-  x_shape = tf.compat.v1.shape(x)
-  x_rep = tf.compat.v1.expand_dims(x, axis=auxiliary_axis)
+  x_shape = tf.shape(x)
+  x_rep = tf.expand_dims(x, axis=auxiliary_axis)
   reps = np.ones(len(x.shape) + 1)
   reps[auxiliary_axis] = rep
   x_rep = tf.tile(x_rep, reps)
@@ -3315,7 +3315,7 @@ def repeat(x, n):
 
   """
   assert ndim(x) == 2
-  x = tf.compat.v1.expand_dims(x, 1)
+  x = tf.expand_dims(x, 1)
   pattern = tf.stack([1, n, 1])
   return tf.tile(x, pattern)
 
@@ -3446,7 +3446,7 @@ def expand_dims(x, axis=-1):
   Returns:
       A tensor with expanded dimensions.
   """
-  return tf.compat.v1.expand_dims(x, axis)
+  return tf.expand_dims(x, axis)
 
 
 @keras_export('keras.backend.squeeze')
@@ -3462,7 +3462,7 @@ def squeeze(x, axis):
   Returns:
       A tensor with the same data as `x` but reduced dimensions.
   """
-  return tf.compat.v1.squeeze(x, [axis])
+  return tf.squeeze(x, [axis])
 
 
 @keras_export('keras.backend.temporal_padding')
@@ -4216,7 +4216,7 @@ def rnn(step_function,
   flatted_inputs = tf.nest.flatten(inputs)
   time_steps = flatted_inputs[0].shape[0]
   batch = flatted_inputs[0].shape[1]
-  time_steps_t = tf.compat.v1.shape(flatted_inputs[0])[0]
+  time_steps_t = tf.shape(flatted_inputs[0])[0]
 
   for input_ in flatted_inputs:
     input_.shape.with_rank_at_least(3)
@@ -4245,7 +4245,7 @@ def rnn(step_function,
       raise ValueError('input_t is expected to be tensor, but got %s' % input_t)
     rank_diff = len(input_t.shape) - len(mask_t.shape)
     for _ in range(rank_diff):
-      mask_t = tf.compat.v1.expand_dims(mask_t, -1)
+      mask_t = tf.expand_dims(mask_t, -1)
     multiples = [1] * fixed_dim + input_t.shape.as_list()[fixed_dim:]
     return tf.tile(mask_t, multiples)
 
@@ -4419,7 +4419,7 @@ def rnn(step_function,
     if masking_fn is not None:
       # Mask for the T output will be base on the output of T - 1. In the case
       # T = 0, a zero filled tensor will be used.
-      flat_zero_output = tuple(tf.compat.v1.zeros_like(o)
+      flat_zero_output = tuple(tf.zeros_like(o)
                                for o in tf.nest.flatten(output_time_zero))
       def _step(time, output_ta_t, prev_output, *states):
         """RNN step function.
@@ -4582,12 +4582,12 @@ def switch(condition, then_expression, else_expression):
     if cond_ndim > 1:
       ndim_diff = expr_ndim - cond_ndim
       cond_shape = tf.concat(
-          [tf.compat.v1.shape(condition), [1] * ndim_diff], axis=0)
+          [tf.shape(condition), [1] * ndim_diff], axis=0)
       condition = tf.reshape(condition, cond_shape)
-      expr_shape = tf.compat.v1.shape(then_expression)
+      expr_shape = tf.shape(then_expression)
       shape_diff = expr_shape - cond_shape
       tile_shape = tf.where(shape_diff > 0, expr_shape,
-                                      tf.compat.v1.ones_like(expr_shape))
+                            tf.ones_like(expr_shape))
       condition = tf.tile(condition, tile_shape)
     x = tf.where(condition, then_expression, else_expression)
   return x
@@ -4756,7 +4756,7 @@ def softmax(x, axis=-1):
   Returns:
       A tensor.
   """
-  return tf.compat.v1.math.softmax(x, axis=axis)
+  return tf.nn.softmax(x, axis=axis)
 
 
 @keras_export('keras.backend.softplus')
@@ -4997,7 +4997,7 @@ def binary_crossentropy(target, output, from_logits=False):
     from_logits = True
 
   if from_logits:
-    return tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(labels=target, logits=output)
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=target, logits=output)
 
   if (not isinstance(output, (tf.__internal__.EagerTensor, tf.Variable)) and
       output.op.type == 'Sigmoid') and not hasattr(output, '_keras_history'):
@@ -5006,7 +5006,7 @@ def binary_crossentropy(target, output, from_logits=False):
     # to prevent collapsing zero when training.
     assert len(output.op.inputs) == 1
     output = output.op.inputs[0]
-    return tf.compat.v1.nn.sigmoid_cross_entropy_with_logits(labels=target, logits=output)
+    return tf.nn.sigmoid_cross_entropy_with_logits(labels=target, logits=output)
 
   epsilon_ = _constant_to_tensor(epsilon(), output.dtype.base_dtype)
   output = tf.clip_by_value(output, epsilon_, 1. - epsilon_)
@@ -5370,8 +5370,8 @@ def conv2d_transpose(x,
 
   if dilation_rate == (1, 1):
     x = tf.compat.v1.nn.conv2d_transpose(x, kernel, output_shape, strides,
-                            padding=padding,
-                            data_format=tf_data_format)
+                                         padding=padding,
+                                         data_format=tf_data_format)
   else:
     assert dilation_rate[0] == dilation_rate[1]
     x = tf.nn.atrous_conv2d_transpose(
@@ -5430,9 +5430,9 @@ def separable_conv1d(x,
   else:
     spatial_start_dim = 2
     strides = (1, 1) + strides * 2
-  x = tf.compat.v1.expand_dims(x, spatial_start_dim)
-  depthwise_kernel = tf.compat.v1.expand_dims(depthwise_kernel, 0)
-  pointwise_kernel = tf.compat.v1.expand_dims(pointwise_kernel, 0)
+  x = tf.expand_dims(x, spatial_start_dim)
+  depthwise_kernel = tf.expand_dims(depthwise_kernel, 0)
+  pointwise_kernel = tf.expand_dims(pointwise_kernel, 0)
   dilation_rate = (1,) + dilation_rate
 
   x = tf.compat.v1.nn.separable_conv2d(
@@ -5444,7 +5444,7 @@ def separable_conv1d(x,
       rate=dilation_rate,
       data_format=tf_data_format)
 
-  x = tf.compat.v1.squeeze(x, [spatial_start_dim])
+  x = tf.squeeze(x, [spatial_start_dim])
 
   if data_format == 'channels_first' and tf_data_format == 'NWC':
     x = tf.compat.v1.transpose(x, (0, 2, 1))  # NWC -> NCW
@@ -5645,7 +5645,7 @@ def conv3d_transpose(x,
     output_shape = (output_shape[0], output_shape[2], output_shape[3],
                     output_shape[4], output_shape[1])
   if output_shape[0] is None:
-    output_shape = (tf.compat.v1.shape(x)[0],) + tuple(output_shape[1:])
+    output_shape = (tf.shape(x)[0],) + tuple(output_shape[1:])
     output_shape = tf.stack(list(output_shape))
 
   padding = _preprocess_padding(padding)
@@ -6165,13 +6165,13 @@ def ctc_label_dense_to_sparse(labels, label_lengths):
   Returns:
       A sparse tensor representation of the labels.
   """
-  label_shape = tf.compat.v1.shape(labels)
+  label_shape = tf.shape(labels)
   num_batches_tns = tf.stack([label_shape[0]])
   max_num_labels_tns = tf.stack([label_shape[1]])
 
   def range_less_than(old_input, current_input):
-    return tf.compat.v1.expand_dims(
-        tf.range(tf.compat.v1.shape(old_input)[1]), 0) < tf.fill(
+    return tf.expand_dims(
+        tf.range(tf.shape(old_input)[1]), 0) < tf.fill(
             max_num_labels_tns, current_input)
 
   init = tf.cast(
@@ -6221,15 +6221,15 @@ def ctc_batch_cost(y_true, y_pred, input_length, label_length):
           CTC loss of each element.
   """
   label_length = tf.cast(
-      tf.compat.v1.squeeze(label_length, axis=-1), tf.int32)
+      tf.squeeze(label_length, axis=-1), tf.int32)
   input_length = tf.cast(
-      tf.compat.v1.squeeze(input_length, axis=-1), tf.int32)
+      tf.squeeze(input_length, axis=-1), tf.int32)
   sparse_labels = tf.cast(
       ctc_label_dense_to_sparse(y_true, label_length), tf.int32)
 
   y_pred = tf.math.log(tf.compat.v1.transpose(y_pred, perm=[1, 0, 2]) + epsilon())
 
-  return tf.compat.v1.expand_dims(
+  return tf.expand_dims(
       tf.compat.v1.nn.ctc_loss(
           inputs=y_pred, labels=sparse_labels, sequence_length=input_length), 1)
 
