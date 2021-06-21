@@ -50,7 +50,7 @@ _CUDNN_NOT_AVAILABLE_MSG = ('Layer %s will not use cuDNN kernels since it '
 
 
 def _use_new_code():
-  return False
+  return True
 
 
 # TODO(b/169707691): The wrapper can be removed if TFLite doesn't need to rely
