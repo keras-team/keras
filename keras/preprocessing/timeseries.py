@@ -218,7 +218,7 @@ def timeseries_dataset_from_array(
   if shuffle:
     # Shuffle locally at each iteration
     dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-  dataset = dataset.batch(batch_size)
+  dataset = dataset.prefetch(tf.data.AUTOTUNE).batch(batch_size)
   return dataset
 
 

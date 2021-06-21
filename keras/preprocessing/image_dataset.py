@@ -218,7 +218,7 @@ def image_dataset_from_directory(directory,
   if shuffle:
     # Shuffle locally at each iteration
     dataset = dataset.shuffle(buffer_size=batch_size * 8, seed=seed)
-  dataset = dataset.batch(batch_size)
+  dataset = dataset.prefetch(tf.data.AUTOTUNE).batch(batch_size)
   # Users may need to reference `class_names`.
   dataset.class_names = class_names
   # Include file paths for images as attribute.
