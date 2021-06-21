@@ -271,16 +271,26 @@ class HashingTest(keras_parameterized.TestCase):
     self.assertEqual(layer_1.name, layer.name)
 
   @parameterized.named_parameters(
-      ('list_input', [1, 2, 3], [1, 1, 1]),
-      ('list_input_2d', [[1], [2], [3]], [[1], [1], [1]]),
-      # TODO(b/191397026): Reenable after fix.
-      # ('tf_constant_2d', [
-      #     tf.constant(x) for x in [['aa', 'bb'], ['bb', 'cc'], ['cc', 'dd']]
-      # ], [[0, 0], [0, 0], [0, 0]]),
-      # ('tf_constant_3d', [
-      #     tf.constant(x)
-      #     for x in [[['aa'], ['bb']], [['bb'], ['cc']], [['cc'], ['dd']]]
-      # ], [[[0], [0]], [[0], [0]], [[0], [0]]]),
+      (
+          'list_input',
+          [1, 2, 3],
+          [1, 1, 1],
+      ),
+      (
+          'list_input_2d',
+          [[1], [2], [3]],
+          [[1], [1], [1]],
+      ),
+      (
+          'list_input_2d_multiple',
+          [[1, 2], [2, 3], [3, 4]],
+          [[1, 1], [1, 1], [1, 1]],
+      ),
+      (
+          'list_input_3d',
+          [[[1], [2]], [[2], [3]], [[3], [4]]],
+          [[[1], [1]], [[1], [1]], [[1], [1]]],
+      ),
   )
   def test_hash_list_input(self, input_data, expected):
     layer = hashing.Hashing(num_bins=2)
