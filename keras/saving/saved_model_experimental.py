@@ -425,7 +425,7 @@ def load_from_saved_model(saved_model_path, custom_objects=None):
 def _get_or_create_variables_dir(export_dir):
   """Return variables sub-directory, or create one if it doesn't exist."""
   variables_dir = _get_variables_dir(export_dir)
-  tf.compat.v1.gfile.MakeDirs(variables_dir)
+  tf.io.gfile.makedirs(variables_dir)
   return variables_dir
 
 
@@ -447,7 +447,7 @@ def _get_or_create_assets_dir(export_dir):
   """Return assets sub-directory, or create one if it doesn't exist."""
   assets_destination_dir = _get_assets_dir(export_dir)
 
-  tf.compat.v1.gfile.MakeDirs(assets_destination_dir)
+  tf.io.gfile.makedirs(assets_destination_dir)
 
   return assets_destination_dir
 

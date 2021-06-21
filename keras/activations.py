@@ -77,7 +77,7 @@ def softmax(x, axis=-1):
   """
   if x.shape.rank > 1:
     if isinstance(axis, int):
-      output = tf.compat.v1.math.softmax(x, axis=axis)
+      output = tf.nn.softmax(x, axis=axis)
     else:
       # nn.softmax does not support tuple axis.
       e = tf.exp(x - tf.reduce_max(x, axis=axis, keepdims=True))
@@ -511,7 +511,7 @@ def serialize(activation):
 # Add additional globals so that deserialize can find these common activation
 # functions
 leaky_relu = tf.nn.leaky_relu
-log_softmax = tf.compat.v1.math.log_softmax
+log_softmax = tf.nn.log_softmax
 relu6 = tf.nn.relu6
 silu = tf.nn.silu
 

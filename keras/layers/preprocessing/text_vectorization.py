@@ -373,7 +373,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
     if isinstance(data, tf.Tensor):
       if data.shape.rank == 1:
-        data = tf.compat.v1.expand_dims(data, axis=-1)
+        data = tf.expand_dims(data, axis=-1)
       self.build(data.shape)
       preprocessed_inputs = self._preprocess(data)
     elif isinstance(data, tf.data.Dataset):
@@ -383,10 +383,10 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
         raise ValueError("The dataset passed to 'adapt' must contain a single "
                          "tensor value.")
       if shape.rank == 0:
-        data = data.map(lambda tensor: tf.compat.v1.expand_dims(tensor, 0))
+        data = data.map(lambda tensor: tf.expand_dims(tensor, 0))
         shape = tf.compat.v1.data.get_output_shapes(data)
       if shape.rank == 1:
-        data = data.map(lambda tensor: tf.compat.v1.expand_dims(tensor, -1))
+        data = data.map(lambda tensor: tf.expand_dims(tensor, -1))
       self.build(tf.compat.v1.data.get_output_shapes(data))
       preprocessed_inputs = data.map(self._preprocess)
     else:
@@ -515,7 +515,7 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
       # so can be squeezed out. We do this here instead of after splitting for
       # performance reasons - it's more expensive to squeeze a ragged tensor.
       if inputs.shape.ndims > 1:
-        inputs = tf.compat.v1.squeeze(inputs, axis=-1)
+        inputs = tf.squeeze(inputs, axis=-1)
       if self._split == SPLIT_ON_WHITESPACE:
         # This treats multiple whitespaces as one whitespace, and strips leading
         # and trailing whitespace.
@@ -565,6 +565,6 @@ class TextVectorization(base_preprocessing_layer.CombinerPreprocessingLayer):
 
       padding, _ = tf.required_space_to_batch_paddings(
           output_tensor.shape, output_shape)
-      return tf.compat.v1.pad(output_tensor, padding)
+      return tf.pad(output_tensor, padding)
 
     return lookup_data

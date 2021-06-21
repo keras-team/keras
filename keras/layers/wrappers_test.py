@@ -734,12 +734,12 @@ class BidirectionalTest(tf.test.TestCase, parameterized.TestCase):
 
     # Switch to time-major.
     if time_major:
-      inputs = tf.compat.v1.transpose(inputs, [1, 0, 2])
-      mask = tf.compat.v1.transpose(mask, [1, 0])
+      inputs = tf.transpose(inputs, [1, 0, 2])
+      mask = tf.transpose(mask, [1, 0])
 
     keras_outputs = layer(inputs, mask=mask)
     if time_major:
-      keras_outputs = tf.compat.v1.transpose(keras_outputs, [1, 0, 2])
+      keras_outputs = tf.transpose(keras_outputs, [1, 0, 2])
 
     # expect the first element in batch has 1 step and second element in batch
     # has 2 steps.

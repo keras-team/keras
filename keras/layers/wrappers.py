@@ -251,8 +251,7 @@ class TimeDistributed(Wrapper):
         input_length = tf_utils.convert_shapes(input_shape)
         input_length = tf.nest.flatten(input_length)[1]
         if not input_length:
-          input_length = tf.nest.map_structure(lambda x: tf.compat.v1.shape(x)[1],
-                                            inputs)
+          input_length = tf.nest.map_structure(lambda x: tf.shape(x)[1], inputs)
           input_length = generic_utils.to_list(tf.nest.flatten(input_length))[0]
 
         inner_input_shape = tf.nest.map_structure(

@@ -208,7 +208,7 @@ def labels_to_dataset(labels, label_mode, num_classes):
   label_ds = tf.data.Dataset.from_tensor_slices(labels)
   if label_mode == 'binary':
     label_ds = label_ds.map(
-        lambda x: tf.compat.v1.expand_dims(tf.cast(x, 'float32'), axis=-1))
+        lambda x: tf.expand_dims(tf.cast(x, 'float32'), axis=-1))
   elif label_mode == 'categorical':
     label_ds = label_ds.map(lambda x: tf.one_hot(x, num_classes))
   return label_ds

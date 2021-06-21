@@ -61,7 +61,7 @@ class GaussianNoise(Layer):
 
     def noised():
       return inputs + backend.random_normal(
-          shape=tf.compat.v1.shape(inputs),
+          shape=tf.shape(inputs),
           mean=0.,
           stddev=self.stddev,
           dtype=inputs.dtype)
@@ -114,7 +114,7 @@ class GaussianDropout(Layer):
       def noised():
         stddev = np.sqrt(self.rate / (1.0 - self.rate))
         return inputs * backend.random_normal(
-            shape=tf.compat.v1.shape(inputs),
+            shape=tf.shape(inputs),
             mean=1.0,
             stddev=stddev,
             dtype=inputs.dtype)
@@ -170,7 +170,7 @@ class AlphaDropout(Layer):
     self.supports_masking = True
 
   def _get_noise_shape(self, inputs):
-    return self.noise_shape if self.noise_shape else tf.compat.v1.shape(inputs)
+    return self.noise_shape if self.noise_shape else tf.shape(inputs)
 
   def call(self, inputs, training=None):
     if 0. < self.rate < 1.:

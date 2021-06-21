@@ -249,7 +249,7 @@ class ApiCompatibilityTest(tf.test.TestCase):
         # Remove files.
         for key in only_in_expected:
           filepath = _KeyToFilePath(key, api_version)
-          tf.compat.v1.gfile.Remove(filepath)
+          tf.io.gfile.remove(filepath)
 
         # If the files are only in actual (current library), these are new
         # modules. Write them to files. Also record all updates in files.

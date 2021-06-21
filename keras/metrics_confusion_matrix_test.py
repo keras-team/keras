@@ -803,7 +803,7 @@ class SensitivityAtSpecificityTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 2, 2, 2, 2, 2]
 
-    y_pred = tf.compat.v1.transpose([pred_values] * 3)
+    y_pred = tf.transpose([pred_values] * 3)
     y_true = tf.one_hot(label_values, depth=3)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
@@ -915,7 +915,7 @@ class SpecificityAtSensitivityTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.3, 0.4, 0.01, 0.02, 0.25, 0.26, 0.26]
     label_values = [0, 0, 0, 0, 0, 2, 2, 2, 2, 2]
 
-    y_pred = tf.compat.v1.transpose([pred_values] * 3)
+    y_pred = tf.transpose([pred_values] * 3)
     y_true = tf.one_hot(label_values, depth=3)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
@@ -1026,7 +1026,7 @@ class PrecisionAtRecallTest(tf.test.TestCase, parameterized.TestCase):
     pred_values = [0.0, 0.1, 0.2, 0.5, 0.6, 0.2, 0.5, 0.6, 0.8, 0.9]
     label_values = [0, 0, 0, 0, 0, 2, 2, 2, 2, 2]
 
-    y_pred = tf.compat.v1.transpose([pred_values] * 3)
+    y_pred = tf.transpose([pred_values] * 3)
     y_true = tf.one_hot(label_values, depth=3)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)
@@ -1148,7 +1148,7 @@ class RecallAtPrecisionTest(tf.test.TestCase, parameterized.TestCase):
     label_values = [0, 2, 0, 0, 0, 2, 2, 0, 2, 2, 0, 2]
     # precisions: [1/2, 6/11, 1/2, 5/9, 5/8, 5/7, 2/3, 3/5, 3/5, 2/3, 1/2, 1].
     # recalls:    [1,   1,    5/6, 5/6, 5/6, 5/6, 2/3, 1/2, 1/2, 1/3, 1/6, 1/6].
-    y_pred = tf.compat.v1.transpose([pred_values] * 3)
+    y_pred = tf.transpose([pred_values] * 3)
     y_true = tf.one_hot(label_values, depth=3)
     self.evaluate(tf.compat.v1.variables_initializer(s_obj.variables))
     result = s_obj(y_true, y_pred)

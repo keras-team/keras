@@ -534,7 +534,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
                  constraint=None,
                  use_resource=None,
                  synchronization=tf.VariableSynchronization.AUTO,
-                 aggregation=tf.compat.v1.VariableAggregation.NONE,
+                 aggregation=tf.VariableAggregation.NONE,
                  **kwargs):
     """Adds a new variable to the layer.
 
@@ -2465,7 +2465,7 @@ class Layer(tf.Module, version_utils.LayerVersionSelector):
         for output in output_list:
           activity_loss = self._activity_regularizer(output)
           batch_size = tf.cast(
-              tf.compat.v1.shape(output)[0], activity_loss.dtype)
+              tf.shape(output)[0], activity_loss.dtype)
           # Make activity regularization strength batch-agnostic.
           mean_activity_loss = activity_loss / batch_size
           self.add_loss(mean_activity_loss)

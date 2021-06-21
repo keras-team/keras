@@ -371,7 +371,7 @@ def _update_confusion_matrix_variables_optimized(
   if label_weights is None:
     label_weights = 1.0
   else:
-    label_weights = tf.compat.v1.expand_dims(label_weights, 0)
+    label_weights = tf.expand_dims(label_weights, 0)
     label_weights = tf.__internal__.ops.broadcast_weights(label_weights,
                                                             y_pred)
     if not multi_label:
@@ -637,7 +637,7 @@ def update_confusion_matrix_variables(variables_to_update,
         label_weights=label_weights,
         thresholds_with_epsilon=thresholds_with_epsilon)
 
-  pred_shape = tf.compat.v1.shape(y_pred)
+  pred_shape = tf.shape(y_pred)
   num_predictions = pred_shape[0]
   if y_pred.shape.ndims == 1:
     num_labels = 1
@@ -648,8 +648,8 @@ def update_confusion_matrix_variables(variables_to_update,
 
   # Reshape predictions and labels, adding a dim for thresholding.
   if multi_label:
-    predictions_extra_dim = tf.compat.v1.expand_dims(y_pred, 0)
-    labels_extra_dim = tf.compat.v1.expand_dims(
+    predictions_extra_dim = tf.expand_dims(y_pred, 0)
+    labels_extra_dim = tf.expand_dims(
         tf.cast(y_true, dtype=tf.bool), 0)
   else:
     # Flatten predictions and labels when not multilabel.
@@ -689,7 +689,7 @@ def update_confusion_matrix_variables(variables_to_update,
     weights_tiled = None
 
   if label_weights is not None and not multi_label:
-    label_weights = tf.compat.v1.expand_dims(label_weights, 0)
+    label_weights = tf.expand_dims(label_weights, 0)
     label_weights = tf.__internal__.ops.broadcast_weights(label_weights,
                                                             y_pred)
     label_weights_tiled = tf.tile(
@@ -750,7 +750,7 @@ def _filter_top_k(x, k):
   """
   _, top_k_idx = tf.math.top_k(x, k, sorted=False)
   top_k_mask = tf.reduce_sum(
-      tf.one_hot(top_k_idx, tf.compat.v1.shape(x)[-1], axis=-1), axis=-2)
+      tf.one_hot(top_k_idx, tf.shape(x)[-1], axis=-1), axis=-2)
   return x * top_k_mask + NEG_INF * (1 - top_k_mask)
 
 
@@ -797,13 +797,13 @@ def ragged_assert_compatible_and_get_flat_values(values, mask=None):
       assertion_list_for_mask = _assert_splits_match(
           [nested_row_split_list[0], mask.nested_row_splits])
       with tf.control_dependencies(assertion_list_for_mask):
-        mask = tf.compat.v1.expand_dims(mask.flat_values, -1)
+        mask = tf.expand_dims(mask.flat_values, -1)
 
     # values has at least 1 element.
     flat_values = []
     for value in values:
       with tf.control_dependencies(assertion_list):
-        flat_values.append(tf.compat.v1.expand_dims(value.flat_values, -1))
+        flat_values.append(tf.expand_dims(value.flat_values, -1))
 
     values = flat_values[0] if to_be_stripped else flat_values
 

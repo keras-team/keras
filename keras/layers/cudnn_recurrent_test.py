@@ -103,11 +103,11 @@ class CuDNNTest(keras_parameterized.TestCase):
 
     model = keras.models.Sequential()
     model.add(
-        keras.layers.Lambda(lambda t: tf.compat.v1.transpose(t, [1, 0, 2])))
+        keras.layers.Lambda(lambda t: tf.transpose(t, [1, 0, 2])))
     layer = layer_class(units, time_major=True, return_sequences=True)
     model.add(layer)
     model.add(
-        keras.layers.Lambda(lambda t: tf.compat.v1.transpose(t, [1, 0, 2])))
+        keras.layers.Lambda(lambda t: tf.transpose(t, [1, 0, 2])))
     model.compile(loss='categorical_crossentropy',
                   optimizer=RMSprop(learning_rate=0.001))
     model.fit(

@@ -251,7 +251,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
                                use_locking=self._use_locking)
       with tf.control_dependencies([rms_t]):
         rms_t = self._resource_scatter_add(rms, indices, rms_scaled_g_values)
-        rms_slice = tf.compat.v1.gather(rms_t, indices)
+        rms_slice = tf.gather(rms_t, indices)
       denom_slice = rms_slice
       if self.centered:
         mg = self.get_slot(var, "mg")
@@ -260,7 +260,7 @@ class RMSprop(optimizer_v2.OptimizerV2):
                                 use_locking=self._use_locking)
         with tf.control_dependencies([mg_t]):
           mg_t = self._resource_scatter_add(mg, indices, mg_scaled_g_values)
-          mg_slice = tf.compat.v1.gather(mg_t, indices)
+          mg_slice = tf.gather(mg_t, indices)
           denom_slice = rms_slice - tf.square(mg_slice)
       var_update = self._resource_scatter_add(
           var, indices, coefficients["neg_lr_t"] * grad / (

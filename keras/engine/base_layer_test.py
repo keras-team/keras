@@ -44,7 +44,7 @@ class DynamicLayer(base_layer.Layer):
 
   def call(self, inputs):
     samples = tf.TensorArray(
-        dtype=tf.float32, size=tf.compat.v1.shape(inputs)[0])
+        dtype=tf.float32, size=tf.shape(inputs)[0])
     for idx, sample in enumerate(inputs):
       samples = samples.write(idx, tf.square(sample))
     return samples.stack()
@@ -309,8 +309,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
     class LearningPhaseLayer(base_layer.Layer):
 
       def call(self, inputs):
-        return backend.in_train_phase(lambda: tf.compat.v1.ones_like(inputs),
-                                      lambda: tf.compat.v1.zeros_like(inputs))
+        return backend.in_train_phase(lambda: tf.ones_like(inputs),
+                                      lambda: tf.zeros_like(inputs))
 
     def get_learning_phase_value():
       model = sequential.Sequential([LearningPhaseLayer(input_shape=(1,))])
@@ -363,8 +363,8 @@ class BaseLayerTest(keras_parameterized.TestCase):
         if training is None:
           training = backend.learning_phase()
         return control_flow_util.smart_cond(
-            training, lambda: tf.compat.v1.ones_like(inputs),
-            lambda: tf.compat.v1.zeros_like(inputs))
+            training, lambda: tf.ones_like(inputs),
+            lambda: tf.zeros_like(inputs))
 
     return TrainingLayer()
 

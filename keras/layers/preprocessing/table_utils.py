@@ -82,10 +82,10 @@ class TableHandler(object):
       oov_indices = tf.strings.to_hash_bucket_fast(
           inputs, num_buckets=num_oov_elements)
 
-    oov_values = tf.compat.v1.gather(self.oov_tokens, oov_indices)
+    oov_values = tf.gather(self.oov_tokens, oov_indices)
     oov_locations = tf.equal(lookups, self.table._default_value)  # pylint: disable=protected-access
 
-    return tf.compat.v1.where(oov_locations, oov_values, lookups)
+    return tf.where(oov_locations, oov_values, lookups)
 
   def _lookup_and_mask(self, inputs):
     """Return a lookup with any location with the mask_token masked to 0."""

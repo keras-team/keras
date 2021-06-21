@@ -162,19 +162,19 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
           name='mean',
           shape=mean_and_var_shape,
           dtype=self.dtype,
-          initializer=tf.compat.v1.zeros_initializer,
+          initializer='zeros',
           trainable=False)
       self.adapt_variance = self.add_weight(
           name='variance',
           shape=mean_and_var_shape,
           dtype=self.dtype,
-          initializer=tf.compat.v1.ones_initializer,
+          initializer='ones',
           trainable=False)
       self.count = self.add_weight(
           name='count',
           shape=(),
           dtype=tf.int64,
-          initializer=tf.compat.v1.zeros_initializer,
+          initializer='zeros',
           trainable=False)
       self.finalize_state()
     else:
@@ -200,9 +200,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     data = self._standardize_inputs(data)
     data = tf.cast(data, self.adapt_mean.dtype)
     batch_mean, batch_variance = tf.nn.moments(data, axes=self._reduce_axis)
-    batch_shape = tf.compat.v1.shape(data, out_type=self.count.dtype)
+    batch_shape = tf.shape(data, out_type=self.count.dtype)
     if self._reduce_axis:
-      batch_reduce_shape = tf.compat.v1.gather(batch_shape, self._reduce_axis)
+      batch_reduce_shape = tf.gather(batch_shape, self._reduce_axis)
       batch_count = tf.reduce_prod(batch_reduce_shape)
     else:
       batch_count = 1
@@ -228,9 +228,9 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
     if self.input_mean is not None or not self.built:
       return
 
-    self.adapt_mean.assign(tf.compat.v1.zeros_like(self.adapt_mean))
-    self.adapt_variance.assign(tf.compat.v1.ones_like(self.adapt_variance))
-    self.count.assign(tf.compat.v1.zeros_like(self.count))
+    self.adapt_mean.assign(tf.zeros_like(self.adapt_mean))
+    self.adapt_variance.assign(tf.ones_like(self.adapt_variance))
+    self.count.assign(tf.zeros_like(self.count))
 
   def finalize_state(self):
     if self.input_mean is not None or not self.built:

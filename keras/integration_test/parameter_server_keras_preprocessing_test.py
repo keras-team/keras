@@ -214,13 +214,13 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
 
       @tf.function
       def serve_fn(raw_features):
-        raw_features = tf.compat.v1.expand_dims(raw_features, axis=0)
+        raw_features = tf.expand_dims(raw_features, axis=0)
         transformed_features = model.feature_ps(raw_features)
         outputs = model(transformed_features)
-        outputs = tf.compat.v1.squeeze(outputs, axis=0)
+        outputs = tf.squeeze(outputs, axis=0)
         outputs = tf.cast(tf.greater(outputs, 0.5), tf.int64)
         decoded_outputs = model.label_inverse_lookup_layer(outputs)
-        return tf.compat.v1.squeeze(decoded_outputs, axis=0)
+        return tf.squeeze(decoded_outputs, axis=0)
 
       # serving does NOT have batch dimension
       return serve_fn.get_concrete_function(

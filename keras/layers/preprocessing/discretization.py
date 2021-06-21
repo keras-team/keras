@@ -46,13 +46,13 @@ def summarize(values, epsilon):
 
   values = tf.reshape(values, [-1])
   values = tf.sort(values)
-  elements = tf.cast(tf.compat.v1.size(values), tf.float32)
+  elements = tf.cast(tf.size(values), tf.float32)
   num_buckets = 1. / epsilon
   increment = tf.cast(elements / num_buckets, tf.int32)
   start = increment
   step = tf.maximum(increment, 1)
   boundaries = values[start::step]
-  weights = tf.compat.v1.ones_like(boundaries)
+  weights = tf.ones_like(boundaries)
   weights = weights * tf.cast(step, tf.float32)
   return tf.stack([boundaries, weights])
 

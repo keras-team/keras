@@ -856,7 +856,7 @@ class ApplicationModelTest(keras_parameterized.TestCase):
   )
   def test_application_model(self, app):
     # Run on CPU since model weights may exhaust GPU memory
-    with policy.policy_scope('mixed_float16'), tf.compat.v1.device('/CPU:0'):
+    with policy.policy_scope('mixed_float16'), tf.device('/CPU:0'):
       app(weights=None)
 
 

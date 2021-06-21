@@ -77,8 +77,8 @@ class ToSparse(Layer):
 
   def call(self, inputs):
     indices = tf.where(tf.not_equal(inputs, 0))
-    values = tf.compat.v1.gather_nd(inputs, indices)
-    shape = tf.compat.v1.shape(inputs, out_type=tf.int64)
+    values = tf.gather_nd(inputs, indices)
+    shape = tf.shape(inputs, out_type=tf.int64)
     return tf.SparseTensor(indices, values, dense_shape=shape)
 
 
