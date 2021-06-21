@@ -108,7 +108,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":category_encoding",
-        ":table_utils",
         "//:expect_numpy_installed",
         "//:expect_tensorflow_installed",
         "//keras:backend",
@@ -138,22 +137,8 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":index_lookup",
-        ":table_utils",
         "//:expect_tensorflow_installed",
         "//keras/engine",
-    ],
-)
-
-py_library(
-    name = "table_utils",
-    srcs = [
-        "table_utils.py",
-    ],
-    srcs_version = "PY3",
-    deps = [
-        "//:expect_numpy_installed",
-        "//:expect_tensorflow_installed",
-        "//keras/utils:tf_utils",
     ],
 )
 
@@ -211,7 +196,6 @@ py_library(
     srcs_version = "PY3",
     deps = [
         ":index_lookup",
-        ":table_utils",
         "//:expect_tensorflow_installed",
         "//keras/engine",
     ],
@@ -511,19 +495,6 @@ distribute_py_test(
         "//:expect_tensorflow_installed",
         "//keras",
         "//keras/distribute:strategy_combinations",
-    ],
-)
-
-tf_py_test(
-    name = "table_utils_test",
-    srcs = ["table_utils_test.py"],
-    python_version = "PY3",
-    deps = [
-        ":table_utils",
-        "//:expect_absl_installed",
-        "//:expect_tensorflow_installed",
-        "//keras",
-        "//keras/utils:generic_utils",
     ],
 )
 

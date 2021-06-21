@@ -240,6 +240,7 @@ def _get_end_to_end_test_cases():
               np.array([[1138], [1729], [725], [42], [42], [725], [1138], [4]]),
           "kwargs": {
               "max_tokens": 5,
+              "pad_to_max_tokens": True,
               "num_oov_indices": 1,
               "mask_token": 0,
               "oov_token": -1,
@@ -264,6 +265,7 @@ def _get_end_to_end_test_cases():
                         ["and"], ["earth"], ["michigan"]]),
           "kwargs": {
               "max_tokens": 5,
+              "pad_to_max_tokens": True,
               "num_oov_indices": 1,
               "mask_token": "",
               "oov_token": "[OOV]",
@@ -1043,6 +1045,8 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     first_output = model.predict(input_array)
     # Test the second adapt
     layer.adapt(second_adapt_data)
+    # We need to recompile the model to retrace our call graph.
+    model.compile()
     second_output = model.predict(input_array)
     self.assertAllEqual(first_expected_output, first_output)
     self.assertAllEqual(second_expected_output, second_output)
@@ -1079,6 +1083,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.MULTI_HOT,
+        vocabulary=["foo"],
         dtype=tf.string)
     binary_data = layer(input_data)
     self.assertAllEqual(binary_data.shape.as_list(), [16, 2])
@@ -1140,6 +1145,7 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         mask_token="",
         oov_token="[OOV]",
         output_mode=index_lookup.COUNT,
+        vocabulary=["foo"],
         dtype=tf.string)
     count_data = layer(input_data)
     self.assertAllEqual(count_data.shape.as_list(), [16, 2])
@@ -1204,8 +1210,9 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         num_oov_indices=1,
         mask_token="",
         oov_token="[OOV]",
-        output_mode=index_lookup.COUNT,
+        output_mode=index_lookup.TF_IDF,
         dtype=tf.string)
+    layer.set_vocabulary(vocabulary=["foo"], idf_weights=[1.0])
     layer_output = layer(input_data)
     self.assertAllEqual(layer_output.shape.as_list(), [16, 2])
 
@@ -1282,16 +1289,11 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     expected_vocab = ["", "[OOV]", "earth", "wind", "and", "fire"]
     self.assertAllEqual(expected_vocab, list_layer.get_vocabulary())
     expected_vocab_size = 6
-    self.assertAllEqual(expected_vocab_size, list_layer.vocab_size())
+    self.assertAllEqual(expected_vocab_size, list_layer.vocabulary_size())
     self.assertAllEqual(list_layer.get_vocabulary(),
                         file_layer.get_vocabulary())
-    self.assertAllEqual(list_layer.vocab_size(), file_layer.vocab_size())
-
-    # We expect the weights to be DIFFERENT in these cases.
-    expected_weights = (["", "earth", "wind", "and", "fire"], [0, 2, 3, 4, 5])
-    sorted_weights = zip_and_sort(expected_weights)
-    self.assertAllEqual(sorted_weights, zip_and_sort(list_layer.get_weights()))
-    self.assertAllEqual(0, len(file_layer.get_weights()))
+    self.assertAllEqual(list_layer.vocabulary_size(),
+                        file_layer.vocabulary_size())
 
   def test_file_vocab_and_list_vocab_identical_attrs_multi_oov(self):
     vocab_data = ["earth", "wind", "and", "fire"]
@@ -1317,15 +1319,11 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     expected_vocab = ["", "[OOV]", "[OOV]", "earth", "wind", "and", "fire"]
     self.assertAllEqual(expected_vocab, list_layer.get_vocabulary())
     expected_vocab_size = 7
-    self.assertAllEqual(expected_vocab_size, list_layer.vocab_size())
+    self.assertAllEqual(expected_vocab_size, list_layer.vocabulary_size())
     self.assertAllEqual(list_layer.get_vocabulary(),
                         file_layer.get_vocabulary())
-    self.assertAllEqual(list_layer.vocab_size(), file_layer.vocab_size())
-
-    expected_weights = (["", "earth", "wind", "and", "fire"], [0, 3, 4, 5, 6])
-    sorted_weights = zip_and_sort(expected_weights)
-    self.assertAllEqual(sorted_weights, zip_and_sort(list_layer.get_weights()))
-    self.assertAllEqual(0, len(file_layer.get_weights()))
+    self.assertAllEqual(list_layer.vocabulary_size(),
+                        file_layer.vocabulary_size())
 
   def test_file_vocab_and_list_vocab_identical_attrs_no_mask(self):
     vocab_data = ["earth", "wind", "and", "fire"]
@@ -1351,15 +1349,11 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     expected_vocab = ["[OOV]", "[OOV]", "earth", "wind", "and", "fire"]
     self.assertAllEqual(expected_vocab, list_layer.get_vocabulary())
     expected_vocab_size = 6
-    self.assertAllEqual(expected_vocab_size, list_layer.vocab_size())
+    self.assertAllEqual(expected_vocab_size, list_layer.vocabulary_size())
     self.assertAllEqual(list_layer.get_vocabulary(),
                         file_layer.get_vocabulary())
-    self.assertAllEqual(list_layer.vocab_size(), file_layer.vocab_size())
-
-    expected_weights = (["earth", "wind", "and", "fire"], [2, 3, 4, 5])
-    sorted_weights = zip_and_sort(expected_weights)
-    self.assertAllEqual(sorted_weights, zip_and_sort(list_layer.get_weights()))
-    self.assertAllEqual(0, len(file_layer.get_weights()))
+    self.assertAllEqual(list_layer.vocabulary_size(),
+                        file_layer.vocabulary_size())
 
   def test_int_output_file_vocab_no_mask(self):
     vocab_data = ["earth", "wind", "and", "fire"]
@@ -1453,22 +1447,6 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     model = keras.Model(inputs=input_data, outputs=int_data)
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
-
-  def test_int_output_file_vocab_setting_fails(self):
-    vocab_data = ["earth", "wind", "and", "fire"]
-
-    vocab_file = self._write_to_temp_file("temp", vocab_data)
-
-    layer = index_lookup.IndexLookup(
-        vocabulary=vocab_file,
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        dtype=tf.string)
-
-    with self.assertRaisesRegexp(RuntimeError, "file path"):
-      layer.set_vocabulary(vocab_data)
 
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
@@ -1654,7 +1632,7 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
     with self.assertRaisesRegex(ValueError, ".*Reserved mask.*"):
       layer.set_vocabulary(vocab_data)
 
-  def test_vocab_set_after_call_pad_to_max_false_fails(self):
+  def test_vocab_size_changed_pad_to_max_false_fails(self):
     vocab_data = ["earth", "wind", "and", "fire"]
     layer = index_lookup.IndexLookup(
         max_tokens=None,
@@ -1665,10 +1643,13 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
         output_mode=index_lookup.MULTI_HOT,
         dtype=tf.string)
     layer.set_vocabulary(vocab_data)
-    # Calling the layer should lock the vocabulary.
+    # Calling the layer should lock the vocabulary size.
     _ = layer([["earth"]])
-    with self.assertRaisesRegex(RuntimeError, "vocabulary cannot be changed"):
-      layer.set_vocabulary(vocab_data)
+    layer.set_vocabulary(vocab_data[:2])
+    with self.assertRaisesRegex(RuntimeError,
+                                "vocabulary size cannot be changed"):
+      # Calling the layer again should cause an error.
+      _ = layer([["earth"]])
 
   def test_vocab_with_idf_weights_non_tfidf_output_fails(self):
     vocab_data = ["earth", "wind", "and", "fire"]
@@ -1988,9 +1969,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(
         output_path, custom_objects={"IndexLookup": index_lookup.IndexLookup})
@@ -2023,8 +2002,9 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
     output_dataset = model.predict(input_array)
     self.assertAllEqual(output_dataset, expected_output)
 
-    # Clone the model.
+    # Clone the model and set weights.
     new_model = keras.models.clone_model(model)
+    new_model.set_weights(model.get_weights())
 
     # Ensure that the loaded model is unique (so that the save/load is real)
     self.assertIsNot(model, new_model)
@@ -2061,9 +2041,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = tf.saved_model.load(output_path)
     f = loaded_model.signatures["serving_default"]
@@ -2103,9 +2081,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = tf.saved_model.load(output_path)
     f = loaded_model.signatures["serving_default"]
@@ -2145,9 +2121,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
     tf.io.gfile.remove(vocab_file)
 
     loaded_model = keras.models.load_model(
@@ -2174,9 +2148,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(
         output_path, custom_objects={"IndexLookup": index_lookup.IndexLookup})
@@ -2216,9 +2188,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
     tf.io.gfile.remove(vocab_file)
 
     loaded_model = keras.models.load_model(
@@ -2245,9 +2215,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = tf.saved_model.load(output_path)
     f = loaded_model.signatures["serving_default"]
@@ -2288,9 +2256,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
     tf.io.gfile.remove(vocab_file)
 
     loaded_model = keras.models.load_model(
@@ -2317,9 +2283,7 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     # Delete the session and graph to ensure that the loaded model is generated
     # from scratch.
-    # TODO(b/149526183): Can't clear session when TF2 is disabled.
-    if tf.__internal__.tf2.enabled():
-      keras.backend.clear_session()
+    keras.backend.clear_session()
 
     loaded_model = keras.models.load_model(
         output_path, custom_objects={"IndexLookup": index_lookup.IndexLookup})
@@ -2360,267 +2324,6 @@ class IndexLookupSavingTest(keras_parameterized.TestCase,
 
     new_output_dataset = model.predict(input_array)
     self.assertAllEqual(new_output_dataset, expected_output)
-
-
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupStringCombinerTest(
-    keras_parameterized.TestCase,
-    preprocessing_test_utils.PreprocessingLayerTest):
-
-  def compare_text_accumulators(self, a, b, msg=None):
-    if a is None or b is None:
-      self.assertAllEqual(a, b, msg=msg)
-
-    self.assertAllEqual(a.count_dict, b.count_dict, msg=msg)
-
-  compare_accumulators = compare_text_accumulators
-
-  def update_accumulator(self, accumulator, data):
-    accumulator.count_dict.update(dict(zip(data["vocab"], data["counts"])))
-
-    return accumulator
-
-  def test_combiner_api_compatibility_int_mode(self):
-    data = np.array([["earth", "wind", "and", "fire"],
-                     ["earth", "wind", "and", "michigan"]])
-    combiner = index_lookup._IndexLookupCombiner()
-    expected_accumulator_output = {
-        "vocab": np.array(["and", "earth", "wind", "fire", "michigan"]),
-        "counts": np.array([2, 2, 2, 1, 1]),
-    }
-    expected_extract_output = {
-        "vocab": np.array(["wind", "earth", "and", "michigan", "fire"]),
-        "idf_weights": None,
-    }
-    expected_accumulator = combiner._create_accumulator()
-    expected_accumulator = self.update_accumulator(expected_accumulator,
-                                                   expected_accumulator_output)
-    self.validate_accumulator_serialize_and_deserialize(combiner, data,
-                                                        expected_accumulator)
-    self.validate_accumulator_uniqueness(combiner, data)
-    self.validate_accumulator_extract(combiner, data, expected_extract_output)
-
-  # TODO(askerryryan): Add tests confirming equivalence to behavior of
-  # existing tf.keras.preprocessing.text.Tokenizer.
-  @parameterized.named_parameters(
-      {
-          "testcase_name":
-              "top_k_smaller_than_full_vocab",
-          "data":
-              np.array([["earth", "wind"], ["fire", "wind"], ["and"],
-                        ["fire", "wind"]]),
-          "vocab_size":
-              3,
-          "expected_accumulator_output": {
-              "vocab": np.array(["wind", "fire", "earth", "and"]),
-              "counts": np.array([3, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array(["wind", "fire", "earth"]),
-              "idf_weights": None,
-          },
-      },
-      {
-          "testcase_name":
-              "top_k_larger_than_full_vocab",
-          "data":
-              np.array([["earth", "wind"], ["fire", "wind"], ["and"],
-                        ["fire", "wind"]]),
-          "vocab_size":
-              10,
-          "expected_accumulator_output": {
-              "vocab": np.array(["wind", "fire", "earth", "and"]),
-              "counts": np.array([3, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array(["wind", "fire", "earth", "and"]),
-              "idf_weights": None,
-          },
-      },
-      {
-          "testcase_name":
-              "no_top_k",
-          "data":
-              np.array([["earth", "wind"], ["fire", "wind"], ["and"],
-                        ["fire", "wind"]]),
-          "vocab_size":
-              None,
-          "expected_accumulator_output": {
-              "vocab": np.array(["wind", "fire", "earth", "and"]),
-              "counts": np.array([3, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array(["wind", "fire", "earth", "and"]),
-              "idf_weights": None,
-          },
-      },
-      {
-          "testcase_name": "single_element_per_row",
-          "data": np.array([["earth"], ["wind"], ["fire"], ["wind"], ["and"]]),
-          "vocab_size": 3,
-          "expected_accumulator_output": {
-              "vocab": np.array(["wind", "and", "earth", "fire"]),
-              "counts": np.array([2, 1, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array(["wind", "fire", "earth"]),
-              "idf_weights": None,
-          },
-      },
-      # Which tokens are retained are based on global frequency, and thus are
-      # sensitive to frequency within a document. In contrast, because idf only
-      # considers the presence of a token in a document, it is insensitive
-      # to the frequency of the token within the document.
-      {
-          "testcase_name":
-              "retained_tokens_sensitive_to_within_document_frequency",
-          "data":
-              np.array([["earth", "earth"], ["wind", "wind"], ["fire", "fire"],
-                        ["wind", "wind"], ["and", "michigan"]]),
-          "vocab_size":
-              3,
-          "expected_accumulator_output": {
-              "vocab": np.array(["wind", "earth", "fire", "and", "michigan"]),
-              "counts": np.array([4, 2, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array(["wind", "fire", "earth"]),
-              "idf_weights": None,
-          },
-      })
-  def test_combiner_computation(self, data, vocab_size,
-                                expected_accumulator_output,
-                                expected_extract_output):
-    combiner = index_lookup._IndexLookupCombiner(vocab_size=vocab_size)
-    expected_accumulator = combiner._create_accumulator()
-    expected_accumulator = self.update_accumulator(expected_accumulator,
-                                                   expected_accumulator_output)
-    self.validate_accumulator_computation(combiner, data, expected_accumulator)
-    self.validate_accumulator_extract(combiner, data, expected_extract_output)
-
-
-@keras_parameterized.run_all_keras_modes(always_skip_v1=True)
-class IndexLookupIntCombinerTest(keras_parameterized.TestCase,
-                                 preprocessing_test_utils.PreprocessingLayerTest
-                                ):
-
-  def compare_text_accumulators(self, a, b, msg=None):
-    if a is None or b is None:
-      self.assertAllEqual(a, b, msg=msg)
-
-    self.assertAllEqual(a.count_dict, b.count_dict, msg=msg)
-
-  compare_accumulators = compare_text_accumulators
-
-  def update_accumulator(self, accumulator, data):
-    accumulator.count_dict.update(dict(zip(data["vocab"], data["counts"])))
-
-    return accumulator
-
-  def test_combiner_api_compatibility_int_mode(self):
-    data = np.array([[42, 1138, 725, 1729], [42, 1138, 725, 203]])
-    combiner = index_lookup._IndexLookupCombiner()
-    expected_accumulator_output = {
-        "vocab": np.array([1138, 725, 42, 1729, 203]),
-        "counts": np.array([2, 2, 2, 1, 1]),
-    }
-    expected_extract_output = {
-        "vocab": np.array([1138, 725, 42, 1729, 203]),
-        "idf_weights": None,
-    }
-    expected_accumulator = combiner._create_accumulator()
-    expected_accumulator = self.update_accumulator(expected_accumulator,
-                                                   expected_accumulator_output)
-    self.validate_accumulator_serialize_and_deserialize(combiner, data,
-                                                        expected_accumulator)
-    self.validate_accumulator_uniqueness(combiner, data)
-    self.validate_accumulator_extract(combiner, data, expected_extract_output)
-
-  # TODO(askerryryan): Add tests confirming equivalence to behavior of
-  # existing tf.keras.preprocessing.text.Tokenizer.
-  @parameterized.named_parameters(
-      {
-          "testcase_name": "top_k_smaller_than_full_vocab",
-          "data": np.array([[42, 1138], [1729, 1138], [725], [1729, 1138]]),
-          "vocab_size": 3,
-          "expected_accumulator_output": {
-              "vocab": np.array([1138, 1729, 725, 42]),
-              "counts": np.array([3, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array([1138, 1729, 725]),
-              "idf_weights": None,
-          },
-      },
-      {
-          "testcase_name": "top_k_larger_than_full_vocab",
-          "data": np.array([[42, 1138], [1729, 1138], [725], [1729, 1138]]),
-          "vocab_size": 10,
-          "expected_accumulator_output": {
-              "vocab": np.array([1138, 1729, 725, 42]),
-              "counts": np.array([3, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array([1138, 1729, 725, 42]),
-              "idf_weights": None,
-          },
-      },
-      {
-          "testcase_name": "no_top_k",
-          "data": np.array([[42, 1138], [1729, 1138], [725], [1729, 1138]]),
-          "vocab_size": None,
-          "expected_accumulator_output": {
-              "vocab": np.array([1138, 1729, 725, 42]),
-              "counts": np.array([3, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array([1138, 1729, 725, 42]),
-              "idf_weights": None,
-          },
-      },
-      {
-          "testcase_name": "single_element_per_row",
-          "data": np.array([[42], [1138], [1729], [1138], [725]]),
-          "vocab_size": 3,
-          "expected_accumulator_output": {
-              "vocab": np.array([1138, 1729, 725, 42]),
-              "counts": np.array([2, 1, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array([1138, 1729, 725]),
-              "idf_weights": None,
-          },
-      },
-      # Which tokens are retained are based on global frequency, and thus are
-      # sensitive to frequency within a document. In contrast, because idf only
-      # considers the presence of a token in a document, it is insensitive
-      # to the frequency of the token within the document.
-      {
-          "testcase_name":
-              "retained_tokens_sensitive_to_within_document_frequency",
-          "data":
-              np.array([[42, 42], [1138, 1138], [1729, 1729], [1138, 1138],
-                        [725, 203]]),
-          "vocab_size":
-              3,
-          "expected_accumulator_output": {
-              "vocab": np.array([1138, 42, 1729, 725, 203]),
-              "counts": np.array([4, 2, 2, 1, 1]),
-          },
-          "expected_extract_output": {
-              "vocab": np.array([1138, 1729, 42]),
-              "idf_weights": None,
-          },
-      })
-  def test_combiner_computation(self, data, vocab_size,
-                                expected_accumulator_output,
-                                expected_extract_output):
-    combiner = index_lookup._IndexLookupCombiner(vocab_size=vocab_size)
-    expected_accumulator = combiner._create_accumulator()
-    expected_accumulator = self.update_accumulator(expected_accumulator,
-                                                   expected_accumulator_output)
-    self.validate_accumulator_computation(combiner, data, expected_accumulator)
-    self.validate_accumulator_extract(combiner, data, expected_extract_output)
 
 
 if __name__ == "__main__":

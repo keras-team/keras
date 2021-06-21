@@ -14,10 +14,12 @@
 # ==============================================================================
 """Keras string lookup preprocessing layer."""
 
-import tensorflow.compat.v2 as tf
+# pylint: disable=g-classes-have-attributes
+
 from keras.engine import base_preprocessing_layer
 from keras.layers.preprocessing import index_lookup
-from keras.layers.preprocessing import table_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 
@@ -70,10 +72,11 @@ class IntegerLookup(index_lookup.IndexLookup):
       If set to None, no mask term will be added. Defaults to None.
     oov_token: Only used when `invert` is True. The token to return for OOV
       indices. Defaults to -1.
-    vocabulary: An optional list of integer tokens, or a path to a text file
-      containing a vocabulary to load into this layer. The file should contain
-      one integer token per line. If the list or file contains the same token
-      multiple times, an error will be thrown.
+    vocabulary: Optional. Either an array of integers or a string path to a text
+      file. If passing an array, can pass a tuple, list, 1D numpy array, or 1D
+      tensor containing the integer vocbulary terms. If passing a file path, the
+      file should contain one line per term in the vocabulary. If this argument
+      is set, there is no need to `adapt` the layer.
     invert: Only valid when `output_mode` is `"int"`. If True, this layer will
       map indices to vocabulary items instead of mapping vocabulary items to
       indices. Default to False.
@@ -332,6 +335,10 @@ class IntegerLookup(index_lookup.IndexLookup):
           "num_oov_indices must be greater than or equal to 0. You passed %s" %
           (num_oov_indices,))
 
+    # Make sure mask and oov are of the dtype we want.
+    mask_token = None if mask_token is None else np.int64(mask_token)
+    oov_token = None if oov_token is None else np.int64(oov_token)
+
     super(IntegerLookup, self).__init__(
         max_tokens=max_tokens,
         num_oov_indices=num_oov_indices,
@@ -344,18 +351,3 @@ class IntegerLookup(index_lookup.IndexLookup):
         pad_to_max_tokens=pad_to_max_tokens,
         **kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("IntegerLookup").set(True)
-
-  def set_vocabulary(self, vocabulary, idf_weights=None):
-    if isinstance(vocabulary, str):
-      if self.output_mode == index_lookup.TF_IDF:
-        raise RuntimeError(
-            "Setting vocabulary directly from a file is not "
-            "supported in TF-IDF mode, since this layer cannot "
-            "read files containing TF-IDF weight data. Please "
-            "read the file using Python and set the vocabulary "
-            "and weights by passing lists or arrays to the "
-            "set_vocabulary function's `vocabulary` and `idf_weights` "
-            "args.")
-      vocabulary = table_utils.get_vocabulary_from_file(vocabulary)
-      vocabulary = [int(v) for v in vocabulary]
-    super().set_vocabulary(vocabulary, idf_weights=idf_weights)

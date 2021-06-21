@@ -852,21 +852,6 @@ class TrackableWeightHandler(object):
     backend.get_session().run(self._assign_op, feed_dict)
 
 
-class StaticTableHandler(TrackableWeightHandler):
-  """Wrapper for handling weight collection for static hash tables."""
-
-  def __init__(self, getter_lambda):  # pylint: disable=super-init-not-called
-    self._num_tensors = 2
-    self._getter = getter_lambda
-    self._distribute_strategy = tf.distribute.get_strategy()
-
-    def raise_error(_):
-      raise RuntimeError('This layer contains a static lookup table, which '
-                         'cannot be changed via set_weights().')
-
-    self._setter = raise_error
-
-
 def no_ragged_support(inputs, layer_name):
   input_list = tf.nest.flatten(inputs)
   if any(isinstance(x, tf.RaggedTensor) for x in input_list):
