@@ -282,9 +282,14 @@ class RandomCrop(base_layer.Layer):
       outputs = tf.slice(resized_inputs, bbox_begin, bbox_size)
       return outputs
 
-    output = control_flow_util.smart_cond(training, random_cropped_inputs,
-                                          resize_and_center_cropped_inputs)
     input_shape = inputs.shape.as_list()
+
+    if self.height > input_shape[H_AXIS] or self.width > input_shape[W_AXIS]:
+      output = resize_and_center_cropped_inputs()
+    else:
+      output = control_flow_util.smart_cond(training, random_cropped_inputs,
+                                            resize_and_center_cropped_inputs)
+
     if unbatched:
       output_shape = [self.height, self.width, input_shape[-1]]
     else:
