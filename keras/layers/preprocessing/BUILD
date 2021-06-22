@@ -397,6 +397,7 @@ tf_py_test(
     name = "index_lookup_test",
     srcs = ["index_lookup_test.py"],
     python_version = "PY3",
+    shard_count = 4,
     tags = ["noasan"],  # TODO(b/183961255)
     deps = [
         ":index_lookup",
