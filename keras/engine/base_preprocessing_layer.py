@@ -14,20 +14,20 @@
 # ==============================================================================
 """Contains the base ProcessingLayer and a subclass that uses Combiners."""
 
-import tensorflow.compat.v2 as tf
-
 import abc
 import collections
 
-import numpy as np
-
-from tensorflow.python.eager import context
 from keras import backend
 from keras.engine import data_adapter
 from keras.engine.base_layer import Layer
 from keras.utils import tf_utils
 from keras.utils import version_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
+# pylint: disable=g-direct-tensorflow-import
+from tensorflow.python.eager import context
 from tensorflow.python.util.tf_export import keras_export
+from tensorflow.tools.docs import doc_controls
 
 
 keras_kpl_gauge = tf.__internal__.monitoring.BoolGauge(
@@ -69,6 +69,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     """Whether the layer has been fit to data already."""
     return self._is_adapted
 
+  @doc_controls.do_not_generate_docs
   def update_state(self, data):
     """Accumulates statistics for the preprocessing layer.
 
@@ -77,10 +78,12 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     """
     raise NotImplementedError
 
+  @doc_controls.do_not_generate_docs
   def reset_state(self):  # pylint: disable=method-hidden
     """Resets the statistics of the preprocessing layer."""
     raise NotImplementedError
 
+  @doc_controls.do_not_generate_docs
   def finalize_state(self):
     """Finalize the statistics for the preprocessing layer.
 
@@ -90,6 +93,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     """
     pass
 
+  @doc_controls.do_not_generate_docs
   def make_adapt_function(self):
     """Creates a function to execute one step of `adapt`.
 

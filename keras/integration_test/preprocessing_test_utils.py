@@ -17,7 +17,7 @@
 import os
 
 import tensorflow as tf
-preprocessing = tf.keras.layers.experimental.preprocessing
+preprocessing = tf.keras.layers
 
 BATCH_SIZE = 64
 DS_SIZE = BATCH_SIZE * 16

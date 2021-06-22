@@ -118,7 +118,8 @@ def get_bin_boundaries(summary, num_bins):
   return compress(summary, 1.0 / num_bins)[0, :-1]
 
 
-@keras_export("keras.layers.experimental.preprocessing.Discretization")
+@keras_export("keras.layers.Discretization",
+              "keras.layers.experimental.preprocessing.Discretization")
 class Discretization(base_preprocessing_layer.PreprocessingLayer):
   """Buckets data into discrete ranges.
 
@@ -148,8 +149,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   Bucketize float values based on provided buckets.
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
-  >>> layer = tf.keras.layers.experimental.preprocessing.Discretization(
-  ...          bin_boundaries=[0., 1., 2.])
+  >>> layer = tf.keras.layers.Discretization(bin_boundaries=[0., 1., 2.])
   >>> layer(input)
   <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
   array([[0, 2, 3, 1],
@@ -157,8 +157,7 @@ class Discretization(base_preprocessing_layer.PreprocessingLayer):
 
   Bucketize float values based on a number of buckets to compute.
   >>> input = np.array([[-1.5, 1.0, 3.4, .5], [0.0, 3.0, 1.3, 0.0]])
-  >>> layer = tf.keras.layers.experimental.preprocessing.Discretization(
-  ...          num_bins=4, epsilon=0.01)
+  >>> layer = tf.keras.layers.Discretization(num_bins=4, epsilon=0.01)
   >>> layer.adapt(input)
   >>> layer(input)
   <tf.Tensor: shape=(2, 4), dtype=int32, numpy=
