@@ -304,7 +304,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
     # Drop deprecated config options.
     kwargs.pop("vocabulary_size", None)
 
-    super().__init__(streaming=False, **kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell("TextVectorization").set(
         True)
 

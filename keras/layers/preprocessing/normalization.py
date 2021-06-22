@@ -93,7 +93,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """
 
   def __init__(self, axis=-1, mean=None, variance=None, **kwargs):
-    super().__init__(streaming=True, **kwargs)
+    super().__init__(**kwargs)
     base_preprocessing_layer.keras_kpl_gauge.get_cell('Normalization').set(True)
 
     # Standardize `axis` to a tuple.
