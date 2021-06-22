@@ -677,6 +677,15 @@ class CategoricalEncodingAdaptTest(
     layer.adapt(batched_ds)
 
 
+class ArrayLike:
+
+  def __init__(self, values):
+    self.values = values
+
+  def __array__(self):
+    return np.array(self.values)
+
+
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupOutputTest(keras_parameterized.TestCase,
                             preprocessing_test_utils.PreprocessingLayerTest):
@@ -690,13 +699,31 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
       writer.close()
     return vocab_path
 
-  def test_int_output(self):
+  @parameterized.named_parameters(
+      ("array_2d", [None],
+       np.array([["earth", "wind", "and", "fire"],
+                 ["fire", "and", "earth", "michigan"]]),
+       [[2, 3, 4, 5],
+        [5, 4, 2, 1]]),
+      ("array_1d", [],
+       np.array(["earth", "wind", "and", "fire"]),
+       [2, 3, 4, 5]),
+      ("array_0", [],
+       tf.constant("earth"),
+       2),
+      ("str", [],
+       "earth",
+       2),
+      ("list", [None],
+       ["earth", "wind", "and", "fire"],
+       [2, 3, 4, 5]),
+      ("array_like", [None],
+       ArrayLike(["earth", "wind", "and", "fire"]),
+       [2, 3, 4, 5]),
+  )  # pyformat: disable
+  def test_int_output(self, shape, input_array, expected_output):
     vocab_data = ["earth", "wind", "and", "fire"]
-    input_array = np.array([["earth", "wind", "and", "fire"],
-                            ["fire", "and", "earth", "michigan"]])
-    expected_output = [[2, 3, 4, 5], [5, 4, 2, 1]]
 
-    input_data = keras.Input(shape=(None,), dtype=tf.string)
     layer = index_lookup.IndexLookup(
         max_tokens=None,
         num_oov_indices=1,
@@ -704,45 +731,15 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
         oov_token="[OOV]",
         dtype=tf.string)
     layer.set_vocabulary(vocab_data)
-    int_data = layer(input_data)
-    model = keras.Model(inputs=input_data, outputs=int_data)
-    output_dataset = model.predict(input_array)
+    output_dataset = layer(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
-  def test_int_output_rank_one(self):
-    vocab_data = ["earth", "wind", "and", "fire"]
-    input_data = np.array(["earth", "wind", "and", "fire"])
-    expected_output = [2, 3, 4, 5]
-
-    inputs = keras.Input(shape=(None,), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
+    # Again in a keras.Model
+    inputs = keras.Input(shape=shape, dtype=tf.string)
     outputs = layer(inputs)
     model = keras.Model(inputs=inputs, outputs=outputs)
-    output_dataset = model(input_data)
-    self.assertAllEqual(expected_output, output_dataset)
+    output_dataset = model(tf.constant(input_array))
 
-  def test_int_output_rank_zero(self):
-    vocab_data = ["earth", "wind", "and", "fire"]
-    input_data = tf.constant("earth")
-    expected_output = 2
-
-    inputs = keras.Input(shape=(), dtype=tf.string)
-    layer = index_lookup.IndexLookup(
-        max_tokens=None,
-        num_oov_indices=1,
-        mask_token="",
-        oov_token="[OOV]",
-        dtype=tf.string)
-    layer.set_vocabulary(vocab_data)
-    outputs = layer(inputs)
-    model = keras.Model(inputs=inputs, outputs=outputs)
-    output_dataset = model(input_data)
     self.assertAllEqual(expected_output, output_dataset)
 
   def test_int_output_shape(self):
