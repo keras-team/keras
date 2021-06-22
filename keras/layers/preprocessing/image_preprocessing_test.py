@@ -299,16 +299,6 @@ class RandomCropTest(keras_parameterized.TestCase):
           expected_output_shape=(None, expected_height, expected_width,
                                  channels))
 
-  @parameterized.named_parameters(('random_crop_5_by_12', 5, 12),
-                                  ('random_crop_10_by_8', 10, 8),
-                                  ('random_crop_10_by_12', 10, 12))
-  def test_invalid_random_crop(self, expected_height, expected_width):
-    # InternelError is raised by tf.function MLIR lowering pass when TFRT
-    # is enabled.
-    with self.assertRaises((tf.errors.InvalidArgumentError, tf.errors.InternalError)):
-      with CustomObjectScope({'RandomCrop': image_preprocessing.RandomCrop}):
-        self._run_test(expected_height, expected_width)
-
   def test_training_with_mock(self):
     np.random.seed(1337)
     height, width = 3, 4
@@ -388,6 +378,16 @@ class RandomCropTest(keras_parameterized.TestCase):
         layer = image_preprocessing.RandomCrop(8, 8)
         actual_output = layer(inp, training=1)
         self.assertAllClose(inp[2:10, 2:10, :], actual_output)
+
+  def test_input_smaller_than_crop_box(self):
+    np.random.seed(1337)
+    height, width = 10, 8
+    inp = np.random.random((12, 3, 3, 3))
+    with testing_utils.use_gpu():
+      layer = image_preprocessing.RandomCrop(height, width)
+      actual_output = layer(inp)
+      expected_output_shape = (12, 10, 8, 3)
+      self.assertEqual(expected_output_shape, actual_output.shape)
 
 
 class RescalingTest(keras_parameterized.TestCase):
