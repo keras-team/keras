@@ -1448,6 +1448,36 @@ class IndexLookupOutputTest(keras_parameterized.TestCase,
     output_dataset = model.predict(input_array)
     self.assertAllEqual(expected_output, output_dataset)
 
+  def test_dataset_map_output(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=0,
+        mask_token=None,
+        oov_token="[OOV]",
+        vocabulary=vocab_data,
+        dtype=tf.string)
+    ds = tf.data.Dataset.from_tensor_slices([["earth"], ["wind"], ["and"]])
+    ds = ds.map(layer)
+    self.assertAllEqual(list(ds.as_numpy_iterator()), [[0], [1], [2]])
+
+  def test_dataset_map_output_layer_created_in_function(self):
+    vocab_data = ["earth", "wind", "and", "fire"]
+
+    def apply_lookup(data):
+      layer = index_lookup.IndexLookup(
+          max_tokens=None,
+          num_oov_indices=0,
+          mask_token=None,
+          oov_token="[OOV]",
+          vocabulary=vocab_data,
+          dtype=tf.string)
+      return layer(data)
+
+    ds = tf.data.Dataset.from_tensor_slices([["earth"], ["wind"], ["and"]])
+    ds = ds.map(apply_lookup)
+    self.assertAllEqual(list(ds.as_numpy_iterator()), [[0], [1], [2]])
+
 
 @keras_parameterized.run_all_keras_modes(always_skip_v1=True)
 class IndexLookupVocabularyTest(keras_parameterized.TestCase,

@@ -217,7 +217,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       self._value_dtype = tf.as_dtype(self.dtype)
       mask_key = 0
       mask_value = mask_token
-      default_value = self.oov_token
+      self._default_value = self.oov_token
     else:
       self._key_dtype = tf.as_dtype(self.dtype)
       self._value_dtype = tf.int64
@@ -228,18 +228,17 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
       if self.num_oov_indices == 0:
         # If there are no OOV indices, we map OOV tokens to -1 and error out
         # during call if we find a negative index.
-        default_value = -1
+        self._default_value = -1
       elif self.num_oov_indices == 1:
         # If there is only one OOV index, we can set that index as the default
         # value of the index_lookup table.
-        default_value = self._oov_start_index()
+        self._default_value = self._oov_start_index()
       else:
         # If we hav multiple OOV values, we need to do a further hashing step;
         # to make this easier, we set the OOV value to -1. (This lets us do a
         # vectorized add and cast to boolean to determine locations where we
         # need to do extra hashing.)
-        default_value = -1
-    self._default_value = tf.convert_to_tensor(default_value, self._value_dtype)
+        self._default_value = -1
     if self.mask_token is not None:
       self._mask_key = tf.convert_to_tensor(mask_key, self._key_dtype)
       self._mask_value = tf.convert_to_tensor(mask_value, self._value_dtype)
@@ -704,19 +703,19 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     """Encode the lookup result to the final output depending on output_mode."""
 
   def _uninitialized_lookup_table(self):
-    initializer = NullInitializer(self._key_dtype, self._value_dtype)
     with tf.init_scope():
+      initializer = NullInitializer(self._key_dtype, self._value_dtype)
       return tf.lookup.StaticHashTable(initializer, self._default_value)
 
   def _lookup_table_from_tokens(self, tokens):
-    token_start = self._token_start_index()
-    token_end = token_start + tf.size(tokens)
-    indices = tf.range(token_start, token_end, dtype=tf.int64)
-    keys, values = (indices, tokens) if self.invert else (tokens, indices)
-    initializer = tf.lookup.KeyValueTensorInitializer(keys, values,
-                                                      self._key_dtype,
-                                                      self._value_dtype)
     with tf.init_scope():
+      token_start = self._token_start_index()
+      token_end = token_start + tf.size(tokens)
+      indices = tf.range(token_start, token_end, dtype=tf.int64)
+      keys, values = (indices, tokens) if self.invert else (tokens, indices)
+      initializer = tf.lookup.KeyValueTensorInitializer(keys, values,
+                                                        self._key_dtype,
+                                                        self._value_dtype)
       return tf.lookup.StaticHashTable(initializer, self._default_value)
 
   def _lookup_table_from_file(self, filename):
@@ -726,14 +725,14 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     else:
       key_index = tf.lookup.TextFileIndex.WHOLE_LINE
       value_index = tf.lookup.TextFileIndex.LINE_NUMBER
-    initializer = tf.lookup.TextFileInitializer(
-        filename=filename,
-        key_dtype=self._key_dtype,
-        key_index=key_index,
-        value_dtype=self._value_dtype,
-        value_index=value_index,
-        value_index_offset=self._token_start_index())
     with tf.init_scope():
+      initializer = tf.lookup.TextFileInitializer(
+          filename=filename,
+          key_dtype=self._key_dtype,
+          key_index=key_index,
+          value_dtype=self._value_dtype,
+          value_index=value_index,
+          value_index_offset=self._token_start_index())
       return tf.lookup.StaticHashTable(initializer, self._default_value)
 
   def _standardize_inputs(self, inputs, dtype):
