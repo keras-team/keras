@@ -17,6 +17,7 @@
 
 import tensorflow.compat.v2 as tf
 from tensorflow.python.platform import tf_logging as logging
+from tensorflow.python.util.tf_export import keras_export  # pylint: disable=g-direct-tensorflow-import
 
 _PRINT_EVAL_STEP_EVERY_SEC = 60.0
 _ITERATIONS_UNINITIALIZED = -1
@@ -42,6 +43,7 @@ def list_checkpoint_attributes(ckpt_dir_or_file):
   return {name.split('/')[0] for name in variable_map.keys()}
 
 
+@keras_export('keras.experimental.SidecarEvaluator', v1=[])
 class SidecarEvaluator(object):
   """A class designed for a dedicated evaluator task.
 
