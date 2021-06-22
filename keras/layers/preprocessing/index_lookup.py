@@ -17,7 +17,6 @@
 # pylint: disable=g-classes-have-attributes
 
 import collections
-import os
 
 from keras import backend
 from keras.engine import base_layer_utils
@@ -372,7 +371,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
                        "TF_IDF. output_mode is {}.".format(self.output_mode))
 
     if isinstance(vocabulary, str):
-      if not os.path.exists(vocabulary):
+      if not tf.io.gfile.exists(vocabulary):
         raise ValueError(
             "Vocabulary file {} does not exist.".format(vocabulary))
       if self.output_mode == TF_IDF:
