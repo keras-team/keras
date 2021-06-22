@@ -628,9 +628,7 @@ def update_confusion_matrix_variables(variables_to_update,
     y_true = y_true[..., class_id]
     y_pred = y_pred[..., class_id]
 
-  if thresholds_distributed_evenly and tf.compat.forward_compatible(2021, 6, 8):
-    # The new approach will take effect after 2021/6/8, to give enough time
-    # for Brella release to pick up the new op tf.math.cumsum with float32.
+  if thresholds_distributed_evenly:
     return _update_confusion_matrix_variables_optimized(
         variables_to_update, y_true, y_pred, thresholds,
         multi_label=multi_label, sample_weights=sample_weight,
