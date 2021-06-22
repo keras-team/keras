@@ -56,19 +56,19 @@ class TpuStrategyTest(tf.test.TestCase):
   def define_kpls_for_training(self, use_adapt):
     if use_adapt:
       feature_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               num_oov_indices=1))
       feature_lookup_layer.adapt(FEATURE_VOCAB)
       label_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               num_oov_indices=0, mask_token=None))
       label_lookup_layer.adapt(LABEL_VOCAB)
     else:
       feature_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               vocabulary=FEATURE_VOCAB, num_oov_indices=1))
       label_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               vocabulary=LABEL_VOCAB, num_oov_indices=0, mask_token=None))
 
     raw_feature_input = tf.keras.layers.Input(
@@ -87,7 +87,7 @@ class TpuStrategyTest(tf.test.TestCase):
   def define_inverse_lookup_layer(self):
     # Only needed for serving.
     label_inverse_lookup_layer = (
-        tf.keras.layers.experimental.preprocessing.StringLookup(
+        tf.keras.layers.StringLookup(
             num_oov_indices=0,
             mask_token=None,
             vocabulary=LABEL_VOCAB,

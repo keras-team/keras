@@ -24,7 +24,8 @@ from tensorflow.python.util.tf_export import keras_export
 # pylint: disable=g-classes-have-attributes
 
 
-@keras_export('keras.layers.experimental.preprocessing.Normalization')
+@keras_export('keras.layers.Normalization',
+              'keras.layers.experimental.preprocessing.Normalization')
 class Normalization(base_preprocessing_layer.PreprocessingLayer):
   """Feature-wise normalization of the data.
 
@@ -62,7 +63,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
 
   >>> adapt_data = np.array([1., 2., 3., 4., 5.], dtype='float32')
   >>> input_data = np.array([1., 2., 3.], dtype='float32')
-  >>> layer = Normalization(axis=None)
+  >>> layer = tf.keras.layers.Normalization(axis=None)
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
   <tf.Tensor: shape=(3,), dtype=float32, numpy=
@@ -75,7 +76,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   ...                        [0., 7., 4.],
   ...                        [2., 9., 6.]], dtype='float32')
   >>> input_data = np.array([[0., 7., 4.]], dtype='float32')
-  >>> layer = Normalization(axis=-1)
+  >>> layer = tf.keras.layers.Normalization(axis=-1)
   >>> layer.adapt(adapt_data)
   >>> layer(input_data)
   <tf.Tensor: shape=(1, 3), dtype=float32, numpy=
@@ -84,7 +85,7 @@ class Normalization(base_preprocessing_layer.PreprocessingLayer):
   Pass the mean and variance directly.
 
   >>> input_data = np.array([[1.], [2.], [3.]], dtype='float32')
-  >>> layer = Normalization(mean=3., variance=2.)
+  >>> layer = tf.keras.layers.Normalization(mean=3., variance=2.)
   >>> layer(input_data)
   <tf.Tensor: shape=(3, 1), dtype=float32, numpy=
   array([[-1.4142135 ],

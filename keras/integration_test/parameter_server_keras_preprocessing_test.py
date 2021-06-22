@@ -87,11 +87,11 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
     # will not be changed in a training step.
     if use_adapt:
       feature_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               num_oov_indices=1))
       feature_lookup_layer.adapt(FEATURE_VOCAB)
       label_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               num_oov_indices=0, mask_token=None))
       label_lookup_layer.adapt(LABEL_VOCAB)
     else:
@@ -99,10 +99,10 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
       shuffled_vocab = FEATURE_VOCAB.copy()
       random.shuffle(shuffled_vocab)
       feature_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               vocabulary=shuffled_vocab, num_oov_indices=1))
       label_lookup_layer = (
-          tf.keras.layers.experimental.preprocessing.StringLookup(
+          tf.keras.layers.StringLookup(
               vocabulary=LABEL_VOCAB, num_oov_indices=0, mask_token=None))
 
     raw_feature_input = tf.keras.Input(
@@ -122,7 +122,7 @@ class KPLTest(tf.test.TestCase, parameterized.TestCase):
   def define_reverse_lookup_layer(self):
     # Only needed for serving.
     label_inverse_lookup_layer = (
-        tf.keras.layers.experimental.preprocessing.StringLookup(
+        tf.keras.layers.StringLookup(
             num_oov_indices=0,
             mask_token=None,
             vocabulary=LABEL_VOCAB,
@@ -270,7 +270,7 @@ class KPLCreatedInDatasetsFromFunctionTest(tf.test.TestCase,
 
       def dataset_fn(input_context):
         del input_context
-        lookup_layer = tf.keras.layers.experimental.preprocessing.StringLookup(
+        lookup_layer = tf.keras.layers.StringLookup(
             num_oov_indices=1, vocabulary=filepath)
         x = np.array([["earth", "wind", "and", "fire"],
                       ["fire", "and", "earth", "michigan"]])

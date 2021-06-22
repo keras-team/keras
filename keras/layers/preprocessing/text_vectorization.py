@@ -58,7 +58,9 @@ _ACCUMULATOR_NUM_DOCUMENTS = "num_documents"
 
 
 @keras_export(
-    "keras.layers.experimental.preprocessing.TextVectorization", v1=[])
+    "keras.layers.TextVectorization",
+    "keras.layers.experimental.preprocessing.TextVectorization",
+    v1=[])
 class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   """Text vectorization layer.
 
@@ -165,7 +167,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   >>> max_len = 4  # Sequence length to pad the outputs to.
   >>>
   >>> # Create the layer.
-  >>> vectorize_layer = TextVectorization(
+  >>> vectorize_layer = tf.keras.layers.TextVectorization(
   ...  max_tokens=max_features,
   ...  output_mode='int',
   ...  output_sequence_length=max_len)
@@ -206,7 +208,7 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
   >>> # Create the layer, passing the vocab directly. You can also pass the
   >>> # vocabulary arg a path to a file containing one vocabulary word per
   >>> # line.
-  >>> vectorize_layer = TextVectorization(
+  >>> vectorize_layer = tf.keras.layers.TextVectorization(
   ...  max_tokens=max_features,
   ...  output_mode='int',
   ...  output_sequence_length=max_len,
