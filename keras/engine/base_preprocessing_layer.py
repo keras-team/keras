@@ -50,16 +50,11 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
 
   The `PreprocessingLayer` class is the base class you would subclass to
   implement your own preprocessing layers.
-
-  Attributes:
-    streaming: Whether a layer can be adapted multiple times without resetting
-      the state of the layer.
   """
   _must_restore_from_config = True
 
-  def __init__(self, streaming=True, **kwargs):
+  def __init__(self, **kwargs):
     super(PreprocessingLayer, self).__init__(**kwargs)
-    self._streaming = streaming
     self._is_compiled = False
     self._is_adapted = False
 
@@ -68,11 +63,6 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
     self.reset_state = self._reset_state_wrapper
 
     self._adapt_function = None
-
-  @property
-  def streaming(self):
-    """Whether `adapt` can be called twice without resetting the state."""
-    return self._streaming
 
   @property
   def is_adapted(self):
@@ -163,7 +153,7 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
 
     self._is_compiled = True
 
-  def adapt(self, data, batch_size=None, steps=None, reset_state=True):
+  def adapt(self, data, batch_size=None, steps=None):
     """Fits the state of the preprocessing layer to the data being passed.
 
     After calling `adapt` on a layer, a preprocessing layer's state will not
@@ -232,21 +222,13 @@ class PreprocessingLayer(Layer, metaclass=abc.ABCMeta):
             the input dataset is exhausted. When passing an infinitely
             repeating dataset, you must specify the `steps` argument. This
             argument is not supported with array inputs.
-        reset_state: Optional argument specifying whether to clear the state of
-          the layer at the start of the call to `adapt`, or whether to start
-          from the existing state. This argument may not be relevant to all
-          preprocessing layers: a subclass of PreprocessingLayer may choose to
-          throw if 'reset_state' is set to False.
     """
     _disallow_inside_tf_function('adapt')
     if not version_utils.should_use_v2():
       raise RuntimeError('`adapt` is only supported in tensorflow v2.')  # pylint: disable=g-doc-exception
-    if not self.streaming and self._is_adapted and not reset_state:
-      raise ValueError('{} does not supporting calling `adapt` twice without '
-                       'resetting the state.'.format(self.__class__.__name__))
     if not self._is_compiled:
       self.compile()  # Compile with defaults.
-    if self.built and reset_state:
+    if self.built:
       self.reset_state()
     data_handler = data_adapter.DataHandler(
         data,
@@ -345,11 +327,9 @@ class CombinerPreprocessingLayer(PreprocessingLayer):
     super(CombinerPreprocessingLayer, self).compile(
         run_eagerly=run_eagerly, steps_per_execution=steps_per_execution)
 
-  def adapt(self, data, batch_size=None, steps=None, reset_state=True):
-    if not reset_state:
-      self._adapt_accumulator = self._combiner.restore(self._restore_updates())
+  def adapt(self, data, batch_size=None, steps=None):
     super(CombinerPreprocessingLayer, self).adapt(
-        data, batch_size=batch_size, steps=steps, reset_state=reset_state)
+        data, batch_size=batch_size, steps=steps)
 
   def _add_state_variable(self,
                           name,

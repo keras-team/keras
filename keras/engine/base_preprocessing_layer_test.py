@@ -248,44 +248,6 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
 
     self.assertAllEqual([[16], [17], [18]], model.predict([1., 2., 3.]))
 
-  def test_further_tuning(self):
-    """Test that models can be tuned with multiple calls to 'adapt'."""
-
-    input_dataset = np.array([1, 2, 3, 4, 5])
-
-    layer = AddingPreprocessingLayer()
-    layer.adapt(input_dataset)
-
-    input_data = keras.Input(shape=(1,))
-    output = layer(input_data)
-    model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
-
-    self.assertAllEqual([[16], [17], [18]], model.predict([1., 2., 3.]))
-
-    layer.adapt(np.array([1, 2]), reset_state=False)
-    self.assertAllEqual([[19], [20], [21]], model.predict([1., 2., 3.]))
-
-  def test_further_tuning_post_injection(self):
-    """Test that models can be tuned with multiple calls to 'adapt'."""
-
-    input_dataset = np.array([1, 2, 3, 4, 5])
-
-    layer = AddingPreprocessingLayer()
-
-    input_data = keras.Input(shape=(1,))
-    output = layer(input_data)
-    model = keras.Model(input_data, output)
-    model._run_eagerly = testing_utils.should_run_eagerly()
-
-    combiner = layer._combiner
-    updates = combiner.extract(combiner.compute(input_dataset))
-    layer._set_state_variables(updates)
-    self.assertAllEqual([[16], [17], [18]], model.predict([1., 2., 3.]))
-
-    layer.adapt(np.array([1, 2]), reset_state=False)
-    self.assertAllEqual([[19], [20], [21]], model.predict([1., 2., 3.]))
-
   def test_weight_based_state_transfer(self):
     """Test that preproc layers can transfer state via get/set weights.."""
 
@@ -310,31 +272,6 @@ class PreprocessingLayerTest(keras_parameterized.TestCase):
     # Transfer state from model to model_2 via get/set weights.
     model_2.set_weights(weights)
     self.assertAllEqual([[16], [17], [18]], model_2.predict([1., 2., 3.]))
-
-  def test_weight_based_state_transfer_with_further_tuning(self):
-    """Test that transferred state can be used to further tune a model.."""
-
-    def get_model():
-      input_data = keras.Input(shape=(1,))
-      layer = AddingPreprocessingLayer()
-      output = layer(input_data)
-      model = keras.Model(input_data, output)
-      model._run_eagerly = testing_utils.should_run_eagerly()
-      return (model, layer)
-
-    input_dataset = np.array([1, 2, 3, 4, 5])
-    model, layer = get_model()
-    layer.adapt(input_dataset)
-    self.assertAllEqual([[16], [17], [18]], model.predict([1., 2., 3.]))
-
-    # Transfer state from model to model_2 via get/set weights.
-    weights = model.get_weights()
-    model_2, layer_2 = get_model()
-    model_2.set_weights(weights)
-
-    # Further adapt this layer based on the transferred weights.
-    layer_2.adapt(np.array([1, 2]), reset_state=False)
-    self.assertAllEqual([[19], [20], [21]], model_2.predict([1., 2., 3.]))
 
   def test_loading_without_providing_class_fails(self):
     input_data = keras.Input(shape=(1,))

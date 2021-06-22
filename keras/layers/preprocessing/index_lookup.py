@@ -210,7 +210,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     kwargs.pop("vocabulary_size", None)
     kwargs.pop("has_static_table", None)
 
-    super().__init__(streaming=False, **kwargs)
+    super().__init__(**kwargs)
 
     if invert:
       self._key_dtype = tf.int64
