@@ -90,7 +90,7 @@ class Dense(keras_layers.Dense, base.Layer):
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
   layer is `tf.keras.layers.Dense`.
 
 
@@ -206,7 +206,7 @@ def dense(
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
   layer is `tf.keras.layers.Dense`.
 
 
@@ -222,8 +222,13 @@ def dense(
 
   After:
 
+  To migrate code using TF1 functional layers use the [Keras Functional API]
+  (https://www.tensorflow.org/guide/keras/functional):
+
   ```python
+   x = tf.keras.Input((28,))
    y = tf.keras.layers.Dense(units=3)(x)
+   model = tf.keras.Model(x, y)
   ```
   @end_compatibility
 
@@ -278,7 +283,7 @@ class Dropout(keras_layers.Dropout, base.Layer):
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
   layer is `tf.keras.layers.Dropout`.
 
 
@@ -359,7 +364,7 @@ def dropout(inputs,
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
   layer is `tf.keras.layers.Dropout`.
 
 
@@ -375,8 +380,13 @@ def dropout(inputs,
 
   After:
 
+  To migrate code using TF1 functional layers use the [Keras Functional API]
+  (https://www.tensorflow.org/guide/keras/functional):
+
   ```python
+   x = tf.keras.Input((28, 28, 1))
    y = tf.keras.layers.Dropout()(x)
+   model = tf.keras.Model(x, y)
   ```
   @end_compatibility
   """
@@ -416,7 +426,7 @@ class Flatten(keras_layers.Flatten, base.Layer):
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
   layer is `tf.keras.layers.Flatten`.
 
 
@@ -474,7 +484,7 @@ def flatten(inputs, name=None, data_format='channels_last'):
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
-  for more details on migrating a TF1 model to Keras. In TF2 the corresponding
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
   layer is `tf.keras.layers.Flatten`.
 
 
@@ -490,8 +500,13 @@ def flatten(inputs, name=None, data_format='channels_last'):
 
   After:
 
+  To migrate code using TF1 functional layers use the [Keras Functional API]
+  (https://www.tensorflow.org/guide/keras/functional):
+
   ```python
+   x = tf.keras.Input((28, 28, 1))
    y = tf.keras.layers.Flatten()(x)
+   model = tf.keras.Model(x, y)
   ```
   @end_compatibility
   """
