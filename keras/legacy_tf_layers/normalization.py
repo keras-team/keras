@@ -124,7 +124,7 @@ class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
 
 
   @compatibility(TF2)
-  Warning: This API is not compatible with eager execution or `tf.function`.
+  This API is not compatible with eager execution or `tf.function`.
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
@@ -361,7 +361,7 @@ def batch_normalization(inputs,
       ([pdf](http://papers.nips.cc/paper/6790-batch-renormalization-towards-reducing-minibatch-dependence-in-batch-normalized-models.pdf))
 
   @compatibility(TF2)
-  Warning: This API is not compatible with eager execution or `tf.function`.
+  This API is not compatible with eager execution or `tf.function`.
 
   Please refer to [tf.layers section of the migration guide]
   (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
