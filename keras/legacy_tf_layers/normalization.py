@@ -121,6 +121,59 @@ class BatchNormalization(batch_normalization_v1.BatchNormalization, base.Layer):
       [Ioffe,
         2017](http://papers.nips.cc/paper/6790-batch-renormalization-towards-reducing-minibatch-dependence-in-batch-normalized-models)
       ([pdf](http://papers.nips.cc/paper/6790-batch-renormalization-towards-reducing-minibatch-dependence-in-batch-normalized-models.pdf))
+
+
+  @compatibility(TF2)
+  Warning: This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [tf.layers section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
+  layer is `tf.keras.layers.BatchNormalization`.
+
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   bn = tf.compat.v1.layers.BatchNormalization()
+  ```
+
+  After:
+
+  ```python
+   bn = tf.keras.layers.BatchNormalization()
+  ```
+
+  #### How to Map Arguments
+
+  TF1 Arg Name              | TF2 Arg Name              | Note
+  :------------------------ | :------------------------ | :---------------
+  `name`                    | `name`                    | Layer base class
+  `trainable`               | `trainable`               | Layer base class
+  `axis`                    | `axis`                    | -
+  `momentum`                | `momentum`                | -
+  `epsilon`                 | `epsilon`                 | -
+  `center`                  | `center`                  | -
+  `scale`                   | `scale`                   | -
+  `beta_initializer`        | `beta_initializer`        | -
+  `gamma_initializer`       | `gamma_initializer`       | -
+  `moving_mean_initializer` | `moving_mean_initializer` | -
+  `beta_regularizer`        | `beta_regularizer'        | -
+  `gamma_regularizer`       | `gamma_regularizer'       | -
+  `beta_constraint`         | `beta_constraint'         | -
+  `gamma_constraint`        | `gamma_constraint'        | -
+  `renorm`                  | Not supported             | -
+  `renorm_clipping`         | Not supported             | -
+  `renorm_momentum`         | Not supported             | -
+  `fused`                   | Not supported             | -
+  `virtual_batch_size`      | Not supported             | -
+  `adjustment`              | Not supported             | -
+
+  @end_compatibility
   """
 
   def __init__(self,
@@ -306,6 +359,66 @@ def batch_normalization(inputs,
       [Ioffe,
       2017](http://papers.nips.cc/paper/6790-batch-renormalization-towards-reducing-minibatch-dependence-in-batch-normalized-models)
       ([pdf](http://papers.nips.cc/paper/6790-batch-renormalization-towards-reducing-minibatch-dependence-in-batch-normalized-models.pdf))
+
+  @compatibility(TF2)
+  Warning: This API is not compatible with eager execution or `tf.function`.
+
+  Please refer to [tf.layers section of the migration guide]
+  (https://www.tensorflow.org/guide/migrate#models_based_on_tflayers)
+  to migrate a TensorFlow v1 model to Keras. The corresponding TensorFlow v2
+  layer is `tf.keras.layers.BatchNormalization`.
+
+  The batch updating pattern with
+  `tf.control_dependencies(tf.GraphKeys.UPDATE_OPS)` should not be used in
+  native TF2. Consult the `tf.keras.layers.BatchNormalization` documentation
+  for further information.
+
+  #### Structural Mapping to Native TF2
+
+  None of the supported arguments have changed name.
+
+  Before:
+
+  ```python
+   x_norm = tf.compat.v1.layers.batch_normalization(x)
+  ```
+
+  After:
+
+  To migrate code using TF1 functional layers use the [Keras Functional API]
+  (https://www.tensorflow.org/guide/keras/functional):
+
+  ```python
+   x = tf.keras.Input(shape=(28, 28, 1),)
+   y = tf.keras.layers.BatchNormalization()(x)
+   model = tf.keras.Model(x, y)
+  ```
+  #### How to Map Arguments
+
+  TF1 Arg Name              | TF2 Arg Name              | Note
+  :------------------------ | :------------------------ | :---------------
+  `name`                    | `name`                    | Layer base class
+  `trainable`               | `trainable`               | Layer base class
+  `axis`                    | `axis`                    | -
+  `momentum`                | `momentum`                | -
+  `epsilon`                 | `epsilon`                 | -
+  `center`                  | `center`                  | -
+  `scale`                   | `scale`                   | -
+  `beta_initializer`        | `beta_initializer`        | -
+  `gamma_initializer`       | `gamma_initializer`       | -
+  `moving_mean_initializer` | `moving_mean_initializer` | -
+  `beta_regularizer`        | `beta_regularizer'        | -
+  `gamma_regularizer`       | `gamma_regularizer'       | -
+  `beta_constraint`         | `beta_constraint'         | -
+  `gamma_constraint`        | `gamma_constraint'        | -
+  `renorm`                  | Not supported             | -
+  `renorm_clipping`         | Not supported             | -
+  `renorm_momentum`         | Not supported             | -
+  `fused`                   | Not supported             | -
+  `virtual_batch_size`      | Not supported             | -
+  `adjustment`              | Not supported             | -
+
+  @end_compatibility
   """
   warnings.warn(
       '`tf.layers.batch_normalization` is deprecated and '
