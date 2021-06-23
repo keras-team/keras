@@ -411,11 +411,7 @@ class IndexLookup(base_preprocessing_layer.PreprocessingLayer):
     should_have_oov = (self.num_oov_indices > 0)
     expected_oov = [self.oov_token] * self.num_oov_indices
     found_oov = vocabulary[oov_start:token_start]
-    has_oov = should_have_oov and found_oov == expected_oov
-    # If we get a numpy array, then has_oov may end up being a numpy array
-    # instead of a bool. Fix this by collapsing the variable if it's not bool.
-    if not isinstance(has_oov, bool):
-      has_oov = any(has_oov)
+    has_oov = should_have_oov and np.array_equal(found_oov, expected_oov)
 
     if all([should_have_mask, has_mask, should_have_oov]) and not has_oov:
       raise ValueError(

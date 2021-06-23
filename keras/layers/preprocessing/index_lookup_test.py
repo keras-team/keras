@@ -1535,6 +1535,31 @@ class IndexLookupVocabularyTest(keras_parameterized.TestCase,
     self.assertAllEqual(returned_vocab, ["wind", "and", "fire"])
     self.assertAllEqual(layer.vocabulary_size(), 5)
 
+  def test_vocab_multi_oov(self):
+    vocab_data = ["", "[OOV]", "[OOV]", "wind", "and", "fire"]
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=2,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    returned_vocab = layer.get_vocabulary()
+    self.assertAllEqual(returned_vocab, vocab_data)
+
+  def test_vocab_multi_oov_not_present(self):
+    vocab_data = ["wind", "and", "fire"]
+    layer = index_lookup.IndexLookup(
+        max_tokens=None,
+        num_oov_indices=10,
+        mask_token="",
+        oov_token="[OOV]",
+        dtype=tf.string)
+    layer.set_vocabulary(vocab_data)
+    returned_vocab = layer.get_vocabulary()
+    self.assertAllEqual(returned_vocab,
+                        [""] + ["[OOV]"] * 10 + ["wind", "and", "fire"])
+
   def test_vocab_with_max_cap(self):
     vocab_data = ["", "[OOV]", "wind", "and", "fire"]
     layer = index_lookup.IndexLookup(
