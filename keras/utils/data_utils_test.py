@@ -28,7 +28,7 @@ import keras
 from keras.utils import data_utils
 
 
-class TestGetFileAndValidateIt(tf.test.TestCase):
+class TestGetFile(tf.test.TestCase):
 
   def test_get_file_and_validate_it(self):
     """Tests get_file from a url, plus extraction and validation.
@@ -103,6 +103,28 @@ class TestGetFileAndValidateIt(tf.test.TestCase):
 
     with self.assertRaisesRegexp(ValueError, 'Please specify the "origin".*'):
       _ = keras.utils.data_utils.get_file()
+
+  def test_get_file_with_tgz_extension(self):
+    """Tests get_file from a url, plus extraction and validation."""
+    dest_dir = self.get_temp_dir()
+    orig_dir = self.get_temp_dir()
+
+    text_file_path = os.path.join(orig_dir, 'test.txt')
+    tar_file_path = os.path.join(orig_dir, 'test.tar.gz')
+
+    with open(text_file_path, 'w') as text_file:
+      text_file.write('Float like a butterfly, sting like a bee.')
+
+    with tarfile.open(tar_file_path, 'w:gz') as tar_file:
+      tar_file.add(text_file_path)
+
+    origin = urllib.parse.urljoin(
+        'file://', urllib.request.pathname2url(os.path.abspath(tar_file_path)))
+
+    path = keras.utils.data_utils.get_file(
+        'test.txt.tar.gz', origin, untar=True, cache_subdir=dest_dir)
+    self.assertEndsWith(path, '.txt')
+    self.assertTrue(os.path.exists(path))
 
 
 class TestSequence(keras.utils.data_utils.Sequence):

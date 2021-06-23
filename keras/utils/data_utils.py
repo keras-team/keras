@@ -24,6 +24,7 @@ import functools
 import hashlib
 import multiprocessing.dummy
 import os
+import pathlib
 import queue
 import random
 import shutil
@@ -227,9 +228,14 @@ def get_file(fname=None,
       raise ValueError("Invalid origin '{}'".format(origin))
 
   if untar:
+    if fname.endswith('.tar.gz'):
+      fname = pathlib.Path(fname)
+      # The 2 `.with_suffix()` are because of `.tar.gz` as pathlib
+      # considers it as 2 suffixes.
+      fname = fname.with_suffix('').with_suffix('')
+      fname = str(fname)
     untar_fpath = os.path.join(datadir, fname)
-    if not untar_fpath.endswith('.tar.gz'):
-      fpath = untar_fpath + '.tar.gz'
+    fpath = untar_fpath + '.tar.gz'
   else:
     fpath = os.path.join(datadir, fname)
 
