@@ -51,7 +51,6 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util.tf_export import keras_export
 from tensorflow.tools.docs import doc_controls
 
-
 # pylint: disable=g-import-not-at-top
 try:
   import h5py
@@ -205,9 +204,9 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
         'trainable', 'dtype', 'dynamic', 'name', 'autocast', 'inputs', 'outputs'
     })
     super(Model, self).__init__(**kwargs)
+    self._check_step_methods_type()
     # By default, Model is a subclass model, which is not in graph network.
     self._is_graph_network = False
-
     self.inputs = None
     self.outputs = None
     self.input_names = None
@@ -708,8 +707,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # (2) Explicitly setting run_eagerly causes a Model to be run eagerly.
     # (3) Not explicitly setting run_eagerly defaults to TF's global setting.
     return (self.dynamic or self._run_eagerly or
-            (tf.config.functions_run_eagerly() and
-             self._run_eagerly is None))
+            (tf.config.functions_run_eagerly() and self._run_eagerly is None))
 
   @run_eagerly.setter
   def run_eagerly(self, value):
@@ -2626,6 +2624,25 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
                        'Weights are created when the Model is first called on '
                        'inputs or `build()` is called with an `input_shape`.' %
                        self.name)
+
+  def _check_step_methods_type(self):
+    """Checks that step methods are not decorated with `@tf.function`.
+
+    Raises:
+       TypeError: if any of `self.train_step`, `self.test_step`, or
+       `self.predict_step` is decorated in `tf.function`.
+
+    """
+    steps = {
+        self.train_step: 'Model.train_step',
+        self.test_step: 'Model.test_step',
+        self.predict_step: 'Model.predict_step'
+    }
+    for step in steps:
+      if isinstance(step, tf.__internal__.function.Function):
+        raise TypeError(
+            'Make sure method {} when overridden is not decorated with '
+            '`@tf.function`.'.format(steps[step]))
 
   def _check_call_args(self, method_name):
     """Check that `call()` has only one positional arg."""
