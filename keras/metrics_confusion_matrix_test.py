@@ -1237,7 +1237,6 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(auc_obj.summation_method,
                      metrics_utils.AUCSummationMethod.MAJORING)
     old_config = auc_obj.get_config()
-    self.assertNotIn('thresholds', old_config)
     self.assertDictEqual(old_config, json.loads(json.dumps(old_config)))
 
     # Check save and restore config.
@@ -1250,7 +1249,6 @@ class AUCTest(tf.test.TestCase, parameterized.TestCase):
     self.assertEqual(auc_obj2.summation_method,
                      metrics_utils.AUCSummationMethod.MAJORING)
     new_config = auc_obj2.get_config()
-    self.assertNotIn('thresholds', new_config)
     self.assertDictEqual(old_config, new_config)
     self.assertAllClose(auc_obj.thresholds, auc_obj2.thresholds)
 
