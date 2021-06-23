@@ -106,6 +106,25 @@ class ShardedVariableTest(tf.test.TestCase):
     checkpoint_deps = set(dep.ref for dep in layer._checkpoint_dependencies)
     self.assertEqual(checkpoint_deps, set([layer.w, layer.b]))
 
+  def test_keras_metrics(self):
+    with self.strategy.scope():
+      auc = keras.metrics.AUC(num_thresholds=10)
+
+    @tf.function
+    def update():
+      auc.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
+
+    @tf.function
+    def reset():
+      auc.reset_state()
+
+    update()
+    self.assertEqual(auc.result(), 0.75)
+    reset()
+    self.assertEqual(auc.result(), 0.0)
+
+    self.assertTrue(hasattr(auc.true_positives, 'variables'))
+
   def test_saved_model(self):
 
     def create_model():
