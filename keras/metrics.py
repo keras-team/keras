@@ -2116,6 +2116,7 @@ class AUC(Metric):
               summation_method, list(metrics_utils.AUCSummationMethod)))
 
     # Update properties.
+    self._init_from_thresholds = thresholds is not None
     if thresholds is not None:
       # If specified, use the supplied thresholds.
       self.num_thresholds = len(thresholds) + 2
@@ -2444,13 +2445,15 @@ class AUC(Metric):
         'num_thresholds': self.num_thresholds,
         'curve': self.curve.value,
         'summation_method': self.summation_method.value,
-        # We remove the endpoint thresholds as an inverse of how the thresholds
-        # were initialized. This ensures that a metric initialized from this
-        # config has the same thresholds.
-        'thresholds': self.thresholds[1:-1],
         'multi_label': self.multi_label,
         'label_weights': label_weights
     }
+    # optimization to avoid serializing a large number of generated thresholds
+    if self._init_from_thresholds:
+      # We remove the endpoint thresholds as an inverse of how the thresholds
+      # were initialized. This ensures that a metric initialized from this
+      # config has the same thresholds.
+      config['thresholds'] = self.thresholds[1:-1]
     base_config = super(AUC, self).get_config()
     return dict(list(base_config.items()) + list(config.items()))
 
