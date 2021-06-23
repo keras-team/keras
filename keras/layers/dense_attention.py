@@ -357,10 +357,10 @@ class AdditiveAttention(BaseDenseAttention):
   shape `[batch_size, Tv, dim]` and `key` tensor of shape
   `[batch_size, Tv, dim]`. The calculation follows the steps:
 
-  1. Reshape `query` and `value` into shapes `[batch_size, Tq, 1, dim]`
+  1. Reshape `query` and `key` into shapes `[batch_size, Tq, 1, dim]`
      and `[batch_size, 1, Tv, dim]` respectively.
   2. Calculate scores with shape `[batch_size, Tq, Tv]` as a non-linear
-     sum: `scores = tf.reduce_sum(tf.tanh(query + value), axis=-1)`
+     sum: `scores = tf.reduce_sum(tf.tanh(query + key), axis=-1)`
   3. Use scores to calculate a distribution with shape
      `[batch_size, Tq, Tv]`: `distribution = tf.nn.softmax(scores)`.
   4. Use `distribution` to create a linear combination of `value` with
