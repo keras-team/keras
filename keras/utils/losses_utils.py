@@ -308,7 +308,8 @@ def compute_weighted_loss(losses,
       losses = tf.convert_to_tensor(losses)
     input_dtype = losses.dtype
 
-    if not isinstance(sample_weight, keras_tensor.KerasTensor):
+    if not isinstance(sample_weight,
+                      (keras_tensor.KerasTensor, tf.RaggedTensor)):
       sample_weight = tf.convert_to_tensor(sample_weight)
 
     # TODO(psv): Handle casting here in a better way, eg. if losses is float64
