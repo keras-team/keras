@@ -1468,21 +1468,3 @@ tf.__internal__.saved_model.load.register_revived_type(
         min_consumer_version=1,
         setter=RestoredOptimizer._set_hyper  # pylint: disable=protected-access
     )])
-
-
-def create_optimizer_with_warning(unused_proto):
-  warnings.warn("IMPORTANT: Invalid Optimizer identifier detected, please "
-                "sync and re-save the model by June 24, 2021.")
-  return RestoredOptimizer()
-
-# TODO(kathywu): Delete this registration.
-tf.__internal__.saved_model.load.register_revived_type(
-    "oss_optimizer",
-    lambda _: False,  # Prefer the "optimizer" identifier.
-    versions=[tf.__internal__.saved_model.load.VersionedTypeRegistration(
-        object_factory=create_optimizer_with_warning,
-        version=1,
-        min_producer_version=1,
-        min_consumer_version=1,
-        setter=RestoredOptimizer._set_hyper  # pylint: disable=protected-access
-    )])
