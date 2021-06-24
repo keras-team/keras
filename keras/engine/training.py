@@ -286,6 +286,7 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     # Fault-tolerance handler. Set in `ModelCheckpoint`.
     self._training_state = None
     self._saved_model_inputs_spec = None
+    self._saved_model_arg_spec = None
     self._trackable_saver = saver_with_op_caching(self)
 
     self._steps_per_execution = None
@@ -2569,28 +2570,81 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
     raise ValueError('Provide either a layer name or layer index.')
 
   @tf.__internal__.tracking.no_automatic_dependency_tracking
-  def _set_save_spec(self, inputs):
+  def _set_save_spec(self, inputs, args=None, kwargs=None):
+    """Defines the save spec so that serialization is able to trace model call.
+
+    The TensorSpecs of the call function `inputs`, `args`, and `kwargs` are
+    saved into a tuple of `([inputs] + args, kwargs)`. The input `TensorSpec`
+    names are updated to match the built `input_names`.
+
+    The specs can be retrieved with the `save_spec` property.
+
+    Args:
+      inputs: possibly nested inputs passed into the call function.
+      args: a list of positional arguments passed into call.
+      kwargs: a dictionary of keyword arguments passed into call.
+    """
     if self._saved_model_inputs_spec is not None:
       return  # Already set.
+    args = args or []
+    kwargs = kwargs or {}
 
     input_names = self.input_names
     if not input_names:
       input_names = compile_utils.create_pseudo_input_names(inputs)
 
     flat_inputs = tf.nest.flatten(inputs)
-    specs = []
+    inputs_spec = []
     for name, tensor in zip(input_names, flat_inputs):
-      specs.append(
+      inputs_spec.append(
           tf_utils.get_tensor_spec(tensor, dynamic_batch=False, name=name))
-    specs = tf.nest.pack_sequence_as(inputs, specs)
-
-    self._saved_model_inputs_spec = specs
+    inputs_spec = tf.nest.pack_sequence_as(inputs, inputs_spec)
+    super(Model, self)._set_save_spec(inputs_spec, args, kwargs)
 
     # Store the input shapes
     if (self.__class__.__name__ == 'Sequential' and
         self._build_input_shape is None):
       self._build_input_shape = tf.nest.map_structure(
-          lambda x: None if x is None else x.shape, specs)
+          lambda x: None if x is None else x.shape, inputs_spec)
+
+  def save_spec(self, dynamic_batch=True):
+    """Returns the `tf.TensorSpec` of call inputs as a tuple `(args, kwargs)`.
+
+    This value is automatically defined after calling the model for the first
+    time. Afterwards, you can use it when exporting the model for serving:
+
+    ```python
+    model = tf.keras.Model(...)
+
+    @tf.function
+    def serve(*args, **kwargs):
+      outputs = model(*args, **kwargs)
+      # Apply postprocessing steps, or add additional outputs.
+      ...
+      return outputs
+
+    # arg_specs is `[tf.TensorSpec(...), ...]`. kwarg_specs, in this example, is
+    # an empty dict since functional models do not use keyword arguments.
+    arg_specs, kwarg_specs = model.save_spec()
+
+    model.save(path, signatures={
+      'serving_default': serve.get_concrete_function(*arg_specs, **kwarg_specs)
+    })
+    ```
+
+    Args:
+      dynamic_batch: Whether to set the batch sizes of all the returned
+        `tf.TensorSpec` to `None`. (Note that when defining functional or
+        Sequential models with `tf.keras.Input([...], batch_size=X)`, the
+        batch size will always be preserved). Defaults to `True`.
+    Returns:
+      If the model inputs are defined, returns a tuple `(args, kwargs)`. All
+      elements in `args` and `kwargs` are `tf.TensorSpec`.
+      If the model inputs are not defined, returns `None`.
+      The model inputs are automatically set when calling the model,
+      `model.fit`, `model.evaluate` or `model.predict`.
+    """
+    return self._get_save_spec(dynamic_batch, inputs_only=False)
 
   def _assert_weights_created(self):
     """Asserts that all the weights for the model have been created.

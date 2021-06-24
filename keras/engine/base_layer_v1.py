@@ -799,6 +799,7 @@ class Layer(base_layer.Layer):
             # TODO(b/120997007): This should be done in Eager as well, but
             # causes garbage collection issues because of the placeholders
             # created on the default Keras graph.
+            self._set_save_spec(inputs, args, kwargs)
             self._set_inputs(inputs, outputs)
       else:
         # Eager execution on data tensors.
