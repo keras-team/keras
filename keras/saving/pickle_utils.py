@@ -39,11 +39,13 @@ def deserialize_model_from_bytecode(serialized_model):
   temp_dir = f"ram://{uuid4()}"
   b = BytesIO(serialized_model)
   with tarfile.open(fileobj=b, mode="r") as archive:
-    for fname in archive.getnames():
-      dest_path = os.path.join(temp_dir, fname)
+    for name in archive.getnames():
+      dest_path = os.path.join(temp_dir, name)
+      member = archive.getmember(name)
       tf.io.gfile.makedirs(os.path.dirname(dest_path))
-      with tf.io.gfile.GFile(dest_path, "wb") as f:
-        f.write(archive.extractfile(fname).read())
+      if member.isfile():
+        with tf.io.gfile.GFile(dest_path, "wb") as f:
+          f.write(archive.extractfile(name).read())
   model = load_model(temp_dir)
   tf.io.gfile.rmtree(temp_dir)
   return model
@@ -63,9 +65,16 @@ def serialize_model_as_bytecode(model):
   model.save(temp_dir)
   b = BytesIO()
   with tarfile.open(fileobj=b, mode="w") as archive:
-    for root, _, filenames in tf.io.gfile.walk(temp_dir):
+    for root, dirs, filenames in tf.io.gfile.walk(temp_dir):
+      for dirname in dirs:
+        dest_path = os.path.join(root, dirname)
+        t = tarfile.TarInfo(dest_path)
+        t.type = tarfile.DIRTYPE
+        archive.addfile(t)
+        print("Adding ", dest_path)
       for filename in filenames:
         dest_path = os.path.join(root, filename)
+        print("Adding ", dest_path)
         with tf.io.gfile.GFile(dest_path, "rb") as f:
           info = tarfile.TarInfo(name=os.path.relpath(dest_path, temp_dir))
           info.size = f.size()
