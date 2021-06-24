@@ -14,11 +14,12 @@
 # ==============================================================================
 """Tests for Keras metrics."""
 
-import tensorflow.compat.v2 as tf
-
 from absl.testing import parameterized
 from keras import metrics
 from keras.engine import base_layer
+import tensorflow.compat.v2 as tf
+
+combinations = tf.__internal__.distribute.combinations
 
 
 def _labeled_dataset_fn():
@@ -67,18 +68,18 @@ def _regression_dataset_fn():
 def all_combinations():
   return tf.__internal__.test.combinations.combine(
       distribution=[
-          tf.__internal__.distribute.combinations.default_strategy,
-          tf.__internal__.distribute.combinations.one_device_strategy,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-          tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus
+          combinations.default_strategy, combinations.one_device_strategy,
+          combinations.mirrored_strategy_with_gpu_and_cpu,
+          combinations.mirrored_strategy_with_two_gpus
       ],
       mode=["graph"])
 
 
 def tpu_combinations():
   return tf.__internal__.test.combinations.combine(
-      distribution=[tf.__internal__.distribute.combinations.tpu_strategy,],
-      mode=["graph"])
+      distribution=[
+          combinations.tpu_strategy,
+      ], mode=["graph"])
 
 
 class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
@@ -106,7 +107,7 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
         if batches_consumed >= 4:  # Consume 4 input batches in total.
           break
 
-  @tf.__internal__.distribute.combinations.generate(all_combinations() + tpu_combinations())
+  @combinations.generate(all_combinations() + tpu_combinations())
   def testMean(self, distribution):
     def _dataset_fn():
       return tf.data.Dataset.range(1000).map(tf.compat.v1.to_float).batch(
@@ -118,20 +119,21 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
 
     self._test_metric(distribution, _dataset_fn, metrics.Mean, _expected_fn)
 
-  @tf.__internal__.distribute.combinations.generate(
+  @combinations.generate(
       tf.__internal__.test.combinations.combine(
           distribution=[
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_one_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_gpu_and_cpu,
-              tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus,
-              tf.__internal__.distribute.combinations.tpu_strategy_packed_var
+              combinations.mirrored_strategy_with_one_cpu,
+              combinations.mirrored_strategy_with_gpu_and_cpu,
+              combinations.mirrored_strategy_with_two_gpus,
+              combinations.tpu_strategy_packed_var,
+              combinations.parameter_server_strategy_1worker_2ps_cpu,
+              combinations.parameter_server_strategy_1worker_2ps_1gpu,
           ],
           mode=["eager"],
-          jit_compile=[False]) +
-      tf.__internal__.test.combinations.combine(
-          distribution=[tf.__internal__.distribute.combinations.mirrored_strategy_with_two_gpus],
-          mode=["eager"],
-          jit_compile=[True]))
+          jit_compile=[False]) + tf.__internal__.test.combinations.combine(
+              distribution=[combinations.mirrored_strategy_with_two_gpus],
+              mode=["eager"],
+              jit_compile=[True]))
   def testAddMetric(self, distribution, jit_compile):
     if not tf.__internal__.tf2.enabled():
       self.skipTest("Skip test since tf2 is not enabled. Pass "
@@ -164,7 +166,13 @@ class KerasMetricsTest(tf.test.TestCase, parameterized.TestCase):
     def run():
       return distribution.run(func)
 
-    run()
+    if distribution._should_use_with_coordinator:
+      coord = tf.distribute.experimental.coordinator.ClusterCoordinator(
+          distribution)
+      coord.schedule(run)
+      coord.join()
+    else:
+      run()
 
     self.assertEqual(layer.metrics[0].result().numpy(),
                      1.0 * distribution.num_replicas_in_sync)
