@@ -12,21 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-"""Tests for tf.keras models with callbacks, checkpointing with dist strategy."""
+"""Tests for Keras models with callbacks, checkpointing with tf.distribute."""
 
-import tensorflow.compat.v2 as tf
 
 import collections
 import tempfile
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
 from keras import losses
 from keras.distribute import distribute_strategy_test as keras_test_lib
 from keras.distribute import distributed_training_utils_v1
 from keras.distribute import optimizer_combinations
+from keras.utils import dataset_creator
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 
 class Counter(keras.callbacks.Callback):
@@ -40,11 +40,8 @@ class Counter(keras.callbacks.Callback):
   def __init__(self):
     self.method_counts = collections.defaultdict(int)
     methods_to_count = [
-        'on_batch_begin', 'on_batch_end', 'on_epoch_begin', 'on_epoch_end',
-        'on_predict_batch_begin', 'on_predict_batch_end', 'on_predict_begin',
-        'on_predict_end', 'on_test_batch_begin', 'on_test_batch_end',
-        'on_test_begin', 'on_test_end', 'on_train_batch_begin',
-        'on_train_batch_end', 'on_train_begin', 'on_train_end'
+        'on_epoch_begin', 'on_epoch_end', 'on_predict_begin', 'on_predict_end',
+        'on_test_begin', 'on_test_end', 'on_train_begin', 'on_train_end'
     ]
     for method_name in methods_to_count:
       setattr(self, method_name,
@@ -59,13 +56,29 @@ class Counter(keras.callbacks.Callback):
     return _call_and_count
 
 
+def _get_input(use_dataset_creator, distribution, test_obj):
+  if use_dataset_creator:
+    data_input = keras_test_lib.get_dataset_creator(distribution)
+    if not tf.executing_eagerly():
+      test_obj.skipTest('DatasetCreator is not supported in legacy graph mode.')
+  else:
+    data_input = keras_test_lib.get_dataset(distribution)
+    if isinstance(distribution,
+                  tf.distribute.experimental.ParameterServerStrategy):
+      test_obj.skipTest('Dataset instance is not supported in '
+                        'ParameterServerStrategy.')
+  return data_input
+
+
 class TestDistributionStrategyWithCallbacks(tf.test.TestCase,
                                             parameterized.TestCase):
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.times(
-          keras_test_lib.all_strategy_combinations()))
-  def test_callbacks_in_fit(self, distribution):
+          keras_test_lib.all_strategy_combinations() +
+          keras_test_lib.parameter_server_strategy_combinations_eager_only(),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_callbacks_in_fit(self, distribution, use_dataset_creator):
     with distribution.scope():
       model = keras_test_lib.get_model()
       model.compile(
@@ -73,7 +86,7 @@ class TestDistributionStrategyWithCallbacks(tf.test.TestCase,
           loss='mse',
           metrics=['mae'])
 
-    dataset = keras_test_lib.get_dataset(distribution)
+    data_input = _get_input(use_dataset_creator, distribution, self)
     counter = Counter()
 
     epochs = 2
@@ -81,15 +94,16 @@ class TestDistributionStrategyWithCallbacks(tf.test.TestCase,
     validation_steps = 3
 
     model.fit(
-        dataset,
+        data_input,
         epochs=epochs,
         steps_per_epoch=steps_per_epoch,
         verbose=0,
-        validation_data=dataset,
+        validation_data=data_input,
         validation_steps=validation_steps,
         callbacks=[counter])
 
-    if (isinstance(distribution, tf.compat.v1.distribute.experimental.TPUStrategy) and
+    if (isinstance(
+        distribution, tf.compat.v1.distribute.experimental.TPUStrategy) and
         not tf.executing_eagerly()):
       # TPU Strategy can have multi step training, from extended.steps_per_run
       # if steps_per_run = 1, then num_batch_call_per_epoch = steps_per_epoch
@@ -102,24 +116,20 @@ class TestDistributionStrategyWithCallbacks(tf.test.TestCase,
 
     self.assertDictEqual(
         counter.method_counts, {
-            'on_batch_begin': epochs * num_batch_call_per_epoch,
-            'on_batch_end': epochs * num_batch_call_per_epoch,
             'on_epoch_begin': epochs,
             'on_epoch_end': epochs,
-            'on_test_batch_begin': epochs * validation_steps,
-            'on_test_batch_end': epochs * validation_steps,
             'on_test_begin': epochs,
             'on_test_end': epochs,
-            'on_train_batch_begin': epochs * num_batch_call_per_epoch,
-            'on_train_batch_end': epochs * num_batch_call_per_epoch,
             'on_train_begin': 1,
             'on_train_end': 1
         })
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.times(
-          keras_test_lib.all_strategy_combinations()))
-  def test_callbacks_in_eval(self, distribution):
+          keras_test_lib.all_strategy_combinations() +
+          keras_test_lib.parameter_server_strategy_combinations_eager_only(),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_callbacks_in_eval(self, distribution, use_dataset_creator):
     with distribution.scope():
       model = keras_test_lib.get_model()
       model.compile(
@@ -127,23 +137,23 @@ class TestDistributionStrategyWithCallbacks(tf.test.TestCase,
           loss='mse',
           metrics=['mae'])
 
-    dataset = keras_test_lib.get_dataset(distribution)
+    data_input = _get_input(use_dataset_creator, distribution, self)
     counter = Counter()
 
-    model.evaluate(dataset, steps=5, callbacks=[counter])
+    model.evaluate(data_input, steps=5, callbacks=[counter])
 
     self.assertDictEqual(
         counter.method_counts, {
-            'on_test_batch_begin': 5,
-            'on_test_batch_end': 5,
             'on_test_begin': 1,
             'on_test_end': 1
         })
 
+  # TODO(rchao): Cover model.predict with ParameterServerStrategy.
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.times(
-          keras_test_lib.all_strategy_combinations()))
-  def test_callbacks_in_predict(self, distribution):
+          keras_test_lib.all_strategy_combinations(),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_callbacks_in_predict(self, distribution, use_dataset_creator):
     with distribution.scope():
       model = keras_test_lib.get_model()
       model.compile(
@@ -161,8 +171,6 @@ class TestDistributionStrategyWithCallbacks(tf.test.TestCase,
 
     self.assertDictEqual(
         counter.method_counts, {
-            'on_predict_batch_begin': 5,
-            'on_predict_batch_end': 5,
             'on_predict_begin': 1,
             'on_predict_end': 1
         })
@@ -386,8 +394,10 @@ class TestDistributionStrategyWithNormalizationLayer(tf.test.TestCase,
           tf.__internal__.test.combinations.combine(
               fused=[True, False],
               optimizer=optimizer_combinations
-              .gradient_descent_optimizer_keras_v2_fn)))
-  def test_batchnorm_correctness(self, distribution, fused, optimizer):
+              .gradient_descent_optimizer_keras_v2_fn),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_batchnorm_correctness(self, distribution, fused, optimizer,
+                                 use_dataset_creator):
     with self.cached_session():
       with distribution.scope():
         model = keras.models.Sequential()
@@ -405,16 +415,31 @@ class TestDistributionStrategyWithNormalizationLayer(tf.test.TestCase,
       # centered on 5.0, variance 10.0
       x = np.random.normal(loc=5.0, scale=10.0, size=(1000, 10, 20, 30))
       x = x.astype('float32')
-      dataset = tf.data.Dataset.from_tensor_slices((x, x))
-      dataset = dataset.repeat(100)
-      dataset = keras_test_lib.batch_wrapper(dataset, 32, distribution)
+
+      def dataset_fn(input_context):
+        dataset = tf.data.Dataset.from_tensor_slices((x, x))
+        dataset = dataset.repeat(100)
+        dataset = keras_test_lib.batch_wrapper(dataset, 32, distribution, None,
+                                               input_context)
+        return dataset
+
+      if use_dataset_creator:
+        data_input = dataset_creator.DatasetCreator(dataset_fn)
+        if not tf.executing_eagerly():
+          self.skipTest('DatasetCreator is not supported in legacy graph mode.')
+      else:
+        data_input = dataset_fn(None)
+        if isinstance(distribution,
+                      tf.distribute.experimental.ParameterServerStrategy):
+          self.skipTest('Dataset instance is not supported in '
+                        'ParameterServerStrategy.')
 
       predict_dataset = tf.data.Dataset.from_tensor_slices(x)
       predict_dataset = predict_dataset.repeat(100)
       predict_dataset = keras_test_lib.batch_wrapper(predict_dataset, 32,
                                                      distribution)
 
-      model.fit(dataset, epochs=4, verbose=0, steps_per_epoch=10)
+      model.fit(data_input, epochs=4, verbose=0, steps_per_epoch=10)
       out = model.predict(predict_dataset, steps=2)
       out -= keras.backend.eval(norm.beta)
       out /= keras.backend.eval(norm.gamma)
@@ -429,16 +454,17 @@ class TestDistributionStrategySaveLoadWeights(tf.test.TestCase,
       tf.__internal__.test.combinations.times(
           keras_test_lib.all_strategy_combinations_minus_default(),
           tf.__internal__.test.combinations.combine(
-              optimizer=optimizer_combinations.rmsprop_optimizer_keras_v2_fn)))
-  def test_save_load_h5(self, distribution, optimizer):
+              optimizer=optimizer_combinations.rmsprop_optimizer_keras_v2_fn),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_save_load_h5(self, distribution, optimizer, use_dataset_creator):
     with self.cached_session():
-      dataset = keras_test_lib.get_dataset(distribution)
+      data_input = _get_input(use_dataset_creator, distribution, self)
       with distribution.scope():
         model = keras_test_lib.get_model()
         model.compile(
             optimizer(),
             'mse')
-        model.fit(dataset, epochs=1, steps_per_epoch=1)
+        model.fit(data_input, epochs=1, steps_per_epoch=1)
 
         weights_file = tempfile.mktemp('.h5')
         model.save_weights(weights_file)
@@ -450,27 +476,30 @@ class TestDistributionStrategySaveLoadWeights(tf.test.TestCase,
         model_2.load_weights(weights_file)
         model_2.predict(
             keras_test_lib.get_predict_dataset(distribution), steps=2)
-        model_2.fit(dataset, epochs=1, steps_per_epoch=1)
+        model_2.fit(data_input, epochs=1, steps_per_epoch=1)
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.times(
           keras_test_lib.all_strategy_combinations_minus_default(),
           tf.__internal__.test.combinations.combine(
-              optimizer=optimizer_combinations.rmsprop_optimizer_keras_v2_fn)))
-  def test_save_load_trackable(self, distribution, optimizer):
+              optimizer=optimizer_combinations.rmsprop_optimizer_keras_v2_fn),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_save_load_trackable(self, distribution, optimizer,
+                               use_dataset_creator):
     # TODO(b/123533246): Enable the test for TPU once bug is fixed
     if (isinstance(distribution,
-                   (tf.distribute.experimental.TPUStrategy, tf.compat.v1.distribute.experimental.TPUStrategy)) and
+                   (tf.distribute.experimental.TPUStrategy,
+                    tf.compat.v1.distribute.experimental.TPUStrategy)) and
         distribution.extended.steps_per_run > 1):
       self.skipTest('MultiStep TPU Strategy deadlocks with optimizer restore.')
     with self.cached_session():
-      dataset = keras_test_lib.get_dataset(distribution)
+      data_input = _get_input(use_dataset_creator, distribution, self)
       with distribution.scope():
         model = keras_test_lib.get_model()
         model.compile(
             optimizer(),
             'mse')
-        model.fit(dataset, epochs=1, steps_per_epoch=1)
+        model.fit(data_input, epochs=1, steps_per_epoch=1)
 
         weights_file = tempfile.mktemp()
         model.save_weights(weights_file)
@@ -482,15 +511,18 @@ class TestDistributionStrategySaveLoadWeights(tf.test.TestCase,
         model_2.load_weights(weights_file)
         model_2.predict(
             keras_test_lib.get_predict_dataset(distribution), steps=2)
-        model_2.fit(dataset, epochs=1, steps_per_epoch=1)
+        model_2.fit(data_input, epochs=1, steps_per_epoch=1)
 
 
-class TestDistributionStrategyValidation(tf.test.TestCase, parameterized.TestCase):
+class TestDistributionStrategyValidation(
+    tf.test.TestCase, parameterized.TestCase):
 
   @tf.__internal__.distribute.combinations.generate(
       tf.__internal__.test.combinations.times(
-          keras_test_lib.all_strategy_combinations_minus_default()))
-  def test_layer_outside_scope(self, distribution):
+          keras_test_lib.all_strategy_combinations_minus_default() +
+          keras_test_lib.parameter_server_strategy_combinations_eager_only(),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_layer_outside_scope(self, distribution, use_dataset_creator):
     with self.cached_session():
       with self.assertRaisesRegex(
           ValueError, 'was not created in the distribution strategy'):
@@ -507,8 +539,11 @@ class TestDistributionStrategyValidation(tf.test.TestCase, parameterized.TestCas
               metrics=metrics)
 
   @tf.__internal__.distribute.combinations.generate(
-      keras_test_lib.all_strategy_combinations_minus_default())
-  def test_model_outside_scope(self, distribution):
+      tf.__internal__.test.combinations.times(
+          keras_test_lib.all_strategy_combinations_minus_default() +
+          keras_test_lib.parameter_server_strategy_combinations_eager_only(),
+          keras_test_lib.use_dataset_creator_combinations()))
+  def test_model_outside_scope(self, distribution, use_dataset_creator):
     with self.cached_session():
       with self.assertRaisesRegex(
           ValueError, 'was not created in the distribution strategy'):

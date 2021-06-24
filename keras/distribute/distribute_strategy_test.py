@@ -14,15 +14,11 @@
 # ==============================================================================
 """Tests for tf.keras models using tf.distribute.Strategy."""
 
-import tensorflow.compat.v2 as tf
 
 import os
 
 from absl.testing import parameterized
-import numpy as np
-
 import keras
-from tensorflow.python.distribute.cluster_resolver import SimpleClusterResolver
 from keras import backend
 from keras import testing_utils
 from keras.distribute import distributed_training_utils
@@ -31,14 +27,18 @@ from keras.distribute import multi_worker_testing_utils
 from keras.distribute import optimizer_combinations
 from keras.distribute.strategy_combinations import all_strategies
 from keras.distribute.strategy_combinations import multi_worker_mirrored_strategies
+from keras.distribute.strategy_combinations import parameter_server_strategies_multi_worker
 from keras.distribute.strategy_combinations import strategies_minus_default_minus_tpu
 from keras.distribute.strategy_combinations import strategies_minus_tpu
 from keras.distribute.strategy_combinations import tpu_strategies
 from keras.engine import base_layer_utils
 from keras.mixed_precision import policy
 from keras.optimizer_v2 import gradient_descent as gradient_descent_keras
+from keras.utils import dataset_creator
 from keras.utils import losses_utils
 from keras.utils import np_utils
+import numpy as np
+import tensorflow.compat.v2 as tf
 
 _RANDOM_SEED = 1337
 _TRAIN_SIZE = 200
@@ -129,9 +129,16 @@ def get_multi_inputs_multi_outputs_data():
   return (train_data, test_data)
 
 
-def batch_wrapper(dataset, batch_size, distribution, repeat=None):
+def batch_wrapper(dataset,
+                  batch_size,
+                  distribution,
+                  repeat=None,
+                  input_context=None):
   if repeat:
     dataset = dataset.repeat(repeat)
+  if input_context:
+    dataset = dataset.shard(input_context.num_input_pipelines,
+                            input_context.input_pipeline_id)
   # TPUs currently require fully defined input shapes, drop_remainder ensures
   # the input will have fully defined shapes.
   if backend.is_tpu_strategy(distribution):
@@ -163,6 +170,19 @@ def get_dataset(distribution):
   dataset = dataset.repeat(100)
   dataset = batch_wrapper(dataset, 10, distribution)
   return dataset
+
+
+def get_dataset_creator(distribution):
+
+  def dataset_fn(input_context):
+    inputs = np.zeros((10, 3), dtype=np.float32)
+    targets = np.zeros((10, 4), dtype=np.float32)
+    dataset = tf.data.Dataset.from_tensor_slices((inputs, targets))
+    dataset = dataset.repeat(100)
+    dataset = batch_wrapper(dataset, 10, distribution, None, input_context)
+    return dataset
+
+  return dataset_creator.DatasetCreator(dataset_fn)
 
 
 def get_predict_dataset(distribution):
@@ -211,6 +231,11 @@ def tpu_strategy_combinations():
       distribution=tpu_strategies, mode=['graph', 'eager'])
 
 
+def use_dataset_creator_combinations():
+  return tf.__internal__.test.combinations.combine(
+      use_dataset_creator=[True, False])
+
+
 def tpu_strategy_combinations_graph_only():
   return tf.__internal__.test.combinations.combine(distribution=tpu_strategies, mode=['graph'])
 
@@ -218,6 +243,11 @@ def tpu_strategy_combinations_graph_only():
 def multi_worker_strategy_combinations_eager_only():
   return tf.__internal__.test.combinations.combine(
       distribution=multi_worker_mirrored_strategies, mode=['eager'])
+
+
+def parameter_server_strategy_combinations_eager_only():
+  return tf.__internal__.test.combinations.combine(
+      distribution=parameter_server_strategies_multi_worker, mode=['eager'])
 
 
 def all_strategy_combinations():
@@ -2393,7 +2423,7 @@ class TestDistributionStrategyWithKerasModels(tf.test.TestCase,
   def test_unimplemented_parameter_server_strategy(self):
     cluster_spec = multi_worker_testing_utils.create_in_process_cluster(
         num_workers=3, num_ps=2)
-    cluster_resolver = SimpleClusterResolver(
+    cluster_resolver = tf.distribute.cluster_resolver.SimpleClusterResolver(
         cluster_spec=tf.train.ClusterSpec(cluster_spec),
         task_type='worker',
         task_id=1,
