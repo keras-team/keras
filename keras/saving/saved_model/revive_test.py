@@ -200,7 +200,7 @@ class ReviveTestBase(keras_parameterized.TestCase):
                         self.evaluate(revived.weights))
     input_arr = tf.constant(
         np.random.random((2, 2, 3)).astype(np.float32))
-    if isinstance(revived._saved_model_inputs_spec,
+    if isinstance(revived.save_spec()[0][0],
                   tf.SparseTensorSpec):
       input_arr = tf.sparse.from_dense(input_arr)
 

@@ -317,6 +317,10 @@ tf_class {
     argspec: "args=[\'self\', \'filepath\', \'overwrite\', \'include_optimizer\', \'save_format\', \'signatures\', \'options\', \'save_traces\'], varargs=None, keywords=None, defaults=[\'True\', \'True\', \'None\', \'None\', \'None\', \'True\'], "
   }
   member_method {
+    name: "save_spec"
+    argspec: "args=[\'self\', \'dynamic_batch\'], varargs=None, keywords=None, defaults=[\'True\'], "
+  }
+  member_method {
     name: "save_weights"
     argspec: "args=[\'self\', \'filepath\', \'overwrite\', \'save_format\', \'options\'], varargs=None, keywords=None, defaults=[\'True\', \'None\', \'None\'], "
   }

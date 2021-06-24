@@ -193,9 +193,7 @@ def wrap_layer_functions(layer, serialization_cache):
     with base_layer_utils.call_context().enter(
         layer, inputs=None, build_graph=True, training=None, saving=True):
       for fn in fns.values():
-        if fn is not None and fn.input_signature is not None:
-          if isinstance(fn, LayerCall):
-            fn = fn.wrapped_call
+        if fn is not None and not isinstance(fn, LayerCall):
           fn.get_concrete_function()
 
   # Restore overwritten functions and losses
@@ -208,7 +206,6 @@ def wrap_layer_functions(layer, serialization_cache):
 def default_save_signature(layer):
   original_losses = _reset_layer_losses(layer)
   fn = saving_utils.trace_model_call(layer)
-  fn.get_concrete_function()
   _restore_layer_losses(original_losses)
   return fn
 
@@ -395,38 +392,31 @@ class LayerCallCollection(object):
     self._training_arg_index = utils.get_training_arg_index(
         self.layer_call_method)
 
-    # If the layer call function has kwargs, then the traced function cannot
-    # have an input signature.
-    arg_spec = tf_inspect.getfullargspec(self.layer_call_method)
-    self._has_kwargs = bool(self._expects_training_arg or
-                            arg_spec.defaults or
-                            arg_spec.kwonlyargs or
-                            arg_spec.varkw)
-
-    self._input_signature = self._generate_input_signature(layer)
+    self._layer_inputs = self._get_layer_inputs(layer)
     self._functions = weakref.WeakValueDictionary()
 
     # Get the input argument name from the args.
+    arg_spec = tf_inspect.getfullargspec(self.layer_call_method)
     args = arg_spec.args
     if tf_inspect.ismethod(self.layer_call_method):
       args = args[1:]
     self._input_arg_name = args[0] if args else 'inputs'
 
-  def _generate_input_signature(self, layer):
+  def _get_layer_inputs(self, layer):
     """Inspects layer object and returns the inferred input signature.
 
     Args:
       layer: Layer object.
 
     Returns:
-      List of possibly nested TensorSpecs of the layer call function inputs.
-      The list does not contain the `training` argument.
+      List of possibly nested TensorSpecs of the layer call function inputs in
+      the form of `(args, kwargs)`
     """
     if (isinstance(layer.call, tf.__internal__.function.Function) and
         layer.call.input_signature is not None):
-      return layer.call.input_signature
+      return layer.call.input_signature, {}
     elif isinstance(layer, training_lib.Model):
-      return saving_utils.model_input_signature(layer)
+      return saving_utils.model_call_inputs(layer)
     elif (layer.input_spec is not None and
           layer._use_input_spec_as_call_signature):  # pylint: disable=protected-access
 
@@ -437,14 +427,14 @@ class LayerCallCollection(object):
         # inferred input signature.
         # TODO(b/134962016): currently partial signatures are not supported.
         if spec.shape == tf.TensorShape(None):
-          return None
+          return None, None
         return spec
       input_signature = [tf.nest.map_structure(
           to_tensor_spec_or_none, layer.input_spec)]
 
-      return input_signature
+      return input_signature, {}
     else:
-      return None
+      return None, None
 
   def add_trace(self, *args, **kwargs):
     """Traces all functions with the same args and kwargs.
@@ -468,18 +458,6 @@ class LayerCallCollection(object):
         trace_with_training(False)
       else:
         add_trace_to_queue(fn, args, kwargs)
-
-  @property
-  def fn_input_signature(self):
-    """Returns input signature for the wrapped layer call function."""
-    if self._has_kwargs:
-      # Input signatures may only describe tensor arguments and kwargs are not
-      # supported.
-      return None
-    if None in tf.nest.flatten(self._input_signature):
-      # TODO(b/134962016): If input signature cannot be partially defined.
-      return None
-    return self._input_signature
 
   def training_arg_was_passed(self, args, kwargs):
     if not self.layer._expects_training_arg and self._expects_training_arg:  # pylint: disable=protected-access
@@ -554,17 +532,17 @@ class LayerCallCollection(object):
     fn = LayerCall(
         self,
         self._maybe_wrap_with_training_arg(call_fn, match_layer_training_arg),
-        name,
-        input_signature=self.fn_input_signature)
+        name)
     self._functions[name] = fn.wrapped_call
     return fn
 
   def trace_with_input_signature(self):
     """Trace with the layer/models inferred input signature if possible."""
-    if (None not in tf.nest.flatten(self._input_signature) and self._has_kwargs):
+    if None not in tf.nest.flatten(self._layer_inputs):
       # Manually add traces for layers that have keyword arguments and have
       # a fully defined input signature.
-      self.add_trace(*self._input_signature)
+      args, kwargs = self._layer_inputs
+      self.add_trace(*args, **kwargs)
 
 
 def _filtered_inputs(inputs):
@@ -606,7 +584,7 @@ def layer_call_wrapper(call_collection, method, name):
 class LayerCall(object):
   """Function that triggers traces of other functions in the same collection."""
 
-  def __init__(self, call_collection, call_fn, name, input_signature):
+  def __init__(self, call_collection, call_fn, name):
     """Initializes a LayerCall object.
 
     Args:
@@ -615,13 +593,10 @@ class LayerCall(object):
         functions should be traced with the same arguments.
       call_fn: A call function.
       name: Name of the call function.
-      input_signature: Input signature of call_fn (can be None).
     """
     self.call_collection = call_collection
-    self.input_signature = input_signature
     self.wrapped_call = tf.function(
-        layer_call_wrapper(call_collection, call_fn, name),
-        input_signature=input_signature)
+        layer_call_wrapper(call_collection, call_fn, name))
     self.original_layer_call = call_collection.layer_call_method
 
   def _maybe_trace(self, args, kwargs):
