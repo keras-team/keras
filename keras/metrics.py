@@ -1038,9 +1038,9 @@ class _ConfusionMatrixConditionCount(Metric):
     return tf.convert_to_tensor(result)
 
   def reset_state(self):
-    num_thresholds = len(to_list(self.thresholds))
-    backend.batch_set_value(
-        [(v, np.zeros((num_thresholds,))) for v in self.variables])
+    backend.batch_set_value([
+        (v, np.zeros(v.shape.as_list())) for v in self.variables
+    ])
 
   def get_config(self):
     config = {'thresholds': self.init_thresholds}
@@ -3175,8 +3175,9 @@ class MeanTensor(Metric):
 
   def reset_state(self):
     if self._built:
-      backend.batch_set_value(
-          [(v, np.zeros(self._shape.as_list())) for v in self.variables])
+      backend.batch_set_value([
+          (v, np.zeros(v.shape.as_list())) for v in self.variables
+      ])
 
 
 @keras_export('keras.metrics.BinaryCrossentropy')

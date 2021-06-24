@@ -108,22 +108,28 @@ class ShardedVariableTest(tf.test.TestCase):
 
   def test_keras_metrics(self):
     with self.strategy.scope():
+      fp = keras.metrics.FalsePositives(thresholds=[0.2, 0.5, 0.7, 0.8])
       auc = keras.metrics.AUC(num_thresholds=10)
 
     @tf.function
     def update():
+      fp.update_state([0., 1., 0., 0.], [0., 0., 0.3, 0.9])
       auc.update_state([0, 0, 1, 1], [0, 0.5, 0.3, 0.9])
 
     @tf.function
     def reset():
+      fp.reset_state()
       auc.reset_state()
 
     update()
     self.assertEqual(auc.result(), 0.75)
+    self.assertAllEqual(fp.result(), [2., 1., 1., 1.])
     reset()
     self.assertEqual(auc.result(), 0.0)
+    self.assertAllEqual(fp.result(), [0., 0., 0., 0.])
 
     self.assertTrue(hasattr(auc.true_positives, 'variables'))
+    self.assertTrue(hasattr(fp.accumulator, 'variables'))
 
   def test_saved_model(self):
 
