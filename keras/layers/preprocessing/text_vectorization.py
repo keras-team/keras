@@ -137,7 +137,9 @@ class TextVectorization(base_preprocessing_layer.PreprocessingLayer):
           the number of times the token at that index appeared in the
           batch item.
         - `"tf_idf"`: Like `"multi_hot"`, but the TF-IDF algorithm is applied to
-          find the value in each token slot.
+          find the value in each token slot. Note that there is a known
+          limitation where TF-IDF mode used in TextVectorization causes a
+          ~20-30x slowdown compared to using int mode.
       For `"int"` output, any shape of input and output is supported. For all
       other output modes, currently only rank 1 inputs (and rank 2 outputs after
       splitting) are supported.
