@@ -286,8 +286,11 @@ class RandomCrop(base_layer.Layer):
       return outputs
 
     input_shape = inputs.shape.as_list()
+    h_axis = input_shape[H_AXIS]
+    w_axis = input_shape[W_AXIS]
 
-    if self.height > input_shape[H_AXIS] or self.width > input_shape[W_AXIS]:
+    if h_axis is not None and w_axis is not None and (self.height > h_axis or
+                                                      self.width > w_axis):
       output = resize_and_center_cropped_inputs()
     else:
       output = control_flow_util.smart_cond(training, random_cropped_inputs,
