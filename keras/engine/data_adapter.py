@@ -511,7 +511,7 @@ class DatasetCreatorAdapter(DataAdapter):
     # We expect users to shuffle the dataset in their `dataset_fn` supplied to
     # `DatasetCreator`. Since that is a buffered shuffle, we intend to not reset
     # the dataset so the batches that are not shuffled can still be pulled.
-    return False
+    return True
 
   def get_size(self):
     return None  # To be inferred by `DataHandler`.
@@ -1375,6 +1375,18 @@ class _ClusterCoordinatorDataHandler(DataHandler):
 
   def sync(self):
     self._model._cluster_coordinator.join()  # pylint: disable=protected-access
+
+  @contextlib.contextmanager
+  def catch_stop_iteration(self):
+    """Catches errors when an iterator runs out of data."""
+    try:
+      yield
+      self.sync()
+    except (StopIteration, tf.errors.OutOfRangeError):
+      if self._inferred_steps is None:
+        self._inferred_steps = self._current_step
+      else:
+        pass
 
 
 def get_data_handler(*args, **kwargs):

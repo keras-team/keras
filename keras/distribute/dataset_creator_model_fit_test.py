@@ -45,29 +45,37 @@ class DatasetCreatorModelFitTest(test_base.DatasetCreatorModelFitTestBase):
     self.assertEqual(model.optimizer.iterations, 100)
 
   def testModelFitwithStepsPerEpochNegativeOne(self, strategy):
+    if isinstance(strategy,
+                  tf.distribute.experimental.ParameterServerStrategy):
+      self.skipTest("PSS will run forever in this case. So let's skip it.")
+
     def dataset_fn(input_context):
       del input_context
       x = tf.random.uniform((10, 10))
       y = tf.random.uniform((10,))
       return tf.data.Dataset.from_tensor_slices(
-          (x, y)).shuffle(10).batch(2)
+          (x, y)).shuffle(10).batch(1)
 
-    if strategy._should_use_with_coordinator:
-      with self.assertRaises((tf.errors.OutOfRangeError,
-                              tf.errors.CancelledError)):
-        self._model_fit(
-            strategy,
-            steps_per_epoch=-1,
-            x=dataset_creator.DatasetCreator(dataset_fn),
-            validation_data=dataset_creator.DatasetCreator(dataset_fn),
-        )
-    else:
-      self._model_fit(
-          strategy,
-          steps_per_epoch=-1,
-          x=dataset_creator.DatasetCreator(dataset_fn),
-          validation_data=dataset_creator.DatasetCreator(dataset_fn),
-      )
+    self._model_fit(
+        strategy,
+        steps_per_epoch=-1,
+        x=dataset_creator.DatasetCreator(dataset_fn),
+        validation_data=dataset_creator.DatasetCreator(dataset_fn),
+    )
+
+  def testModelFitwithStepsPerEpochLimitedData(self, strategy):
+    def dataset_fn(input_context):
+      del input_context
+      x = tf.random.uniform((10, 10))
+      y = tf.random.uniform((10,))
+      return tf.data.Dataset.from_tensor_slices(
+          (x, y)).shuffle(10).batch(1)
+
+    self._model_fit(
+        strategy,
+        x=dataset_creator.DatasetCreator(dataset_fn),
+        validation_data=dataset_creator.DatasetCreator(dataset_fn),
+    )
 
   def testModelFitWithNumpyData(self, strategy):
     x = np.random.rand(100, 10)

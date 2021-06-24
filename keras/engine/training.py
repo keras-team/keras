@@ -1029,8 +1029,6 @@ class Model(base_layer.Layer, version_utils.ModelVersionSelector):
             `steps_per_epoch` argument. If `steps_per_epoch=-1` the training
             will run indefinitely with an infinitely repeating dataset.
             This argument is not supported with array inputs.
-            When using `tf.distribute.experimental.ParameterServerStrategy`:
-              * `steps_per_epoch=None` is not supported.
         validation_steps: Only relevant if `validation_data` is provided and
             is a `tf.data` dataset. Total number of steps (batches of
             samples) to draw before stopping when performing validation
