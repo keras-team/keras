@@ -74,6 +74,9 @@ class LayerNormalizationTest(keras_parameterized.TestCase):
         keras.layers.LayerNormalization,
         kwargs={'axis': (-3, -2, -1)},
         input_shape=(2, 8, 8, 3))
+    testing_utils.layer_test(
+        keras.layers.LayerNormalization,
+        input_shape=(1, 0, 10))
 
   @keras_parameterized.run_all_keras_modes
   def test_non_fused_layernorm(self):
