@@ -32,20 +32,19 @@ of documentation fix), then feel free to open a PR without discussion.
 
 ### The small print
 
-Contributions made by corporations are covered by a different agreement than
-the one above, the
-[Software Grant and Corporate Contributor License Agreement](
-https://cla.developers.google.com/about/google-corporate).
+Contributions made by corporations are covered by a different agreement than the
+one above, see the
+[Software Grant and Corporate Contributor License Agreement](https://cla.developers.google.com/about/google-corporate).
 
 ### Tools needed for development
 
-1. [Bazel](https://bazel.build/) is the tool to build and test Keras project.
-   See [installtation guild](https://docs.bazel.build/versions/4.0.0/install.html)
-   for how to install and config bazel for your local environment.
-2. [git](https://github.com/) for code repository management.
-3. [python](https://www.python.org/) for build and test Keras project.
+1.  [Bazel](https://bazel.build/) is the tool to build and test Keras. See the
+    [installation guide](https://docs.bazel.build/versions/4.0.0/install.html)
+    for how to install and config bazel for your local environment.
+2.  [git](https://github.com/) for code repository management.
+3.  [python](https://www.python.org/) to build and code in Keras.
 
-### Setup and check local workspace
+### Setup and configure local workspace
 
 Using Apple Mac as an example (and linux will be very similar), the following
 commands set up and check the configuration of a local workspace.
@@ -69,7 +68,7 @@ scottzhu-macbookpro2:~ scottzhu$ mkdir workspace
 scottzhu-macbookpro2:~ scottzhu$ cd workspace/
 ```
 
-### Download keras code and setup virtual environment
+### Download code and set up virtual environment
 
 A [Python virtual environment](https://docs.python.org/3/tutorial/venv.html) is a
 powerful tool to create a self-contained environment that isolates any change
@@ -137,7 +136,7 @@ INFO: Build completed successfully, 20 total actions
 INFO: Build completed successfully, 20 total actions
 ```
 
-### Creating PR and wait for review
+### Create a PR and wait for review
 
 Once the local change is made and verified with tests, you can open a PR in
 [keras-team/keras](https://github.com/keras-team/keras). After the PR is sent,
